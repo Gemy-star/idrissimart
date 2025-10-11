@@ -145,11 +145,8 @@ LANGUAGES = [
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 STATIC_URL = "static/"
-# Look for static files in the 'static' directory at project root
-STATICFILES_DIRS = [
-    BASE_DIR / "static",
-]
-
+STATICFILES_DIRS = [BASE_DIR / "static"]
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 # Media files (User-uploaded content, like product images)
 MEDIA_URL = "/media/"
 # Store uploaded media files in the 'media' directory at project root

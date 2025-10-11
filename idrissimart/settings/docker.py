@@ -2,7 +2,6 @@ import os
 import tempfile
 
 # Import specific settings instead of star import
-from .common import BASE_DIR
 
 DEBUG = False
 
@@ -38,7 +37,6 @@ DATABASES = {
 # =======================
 # Static & Media
 # =======================
-STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 # Use system temp directory instead of hardcoded path
 FILE_UPLOAD_TEMP_DIR = os.getenv(
     "FILE_UPLOAD_TEMP_DIR",
