@@ -23,7 +23,7 @@ themeToggle.addEventListener('click', () => {
 });
 
 // ===========================
-// Country Selector
+// Country Selector with AJAX
 // ===========================
 const countryFlags = {
     'SA': '🇸🇦',
@@ -36,28 +36,75 @@ const countryFlags = {
     'JO': '🇯🇴'
 };
 
+// Get CSRF token helper function
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
 // Load saved country or default to SA
 const savedCountry = localStorage.getItem('selectedCountry') || 'SA';
 updateCountryDisplay(savedCountry);
 
 document.querySelectorAll('.country-item').forEach(item => {
-    item.addEventListener('click', function(e) {
+    item.addEventListener('click', async function(e) {
         e.preventDefault();
         const country = this.getAttribute('data-country');
-
-        // Update active state
-        document.querySelectorAll('.country-item').forEach(i => i.classList.remove('active'));
-        this.classList.add('active');
-
-        // Save preference
-        localStorage.setItem('selectedCountry', country);
-
-        // Update display
-        updateCountryDisplay(country);
-
-        // Show notification
         const countryName = this.querySelector('.country-name').textContent;
-        showNotification(`تم تغيير الدولة إلى ${countryName}`);
+
+        // Add loading state
+        const originalHTML = this.innerHTML;
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحميل...';
+        this.style.pointerEvents = 'none';
+
+        try {
+            // Send AJAX request to backend
+            const response = await fetch('/api/set-country/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: `country_code=${country}`
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Update active state
+                document.querySelectorAll('.country-item').forEach(i => i.classList.remove('active'));
+                this.classList.add('active');
+
+                // Save preference in localStorage
+                localStorage.setItem('selectedCountry', country);
+
+                // Update display
+                updateCountryDisplay(country);
+
+                // Show success notification
+                showNotification(`✓ ${countryName}`, 'success');
+            } else {
+                // Show error notification
+                showNotification(`✗ ${data.message}`, 'error');
+            }
+        } catch (error) {
+            console.error('Error setting country:', error);
+            showNotification('✗ حدث خطأ في تغيير الدولة', 'error');
+        } finally {
+            // Restore original HTML
+            this.innerHTML = originalHTML;
+            this.style.pointerEvents = '';
+        }
     });
 });
 
@@ -155,27 +202,63 @@ function updateBadgeCount(type, count) {
 // ===========================
 // Notification Function
 // ===========================
-function showNotification(message) {
+function showNotification(message, type = 'success') {
+    const colors = {
+        success: 'linear-gradient(135deg, #4B315E 0%, #6B4C7A 100%)',
+        error: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
+        info: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)',
+        warning: 'linear-gradient(135deg, #f39c12 0%, #e67e22 100%)'
+    };
+
+    const icons = {
+        success: '✓',
+        error: '✗',
+        info: 'ℹ',
+        warning: '⚠'
+    };
+
     const notification = document.createElement('div');
+    notification.className = 'custom-notification';
     notification.style.cssText = `
         position: fixed;
         top: 100px;
         right: 20px;
-        background: linear-gradient(135deg, #4B315E 0%, #6B4C7A 100%);
+        background: ${colors[type] || colors.success};
         color: white;
         padding: 15px 25px;
         border-radius: 10px;
         box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
         z-index: 9999;
-        animation: slideInRight 0.3s ease;
         font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        max-width: 350px;
     `;
-    notification.textContent = message;
+
+    notification.innerHTML = `
+        <span style="font-size: 1.2rem;">${icons[type] || icons.success}</span>
+        <span>${message}</span>
+    `;
+
     document.body.appendChild(notification);
 
+    // Animate in with GSAP
+    gsap.from(notification, {
+        x: 400,
+        opacity: 0,
+        duration: 0.3,
+        ease: 'back.out(1.7)'
+    });
+
+    // Animate out and remove
     setTimeout(() => {
-        notification.style.animation = 'slideOutRight 0.3s ease';
-        setTimeout(() => notification.remove(), 300);
+        gsap.to(notification, {
+            x: 400,
+            opacity: 0,
+            duration: 0.3,
+            onComplete: () => notification.remove()
+        });
     }, 3000);
 }
 

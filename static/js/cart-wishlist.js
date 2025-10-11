@@ -1,5 +1,5 @@
 // ===========================
-// Cart & Wishlist Helper Functions
+// Cart & Wishlist Helper Functions with AJAX
 // FILE: static/js/cart-wishlist.js
 // ===========================
 
@@ -29,18 +29,27 @@ const csrftoken = getCookie('csrftoken');
 function updateBadgeCount(type, count) {
     const badge = document.querySelector(`.${type}-count`);
     if (badge) {
-        // Animate the badge
-        gsap.to(badge, {
-            scale: 1.5,
-            duration: 0.2,
-            onComplete: () => {
-                badge.textContent = count;
-                gsap.to(badge, {
-                    scale: 1,
-                    duration: 0.2
-                });
-            }
-        });
+        // Animate the badge with GSAP if available
+        if (typeof gsap !== 'undefined') {
+            gsap.to(badge, {
+                scale: 1.5,
+                duration: 0.2,
+                onComplete: () => {
+                    badge.textContent = count;
+                    gsap.to(badge, {
+                        scale: 1,
+                        duration: 0.2
+                    });
+                }
+            });
+        } else {
+            // Fallback animation
+            badge.style.transform = 'scale(1.5)';
+            badge.textContent = count;
+            setTimeout(() => {
+                badge.style.transform = 'scale(1)';
+            }, 200);
+        }
     }
 }
 
@@ -52,6 +61,12 @@ function showNotification(message, type = 'success') {
         success: 'linear-gradient(135deg, #4B315E 0%, #6B4C7A 100%)',
         error: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
         info: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)'
+    };
+
+    const icons = {
+        success: '✓',
+        error: '✗',
+        info: 'ℹ'
     };
 
     const notification = document.createElement('div');
@@ -73,32 +88,40 @@ function showNotification(message, type = 'success') {
         max-width: 350px;
     `;
 
-    const icon = type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ';
-    notification.innerHTML = `<span style="font-size: 1.2rem;">${icon}</span> ${message}`;
+    notification.innerHTML = `<span style="font-size: 1.2rem;">${icons[type]}</span> ${message}`;
 
     document.body.appendChild(notification);
 
     // Animate in
-    gsap.from(notification, {
-        x: 400,
-        opacity: 0,
-        duration: 0.3,
-        ease: 'back.out(1.7)'
-    });
-
-    // Animate out and remove
-    setTimeout(() => {
-        gsap.to(notification, {
+    if (typeof gsap !== 'undefined') {
+        gsap.from(notification, {
             x: 400,
             opacity: 0,
             duration: 0.3,
-            onComplete: () => notification.remove()
+            ease: 'back.out(1.7)'
         });
-    }, 3000);
+
+        // Animate out and remove
+        setTimeout(() => {
+            gsap.to(notification, {
+                x: 400,
+                opacity: 0,
+                duration: 0.3,
+                onComplete: () => notification.remove()
+            });
+        }, 3000);
+    } else {
+        // Fallback animation
+        notification.style.animation = 'slideInRight 0.3s ease';
+        setTimeout(() => {
+            notification.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
 }
 
 /**
- * Add item to cart
+ * Add item to cart with AJAX
  */
 async function addToCart(itemId, itemName = 'المنتج') {
     try {
@@ -115,26 +138,26 @@ async function addToCart(itemId, itemName = 'المنتج') {
 
         if (data.success) {
             updateBadgeCount('cart', data.cart_count);
-            showNotification(`تمت إضافة ${itemName} إلى السلة`, 'success');
+            showNotification(`✓ تمت إضافة ${itemName} إلى السلة`, 'success');
 
             // Trigger custom event
             document.dispatchEvent(new CustomEvent('cartUpdated', {
-                detail: { count: data.cart_count }
+                detail: { count: data.cart_count, itemId: itemId }
             }));
         } else {
-            showNotification(data.message, 'error');
+            showNotification(`✗ ${data.message}`, 'error');
         }
 
         return data;
     } catch (error) {
         console.error('Error adding to cart:', error);
-        showNotification('حدث خطأ في إضافة المنتج', 'error');
+        showNotification('✗ حدث خطأ في إضافة المنتج', 'error');
         return { success: false };
     }
 }
 
 /**
- * Remove item from cart
+ * Remove item from cart with AJAX
  */
 async function removeFromCart(itemId, itemName = 'المنتج') {
     try {
@@ -151,25 +174,25 @@ async function removeFromCart(itemId, itemName = 'المنتج') {
 
         if (data.success) {
             updateBadgeCount('cart', data.cart_count);
-            showNotification(`تمت إزالة ${itemName} من السلة`, 'success');
+            showNotification(`✓ تمت إزالة ${itemName} من السلة`, 'success');
 
             document.dispatchEvent(new CustomEvent('cartUpdated', {
-                detail: { count: data.cart_count }
+                detail: { count: data.cart_count, itemId: itemId }
             }));
         } else {
-            showNotification(data.message, 'error');
+            showNotification(`✗ ${data.message}`, 'error');
         }
 
         return data;
     } catch (error) {
         console.error('Error removing from cart:', error);
-        showNotification('حدث خطأ في إزالة المنتج', 'error');
+        showNotification('✗ حدث خطأ في إزالة المنتج', 'error');
         return { success: false };
     }
 }
 
 /**
- * Add item to wishlist
+ * Add item to wishlist with AJAX
  */
 async function addToWishlist(itemId, itemName = 'المنتج') {
     try {
@@ -186,25 +209,25 @@ async function addToWishlist(itemId, itemName = 'المنتج') {
 
         if (data.success) {
             updateBadgeCount('wishlist', data.wishlist_count);
-            showNotification(`تمت إضافة ${itemName} إلى المفضلة`, 'success');
+            showNotification(`✓ تمت إضافة ${itemName} إلى المفضلة`, 'success');
 
             document.dispatchEvent(new CustomEvent('wishlistUpdated', {
-                detail: { count: data.wishlist_count }
+                detail: { count: data.wishlist_count, itemId: itemId }
             }));
         } else {
-            showNotification(data.message, 'error');
+            showNotification(`✗ ${data.message}`, 'error');
         }
 
         return data;
     } catch (error) {
         console.error('Error adding to wishlist:', error);
-        showNotification('حدث خطأ في إضافة المنتج', 'error');
+        showNotification('✗ حدث خطأ في إضافة المنتج', 'error');
         return { success: false };
     }
 }
 
 /**
- * Remove item from wishlist
+ * Remove item from wishlist with AJAX
  */
 async function removeFromWishlist(itemId, itemName = 'المنتج') {
     try {
@@ -221,19 +244,19 @@ async function removeFromWishlist(itemId, itemName = 'المنتج') {
 
         if (data.success) {
             updateBadgeCount('wishlist', data.wishlist_count);
-            showNotification(`تمت إزالة ${itemName} من المفضلة`, 'success');
+            showNotification(`✓ تمت إزالة ${itemName} من المفضلة`, 'success');
 
             document.dispatchEvent(new CustomEvent('wishlistUpdated', {
-                detail: { count: data.wishlist_count }
+                detail: { count: data.wishlist_count, itemId: itemId }
             }));
         } else {
-            showNotification(data.message, 'error');
+            showNotification(`✗ ${data.message}`, 'error');
         }
 
         return data;
     } catch (error) {
         console.error('Error removing from wishlist:', error);
-        showNotification('حدث خطأ في إزالة المنتج', 'error');
+        showNotification('✗ حدث خطأ في إزالة المنتج', 'error');
         return { success: false };
     }
 }
@@ -289,12 +312,14 @@ function initializeCartWishlistButtons() {
             const isInWishlist = this.classList.contains('active');
 
             // Add animation
-            gsap.to(button, {
-                scale: 1.3,
-                duration: 0.2,
-                yoyo: true,
-                repeat: 1
-            });
+            if (typeof gsap !== 'undefined') {
+                gsap.to(button, {
+                    scale: 1.3,
+                    duration: 0.2,
+                    yoyo: true,
+                    repeat: 1
+                });
+            }
 
             if (isInWishlist) {
                 const result = await removeFromWishlist(itemId, itemName);
@@ -320,11 +345,11 @@ if (document.readyState === 'loading') {
 
 // Listen for custom events
 document.addEventListener('cartUpdated', (e) => {
-    console.log('Cart updated:', e.detail.count);
+    console.log('Cart updated:', e.detail);
 });
 
 document.addEventListener('wishlistUpdated', (e) => {
-    console.log('Wishlist updated:', e.detail.count);
+    console.log('Wishlist updated:', e.detail);
 });
 
 // Export functions for global use
