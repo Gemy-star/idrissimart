@@ -48,7 +48,7 @@ def verified_user_required(view_func):
     @login_required
     def wrapper(request, *args, **kwargs):
         if request.user.verification_status != "verified":
-            warning_msg = "يجب توثيق حسابك أولاً - " "You must verify your account first"
+            warning_msg = "يجب توثيق حسابك أولاً - You must verify your account first"
             messages.warning(request, warning_msg)
             return redirect("profile_verification")
         return view_func(request, *args, **kwargs)
@@ -132,7 +132,7 @@ def api_profile_type_required(*allowed_types):
                 error_response = {
                     "error": "Permission denied",
                     "message": (
-                        "Your profile type does not have access " "to this resource"
+                        "Your profile type does not have access to this resource"
                     ),
                     "required_types": list(allowed_types),
                     "your_type": request.user.profile_type,

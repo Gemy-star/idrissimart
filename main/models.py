@@ -424,7 +424,7 @@ class User(AbstractUser):
             ),
             (
                 "can_bid_on_services",
-                "يمكنه تقديم عروض على طلبات الخدمات - " "Can bid on service requests",
+                "يمكنه تقديم عروض على طلبات الخدمات - Can bid on service requests",
             ),
             (
                 "can_request_services",
@@ -433,7 +433,7 @@ class User(AbstractUser):
             # Training Course Permissions
             (
                 "can_create_courses",
-                "يمكنه إنشاء الدورات التدريبية - " "Can create training courses",
+                "يمكنه إنشاء الدورات التدريبية - Can create training courses",
             ),
             (
                 "can_manage_courses",
@@ -472,7 +472,7 @@ class User(AbstractUser):
             # Premium Features
             (
                 "can_access_premium_features",
-                "يمكنه الوصول للمزايا المميزة - " "Can access premium features",
+                "يمكنه الوصول للمزايا المميزة - Can access premium features",
             ),
             (
                 "can_boost_listings",
