@@ -7,8 +7,8 @@ from .common import BASE_DIR
 DEBUG = False
 
 ALLOWED_HOSTS = [
-    "mnory.com",
-    "www.mnory.com",
+    "idrissimart.com",
+    "www.idrissimart.com",
     "localhost",
     "127.0.0.1",
     "45.9.191.23",
@@ -23,8 +23,8 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
-        "NAME": os.getenv("DB_NAME", "mnorydb"),
-        "USER": os.getenv("DB_USER", "mnory"),
+        "NAME": os.getenv("DB_NAME", "idrissimartdb"),
+        "USER": os.getenv("DB_USER", "idrissimart"),
         "PASSWORD": os.getenv("DB_PASSWORD", ""),  # Set via environment
         "HOST": os.getenv("DB_HOST", "127.0.0.1"),
         "PORT": os.getenv("DB_PORT", "3306"),
