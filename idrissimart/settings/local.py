@@ -1,4 +1,3 @@
-# Import specific settings instead of star import
 from .common import (  # noqa: F401
     ALLOWED_HOSTS,
     AUTH_PASSWORD_VALIDATORS,
@@ -33,12 +32,19 @@ from .common import (  # noqa: F401
 
 DEBUG = True
 
-# Extend INSTALLED_APPS
+# ✅ Add STATIC_ROOT for collectstatic
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# ✅ Extend INSTALLED_APPS safely
 INSTALLED_APPS = list(INSTALLED_APPS)
 if "silk" not in INSTALLED_APPS:
-    INSTALLED_APPS += ["silk"]
+    INSTALLED_APPS.append("silk")
 
-# Extend MIDDLEWARE
+# ✅ Extend MIDDLEWARE safely
 MIDDLEWARE = list(MIDDLEWARE)
 if "silk.middleware.SilkyMiddleware" not in MIDDLEWARE:
-    MIDDLEWARE += ["silk.middleware.SilkyMiddleware"]
+    MIDDLEWARE.append("silk.middleware.SilkyMiddleware")
+
+# ✅ Optional: Silk auth settings
+SILKY_AUTHENTICATION = True
+SILKY_AUTHORISATION = True
