@@ -22,7 +22,7 @@ const config = {
 
   // An array of glob patterns indicating a set of files for which coverage information should be collected
   // collectCoverageFrom: undefined,
-  collectCoverageFrom: ['orange_cyberrating/static/js/**/*.js'],
+  collectCoverageFrom: ['./static/js/**/*.js'],
 
   // The directory where Jest should output its coverage files
   coverageDirectory: 'reports',
@@ -68,7 +68,7 @@ const config = {
   // maxWorkers: "50%",
 
   // An array of directory names to be searched recursively up from the requiring module's location
-  moduleDirectories: ['node_modules', 'orange_cyberrating/static'],
+  moduleDirectories: ['node_modules', './static'],
 
   // An array of file extensions your modules use
   moduleFileExtensions: [
