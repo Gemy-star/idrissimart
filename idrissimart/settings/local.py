@@ -1,0 +1,44 @@
+# Import specific settings instead of star import
+from .common import (  # noqa: F401
+    ALLOWED_HOSTS,
+    AUTH_PASSWORD_VALIDATORS,
+    AUTH_USER_MODEL,
+    BASE_DIR,
+    CONSTANCE_BACKEND,
+    CRISPY_ALLOWED_TEMPLATE_PACKS,
+    CRISPY_TEMPLATE_PACK,
+    DATA_UPLOAD_MAX_MEMORY_SIZE,
+    DATABASES,
+    DEFAULT_AUTO_FIELD,
+    FILE_UPLOAD_MAX_MEMORY_SIZE,
+    INSTALLED_APPS,
+    LANGUAGE_CODE,
+    LANGUAGES,
+    LOCALE_PATHS,
+    MEDIA_ROOT,
+    MEDIA_URL,
+    MIDDLEWARE,
+    ROOT_URLCONF,
+    SECRET_KEY,
+    SITE_ID,
+    STATIC_URL,
+    STATICFILES_DIRS,
+    TEMPLATES,
+    TIME_ZONE,
+    USE_I18N,
+    USE_L10N,
+    USE_TZ,
+    WSGI_APPLICATION,
+)
+
+DEBUG = True
+
+# Extend INSTALLED_APPS
+INSTALLED_APPS = list(INSTALLED_APPS)
+if "silk" not in INSTALLED_APPS:
+    INSTALLED_APPS += ["silk"]
+
+# Extend MIDDLEWARE
+MIDDLEWARE = list(MIDDLEWARE)
+if "silk.middleware.SilkyMiddleware" not in MIDDLEWARE:
+    MIDDLEWARE += ["silk.middleware.SilkyMiddleware"]
