@@ -91,15 +91,15 @@ document.querySelectorAll('.country-item').forEach(item => {
                 // Update display
                 updateCountryDisplay(country);
 
-                // Show success notification
-                showNotification(`✓ ${countryName}`, 'success');
+                // Show success notification with server message
+                showNotification(data.message || `تم التغيير إلى ${countryName}`, 'success');
             } else {
-                // Show error notification
-                showNotification(`✗ ${data.message}`, 'error');
+                // Show error notification with server message
+                showNotification(data.message || 'حدث خطأ', 'error');
             }
         } catch (error) {
             console.error('Error setting country:', error);
-            showNotification('✗ حدث خطأ في تغيير الدولة', 'error');
+            showNotification('حدث خطأ في الاتصال بالخادم', 'error');
         } finally {
             // Restore original HTML
             this.innerHTML = originalHTML;

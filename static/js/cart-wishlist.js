@@ -138,21 +138,23 @@ async function addToCart(itemId, itemName = 'المنتج') {
 
         if (data.success) {
             updateBadgeCount('cart', data.cart_count);
-            showNotification(`✓ تمت إضافة ${itemName} إلى السلة`, 'success');
+            // Use server message if available, otherwise fallback
+            const message = data.message || `تمت إضافة ${itemName} إلى السلة`;
+            showNotification(message, 'success');
 
             // Trigger custom event
             document.dispatchEvent(new CustomEvent('cartUpdated', {
                 detail: { count: data.cart_count, itemId: itemId }
             }));
         } else {
-            showNotification(`✗ ${data.message}`, 'error');
+            showNotification(data.message || 'حدث خطأ', 'error');
         }
 
         return data;
     } catch (error) {
         console.error('Error adding to cart:', error);
-        showNotification('✗ حدث خطأ في إضافة المنتج', 'error');
-        return { success: false };
+        showNotification('حدث خطأ في الاتصال بالخادم', 'error');
+        return { success: false, error: error.message };
     }
 }
 
@@ -174,20 +176,21 @@ async function removeFromCart(itemId, itemName = 'المنتج') {
 
         if (data.success) {
             updateBadgeCount('cart', data.cart_count);
-            showNotification(`✓ تمت إزالة ${itemName} من السلة`, 'success');
+            const message = data.message || `تمت إزالة ${itemName} من السلة`;
+            showNotification(message, 'success');
 
             document.dispatchEvent(new CustomEvent('cartUpdated', {
                 detail: { count: data.cart_count, itemId: itemId }
             }));
         } else {
-            showNotification(`✗ ${data.message}`, 'error');
+            showNotification(data.message || 'حدث خطأ', 'error');
         }
 
         return data;
     } catch (error) {
         console.error('Error removing from cart:', error);
-        showNotification('✗ حدث خطأ في إزالة المنتج', 'error');
-        return { success: false };
+        showNotification('حدث خطأ في الاتصال بالخادم', 'error');
+        return { success: false, error: error.message };
     }
 }
 
@@ -209,20 +212,21 @@ async function addToWishlist(itemId, itemName = 'المنتج') {
 
         if (data.success) {
             updateBadgeCount('wishlist', data.wishlist_count);
-            showNotification(`✓ تمت إضافة ${itemName} إلى المفضلة`, 'success');
+            const message = data.message || `تمت إضافة ${itemName} إلى المفضلة`;
+            showNotification(message, 'success');
 
             document.dispatchEvent(new CustomEvent('wishlistUpdated', {
                 detail: { count: data.wishlist_count, itemId: itemId }
             }));
         } else {
-            showNotification(`✗ ${data.message}`, 'error');
+            showNotification(data.message || 'حدث خطأ', 'error');
         }
 
         return data;
     } catch (error) {
         console.error('Error adding to wishlist:', error);
-        showNotification('✗ حدث خطأ في إضافة المنتج', 'error');
-        return { success: false };
+        showNotification('حدث خطأ في الاتصال بالخادم', 'error');
+        return { success: false, error: error.message };
     }
 }
 
@@ -244,20 +248,21 @@ async function removeFromWishlist(itemId, itemName = 'المنتج') {
 
         if (data.success) {
             updateBadgeCount('wishlist', data.wishlist_count);
-            showNotification(`✓ تمت إزالة ${itemName} من المفضلة`, 'success');
+            const message = data.message || `تمت إزالة ${itemName} من المفضلة`;
+            showNotification(message, 'success');
 
             document.dispatchEvent(new CustomEvent('wishlistUpdated', {
                 detail: { count: data.wishlist_count, itemId: itemId }
             }));
         } else {
-            showNotification(`✗ ${data.message}`, 'error');
+            showNotification(data.message || 'حدث خطأ', 'error');
         }
 
         return data;
     } catch (error) {
         console.error('Error removing from wishlist:', error);
-        showNotification('✗ حدث خطأ في إزالة المنتج', 'error');
-        return { success: false };
+        showNotification('حدث خطأ في الاتصال بالخادم', 'error');
+        return { success: false, error: error.message };
     }
 }
 

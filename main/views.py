@@ -1,4 +1,5 @@
 from django.http import JsonResponse
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 from django.views.generic import TemplateView
 
@@ -18,8 +19,8 @@ class HomeView(TemplateView):
         context["selected_country"] = selected_country
         context["cart_count"] = cart_count
         context["wishlist_count"] = wishlist_count
-        context["page_title"] = "الرئيسية - إدريسي مارت"
-        context["meta_description"] = "منصة تجمع سوق واحد للمختصصين والحرفيين والجمهور العام"
+        context["page_title"] = _("الرئيسية - إدريسي مارت")
+        context["meta_description"] = _("منصة تجمع سوق واحد للمختصصين والحرفيين والجمهور العام")
 
         return context
 
@@ -33,13 +34,14 @@ def set_country(request):
         request.session['selected_country'] = country_code
         return JsonResponse({
             'success': True,
-            'message': 'Country updated successfully'
+            'message': _('Country updated successfully')
         })
 
     return JsonResponse({
         'success': False,
-        'message': 'Invalid country code'
+        'message': _('Invalid country code')
     }, status=400)
+
 
 @require_POST
 def add_to_cart(request):
@@ -47,7 +49,7 @@ def add_to_cart(request):
     item_id = request.POST.get('item_id')
 
     if not item_id:
-        return JsonResponse({'success': False, 'message': 'Item ID required'}, status=400)
+        return JsonResponse({'success': False, 'message': _('Item ID required')}, status=400)
 
     cart = request.session.get('cart', [])
 
@@ -58,14 +60,15 @@ def add_to_cart(request):
 
         return JsonResponse({
             'success': True,
-            'message': 'Item added to cart',
+            'message': _('Item added to cart'),
             'cart_count': len(cart)
         })
 
     return JsonResponse({
         'success': False,
-        'message': 'Item already in cart'
+        'message': _('Item already in cart')
     })
+
 
 @require_POST
 def add_to_wishlist(request):
@@ -73,7 +76,7 @@ def add_to_wishlist(request):
     item_id = request.POST.get('item_id')
 
     if not item_id:
-        return JsonResponse({'success': False, 'message': 'Item ID required'}, status=400)
+        return JsonResponse({'success': False, 'message': _('Item ID required')}, status=400)
 
     wishlist = request.session.get('wishlist', [])
 
@@ -84,14 +87,15 @@ def add_to_wishlist(request):
 
         return JsonResponse({
             'success': True,
-            'message': 'Item added to wishlist',
+            'message': _('Item added to wishlist'),
             'wishlist_count': len(wishlist)
         })
 
     return JsonResponse({
         'success': False,
-        'message': 'Item already in wishlist'
+        'message': _('Item already in wishlist')
     })
+
 
 @require_POST
 def remove_from_cart(request):
@@ -106,14 +110,15 @@ def remove_from_cart(request):
 
         return JsonResponse({
             'success': True,
-            'message': 'Item removed from cart',
+            'message': _('Item removed from cart'),
             'cart_count': len(cart)
         })
 
     return JsonResponse({
         'success': False,
-        'message': 'Item not in cart'
+        'message': _('Item not in cart')
     })
+
 
 @require_POST
 def remove_from_wishlist(request):
@@ -128,11 +133,11 @@ def remove_from_wishlist(request):
 
         return JsonResponse({
             'success': True,
-            'message': 'Item removed from wishlist',
+            'message': _('Item removed from wishlist'),
             'wishlist_count': len(wishlist)
         })
 
     return JsonResponse({
         'success': False,
-        'message': 'Item not in wishlist'
+        'message': _('Item not in wishlist')
     })
