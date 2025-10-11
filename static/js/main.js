@@ -23,6 +23,60 @@ themeToggle.addEventListener('click', () => {
 });
 
 // ===========================
+// Country Selector
+// ===========================
+const countryFlags = {
+    'SA': '🇸🇦',
+    'AE': '🇦🇪',
+    'EG': '🇪🇬',
+    'KW': '🇰🇼',
+    'QA': '🇶🇦',
+    'BH': '🇧🇭',
+    'OM': '🇴🇲',
+    'JO': '🇯🇴'
+};
+
+// Load saved country or default to SA
+const savedCountry = localStorage.getItem('selectedCountry') || 'SA';
+updateCountryDisplay(savedCountry);
+
+document.querySelectorAll('.country-item').forEach(item => {
+    item.addEventListener('click', function(e) {
+        e.preventDefault();
+        const country = this.getAttribute('data-country');
+
+        // Update active state
+        document.querySelectorAll('.country-item').forEach(i => i.classList.remove('active'));
+        this.classList.add('active');
+
+        // Save preference
+        localStorage.setItem('selectedCountry', country);
+
+        // Update display
+        updateCountryDisplay(country);
+
+        // Show notification
+        const countryName = this.querySelector('.country-name').textContent;
+        showNotification(`تم تغيير الدولة إلى ${countryName}`);
+    });
+});
+
+function updateCountryDisplay(countryCode) {
+    const currentCountry = document.querySelector('.current-country');
+    if (currentCountry) {
+        currentCountry.textContent = countryFlags[countryCode];
+        currentCountry.setAttribute('data-country-code', countryCode);
+    }
+
+    // Update active state
+    document.querySelectorAll('.country-item').forEach(item => {
+        if (item.getAttribute('data-country') === countryCode) {
+            item.classList.add('active');
+        }
+    });
+}
+
+// ===========================
 // Language Switcher
 // ===========================
 document.querySelectorAll('.dropdown-item[data-lang]').forEach(item => {
@@ -46,7 +100,6 @@ document.querySelectorAll('.dropdown-item[data-lang]').forEach(item => {
         if (lang === 'ar') {
             document.documentElement.setAttribute('dir', 'rtl');
             document.documentElement.setAttribute('lang', 'ar');
-            // Load Bootstrap RTL
             const bootstrapLink = document.querySelector('link[href*="bootstrap"]');
             if (bootstrapLink && !bootstrapLink.href.includes('rtl')) {
                 bootstrapLink.href = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css';
@@ -54,20 +107,50 @@ document.querySelectorAll('.dropdown-item[data-lang]').forEach(item => {
         } else {
             document.documentElement.setAttribute('dir', 'ltr');
             document.documentElement.setAttribute('lang', 'en');
-            // Load Bootstrap LTR
             const bootstrapLink = document.querySelector('link[href*="bootstrap"]');
             if (bootstrapLink && bootstrapLink.href.includes('rtl')) {
                 bootstrapLink.href = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css';
             }
         }
 
-        // In production, you would redirect to the language-specific URL
-        // window.location.href = `/${lang}${window.location.pathname}`;
-
         // Show notification
         showNotification(`Language changed to ${lang === 'ar' ? 'العربية' : 'English'}`);
     });
 });
+
+// ===========================
+// Cart & Wishlist Animation
+// ===========================
+document.querySelectorAll('.cart-link, .wishlist-link').forEach(link => {
+    link.addEventListener('click', function(e) {
+        e.preventDefault();
+
+        // Add bounce animation
+        const badge = this.querySelector('.badge-count');
+        if (badge) {
+            badge.style.animation = 'none';
+            setTimeout(() => {
+                badge.style.animation = 'pulse-badge 0.5s ease';
+            }, 10);
+        }
+
+        // Show message
+        const type = this.classList.contains('cart-link') ? 'السلة' : 'المفضلة';
+        showNotification(`فتح ${type}`);
+    });
+});
+
+// Update cart/wishlist count with animation
+function updateBadgeCount(type, count) {
+    const badge = document.querySelector(`.${type}-count`);
+    if (badge) {
+        badge.style.transform = 'scale(1.3)';
+        badge.textContent = count;
+        setTimeout(() => {
+            badge.style.transform = 'scale(1)';
+        }, 200);
+    }
+}
 
 // ===========================
 // Notification Function
@@ -121,6 +204,26 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// ===========================
+// Back to Top Button
+// ===========================
+const backToTop = document.getElementById('backToTop');
+
+window.addEventListener('scroll', () => {
+    if (window.pageYOffset > 300) {
+        backToTop.classList.add('show');
+    } else {
+        backToTop.classList.remove('show');
+    }
+});
+
+backToTop.addEventListener('click', () => {
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+});
 
 // ===========================
 // Initialize Swiper
@@ -235,7 +338,7 @@ gsap.from('.feature-box', {
 });
 
 // Footer Animation
-gsap.from('.footer .col-lg-4, .footer .col-lg-2, .footer .col-lg-3', {
+gsap.from('.footer-col', {
     scrollTrigger: {
         trigger: '.footer',
         start: 'top 90%',
@@ -245,6 +348,18 @@ gsap.from('.footer .col-lg-4, .footer .col-lg-2, .footer .col-lg-3', {
     duration: 0.6,
     stagger: 0.1,
     ease: 'power3.out'
+});
+
+// Newsletter Animation
+gsap.from('.newsletter-box', {
+    scrollTrigger: {
+        trigger: '.newsletter-box',
+        start: 'top 85%',
+    },
+    opacity: 0,
+    scale: 0.9,
+    duration: 0.8,
+    ease: 'back.out(1.7)'
 });
 
 // ===========================
@@ -282,7 +397,7 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         e.preventDefault();
         const target = document.querySelector(this.getAttribute('href'));
         if (target) {
-            const offsetTop = target.offsetTop - 80; // Account for fixed navbar
+            const offsetTop = target.offsetTop - 80;
             window.scrollTo({
                 top: offsetTop,
                 behavior: 'smooth'
@@ -307,7 +422,6 @@ window.addEventListener('load', () => {
 // ===========================
 document.querySelectorAll('.category-card').forEach(card => {
     card.addEventListener('click', function() {
-        // Add click animation
         this.style.transform = 'scale(0.95)';
         setTimeout(() => {
             this.style.transform = '';
@@ -395,6 +509,19 @@ function animateCounter(element, target, duration = 2000) {
 }
 
 // ===========================
+// Newsletter Form Handler
+// ===========================
+const newsletterForm = document.querySelector('.newsletter-form');
+if (newsletterForm) {
+    newsletterForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const email = this.querySelector('input[type="email"]').value;
+        showNotification('تم الاشتراك بنجاح! شكراً لك');
+        this.reset();
+    });
+}
+
+// ===========================
 // Intersection Observer for Lazy Loading
 // ===========================
 const imageObserver = new IntersectionObserver((entries, observer) => {
@@ -413,6 +540,28 @@ document.querySelectorAll('img[data-src]').forEach(img => {
 });
 
 // ===========================
+// Enhanced Hover Effects
+// ===========================
+document.querySelectorAll('.social-link').forEach(link => {
+    link.addEventListener('mouseenter', function() {
+        gsap.to(this, {
+            scale: 1.2,
+            rotation: 360,
+            duration: 0.4,
+            ease: 'back.out(1.7)'
+        });
+    });
+
+    link.addEventListener('mouseleave', function() {
+        gsap.to(this, {
+            scale: 1,
+            rotation: 0,
+            duration: 0.3
+        });
+    });
+});
+
+// ===========================
 // Console Welcome Message
 // ===========================
 console.log('%c🚀 إدريسي مارت', 'color: #4B315E; font-size: 24px; font-weight: bold;');
@@ -422,7 +571,6 @@ console.log('%cBuilt with ❤️ using Django + Bootstrap 5 + GSAP + Swiper', 'c
 // ===========================
 // Performance Optimization
 // ===========================
-// Debounce function for scroll events
 function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -435,9 +583,8 @@ function debounce(func, wait) {
     };
 }
 
-// Apply debounce to scroll handlers
 const debouncedScroll = debounce(() => {
-    // Additional scroll handlers can go here
+    // Additional scroll handlers
 }, 100);
 
 window.addEventListener('scroll', debouncedScroll);
@@ -445,7 +592,6 @@ window.addEventListener('scroll', debouncedScroll);
 // ===========================
 // Accessibility Improvements
 // ===========================
-// Add keyboard navigation support
 document.querySelectorAll('.category-card').forEach(card => {
     card.setAttribute('tabindex', '0');
     card.addEventListener('keypress', function(e) {
@@ -456,7 +602,8 @@ document.querySelectorAll('.category-card').forEach(card => {
 });
 
 // ===========================
-// Print current theme on load
+// Print current settings on load
 // ===========================
 console.log(`Current theme: ${html.getAttribute('data-theme')}`);
 console.log(`Current language: ${document.documentElement.getAttribute('lang')}`);
+console.log(`Selected country: ${savedCountry}`);

@@ -9,7 +9,7 @@ urlpatterns = [
 ]
 
 urlpatterns += i18n_patterns(
-    path("", include("main.urls")),  # Your main app
+    path("", include("main.urls", namespace="main")),  # Your main app
     path("admin/", admin.site.urls),
     prefix_default_language=False,
 )

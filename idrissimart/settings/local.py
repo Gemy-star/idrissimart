@@ -1,50 +1,15 @@
-from .common import (  # noqa: F401
-    ALLOWED_HOSTS,
-    AUTH_PASSWORD_VALIDATORS,
-    AUTH_USER_MODEL,
-    BASE_DIR,
-    CONSTANCE_BACKEND,
-    CRISPY_ALLOWED_TEMPLATE_PACKS,
-    CRISPY_TEMPLATE_PACK,
-    DATA_UPLOAD_MAX_MEMORY_SIZE,
-    DATABASES,
-    DEFAULT_AUTO_FIELD,
-    FILE_UPLOAD_MAX_MEMORY_SIZE,
-    INSTALLED_APPS,
-    LANGUAGE_CODE,
-    LANGUAGES,
-    LOCALE_PATHS,
-    MEDIA_ROOT,
-    MEDIA_URL,
-    MIDDLEWARE,
-    ROOT_URLCONF,
-    SECRET_KEY,
-    SITE_ID,
-    STATIC_URL,
-    STATICFILES_DIRS,
-    TEMPLATES,
-    TIME_ZONE,
-    USE_I18N,
-    USE_L10N,
-    USE_TZ,
-    WSGI_APPLICATION,
-)
+from .common import *
 
 DEBUG = True
+ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 
-# ✅ Add STATIC_ROOT for collectstatic
-STATIC_ROOT = BASE_DIR / "staticfiles"
+# Dynamic compression for dev
+COMPRESS_ENABLED = True
+COMPRESS_OFFLINE = False
 
-# ✅ Extend INSTALLED_APPS safely
-INSTALLED_APPS = list(INSTALLED_APPS)
-if "silk" not in INSTALLED_APPS:
-    INSTALLED_APPS.append("silk")
+# Add Silk for profiling
+INSTALLED_APPS += ["silk"]
+MIDDLEWARE += ["silk.middleware.SilkyMiddleware"]
 
-# ✅ Extend MIDDLEWARE safely
-MIDDLEWARE = list(MIDDLEWARE)
-if "silk.middleware.SilkyMiddleware" not in MIDDLEWARE:
-    MIDDLEWARE.append("silk.middleware.SilkyMiddleware")
-
-# ✅ Optional: Silk auth settings
 SILKY_AUTHENTICATION = True
 SILKY_AUTHORISATION = True
