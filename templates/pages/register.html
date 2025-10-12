@@ -1,0 +1,292 @@
+{% extends 'base.html' %}
+
+{% load static i18n %}
+
+{% block title %}
+    {% trans "إنشاء حساب - Register" %} | {% trans "إدريسي مارت" %}
+
+{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+
+{% endblock %}
+
+{% block content %}
+    <div class="auth-container">
+        <div class="auth-card register-card">
+            <div class="auth-header">
+                <img src="{% static 'images/logos/logo.png' %}"
+                     alt="Logo"
+                     class="auth-logo">
+                <h1 class="auth-title">{% trans "إنشاء حساب جديد" %}</h1>
+                <p class="auth-subtitle">{% trans "انضم إلى مجتمع إدريسي مارت اليوم" %}</p>
+            </div>
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        <i class="fas fa-
+                                  {% if message.tags == 'error' %}
+                                      exclamation-circle
+                                  {% else %}
+                                      check-circle
+                                  {% endif %}"></i>
+                        <span>{{ message }}</span>
+                    </div>
+                {% endfor %}
+            {% endif %}
+            <form method="post" action="{% url 'main:register' %}" id="registerForm">
+                {% csrf_token %}
+                <!-- Profile Type Selection -->
+                <div class="profile-type-selector">
+                    <div class="profile-type-card">
+                        <input type="radio"
+                               name="profile_type"
+                               value="default"
+                               id="type_default"
+                               checked>
+                        <label for="type_default" class="profile-type-label">
+                            <i class="fas fa-user profile-type-icon"></i>
+                            <span class="profile-type-name">{% trans "افتراضي" %}</span>
+                            <span class="profile-type-desc">{% trans "مستخدم عادي" %}</span>
+                        </label>
+                    </div>
+                    <div class="profile-type-card">
+                        <input type="radio" name="profile_type" value="service" id="type_service">
+                        <label for="type_service" class="profile-type-label">
+                            <i class="fas fa-tools profile-type-icon"></i>
+                            <span class="profile-type-name">{% trans "خدمي" %}</span>
+                            <span class="profile-type-desc">{% trans "مقدم خدمات" %}</span>
+                        </label>
+                    </div>
+                    <div class="profile-type-card">
+                        <input type="radio" name="profile_type" value="merchant" id="type_merchant">
+                        <label for="type_merchant" class="profile-type-label">
+                            <i class="fas fa-store profile-type-icon"></i>
+                            <span class="profile-type-name">{% trans "تاجر" %}</span>
+                            <span class="profile-type-desc">{% trans "بائع منتجات" %}</span>
+                        </label>
+                    </div>
+                    <div class="profile-type-card">
+                        <input type="radio"
+                               name="profile_type"
+                               value="educational"
+                               id="type_educational">
+                        <label for="type_educational" class="profile-type-label">
+                            <i class="fas fa-graduation-cap profile-type-icon"></i>
+                            <span class="profile-type-name">{% trans "تعليمي" %}</span>
+                            <span class="profile-type-desc">{% trans "مدرب أو محاضر" %}</span>
+                        </label>
+                    </div>
+                </div>
+                <!-- Name Fields -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">
+                            {% trans "الاسم الأول" %}
+                            <span class="required">*</span>
+                        </label>
+                        <div class="form-control-wrapper">
+                            <input type="text"
+                                   name="first_name"
+                                   class="form-control"
+                                   placeholder="{% trans 'أدخل الاسم الأول' %}"
+                                   value="{{ form_data.first_name|default:'' }}"
+                                   required>
+                            <i class="fas fa-user"></i>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            {% trans "الاسم الأخير" %}
+                            <span class="required">*</span>
+                        </label>
+                        <div class="form-control-wrapper">
+                            <input type="text"
+                                   name="last_name"
+                                   class="form-control"
+                                   placeholder="{% trans 'أدخل الاسم الأخير' %}"
+                                   value="{{ form_data.last_name|default:'' }}"
+                                   required>
+                            <i class="fas fa-user"></i>
+                        </div>
+                    </div>
+                </div>
+                <!-- Username -->
+                <div class="form-group">
+                    <label class="form-label">
+                        {% trans "اسم المستخدم" %}
+                        <span class="required">*</span>
+                    </label>
+                    <div class="form-control-wrapper">
+                        <input type="text"
+                               name="username"
+                               class="form-control"
+                               placeholder="{% trans 'اختر اسم مستخدم فريد' %}"
+                               value="{{ form_data.username|default:'' }}"
+                               required
+                               minlength="3">
+                        <i class="fas fa-at"></i>
+                    </div>
+                    <span class="form-helper">{% trans "يجب أن يكون 3 أحرف على الأقل" %}</span>
+                </div>
+                <!-- Email -->
+                <div class="form-group">
+                    <label class="form-label">
+                        {% trans "البريد الإلكتروني" %}
+                        <span class="required">*</span>
+                    </label>
+                    <div class="form-control-wrapper">
+                        <input type="email"
+                               name="email"
+                               class="form-control"
+                               placeholder="{% trans 'أدخل بريدك الإلكتروني' %}"
+                               value="{{ form_data.email|default:'' }}"
+                               required>
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                </div>
+                <!-- Phone -->
+                <div class="form-group">
+                    <label class="form-label">{% trans "رقم الجوال" %}</label>
+                    <div class="form-control-wrapper">
+                        <input type="tel"
+                               name="phone"
+                               class="form-control"
+                               placeholder="{% trans 'أدخل رقم جوالك' %}"
+                               value="{{ form_data.phone|default:'' }}">
+                        <i class="fas fa-phone"></i>
+                    </div>
+                </div>
+                <!-- Password -->
+                <div class="form-group">
+                    <label class="form-label">
+                        {% trans "كلمة المرور" %}
+                        <span class="required">*</span>
+                    </label>
+                    <div class="form-control-wrapper">
+                        <input type="password"
+                               name="password"
+                               id="password"
+                               class="form-control"
+                               placeholder="{% trans 'أدخل كلمة مرور قوية' %}"
+                               required
+                               minlength="8"
+                               oninput="checkPasswordStrength(this.value)">
+                        <i class="fas fa-lock"></i>
+                        <button type="button"
+                                class="password-toggle"
+                                onclick="togglePassword('password')"
+                                aria-label="{% trans 'إظهار/إخفاء كلمة المرور' %}">
+                            <i class="fas fa-eye" id="password-icon"></i>
+                        </button>
+                    </div>
+                    <div class="password-strength">
+                        <div class="password-strength-bar" id="password-strength-bar"></div>
+                    </div>
+                    <span class="form-helper">{% trans "يجب أن تكون 8 أحرف على الأقل" %}</span>
+                </div>
+                <!-- Confirm Password -->
+                <div class="form-group">
+                    <label class="form-label">
+                        {% trans "تأكيد كلمة المرور" %}
+                        <span class="required">*</span>
+                    </label>
+                    <div class="form-control-wrapper">
+                        <input type="password"
+                               name="password2"
+                               id="password2"
+                               class="form-control"
+                               placeholder="{% trans 'أعد إدخال كلمة المرور' %}"
+                               required
+                               minlength="8">
+                        <i class="fas fa-lock"></i>
+                        <button type="button"
+                                class="password-toggle"
+                                onclick="togglePassword('password2')"
+                                aria-label="{% trans 'إظهار/إخفاء كلمة المرور' %}">
+                            <i class="fas fa-eye" id="password2-icon"></i>
+                        </button>
+                    </div>
+                </div>
+                <!-- Terms & Conditions -->
+                <div class="checkbox-group">
+                    <input type="checkbox" name="terms_accepted" id="terms_accepted" required>
+                    <label for="terms_accepted">
+                        {% trans "أوافق على" %}
+                        <a href="#" target="_blank">{% trans "الشروط والأحكام" %}</a>
+                        {% trans "و" %}
+                        <a href="#" target="_blank">{% trans "سياسة الخصوصية" %}</a>
+                    </label>
+                </div>
+                <button type="submit" class="btn-auth btn-auth-primary">
+                    <i class="fas fa-user-plus"></i>
+                    {% trans "إنشاء حساب" %}
+                </button>
+            </form>
+            <div class="auth-footer">
+                <p>
+                    {% trans "لديك حساب بالفعل؟" %}
+                    <a href="{% url 'main:login' %}">{% trans "تسجيل الدخول" %}</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(inputId + '-icon');
+
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        function checkPasswordStrength(password) {
+            const bar = document.getElementById('password-strength-bar');
+            let strength = 0;
+
+            if (password.length >= 8) strength++;
+            if (password.match(/[a-z]/) && password.match(/[A-Z]/)) strength++;
+            if (password.match(/\d/)) strength++;
+            if (password.match(/[^a-zA-Z\d]/)) strength++;
+
+            bar.className = 'password-strength-bar';
+
+            if (strength <= 1) {
+                bar.classList.add('weak');
+            } else if (strength <= 2) {
+                bar.classList.add('medium');
+            } else {
+                bar.classList.add('strong');
+            }
+        }
+
+        // Form validation and loading state
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            const password = document.getElementById('password').value;
+            const password2 = document.getElementById('password2').value;
+
+            if (password !== password2) {
+                e.preventDefault();
+                alert('{% trans "كلمات المرور غير متطابقة" %}');
+                return false;
+            }
+
+            const submitBtn = this.querySelector('button[type="submit"]');
+            submitBtn.classList.add('loading');
+            submitBtn.disabled = true;
+        });
+    </script>
+
+{% endblock %}

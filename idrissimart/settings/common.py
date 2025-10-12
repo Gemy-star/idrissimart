@@ -5,6 +5,7 @@ Django settings for idrissimart project (common).
 import os
 from pathlib import Path
 
+from django.contrib.messages import constants as messages
 from django.utils.translation import gettext_lazy as _
 from dotenv import load_dotenv
 
@@ -48,6 +49,13 @@ INSTALLED_APPS = [
     "main.apps.MainConfig",
     "content.apps.ContentConfig",
 ]
+MESSAGE_TAGS = {
+    messages.DEBUG: "debug",
+    messages.INFO: "info",
+    messages.SUCCESS: "success",
+    messages.WARNING: "warning",
+    messages.ERROR: "error",
+}
 
 SITE_ID = 1
 CONSTANCE_BACKEND = "constance.backends.database.DatabaseBackend"

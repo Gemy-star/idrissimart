@@ -131,46 +131,47 @@
     // ===========================
     // MOBILE MENU
     // ===========================
-    function initMobileMenu() {
-        const hamburger = document.getElementById('hamburgerBtn');
-        const mobileNav = document.getElementById('mobileNav');
-        const closeBtn = document.getElementById('mobileNavClose');
-        const backdrop = document.getElementById('mobileBackdrop');
+function initMobileMenu() {
+    const hamburger = document.getElementById('hamburgerBtn');
+    const mobileNav = document.getElementById('mobileNav');
+    const closeBtn = document.getElementById('mobileNavClose');
+    const backdrop = document.getElementById('mobileBackdrop');
 
-        if (!hamburger || !mobileNav || !backdrop) return;
+    if (!hamburger || !mobileNav || !backdrop) return;
 
-        const openMenu = () => {
-            mobileNav.classList.add('active');
-            backdrop.classList.add('active');
-            hamburger.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        };
+    const openMenu = () => {
+        mobileNav.classList.add('active');
+        backdrop.classList.add('active');
+        hamburger.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    };
 
-        const closeMenu = () => {
-            mobileNav.classList.remove('active');
-            backdrop.classList.remove('active');
-            hamburger.classList.remove('active');
-            document.body.style.overflow = '';
-        };
+    const closeMenu = () => {
+        mobileNav.classList.remove('active');
+        backdrop.classList.remove('active');
+        hamburger.classList.remove('active');
+        document.body.style.overflow = '';
+    };
 
-        hamburger.addEventListener('click', openMenu);
-        closeBtn?.addEventListener('click', closeMenu);
-        backdrop.addEventListener('click', closeMenu);
+    hamburger.addEventListener('click', openMenu);
+    closeBtn?.addEventListener('click', closeMenu);
+    backdrop.addEventListener('click', closeMenu);
 
-        // Auto-close when clicking links
-        document.querySelectorAll('.mobile-nav-link').forEach(link => {
-            link.addEventListener('click', (e) => {
-                if (!link.closest('.mobile-country-selector')) {
-                    const href = link.getAttribute('href');
-                    if (href && href !== '#') {
-                        closeMenu();
-                    }
+    // Auto-close when clicking links, but ignore dropdowns
+    document.querySelectorAll('.mobile-nav-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            // Check if link is inside any dropdown
+            if (!link.closest('.mobile-dropdown')) {
+                const href = link.getAttribute('href');
+                if (href && href !== '#') {
+                    closeMenu();
                 }
-            });
+            }
         });
+    });
 
-        console.log('✓ Mobile menu initialized');
-    }
+    console.log('✓ Mobile menu initialized (fixed)');
+}
 
     // ===========================
     // ENHANCED COUNTRY SELECTOR

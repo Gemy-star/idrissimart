@@ -13,7 +13,7 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto align-items-center">
                 <li class="nav-item">
-                    <a class="nav-link" href="#home">{% trans "الرئيسية" %}</a>
+                    <a class="nav-link" href="{% url 'main:home' %}">{% trans "الرئيسية" %}</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="#categories">{% trans "الأقسام" %}</a>
@@ -23,6 +23,101 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="#contact">{% trans "اتصل بنا" %}</a>
+                </li>
+                <!-- Country Selector -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle country-selector"
+                       href="#"
+                       role="button"
+                       data-bs-toggle="dropdown"
+                       aria-label="Select Country">
+                        <i class="fas fa-map-marker-alt me-1"></i>
+                        <span class="current-country" data-country-code="SA">🇸🇦</span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end country-dropdown">
+                        <li>
+                            <a class="dropdown-item country-item" href="#" data-country="SA">
+                                <span class="country-flag">🇸🇦</span>
+                                <span class="country-name">{% trans "السعودية" %}</span>
+                                <i class="fas fa-check country-check"></i>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item country-item" href="#" data-country="AE">
+                                <span class="country-flag">🇦🇪</span>
+                                <span class="country-name">{% trans "الإمارات" %}</span>
+                                <i class="fas fa-check country-check"></i>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item country-item" href="#" data-country="EG">
+                                <span class="country-flag">🇪🇬</span>
+                                <span class="country-name">{% trans "مصر" %}</span>
+                                <i class="fas fa-check country-check"></i>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item country-item" href="#" data-country="KW">
+                                <span class="country-flag">🇰🇼</span>
+                                <span class="country-name">{% trans "الكويت" %}</span>
+                                <i class="fas fa-check country-check"></i>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item country-item" href="#" data-country="QA">
+                                <span class="country-flag">🇶🇦</span>
+                                <span class="country-name">{% trans "قطر" %}</span>
+                                <i class="fas fa-check country-check"></i>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item country-item" href="#" data-country="BH">
+                                <span class="country-flag">🇧🇭</span>
+                                <span class="country-name">{% trans "البحرين" %}</span>
+                                <i class="fas fa-check country-check"></i>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item country-item" href="#" data-country="OM">
+                                <span class="country-flag">🇴🇲</span>
+                                <span class="country-name">{% trans "عُمان" %}</span>
+                                <i class="fas fa-check country-check"></i>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item country-item" href="#" data-country="JO">
+                                <span class="country-flag">🇯🇴</span>
+                                <span class="country-name">{% trans "الأردن" %}</span>
+                                <i class="fas fa-check country-check"></i>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                <!-- Language Switcher -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                        <i class="fas fa-globe me-1"></i>
+                        <span class="current-lang">
+                            {% get_current_language as LANGUAGE_CODE %}
+                            {{ LANGUAGE_CODE|upper }}
+                        </span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <form action="{% url 'set_language' %}" method="post">
+                                {% csrf_token %}
+                                <input name="next" type="hidden" value="{{ request.get_full_path }}">
+                                <button type="submit" name="language" value="ar" class="dropdown-item">
+                                    {% if LANGUAGE_CODE == 'ar' %}<i class="fas fa-check me-2"></i>{% endif %}
+                                    العربية
+                                </button>
+                                <button type="submit" name="language" value="en" class="dropdown-item">
+                                    {% if LANGUAGE_CODE == 'en' %}<i class="fas fa-check me-2"></i>{% endif %}
+                                    English
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
                 </li>
                 <!-- Wishlist with enhanced badge -->
                 <li class="nav-item position-relative">
@@ -58,8 +153,13 @@
                         <a class="btn btn-custom btn-primary-custom ms-2" href="#">
                             <i class="fas fa-user me-2"></i>{{ request.user.first_name|default:"لوحة التحكم" }}
                         </a>
+                        <a class="btn btn-custom btn-primary-custom ms-2"
+                           href="{% url 'main:logout' %}">
+                            <i class="fas fa-sign-out-alt"></i>{% trans "خروج" %}
+                        </a>
                     {% else %}
-                        <a class="btn btn-custom btn-primary-custom ms-2" href="#">
+                        <a class="btn btn-custom btn-primary-custom ms-2"
+                           href="{% url 'main:login' %}">
                             <i class="fas fa-sign-in-alt me-2"></i>{% trans "دخول" %}
                         </a>
                     {% endif %}
@@ -144,11 +244,11 @@
                     <a href="#" class="mobile-nav-link"><i class="fas fa-tachometer-alt"></i><span>{% trans "لوحة التحكم" %}</span></a>
                 </li>
                 <li>
-                    <a href="#" class="mobile-nav-link logout"><i class="fas fa-sign-out-alt"></i><span>{% trans "تسجيل الخروج" %}</span></a>
+                    <a href="{% url 'main:logout' %}" class="mobile-nav-link logout"><i class="fas fa-sign-out-alt"></i><span>{% trans "تسجيل الخروج" %}</span></a>
                 </li>
             {% else %}
                 <li>
-                    <a href="#" class="mobile-nav-link highlight"><i class="fas fa-sign-in-alt"></i><span>{% trans "تسجيل الدخول" %}</span></a>
+                    <a href="{% url 'main:login' %}" class="mobile-nav-link highlight"><i class="fas fa-sign-in-alt"></i><span>{% trans "تسجيل الدخول" %}</span></a>
                 </li>
             {% endif %}
         </ul>
@@ -190,6 +290,51 @@
                             {% if country.code == selected_country %}<i class="fas fa-check-circle check-icon"></i>{% endif %}
                         </div>
                     {% endfor %}
+                </div>
+            </div>
+        </div>
+        <!-- Enhanced Mobile Language Switcher -->
+        <div class="mobile-lang-selector mt-3">
+            <div class="mobile-section-title">
+                <i class="fas fa-globe me-2"></i>{% trans "اختر اللغة" %}
+            </div>
+            <button class="mobile-lang-toggle"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#mobileLangList"
+                    aria-expanded="false"
+                    aria-controls="mobileLangList">
+                <div class="current-selection">
+                    {% if LANGUAGE_CODE == 'ar' %}
+                        <span class="lang-name-large">العربية</span>
+                    {% else %}
+                        <span class="lang-name-large">English</span>
+                    {% endif %}
+                </div>
+                <i class="fas fa-chevron-down toggle-icon"></i>
+            </button>
+            <div class="collapse" id="mobileLangList">
+                <div class="language-list-wrapper">
+                    <form action="{% url 'set_language' %}" method="post">
+                        {% csrf_token %}
+                        <input name="next" type="hidden" value="{{ request.get_full_path }}">
+                        <button type="submit"
+                                name="language"
+                                value="ar"
+                                class="mobile-lang-item
+                                       {% if LANGUAGE_CODE == 'ar' %}active{% endif %}">
+                            {% if LANGUAGE_CODE == 'ar' %}<i class="fas fa-check-circle me-2"></i>{% endif %}
+                            العربية
+                        </button>
+                        <button type="submit"
+                                name="language"
+                                value="en"
+                                class="mobile-lang-item
+                                       {% if LANGUAGE_CODE == 'en' %}active{% endif %}">
+                            {% if LANGUAGE_CODE == 'en' %}<i class="fas fa-check-circle me-2"></i>{% endif %}
+                            English
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
