@@ -475,38 +475,7 @@ function initAnimations() {
     console.log('✓ GSAP animations initialized (including counters)');
 }
 
-// ===========================
-// STATS COUNTERS
-// ===========================
-function initCounters() {
-    if (!window.gsap || !window.ScrollTrigger) {
-        console.warn('⚠️ GSAP or ScrollTrigger not found. Counters disabled.');
-        return;
-    }
 
-    gsap.utils.toArray('.stat-number').forEach(counter => {
-        const target = +counter.dataset.target || 0;
-
-        gsap.fromTo(counter,
-            { innerText: 0 },
-            {
-                innerText: target,
-                duration: 2,
-                ease: 'power1.out',
-                snap: { innerText: 1 },
-                scrollTrigger: {
-                    trigger: counter,
-                    start: 'top 90%', // animate when counter is visible
-                },
-                onUpdate: function () {
-                    counter.innerText = Math.floor(counter.innerText);
-                }
-            }
-        );
-    });
-
-    console.log('✓ Stats counters initialized');
-}
 
     // ===========================
     // PAGE LOAD
