@@ -11,6 +11,11 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) var(--bg-secondary);
+}
+*, ::after, ::before {
+    box-sizing: border-box;
 }
 
 :root {
@@ -32,6 +37,13 @@
     --text-muted: #666666;
     --border-color: #E0E0E0;
 
+    /* Theme Toggle Colors - Light Mode */
+    --theme-toggle-bg: rgba(255, 255, 255, 0.1);
+    --theme-toggle-border: rgba(255, 255, 255, 0.3);
+    --theme-toggle-color: var(--white-color);
+    --theme-toggle-hover-bg: rgba(255, 255, 255, 0.2);
+    --theme-toggle-hover-border: rgba(255, 255, 255, 0.5);
+
     /* Shadows */
     --shadow-sm: rgba(0, 0, 0, 0.1);
     --shadow-md: rgba(0, 0, 0, 0.15);
@@ -49,6 +61,15 @@
     --text-secondary: #E0E0E0;
     --text-muted: #999999;
     --border-color: #404040;
+
+    /* Theme Toggle Colors - Dark Mode */
+    --theme-toggle-bg: rgba(0, 0, 0, 0.2);
+    --theme-toggle-border: rgba(255, 255, 255, 0.3);
+    --theme-toggle-color: var(--white-color);
+    --theme-toggle-hover-bg: rgba(255, 255, 255, 0.1);
+    --theme-toggle-hover-border: rgba(255, 255, 255, 0.4);
+
+    /* Shadows */
     --shadow-sm: rgba(255, 255, 255, 0.05);
     --shadow-md: rgba(255, 255, 255, 0.1);
     --shadow-lg: rgba(255, 255, 255, 0.15);
@@ -614,41 +635,23 @@ body {
 .mobile-nav {
     position: fixed;
     top: 0;
-    right: -100%;
+    right: 0;
     width: 320px;
     height: 100vh;
     background: var(--bg-primary);
     box-shadow: -5px 0 25px rgba(0, 0, 0, 0.3);
-    z-index: 9999;
+    z-index: 1001; /* above backdrop */
     overflow-y: auto;
-    transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     padding: 20px;
-    opacity: 1 !important;
-    visibility: visible !important;
+
+    /* Hidden offscreen */
+    transform: translateX(100%);
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .mobile-nav.active {
-    right: 0;
+    transform: translateX(0);
 }
-
-.mobile-nav,
-.mobile-nav *,
-.mobile-nav-header,
-.mobile-nav-header *,
-.mobile-nav-menu,
-.mobile-nav-menu *,
-.mobile-nav-link,
-.mobile-nav-link *,
-.mobile-country-selector,
-.mobile-country-selector *,
-.mobile-user-info,
-.mobile-user-info *,
-.mobile-guest-info,
-.mobile-guest-info * {
-    opacity: 1 !important;
-    visibility: visible !important;
-}
-
 [data-theme="dark"] .mobile-nav {
     box-shadow: -5px 0 25px rgba(0, 0, 0, 0.7);
 }
@@ -1130,22 +1133,20 @@ body {
 /* Backdrop overlay */
 .mobile-nav-backdrop {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100vh;
+    inset: 0;
     background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(4px);
     opacity: 0;
-    visibility: hidden;
-    z-index: 9998;
-    transition: all 0.3s ease;
+    pointer-events: none; /* disable click when hidden */
+    transition: opacity 0.3s ease;
+    z-index: 1000; /* below menu */
 }
 
 .mobile-nav-backdrop.active {
     opacity: 1;
-    visibility: visible;
+    pointer-events: all;
 }
+
 
 /* ============================= */
 /* HERO SECTION */
@@ -3164,7 +3165,76 @@ body {
 [data-theme="dark"] .mobile-lang-item.active i {
     color: var(--white-color);
 }
+/* Theme Switcher Button */
+.theme-switcher {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px; /* space between icon and optional text */
+    width: 45px;
+    height: 45px;
+    border-radius: 12px;
+    border: 2px solid var(--primary-color);
+    background: none;
+    color: var(--primary-color);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    font-weight: 500;
+    font-size: 1rem;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
 
+.theme-switcher:hover {
+    background: var(--theme-toggle-hover-bg, rgba(255, 255, 255, 0.2));
+    border-color: var(--theme-toggle-hover-border, rgba(255, 255, 255, 0.5));
+    transform: scale(1.05);
+}
+
+/* Icon inside theme switcher */
+.theme-switcher i {
+    position: absolute;
+    font-size: 20px;
+    transition: all 0.4s ease;
+}
+
+/* Show correct icon based on theme */
+[data-theme="light"] .theme-switcher .theme-icon-light {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+}
+
+[data-theme="light"] .theme-switcher .theme-icon-dark {
+    opacity: 0;
+    transform: rotate(90deg) scale(0.8);
+}
+
+[data-theme="dark"] .theme-switcher .theme-icon-light {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.8);
+}
+
+[data-theme="dark"] .theme-switcher .theme-icon-dark {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+}
+
+/* Optional: click animation */
+.theme-switcher:active {
+    transform: scale(0.95);
+}
+
+/* Mobile Adjustments */
+@media (max-width: 480px) {
+    .theme-switcher {
+        width: 40px;
+        height: 40px;
+        font-size: 0.95rem;
+        gap: 6px;
+    }
+}
 
 
 /* ============================= */

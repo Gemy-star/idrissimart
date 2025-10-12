@@ -100,33 +100,55 @@
     // ===========================
     // ENHANCED THEME TOGGLE
     // ===========================
-    function initThemeToggle() {
-        const btn = document.getElementById('themeToggle');
-        const html = document.documentElement;
-        const currentTheme = localStorage.getItem('theme') || 'light';
+function initThemeToggle() {
+    const html = document.documentElement;
+    const savedTheme = localStorage.getItem('theme') || 'light';
 
-        html.setAttribute('data-theme', currentTheme);
+    // Apply saved theme on page load
+    html.setAttribute('data-theme', savedTheme);
 
-        if (btn) {
-            btn.addEventListener('click', () => {
-                const currentTheme = html.getAttribute('data-theme');
-                const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
+    // Select all toggle elements (desktop and mobile)
+    const buttons = document.querySelectorAll('#themeToggle, .theme-switcher');
 
-                html.setAttribute('data-theme', nextTheme);
-                localStorage.setItem('theme', nextTheme);
+    buttons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            // Prevent default for <a> tags
+            if (btn.tagName.toLowerCase() === 'a') e.preventDefault();
 
-                // Add rotation animation
-                btn.style.transform = 'rotate(360deg)';
-                setTimeout(() => {
-                    btn.style.transform = 'rotate(0deg)';
-                }, 400);
+            const current = html.getAttribute('data-theme');
+            const nextTheme = current === 'light' ? 'dark' : 'light';
 
-                const modeText = nextTheme === 'dark' ? 'الوضع الليلي' : 'الوضع النهاري';
-                showNotification(`تم التبديل إلى ${modeText}`, 'info');
+            // Apply the theme
+            html.setAttribute('data-theme', nextTheme);
+            localStorage.setItem('theme', nextTheme);
+
+            // Animate icons
+            const iconLight = btn.querySelector('.theme-icon-light');
+            const iconDark = btn.querySelector('.theme-icon-dark');
+
+            [iconLight, iconDark].forEach(icon => {
+                if (icon) {
+                    icon.style.transition = 'transform 0.4s ease';
+                    icon.style.transform = 'rotate(360deg)';
+                }
             });
-            console.log('✓ Enhanced theme toggle initialized');
-        }
-    }
+
+            setTimeout(() => {
+                [iconLight, iconDark].forEach(icon => {
+                    if (icon) icon.style.transform = 'rotate(0deg)';
+                });
+            }, 400);
+
+            // Show notification
+            const modeText = nextTheme === 'dark' ? 'الوضع الليلي' : 'الوضع النهاري';
+            if (typeof showNotification === 'function') {
+                showNotification(`تم التبديل إلى ${modeText}`, 'info');
+            }
+        });
+    });
+
+    if (buttons.length) console.log('✓ Enhanced theme toggle initialized for all buttons');
+}
 
     // ===========================
     // MOBILE MENU
