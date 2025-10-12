@@ -231,85 +231,120 @@ function initCounters() {
     // ===========================
     // ENHANCED COUNTRY SELECTOR
     // ===========================
-    function initEnhancedCountrySelector() {
-        const countryFlags = {
-            SA: '🇸🇦', AE: '🇦🇪', EG: '🇪🇬', KW: '🇰🇼',
-            QA: '🇶🇦', BH: '🇧🇭', OM: '🇴🇲', JO: '🇯🇴'
-        };
+// ===========================
+// ENHANCED COUNTRY SELECTOR (FIXED)
+// ===========================
+function initEnhancedCountrySelector() {
+    const countryFlags = {
+        SA: '🇸🇦', AE: '🇦🇪', EG: '🇪🇬', KW: '🇰🇼',
+        QA: '🇶🇦', BH: '🇧🇭', OM: '🇴🇲', JO: '🇯🇴'
+    };
 
-        async function handleCountryChange(e) {
-            e.preventDefault();
-            const item = this;
-            const code = item.dataset.country;
+    const countryNames = {
+        SA: 'السعودية', AE: 'الإمارات', EG: 'مصر', KW: 'الكويت',
+        QA: 'قطر', BH: 'البحرين', OM: 'عُمان', JO: 'الأردن'
+    };
 
-            // Prevent double-click
-            if (item.classList.contains('loading')) return;
+    async function handleCountryChange(e) {
+        e.preventDefault();
+        const item = this;
+        const code = item.dataset.country;
 
-            const originalContent = item.innerHTML;
-            item.classList.add('loading');
+        // Prevent double-click
+        if (item.classList.contains('loading')) return;
 
-            try {
-                const response = await fetch('/api/set-country/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'X-CSRFToken': getCookie('csrftoken')
-                    },
-                    body: `country_code=${code}`
+        const originalContent = item.innerHTML;
+        item.classList.add('loading');
+        item.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        try {
+            const response = await fetch('/api/set-country/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: `country_code=${code}`
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Store in localStorage for persistence
+                localStorage.setItem('selectedCountry', code);
+
+                // Update desktop dropdown current country
+                const currentCountrySpan = document.querySelector('.current-country');
+                if (currentCountrySpan) {
+                    currentCountrySpan.textContent = countryFlags[code] || '🌍';
+                    currentCountrySpan.setAttribute('data-country-code', code);
+                }
+
+                // Update mobile country display
+                const flagLarge = document.querySelector('.country-flag-large');
+                if (flagLarge) flagLarge.textContent = countryFlags[code] || '🌍';
+
+                const nameLarge = document.querySelector('.country-name-large');
+                if (nameLarge) nameLarge.textContent = countryNames[code] || code;
+
+                // Update active states for desktop
+                document.querySelectorAll('.country-item').forEach(el => {
+                    el.classList.remove('active');
+                    const checkIcon = el.querySelector('.country-check');
+                    if (checkIcon) checkIcon.remove();
                 });
 
-                const data = await response.json();
+                item.classList.add('active');
+                const checkIcon = document.createElement('i');
+                checkIcon.className = 'fas fa-check country-check';
+                item.appendChild(checkIcon);
 
-                if (data.success) {
-                    localStorage.setItem('selectedCountry', code);
+                // Update active states for mobile
+                document.querySelectorAll('.mobile-country-item').forEach(el => {
+                    el.classList.remove('active');
+                    const mobileCheck = el.querySelector('.check-icon');
+                    if (mobileCheck) mobileCheck.remove();
+                });
 
-                    // Update all country displays
-                    const flagLarge = document.querySelector('.country-flag-large');
-                    if (flagLarge) flagLarge.textContent = countryFlags[code] || '🌍';
-
-                    // Update active states
-                    document.querySelectorAll('.mobile-country-item').forEach(el => {
-                        el.classList.remove('active');
-                        const checkIcon = el.querySelector('.check-icon');
-                        if (checkIcon) checkIcon.remove();
-                    });
-
-                    item.classList.add('active');
-                    const checkIcon = document.createElement('i');
-                    checkIcon.className = 'fas fa-check-circle check-icon';
-                    item.appendChild(checkIcon);
-
-                    showNotification(data.message || 'تم تغيير البلد بنجاح', 'success');
-
-                    // Close dropdown
-                    const collapseEl = document.getElementById('mobileCountryList');
-                    if (collapseEl && window.bootstrap) {
-                        const collapse = bootstrap.Collapse.getInstance(collapseEl);
-                        if (collapse) collapse.hide();
-                    }
-
-                    // Reload after short delay
-                    setTimeout(() => window.location.reload(), 1200);
-                } else {
-                    showNotification(data.message || 'حدث خطأ', 'error');
-                    item.classList.remove('loading');
-                    item.innerHTML = originalContent;
+                const mobileItem = document.querySelector(`.mobile-country-item[data-country="${code}"]`);
+                if (mobileItem) {
+                    mobileItem.classList.add('active');
+                    const mobileCheckIcon = document.createElement('i');
+                    mobileCheckIcon.className = 'fas fa-check-circle check-icon';
+                    mobileItem.appendChild(mobileCheckIcon);
                 }
-            } catch (error) {
-                console.error('Country change error:', error);
-                showNotification('فشل الاتصال بالخادم', 'error');
+
+                showNotification(data.message || 'تم تغيير البلد بنجاح', 'success');
+
+                // Close mobile dropdown if open
+                const collapseEl = document.getElementById('mobileCountryList');
+                if (collapseEl && window.bootstrap) {
+                    const collapse = bootstrap.Collapse.getInstance(collapseEl);
+                    if (collapse) collapse.hide();
+                }
+
+                // Reload page after short delay to update content
+                setTimeout(() => window.location.reload(), 1200);
+            } else {
+                showNotification(data.message || 'حدث خطأ', 'error');
                 item.classList.remove('loading');
                 item.innerHTML = originalContent;
             }
+        } catch (error) {
+            console.error('Country change error:', error);
+            showNotification('فشل الاتصال بالخادم', 'error');
+            item.classList.remove('loading');
+            item.innerHTML = originalContent;
         }
-
-        // Attach to all country items
-        document.querySelectorAll('.mobile-country-item, .country-item').forEach(item => {
-            item.addEventListener('click', handleCountryChange);
-        });
-
-        console.log('✓ Enhanced country selector initialized');
     }
+
+    // Attach to all country items (desktop and mobile)
+    document.querySelectorAll('.mobile-country-item, .country-item').forEach(item => {
+        item.addEventListener('click', handleCountryChange);
+    });
+
+    console.log('✓ Enhanced country selector initialized');
+}
 
     // ===========================
     // ENHANCED BADGES
