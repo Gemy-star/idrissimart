@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "constance",
     "constance.backends.database",
     "imagekit",
+    "rosetta",
     # Local apps
     "main.apps.MainConfig",
     "content.apps.ContentConfig",

@@ -27,20 +27,50 @@ class HomeView(TemplateView):
 
 @require_POST
 def set_country(request):
-    """AJAX endpoint to set user's country"""
-    country_code = request.POST.get('country_code')
+    """
+    API endpoint to set user's selected country
+    """
+    try:
+        country_code = request.POST.get('country_code')
 
-    if country_code and Country.objects.filter(code=country_code, is_active=True).exists():
+        if not country_code:
+            return JsonResponse({
+                'success': False,
+                'message': _('لم يتم تحديد البلد')
+            }, status=400)
+
+        # Validate country exists and is active
+        try:
+            country = Country.objects.get(code=country_code, is_active=True)
+        except Country.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'message': _('البلد المحدد غير متاح')
+            }, status=404)
+
+        # Store in session
         request.session['selected_country'] = country_code
+        request.session['selected_country_name'] = country.name
+
+        # Optional: Store in user profile if authenticated
+        if request.user.is_authenticated:
+            request.user.profile.country = country
+            request.user.profile.save()
+
         return JsonResponse({
             'success': True,
-            'message': _('Country updated successfully')
+            'message': _('تم تغيير البلد بنجاح'),
+            'country_code': country_code,
+            'country_name': country.name
         })
 
-    return JsonResponse({
-        'success': False,
-        'message': _('Invalid country code')
-    }, status=400)
+    except Exception:
+        return JsonResponse({
+            'success': False,
+            'message': _('حدث خطأ في تغيير البلد')
+        }, status=500)
+
+
 
 
 @require_POST

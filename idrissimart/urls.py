@@ -7,6 +7,7 @@ from django.urls import include, path
 urlpatterns = [
     path("i18n/", include("django.conf.urls.i18n")),
     path("api/", include("main.api.api_url")),
+    path("rosetta/", include("rosetta.urls")),  # Add Rosetta
 ]
 
 urlpatterns += i18n_patterns(

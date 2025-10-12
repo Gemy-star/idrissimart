@@ -1,47 +1,60 @@
 // ===========================
-// Fully Fixed Main JS
+// IDRISI MART - ENHANCED MAIN.JS
+// v4.0 - Theme Toggle + Country Selector + Badges
 // ===========================
 
-document.addEventListener('DOMContentLoaded', () => {
+(function () {
+    'use strict';
 
-    // ===========================
-    // GSAP + ScrollTrigger
-    // ===========================
-    if (window.gsap && window.gsap?.registerPlugin) {
-        gsap.registerPlugin(ScrollTrigger);
+    // Wait for DOM
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+    function init() {
+        console.log('🚀 Idrisi Mart Initializing...');
+
+        // Ensure visibility
+        document.body.style.opacity = '1';
+        document.body.style.visibility = 'visible';
+
+        // Core Systems
+        const gsapReady = initGSAP();
+        initThemeToggle();
+        initMobileMenu();
+        initEnhancedCountrySelector();
+        initEnhancedBadges();
+        initLanguageSwitcher();
+        initNavbarEffects();
+        initSmoothScroll();
+        initBackToTop();
+        if (gsapReady) initAnimations();
+        initPageLoad();
+
+        console.log('%c✅ All systems ready!', 'color:#4B315E;font-weight:bold;');
     }
 
     // ===========================
-    // Utility Functions
+    // UTILITIES
     // ===========================
     function getCookie(name) {
-        const cookies = document.cookie?.split(';') || [];
-        for (const cookie of cookies) {
+        return document.cookie.split(';').reduce((acc, cookie) => {
             const [key, val] = cookie.trim().split('=');
-            if (key === name) return decodeURIComponent(val);
-        }
-        return null;
+            return key === name ? decodeURIComponent(val) : acc;
+        }, null);
     }
 
-    function debounce(fn, wait){
+    function debounce(fn, wait) {
         let timeout;
-        return function(...args){
+        return (...args) => {
             clearTimeout(timeout);
-            timeout=setTimeout(()=>fn(...args), wait);
+            timeout = setTimeout(() => fn(...args), wait);
         };
     }
 
-    function animateCounter(el, target, duration=2000){
-        let current=0;
-        const increment=target/(duration/16);
-        const timer=setInterval(()=>{
-            current+=increment;
-            if(current>=target){ el.textContent=target; clearInterval(timer); }
-            else el.textContent=Math.floor(current);
-        },16);
-    }
-
-    function showNotification(message, type='success') {
+    function showNotification(message, type = 'success') {
         const colors = {
             success: 'linear-gradient(135deg, #4B315E 0%, #6B4C7A 100%)',
             error: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
@@ -50,228 +63,389 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         const icons = { success: '✓', error: '✗', info: 'ℹ', warning: '⚠' };
 
-        const notification = document.createElement('div');
-        notification.className = 'custom-notification';
-        notification.style.cssText = `
-            position: fixed; top: 100px; right: 20px;
-            background: ${colors[type] || colors.success};
-            color: white; padding: 15px 25px; border-radius: 10px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-            z-index: 9999; font-weight: 600;
-            display: flex; align-items: center; gap: 10px; max-width: 350px;
+        const box = document.createElement('div');
+        box.className = 'custom-notification';
+        box.style.cssText = `
+            position: fixed; top: 90px; right: 20px; z-index: 9999;
+            background: ${colors[type]}; color: white; padding: 14px 22px;
+            border-radius: 12px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+            display: flex; align-items: center; gap: 8px; max-width: 340px;
         `;
-        notification.innerHTML = `<span style="font-size:1.2rem">${icons[type]||icons.success}</span><span>${message}</span>`;
-        document.body.appendChild(notification);
+        box.innerHTML = `<span>${icons[type]}</span><span>${message}</span>`;
+        document.body.appendChild(box);
 
-        if(window.gsap){
-            gsap.from(notification, { x: 400, opacity: 0, duration: 0.3, ease: 'back.out(1.7)' });
-            setTimeout(() => gsap.to(notification, {
-                x: 400, opacity: 0, duration: 0.3, onComplete: () => notification.remove()
-            }), 3000);
+        if (window.gsap) {
+            gsap.from(box, { x: 200, opacity: 0, duration: 0.4, ease: 'back.out(1.7)' });
+            setTimeout(() => {
+                gsap.to(box, { x: 200, opacity: 0, duration: 0.3, onComplete: () => box.remove() });
+            }, 3000);
         } else {
-            setTimeout(() => notification.remove(), 3000);
+            setTimeout(() => box.remove(), 3000);
         }
     }
 
     // ===========================
-    // Theme Toggle
+    // GSAP INIT
     // ===========================
-    const themeToggle = document.getElementById('themeToggle');
-    const html = document.documentElement;
-    const currentTheme = localStorage.getItem('theme') || 'light';
-    html.setAttribute('data-theme', currentTheme);
-
-    themeToggle?.addEventListener('click', () => {
-        const theme = html.getAttribute('data-theme');
-        const newTheme = theme === 'light' ? 'dark' : 'light';
-        html.setAttribute('data-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
-
-        themeToggle.style.transform = 'rotate(360deg)';
-        setTimeout(() => themeToggle.style.transform = 'rotate(0deg)', 300);
-    });
-
-    // ===========================
-    // Country Selector
-    // ===========================
-    const countryFlags = {
-        'SA': '🇸🇦','AE': '🇦🇪','EG': '🇪🇬','KW': '🇰🇼',
-        'QA': '🇶🇦','BH': '🇧🇭','OM': '🇴🇲','JO': '🇯🇴'
-    };
-    const savedCountry = localStorage.getItem('selectedCountry') || 'SA';
-
-    function updateCountryDisplay(code) {
-        const currentCountry = document.querySelector('.current-country');
-        if(currentCountry){
-            currentCountry.textContent = countryFlags[code];
-            currentCountry.dataset.countryCode = code;
+    function initGSAP() {
+        if (window.gsap && window.ScrollTrigger) {
+            gsap.registerPlugin(ScrollTrigger);
+            console.log('✓ GSAP + ScrollTrigger ready');
+            return true;
         }
-        document.querySelectorAll('.country-item').forEach(item => {
-            item.classList.toggle('active', item.dataset.country === code);
+        console.warn('⚠️ GSAP not found. Animations disabled.');
+        return false;
+    }
+
+    // ===========================
+    // ENHANCED THEME TOGGLE
+    // ===========================
+    function initThemeToggle() {
+        const btn = document.getElementById('themeToggle');
+        const html = document.documentElement;
+        const currentTheme = localStorage.getItem('theme') || 'light';
+
+        html.setAttribute('data-theme', currentTheme);
+
+        if (btn) {
+            btn.addEventListener('click', () => {
+                const currentTheme = html.getAttribute('data-theme');
+                const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+                html.setAttribute('data-theme', nextTheme);
+                localStorage.setItem('theme', nextTheme);
+
+                // Add rotation animation
+                btn.style.transform = 'rotate(360deg)';
+                setTimeout(() => {
+                    btn.style.transform = 'rotate(0deg)';
+                }, 400);
+
+                const modeText = nextTheme === 'dark' ? 'الوضع الليلي' : 'الوضع النهاري';
+                showNotification(`تم التبديل إلى ${modeText}`, 'info');
+            });
+            console.log('✓ Enhanced theme toggle initialized');
+        }
+    }
+
+    // ===========================
+    // MOBILE MENU
+    // ===========================
+    function initMobileMenu() {
+        const hamburger = document.getElementById('hamburgerBtn');
+        const mobileNav = document.getElementById('mobileNav');
+        const closeBtn = document.getElementById('mobileNavClose');
+        const backdrop = document.getElementById('mobileBackdrop');
+
+        if (!hamburger || !mobileNav || !backdrop) return;
+
+        const openMenu = () => {
+            mobileNav.classList.add('active');
+            backdrop.classList.add('active');
+            hamburger.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        };
+
+        const closeMenu = () => {
+            mobileNav.classList.remove('active');
+            backdrop.classList.remove('active');
+            hamburger.classList.remove('active');
+            document.body.style.overflow = '';
+        };
+
+        hamburger.addEventListener('click', openMenu);
+        closeBtn?.addEventListener('click', closeMenu);
+        backdrop.addEventListener('click', closeMenu);
+
+        // Auto-close when clicking links
+        document.querySelectorAll('.mobile-nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                if (!link.closest('.mobile-country-selector')) {
+                    const href = link.getAttribute('href');
+                    if (href && href !== '#') {
+                        closeMenu();
+                    }
+                }
+            });
         });
+
+        console.log('✓ Mobile menu initialized');
     }
 
-    updateCountryDisplay(savedCountry);
+    // ===========================
+    // ENHANCED COUNTRY SELECTOR
+    // ===========================
+    function initEnhancedCountrySelector() {
+        const countryFlags = {
+            SA: '🇸🇦', AE: '🇦🇪', EG: '🇪🇬', KW: '🇰🇼',
+            QA: '🇶🇦', BH: '🇧🇭', OM: '🇴🇲', JO: '🇯🇴'
+        };
 
-    document.querySelectorAll('.country-item').forEach(item => {
-        item.addEventListener('click', async function(e){
+        async function handleCountryChange(e) {
             e.preventDefault();
-            const country = this.dataset.country;
-            const countryName = this.querySelector('.country-name').textContent;
+            const item = this;
+            const code = item.dataset.country;
 
-            const originalHTML = this.innerHTML;
-            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحميل...';
-            this.style.pointerEvents = 'none';
+            // Prevent double-click
+            if (item.classList.contains('loading')) return;
+
+            const originalContent = item.innerHTML;
+            item.classList.add('loading');
 
             try {
-                const res = await fetch('/api/set-country/', {
+                const response = await fetch('/api/set-country/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                         'X-CSRFToken': getCookie('csrftoken')
                     },
-                    body: `country_code=${country}`
+                    body: `country_code=${code}`
                 });
-                const data = await res.json();
-                if(data.success){
-                    document.querySelectorAll('.country-item').forEach(i => i.classList.remove('active'));
-                    this.classList.add('active');
-                    localStorage.setItem('selectedCountry', country);
-                    updateCountryDisplay(country);
-                    showNotification(data.message || `تم التغيير إلى ${countryName}`, 'success');
+
+                const data = await response.json();
+
+                if (data.success) {
+                    localStorage.setItem('selectedCountry', code);
+
+                    // Update all country displays
+                    const flagLarge = document.querySelector('.country-flag-large');
+                    if (flagLarge) flagLarge.textContent = countryFlags[code] || '🌍';
+
+                    // Update active states
+                    document.querySelectorAll('.mobile-country-item').forEach(el => {
+                        el.classList.remove('active');
+                        const checkIcon = el.querySelector('.check-icon');
+                        if (checkIcon) checkIcon.remove();
+                    });
+
+                    item.classList.add('active');
+                    const checkIcon = document.createElement('i');
+                    checkIcon.className = 'fas fa-check-circle check-icon';
+                    item.appendChild(checkIcon);
+
+                    showNotification(data.message || 'تم تغيير البلد بنجاح', 'success');
+
+                    // Close dropdown
+                    const collapseEl = document.getElementById('mobileCountryList');
+                    if (collapseEl && window.bootstrap) {
+                        const collapse = bootstrap.Collapse.getInstance(collapseEl);
+                        if (collapse) collapse.hide();
+                    }
+
+                    // Reload after short delay
+                    setTimeout(() => window.location.reload(), 1200);
                 } else {
                     showNotification(data.message || 'حدث خطأ', 'error');
+                    item.classList.remove('loading');
+                    item.innerHTML = originalContent;
                 }
-            } catch(err){
-                console.error(err);
-                showNotification('حدث خطأ في الاتصال بالخادم', 'error');
-            } finally {
-                this.innerHTML = originalHTML;
-                this.style.pointerEvents = '';
+            } catch (error) {
+                console.error('Country change error:', error);
+                showNotification('فشل الاتصال بالخادم', 'error');
+                item.classList.remove('loading');
+                item.innerHTML = originalContent;
             }
-        });
-    });
-
-    // ===========================
-    // Language Switcher
-    // ===========================
-    document.querySelectorAll('.dropdown-item[data-lang]').forEach(item => {
-        item.addEventListener('click', function(e){
-            e.preventDefault();
-            const lang = this.dataset.lang;
-            localStorage.setItem('language', lang);
-            document.querySelector('.current-lang').textContent = lang.toUpperCase();
-
-            document.querySelectorAll('.lang-check').forEach(c => c.style.visibility = 'hidden');
-            this.querySelector('.lang-check').style.visibility = 'visible';
-
-            const dir = lang === 'ar' ? 'rtl' : 'ltr';
-            html.setAttribute('dir', dir);
-            html.setAttribute('lang', lang);
-
-            const bootstrapLink = document.querySelector('link[href*="bootstrap"]');
-            if(bootstrapLink){
-                bootstrapLink.href = lang === 'ar'
-                    ? 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css'
-                    : 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css';
-            }
-
-            showNotification(`Language changed to ${lang==='ar'?'العربية':'English'}`);
-        });
-    });
-
-    // ===========================
-    // Cart & Wishlist
-    // ===========================
-    document.querySelectorAll('.cart-link, .wishlist-link').forEach(link => {
-        link.addEventListener('click', e => {
-            e.preventDefault();
-            const badge = link.querySelector('.badge-count');
-            if(badge){
-                badge.style.animation='none';
-                setTimeout(()=>badge.style.animation='pulse-badge 0.5s ease',10);
-            }
-            const type = link.classList.contains('cart-link')?'السلة':'المفضلة';
-            showNotification(`فتح ${type}`);
-        });
-    });
-
-    function updateBadgeCount(type, count){
-        const badge = document.querySelector(`.${type}-count`);
-        if(badge){
-            badge.style.transform='scale(1.3)';
-            badge.textContent=count;
-            setTimeout(()=>badge.style.transform='scale(1)',200);
         }
+
+        // Attach to all country items
+        document.querySelectorAll('.mobile-country-item, .country-item').forEach(item => {
+            item.addEventListener('click', handleCountryChange);
+        });
+
+        console.log('✓ Enhanced country selector initialized');
     }
 
     // ===========================
-    // GSAP Animations
+    // ENHANCED BADGES
     // ===========================
-    if(window.gsap){
-        gsap.from('.hero-title', {opacity:0,y:50,duration:1,ease:'power3.out',delay:0.2});
-        gsap.from('.hero-subtitle', {opacity:0,y:30,duration:1,ease:'power3.out',delay:0.5});
-        gsap.from('.btn-hero', {opacity:1,y:20,duration:0.8,stagger:0.2,ease:'power3.out',delay:0.8});
-        gsap.from('#heroImage', {opacity:0,x:100,duration:1.2,ease:'power3.out',delay:0.6});
+    function initEnhancedBadges() {
+        // Animate badges on hover
+        document.querySelectorAll('.icon-link').forEach(link => {
+            link.addEventListener('mouseenter', () => {
+                const badge = link.querySelector('.enhanced-badge');
+                if (badge && window.gsap) {
+                    gsap.to(badge, {
+                        scale: 1.2,
+                        rotation: 5,
+                        duration: 0.3,
+                        ease: 'back.out(2)'
+                    });
+                }
+            });
 
-        gsap.from('[data-category]', { scrollTrigger:{trigger:'.categories-section', start:'top 80%'}, opacity:0, y:50, duration:0.8, stagger:0.15, ease:'power3.out' });
+            link.addEventListener('mouseleave', () => {
+                const badge = link.querySelector('.enhanced-badge');
+                if (badge && window.gsap) {
+                    gsap.to(badge, {
+                        scale: 1,
+                        rotation: 0,
+                        duration: 0.3,
+                        ease: 'back.out(2)'
+                    });
+                }
+            });
 
+            // Click handling
+            link.addEventListener('click', (e) => {
+                const href = link.getAttribute('href');
+                if (!href || href === '#') {
+                    e.preventDefault();
+                    const badge = link.querySelector('.enhanced-badge');
+                    if (badge) {
+                        // Pulse animation
+                        badge.style.animation = 'none';
+                        setTimeout(() => {
+                            badge.style.animation = 'badgePulse 0.5s ease';
+                        }, 10);
+                    }
+
+                    const isCart = link.classList.contains('cart-link');
+                    const message = isCart ? 'فتح السلة' : 'فتح المفضلة';
+                    showNotification(message, 'info');
+                }
+            });
+        });
+
+        // Mobile badges
+        document.querySelectorAll('.mobile-nav-link .mobile-badge').forEach(badge => {
+            const link = badge.closest('.mobile-nav-link');
+            link.addEventListener('click', (e) => {
+                const href = link.getAttribute('href');
+                if (!href || href === '#') {
+                    e.preventDefault();
+                    badge.style.animation = 'none';
+                    setTimeout(() => {
+                        badge.style.animation = 'badgePulse 0.5s ease';
+                    }, 10);
+                }
+            });
+        });
+
+        console.log('✓ Enhanced badges initialized');
+    }
+
+    // ===========================
+    // LANGUAGE SWITCHER
+    // ===========================
+    function initLanguageSwitcher() {
+        document.querySelectorAll('[data-lang]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const lang = btn.dataset.lang;
+                const html = document.documentElement;
+                localStorage.setItem('language', lang);
+                html.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+                html.setAttribute('lang', lang);
+                const langName = lang === 'ar' ? 'العربية' : 'English';
+                showNotification(`Language changed to ${langName}`, 'success');
+            });
+        });
+        console.log('✓ Language switcher initialized');
+    }
+
+    // ===========================
+    // NAVBAR EFFECTS
+    // ===========================
+    function initNavbarEffects() {
+        const navbar = document.getElementById('mainNav');
+        if (!navbar) return;
+
+        let lastScroll = 0;
+        window.addEventListener('scroll', debounce(() => {
+            const current = window.scrollY;
+            navbar.style.boxShadow = current > 50
+                ? '0 6px 25px rgba(0,0,0,0.25)' : 'none';
+            navbar.style.padding = current > 50 ? '0.6rem 0' : '1.2rem 0';
+
+            if (window.innerWidth > 991) {
+                navbar.style.transform = (current > lastScroll && current > 400)
+                    ? 'translateY(-100%)' : 'translateY(0)';
+            }
+            lastScroll = current;
+        }, 10));
+        console.log('✓ Navbar effects initialized');
+    }
+
+    // ===========================
+    // SMOOTH SCROLL
+    // ===========================
+    function initSmoothScroll() {
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', e => {
+                const href = anchor.getAttribute('href');
+                if (href === '#') return;
+                const target = document.querySelector(href);
+                if (target) {
+                    e.preventDefault();
+                    window.scrollTo({ top: target.offsetTop - 80, behavior: 'smooth' });
+                }
+            });
+        });
+        console.log('✓ Smooth scroll initialized');
+    }
+
+    // ===========================
+    // BACK TO TOP
+    // ===========================
+    function initBackToTop() {
+        const btn = document.querySelector('.back-to-top');
+        if (!btn) return;
+
+        window.addEventListener('scroll', () => {
+            btn.classList.toggle('show', window.scrollY > 300);
+        });
+        btn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        console.log('✓ Back to top initialized');
+    }
+
+    // ===========================
+    // GSAP ANIMATIONS
+    // ===========================
+    function initAnimations() {
+        // Hero animations
+        if (document.querySelector('.hero-title')) {
+            gsap.from('.hero-title', { y: 40, opacity: 0, duration: 0.8 });
+            gsap.from('.hero-subtitle', { y: 20, opacity: 0, duration: 0.8, delay: 0.2 });
+        }
+
+        // Section titles
         gsap.utils.toArray('.section-title').forEach(title => {
-            gsap.from(title, { scrollTrigger:{ trigger: title, start:'top 85%' }, opacity:0, y:30, duration:0.8, ease:'power3.out' });
+            gsap.from(title, {
+                scrollTrigger: { trigger: title, start: 'top 85%' },
+                y: 30, opacity: 0, duration: 0.8
+            });
         });
 
-        gsap.from('.feature-box', { scrollTrigger:{ trigger:'.features-section', start:'top 80%' }, opacity:0, y:40, duration:0.8, stagger:0.2, ease:'power3.out' });
-        gsap.from('.footer-col', { scrollTrigger:{ trigger:'.footer', start:'top 90%' }, opacity:0, y:30, duration:0.6, stagger:0.1, ease:'power3.out' });
-        gsap.from('.newsletter-box', { scrollTrigger:{ trigger:'.newsletter-box', start:'top 85%' }, opacity:0, scale:0.9, duration:0.8, ease:'back.out(1.7)' });
+        // Badge entrance animation
+        gsap.from('.enhanced-badge', {
+            scale: 0,
+            rotation: -180,
+            duration: 0.6,
+            delay: 0.5,
+            stagger: 0.1,
+            ease: 'back.out(2)'
+        });
+
+        console.log('✓ GSAP animations initialized');
     }
 
     // ===========================
-    // Navbar Scroll Effect
+    // PAGE LOAD
     // ===========================
-    let lastScroll=0;
-    const navbar=document.getElementById('mainNav');
-    window.addEventListener('scroll', ()=> {
-        if(!navbar) return;
-        const cur=window.pageYOffset;
-        navbar.style.padding=cur>50?'0.5rem 0':'1rem 0';
-        navbar.style.boxShadow=cur>50?'0 6px 30px rgba(0,0,0,0.3)':'0 4px 20px rgba(0,0,0,0.2)';
-        navbar.style.transform=(cur>lastScroll && cur>500)?'translateY(-100%)':'translateY(0)';
-        lastScroll=cur;
-    });
-
-    // ===========================
-    // Smooth Scroll for Anchors
-    // ===========================
-    document.querySelectorAll('a[href^="#"]').forEach(anchor=>{
-        anchor.addEventListener('click', e=>{
-            e.preventDefault();
-            const target=document.querySelector(anchor.getAttribute('href'));
-            if(target) window.scrollTo({top:target.offsetTop-80,behavior:'smooth'});
+    function initPageLoad() {
+        window.addEventListener('load', () => {
+            document.body.style.opacity = '1';
+            console.log('✓ Page fully loaded');
         });
-    });
+    }
 
-    // ===========================
-    // Page Load Animation
-    // ===========================
-    document.body.style.opacity='0';
-    setTimeout(()=>{
-        document.body.style.transition='opacity 0.5s ease';
-        document.body.style.opacity='1';
-    },100);
+})();
 
-    // ===========================
-    // Other Animations & Effects
-    // ===========================
-    // Category Cards, Parallax Hero, Button Ripple, Newsletter Form, Lazy Load, Social Hover, Accessibility
-    // (You can copy all your previous code blocks here similarly)
-
-    // ===========================
-    // Console Logs
-    // ===========================
-    console.log('%c🚀 إدريسي مارت','color:#4B315E;font-size:24px;font-weight:bold;');
-    console.log('%cWelcome to Idrisi Mart! 🎉','color:#FF6001;font-size:16px;');
-    console.log('%cBuilt with ❤️ using Django + Bootstrap 5 + GSAP + Swiper','color:#666;font-size:12px;');
-    console.log(`Current theme: ${html.getAttribute('data-theme')}`);
-    console.log(`Current language: ${document.documentElement.getAttribute('lang')}`);
-    console.log(`Selected country: ${savedCountry}`);
-});
+// ===========================
+// BRANDING
+// ===========================
+console.log('%c🚀 إدريسي مارت', 'color:#4B315E;font-size:24px;font-weight:bold;');
+console.log('%cWelcome to Idrisi Mart! 🎉', 'color:#FF6001;font-size:16px;');
+console.log('%cv4.0 - Enhanced Edition', 'color:#666;font-size:12px;');
