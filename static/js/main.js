@@ -172,6 +172,39 @@ function initMobileMenu() {
 
     console.log('✓ Mobile menu initialized (fixed)');
 }
+// ===========================
+// STATS COUNTERS
+// ===========================
+function initCounters() {
+    if (!window.gsap || !window.ScrollTrigger) {
+        console.warn('⚠️ GSAP or ScrollTrigger not found. Counters disabled.');
+        return;
+    }
+
+    gsap.utils.toArray('.stat-number').forEach(counter => {
+        const target = +counter.dataset.target || 0;
+
+        // Animate from 0 → target
+        gsap.fromTo(counter,
+            { innerText: 0 },
+            {
+                innerText: target,
+                duration: 2,
+                ease: 'power1.out',
+                snap: { innerText: 1 },
+                scrollTrigger: {
+                    trigger: counter,
+                    start: 'top 90%', // start when counter is in viewport
+                },
+                onUpdate: function() {
+                    counter.innerText = Math.floor(counter.innerText);
+                }
+            }
+        );
+    });
+
+    console.log('✓ Stats counters initialized');
+}
 
     // ===========================
     // ENHANCED COUNTRY SELECTOR
@@ -404,33 +437,76 @@ function initMobileMenu() {
     // ===========================
     // GSAP ANIMATIONS
     // ===========================
-    function initAnimations() {
-        // Hero animations
-        if (document.querySelector('.hero-title')) {
-            gsap.from('.hero-title', { y: 40, opacity: 0, duration: 0.8 });
-            gsap.from('.hero-subtitle', { y: 20, opacity: 0, duration: 0.8, delay: 0.2 });
-        }
+// ===========================
+// GSAP ANIMATIONS
+// ===========================
+function initAnimations() {
+    if (!window.gsap || !window.ScrollTrigger) return;
 
-        // Section titles
-        gsap.utils.toArray('.section-title').forEach(title => {
-            gsap.from(title, {
-                scrollTrigger: { trigger: title, start: 'top 85%' },
-                y: 30, opacity: 0, duration: 0.8
-            });
-        });
-
-        // Badge entrance animation
-        gsap.from('.enhanced-badge', {
-            scale: 0,
-            rotation: -180,
-            duration: 0.6,
-            delay: 0.5,
-            stagger: 0.1,
-            ease: 'back.out(2)'
-        });
-
-        console.log('✓ GSAP animations initialized');
+    // Hero animations
+    if (document.querySelector('.hero-title')) {
+        gsap.from('.hero-title', { y: 40, opacity: 0, duration: 0.8 });
+        gsap.from('.hero-subtitle', { y: 20, opacity: 0, duration: 0.8, delay: 0.2 });
     }
+
+    // Section titles
+    gsap.utils.toArray('.section-title').forEach(title => {
+        gsap.from(title, {
+            scrollTrigger: { trigger: title, start: 'top 85%' },
+            y: 30,
+            opacity: 0,
+            duration: 0.8
+        });
+    });
+
+    // Badge entrance animation
+    gsap.from('.enhanced-badge', {
+        scale: 0,
+        rotation: -180,
+        duration: 0.6,
+        delay: 0.5,
+        stagger: 0.1,
+        ease: 'back.out(2)'
+    });
+
+    // Initialize stats counters
+    initCounters();
+
+    console.log('✓ GSAP animations initialized (including counters)');
+}
+
+// ===========================
+// STATS COUNTERS
+// ===========================
+function initCounters() {
+    if (!window.gsap || !window.ScrollTrigger) {
+        console.warn('⚠️ GSAP or ScrollTrigger not found. Counters disabled.');
+        return;
+    }
+
+    gsap.utils.toArray('.stat-number').forEach(counter => {
+        const target = +counter.dataset.target || 0;
+
+        gsap.fromTo(counter,
+            { innerText: 0 },
+            {
+                innerText: target,
+                duration: 2,
+                ease: 'power1.out',
+                snap: { innerText: 1 },
+                scrollTrigger: {
+                    trigger: counter,
+                    start: 'top 90%', // animate when counter is visible
+                },
+                onUpdate: function () {
+                    counter.innerText = Math.floor(counter.innerText);
+                }
+            }
+        );
+    });
+
+    console.log('✓ Stats counters initialized');
+}
 
     // ===========================
     // PAGE LOAD
