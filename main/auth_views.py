@@ -121,21 +121,72 @@ def register_view(request):
         if errors:
             for error in errors:
                 messages.error(request, error)
-            return render(
-                request, "accounts/register.html", {"form_data": request.POST}
-            )
+            return render(request, "pages/register.html", {"form_data": request.POST})
 
-        # Create user
+        # Collect additional optional fields depending on profile type
+        company_name = request.POST.get("company_name", "").strip()
+        company_name_ar = request.POST.get("company_name_ar", "").strip()
+        commercial_register = request.POST.get("commercial_register", "").strip()
+        tax_number = request.POST.get("tax_number", "").strip()
+        specialization = request.POST.get("specialization", "").strip()
+        years_of_experience = request.POST.get("years_of_experience", "").strip()
+
+        # Create user using specialized manager methods where appropriate
         try:
-            user = User.objects.create_user(
-                username=username,
-                email=email,
-                password=password,
-                first_name=first_name,
-                last_name=last_name,
-                phone=phone,
-                profile_type=profile_type,
-            )
+            if profile_type == "service":
+                user = User.objects.create_service_provider(
+                    username=username,
+                    email=email,
+                    password=password,
+                    first_name=first_name,
+                    last_name=last_name,
+                    phone=phone,
+                    specialization=specialization or None,
+                    years_of_experience=(
+                        int(years_of_experience)
+                        if years_of_experience.isdigit()
+                        else None
+                    ),
+                )
+            elif profile_type == "merchant":
+                user = User.objects.create_merchant(
+                    username=username,
+                    email=email,
+                    password=password,
+                    company_name=company_name or None,
+                    first_name=first_name,
+                    last_name=last_name,
+                    phone=phone,
+                    tax_number=tax_number or None,
+                    commercial_register=commercial_register or None,
+                )
+                # If company name in Arabic provided, save it
+                if company_name_ar:
+                    user.company_name_ar = company_name_ar
+                    user.save(update_fields=["company_name_ar"])
+            elif profile_type == "educational":
+                user = User.objects.create_educational(
+                    username=username,
+                    email=email,
+                    password=password,
+                    first_name=first_name,
+                    last_name=last_name,
+                    phone=phone,
+                    company_name=company_name or None,
+                )
+                if company_name_ar:
+                    user.company_name_ar = company_name_ar
+                    user.save(update_fields=["company_name_ar"])
+            else:
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=password,
+                    first_name=first_name,
+                    last_name=last_name,
+                    phone=phone,
+                    profile_type=profile_type,
+                )
 
             # Auto login after registration
             login(request, user)
@@ -146,8 +197,11 @@ def register_view(request):
             return redirect("main:home")
 
         except Exception:
+            # Log the exception in development (don't leak to user)
+            # You can expand this to use Django logging instead
             messages.error(
-                request, _("حدث خطأ أثناء إنشاء الحساب. يرجى المحاولة مرة أخرى.")
+                request,
+                _("حدث خطأ أثناء إنشاء الحساب. يرجى المحاولة مرة أخرى."),
             )
             return render(request, "pages/register.html", {"form_data": request.POST})
 

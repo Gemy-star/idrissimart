@@ -158,6 +158,90 @@
                         <i class="fas fa-phone"></i>
                     </div>
                 </div>
+                <!-- Extra fields for selected profile types -->
+                <div id="extra_fields_container">
+                    <!-- Merchant fields -->
+                    <div class="form-group extra-field merchant-field" style="display:none;">
+                        <label class="form-label">{% trans "اسم الشركة (إن وجد)" %}</label>
+                        <div class="form-control-wrapper">
+                            <input type="text"
+                                   name="company_name"
+                                   class="form-control"
+                                   placeholder="{% trans 'اسم الشركة بالإنجليزية' %}"
+                                   value="{{ form_data.company_name|default:'' }}" />
+                            <i class="fas fa-building"></i>
+                        </div>
+                    </div>
+                    <div class="form-group extra-field merchant-field" style="display:none;">
+                        <label class="form-label">{% trans "اسم الشركة بالعربية" %}</label>
+                        <div class="form-control-wrapper">
+                            <input type="text"
+                                   name="company_name_ar"
+                                   class="form-control"
+                                   placeholder="{% trans 'اسم الشركة بالعربية' %}"
+                                   value="{{ form_data.company_name_ar|default:'' }}" />
+                            <i class="fas fa-language"></i>
+                        </div>
+                    </div>
+                    <div class="form-group extra-field merchant-field" style="display:none;">
+                        <label class="form-label">{% trans "السجل التجاري" %}</label>
+                        <div class="form-control-wrapper">
+                            <input type="text"
+                                   name="commercial_register"
+                                   class="form-control"
+                                   placeholder="{% trans 'رقم السجل التجاري' %}"
+                                   value="{{ form_data.commercial_register|default:'' }}" />
+                            <i class="fas fa-id-card"></i>
+                        </div>
+                    </div>
+                    <div class="form-group extra-field merchant-field" style="display:none;">
+                        <label class="form-label">{% trans "الرقم الضريبي" %}</label>
+                        <div class="form-control-wrapper">
+                            <input type="text"
+                                   name="tax_number"
+                                   class="form-control"
+                                   placeholder="{% trans 'الرقم الضريبي' %}"
+                                   value="{{ form_data.tax_number|default:'' }}" />
+                            <i class="fas fa-receipt"></i>
+                        </div>
+                    </div>
+                    <!-- Service fields -->
+                    <div class="form-group extra-field service-field" style="display:none;">
+                        <label class="form-label">{% trans "التخصص" %}</label>
+                        <div class="form-control-wrapper">
+                            <input type="text"
+                                   name="specialization"
+                                   class="form-control"
+                                   placeholder="{% trans 'مثال: كهربائي، سباكة' %}"
+                                   value="{{ form_data.specialization|default:'' }}" />
+                            <i class="fas fa-tools"></i>
+                        </div>
+                    </div>
+                    <div class="form-group extra-field service-field" style="display:none;">
+                        <label class="form-label">{% trans "سنوات الخبرة" %}</label>
+                        <div class="form-control-wrapper">
+                            <input type="number"
+                                   name="years_of_experience"
+                                   class="form-control"
+                                   placeholder="{% trans 'عدد السنوات' %}"
+                                   value="{{ form_data.years_of_experience|default:'' }}"
+                                   min="0" />
+                            <i class="fas fa-hourglass-half"></i>
+                        </div>
+                    </div>
+                    <!-- Educational fields (uses company_name as institution) -->
+                    <div class="form-group extra-field educational-field" style="display:none">
+                        <label class="form-label">{% trans "اسم المؤسسة التعليمية" %}</label>
+                        <div class="form-control-wrapper">
+                            <input type="text"
+                                   name="company_name"
+                                   class="form-control"
+                                   placeholder="{% trans 'اسم المؤسسة أو الجهة التدريبية' %}"
+                                   value="{{ form_data.company_name|default:'' }}" />
+                            <i class="fas fa-university"></i>
+                        </div>
+                    </div>
+                </div>
                 <!-- Password -->
                 <div class="form-group">
                     <label class="form-label">
@@ -286,6 +370,31 @@
             const submitBtn = this.querySelector('button[type="submit"]')
             submitBtn.classList.add('loading')
             submitBtn.disabled = true
+        })
+
+        // Toggle extra fields depending on profile type
+        function updateExtraFields() {
+            const selected = document.querySelector('input[name="profile_type"]:checked').value
+            document.querySelectorAll('.extra-field').forEach(el => (el.style.display = 'none'))
+            if (selected === 'merchant') {
+                document.querySelectorAll('.merchant-field').forEach(el => (el.style.display = 'block'))
+            } else if (selected === 'service') {
+                document.querySelectorAll('.service-field').forEach(el => (el.style.display = 'block'))
+            } else if (selected === 'educational') {
+                document.querySelectorAll('.educational-field').forEach(el => (el.style.display = 'block'))
+            }
+        }
+
+        document.querySelectorAll('input[name="profile_type"]').forEach(r => r.addEventListener('change', updateExtraFields))
+        // Initialize on page load (useful when returning with form errors)
+        document.addEventListener('DOMContentLoaded', function() {
+            // If the server returned a profile_type in form_data, pre-check it
+            const existing = '{{ form_data.profile_type|default:"" }}'
+            if (existing) {
+                const radio = document.querySelector(`input[name="profile_type"][value="${existing}"]`)
+                if (radio) radio.checked = true
+            }
+            updateExtraFields()
         })
     </script>
 
