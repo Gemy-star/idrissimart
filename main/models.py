@@ -763,7 +763,13 @@ class Category(models.Model):
         blank=True,
         verbose_name=_("الاسم بالعربية"),
     )
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(unique=True, verbose_name=_("الرابط الإنجليزي"))
+    slug_ar = models.SlugField(
+        unique=True,
+        blank=True,
+        verbose_name=_("الرابط العربي - Arabic Slug"),
+        help_text=_("رابط صديق للعربية يمكن استخدامه في عناوين URL"),
+    )
     section_type = models.CharField(
         max_length=20,
         choices=SectionType.choices,
@@ -785,6 +791,27 @@ class Category(models.Model):
         blank=True,
         null=True,
     )
+
+    # Country relationship for filtering
+    country = models.ForeignKey(
+        "content.Country",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="categories",
+        verbose_name=_("الدولة - Country"),
+        help_text=_("القسم متاح في هذه الدولة"),
+    )
+
+    # Multiple countries support
+    countries = models.ManyToManyField(
+        "content.Country",
+        blank=True,
+        related_name="available_categories",
+        verbose_name=_("الدول المتاحة - Available Countries"),
+        help_text=_("الدول التي يتوفر فيها هذا القسم"),
+    )
+
     order = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
 
@@ -804,3 +831,335 @@ class Category(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        """Override save to ensure slug_ar is set if not provided"""
+        if not self.slug_ar and self.name_ar:
+            import re
+
+            from django.utils.text import slugify
+
+            # Clean Arabic text and create slug
+            # Remove Arabic diacritics and normalize
+            clean_text = re.sub(
+                r"[\u064B-\u065F\u0670\u0640]", "", self.name_ar
+            )  # Remove diacritics
+            clean_text = re.sub(
+                r"[^\u0600-\u06FF\u0750-\u077F\w\s-]", "", clean_text
+            )  # Keep Arabic, alphanumeric, spaces, hyphens
+
+            # Create slug allowing Unicode (Arabic) characters
+            base_slug = slugify(clean_text.strip(), allow_unicode=True)
+
+            if not base_slug:  # Fallback if slugify fails with Arabic
+                # Simple replacement approach
+                base_slug = clean_text.strip().replace(" ", "-").lower()
+                base_slug = re.sub(r"[^\u0600-\u06FF\u0750-\u077F\w-]", "", base_slug)
+
+            # Ensure uniqueness
+            slug_ar = base_slug[:50]  # Limit length
+            counter = 1
+            while Category.objects.filter(slug_ar=slug_ar).exclude(pk=self.pk).exists():
+                suffix = f"-{counter}"
+                max_length = 50 - len(suffix)
+                slug_ar = f"{base_slug[:max_length]}{suffix}"
+                counter += 1
+
+            self.slug_ar = slug_ar
+
+        super().save(*args, **kwargs)
+
+    def get_absolute_url(self, language="en"):
+        """Get URL using appropriate slug based on language"""
+        if language == "ar" and self.slug_ar:
+            return f"/categories/{self.slug_ar}/"
+        return f"/categories/{self.slug}/"
+
+    def get_full_name(self):
+        """Get full category name including parent"""
+        if self.parent:
+            return f"{self.parent.name} > {self.name}"
+        return self.name
+
+    def get_all_subcategories(self):
+        """Get all subcategories recursively"""
+        subcats = list(self.subcategories.filter(is_active=True))
+        for subcat in list(subcats):
+            subcats.extend(subcat.get_all_subcategories())
+        return subcats
+
+    def is_subcategory(self):
+        """Check if this is a subcategory"""
+        return self.parent is not None
+
+    def get_root_category(self):
+        """Get the root (top-level) category"""
+        if self.parent:
+            return self.parent.get_root_category()
+        return self
+
+    @classmethod
+    def get_by_country(cls, country_code):
+        """Get categories filtered by country"""
+        from content.models import Country
+
+        try:
+            country = Country.objects.get(code=country_code, is_active=True)
+            return cls.objects.filter(
+                models.Q(country=country)
+                | models.Q(countries=country)
+                | models.Q(country__isnull=True, countries__isnull=True)
+            ).distinct()
+        except Country.DoesNotExist:
+            return cls.objects.none()
+
+    @classmethod
+    def get_by_section_and_country(cls, section_type, country_code):
+        """Get categories filtered by section type and country"""
+        return cls.get_by_country(country_code).filter(
+            section_type=section_type, is_active=True
+        )
+
+    @classmethod
+    def get_root_categories(cls, section_type=None, country_code=None):
+        """Get only root (parent) categories"""
+        queryset = cls.objects.filter(parent__isnull=True, is_active=True)
+
+        if section_type:
+            queryset = queryset.filter(section_type=section_type)
+
+        if country_code:
+            from content.models import Country
+
+            try:
+                country = Country.objects.get(code=country_code, is_active=True)
+                queryset = queryset.filter(
+                    models.Q(country=country)
+                    | models.Q(countries=country)
+                    | models.Q(country__isnull=True, countries__isnull=True)
+                ).distinct()
+            except Country.DoesNotExist:
+                pass
+
+        return queryset
+
+
+class ContactInfo(models.Model):
+    """Contact information for the platform"""
+
+    phone = models.CharField(
+        max_length=20,
+        verbose_name=_("رقم الهاتف - Phone"),
+        help_text=_("رقم الهاتف الرئيسي للمنصة"),
+    )
+    email = models.EmailField(
+        verbose_name=_("البريد الإلكتروني - Email"),
+        help_text=_("البريد الإلكتروني الرئيسي للمنصة"),
+    )
+    address = models.TextField(
+        verbose_name=_("العنوان - Address"), help_text=_("عنوان المكتب الرئيسي")
+    )
+    working_hours = models.CharField(
+        max_length=100,
+        default="السبت - الخميس، 9:00 ص - 5:00 م",
+        verbose_name=_("ساعات العمل - Working Hours"),
+    )
+    whatsapp = models.CharField(
+        max_length=20, blank=True, verbose_name=_("واتساب - WhatsApp")
+    )
+    facebook = models.URLField(blank=True, verbose_name=_("فيسبوك - Facebook"))
+    twitter = models.URLField(blank=True, verbose_name=_("تويتر - Twitter"))
+    instagram = models.URLField(blank=True, verbose_name=_("انستغرام - Instagram"))
+    linkedin = models.URLField(blank=True, verbose_name=_("لينكدإن - LinkedIn"))
+    map_embed_url = models.TextField(
+        blank=True,
+        verbose_name=_("رابط الخريطة - Map Embed URL"),
+        help_text=_("رابط الخريطة من Google Maps"),
+    )
+    google_maps_link = models.URLField(
+        blank=True,
+        verbose_name=_("رابط Google Maps - Google Maps Link"),
+        help_text=_("رابط مباشر إلى الموقع على Google Maps"),
+    )
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط - Active"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "contact_info"
+        verbose_name = _("Contact Information")
+        verbose_name_plural = _("Contact Information")
+
+    def __str__(self):
+        return f"Contact Info - {self.email}"
+
+    @classmethod
+    def get_active_info(cls):
+        """Get the active contact information"""
+        return cls.objects.filter(is_active=True).first()
+
+
+class ContactMessage(models.Model):
+    """Contact messages from users"""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", _("قيد الانتظار - Pending")
+        READ = "read", _("مقروءة - Read")
+        REPLIED = "replied", _("تم الرد - Replied")
+        RESOLVED = "resolved", _("محلولة - Resolved")
+
+    name = models.CharField(max_length=100, verbose_name=_("الاسم - Name"))
+    email = models.EmailField(verbose_name=_("البريد الإلكتروني - Email"))
+    phone = models.CharField(
+        max_length=20, blank=True, verbose_name=_("رقم الهاتف - Phone")
+    )
+    subject = models.CharField(max_length=200, verbose_name=_("الموضوع - Subject"))
+    message = models.TextField(verbose_name=_("الرسالة - Message"))
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        verbose_name=_("الحالة - Status"),
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="contact_messages",
+        verbose_name=_("المستخدم - User"),
+    )
+    admin_notes = models.TextField(
+        blank=True, verbose_name=_("ملاحظات الإدارة - Admin Notes")
+    )
+    replied_at = models.DateTimeField(
+        null=True, blank=True, verbose_name=_("تاريخ الرد - Reply Date")
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True, verbose_name=_("تاريخ الإرسال - Created At")
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "contact_messages"
+        verbose_name = _("Contact Message")
+        verbose_name_plural = _("Contact Messages")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.name} - {self.subject}"
+
+    def mark_as_read(self):
+        """Mark message as read"""
+        if self.status == self.Status.PENDING:
+            self.status = self.Status.READ
+            self.save()
+
+    def mark_as_replied(self):
+        """Mark message as replied"""
+        from django.utils import timezone
+
+        self.status = self.Status.REPLIED
+        self.replied_at = timezone.now()
+        self.save()
+
+
+class AboutPage(models.Model):
+    """About page content management"""
+
+    title = models.CharField(
+        max_length=200, default="إدريسي مارت", verbose_name=_("العنوان - Title")
+    )
+    tagline = models.CharField(
+        max_length=200, default="تميّزك… ملموس", verbose_name=_("الشعار - Tagline")
+    )
+    subtitle = models.CharField(
+        max_length=300,
+        default="منصتك للتجارة الإلكترونية المتكاملة",
+        verbose_name=_("العنوان الفرعي - Subtitle"),
+    )
+    who_we_are_title = models.CharField(
+        max_length=100, default="من نحن؟", verbose_name=_("عنوان من نحن")
+    )
+    who_we_are_content = models.TextField(
+        verbose_name=_("محتوى من نحن - Who We Are Content")
+    )
+    vision_title = models.CharField(
+        max_length=100, default="رؤيتنا", verbose_name=_("عنوان الرؤية")
+    )
+    vision_content = models.TextField(verbose_name=_("محتوى الرؤية - Vision Content"))
+    mission_title = models.CharField(
+        max_length=100, default="رسالتنا", verbose_name=_("عنوان الرسالة")
+    )
+    mission_content = models.TextField(
+        verbose_name=_("محتوى الرسالة - Mission Content")
+    )
+    values_title = models.CharField(
+        max_length=100, default="قيمنا", verbose_name=_("عنوان القيم")
+    )
+    # Statistics
+    vendors_count = models.IntegerField(
+        default=500, verbose_name=_("عدد البائعين - Vendors Count")
+    )
+    products_count = models.IntegerField(
+        default=5000, verbose_name=_("عدد المنتجات - Products Count")
+    )
+    customers_count = models.IntegerField(
+        default=10000, verbose_name=_("عدد العملاء - Customers Count")
+    )
+    categories_count = models.IntegerField(
+        default=20, verbose_name=_("عدد الفئات - Categories Count")
+    )
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط - Active"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "about_page"
+        verbose_name = _("About Page")
+        verbose_name_plural = _("About Pages")
+
+    def __str__(self):
+        return f"About Page - {self.title}"
+
+    @classmethod
+    def get_active_content(cls):
+        """Get the active about page content"""
+        return cls.objects.filter(is_active=True).first()
+
+
+class CompanyValue(models.Model):
+    """Company values for about page"""
+
+    title = models.CharField(max_length=100, verbose_name=_("العنوان - Title"))
+    description = models.TextField(verbose_name=_("الوصف - Description"))
+    icon_class = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name=_("فئة الأيقونة - Icon Class"),
+        help_text=_("مثال: fas fa-check"),
+    )
+    svg_icon = models.TextField(
+        blank=True,
+        verbose_name=_("أيقونة SVG - SVG Icon"),
+        help_text=_("كود SVG للأيقونة"),
+    )
+    order = models.IntegerField(default=0, verbose_name=_("الترتيب - Order"))
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط - Active"))
+    about_page = models.ForeignKey(
+        AboutPage,
+        on_delete=models.CASCADE,
+        related_name="values",
+        verbose_name=_("صفحة من نحن"),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "company_values"
+        verbose_name = _("Company Value")
+        verbose_name_plural = _("Company Values")
+        ordering = ["order", "title"]
+
+    def __str__(self):
+        return self.title
