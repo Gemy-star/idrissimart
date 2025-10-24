@@ -105,43 +105,26 @@
   // ===========================
   function initThemeToggle() {
     const html = document.documentElement
-    const savedTheme = localStorage.getItem('theme') || 'light'
-
-    // Apply saved theme on page load
-    html.setAttribute('data-theme', savedTheme)
+    html.setAttribute('data-theme', localStorage.getItem('theme') || 'light')
 
     // Select all toggle elements (desktop and mobile)
-    const buttons = document.querySelectorAll('#themeToggle, .theme-switcher, #headerThemeToggle')
-
+    const buttons = document.querySelectorAll('#themeToggle, .theme-switcher, #headerThemeToggle, #mobileThemeToggle')
 
     buttons.forEach((btn) => {
       btn.addEventListener('click', (e) => {
-        // Prevent default for <a> tags
         if (btn.tagName.toLowerCase() === 'a') e.preventDefault()
 
-        const current = html.getAttribute('data-theme')
-        const nextTheme = current === 'light' ? 'dark' : 'light'
+        const nextTheme = html.getAttribute('data-theme') === 'light' ? 'dark' : 'light'
 
-        // Apply the theme
         html.setAttribute('data-theme', nextTheme)
         localStorage.setItem('theme', nextTheme)
 
-        // Animate icons
-        const iconLight = btn.querySelector('.theme-icon-light')
-        const iconDark = btn.querySelector('.theme-icon-dark')
-
-        ;[iconLight, iconDark].forEach((icon) => {
-          if (icon) {
-            icon.style.transition = 'transform 0.4s ease'
-            icon.style.transform = 'rotate(360deg)'
-          }
-        })
-
-        setTimeout(() => {
-          ;[iconLight, iconDark].forEach((icon) => {
-            if (icon) icon.style.transform = 'rotate(0deg)'
-          })
-        }, 400)
+        // Animate icons with a single class toggle or direct style
+        btn.querySelectorAll('.theme-icon-light, .theme-icon-dark').forEach(icon => {
+          icon.style.transition = 'transform 0.4s ease'
+          icon.style.transform = 'rotate(360deg)'
+          setTimeout(() => icon.style.transform = 'rotate(0deg)', 400)
+        });
 
         // Show notification
         const modeText = nextTheme === 'dark' ? 'الوضع الليلي' : 'الوضع النهاري'
@@ -158,45 +141,52 @@
   // MOBILE MENU
   // ===========================
   function initMobileMenu() {
-    const hamburger = document.getElementById('hamburgerBtn')
-    const mobileNav = document.getElementById('mobileNav')
-    const closeBtn = document.getElementById('mobileNavClose')
-    const backdrop = document.getElementById('mobileBackdrop')
+    const menu = {
+      hamburger: document.getElementById('hamburgerBtn'),
+      nav: document.getElementById('mobileNav'),
+      closeBtn: document.getElementById('mobileNavClose'),
+      backdrop: document.getElementById('mobileBackdrop'),
 
-    if (!hamburger || !mobileNav || !backdrop) return
-
-    const openMenu = () => {
-      mobileNav.classList.add('active')
-      backdrop.classList.add('active')
-      hamburger.classList.add('active')
-      document.body.style.overflow = 'hidden'
-    }
-
-    const closeMenu = () => {
-      mobileNav.classList.remove('active')
-      backdrop.classList.remove('active')
-      hamburger.classList.remove('active')
-      document.body.style.overflow = ''
-    }
-
-    hamburger.addEventListener('click', openMenu)
-    closeBtn?.addEventListener('click', closeMenu)
-    backdrop.addEventListener('click', closeMenu)
-
-    // Auto-close when clicking links, but ignore dropdowns
-    document.querySelectorAll('.mobile-nav-link').forEach((link) => {
-      link.addEventListener('click', (e) => {
-        // Check if link is inside any dropdown
-        if (!link.closest('.mobile-dropdown')) {
-          const href = link.getAttribute('href')
-          if (href && href !== '#') {
-            closeMenu()
-          }
+      init() {
+        if (!this.hamburger || !this.nav || !this.backdrop) {
+          console.warn('⚠️ Mobile menu elements not found. Skipping initialization.')
+          return
         }
-      })
-    })
 
-    console.log('✓ Mobile menu initialized (fixed)')
+        this.hamburger.addEventListener('click', this.open.bind(this))
+        this.closeBtn?.addEventListener('click', this.close.bind(this))
+        this.backdrop.addEventListener('click', this.close.bind(this))
+
+        this.nav.querySelectorAll('.mobile-nav-link').forEach((link) => {
+          link.addEventListener('click', (e) => {
+            if (!link.closest('.mobile-dropdown')) {
+              const href = link.getAttribute('href')
+              if (href && href !== '#') {
+                this.close()
+              }
+            }
+          })
+        })
+
+        console.log('✓ Mobile menu initialized (modular)')
+      },
+
+      open() {
+        this.nav.classList.add('active')
+        this.backdrop.classList.add('active')
+        this.hamburger.classList.add('active')
+        document.body.style.overflow = 'hidden'
+      },
+
+      close() {
+        this.nav.classList.remove('active')
+        this.backdrop.classList.remove('active')
+        this.hamburger.classList.remove('active')
+        document.body.style.overflow = ''
+      },
+    }
+
+    menu.init()
   }
   // ===========================
   // STATS COUNTERS
@@ -262,6 +252,42 @@
       JO: 'الأردن',
     }
 
+    function updateUI(code) {
+      // Update desktop dropdown current country
+      const currentCountrySpan = document.querySelector('.current-country')
+      if (currentCountrySpan) {
+        currentCountrySpan.textContent = countryFlags[code] || '🌍'
+        currentCountrySpan.setAttribute('data-country-code', code)
+      }
+
+      // Update mobile country display
+      const flagLarge = document.querySelector('.country-flag-large')
+      if (flagLarge) flagLarge.textContent = countryFlags[code] || '🌍'
+
+      const nameLarge = document.querySelector('.country-name-large')
+      if (nameLarge) nameLarge.textContent = countryNames[code] || code
+
+      // Update active states for both desktop and mobile
+      document.querySelectorAll('.country-item, .mobile-country-item').forEach((el) => {
+        el.classList.remove('active')
+        // Remove any existing check icons
+        const checkIcon = el.querySelector('.country-check, .check-icon')
+        if (checkIcon) checkIcon.remove()
+      })
+
+      // Add active class and check icon to the selected items
+      const desktopItem = document.querySelector(`.country-item[data-country="${code}"]`)
+      if (desktopItem) {
+        desktopItem.classList.add('active')
+        desktopItem.insertAdjacentHTML('beforeend', '<i class="fas fa-check country-check"></i>')
+      }
+      const mobileItem = document.querySelector(`.mobile-country-item[data-country="${code}"]`)
+      if (mobileItem) {
+        mobileItem.classList.add('active')
+        mobileItem.insertAdjacentHTML('beforeend', '<i class="fas fa-check-circle check-icon"></i>')
+      }
+    }
+
     async function handleCountryChange(e) {
       e.preventDefault()
       const item = this
@@ -290,46 +316,7 @@
           // Store in localStorage for persistence
           localStorage.setItem('selectedCountry', code)
 
-          // Update desktop dropdown current country
-          const currentCountrySpan = document.querySelector('.current-country')
-          if (currentCountrySpan) {
-            currentCountrySpan.textContent = countryFlags[code] || '🌍'
-            currentCountrySpan.setAttribute('data-country-code', code)
-          }
-
-          // Update mobile country display
-          const flagLarge = document.querySelector('.country-flag-large')
-          if (flagLarge) flagLarge.textContent = countryFlags[code] || '🌍'
-
-          const nameLarge = document.querySelector('.country-name-large')
-          if (nameLarge) nameLarge.textContent = countryNames[code] || code
-
-          // Update active states for desktop
-          document.querySelectorAll('.country-item').forEach((el) => {
-            el.classList.remove('active')
-            const checkIcon = el.querySelector('.country-check')
-            if (checkIcon) checkIcon.remove()
-          })
-
-          item.classList.add('active')
-          const checkIcon = document.createElement('i')
-          checkIcon.className = 'fas fa-check country-check'
-          item.appendChild(checkIcon)
-
-          // Update active states for mobile
-          document.querySelectorAll('.mobile-country-item').forEach((el) => {
-            el.classList.remove('active')
-            const mobileCheck = el.querySelector('.check-icon')
-            if (mobileCheck) mobileCheck.remove()
-          })
-
-          const mobileItem = document.querySelector(`.mobile-country-item[data-country="${code}"]`)
-          if (mobileItem) {
-            mobileItem.classList.add('active')
-            const mobileCheckIcon = document.createElement('i')
-            mobileCheckIcon.className = 'fas fa-check-circle check-icon'
-            mobileItem.appendChild(mobileCheckIcon)
-          }
+          updateUI(code)
 
           showNotification(data.message || 'تم تغيير البلد بنجاح', 'success')
 

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% load static i18n %}
+{% load static i18n format_tags user_tags currency_tags %}
 
 {% block title %}
     {{ ad.title }} - {% trans "إعلانات مبوبة" %}
@@ -10,115 +10,132 @@
 {% block content %}
     <section class="ad-detail-section py-5">
         <div class="container">
-            <div class="row">
-                <!-- Ad Images Gallery -->
-                <div class="col-lg-7 mb-4 mb-lg-0">
-                    <div class="swiper ad-gallery-swiper">
-                        <div class="swiper-wrapper">
-                            {% for image in ad.images.all %}
-                                <div class="swiper-slide">
-                                    <img src="{{ image.image.url }}"
-                                         class="img-fluid rounded"
-                                         alt="{{ ad.title }} - {% trans 'صورة' %} {{ forloop.counter }}">
-                                </div>
-                            {% empty %}
-                                <div class="swiper-slide">
-                                    <img src="https://via.placeholder.com/800x600.png?text={% trans 'No Image' %}"
-                                         class="img-fluid rounded"
-                                         alt="{% trans 'No Image' %}">
-                                </div>
-                            {% endfor %}
-                        </div>
-                        <div class="swiper-button-next"></div>
-                        <div class="swiper-button-prev"></div>
-                    </div>
-                    <div class="swiper ad-thumbnails-swiper mt-2">
-                        <div class="swiper-wrapper">
-                            {% for image in ad.images.all %}
-                                <div class="swiper-slide">
-                                    <img src="{{ image.image.url }}"
-                                         class="img-fluid rounded"
-                                         alt="{{ ad.title }} - {% trans 'صورة مصغرة' %} {{ forloop.counter }}">
-                                </div>
-                            {% endfor %}
+            <div class="row g-lg-5">
+                <!-- Left Column: Main Content -->
+                <div class="col-lg-8">
+                    <!-- Ad Title -->
+                    <div class="ad-title-header mb-4">
+                        <h1 class="ad-title-main">{{ ad.title }}</h1>
+                        <div class="ad-meta-info">
+                            <span><i class="fas fa-clock me-1"></i> {% trans "نشر في" %}: {{ ad.created_at|date:"d M, Y" }}</span>
+                            <span class="mx-2">|</span>
+                            <span><i class="fas fa-eye me-1"></i> {{ ad.views_count }} {% trans "مشاهدة" %}</span>
                         </div>
                     </div>
-                </div>
-                <!-- Ad Details -->
-                <div class="col-lg-5">
-                    <div class="card shadow-sm">
-                        <div class="card-body p-4">
-                            <h1 class="h3 mb-3">{{ ad.title }}</h1>
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <span class="text-primary-color fw-bold fs-4">{{ ad.price|floatformat:2 }} {% trans "SAR" %}</span>
-                                {% if ad.is_negotiable %}
-                                    <span class="badge bg-secondary">{% trans "قابل للتفاوض" %}</span>
-                                {% endif %}
-                            </div>
-                            <div class="text-muted small mb-3">
-                                <span><i class="fas fa-clock me-1"></i> {% trans "نشر في" %}: {{ ad.created_at|date:"d M, Y" }}</span> |
-                                <span><i class="fas fa-eye me-1"></i> {{ ad.views_count }} {% trans "مشاهدة" %}</span>
-                            </div>
-                            <div class="mb-4">
-                                <h5 class="mb-2">{% trans "الموقع" %}</h5>
-                                <p class="mb-0">
-                                    <i class="fas fa-map-marker-alt me-2 text-muted"></i>{{ ad.city }}, {{ ad.country.name }}
-                                </p>
-                            </div>
-                            <!-- Seller Information -->
-                            <div class="card bg-light border mb-4">
-                                <div class="card-body">
-                                    <h5 class="mb-3">{% trans "معلومات البائع" %}</h5>
-                                    <div class="d-flex align-items-center">
-                                        <img src="{{ ad.user.profile_image.url|default:'https://via.placeholder.com/50' }}"
-                                             class="rounded-circle me-3"
-                                             width="50"
-                                             height="50"
-                                             alt="{{ ad.user.get_display_name }}">
-                                        <div>
-                                            <h6 class="mb-0">{{ ad.user.get_display_name }}</h6>
-                                            <small class="text-muted">{{ ad.user.get_rank_display }}</small>
-                                            {% if ad.user.verification_status == 'verified' %}
-                                                <span class="badge bg-success ms-2"><i class="fas fa-check-circle me-1"></i> {% trans "موثق" %}</span>
-                                            {% endif %}
-                                        </div>
+                    <!-- Image Gallery -->
+                    <div class="ad-gallery-container mb-4">
+                        <div class="swiper ad-gallery-swiper">
+                            <div class="swiper-wrapper">
+                                {% for image in ad.images.all %}
+                                    <div class="swiper-slide">
+                                        <img src="{{ image.image.url }}"
+                                             alt="{{ ad.title }} - {% trans 'صورة' %} {{ forloop.counter }}">
                                     </div>
+                                {% empty %}
+                                    <div class="swiper-slide">
+                                        <img src="https://via.placeholder.com/800x600.png?text={% trans 'No Image' %}"
+                                             alt="{% trans 'No Image' %}">
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <div class="swiper-button-next"></div>
+                            <div class="swiper-button-prev"></div>
+                        </div>
+                        {% if ad.images.count > 1 %}
+                            <div class="swiper ad-thumbnails-swiper mt-2">
+                                <div class="swiper-wrapper">
+                                    {% for image in ad.images.all %}
+                                        <div class="swiper-slide">
+                                            <img src="{{ image.image.url }}"
+                                                 alt="{{ ad.title }} - {% trans 'صورة مصغرة' %} {{ forloop.counter }}">
+                                        </div>
+                                    {% endfor %}
                                 </div>
                             </div>
-                            <!-- Contact/Booking Actions -->
-                            {% if ad.is_cart_enabled %}
-                                <div class="d-grid gap-2">
-                                    <button class="btn btn-custom btn-primary-custom btn-lg">
-                                        <i class="fas fa-shopping-cart me-2"></i> {% trans "حجز الآن (توصيل إدريسي مارت)" %}
-                                    </button>
-                                </div>
-                                <small class="d-block text-center text-muted mt-2">{% trans "هذه الخدمة تتطلب دفع مبلغ حجز." %}</small>
-                            {% else %}
-                                <div class="d-grid gap-2">
-                                    <a href="tel:{{ ad.user.phone }}"
-                                       class="btn btn-custom btn-success-custom">
-                                        <i class="fas fa-phone-alt me-2"></i> {% trans "إظهار رقم الهاتف" %}
-                                    </a>
-                                    <a href="https://wa.me/{{ ad.user.whatsapp }}"
-                                       target="_blank"
-                                       class="btn btn-custom btn-whatsapp-custom">
-                                        <i class="fab fa-whatsapp me-2"></i> {% trans "مراسلة واتساب" %}
-                                    </a>
-                                </div>
-                            {% endif %}
-                        </div>
+                        {% endif %}
                     </div>
-                </div>
-            </div>
-            <!-- Description and other details -->
-            <div class="row mt-5">
-                <div class="col-12">
-                    <div class="card">
+                    <!-- Ad Description Card -->
+                    <div class="card ad-content-card mb-4">
                         <div class="card-header">
-                            <h4 class="mb-0">{% trans "وصف الإعلان" %}</h4>
+                            <h4 class="card-title-main">{% trans "وصف الإعلان" %}</h4>
                         </div>
                         <div class="card-body">
-                            <p style="white-space: pre-wrap;">{{ ad.description }}</p>
+                            <p class="ad-description">{{ ad.description|linebreaksbr }}</p>
+                        </div>
+                    </div>
+                    <!-- Reviews Card -->
+                    <div class="card ad-content-card">
+                        <div class="card-header">
+                            <h4 class="card-title-main">{% trans "التقييمات" %}</h4>
+                        </div>
+                        <div class="card-body">
+                            {# Placeholder for reviews - to be implemented when review model is ready #}
+                            <div class="text-center py-4">
+                                <i class="fas fa-comments fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">{% trans "لا توجد تقييمات لهذا الإعلان بعد." %}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Right Column: Sidebar -->
+                <div class="col-lg-4">
+                    <div class="ad-sidebar">
+                        <!-- Price Card -->
+                        <div class="card ad-details-card mb-4">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="ad-price">{{ ad.price|floatformat:2 }} {% get_currency ad %}</span>
+                                    {% if ad.is_negotiable %}
+                                        <span class="badge bg-secondary">{% trans "قابل للتفاوض" %}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="ad-location">
+                                    <i class="fas fa-map-marker-alt me-2"></i>{{ ad.city }}, {{ ad.country.name }}
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Seller Card -->
+                        <div class="card ad-details-card mb-4">
+                            <div class="card-header">
+                                <h5 class="card-title-main">{% trans "معلومات البائع" %}</h5>
+                            </div>
+                            <div class="card-body text-center">
+                                {% user_avatar user=ad.user size=80 css_class="rounded-circle mb-3" %}
+                                <h6 class="seller-name">{{ ad.user.get_display_name }}</h6>
+                                <small class="text-muted d-block mb-2">{{ ad.user.get_rank_display }}</small>
+                                {% if ad.user.verification_status == 'verified' %}
+                                    <span class="badge badge-verified">
+                                        <i class="fas fa-check-circle me-1"></i>
+                                        {% if ad.user.profile_type == 'merchant' or ad.user.rank == 'company' %}
+                                            {% trans "شركة موثقة" %}
+                                        {% else %}
+                                            {% trans "عضو موثق" %}
+                                        {% endif %}
+                                    </span>
+                                {% endif %}
+                            </div>
+                            <div class="card-footer">
+                                {% if ad.is_cart_enabled %}
+                                    <div class="d-grid">
+                                        <button class="btn btn-custom btn-primary-custom btn-lg">
+                                            <i class="fas fa-shopping-cart me-2"></i> {% trans "حجز الآن" %}
+                                        </button>
+                                    </div>
+                                    <small class="d-block text-center text-muted mt-2">{% trans "هذه الخدمة تتطلب دفع مبلغ حجز." %}</small>
+                                {% else %}
+                                    <div class="d-grid gap-2">
+                                        <a href="tel:{{ ad.user.phone|default_if_none:'' }}"
+                                           class="btn btn-custom btn-secondary-custom">
+                                            <i class="fas fa-phone-alt me-2"></i> {{ ad.user.phone|phone_format }}
+                                        </a>
+                                        <a href="https://wa.me/{{ ad.user.whatsapp|default_if_none:'' }}"
+                                           target="_blank"
+                                           class="btn btn-custom btn-primary-custom">
+                                            <i class="fab fa-whatsapp me-2"></i> {% trans "مراسلة واتساب" %}
+                                        </a>
+                                    </div>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -127,11 +144,11 @@
             {% if related_ads %}
                 <div class="row mt-5">
                     <div class="col-12">
-                        <h2 class="section-title">{% trans "إعلانات ذات صلة" %}</h2>
+                        <h3 class="section-title-related">{% trans "إعلانات ذات صلة" %}</h3>
                         <div class="row g-4">
                             {% for related_ad in related_ads %}
                                 <div class="col-lg-4 col-md-6">
-                                    {% include "partials/_ad_card.html" with ad=related_ad %}
+                                    {% include "classifieds/_ad_card.html" with ad=related_ad %}
 
                                 </div>
                             {% endfor %}
@@ -145,26 +162,28 @@
 {% endblock content %}
 
 {% block extra_js %}
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var thumbsSwiper = new Swiper(".ad-thumbnails-swiper", {
-                spaceBetween: 10,
-                slidesPerView: 4,
-                freeMode: true,
-                watchSlidesProgress: true,
-            });
+    {% if ad.images.count > 1 %}
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                var thumbsSwiper = new Swiper(".ad-thumbnails-swiper", {
+                    spaceBetween: 10,
+                    slidesPerView: 4,
+                    freeMode: true,
+                    watchSlidesProgress: true,
+                });
 
-            var gallerySwiper = new Swiper(".ad-gallery-swiper", {
-                spaceBetween: 10,
-                navigation: {
-                    nextEl: ".swiper-button-next",
-                    prevEl: ".swiper-button-prev",
-                },
-                thumbs: {
-                    swiper: thumbsSwiper,
-                },
+                var gallerySwiper = new Swiper(".ad-gallery-swiper", {
+                    spaceBetween: 10,
+                    navigation: {
+                        nextEl: ".swiper-button-next",
+                        prevEl: ".swiper-button-prev",
+                    },
+                    thumbs: {
+                        swiper: thumbsSwiper,
+                    },
+                });
             });
-        });
-    </script>
+        </script>
+    {% endif %}
 
 {% endblock extra_js %}

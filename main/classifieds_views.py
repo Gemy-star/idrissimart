@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Case, F, IntegerField, Value, When
@@ -70,6 +72,11 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         Check if the user has an active package with remaining ads before allowing
         them to access the creation form.
         """
+        # First, run the LoginRequiredMixin's check to ensure user is authenticated.
+        handler = super().dispatch(request, *args, **kwargs)
+        if handler.status_code != 200:
+            return handler
+
         user = self.request.user
         active_package = UserPackage.objects.filter(
             user=user, ads_remaining__gt=0, expiry_date__gte=timezone.now()
@@ -240,8 +247,8 @@ class ClassifiedAdDetailView(DetailView):
         ad = self.get_object()
 
         # Define a price range (e.g., +/- 25%)
-        price_range_min = ad.price * 0.75
-        price_range_max = ad.price * 1.25
+        price_range_min = ad.price * Decimal("0.75")
+        price_range_max = ad.price * Decimal("1.25")
 
         # Build a relevance score using annotations
         related_ads = (

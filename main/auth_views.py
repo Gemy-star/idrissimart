@@ -215,7 +215,7 @@ def logout_view(request):
     """
     logout(request)
     messages.success(request, _("تم تسجيل الخروج بنجاح. نراك قريباً! 👋"))
-    return redirect("accounts:login")
+    return redirect("main:login")
 
 
 def get_client_ip(request):

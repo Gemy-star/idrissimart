@@ -1,0 +1,70 @@
+{% load i18n currency_tags static %}
+
+<div class="card h-100 shadow-sm ad-card position-relative">
+    {# Featured Badge #}
+    {% if ad.features.all and not is_owner %}
+        <span class="badge bg-warning position-absolute top-0 start-0 m-2"
+              style="z-index: 2">
+            <i class="fas fa-star me-1"></i> {% trans "مميز" %}
+        </span>
+    {% endif %}
+    {# Ad Image #}
+    {% with ad.images.first as first_image %}
+        <a href="{{ ad.get_absolute_url }}">
+            {% if first_image and first_image.image %}
+                <img src="{{ first_image.image.url }}"
+                     class="card-img-top"
+                     alt="{{ ad.title }}">
+            {% else %}
+                <img src="https://via.placeholder.com/400x300.png?text={% trans 'No Image' %}"
+                     class="card-img-top"
+                     alt="{% trans 'No Image' %}">
+            {% endif %}
+        </a>
+    {% endwith %}
+    {# Card Body #}
+    <div class="card-body d-flex flex-column">
+        <h5 class="card-title">
+            <a href="{{ ad.get_absolute_url }}"
+               class="text-decoration-none stretched-link">{{ ad.title|truncatechars:50 }}</a>
+        </h5>
+        <p class="card-text text-muted flex-grow-1">{{ ad.description|truncatewords:15 }}</p>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-primary-color fw-bold fs-5">{{ ad.price|floatformat:2 }} {% get_currency ad %}</span>
+            {% if is_owner %}
+                <span class="badge bg-{{ ad.status|lower }}">{{ ad.get_status_display }}</span>
+            {% else %}
+                <small class="text-muted"><i class="fas fa-map-marker-alt me-1"></i>{{ ad.city }}</small>
+            {% endif %}
+        </div>
+    </div>
+    {# Card Footer #}
+    <div class="card-footer d-flex align-items-center justify-content-between">
+        {% if is_owner %}
+            <div class="d-grid w-100">
+                <a href="{% url 'main:ad_update' ad.pk %}"
+                   class="btn btn-sm btn-custom btn-secondary-custom">
+                    <i class="fas fa-edit me-2"></i> {% trans "تعديل" %}
+                </a>
+            </div>
+        {% else %}
+            <div class="d-flex align-items-center">
+                {% load user_tags %}
+
+                {% user_avatar user=ad.user size=30 css_class="rounded-circle me-2" %}<small class="text-muted">{{ ad.user.get_display_name|truncatechars:15 }}</small>
+            </div>
+            <div>
+                {% if ad.user.verification_status == 'verified' %}
+                    <span class="badge badge-verified" title="{% trans 'حساب موثق' %}">
+                        <i class="fas fa-check-circle me-1"></i>
+                        {% if ad.user.profile_type == 'merchant' or ad.user.rank == 'company' %}
+                            {% trans "شركة موثقة" %}
+                        {% else %}
+                            {% trans "عضو موثق" %}
+                        {% endif %}
+                    </span>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>

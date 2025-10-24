@@ -16,6 +16,14 @@ class ClassifiedAdFilter(django_filters.FilterSet):
         ),
         label=_("القسم"),
     )
+    subcategory = django_filters.ModelChoiceFilter(
+        queryset=Category.objects.filter(
+            section_type=Category.SectionType.CLASSIFIED,
+            is_active=True,
+            parent__isnull=False,
+        ),
+        label=_("الفئة الفرعية"),
+    )
     city = django_filters.CharFilter(lookup_expr="icontains", label=_("المدينة"))
     brand = django_filters.CharFilter(
         field_name="custom_fields__brand", lookup_expr="icontains", label=_("الماركة")
@@ -48,4 +56,12 @@ class ClassifiedAdFilter(django_filters.FilterSet):
 
     class Meta:
         model = ClassifiedAd
-        fields = ["title", "category", "city", "price", "brand", "condition"]
+        fields = [
+            "title",
+            "category",
+            "subcategory",
+            "city",
+            "price",
+            "brand",
+            "condition",
+        ]

@@ -9,7 +9,43 @@ from django.views.generic import TemplateView
 from content.models import Country
 from main.forms import ContactForm
 from main.models import AboutPage, AdFeature, Category, ClassifiedAd, ContactInfo
+from main.templatetags.format_tags import phone_format
 
+
+def _get_categories_with_subcategories(country_code, root_limit=None, sub_limit=None):
+    """
+    A helper function to fetch categories and their subcategories by section.
+
+    :param country_code: The country code to filter categories.
+    :param root_limit: Optional limit for the number of root categories per section.
+    :param sub_limit: Optional limit for the number of subcategories per category.
+    :return: A dictionary of categories grouped by section.
+    """
+    categories_by_section = {}
+    section_types = Category.SectionType.choices
+
+    for section_code, section_name in section_types:
+        root_categories_qs = Category.get_root_categories(
+            section_type=section_code, country_code=country_code
+        )
+        if root_limit:
+            root_categories_qs = root_categories_qs[:root_limit]
+
+        categories_with_subcats = []
+        for category in root_categories_qs:
+            sub_qs = category.subcategories.filter(is_active=True).order_by('order', 'name')
+            sub_list = list(sub_qs[:sub_limit] if sub_limit else sub_qs)
+            categories_with_subcats.append({
+                'category': category,
+                'subcategories': sub_list,
+                'subcategories_count': sub_qs.count(),
+            })
+
+        categories_by_section[section_code] = {
+            'name': section_name,
+            'categories': categories_with_subcats
+        }
+    return categories_by_section
 
 class HomeView(TemplateView):
     template_name = "pages/home.html"
@@ -19,28 +55,9 @@ class HomeView(TemplateView):
 
         # Get user's selected country from session and categories
         selected_country = self.request.session.get("selected_country", "EG")
-        categories_by_section = {}
-        section_types = Category.SectionType.choices
-
-        for section_code, section_name in section_types:
-            categories = Category.get_root_categories(
-                section_type=section_code, country_code=selected_country
-            )[:6]  # Limit to 6 main categories per section
-
-            categories_with_subcats = []
-            for category in categories:
-                sub_qs = category.subcategories.filter(is_active=True).order_by('order', 'name')
-                sub_list = list(sub_qs[:5])  # Limit subcategories to 5 for home view
-                categories_with_subcats.append({
-                    'category': category,
-                    'subcategories': sub_list,
-                    'subcategories_count': sub_qs.count(),
-                })
-
-            categories_by_section[section_code] = {
-                'name': section_name,
-                'categories': categories_with_subcats
-            }
+        categories_by_section = _get_categories_with_subcategories(
+            selected_country, root_limit=6, sub_limit=5
+        )
 
         # Fetch latest and featured ads based on selected country
         latest_ads = (
@@ -91,30 +108,10 @@ class CategoriesView(TemplateView):
         selected_country = self.request.session.get('selected_country', 'EG')
 
         # Get categories by country and section
-        categories_by_section = {}
-        section_types = Category.SectionType.choices
-
-        for section_code, section_name in section_types:
-            categories = Category.get_root_categories(
-                section_type=section_code,
-                country_code=selected_country
-            )
-
-            categories_with_subcats = []
-            for category in categories:
-                sub_qs = category.subcategories.filter(is_active=True).order_by('order', 'name')
-                sub_list = list(sub_qs)
-                categories_with_subcats.append({
-                    'category': category,
-                    'subcategories': sub_list,
-                    'subcategories_count': sub_qs.count(),
-                })
-
-            categories_by_section[section_code] = {
-                'name': section_name,
-                'categories': categories_with_subcats
-            }
-
+        # Fetch all categories using the helper function for the categories page
+        categories_by_section = _get_categories_with_subcategories(
+            country_code=selected_country
+        )
         # Get cart and wishlist counts from session
         cart_count = len(self.request.session.get('cart', []))
         wishlist_count = len(self.request.session.get('wishlist', []))
@@ -252,6 +249,10 @@ class ContactView(TemplateView):
                 whatsapp="+966 50 123 4567",
                 map_embed_url="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3620.059022564443!2d46.71516947512605!3d24.7038092779999!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3e2f05072c84c457%3A0xf45cf328d8856bac!2z2KfZhNi52YbYqSDYp9mE2KfYsdiz2YrYp9mEINin2YTYrNix2KfYtNmK2Kkg2YTZhNmF2YrYp9ix2KfYqiDYp9mE2YXYrdmK2KfYqiDYp9mE2KfZhNiz2KfZhdi52Kkg!5e0!3m2!1sar!2ssa!4v1728780637482!5m2!1sar!2ssa"
             )
+
+        # Apply phone formatting
+        contact_info.formatted_phone = phone_format(contact_info.phone)
+        contact_info.formatted_whatsapp = phone_format(contact_info.whatsapp)
 
         # Initialize contact form
         form = ContactForm(user=self.request.user if self.request.user.is_authenticated else None)
