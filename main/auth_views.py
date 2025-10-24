@@ -1,191 +1,135 @@
 from django.contrib import messages
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
-from django.core.validators import validate_email
+from django.contrib.auth.views import LoginView
 from django.shortcuts import redirect, render
+from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
-from django.views.decorators.csrf import csrf_protect
-from django.views.decorators.http import require_http_methods
+from django.views.generic.edit import CreateView
 
+from .forms import RegistrationForm
 from .models import User
 
 
-@csrf_protect
-@require_http_methods(["GET", "POST"])
-def login_view(request):
+class CustomLoginView(LoginView):
     """
-    User login view
+    Custom login view that extends Django's built-in LoginView to add
+    custom logic for session expiry ("Remember Me") and user status checks.
     """
-    if request.user.is_authenticated:
-        return redirect("main:home")
 
-    if request.method == "POST":
-        username = request.POST.get("username", "").strip()
-        password = request.POST.get("password", "")
-        remember_me = request.POST.get("remember_me")
+    template_name = "pages/login.html"
+    redirect_authenticated_user = True
 
-        if not username or not password:
-            messages.error(request, _("يرجى إدخال اسم المستخدم وكلمة المرور"))
-            return render(request, "pages/login.html")
+    def form_valid(self, form):
+        """
+        Called when the form is valid. Logs the user in and adds custom logic.
+        """
+        user = form.get_user()
 
-        # Authenticate user
-        user = authenticate(request, username=username, password=password)
+        # Custom check for suspended users
+        if user.is_suspended:
+            messages.error(self.request, _("حسابك معلق. يرجى التواصل مع الدعم."))
+            return self.form_invalid(form)
 
-        if user is not None:
-            if user.is_active:
-                if not user.is_suspended:
-                    login(request, user)
+        # Log the user in
+        login(self.request, user)
 
-                    # Set session expiry
-                    if not remember_me:
-                        request.session.set_expiry(
-                            0
-                        )  # Session expires on browser close
-                    else:
-                        request.session.set_expiry(1209600)  # 2 weeks
-
-                    # Log IP address
-                    user.last_login_ip = get_client_ip(request)
-                    user.save(update_fields=["last_login_ip"])
-
-                    messages.success(
-                        request, _(f"مرحباً بك {user.get_display_name()}! 🎉")
-                    )
-
-                    # Redirect to next or home
-                    next_url = request.GET.get("next", "main:home")
-                    return redirect(next_url)
-                else:
-                    messages.error(request, _("حسابك معلق. يرجى التواصل مع الدعم."))
-            else:
-                messages.error(request, _("حسابك غير مفعل. يرجى تفعيل حسابك أولاً."))
+        # Handle "Remember Me" functionality
+        remember_me = self.request.POST.get("remember_me")
+        if not remember_me:
+            self.request.session.set_expiry(0)  # Session expires on browser close
         else:
-            messages.error(request, _("اسم المستخدم أو كلمة المرور غير صحيحة"))
+            self.request.session.set_expiry(1209600)  # 2 weeks
 
-    return render(request, "pages/login.html")
+        # Log IP address
+        user.last_login_ip = get_client_ip(self.request)
+        user.save(update_fields=["last_login_ip"])
+
+        messages.success(self.request, _(f"مرحباً بك {user.get_display_name()}! 🎉"))
+
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        """
+        Adds a generic error message for invalid login attempts.
+        """
+        messages.error(self.request, _("اسم المستخدم أو كلمة المرور غير صحيحة"))
+        return super().form_invalid(form)
 
 
-@csrf_protect
-@require_http_methods(["GET", "POST"])
-def register_view(request):
+class RegisterView(CreateView):
     """
-    User registration view
+    Class-based view for user registration.
     """
-    if request.user.is_authenticated:
-        return redirect("main:home")
 
-    if request.method == "POST":
-        # Get form data
-        username = request.POST.get("username", "").strip().lower()
-        email = request.POST.get("email", "").strip().lower()
-        password = request.POST.get("password", "")
-        password2 = request.POST.get("password2", "")
-        first_name = request.POST.get("first_name", "").strip()
-        last_name = request.POST.get("last_name", "").strip()
-        phone = request.POST.get("phone", "").strip()
-        profile_type = request.POST.get("profile_type", "default")
-        terms_accepted = request.POST.get("terms_accepted")
+    model = User
+    form_class = RegistrationForm
+    template_name = "pages/register.html"
+    success_url = reverse_lazy("main:home")
 
-        # Validation
-        errors = []
+    def get(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect("main:home")
+        form = self.form_class()
+        return render(request, self.template_name, {"form": form})
 
-        if not username:
-            errors.append(_("اسم المستخدم مطلوب"))
-        elif len(username) < 3:
-            errors.append(_("اسم المستخدم يجب أن يكون 3 أحرف على الأقل"))
-        elif User.objects.filter(username=username).exists():
-            errors.append(_("اسم المستخدم موجود بالفعل"))
+    def post(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect("main:home")
 
-        if not email:
-            errors.append(_("البريد الإلكتروني مطلوب"))
-        else:
-            try:
-                validate_email(email)
-                if User.objects.filter(email=email).exists():
-                    errors.append(_("البريد الإلكتروني مسجل بالفعل"))
-            except ValidationError:
-                errors.append(_("البريد الإلكتروني غير صالح"))
+        form = self.form_class(request.POST)
+        if form.is_valid():
+            data = form.cleaned_data
+            profile_type = data.get("profile_type")
 
-        if not password:
-            errors.append(_("كلمة المرور مطلوبة"))
-        elif len(password) < 8:
-            errors.append(_("كلمة المرور يجب أن تكون 8 أحرف على الأقل"))
-
-        if password != password2:
-            errors.append(_("كلمات المرور غير متطابقة"))
-
-        if not terms_accepted:
-            errors.append(_("يجب الموافقة على الشروط والأحكام"))
-
-        if errors:
-            for error in errors:
-                messages.error(request, error)
-            return render(request, "pages/register.html", {"form_data": request.POST})
-
-        # Collect additional optional fields depending on profile type
-        company_name = request.POST.get("company_name", "").strip()
-        company_name_ar = request.POST.get("company_name_ar", "").strip()
-        commercial_register = request.POST.get("commercial_register", "").strip()
-        tax_number = request.POST.get("tax_number", "").strip()
-        specialization = request.POST.get("specialization", "").strip()
-        years_of_experience = request.POST.get("years_of_experience", "").strip()
-
-        # Create user using specialized manager methods where appropriate
-        try:
             if profile_type == "service":
                 user = User.objects.create_service_provider(
-                    username=username,
-                    email=email,
-                    password=password,
-                    first_name=first_name,
-                    last_name=last_name,
-                    phone=phone,
-                    specialization=specialization or None,
-                    years_of_experience=(
-                        int(years_of_experience)
-                        if years_of_experience.isdigit()
-                        else None
-                    ),
+                    username=data.get("username"),
+                    email=data.get("email"),
+                    password=data.get("password"),
+                    first_name=data.get("first_name"),
+                    last_name=data.get("last_name"),
+                    phone=data.get("phone"),
+                    specialization=data.get("specialization"),
+                    years_of_experience=(data.get("years_of_experience")),
                 )
             elif profile_type == "merchant":
                 user = User.objects.create_merchant(
-                    username=username,
-                    email=email,
-                    password=password,
-                    company_name=company_name or None,
-                    first_name=first_name,
-                    last_name=last_name,
-                    phone=phone,
-                    tax_number=tax_number or None,
-                    commercial_register=commercial_register or None,
+                    username=data.get("username"),
+                    email=data.get("email"),
+                    password=data.get("password"),
+                    company_name=data.get("company_name"),
+                    first_name=data.get("first_name"),
+                    last_name=data.get("last_name"),
+                    phone=data.get("phone"),
+                    tax_number=data.get("tax_number"),
+                    commercial_register=data.get("commercial_register"),
                 )
-                # If company name in Arabic provided, save it
-                if company_name_ar:
-                    user.company_name_ar = company_name_ar
+                if data.get("company_name_ar"):
+                    user.company_name_ar = data.get("company_name_ar")
                     user.save(update_fields=["company_name_ar"])
             elif profile_type == "educational":
                 user = User.objects.create_educational(
-                    username=username,
-                    email=email,
-                    password=password,
-                    first_name=first_name,
-                    last_name=last_name,
-                    phone=phone,
-                    company_name=company_name or None,
+                    username=data.get("username"),
+                    email=data.get("email"),
+                    password=data.get("password"),
+                    first_name=data.get("first_name"),
+                    last_name=data.get("last_name"),
+                    phone=data.get("phone"),
+                    company_name=data.get("company_name"),
                 )
-                if company_name_ar:
-                    user.company_name_ar = company_name_ar
+                if data.get("company_name_ar"):
+                    user.company_name_ar = data.get("company_name_ar")
                     user.save(update_fields=["company_name_ar"])
             else:
                 user = User.objects.create_user(
-                    username=username,
-                    email=email,
-                    password=password,
-                    first_name=first_name,
-                    last_name=last_name,
-                    phone=phone,
-                    profile_type=profile_type,
+                    username=data.get("username"),
+                    email=data.get("email"),
+                    password=data.get("password"),
+                    first_name=data.get("first_name"),
+                    last_name=data.get("last_name"),
+                    phone=data.get("phone"),
+                    profile_type=data.get("profile_type"),
                 )
 
             # Auto login after registration
@@ -194,18 +138,14 @@ def register_view(request):
             messages.success(
                 request, _("مرحباً بك في إدريسي مارت! 🎉 تم إنشاء حسابك بنجاح")
             )
-            return redirect("main:home")
-
-        except Exception:
-            # Log the exception in development (don't leak to user)
-            # You can expand this to use Django logging instead
-            messages.error(
-                request,
-                _("حدث خطأ أثناء إنشاء الحساب. يرجى المحاولة مرة أخرى."),
-            )
-            return render(request, "pages/register.html", {"form_data": request.POST})
-
-    return render(request, "pages/register.html")
+            return redirect(self.success_url)
+        else:
+            # Add form errors to messages framework
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{form.fields[field].label}: {error}")
+            messages.error(request, _("يرجى تصحيح الأخطاء أدناه والمحاولة مرة أخرى."))
+            return render(request, self.template_name, {"form": form})
 
 
 @login_required
@@ -215,7 +155,7 @@ def logout_view(request):
     """
     logout(request)
     messages.success(request, _("تم تسجيل الخروج بنجاح. نراك قريباً! 👋"))
-    return redirect("main:login")
+    return redirect("main:home")
 
 
 def get_client_ip(request):

@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "rosetta",
     "django_filters",
     "sendgrid",
+    "django_q",
     # Local apps
     "main.apps.MainConfig",
     "content.apps.ContentConfig",
@@ -184,6 +185,11 @@ COMPRESS_JS_FILTERS = [
 # Auth / Upload
 # =======================
 AUTH_USER_MODEL = "main.User"
+
+LOGIN_URL = "main:login"
+LOGIN_REDIRECT_URL = "main:home"
+LOGOUT_REDIRECT_URL = "main:home"
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 200 * 1024 * 1024  # 200 MB
@@ -212,3 +218,19 @@ SUPPORTED_COUNTRIES = ["SA", "AE", "EG", "KW", "QA", "BH", "OM", "JO"]
 
 CONSTANCE_CONFIG = CONSTANCE_CONFIG
 CONSTANCE_CONFIG_FIELDSETS = CONSTANCE_CONFIG_FIELDSETS
+
+# ===========================
+# Django-Q2 Task Queue Settings
+# ===========================
+Q_CLUSTER = {
+    "name": "idrissimart_q",
+    "workers": 4,
+    "recycle": 500,
+    "timeout": 60,
+    "compress": True,
+    "save_limit": 250,
+    "queue_limit": 500,
+    "cpu_affinity": 1,
+    "label": "Django Q",
+    "orm": "default",  # Use Django's ORM as the broker
+}

@@ -1,9 +1,10 @@
 # main/forms.py
 from django import forms
+from django.core.exceptions import ValidationError
 from django.forms import inlineformset_factory
 from django.utils.translation import gettext_lazy as _
 
-from .models import AdImage, ClassifiedAd, ContactMessage
+from .models import AdImage, ClassifiedAd, ContactMessage, User
 
 
 class ContactForm(forms.ModelForm):
@@ -134,3 +135,107 @@ AdImageFormSet = inlineformset_factory(
     can_delete=True,
     max_num=5,  # Maximum number of images
 )
+
+
+class RegistrationForm(forms.Form):
+    """
+    A form for user registration, handling validation for different profile types.
+    """
+
+    username = forms.CharField(
+        label=_("اسم المستخدم"),
+        min_length=3,
+        widget=forms.TextInput(attrs={"placeholder": _("اسم المستخدم")}),
+    )
+    email = forms.EmailField(
+        label=_("البريد الإلكتروني"),
+        widget=forms.EmailInput(attrs={"placeholder": _("البريد الإلكتروني")}),
+    )
+    password = forms.CharField(
+        label=_("كلمة المرور"),
+        min_length=8,
+        widget=forms.PasswordInput(attrs={"placeholder": _("كلمة المرور")}),
+    )
+    password2 = forms.CharField(
+        label=_("تأكيد كلمة المرور"),
+        widget=forms.PasswordInput(attrs={"placeholder": _("تأكيد كلمة المرور")}),
+    )
+    first_name = forms.CharField(label=_("الاسم الأول"), required=False)
+    last_name = forms.CharField(label=_("الاسم الأخير"), required=False)
+    phone = forms.CharField(label=_("الهاتف"), required=False)
+    profile_type = forms.ChoiceField(
+        label=_("نوع الحساب"),
+        choices=User.ProfileType.choices,
+        initial=User.ProfileType.DEFAULT,
+    )
+    terms_accepted = forms.BooleanField(
+        label=_("أوافق على الشروط والأحكام"),
+        required=True,
+        error_messages={"required": _("يجب الموافقة على الشروط والأحكام")},
+    )
+
+    # Fields for service provider
+    specialization = forms.CharField(
+        label=_("التخصص"),
+        required=False,
+        widget=forms.TextInput(attrs={"class": "service-field"}),
+    )
+    years_of_experience = forms.IntegerField(
+        label=_("سنوات الخبرة"),
+        required=False,
+        min_value=0,
+        widget=forms.NumberInput(attrs={"class": "service-field"}),
+    )
+
+    # Fields for merchant/educational
+    company_name = forms.CharField(
+        label=_("اسم الشركة"),
+        required=False,
+        widget=forms.TextInput(attrs={"class": "merchant-field educational-field"}),
+    )
+    company_name_ar = forms.CharField(
+        label=_("اسم الشركة بالعربية"),
+        required=False,
+        widget=forms.TextInput(attrs={"class": "merchant-field educational-field"}),
+    )
+    commercial_register = forms.CharField(
+        label=_("السجل التجاري"),
+        required=False,
+        widget=forms.TextInput(attrs={"class": "merchant-field"}),
+    )
+    tax_number = forms.CharField(
+        label=_("الرقم الضريبي"),
+        required=False,
+        widget=forms.TextInput(attrs={"class": "merchant-field"}),
+    )
+
+    def clean_username(self):
+        username = self.cleaned_data.get("username").lower()
+        if User.objects.filter(username=username).exists():
+            raise ValidationError(_("اسم المستخدم موجود بالفعل"))
+        return username
+
+    def clean_email(self):
+        email = self.cleaned_data.get("email").lower()
+        if User.objects.filter(email=email).exists():
+            raise ValidationError(_("البريد الإلكتروني مسجل بالفعل"))
+        return email
+
+    def clean_password2(self):
+        password = self.cleaned_data.get("password")
+        password2 = self.cleaned_data.get("password2")
+        if password and password2 and password != password2:
+            raise ValidationError(_("كلمات المرور غير متطابقة"))
+        return password2
+
+    def clean(self):
+        cleaned_data = super().clean()
+        profile_type = cleaned_data.get("profile_type")
+
+        if profile_type == "service" and not cleaned_data.get("specialization"):
+            self.add_error("specialization", _("التخصص مطلوب لمقدمي الخدمات."))
+
+        if profile_type == "merchant" and not cleaned_data.get("company_name"):
+            self.add_error("company_name", _("اسم الشركة مطلوب للتجار."))
+
+        return cleaned_data
