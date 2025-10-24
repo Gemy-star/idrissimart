@@ -23,10 +23,10 @@
             <!-- Section Tabs (generated from categories_by_section) -->
             <div class="categories-tabs">
                 <div class="tab-buttons" role="tablist" aria-label="Categories sections">
-                    <button class="tab-btn
-                                   {% if active_section == 'all' %}active{% endif %}"
-                            type="button"
+                    <button type="button"
                             id="tab-btn-all"
+                            class="tab-btn
+                                   {% if active_section == 'all' %}active{% endif %}"
                             data-tab="all"
                             role="tab"
                             aria-controls="all"
@@ -39,10 +39,10 @@
                         {% trans "جميع الفئات" %}
                     </button>
                     {% for section_code, section_data in categories_by_section.items %}
-                        <button class="tab-btn
-                                       {% if active_section == section_code %}active{% endif %}"
-                                type="button"
+                        <button type="button"
                                 id="tab-btn-{{ section_code }}"
+                                class="tab-btn
+                                       {% if active_section == section_code %}active{% endif %}"
                                 data-tab="{{ section_code }}"
                                 role="tab"
                                 aria-controls="{{ section_code }}"
@@ -71,15 +71,17 @@
                 </div>
             </div>
             <!-- All Categories Tab -->
-            <div class="tab-content
-                        {% if active_section == 'all' %}active{% endif %}"
-                 id="all">
+            <div class="tab-pane fade
+                        {% if active_section == 'all' %}show active{% endif %}"
+                 id="all"
+                 role="tabpanel"
+                 aria-labelledby="tab-btn-all">
                 {% for section_code, section_data in categories_by_section.items %}
                     <div class="section-group mb-5">
                         <h2 class="section-title">{{ section_data.name }}</h2>
                         <div class="row g-4">
                             {% for cat_data in section_data.categories %}
-                                {% with category=cat_data.category subcats=cat_data.subcategories %}
+                                {% with category=cat_data.category subcats=cat_data.subcategories subcats_count=cat_data.subcategories_count %}
                                     <div class="col-lg-3 col-md-4 col-sm-6">
                                         <div class="category-card">
                                             <div class="category-icon">
@@ -95,7 +97,7 @@
                                                 {% if subcats %}
                                                     <span class="subcat-count">
                                                         <i class="fas fa-list"></i>
-                                                        {{ subcats.count }} {% trans "فئة فرعية" %}
+                                                        {{ subcats_count }} {% trans "فئة فرعية" %}
                                                     </span>
                                                 {% endif %}
                                             </div>
@@ -121,14 +123,16 @@
             </div>
             <!-- Individual Section Tabs -->
             {% for section_code, section_data in categories_by_section.items %}
-                <div class="tab-content
-                            {% if active_section == section_code %}active{% endif %}"
-                     id="{{ section_code }}">
+                <div class="tab-pane fade
+                            {% if active_section == section_code %}show active{% endif %}"
+                     id="{{ section_code }}"
+                     role="tabpanel"
+                     aria-labelledby="tab-btn-{{ section_code }}">
                     <div class="section-group">
                         <h2 class="section-title">{{ section_data.name }}</h2>
                         <div class="row g-4">
                             {% for cat_data in section_data.categories %}
-                                {% with category=cat_data.category subcats=cat_data.subcategories %}
+                                {% with category=cat_data.category subcats=cat_data.subcategories subcats_count=cat_data.subcategories_count %}
                                     <div class="col-lg-3 col-md-4 col-sm-6">
                                         <div class="category-card">
                                             <div class="category-icon">
@@ -144,7 +148,7 @@
                                                 {% if subcats %}
                                                     <span class="subcat-count">
                                                         <i class="fas fa-list"></i>
-                                                        {{ subcats.count }} {% trans "فئة فرعية" %}
+                                                        {{ subcats_count }} {% trans "فئة فرعية" %}
                                                     </span>
                                                 {% endif %}
                                             </div>
@@ -176,44 +180,46 @@
 {% block extra_js %}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Tab functionality (robust + accessible)
-            const tabButtons = Array.from(document.querySelectorAll('.tab-btn'));
-            const tabContents = Array.from(document.querySelectorAll('.tab-content'));
+            // Tab functionality (scoped per tab group)
+            document.querySelectorAll('.tab-buttons').forEach((btnContainer) => {
+                const buttons = Array.from(btnContainer.querySelectorAll('.tab-btn'));
+                // Find panes within the same nearest container (parent of btnContainer)
+                // use nearest .container as the common root for buttons and panes
+                const panesRoot = btnContainer.closest('.container') || document.body;
+                const panes = Array.from(panesRoot.querySelectorAll('.tab-pane'));
 
-            function deactivateAll() {
-                tabButtons.forEach(btn => {
-                    btn.classList.remove('active');
-                    btn.setAttribute('aria-selected', 'false');
-                });
-                tabContents.forEach(c => c.classList.remove('active'));
-            }
+                function deactivateLocal() {
+                    buttons.forEach(b => {
+                        b.classList.remove('active');
+                        b.setAttribute('aria-selected', 'false');
+                    });
+                    panes.forEach(p => p.classList.remove('active', 'show'));
+                }
 
-            // Ensure there's an active tab; if none, activate 'all' or first button
-            const anyActive = tabButtons.some(b => b.classList.contains('active'));
-            if (!anyActive && tabButtons.length) {
-                const defaultBtn = document.getElementById('tab-btn-all') || tabButtons[0];
-                defaultBtn.classList.add('active');
-                defaultBtn.setAttribute('aria-selected', 'true');
-                const defaultTarget = defaultBtn.getAttribute('data-tab');
-                const el = document.getElementById(defaultTarget);
-                if (el) el.classList.add('active');
-            }
+                // default activation within this group
+                const anyActiveLocal = buttons.some(b => b.classList.contains('active'));
+                if (!anyActiveLocal && buttons.length) {
+                    const defaultBtn = btnContainer.querySelector('#tab-btn-all') || buttons[0];
+                    defaultBtn.classList.add('active');
+                    defaultBtn.setAttribute('aria-selected', 'true');
+                    const defaultTarget = defaultBtn.getAttribute('data-tab');
+                    const el = defaultTarget ? panesRoot.querySelector('#' + defaultTarget) : null;
+                    if (el) el.classList.add('active', 'show');
+                }
 
-            tabButtons.forEach((button) => {
-                button.addEventListener('click', function() {
-                    const targetTab = this.getAttribute('data-tab');
-                    if (!targetTab) return;
-                    const targetEl = document.getElementById(targetTab);
-                    if (!targetEl) return;
+                buttons.forEach((button) => {
+                    button.addEventListener('click', function() {
+                        const targetTab = this.getAttribute('data-tab');
+                        if (!targetTab) return;
+                        const targetEl = panesRoot.querySelector('#' + targetTab) || document.getElementById(targetTab);
+                        if (!targetEl) return;
 
-                    deactivateAll();
-
-                    // Activate selected
-                    this.classList.add('active');
-                    this.setAttribute('aria-selected', 'true');
-                    targetEl.classList.add('active');
-                    // move focus for keyboard users
-                    this.focus();
+                        deactivateLocal();
+                        this.classList.add('active');
+                        this.setAttribute('aria-selected', 'true');
+                        targetEl.classList.add('active', 'show');
+                        this.focus();
+                    });
                 });
             });
 

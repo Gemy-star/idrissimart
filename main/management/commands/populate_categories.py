@@ -22,7 +22,7 @@ class Command(BaseCommand):
 
         try:
             country = Country.objects.get(code=country_code, is_active=True)
-            self.stdout.write(f"Using country: {country.name} ({country_code})")
+            self.stdout.write(f"Using country: ({country_code})")
         except Country.DoesNotExist:
             self.stdout.write(
                 self.style.ERROR(
@@ -59,12 +59,12 @@ class Command(BaseCommand):
                 if created:
                     created_count += 1
                     self.stdout.write(
-                        self.style.SUCCESS(f"  ✓ Created: {main_category.name}")
+                        self.style.SUCCESS(f"  Created: {main_category.name}")
                     )
                 else:
                     updated_count += 1
                     self.stdout.write(
-                        self.style.WARNING(f"  ↻ Updated: {main_category.name}")
+                        self.style.WARNING(f"  Updated: {main_category.name}")
                     )
 
                 # Create subcategories if any
@@ -93,26 +93,84 @@ class Command(BaseCommand):
                             created_count += 1
                             self.stdout.write(
                                 self.style.SUCCESS(
-                                    f"    ✓ Created subcategory: {subcategory.name}"
+                                    f"    Created subcategory: {subcategory.name}"
                                 )
                             )
                         else:
                             updated_count += 1
                             self.stdout.write(
                                 self.style.WARNING(
-                                    f"    ↻ Updated subcategory: {subcategory.name}"
+                                    f"    Updated subcategory: {subcategory.name}"
                                 )
                             )
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"\n🎉 Completed! {created_count} created, {updated_count} updated"
+                f"\nCompleted! {created_count} created, {updated_count} updated"
             )
         )
 
     def get_default_categories(self):
         """Returns default categories structure"""
         return {
+            "classified": [
+                {
+                    "name": "Books & Survey Programs",
+                    "name_ar": "كتب وبرامج مساحية",
+                    "description": "Books, manuals, and software programs for surveying and engineering",
+                    "icon": "fas fa-book",
+                    "order": 1,
+                },
+                {
+                    "name": "Survey Jobs",
+                    "name_ar": "وظائف مساحية",
+                    "description": "Job opportunities in surveying and engineering field",
+                    "icon": "fas fa-briefcase",
+                    "order": 2,
+                },
+                {
+                    "name": "Training Courses",
+                    "name_ar": "الدورات التدريبية في المساحة",
+                    "description": "Professional training courses in surveying and engineering",
+                    "icon": "fas fa-graduation-cap",
+                    "order": 3,
+                },
+                {
+                    "name": "Survey Services",
+                    "name_ar": "الخدمات المساحية",
+                    "description": "Professional surveying and engineering services",
+                    "icon": "fas fa-tools",
+                    "order": 4,
+                },
+                {
+                    "name": "Equipment Maintenance",
+                    "name_ar": "صيانة الاجهزة المساحية",
+                    "description": "Maintenance and repair services for surveying equipment",
+                    "icon": "fas fa-wrench",
+                    "order": 5,
+                },
+                {
+                    "name": "Equipment Rental",
+                    "name_ar": "أجهزة مساحية للإيجار",
+                    "description": "Surveying equipment available for rent",
+                    "icon": "fas fa-exchange-alt",
+                    "order": 6,
+                },
+                {
+                    "name": "Used Equipment",
+                    "name_ar": "أجهزة مساحية مستعملة",
+                    "description": "Pre-owned surveying equipment for sale",
+                    "icon": "fas fa-ruler-combined",
+                    "order": 7,
+                },
+                {
+                    "name": "New Equipment",
+                    "name_ar": "أجهزة مساحية جديدة",
+                    "description": "Brand new surveying equipment for sale",
+                    "icon": "fas fa-ruler",
+                    "order": 8,
+                },
+            ],
             "classifieds": [
                 {
                     "name": "Real Estate",

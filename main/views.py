@@ -30,10 +30,12 @@ class HomeView(TemplateView):
 
             categories_with_subcats = []
             for category in categories:
-                subcategories = category.subcategories.filter(is_active=True)[:5]  # Limit subcategories
+                sub_qs = category.subcategories.filter(is_active=True).order_by('order', 'name')
+                sub_list = list(sub_qs[:5])  # Limit subcategories to 5 for home view
                 categories_with_subcats.append({
                     'category': category,
-                    'subcategories': subcategories
+                    'subcategories': sub_list,
+                    'subcategories_count': sub_qs.count(),
                 })
 
             categories_by_section[section_code] = {
@@ -79,10 +81,12 @@ class CategoriesView(TemplateView):
 
             categories_with_subcats = []
             for category in categories:
-                subcategories = category.subcategories.filter(is_active=True)
+                sub_qs = category.subcategories.filter(is_active=True).order_by('order', 'name')
+                sub_list = list(sub_qs)
                 categories_with_subcats.append({
                     'category': category,
-                    'subcategories': subcategories
+                    'subcategories': sub_list,
+                    'subcategories_count': sub_qs.count(),
                 })
 
             categories_by_section[section_code] = {

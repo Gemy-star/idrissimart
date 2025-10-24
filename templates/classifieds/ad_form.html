@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% load static i18n %}
+
+{% block title %}
+    {% if object %}
+        {% trans "تعديل الإعلان" %}
+    {% else %}
+        {% trans "إنشاء إعلان جديد" %}
+    {% endif %}
+    - {% trans "إدريسي مارت" %}
+
+{% endblock title %}
+
+{% block content %}
+    <section class="page-hero">
+        <div class="container">
+            <div class="hero-content-center">
+                <h1 class="page-title">
+                    {% if object %}
+                        {% trans "تعديل الإعلان" %}
+                    {% else %}
+                        {% trans "إنشاء إعلان جديد" %}
+                    {% endif %}
+                </h1>
+                <p class="page-subtitle">{% trans "املأ التفاصيل أدناه لنشر إعلانك" %}</p>
+            </div>
+        </div>
+    </section>
+    <section class="ad-form-section py-5">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <div class="card shadow-sm">
+                        <div class="card-body p-4 p-md-5">
+                            <form method="post" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                <h4 class="mb-4">{% trans "تفاصيل الإعلان الأساسية" %}</h4>
+                                <div class="mb-3">
+                                    <label for="{{ form.title.id_for_label }}" class="form-label">{{ form.title.label }}</label>
+                                    {{ form.title }}
+                                </div>
+                                <div class="mb-3">
+                                    <label for="{{ form.category.id_for_label }}" class="form-label">{{ form.category.label }}</label>
+                                    <select name="{{ form.category.name }}"
+                                            id="{{ form.category.id_for_label }}"
+                                            class="form-select">
+                                        <option value="">{% trans "اختر قسم..." %}</option>
+                                        {% for category in ad_categories %}
+                                            <option value="{{ category.pk }}"
+                                                    {% if form.category.value == category.pk %}selected{% endif %}>{{ category.name }}</option>
+                                            {% for subcat in category.subcategories.all %}
+                                                <option value="{{ subcat.pk }}"
+                                                        {% if form.category.value == subcat.pk %}selected{% endif %}>-- {{ subcat.name }}</option>
+                                            {% endfor %}
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
+                                    {{ form.description }}
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.price.id_for_label }}" class="form-label">{{ form.price.label }}</label>
+                                        {{ form.price }}
+                                    </div>
+                                    <div class="col-md-6 mb-3 d-flex align-items-end">
+                                        <div class="form-check">
+                                            {{ form.is_negotiable }}
+                                            <label class="form-check-label" for="{{ form.is_negotiable.id_for_label }}">{{ form.is_negotiable.label }}</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.brand.id_for_label }}" class="form-label">{{ form.brand.label }}</label>
+                                        {{ form.brand }}
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.condition.id_for_label }}" class="form-label">{{ form.condition.label }}</label>
+                                        {{ form.condition }}
+                                    </div>
+                                </div>
+                                <hr class="my-4">
+                                <h4 class="mb-4">{% trans "صور الإعلان" %}</h4>
+                                <p class="text-muted">{% trans "يمكنك رفع حتى 3 صور. الصورة الأولى ستكون الصورة الرئيسية." %}</p>
+                                {{ image_formset.management_form }}
+                                {% for form in image_formset %}
+                                    <div class="mb-3 border p-3 rounded">
+                                        {% if form.instance.pk and form.instance.image %}
+                                            <div class="mb-2">
+                                                <img src="{{ form.instance.image.url }}"
+                                                     alt="{% trans 'Image' %}"
+                                                     class="img-thumbnail"
+                                                     width="150">
+                                            </div>
+                                            {{ form.image }}
+                                            <div class="form-check mt-2">
+                                                {{ form.DELETE }}
+                                                <label class="form-check-label" for="{{ form.DELETE.id_for_label }}">{% trans "حذف الصورة" %}</label>
+                                            </div>
+                                        {% else %}
+                                            {{ form.image }}
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                                <div class="d-grid mt-4">
+                                    <button type="submit" class="btn btn-custom btn-primary-custom btn-lg">
+                                        {% if object %}
+                                            {% trans "حفظ التعديلات" %}
+                                        {% else %}
+                                            {% trans "نشر الإعلان" %}
+                                        {% endif %}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+{% endblock content %}

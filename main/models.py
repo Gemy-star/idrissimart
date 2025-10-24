@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser, BaseUserManager, Group, Permission
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 
@@ -95,8 +96,6 @@ class UserManager(BaseUserManager):
 
     def premium_users(self):
         """Get all premium users with active subscriptions"""
-        from django.utils import timezone
-
         return self.filter(
             is_premium=True,
             subscription_end__gte=timezone.now().date(),
@@ -545,8 +544,6 @@ class User(AbstractUser):
         """
         if not self.is_premium or not self.subscription_end:
             return False
-
-        from django.utils import timezone
 
         return self.subscription_end >= timezone.now().date()
 
@@ -1163,3 +1160,201 @@ class CompanyValue(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class ClassifiedAd(models.Model):
+    """Model for classified ads"""
+
+    class AdStatus(models.TextChoices):
+        DRAFT = "draft", _("مسودة - Draft")
+        PENDING = "pending", _("قيد المراجعة - Pending")
+        ACTIVE = "active", _("نشط - Active")
+        EXPIRED = "expired", _("منتهي - Expired")
+        SOLD = "sold", _("مباع - Sold")
+        REJECTED = "rejected", _("مرفوض - Rejected")
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="classified_ads"
+    )
+    category = models.ForeignKey(
+        Category, on_delete=models.PROTECT, related_name="classified_ads"
+    )
+    title = models.CharField(max_length=255, verbose_name=_("عنوان الإعلان"))
+    description = models.TextField(verbose_name=_("وصف الإعلان"))
+    price = models.DecimalField(
+        max_digits=12, decimal_places=2, verbose_name=_("السعر")
+    )
+    is_negotiable = models.BooleanField(
+        default=False, verbose_name=_("السعر قابل للتفاوض")
+    )
+    custom_fields = models.JSONField(
+        default=dict, blank=True, verbose_name=_("حقول مخصصة")
+    )
+
+    # Location
+    country = models.ForeignKey(
+        "content.Country", on_delete=models.SET_NULL, null=True, blank=True
+    )
+    city = models.CharField(max_length=100, verbose_name=_("المدينة"))
+    address = models.CharField(max_length=255, blank=True, verbose_name=_("العنوان"))
+
+    # Features
+    video_url = models.URLField(blank=True, null=True, verbose_name=_("رابط فيديو"))
+    video_file = models.FileField(
+        upload_to="ads/videos/", blank=True, null=True, verbose_name=_("ملف فيديو")
+    )
+    is_cart_enabled = models.BooleanField(
+        default=False, verbose_name=_("تفعيل سلة الحجز")
+    )
+    is_delivery_available = models.BooleanField(
+        default=False, verbose_name=_("توفير التوصيل")
+    )
+
+    # Status and Timestamps
+    status = models.CharField(
+        max_length=20, choices=AdStatus.choices, default=AdStatus.PENDING
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    expires_at = models.DateTimeField(
+        null=True, blank=True, verbose_name=_("تاريخ الانتهاء")
+    )
+    views_count = models.PositiveIntegerField(
+        default=0, verbose_name=_("عدد المشاهدات")
+    )
+
+    class Meta:
+        db_table = "classified_ads"
+        verbose_name = _("Classified Ad")
+        verbose_name_plural = _("Classified Ads")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.title
+
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timezone.timedelta(days=30)
+        super().save(*args, **kwargs)
+
+    def get_absolute_url(self):
+        from django.urls import reverse
+
+        return reverse("main:ad_detail", kwargs={"pk": self.pk})
+
+
+class AdImage(models.Model):
+    """Model for multiple ad images"""
+
+    ad = models.ForeignKey(
+        ClassifiedAd, on_delete=models.CASCADE, related_name="images"
+    )
+    image = models.ImageField(upload_to="ads/images/")
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = "ad_images"
+        verbose_name = _("Ad Image")
+        verbose_name_plural = _("Ad Images")
+        ordering = ["order"]
+
+
+class AdFeature(models.Model):
+    """Model for paid ad features"""
+
+    class FeatureType(models.TextChoices):
+        PINNED = "pinned", _("تثبيت - Pinned")
+        TOP_SEARCH = "top_search", _("أعلى نتائج البحث - Top Search")
+        FEATURED_SECTION = "featured_section", _("قسم مميز - Featured Section")
+        VIDEO = "video", _("إضافة فيديو - Video")
+
+    ad = models.ForeignKey(
+        ClassifiedAd, on_delete=models.CASCADE, related_name="features"
+    )
+    feature_type = models.CharField(max_length=20, choices=FeatureType.choices)
+    start_date = models.DateTimeField(auto_now_add=True)
+    end_date = models.DateTimeField()
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "ad_features"
+        verbose_name = _("Ad Feature")
+        verbose_name_plural = _("Ad Features")
+
+    def is_feature_active(self):
+        return self.is_active and self.end_date >= timezone.now()
+
+
+class AdPackage(models.Model):
+    """Model for ad posting packages"""
+
+    name = models.CharField(max_length=100, verbose_name=_("اسم الباقة"))
+    description = models.TextField(blank=True, verbose_name=_("وصف الباقة"))
+    price = models.DecimalField(
+        max_digits=10, decimal_places=2, verbose_name=_("السعر")
+    )
+    ad_count = models.PositiveIntegerField(verbose_name=_("عدد الإعلانات"))
+    duration_days = models.PositiveIntegerField(
+        verbose_name=_("صلاحية الباقة (بالأيام)")
+    )
+    is_default = models.BooleanField(
+        default=False, verbose_name=_("باقة افتراضية للمستخدمين الجدد")
+    )
+    is_active = models.BooleanField(default=True)
+
+    # Can be restricted to a specific category
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="packages",
+        help_text=_("إذا تم تحديده، ستكون هذه الباقة مخصصة لهذا القسم فقط"),
+    )
+
+    class Meta:
+        db_table = "ad_packages"
+        verbose_name = _("Ad Package")
+        verbose_name_plural = _("Ad Packages")
+
+    def __str__(self):
+        return self.name
+
+
+class UserPackage(models.Model):
+    """Model to track user's purchased packages"""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="ad_packages")
+    package = models.ForeignKey(AdPackage, on_delete=models.PROTECT)
+    purchase_date = models.DateTimeField(auto_now_add=True)
+    expiry_date = models.DateTimeField()
+    ads_remaining = models.PositiveIntegerField()
+
+    class Meta:
+        db_table = "user_packages"
+        verbose_name = _("User Package")
+        verbose_name_plural = _("User Packages")
+        ordering = ["-purchase_date"]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.package.name}"
+
+    def save(self, *args, **kwargs):
+        if not self.pk:  # On creation
+            self.ads_remaining = self.package.ad_count
+            self.expiry_date = timezone.now() + timezone.timedelta(
+                days=self.package.duration_days
+            )
+        super().save(*args, **kwargs)
+
+    def is_active(self):
+        """Check if the package is still active and has ads remaining."""
+        return self.expiry_date >= timezone.now() and self.ads_remaining > 0
+
+    def use_ad(self):
+        """Decrement the ad count for the package."""
+        if self.is_active():
+            self.ads_remaining -= 1
+            self.save(update_fields=["ads_remaining"])
+            return True
+        return False

@@ -30,7 +30,9 @@
     initNavbarEffects()
     initSmoothScroll()
     initBackToTop()
-    initAboutPageFeatures()
+    initMobileMenu()
+    initCounters()
+    initYojadHeader()
     if (gsapReady) initAnimations()
     initPageLoad()
 
@@ -110,6 +112,7 @@
 
     // Select all toggle elements (desktop and mobile)
     const buttons = document.querySelectorAll('#themeToggle, .theme-switcher')
+
 
     buttons.forEach((btn) => {
       btn.addEventListener('click', (e) => {
@@ -513,7 +516,7 @@
   // ===========================
   // GSAP ANIMATIONS
   // ===========================
-  // ===========================
+
   // GSAP ANIMATIONS
   // ===========================
   function initAnimations() {
@@ -552,91 +555,6 @@
   }
 
   // ===========================
-  // ABOUT PAGE FEATURES
-  // ===========================
-  function initAboutPageFeatures() {
-    // Tab functionality for offerings section
-    const tabButtons = document.querySelectorAll('.tab-btn')
-    const tabContents = document.querySelectorAll('.tab-content')
-
-    tabButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        const targetTab = button.getAttribute('data-tab')
-
-        // Remove active class from all buttons and contents
-        tabButtons.forEach((btn) => btn.classList.remove('active'))
-        tabContents.forEach((content) => content.classList.remove('active'))
-
-        // Add active class to clicked button and corresponding content
-        button.classList.add('active')
-        const targetContent = document.getElementById(targetTab)
-        if (targetContent) {
-          targetContent.classList.add('active')
-        }
-      })
-    })
-
-    // Statistics counter animation
-    const statNumbers = document.querySelectorAll('.stat-number')
-
-    const animateCounter = (element) => {
-      const target = parseInt(element.getAttribute('data-count') || element.textContent)
-      const duration = 2000 // 2 seconds
-      const start = performance.now()
-      const startValue = 0
-
-      const updateCounter = (currentTime) => {
-        const elapsed = currentTime - start
-        const progress = Math.min(elapsed / duration, 1)
-
-        // Easing function for smooth animation
-        const easeOutQuart = 1 - Math.pow(1 - progress, 4)
-        const current = Math.round(startValue + (target - startValue) * easeOutQuart)
-
-        element.textContent = current.toLocaleString()
-
-        if (progress < 1) {
-          requestAnimationFrame(updateCounter)
-        }
-      }
-
-      requestAnimationFrame(updateCounter)
-    }
-
-    // Intersection Observer for triggering counter animation
-    const counterObserver = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && !entry.target.classList.contains('animated')) {
-            entry.target.classList.add('animated')
-            animateCounter(entry.target)
-          }
-        })
-      },
-      { threshold: 0.5 }
-    )
-
-    statNumbers.forEach((counter) => {
-      counterObserver.observe(counter)
-    })
-
-    // Smooth hover effects for cards
-    const cards = document.querySelectorAll('.vm-card, .value-card, .contact-info-card')
-    cards.forEach((card) => {
-      card.addEventListener('mouseenter', () => {
-        card.style.transform = 'translateY(-10px)'
-        card.style.transition = 'transform 0.3s ease'
-      })
-
-      card.addEventListener('mouseleave', () => {
-        card.style.transform = 'translateY(0)'
-      })
-    })
-
-    console.log('✓ About page features initialized')
-  }
-
-  // ===========================
   // PAGE LOAD
   // ===========================
   function initPageLoad() {
@@ -645,11 +563,14 @@
       console.log('✓ Page fully loaded')
     })
   }
-})()
 
-// ===========================
-// BRANDING
-// ===========================
-console.log('%c🚀 إدريسي مارت', 'color:#4B315E;font-size:24px;font-weight:bold;')
-console.log('%cWelcome to Idrisi Mart! 🎉', 'color:#FF6001;font-size:16px;')
-console.log('%cv4.0 - Enhanced Edition', 'color:#666;font-size:12px;')
+  // ===========================
+  // YOJAD HEADER FUNCTIONALITY
+  // ===========================
+  function initYojadHeader() {
+    const header = document.querySelector('.yojad-header')
+    if (!header) return
+
+    // Scroll behavior for header
+    let lastScroll = 0
+    window.addEventListener('sc

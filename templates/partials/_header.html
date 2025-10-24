@@ -1,156 +1,171 @@
 {% load static i18n %}
 
-<nav class="navbar navbar-expand-lg sticky-top" id="mainNav">
-    <div class="container">
-        <!-- Logo with theme and scroll support -->
-        <a class="navbar-brand" href="{% url 'main:home' %}">
-            <!-- Regular logos (visible when not scrolled) -->
-            <img src="{% static 'images/logos/logo-white-theme.png' %}"
-                 alt="Logo"
-                 class="main-logo light-theme-logo" />
-            <img src="{% static 'images/logos/logo-dark-theme.png' %}"
-                 alt="Logo"
-                 class="main-logo dark-theme-logo" />
-            <!-- Mini logos (visible when scrolled) -->
-            <img src="{% static 'images/logos/mini-logo-white-theme.png' %}"
-                 alt="Mini Logo"
-                 class="mini-logo light-theme-logo" />
-            <img src="{% static 'images/logos/mini-logo-dark-theme.png' %}"
-                 alt="Mini Logo"
-                 class="mini-logo dark-theme-logo" />
-        </a>
-        <!-- Desktop Navigation -->
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ms-auto align-items-center">
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'main:home' %}">
-                        <i class="fas fa-home me-2"></i>{% trans "الرئيسية" %}
+<nav class="yojad-header sticky-top" id="mainNav">
+    <!-- Top Navigation Bar -->
+    <div class="top-nav-bar">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <!-- Left Side: Logo -->
+                <div class="header-logo-section">
+                    <a class="navbar-brand" href="{% url 'main:home' %}">
+                        <img src="{% static 'images/logos/logo-white-theme.png' %}"
+                             alt="Logo"
+                             class="header-main-logo light-theme-logo" />
+                        <img src="{% static 'images/logos/logo-dark-theme.png' %}"
+                             alt="Logo"
+                             class="header-main-logo dark-theme-logo" />
                     </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'main:categories' %}">
-                        <i class="fas fa-th-large me-2"></i>{% trans "الأقسام" %}
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'main:about' %}">
-                        <i class="fas fa-info-circle me-2"></i>{% trans "من نحن" %}
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'main:contact' %}">
-                        <i class="fas fa-envelope me-2"></i>{% trans "اتصل بنا" %}
-                    </a>
-                </li>
-                <!-- Desktop Country Selector (Fixed) -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle country-selector"
-                       href="#"
-                       role="button"
-                       data-bs-toggle="dropdown"
-                       aria-label="Select Country">
-                        <i class="fas fa-map-marker-alt me-1"></i>
-                        <span class="current-country" data-country-code="{{ selected_country }}">
-                            {% for country in countries %}
-                                {% if country.code == selected_country %}{{ country.flag_emoji }}{% endif %}
-                            {% endfor %}
-                        </span>
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end country-dropdown">
-                        {% for country in countries %}
-                            <li>
-                                <a class="dropdown-item country-item
-                                          {% if country.code == selected_country %}active{% endif %}"
-                                   href="#"
-                                   data-country="{{ country.code }}">
-                                    <span class="country-flag">{{ country.flag_emoji }}</span>
-                                    <span class="country-name">{{ country.name }}</span>
-                                    {% if country.code == selected_country %}<i class="fas fa-check country-check"></i>{% endif %}
+                </div>
+                <!-- Center: Search Bar -->
+                <div class="header-search-section">
+                    <div class="search-wrapper">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text"
+                               class="header-search-input"
+                               placeholder="{% trans 'بدء البحث ...' %}">
+                    </div>
+                </div>
+                <!-- Right Side: Actions -->
+                <div class="header-actions-section">
+                    <div class="d-flex align-items-center gap-3">
+                        <!-- Desktop Country Selector -->
+                        <div class="dropdown country-dropdown-wrapper">
+                            <button class="header-action-btn dropdown-toggle"
+                                    type="button"
+                                    data-bs-toggle="dropdown"
+                                    aria-label="Select Country">
+                                <i class="fas fa-map-marker-alt me-1"></i>
+                                <span class="current-country" data-country-code="{{ selected_country }}">
+                                    {% for country in countries %}
+                                        {% if country.code == selected_country %}{{ country.flag_emoji }}{% endif %}
+                                    {% endfor %}
+                                </span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end country-dropdown">
+                                {% for country in countries %}
+                                    <li>
+                                        <a class="dropdown-item country-item
+                                                  {% if country.code == selected_country %}active{% endif %}"
+                                           href="#"
+                                           data-country="{{ country.code }}">
+                                            <span class="country-flag">{{ country.flag_emoji }}</span>
+                                            <span class="country-name">{{ country.name }}</span>
+                                            {% if country.code == selected_country %}<i class="fas fa-check country-check"></i>{% endif %}
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        <!-- Language Switcher -->
+                        <div class="dropdown">
+                            <button class="header-action-btn dropdown-toggle"
+                                    type="button"
+                                    data-bs-toggle="dropdown">
+                                <i class="fas fa-globe me-1"></i>
+                                <span class="current-lang">
+                                    {% get_current_language as LANGUAGE_CODE %}
+                                    {{ LANGUAGE_CODE|upper }}
+                                </span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <form action="{% url 'set_language' %}" method="post">
+                                        {% csrf_token %}
+                                        <input name="next" type="hidden" value="{{ request.get_full_path }}" />
+                                        <button type="submit" name="language" value="ar" class="dropdown-item">
+                                            {% if LANGUAGE_CODE == 'ar' %}<i class="fas fa-check me-2"></i>{% endif %}
+                                            العربية
+                                        </button>
+                                        <button type="submit" name="language" value="en" class="dropdown-item">
+                                            {% if LANGUAGE_CODE == 'en' %}<i class="fas fa-check me-2"></i>{% endif %}
+                                            English
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                        <!-- User Account -->
+                        <div class="header-user-section">
+                            {% if request.user.is_authenticated %}
+                                <a class="header-action-btn" href="#">
+                                    <i class="fas fa-user-circle"></i>
                                 </a>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </li>
-                <!-- Language Switcher -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                        <i class="fas fa-globe me-1"></i>
-                        <span class="current-lang">
-                            {% get_current_language as LANGUAGE_CODE %}
-                            {{ LANGUAGE_CODE|upper }}
-                        </span>
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li>
-                            <form action="{% url 'set_language' %}" method="post">
-                                {% csrf_token %}
-                                <input name="next" type="hidden" value="{{ request.get_full_path }}" />
-                                <button type="submit" name="language" value="ar" class="dropdown-item">
-                                    {% if LANGUAGE_CODE == 'ar' %}<i class="fas fa-check me-2"></i>{% endif %}
-                                    العربية
-                                </button>
-                                <button type="submit" name="language" value="en" class="dropdown-item">
-                                    {% if LANGUAGE_CODE == 'en' %}<i class="fas fa-check me-2"></i>{% endif %}
-                                    English
-                                </button>
-                            </form>
-                        </li>
-                    </ul>
-                </li>
-                <!-- Wishlist with enhanced badge -->
-                <li class="nav-item position-relative">
-                    <a class="nav-link icon-link wishlist-link"
-                       href="#"
-                       title="{% trans 'المفضلة' %}">
-                        <i class="fas fa-heart"></i>
-                        <span class="enhanced-badge wishlist-badge">2</span>
-                    </a>
-                </li>
-                <!-- Cart with enhanced badge -->
-                <li class="nav-item position-relative">
-                    <a class="nav-link icon-link cart-link"
-                       href="#"
-                       title="{% trans 'السلة' %}">
-                        <i class="fas fa-shopping-cart"></i>
-                        <span class="enhanced-badge cart-badge">3</span>
-                    </a>
-                </li>
-                <!-- Theme Toggle - Single Icon -->
-                <li class="nav-item">
-                    <button class="theme-toggle"
-                            id="themeToggle"
-                            type="button"
-                            aria-label="{% trans 'تبديل النمط' %}">
-                        <i class="fas fa-sun theme-icon-light"></i>
-                        <i class="fas fa-moon theme-icon-dark"></i>
-                    </button>
-                </li>
-                <!-- Login / Dashboard -->
-                <li class="nav-item">
-                    {% if request.user.is_authenticated %}
-                        <a class="btn btn-custom btn-primary-custom ms-2" href="#">
-                            <i class="fas fa-user me-2"></i>{{ request.user.first_name|default:"لوحة التحكم" }}
-                        </a>
-                        <a class="btn btn-custom btn-primary-custom ms-2"
-                           href="{% url 'main:logout' %}">
-                            <i class="fas fa-sign-out-alt"></i>{% trans "خروج" %}
-                        </a>
-                    {% else %}
-                        <a class="btn btn-custom btn-primary-custom ms-2"
-                           href="{% url 'main:login' %}">
-                            <i class="fas fa-sign-in-alt me-2"></i>{% trans "دخول" %}
-                        </a>
-                    {% endif %}
-                </li>
-            </ul>
+                            {% else %}
+                                <a class="header-action-btn" href="{% url 'main:login' %}">
+                                    <i class="fas fa-user"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                        <!-- Notification Bell -->
+                        <div class="header-notification-section">
+                            <button class="header-action-btn position-relative" type="button">
+                                <i class="fas fa-bell"></i>
+                                <span class="notification-badge">3</span>
+                            </button>
+                        </div>
+                        <!-- Theme Toggle -->
+                        <div class="header-theme-section">
+                            <button class="header-theme-toggle"
+                                    id="headerThemeToggle"
+                                    type="button"
+                                    aria-label="{% trans 'تبديل المظهر' %}">
+                                <i class="fas fa-sun theme-icon-light"></i>
+                                <i class="fas fa-moon theme-icon-dark"></i>
+                            </button>
+                        </div>
+                        <!-- Post Ad Button -->
+                        <div class="header-post-ad">
+                            <a href="{% url 'main:home' %}" class="btn-post-ad">
+                                <i class="fas fa-plus-circle me-2"></i>
+                                {% trans "نشر الإعلان" %}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <!-- Hamburger (Mobile) -->
+                <button class="hamburger d-lg-none"
+                        id="hamburgerBtn"
+                        type="button"
+                        aria-label="Toggle menu">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
         </div>
-        <!-- Hamburger (Mobile) -->
-        <button class="hamburger d-lg-none"
-                id="hamburgerBtn"
-                type="button"
-                aria-label="Toggle menu">
-            <span></span><span></span><span></span>
-        </button>
+    </div>
+    <!-- Categories Navigation Bar -->
+    <div class="categories-nav-bar">
+        <div class="container">
+            <div class="categories-scroll-wrapper">
+                <div class="categories-nav-list">
+                    <!-- Dynamic Category Items -->
+                    {% for category in header_categories %}
+                        <a href="{% url 'main:categories' %}?section={{ category.section_type }}"
+                           class="category-nav-item"
+                           data-category-id="{{ category.id }}"
+                           data-category-color="category-{{ forloop.counter }}">
+                            <div class="category-icon">
+                                {% if category.icon %}
+                                    <i class="{{ category.icon }} text-white"></i>
+                                {% else %}
+                                    <i class="fas fa-folder text-white"></i>
+                                {% endif %}
+                            </div>
+                            <span class="category-name">{{ category.name_ar|default:category.name }}</span>
+                        </a>
+                    {% empty %}
+                        <!-- Fallback if no categories -->
+                        <a href="{% url 'main:categories' %}"
+                           class="category-nav-item"
+                           data-category-color="green">
+                            <div class="category-icon">
+                                <i class="fas fa-book text-white"></i>
+                            </div>
+                            <span class="category-name">{% trans "كتب وبرامج مساحية" %}</span>
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
     </div>
     <!-- Mobile Nav -->
     <div class="mobile-nav" id="mobileNav">
@@ -171,7 +186,6 @@
             </svg>
         </button>
         <div class="mobile-nav-header">
-            <!-- Mobile logo with theme support -->
             <div class="mobile-logo-container">
                 <img src="{% static 'images/logos/mini-logo-white-theme.png' %}"
                      alt="Logo"
@@ -199,46 +213,42 @@
         </div>
         <ul class="mobile-nav-menu">
             <li>
-                <a href="{% url 'main:home' %}" class="mobile-nav-link"><i class="fas fa-home"></i><span>{% trans "الرئيسية" %}</span></a>
+                <a href="{% url 'main:home' %}" class="mobile-nav-link">
+                    <i class="fas fa-home"></i><span>{% trans "الرئيسية" %}</span>
+                </a>
             </li>
             <li>
-                <a href="#categories" class="mobile-nav-link"><i class="fas fa-th-large"></i><span>{% trans "الأقسام" %}</span></a>
+                <a href="{% url 'main:categories' %}" class="mobile-nav-link">
+                    <i class="fas fa-th-large"></i><span>{% trans "الأقسام" %}</span>
+                </a>
             </li>
             <li>
-                <a href="{% url 'main:about' %}" class="mobile-nav-link"><i class="fas fa-info-circle"></i><span>{% trans "من نحن" %}</span></a>
+                <a href="{% url 'main:about' %}" class="mobile-nav-link">
+                    <i class="fas fa-info-circle"></i><span>{% trans "من نحن" %}</span>
+                </a>
             </li>
             <li>
-                <a href="{% url 'main:contact' %}" class="mobile-nav-link"><i class="fas fa-envelope"></i><span>{% trans "اتصل بنا" %}</span></a>
-            </li>
-            <!-- Theme Toggle -->
-            <li class="nav-item">
-                <a href="#"
-                   class="theme-switcher"
-                   id="themeToggle"
-                   role="button"
-                   aria-label="{% trans 'تبديل النمط' %}">
-                    <i class="fas fa-sun theme-icon-light"></i>
-                    <i class="fas fa-moon theme-icon-dark"></i>
+                <a href="{% url 'main:contact' %}" class="mobile-nav-link">
+                    <i class="fas fa-envelope"></i><span>{% trans "اتصل بنا" %}</span>
                 </a>
             </li>
             <li class="mobile-nav-divider"></li>
             {% if request.user.is_authenticated %}
                 <li>
-                    <a href="#" class="mobile-nav-link"><i class="fas fa-heart"></i><span>{% trans "المفضلة" %}</span><span class="mobile-badge wishlist">2</span></a>
+                    <a href="#" class="mobile-nav-link">
+                        <i class="fas fa-tachometer-alt"></i><span>{% trans "لوحة التحكم" %}</span>
+                    </a>
                 </li>
                 <li>
-                    <a href="#" class="mobile-nav-link"><i class="fas fa-shopping-cart"></i><span>{% trans "السلة" %}</span><span class="mobile-badge cart">3</span></a>
-                </li>
-                <li class="mobile-nav-divider"></li>
-                <li>
-                    <a href="#" class="mobile-nav-link"><i class="fas fa-tachometer-alt"></i><span>{% trans "لوحة التحكم" %}</span></a>
-                </li>
-                <li>
-                    <a href="{% url 'main:logout' %}" class="mobile-nav-link logout"><i class="fas fa-sign-out-alt"></i><span>{% trans "تسجيل الخروج" %}</span></a>
+                    <a href="{% url 'main:logout' %}" class="mobile-nav-link logout">
+                        <i class="fas fa-sign-out-alt"></i><span>{% trans "تسجيل الخروج" %}</span>
+                    </a>
                 </li>
             {% else %}
                 <li>
-                    <a href="{% url 'main:login' %}" class="mobile-nav-link highlight"><i class="fas fa-sign-in-alt"></i><span>{% trans "تسجيل الدخول" %}</span></a>
+                    <a href="{% url 'main:login' %}" class="mobile-nav-link highlight">
+                        <i class="fas fa-sign-in-alt"></i><span>{% trans "تسجيل الدخول" %}</span>
+                    </a>
                 </li>
             {% endif %}
         </ul>
@@ -250,9 +260,7 @@
             <button class="mobile-country-toggle"
                     type="button"
                     data-bs-toggle="collapse"
-                    data-bs-target="#mobileCountryList"
-                    aria-expanded="false"
-                    aria-controls="mobileCountryList">
+                    data-bs-target="#mobileCountryList">
                 <div class="current-selection">
                     <span class="country-flag-large">
                         {% for country in countries %}
@@ -291,9 +299,7 @@
             <button class="mobile-lang-toggle"
                     type="button"
                     data-bs-toggle="collapse"
-                    data-bs-target="#mobileLangList"
-                    aria-expanded="false"
-                    aria-controls="mobileLangList">
+                    data-bs-target="#mobileLangList">
                 <div class="current-selection">
                     {% if LANGUAGE_CODE == 'ar' %}
                         <span class="lang-name-large">العربية</span>

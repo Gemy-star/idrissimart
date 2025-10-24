@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "constance.backends.database",
     "imagekit",
     "rosetta",
+    "django_filters",
     # Local apps
     "main.apps.MainConfig",
     "content.apps.ContentConfig",
@@ -98,6 +99,7 @@ TEMPLATES = [
                 # Custom context processors
                 "content.context_processors.countries",
                 "content.context_processors.user_preferences",
+                "content.context_processors.header_categories",
             ],
         },
     },

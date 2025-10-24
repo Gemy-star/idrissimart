@@ -164,11 +164,22 @@
         <div class="container">
             <h2 class="section-title">{% trans "ماذا نقدم؟" %}</h2>
             <div class="offerings-tabs">
-                <div class="tab-buttons">
-                    <button class="tab-btn active" data-tab="individuals">{% trans "للأفراد" %}</button>
-                    <button class="tab-btn" data-tab="businesses">{% trans "للشركات والتجار" %}</button>
+                <div class="tab-buttons" role="tablist">
+                    <button type="button"
+                            id="tab-btn-individuals"
+                            class="tab-btn active"
+                            data-tab="individuals"
+                            aria-selected="true">{% trans "للأفراد" %}</button>
+                    <button type="button"
+                            id="tab-btn-businesses"
+                            class="tab-btn"
+                            data-tab="businesses"
+                            aria-selected="false">{% trans "للشركات والتجار" %}</button>
                 </div>
-                <div class="tab-content active" id="individuals">
+                <div class="tab-pane fade show active"
+                     id="individuals"
+                     role="tabpanel"
+                     aria-labelledby="tab-btn-individuals">
                     <div class="offerings-list">
                         <div class="offering-item">
                             <div class="offering-icon">📢</div>
@@ -192,7 +203,10 @@
                         </div>
                     </div>
                 </div>
-                <div class="tab-content" id="businesses">
+                <div class="tab-pane fade"
+                     id="businesses"
+                     role="tabpanel"
+                     aria-labelledby="tab-btn-businesses">
                     <div class="offerings-list">
                         <div class="offering-item">
                             <div class="offering-icon">🏪</div>
@@ -274,61 +288,82 @@
 
 {% block extra_js %}
     <script>
-        // Tab functionality
-        document.addEventListener('DOMContentLoaded', function() {
-            const tabButtons = document.querySelectorAll('.tab-btn')
-            const tabContents = document.querySelectorAll('.tab-content')
+        // Tab functionality (scoped per tab group)
+        document.querySelectorAll('.tab-buttons').forEach((btnContainer) => {
+            const buttons = Array.from(btnContainer.querySelectorAll('.tab-btn'));
+            // use nearest .container as the common root for buttons and panes
+            const panesRoot = btnContainer.closest('.container') || document.body;
+            const panes = Array.from(panesRoot.querySelectorAll('.tab-pane'));
 
-            tabButtons.forEach((button) => {
+            function deactivateLocal() {
+                buttons.forEach(b => {
+                    b.classList.remove('active');
+                    b.setAttribute('aria-selected', 'false');
+                });
+                panes.forEach(p => p.classList.remove('active', 'show'));
+            }
+
+            const anyActiveLocal = buttons.some(b => b.classList.contains('active'));
+            if (!anyActiveLocal && buttons.length) {
+                const defaultBtn = buttons[0];
+                defaultBtn.classList.add('active');
+                defaultBtn.setAttribute('aria-selected', 'true');
+                const defaultTarget = defaultBtn.getAttribute('data-tab');
+                const el = defaultTarget ? panesRoot.querySelector('#' + defaultTarget) : null;
+                if (el) el.classList.add('active', 'show');
+            }
+
+            buttons.forEach((button) => {
                 button.addEventListener('click', function() {
-                    const targetTab = this.getAttribute('data-tab')
+                    const targetTab = this.getAttribute('data-tab');
+                    if (!targetTab) return;
+                    const targetEl = panesRoot.querySelector('#' + targetTab) || document.getElementById(targetTab);
+                    if (!targetEl) return;
 
-                    // Remove active class from all buttons and contents
-                    tabButtons.forEach((btn) => btn.classList.remove('active'))
-                    tabContents.forEach((content) => content.classList.remove('active'))
+                    deactivateLocal();
+                    this.classList.add('active');
+                    this.setAttribute('aria-selected', 'true');
+                    targetEl.classList.add('active', 'show');
+                    this.focus();
+                });
+            });
+        });
+        // Statistics counter animation
+        const counters = document.querySelectorAll('.stat-number')
+        const speed = 200 // lower = faster
 
-                    // Add active class to clicked button and corresponding content
-                    this.classList.add('active')
-                    document.getElementById(targetTab).classList.add('active')
-                })
-            })
+        const animateCounters = () => {
+            counters.forEach((counter) => {
+                const target = +counter.getAttribute('data-target')
+                const updateCount = () => {
+                    const current = +counter.innerText.replace('+', '')
+                    const increment = Math.ceil(target / speed)
 
-            // Statistics counter animation
-            const counters = document.querySelectorAll('.stat-number')
-            const speed = 200 // lower = faster
-
-            const animateCounters = () => {
-                counters.forEach((counter) => {
-                    const target = +counter.getAttribute('data-target')
-                    const updateCount = () => {
-                        const current = +counter.innerText.replace('+', '')
-                        const increment = Math.ceil(target / speed)
-
-                        if (current < target) {
-                            counter.innerText = current + increment
-                            setTimeout(updateCount, 20)
-                        } else {
-                            counter.innerText = target.toLocaleString() + '+'
-                        }
+                    if (current < target) {
+                        counter.innerText = current + increment
+                        setTimeout(updateCount, 20)
+                    } else {
+                        counter.innerText = target.toLocaleString() + '+'
                     }
-                    updateCount()
-                })
-            }
-
-            // Trigger animation when section is visible
-            const section = document.querySelector('.stats-section')
-            let started = false
-
-            const onScroll = () => {
-                const sectionTop = section.getBoundingClientRect().top
-                const windowHeight = window.innerHeight
-                if (!started && sectionTop < windowHeight - 100) {
-                    started = true
-                    animateCounters()
                 }
-            }
+                updateCount()
+            })
+        }
 
-            window.addEventListener('scroll', onScroll)
+        // Trigger animation when section is visible
+        const section = document.querySelector('.stats-section')
+        let started = false
+
+        const onScroll = () => {
+            const sectionTop = section.getBoundingClientRect().top
+            const windowHeight = window.innerHeight
+            if (!started && sectionTop < windowHeight - 100) {
+                started = true
+                animateCounters()
+            }
+        }
+
+        window.addEventListener('scroll', onScroll)
         })
     </script>
 

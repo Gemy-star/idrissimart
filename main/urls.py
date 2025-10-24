@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import auth_views, views
+from . import auth_views, classifieds_views, views
 
 app_name = "main"
 urlpatterns = [
@@ -16,5 +16,36 @@ urlpatterns = [
         "category/<slug:slug>/",
         views.CategoryDetailView.as_view(),
         name="category_detail",
+    ),
+    # Classified Ads URLs
+    path(
+        "classifieds/",
+        classifieds_views.ClassifiedAdListView.as_view(),
+        name="ad_list",
+    ),
+    path(
+        "classifieds/my-ads/",
+        classifieds_views.MyClassifiedAdsView.as_view(),
+        name="my_ads",
+    ),
+    path(
+        "classifieds/create/",
+        classifieds_views.ClassifiedAdCreateView.as_view(),
+        name="ad_create",
+    ),
+    path(
+        "classifieds/<int:pk>/edit/",
+        classifieds_views.ClassifiedAdUpdateView.as_view(),
+        name="ad_update",
+    ),
+    path(
+        "classifieds/create/success/<int:pk>/",
+        classifieds_views.ClassifiedAdCreateSuccessView.as_view(),
+        name="ad_create_success",
+    ),
+    path(
+        "classifieds/<int:pk>/",
+        classifieds_views.ClassifiedAdDetailView.as_view(),
+        name="ad_detail",
     ),
 ]

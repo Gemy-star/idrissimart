@@ -1,6 +1,17 @@
 from django.contrib import admin
 
-from .models import AboutPage, Category, CompanyValue, ContactInfo, ContactMessage
+from .models import (
+    AboutPage,
+    AdFeature,
+    AdImage,
+    AdPackage,
+    Category,
+    ClassifiedAd,
+    CompanyValue,
+    ContactInfo,
+    ContactMessage,
+    UserPackage,
+)
 
 
 @admin.register(Category)
@@ -92,3 +103,77 @@ class CompanyValueAdmin(admin.ModelAdmin):
     search_fields = ("title", "description")
     list_editable = ("order", "is_active")
     ordering = ("order",)
+
+
+# --- Classified Ads Admin ---
+
+
+class AdImageInline(admin.TabularInline):
+    model = AdImage
+    extra = 1
+    ordering = ["order"]
+    fields = ("image", "order")
+
+
+class AdFeatureInline(admin.TabularInline):
+    model = AdFeature
+    extra = 1
+    fields = ("feature_type", "end_date", "is_active")
+
+
+@admin.register(ClassifiedAd)
+class ClassifiedAdAdmin(admin.ModelAdmin):
+    list_display = (
+        "title",
+        "user",
+        "category",
+        "price",
+        "status",
+        "created_at",
+        "expires_at",
+    )
+    list_filter = ("status", "category", "is_cart_enabled", "is_delivery_available")
+    search_fields = ("title", "description", "user__username")
+    readonly_fields = ("created_at", "updated_at", "views_count")
+    inlines = [AdImageInline, AdFeatureInline]
+    fieldsets = (
+        ("Ad Information", {"fields": ("user", "category", "title", "description")}),
+        ("Pricing", {"fields": ("price", "is_negotiable")}),
+        ("Location", {"fields": ("country", "city", "address")}),
+        (
+            "Features",
+            {
+                "fields": (
+                    "video_url",
+                    "video_file",
+                    "is_cart_enabled",
+                    "is_delivery_available",
+                )
+            },
+        ),
+        ("Status", {"fields": ("status", "expires_at", "views_count")}),
+    )
+
+
+@admin.register(AdPackage)
+class AdPackageAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "price",
+        "ad_count",
+        "duration_days",
+        "is_default",
+        "is_active",
+        "category",
+    )
+    list_filter = ("is_active", "is_default", "category")
+    search_fields = ("name", "description")
+    list_editable = ("is_active", "is_default")
+
+
+@admin.register(UserPackage)
+class UserPackageAdmin(admin.ModelAdmin):
+    list_display = ("user", "package", "purchase_date", "expiry_date", "ads_remaining")
+    list_filter = ("package", "purchase_date", "expiry_date")
+    search_fields = ("user__username", "package__name")
+    readonly_fields = ("purchase_date", "expiry_date", "ads_remaining")
