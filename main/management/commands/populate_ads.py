@@ -6,7 +6,6 @@ from django.core.files import File
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
-from django.utils.translation import gettext_lazy as _
 from faker import Faker
 
 from content.models import Country
@@ -22,20 +21,20 @@ class Command(BaseCommand):
     python manage.py populate_ads 50 --country_code EG
     """
 
-    help = _("Populates the database with dummy classified ads for a specific country.")
+    help = "Populates the database with dummy classified ads for a specific country."
 
     def add_arguments(self, parser):
         """Add command line arguments."""
         parser.add_argument(
             "total",
             type=int,
-            help=_("Indicates the number of ads to be created."),
+            help="Indicates the number of ads to be created.",
         )
         parser.add_argument(
             "--country_code",
             type=str,
             default="EG",
-            help=_("The country code for which to create ads (e.g., EG, SA)."),
+            help="The country code for which to create ads (e.g., EG, SA).",
         )
 
     @transaction.atomic
@@ -59,10 +58,28 @@ class Command(BaseCommand):
             return
 
         # Get a list of regular users to assign ads to.
-        users = list(User.objects.filter(is_superuser=False))
+        # Prioritize verified users (including verified vendors/merchants)
+        verified_users = list(
+            User.objects.filter(is_superuser=False, verification_status="verified")
+        )
+        regular_users = list(User.objects.filter(is_superuser=False))
 
-        # If no regular users, fall back to the first superuser.
-        if not users:
+        # Create a weighted pool: 70% verified users, 30% regular users
+        if verified_users:
+            # Use verified users more frequently
+            users = verified_users * 7 + regular_users * 3
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Found {len(verified_users)} verified users and {len(regular_users)} total users."
+                )
+            )
+        elif regular_users:
+            users = regular_users
+            self.stdout.write(
+                self.style.WARNING("No verified users found. Using regular users only.")
+            )
+        else:
+            # If no regular users, fall back to the first superuser.
             self.stdout.write(
                 self.style.WARNING("No regular users found. Falling back to superuser.")
             )
@@ -284,9 +301,7 @@ class Command(BaseCommand):
                 AdFeature.objects.create(
                     ad=ad, feature_type=feature_type, end_date=end_date, is_active=True
                 )
-                self.stdout.write(
-                    f"    - Added feature '{feature_type}' to ad {ad.pk}."
-                )
+                # Feature added (suppressed output to avoid encoding errors)
 
             # --- Dynamic Image Selection ---
             image_filenames = [
@@ -306,17 +321,12 @@ class Command(BaseCommand):
                     image_name = f"{random.randint(1000, 9999)}_{selected_image_name}"
                     image_file = File(f, name=image_name)
                     AdImage.objects.create(ad=ad, image=image_file)
-                self.stdout.write(
-                    f"  - Created ad: '{ad.title}' (ID: {ad.pk}) with default image."
-                )
+                # Avoid printing Arabic characters to prevent encoding errors on Windows
             else:
                 self.stderr.write(
                     self.style.WARNING(
                         f"  - Warning: Static image not found. No image added for ad {ad.pk}."
                     )
-                )
-                self.stdout.write(
-                    f"  - Created ad: '{ad.title}' (ID: {ad.pk}) without image."
                 )
 
         self.stdout.write(

@@ -2,7 +2,6 @@ import random
 
 from django.core.management.base import BaseCommand
 from django.db import IntegrityError
-from django.utils.translation import gettext_lazy as _
 from faker import Faker
 
 from main.models import User
@@ -17,14 +16,14 @@ class Command(BaseCommand):
     python manage.py populate_users 20
     """
 
-    help = _("Populates the database with dummy users.")
+    help = "Populates the database with dummy users."
 
     def add_arguments(self, parser):
         """Add command line arguments."""
         parser.add_argument(
             "total",
             type=int,
-            help=_("Indicates the number of users to be created."),
+            help="Indicates the number of users to be created.",
         )
 
     def handle(self, *args, **kwargs):
@@ -46,8 +45,9 @@ class Command(BaseCommand):
             profile_type = random.choice(
                 [choice[0] for choice in User.ProfileType.choices]
             )
+            # Increased weight for verified status: 40% unverified, 10% pending, 45% verified, 5% rejected
             verification_status = random.choices(
-                list(User.VerificationStatus), weights=[60, 10, 25, 5], k=1
+                list(User.VerificationStatus), weights=[40, 10, 45, 5], k=1
             )[0]
 
             try:
