@@ -1,16 +1,25 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import F
-from django.shortcuts import redirect
+from django.db.models import Case, F, IntegerField, Value, When
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.utils.translation import gettext as _
-from django.views.generic import CreateView, DetailView, ListView, UpdateView
+from django.views.generic import CreateView, DetailView, ListView, UpdateView, View
 from django_filters.views import FilterView
 
 from .filters import ClassifiedAdFilter
 from .forms import AdImageFormSet, ClassifiedAdForm
-from .models import AdImage, AdPackage, Category, ClassifiedAd, User, UserPackage
+from .models import (
+    AdImage,
+    AdPackage,
+    Category,
+    ClassifiedAd,
+    SavedSearch,
+    User,
+    UserPackage,
+)
 
 
 class ClassifiedAdListView(FilterView):
@@ -221,3 +230,115 @@ class ClassifiedAdDetailView(DetailView):
         ClassifiedAd.objects.filter(pk=obj.pk).update(views_count=F("views_count") + 1)
         # obj.refresh_from_db() # The template will display the updated count
         return obj
+
+    def get_context_data(self, **kwargs):
+        """
+        Add related ads to the context.
+        """
+        context = super().get_context_data(**kwargs)
+        ad = self.get_object()
+
+        # Define a price range (e.g., +/- 25%)
+        price_range_min = ad.price * 0.75
+        price_range_max = ad.price * 1.25
+
+        # Build a relevance score using annotations
+        related_ads = (
+            ClassifiedAd.objects.filter(
+                category=ad.category, status=ClassifiedAd.AdStatus.ACTIVE
+            )
+            .exclude(pk=ad.pk)
+            .annotate(
+                relevance_score=Case(
+                    When(city__iexact=ad.city, then=Value(2)),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                )
+                + Case(
+                    When(
+                        price__range=(price_range_min, price_range_max), then=Value(1)
+                    ),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                )
+            )
+            .select_related("user")
+            .prefetch_related("images", "features")
+            .order_by("-relevance_score", "-created_at")[:3]
+        )
+
+        context["related_ads"] = related_ads
+        return context
+
+
+class SaveSearchView(LoginRequiredMixin, View):
+    """View to save a user's search query via POST request."""
+
+    def post(self, request, *args, **kwargs):
+        search_name = request.POST.get("name")
+        query_params = request.POST.get("query_params")
+
+        if not search_name or not query_params:
+            return JsonResponse(
+                {"success": False, "message": _("اسم البحث ومعاييره مطلوبان.")},
+                status=400,
+            )
+
+        if SavedSearch.objects.filter(user=request.user, name=search_name).exists():
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": _("لديك بحث محفوظ بهذا الاسم بالفعل."),
+                },
+                status=400,
+            )
+
+        SavedSearch.objects.create(
+            user=request.user, name=search_name, query_params=query_params
+        )
+
+        return JsonResponse({"success": True, "message": _("تم حفظ البحث بنجاح!")})
+
+
+class UserSavedSearchesView(LoginRequiredMixin, ListView):
+    """View to list the current user's saved searches."""
+
+    model = SavedSearch
+    template_name = "classifieds/saved_searches.html"
+    context_object_name = "saved_searches"
+
+    def get_queryset(self):
+        return SavedSearch.objects.filter(user=self.request.user)
+
+    def post(self, request, *args, **kwargs):
+        search_id = request.POST.get("search_id")
+        if search_id:
+            search = get_object_or_404(SavedSearch, pk=search_id, user=request.user)
+            search.email_notifications = "email_notifications" in request.POST
+            search.save(update_fields=["email_notifications"])
+            messages.success(request, _("تم تحديث تفضيلات الإشعارات بنجاح."))
+        return redirect("main:saved_searches")
+
+
+class DeleteSavedSearchView(LoginRequiredMixin, View):
+    """View to delete a saved search."""
+
+    def post(self, request, *args, **kwargs):
+        search_id = self.kwargs.get("pk")
+        search = get_object_or_404(SavedSearch, pk=search_id, user=request.user)
+        search.delete()
+        messages.success(request, _("تم حذف البحث المحفوظ بنجاح."))
+        return redirect("main:saved_searches")
+
+
+class UnsubscribeFromSearchView(View):
+    """Handles unsubscribing from a saved search via a tokenized link."""
+
+    def get(self, request, *args, **kwargs):
+        token = self.kwargs.get("token")
+        search = get_object_or_404(SavedSearch, unsubscribe_token=token)
+        search.email_notifications = False
+        search.save(update_fields=["email_notifications"])
+
+        messages.success(request, _("تم إلغاء اشتراكك في إشعارات هذا البحث بنجاح."))
+        return redirect("main:home")

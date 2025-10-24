@@ -10,6 +10,7 @@ from .models import (
     CompanyValue,
     ContactInfo,
     ContactMessage,
+    SavedSearch,
     UserPackage,
 )
 
@@ -30,6 +31,25 @@ class CategoryAdmin(admin.ModelAdmin):
     search_fields = ("name", "name_ar", "slug", "slug_ar")
     prepopulated_fields = {"slug": ("name",), "slug_ar": ("name_ar",)}
     list_editable = ("is_active",)
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "name",
+                    "name_ar",
+                    "slug",
+                    "slug_ar",
+                    "parent",
+                    "section_type",
+                    "country",
+                )
+            },
+        ),
+        ("Details", {"fields": ("description", "icon", "image")}),
+        ("Advanced", {"fields": ("custom_field_schema",)}),
+        ("Settings", {"fields": ("order", "is_active")}),
+    )
     ordering = ("country", "name")
 
 
@@ -177,3 +197,18 @@ class UserPackageAdmin(admin.ModelAdmin):
     list_filter = ("package", "purchase_date", "expiry_date")
     search_fields = ("user__username", "package__name")
     readonly_fields = ("purchase_date", "expiry_date", "ads_remaining")
+
+
+@admin.register(SavedSearch)
+class SavedSearchAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "user",
+        "created_at",
+        "last_notified_at",
+        "email_notifications",
+    )
+    list_filter = ("created_at", "email_notifications")
+    search_fields = ("name", "user__username", "query_params")
+    list_editable = ("email_notifications",)
+    readonly_fields = ("last_notified_at", "unsubscribe_token")

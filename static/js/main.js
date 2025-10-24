@@ -34,6 +34,7 @@
     initYojadHeader()
     if (gsapReady) initAnimations()
     initPageLoad()
+    initPreloader()
 
     console.log('%c✅ All systems ready!', 'color:#4B315E;font-weight:bold;')
   }
@@ -48,7 +49,7 @@
     }, null)
   }
 
-  function debounce(fn, wait) {
+  window.debounce = function (fn, wait) {
     let timeout
     return (...args) => {
       clearTimeout(timeout)
@@ -56,7 +57,7 @@
     }
   }
 
-  function showNotification(message, type = 'success') {
+  window.showNotification = function (message, type = 'success') {
     const colors = {
       success: 'linear-gradient(135deg, #4B315E 0%, #6B4C7A 100%)',
       error: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
@@ -587,4 +588,27 @@
 
     console.log('✓ Yojad header initialized')
   }
+
+  // ===========================
+  // PRELOADER
+  // ===========================
+  function initPreloader() {
+    const preloader = document.getElementById('preloader');
+    if (!preloader) return;
+    const startTime = Date.now();
+
+    window.addEventListener('load', () => {
+      const elapsedTime = Date.now() - startTime;
+      // Ensure the loader is visible for at least 1000ms (1 second)
+      const remainingTime = Math.max(0, 1000 - elapsedTime);
+
+      setTimeout(() => {
+        preloader.classList.add('loader-hidden');
+      }, remainingTime);
+    });
+
+    console.log('✓ Preloader initialized');
+  }
+
+
 })()

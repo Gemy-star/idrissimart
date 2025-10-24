@@ -48,9 +48,11 @@
                                         <option value="">{% trans "اختر قسم..." %}</option>
                                         {% for category in ad_categories %}
                                             <option value="{{ category.pk }}"
+                                                    data-custom-fields='{{ category.custom_field_schema|safe }}'
                                                     {% if form.category.value == category.pk %}selected{% endif %}>{{ category.name }}</option>
                                             {% for subcat in category.subcategories.all %}
                                                 <option value="{{ subcat.pk }}"
+                                                        data-custom-fields='{{ subcat.custom_field_schema|safe }}'
                                                         {% if form.category.value == subcat.pk %}selected{% endif %}>-- {{ subcat.name }}</option>
                                             {% endfor %}
                                         {% endfor %}
@@ -72,12 +74,12 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="row">
+                                <div class="row" id="custom-fields-wrapper">
                                     <div class="col-md-6 mb-3">
                                         <label for="{{ form.brand.id_for_label }}" class="form-label">{{ form.brand.label }}</label>
                                         {{ form.brand }}
                                     </div>
-                                    <div class="col-md-6 mb-3">
+                                    <div class="col-md-6 mb-3" id="condition-field-wrapper">
                                         <label for="{{ form.condition.id_for_label }}" class="form-label">{{ form.condition.label }}</label>
                                         {{ form.condition }}
                                     </div>
@@ -123,3 +125,43 @@
     </section>
 
 {% endblock content %}
+
+{% block extra_js %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const categorySelect = document.getElementById('{{ form.category.id_for_label }}');
+            const customFields = {
+                'brand': document.getElementById('brand-field-wrapper'),
+                'condition': document.getElementById('condition-field-wrapper')
+            };
+
+            function toggleCustomFields() {
+                const selectedOption = categorySelect.options[categorySelect.selectedIndex];
+                const fieldsToShow = JSON.parse(selectedOption.dataset.customFields || '[]');
+
+                // Hide all custom fields first
+                for (const fieldName in customFields) {
+                    if (customFields[fieldName]) {
+                        customFields[fieldName].style.display = 'none';
+                    }
+                }
+
+                // Show only the ones that belong to the selected category
+                if (fieldsToShow.length > 0) {
+                    fieldsToShow.forEach(function(fieldName) {
+                        if (customFields[fieldName]) {
+                            customFields[fieldName].style.display = 'block';
+                        }
+                    });
+                }
+            }
+
+            // Add event listener
+            categorySelect.addEventListener('change', toggleCustomFields);
+
+            // Run on page load to handle editing existing ads
+            toggleCustomFields();
+        });
+    </script>
+
+{% endblock extra_js %}

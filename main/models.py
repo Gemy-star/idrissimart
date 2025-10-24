@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth.models import AbstractUser, BaseUserManager, Group, Permission
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -808,6 +810,14 @@ class Category(models.Model):
         verbose_name=_("الدول المتاحة - Available Countries"),
         help_text=_("الدول التي يتوفر فيها هذا القسم"),
     )
+    custom_field_schema = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name=_("مخطط الحقول المخصصة"),
+        help_text=_(
+            'A list of custom field names applicable to this category, e.g., ["brand", "condition"]'
+        ),
+    )
 
     order = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
@@ -1358,3 +1368,38 @@ class UserPackage(models.Model):
             self.save(update_fields=["ads_remaining"])
             return True
         return False
+
+
+class SavedSearch(models.Model):
+    """Model to store user's saved search queries."""
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="saved_searches"
+    )
+    name = models.CharField(max_length=100, verbose_name=_("اسم البحث"))
+    query_params = models.TextField(verbose_name=_("معلمات البحث"))
+    email_notifications = models.BooleanField(
+        default=True, verbose_name=_("تفعيل إشعارات البريد الإلكتروني")
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_notified_at = models.DateTimeField(
+        null=True, blank=True, verbose_name=_("آخر إشعار أرسل في")
+    )
+    unsubscribe_token = models.UUIDField(
+        default=uuid.uuid4, editable=False, unique=True, db_index=True
+    )
+
+    class Meta:
+        db_table = "saved_searches"
+        verbose_name = _("Saved Search")
+        verbose_name_plural = _("Saved Searches")
+        ordering = ["-created_at"]
+        unique_together = ("user", "name")
+
+    def __str__(self):
+        return self.name
+
+    def get_absolute_url(self):
+        from django.urls import reverse
+
+        return f"{reverse('main:ad_list')}?{self.query_params}"

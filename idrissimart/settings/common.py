@@ -9,6 +9,8 @@ from django.contrib.messages import constants as messages
 from django.utils.translation import gettext_lazy as _
 from dotenv import load_dotenv
 
+from .constance_config import CONSTANCE_CONFIG, CONSTANCE_CONFIG_FIELDSETS
+
 load_dotenv()
 
 # =======================
@@ -46,6 +48,7 @@ INSTALLED_APPS = [
     "imagekit",
     "rosetta",
     "django_filters",
+    "sendgrid",
     # Local apps
     "main.apps.MainConfig",
     "content.apps.ContentConfig",
@@ -156,6 +159,10 @@ MEDIA_ROOT = BASE_DIR / "media"
 # =======================
 # Compressor
 # =======================
+EMAIL_BACKEND = "sendgrid_backend.SendGridBackend"
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
+SENDGRID_SANDBOX_MODE_IN_DEBUG = True
+
 STATICFILES_FINDERS = [
     "django.contrib.staticfiles.finders.FileSystemFinder",
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
@@ -201,3 +208,6 @@ MAX_WISHLIST_ITEMS = 50
 # Country settings
 DEFAULT_COUNTRY = "SA"
 SUPPORTED_COUNTRIES = ["SA", "AE", "EG", "KW", "QA", "BH", "OM", "JO"]
+
+CONSTANCE_CONFIG = CONSTANCE_CONFIG
+CONSTANCE_CONFIG_FIELDSETS = CONSTANCE_CONFIG_FIELDSETS

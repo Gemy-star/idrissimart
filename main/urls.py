@@ -48,4 +48,25 @@ urlpatterns = [
         classifieds_views.ClassifiedAdDetailView.as_view(),
         name="ad_detail",
     ),
+    # Saved Searches URLs
+    path(
+        "classifieds/save-search/",
+        classifieds_views.SaveSearchView.as_view(),
+        name="save_search",
+    ),
+    path(
+        "classifieds/saved-searches/",
+        classifieds_views.UserSavedSearchesView.as_view(),
+        name="saved_searches",
+    ),
+    path(
+        "classifieds/saved-searches/<int:pk>/delete/",
+        classifieds_views.DeleteSavedSearchView.as_view(),
+        name="delete_saved_search",
+    ),
+    path(
+        "classifieds/unsubscribe/<uuid:token>/",
+        classifieds_views.UnsubscribeFromSearchView.as_view(),
+        name="unsubscribe_from_search",
+    ),
 ]
