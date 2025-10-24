@@ -27,7 +27,6 @@
     initEnhancedCountrySelector()
     initEnhancedBadges()
     initLanguageSwitcher()
-    initNavbarEffects()
     initSmoothScroll()
     initBackToTop()
     initMobileMenu()
@@ -111,7 +110,7 @@
     html.setAttribute('data-theme', savedTheme)
 
     // Select all toggle elements (desktop and mobile)
-    const buttons = document.querySelectorAll('#themeToggle, .theme-switcher')
+    const buttons = document.querySelectorAll('#themeToggle, .theme-switcher, #headerThemeToggle')
 
 
     buttons.forEach((btn) => {
@@ -573,4 +572,19 @@
 
     // Scroll behavior for header
     let lastScroll = 0
-    window.addEventListener('sc
+    window.addEventListener(
+      'scroll',
+      debounce(() => {
+        const currentScroll = window.pageYOffset || document.documentElement.scrollTop
+        if (currentScroll > 50) {
+          header.classList.add('scrolled')
+        } else {
+          header.classList.remove('scrolled')
+        }
+        lastScroll = currentScroll <= 0 ? 0 : currentScroll
+      }, 10)
+    )
+
+    console.log('✓ Yojad header initialized')
+  }
+})()
