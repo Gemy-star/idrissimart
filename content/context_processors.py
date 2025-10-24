@@ -15,7 +15,7 @@ def user_preferences(request):
     """
     Context processor for user preferences from session/cookies
     """
-    selected_country = request.session.get("selected_country", "SA")
+    selected_country = request.session.get("selected_country", "EG")
 
     return {
         "selected_country": selected_country,
@@ -28,7 +28,7 @@ def header_categories(request):
     """
     from main.models import Category
 
-    selected_country = request.session.get("selected_country", "SA")
+    selected_country = request.session.get("selected_country", "EG")
 
     # Get only classified ad categories for the header
     categories = (

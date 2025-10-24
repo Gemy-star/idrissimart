@@ -18,7 +18,7 @@ class HomeView(TemplateView):
         context = super().get_context_data(**kwargs)
 
         # Get user's selected country from session and categories
-        selected_country = self.request.session.get("selected_country", "SA")
+        selected_country = self.request.session.get("selected_country", "EG")
         categories_by_section = {}
         section_types = Category.SectionType.choices
 
@@ -88,7 +88,7 @@ class CategoriesView(TemplateView):
         active_section = self.request.GET.get('section', 'all')
 
         # Get user's selected country from session
-        selected_country = self.request.session.get('selected_country', 'SA')
+        selected_country = self.request.session.get('selected_country', 'EG')
 
         # Get categories by country and section
         categories_by_section = {}
