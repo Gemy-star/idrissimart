@@ -1,13 +1,14 @@
 from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import redirect
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 from django.views.generic import TemplateView
 
 from content.models import Country
 from main.forms import ContactForm
-from main.models import AboutPage, Category, ContactInfo
+from main.models import AboutPage, AdFeature, Category, ClassifiedAd, ContactInfo
 
 
 class HomeView(TemplateView):
@@ -15,17 +16,15 @@ class HomeView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Get user's selected country from session
-        selected_country = self.request.session.get('selected_country', 'SA')
 
-        # Get categories by country and section
+        # Get user's selected country from session and categories
+        selected_country = self.request.session.get("selected_country", "SA")
         categories_by_section = {}
         section_types = Category.SectionType.choices
 
         for section_code, section_name in section_types:
             categories = Category.get_root_categories(
-                section_type=section_code,
-                country_code=selected_country
+                section_type=section_code, country_code=selected_country
             )[:6]  # Limit to 6 main categories per section
 
             categories_with_subcats = []
@@ -43,16 +42,38 @@ class HomeView(TemplateView):
                 'categories': categories_with_subcats
             }
 
-        # Get cart and wishlist counts from session
-        cart_count = len(self.request.session.get('cart', []))
-        wishlist_count = len(self.request.session.get('wishlist', []))
+        # Fetch latest and featured ads based on selected country
+        latest_ads = (
+            ClassifiedAd.objects.filter(
+                status=ClassifiedAd.AdStatus.ACTIVE, country__code=selected_country
+            )
+            .order_by("-created_at")
+            .select_related("user", "country")
+            .prefetch_related("images")[:6]
+        )
+
+        # Broaden the filter to include any ad with an active feature in the selected country
+        featured_ad_pks = (
+            AdFeature.objects.filter(
+                end_date__gte=timezone.now(), is_active=True, ad__country__code=selected_country
+            )
+            .values_list("ad_id", flat=True)
+            .distinct()
+        )
+
+        featured_ads = ClassifiedAd.objects.filter(
+            pk__in=featured_ad_pks, status=ClassifiedAd.AdStatus.ACTIVE
+        ).select_related("user", "country").prefetch_related("images", "features")[:6]
+
+        # Fallback: If there are no featured ads, show the latest ads instead.
+        if not featured_ads.exists():
+            featured_ads = latest_ads
 
         context["selected_country"] = selected_country
         context["categories_by_section"] = categories_by_section
-        context["cart_count"] = cart_count
-        context["wishlist_count"] = wishlist_count
+        context["latest_ads"] = latest_ads
+        context["featured_ads"] = featured_ads
         context["page_title"] = _("الرئيسية - إدريسي مارت")
-        context["meta_description"] = _("منصة تجمع سوق واحد للمختصصين والحرفيين والجمهور العام")
 
         return context
 

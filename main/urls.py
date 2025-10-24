@@ -69,4 +69,10 @@ urlpatterns = [
         classifieds_views.UnsubscribeFromSearchView.as_view(),
         name="unsubscribe_from_search",
     ),
+    # Notifications URL
+    path(
+        "notifications/",
+        classifieds_views.NotificationListView.as_view(),
+        name="notification_list",
+    ),
 ]

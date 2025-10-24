@@ -6,5 +6,5 @@ class MainConfig(AppConfig):
     name = "main"
 
     def ready(self):
-        # Import your signals when the app is ready
+        # Import and connect signals
         pass

@@ -1,4 +1,5 @@
-from .models import Country
+from content.models import Country
+from main.models import Notification
 
 
 def countries(request):
@@ -41,3 +42,17 @@ def header_categories(request):
     return {
         "header_categories": categories,
     }
+
+
+def notifications(request):
+    """Adds notification count to the context for authenticated users."""
+    if request.user.is_authenticated:
+        unread_notifications = Notification.objects.filter(
+            user=request.user, is_read=False
+        )
+        unread_count = unread_notifications.count()
+        return {
+            "unread_notifications_count": unread_count,
+            "latest_notifications": unread_notifications[:5],
+        }
+    return {}

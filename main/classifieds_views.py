@@ -16,6 +16,7 @@ from .models import (
     AdPackage,
     Category,
     ClassifiedAd,
+    Notification,
     SavedSearch,
     User,
     UserPackage,
@@ -342,3 +343,23 @@ class UnsubscribeFromSearchView(View):
 
         messages.success(request, _("تم إلغاء اشتراكك في إشعارات هذا البحث بنجاح."))
         return redirect("main:home")
+
+
+class NotificationListView(LoginRequiredMixin, ListView):
+    """Displays a list of notifications for the current user."""
+
+    model = Notification
+    template_name = "pages/notification_list.html"
+    context_object_name = "notifications"
+    paginate_by = 20
+
+    def get_queryset(self):
+        # Get notifications for the current user
+        queryset = Notification.objects.filter(user=self.request.user)
+        return queryset
+
+    def get(self, request, *args, **kwargs):
+        response = super().get(request, *args, **kwargs)
+        # Mark all unread notifications as read once the user views the page
+        self.get_queryset().filter(is_read=False).update(is_read=True)
+        return response

@@ -1385,9 +1385,7 @@ class SavedSearch(models.Model):
     last_notified_at = models.DateTimeField(
         null=True, blank=True, verbose_name=_("آخر إشعار أرسل في")
     )
-    unsubscribe_token = models.UUIDField(
-        default=uuid.uuid4, editable=False, unique=True, db_index=True
-    )
+    unsubscribe_token = models.UUIDField(editable=False, unique=True, db_index=True)
 
     class Meta:
         db_table = "saved_searches"
@@ -1403,3 +1401,30 @@ class SavedSearch(models.Model):
         from django.urls import reverse
 
         return f"{reverse('main:ad_list')}?{self.query_params}"
+
+    def save(self, *args, **kwargs):
+        # Ensure a new UUID is generated for new instances, avoiding migration issues.
+        if not self.pk:
+            self.unsubscribe_token = uuid.uuid4()
+        super().save(*args, **kwargs)
+
+
+class Notification(models.Model):
+    """Model for user notifications."""
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="notifications"
+    )
+    message = models.CharField(max_length=255, verbose_name=_("الرسالة"))
+    is_read = models.BooleanField(default=False, verbose_name=_("مقروءة"))
+    link = models.URLField(blank=True, null=True, verbose_name=_("رابط"))
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        db_table = "user_notifications"
+        verbose_name = _("Notification")
+        verbose_name_plural = _("Notifications")
+
+    def __str__(self):
+        return f"Notification for {self.user.username}: {self.message[:20]}"
