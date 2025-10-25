@@ -7,6 +7,11 @@
 
 {% endblock title %}
 
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/blog.css' %}">
+
+{% endblock %}
+
 {% block content %}
     <!-- Hero Section -->
     <section class="hero-section" id="home">
@@ -159,20 +164,72 @@
         </div>
     </section>
     <!-- Latest Blogs Section -->
-    <section class="latest-ads-section py-5">
+    <section class="latest-blogs-section py-5">
         <div class="container">
-            <h2 class="section-title text-center mb-4">{% trans "Latest From Our Blog" %}</h2>
-            <div class="blog-grid">
-                {% for post in latest_blogs %}
-                    {% include "partials/related_post_card.html" with post=post %}
-
-                {% empty %}
-                    <p class="text-center text-muted w-100">{% trans "No blog posts have been published yet." %}</p>
-                {% endfor %}
+            <div class="section-header text-center mb-5">
+                <h2 class="section-title">{% trans "أحدث المقالات" %}</h2>
+                <p class="section-subtitle">{% trans "اكتشف آخر ما نشرناه في المدونة" %}</p>
             </div>
             {% if latest_blogs %}
-                <div class="text-center mt-4">
-                    <a href="{% url 'content:blog_list' %}" class="btn btn-primary btn-lg">{% trans "View All Posts" %}</a>
+                <!-- Swiper Container -->
+                <div class="swiper home-blogs-swiper">
+                    <div class="swiper-wrapper">
+                        {% for blog in latest_blogs %}
+                            <div class="swiper-slide">
+                                <div class="blog-post-card h-100 gsap-fade-up">
+                                    <a href="{{ blog.get_absolute_url }}" class="card-img-container">
+                                        {% if blog.image %}
+                                            <img src="{{ blog.image.url }}"
+                                                 class="card-img-top"
+                                                 alt="{{ blog.title }}">
+                                        {% else %}
+                                            <img src="https://via.placeholder.com/400x250"
+                                                 class="card-img-top"
+                                                 alt="Placeholder">
+                                        {% endif %}
+                                    </a>
+                                    <div class="card-body d-flex flex-column">
+                                        <div class="mb-2">
+                                            {% for tag in blog.tags.all|slice:":2" %}
+                                                <a href="{% url 'content:blog_list_by_tag' tag.slug %}" class="blog-tag">
+                                                    <i class="fas fa-tag me-1"></i>{{ tag.name }}
+                                                </a>
+                                            {% endfor %}
+                                        </div>
+                                        <h5 class="card-title">
+                                            <a href="{{ blog.get_absolute_url }}">{{ blog.title }}</a>
+                                        </h5>
+                                        <p class="card-text flex-grow-1">{{ blog.content|striptags|truncatewords:15 }}</p>
+                                        <div class="card-footer bg-transparent border-0 p-0 mt-auto">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div class="blog-author-info">
+                                                    <small class="text-muted d-block"><i class="fas fa-user-edit me-1"></i> {{ blog.author.get_full_name|default:blog.author.username }}</small>
+                                                    <small class="text-muted d-block"><i class="fas fa-calendar-alt me-1"></i> {{ blog.published_date|date:"Y-m-d" }}</small>
+                                                </div>
+                                                <a href="{{ blog.get_absolute_url }}"
+                                                   class="btn btn-sm btn-outline-primary blog-read-more-btn">{% trans "اقرأ المزيد" %}</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <!-- Swiper Navigation -->
+                    <div class="swiper-button-next home-blogs-next"></div>
+                    <div class="swiper-button-prev home-blogs-prev"></div>
+                    <!-- Swiper Pagination -->
+                    <div class="swiper-pagination home-blogs-pagination"></div>
+                </div>
+                <div class="text-center mt-5">
+                    <a href="{% url 'content:blog_list' %}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-newspaper me-2"></i>{% trans "عرض جميع المقالات" %}
+                    </a>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-newspaper fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">{% trans "لا توجد مقالات منشورة بعد." %}</p>
                 </div>
             {% endif %}
         </div>
@@ -183,6 +240,45 @@
 {% block extra_js %}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Home Blogs Swiper
+            const homeBlogsSwiper = document.querySelector('.home-blogs-swiper');
+            if (homeBlogsSwiper) {
+                new Swiper('.home-blogs-swiper', {
+                    slidesPerView: 1,
+                    spaceBetween: 20,
+                    loop: true,
+                    autoplay: {
+                        delay: 5000,
+                        disableOnInteraction: false,
+                        pauseOnMouseEnter: true,
+                    },
+                    speed: 800,
+                    navigation: {
+                        nextEl: '.home-blogs-next',
+                        prevEl: '.home-blogs-prev',
+                    },
+                    pagination: {
+                        el: '.home-blogs-pagination',
+                        clickable: true,
+                    },
+                    breakpoints: {
+                        640: {
+                            slidesPerView: 1,
+                            spaceBetween: 20,
+                        },
+                        768: {
+                            slidesPerView: 2,
+                            spaceBetween: 25,
+                        },
+                        1024: {
+                            slidesPerView: 3,
+                            spaceBetween: 30,
+                        }
+                    }
+                });
+                console.log('✅ Home Blogs Swiper: Initialized');
+            }
+
             // Tab functionality (scoped per tab group)
             document.querySelectorAll('.tab-buttons').forEach((btnContainer) => {
                 const buttons = Array.from(btnContainer.querySelectorAll('.tab-btn'));

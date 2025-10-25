@@ -32,6 +32,7 @@
     initMobileMenu()
     initCounters()
     initYojadHeader()
+    initCategoriesSwiper()
     if (gsapReady) initAnimations()
     initPageLoad()
     initPreloader()
@@ -597,5 +598,55 @@
     console.log('✓ Preloader initialized');
   }
 
+  // ===========================
+  // CATEGORIES SWIPER
+  // ===========================
+  function initCategoriesSwiper() {
+    const categoriesSwiper = document.querySelector('.categories-swiper')
+    if (!categoriesSwiper) {
+      console.log('⚠️ Categories Swiper: Element not found')
+      return
+    }
+
+    try {
+      new Swiper('.categories-swiper', {
+        slidesPerView: 'auto',
+        spaceBetween: 8,
+        freeMode: true,
+        loop: true,
+        autoplay: {
+          delay: 3000,
+          disableOnInteraction: false,
+          pauseOnMouseEnter: true,
+        },
+        navigation: {
+          nextEl: '.categories-swiper-next',
+          prevEl: '.categories-swiper-prev',
+        },
+        speed: 800,
+        breakpoints: {
+          320: {
+            slidesPerView: 'auto',
+            spaceBetween: 8,
+          },
+          768: {
+            slidesPerView: 'auto',
+            spaceBetween: 8,
+          },
+          1024: {
+            slidesPerView: 'auto',
+            spaceBetween: 10,
+          },
+          1200: {
+            slidesPerView: 'auto',
+            spaceBetween: 12,
+          }
+        }
+      })
+      console.log('✅ Categories Swiper: Initialized with navigation arrows')
+    } catch (error) {
+      console.error('❌ Categories Swiper: Error', error)
+    }
+  }
 
 })()
