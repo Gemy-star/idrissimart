@@ -2,7 +2,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import Country
+from .models import Blog, Comment, Country
 
 
 @admin.register(Country)
@@ -57,3 +57,34 @@ class CountryAdmin(admin.ModelAdmin):
         self.message_user(request, f"تم إلغاء تفعيل {updated} دولة")
 
     deactivate_countries.short_description = "إلغاء تفعيل الدول المحددة"
+
+
+@admin.register(Blog)
+class BlogAdmin(admin.ModelAdmin):
+    list_display = ("title", "author", "published_date", "is_published", "tag_list")
+    list_filter = ("is_published", "author")
+    search_fields = ("title", "content")
+    prepopulated_fields = {"slug": ("title",)}
+    date_hierarchy = "published_date"
+    ordering = ("-published_date",)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related("tags")
+
+    def tag_list(self, obj):
+        return ", ".join(o.name for o in obj.tags.all())
+
+    tag_list.short_description = "Tags"
+
+
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    list_display = ("author", "body", "blog", "created_on", "active")
+    list_filter = ("active", "created_on")
+    search_fields = ("author__username", "body")
+    actions = ["approve_comments"]
+
+    def approve_comments(self, request, queryset):
+        queryset.update(active=True)
+
+    approve_comments.short_description = "Approve selected comments"

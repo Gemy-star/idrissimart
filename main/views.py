@@ -6,7 +6,7 @@ from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 from django.views.generic import TemplateView
 
-from content.models import Country
+from content.models import Blog, Country
 from main.forms import ContactForm
 from main.models import AboutPage, AdFeature, Category, ClassifiedAd, ContactInfo
 from main.templatetags.format_tags import phone_format
@@ -90,6 +90,12 @@ class HomeView(TemplateView):
         context["categories_by_section"] = categories_by_section
         context["latest_ads"] = latest_ads
         context["featured_ads"] = featured_ads
+        # Add latest blogs to the context
+        context["latest_blogs"] = (
+            Blog.objects.filter(is_published=True)
+            .order_by("-published_date")
+            .select_related("author")[:3]
+        )
         context["page_title"] = _("الرئيسية - إدريسي مارت")
 
         return context

@@ -1,6 +1,10 @@
 # models.py
+from django.conf import settings
 from django.db import models
+from django.urls import reverse
+from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
+from taggit.managers import TaggableManager
 
 
 class Country(models.Model):
@@ -108,3 +112,53 @@ class Country(models.Model):
                 "order": 8,
             },
         ]
+
+
+class Blog(models.Model):
+    title = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=200, unique=True, blank=True)
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="blog_posts"
+    )
+    content = models.TextField()
+    image = models.ImageField(upload_to="blogs/", blank=True, null=True)
+    published_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
+    is_published = models.BooleanField(default=True)
+    likes = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, related_name="blog_likes", blank=True
+    )
+    tags = TaggableManager(blank=True)
+
+    class Meta:
+        ordering = ["-published_date"]
+
+    def __str__(self):
+        return self.title
+
+    def get_absolute_url(self):
+        return reverse("content:blog_detail", kwargs={"slug": self.slug})
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.title)
+        super().save(*args, **kwargs)
+
+
+class Comment(models.Model):
+    blog = models.ForeignKey(Blog, on_delete=models.CASCADE, related_name="comments")
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="comments"
+    )
+    body = models.TextField()
+    created_on = models.DateTimeField(auto_now_add=True)
+    active = models.BooleanField(default=True)  # To allow for moderation
+    parent = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.CASCADE, related_name="replies"
+    )
+
+    class Meta:
+        ordering = ["created_on"]
+
+    def __str__(self):
+        return f"Comment by {self.author} on {self.blog}"

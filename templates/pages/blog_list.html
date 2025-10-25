@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% load static i18n %}
+
+{% block title %}
+    {% trans "المدونة" %}
+
+{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/blog.css' %}">
+
+{% endblock %}
+
+{% block content %}
+    <!-- Page Hero Section -->
+    <section class="blog-hero-section">
+        <div class="container">
+            <div class="blog-hero-content">
+                <h1 class="blog-hero-title">{% trans "المدونة" %}</h1>
+                <p class="blog-hero-subtitle">{% trans "اكتشف أحدث المقالات والمنشورات" %}</p>
+            </div>
+        </div>
+    </section>
+    <section class="blog-listing-section py-5">
+        <div class="container">
+            <div class="row">
+                <!-- Sidebar -->
+                <div class="col-lg-3">
+                    <div class="blog-sidebar-wrapper">
+                        {% if blog %}
+                            <!-- Author Card (visible on detail page) -->
+                            <div class="blog-author-card">
+                                <div class="card-header">
+                                    <h5 class="card-title-main">{% trans "عن الكاتب" %}</h5>
+                                </div>
+                                <div class="card-body text-center">
+                                    {% load user_tags %}
+
+                                    {% user_avatar user=blog.author size=80 css_class="rounded-circle mb-3" %}
+                                    <h6 class="blog-author-name">{{ blog.author.get_display_name }}</h6>
+                                    <small class="text-muted d-block mb-2">{{ blog.author.get_rank_display }}</small>
+                                    {% if blog.author.verification_status == 'verified' %}
+                                        <span class="badge badge-verified">
+                                            <i class="fas fa-check-circle me-1"></i>
+                                            {% trans "كاتب موثق" %}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endif %}
+                        <!-- Popular Tags Section -->
+                        <div class="blog-sidebar-card">
+                            <h3 class="blog-sidebar-title">{% trans "الوسوم الشائعة" %}</h3>
+                            <div class="blog-tag-cloud">
+                                {% for tag in popular_tags %}
+                                    <a href="{% url 'content:blog_list_by_tag' tag.slug %}" class="blog-tag">{{ tag.name }}</a>
+                                {% empty %}
+                                    <p class="text-muted">{% trans "لا توجد وسوم بعد." %}</p>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <!-- All Tags Section -->
+                        <div class="blog-sidebar-card">
+                            <h3 class="blog-sidebar-title">{% trans "كل الوسوم" %}</h3>
+                            <div class="blog-tag-cloud">
+                                {% for tag in all_tags %}
+                                    <a href="{% url 'content:blog_list_by_tag' tag.slug %}" class="blog-tag">{{ tag.name }}</a>
+                                {% empty %}
+                                    <p class="text-muted">{% trans "لا توجد وسوم بعد." %}</p>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Main Content Area -->
+                <div class="col-lg-9">
+                    <!-- Recent Posts Section -->
+                    {% if recent_blogs %}
+                        <section class="recent-blogs mb-5">
+                            <h2 class="blog-section-title">{% trans "أحدث المنشورات" %}</h2>
+                            <div class="row g-4">
+                                {% for blog in recent_blogs %}
+                                    <div class="col-lg-4 col-md-6">
+                                        <div class="blog-post-card h-100 gsap-fade-up">
+                                            <a href="{{ blog.get_absolute_url }}" class="card-img-container">
+                                                {% if blog.image %}
+                                                    <img src="{{ blog.image.url }}"
+                                                         class="card-img-top"
+                                                         alt="{{ blog.title }}">
+                                                {% else %}
+                                                    <img src="https://via.placeholder.com/400x250"
+                                                         class="card-img-top"
+                                                         alt="Placeholder">
+                                                {% endif %}
+                                            </a>
+                                            <div class="card-body d-flex flex-column">
+                                                <div class="mb-2">
+                                                    {% for tag in blog.tags.all|slice:":2" %}
+                                                        <a href="{% url 'content:blog_list_by_tag' tag.slug %}" class="blog-tag">{{ tag.name }}</a>
+                                                    {% endfor %}
+                                                </div>
+                                                <h5 class="card-title">
+                                                    <a href="{{ blog.get_absolute_url }}">{{ blog.title }}</a>
+                                                </h5>
+                                                <p class="card-text flex-grow-1">{{ blog.content|striptags|truncatewords:15 }}</p>
+                                                <div class="card-footer bg-transparent border-0 p-0 mt-auto">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <div class="blog-author-info">
+                                                            <small class="text-muted d-block"><i class="fas fa-user-edit me-1"></i> {{ blog.author.get_full_name|default:blog.author.username }}</small>
+                                                            <small class="text-muted d-block"><i class="fas fa-calendar-alt me-1"></i> {{ blog.published_date|date:"Y-m-d" }}</small>
+                                                        </div>
+                                                        <a href="{{ blog.get_absolute_url }}"
+                                                           class="btn btn-sm btn-outline-primary blog-read-more-btn">{% trans "اقرأ المزيد" %}</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </section>
+                        <hr class="my-5">
+                    {% endif %}
+                    <!-- All Posts Section -->
+                    <section class="all-blogs">
+                        <h2 class="blog-section-title">{% trans "جميع المنشورات" %}</h2>
+                        <div class="row g-4">
+                            {% for blog in blogs %}
+                                <div class="col-lg-4 col-md-6">
+                                    <div class="blog-post-card h-100 gsap-fade-up">
+                                        <a href="{{ blog.get_absolute_url }}" class="card-img-container">
+                                            {% if blog.image %}
+                                                <img src="{{ blog.image.url }}"
+                                                     class="card-img-top"
+                                                     alt="{{ blog.title }}">
+                                            {% else %}
+                                                <img src="https://via.placeholder.com/400x250"
+                                                     class="card-img-top"
+                                                     alt="Placeholder">
+                                            {% endif %}
+                                        </a>
+                                        <div class="card-body d-flex flex-column">
+                                            <div class="mb-2">
+                                                {% for tag in blog.tags.all|slice:":2" %}
+                                                    <a href="{% url 'content:blog_list_by_tag' tag.slug %}" class="blog-tag">{{ tag.name }}</a>
+                                                {% endfor %}
+                                            </div>
+                                            <h5 class="card-title">
+                                                <a href="{{ blog.get_absolute_url }}">{{ blog.title }}</a>
+                                            </h5>
+                                            <p class="card-text flex-grow-1">{{ blog.content|striptags|truncatewords:15 }}</p>
+                                            <div class="card-footer bg-transparent border-0 p-0 mt-auto">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div class="blog-author-info">
+                                                        <small class="text-muted d-block"><i class="fas fa-user-edit me-1"></i> {{ blog.author.get_full_name|default:blog.author.username }}</small>
+                                                        <small class="text-muted d-block"><i class="fas fa-calendar-alt me-1"></i> {{ blog.published_date|date:"Y-m-d" }}</small>
+                                                    </div>
+                                                    <a href="{{ blog.get_absolute_url }}"
+                                                       class="btn btn-sm btn-outline-primary blog-read-more-btn">{% trans "اقرأ المزيد" %}</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <div class="col-12">
+                                    <div class="alert alert-info text-center">{% trans "لا توجد منشورات بعد." %}</div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <!-- Pagination -->
+                        {% if is_paginated %}
+                            <nav aria-label="Page navigation" class="mt-5">
+                                <ul class="pagination justify-content-center">
+                                    {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link"
+                                               href="?page={{ page_obj.previous_page_number }}"
+                                               aria-label="{% trans 'السابق' %}">
+                                                <span aria-hidden="true">&laquo;</span>
+                                            </a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item disabled">
+                                            <span class="page-link" aria-hidden="true">&laquo;</span>
+                                        </li>
+                                    {% endif %}
+                                    {% for num in page_obj.paginator.page_range %}
+                                        {% if page_obj.number == num %}
+                                            <li class="page-item active">
+                                                <span class="page-link">{{ num }}</span>
+                                            </li>
+                                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link"
+                                               href="?page={{ page_obj.next_page_number }}"
+                                               aria-label="{% trans 'التالي' %}">
+                                                <span aria-hidden="true">&raquo;</span>
+                                            </a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item disabled">
+                                            <span class="page-link" aria-hidden="true">&raquo;</span>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+                    </section>
+                </div>
+            </div>
+        </div>
+    </section>
+
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // GSAP Animations
+            if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
+                gsap.registerPlugin(ScrollTrigger);
+                gsap.utils.toArray('.gsap-fade-up').forEach(card => {
+                    gsap.from(card, {
+                        opacity: 0,
+                        y: 50,
+                        duration: 0.8,
+                        scrollTrigger: {
+                            trigger: card,
+                            start: 'top 85%',
+                            toggleActions: 'play none none none',
+                        }
+                    });
+                });
+            }
+        });
+    </script>
+
+{% endblock %}

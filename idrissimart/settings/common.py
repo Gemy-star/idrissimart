@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "rosetta",
     "django_filters",
     "sendgrid",
+    "taggit",
     "django_q",
     # Local apps
     "main.apps.MainConfig",
