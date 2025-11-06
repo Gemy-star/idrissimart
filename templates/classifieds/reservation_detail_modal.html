@@ -1,0 +1,230 @@
+<div class="row">
+    <div class="col-md-6">
+        <h6 class="text-primary">{% trans "معلومات الحجز" %}</h6>
+        <table class="table table-sm table-borderless">
+            <tr>
+                <td class="fw-bold">{% trans "رقم الحجز:" %}</td>
+                <td>#{{ reservation.id }}</td>
+            </tr>
+            <tr>
+                <td class="fw-bold">{% trans "تاريخ الإنشاء:" %}</td>
+                <td>{{ reservation.created_at|date:"Y/m/d H:i" }}</td>
+            </tr>
+            <tr>
+                <td class="fw-bold">{% trans "الحالة:" %}</td>
+                <td>
+                    {% if reservation.status == 'pending' %}
+                        <span class="badge bg-warning">{% trans "في الانتظار" %}</span>
+                    {% elif reservation.status == 'confirmed' %}
+                        <span class="badge bg-info">{% trans "مؤكدة" %}</span>
+                    {% elif reservation.status == 'completed' %}
+                        <span class="badge bg-success">{% trans "مكتملة" %}</span>
+                    {% elif reservation.status == 'cancelled' %}
+                        <span class="badge bg-danger">{% trans "ملغية" %}</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% if reservation.expires_at %}
+                <tr>
+                    <td class="fw-bold">{% trans "انتهاء الحجز:" %}</td>
+                    <td>{{ reservation.expires_at|date:"Y/m/d H:i" }}</td>
+                </tr>
+            {% endif %}
+        </table>
+    </div>
+
+    <div class="col-md-6">
+        <h6 class="text-primary">{% trans "معلومات العميل" %}</h6>
+        <table class="table table-sm table-borderless">
+            <tr>
+                <td class="fw-bold">{% trans "اسم المستخدم:" %}</td>
+                <td>{{ reservation.user.username }}</td>
+            </tr>
+            <tr>
+                <td class="fw-bold">{% trans "البريد الإلكتروني:" %}</td>
+                <td>{{ reservation.user.email }}</td>
+            </tr>
+            <tr>
+                <td class="fw-bold">{% trans "الاسم الكامل:" %}</td>
+                <td>{{ reservation.user.get_full_name|default:"غير محدد" }}</td>
+            </tr>
+            <tr>
+                <td class="fw-bold">{% trans "تاريخ التسجيل:" %}</td>
+                <td>{{ reservation.user.date_joined|date:"Y/m/d" }}</td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<hr>
+
+<div class="row">
+    <div class="col-12">
+        <h6 class="text-primary">{% trans "معلومات الإعلان" %}</h6>
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h6 class="card-title mb-1">
+                            <a href="{% url 'main:ad_detail' reservation.ad.id %}" target="_blank" class="text-decoration-none">
+                                {{ reservation.ad.title }}
+                            </a>
+                        </h6>
+                        <p class="text-muted small mb-2">{{ reservation.ad.description|truncatewords:20 }}</p>
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="badge bg-primary">
+                                <i class="fas fa-tag me-1"></i>
+                                {{ reservation.ad.category.name_ar|default:reservation.ad.category.name }}
+                            </span>
+                            <span class="text-success fw-bold">
+                                <i class="fas fa-money-bill-wave me-1"></i>
+                                {{ reservation.ad.price }} {% trans "ريال" %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        {% if reservation.ad.image %}
+                            <img src="{{ reservation.ad.image.url }}" alt="{{ reservation.ad.title }}"
+                                 class="img-thumbnail" style="width: 80px; height: 80px; object-fit: cover;">
+                        {% else %}
+                            <div class="bg-light rounded d-flex align-items-center justify-content-center"
+                                 style="width: 80px; height: 80px;">
+                                <i class="fas fa-image text-muted"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<hr>
+
+<div class="row">
+    <div class="col-md-6">
+        <h6 class="text-primary">{% trans "تفاصيل الحجز" %}</h6>
+        <table class="table table-sm table-borderless">
+            <tr>
+                <td class="fw-bold">{% trans "الكمية:" %}</td>
+                <td>{{ reservation.quantity }}</td>
+            </tr>
+            <tr>
+                <td class="fw-bold">{% trans "سعر الوحدة:" %}</td>
+                <td>{{ reservation.ad.price }} {% trans "ريال" %}</td>
+            </tr>
+            <tr>
+                <td class="fw-bold">{% trans "المبلغ الإجمالي:" %}</td>
+                <td class="text-success fw-bold">{{ reservation.total_amount }} {% trans "ريال" %}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="col-md-6">
+        <h6 class="text-primary">{% trans "تتبع الحجز" %}</h6>
+        <div class="timeline">
+            <div class="timeline-item {% if reservation.status == 'pending' %}active{% endif %}">
+                <i class="fas fa-clock text-warning"></i>
+                <span>{% trans "في الانتظار" %}</span>
+                <small class="text-muted d-block">{{ reservation.created_at|date:"Y/m/d H:i" }}</small>
+            </div>
+
+            {% if reservation.status != 'pending' %}
+                <div class="timeline-item {% if reservation.status == 'confirmed' %}active{% endif %}">
+                    <i class="fas fa-check text-info"></i>
+                    <span>{% trans "مؤكدة" %}</span>
+                    {% if reservation.confirmed_at %}
+                        <small class="text-muted d-block">{{ reservation.confirmed_at|date:"Y/m/d H:i" }}</small>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            {% if reservation.status == 'completed' %}
+                <div class="timeline-item active">
+                    <i class="fas fa-check-circle text-success"></i>
+                    <span>{% trans "مكتملة" %}</span>
+                    {% if reservation.completed_at %}
+                        <small class="text-muted d-block">{{ reservation.completed_at|date:"Y/m/d H:i" }}</small>
+                    {% endif %}
+                </div>
+            {% elif reservation.status == 'cancelled' %}
+                <div class="timeline-item active">
+                    <i class="fas fa-times-circle text-danger"></i>
+                    <span>{% trans "ملغية" %}</span>
+                    {% if reservation.cancelled_at %}
+                        <small class="text-muted d-block">{{ reservation.cancelled_at|date:"Y/m/d H:i" }}</small>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if reservation.notes %}
+    <hr>
+    <div class="row">
+        <div class="col-12">
+            <h6 class="text-primary">{% trans "ملاحظات" %}</h6>
+            <div class="alert alert-light">
+                <i class="fas fa-sticky-note text-warning me-2"></i>
+                {{ reservation.notes }}
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<style>
+.timeline {
+    position: relative;
+    padding: 1rem 0;
+}
+
+.timeline-item {
+    display: flex;
+    align-items-flex-start;
+    margin-bottom: 1rem;
+    padding-left: 2rem;
+    position: relative;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: 0.5rem;
+    top: 1.5rem;
+    bottom: -1rem;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item:last-child::before {
+    display: none;
+}
+
+.timeline-item i {
+    position: absolute;
+    left: 0;
+    top: 0.25rem;
+    width: 1rem;
+    height: 1rem;
+    background: white;
+    border: 2px solid #dee2e6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+}
+
+.timeline-item.active i {
+    border-color: currentColor;
+}
+
+.timeline-item span {
+    font-weight: 500;
+}
+
+.timeline-item small {
+    margin-top: 0.25rem;
+}
+</style>

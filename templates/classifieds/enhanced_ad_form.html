@@ -1,0 +1,699 @@
+{% extends 'base.html' %}
+
+{% load static i18n crispy_forms_tags %}
+
+{% block title %}
+    {% trans "نشر إعلان جديد" %} - {% trans "إدريسي مارت" %}
+{% endblock %}
+
+{% block extra_css %}
+    <style>
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            margin: 2rem 0;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            margin: 0 1rem;
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e9ecef;
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-left: 0.5rem;
+        }
+
+        .step.active .step-number {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .step.completed .step-number {
+            background: var(--secondary-color);
+            color: white;
+        }
+
+        .form-section {
+            background: var(--bg-primary);
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-card);
+        }
+
+        .section-title {
+            color: var(--primary-color);
+            border-bottom: 3px solid var(--secondary-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .image-upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            background: #f8f9fa;
+        }
+
+        .image-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .image-item {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid #ddd;
+        }
+
+        .image-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .remove-image {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+        }
+
+        .cover-badge {
+            position: absolute;
+            bottom: 5px;
+            left: 5px;
+            background: var(--secondary-color);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+        }
+
+        .premium-feature {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .premium-feature .form-check-label {
+            font-weight: 600;
+        }
+
+        .delivery-terms {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            display: none;
+        }
+
+        .contact-methods {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .contact-methods .form-check {
+            background: #f8f9fa;
+            padding: 0.8rem;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .contact-methods .form-check:has(input:checked) {
+            background: #e3f2fd;
+            border-color: var(--primary-color);
+        }
+
+        #subcategory-selection {
+            display: none;
+        }
+
+        .subcategory-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .subcategory-item {
+            background: var(--bg-secondary);
+            border: 2px solid transparent;
+            border-radius: 10px;
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .subcategory-item:hover {
+            border-color: var(--secondary-color);
+            transform: translateY(-2px);
+        }
+
+        .subcategory-item.selected {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .subcategory-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: var(--secondary-color);
+        }
+
+        .subcategory-item.selected .subcategory-icon {
+            color: white;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <section class="page-hero">
+        <div class="container">
+            <div class="hero-content-center">
+                <h1 class="page-title">{% trans "نشر إعلان جديد" %}</h1>
+                <p class="page-subtitle">{% trans "أنشر إعلانك واصل للآلاف من العملاء المحتملين" %}</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-5">
+        <div class="container">
+            <!-- Step Indicator -->
+            <div class="step-indicator">
+                <div class="step active" id="step-1">
+                    <div class="step-number">1</div>
+                    <span>{% trans "اختيار الفئة" %}</span>
+                </div>
+                <div class="step" id="step-2">
+                    <div class="step-number">2</div>
+                    <span>{% trans "بيانات الإعلان" %}</span>
+                </div>
+                <div class="step" id="step-3">
+                    <div class="step-number">3</div>
+                    <span>{% trans "الصور والميزات" %}</span>
+                </div>
+                <div class="step" id="step-4">
+                    <div class="step-number">4</div>
+                    <span>{% trans "التواصل والتوصيل" %}</span>
+                </div>
+            </div>
+
+            <form method="post" enctype="multipart/form-data" id="enhanced-ad-form">
+                {% csrf_token %}
+
+                <!-- Step 1: Category Selection -->
+                <div class="form-section" id="category-section">
+                    <h3 class="section-title">{% trans "اختيار فئة الإعلان" %}</h3>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">{% trans "الفئة الرئيسية" %}</label>
+                            {{ form.category }}
+                        </div>
+                    </div>
+
+                    <!-- Subcategories will be loaded here -->
+                    <div id="subcategory-selection">
+                        <h4 class="mt-4">{% trans "اختر الفئة الفرعية" %}</h4>
+                        <div class="subcategory-grid" id="subcategory-grid">
+                            <!-- Subcategories loaded via AJAX -->
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="button" class="btn btn-custom btn-primary-custom" id="next-to-details" disabled>
+                            {% trans "التالي - بيانات الإعلان" %} <i class="fas fa-arrow-left ms-2"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Ad Details -->
+                <div class="form-section" id="details-section" style="display: none;">
+                    <h3 class="section-title">{% trans "بيانات الإعلان الأساسية" %}</h3>
+
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label class="form-label required">{% trans "عنوان الإعلان" %}</label>
+                                {{ form.title }}
+                                <div class="form-text">{% trans "اختر عنواناً واضحاً ومميزاً لإعلانك" %}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label required">{% trans "السعر" %}</label>
+                                {{ form.price }}
+                                <div class="form-check mt-2">
+                                    {{ form.is_negotiable }}
+                                    <label class="form-check-label" for="{{ form.is_negotiable.id_for_label }}">
+                                        {% trans "السعر قابل للتفاوض" %}
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label required">{% trans "وصف المنتج/الخدمة" %}</label>
+                        {{ form.description }}
+                        <div class="form-text">{% trans "اكتب وصفاً مفصلاً وواضحاً" %}</div>
+                    </div>
+
+                    <!-- Custom Fields (will be loaded dynamically) -->
+                    <div id="custom-fields-container">
+                        <!-- Dynamic fields will be inserted here -->
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label required">{% trans "الدولة" %}</label>
+                                {{ form.country }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label required">{% trans "المحافظة/المنطقة" %}</label>
+                                {{ form.state }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">{% trans "العنوان التفصيلي" %}</label>
+                        {{ form.address }}
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="button" class="btn btn-outline-secondary me-2" id="back-to-category">
+                            <i class="fas fa-arrow-right ms-2"></i> {% trans "السابق" %}
+                        </button>
+                        <button type="button" class="btn btn-custom btn-primary-custom" id="next-to-images">
+                            {% trans "التالي - الصور والميزات" %} <i class="fas fa-arrow-left ms-2"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Images and Features -->
+                <div class="form-section" id="images-section" style="display: none;">
+                    <h3 class="section-title">{% trans "صور الإعلان والميزات الإضافية" %}</h3>
+
+                    <!-- Image Upload -->
+                    <div class="mb-4">
+                        <h4>{% trans "صور الإعلان" %}</h4>
+                        <div class="image-upload-area" id="image-upload-area">
+                            <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                            <p>{% trans "اسحب الصور هنا أو انقر للاختيار" %}</p>
+                            <p class="text-muted">{% trans "حد أقصى 5 صور - صورة واحدة على الأقل مطلوبة" %}</p>
+                            <input type="file" id="image-input" multiple accept="image/*" style="display: none;">
+                        </div>
+
+                        <div class="image-preview" id="image-preview">
+                            <!-- Images will be displayed here -->
+                        </div>
+
+                        <!-- Formset for images -->
+                        <div style="display: none;">
+                            {{ image_formset.management_form }}
+                            {% for form in image_formset %}
+                                <div class="image-form">
+                                    {{ form.as_p }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Video URL -->
+                    <div class="mb-4">
+                        <label class="form-label">{% trans "رابط فيديو (يوتيوب)" %}</label>
+                        {{ form.video_url }}
+                        <div class="form-text">{% trans "أضف رابط فيديو من يوتيوب لعرض أفضل لمنتجك" %}</div>
+                    </div>
+
+                    <!-- Premium Features -->
+                    <div class="mb-4">
+                        <h4>{% trans "الميزات المدفوعة" %}</h4>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="premium-feature">
+                                    <div class="form-check">
+                                        {{ form.is_featured }}
+                                        <label class="form-check-label" for="{{ form.is_featured.id_for_label }}">
+                                            <i class="fas fa-star text-warning me-2"></i>
+                                            {% trans "إعلان مميز" %}
+                                        </label>
+                                        <div class="form-text">{% trans "يظهر في أعلى نتائج البحث" %}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="premium-feature">
+                                    <div class="form-check">
+                                        {{ form.is_pinned_in_category }}
+                                        <label class="form-check-label" for="{{ form.is_pinned_in_category.id_for_label }}">
+                                            <i class="fas fa-thumbtack text-info me-2"></i>
+                                            {% trans "تثبيت في الفئة" %}
+                                        </label>
+                                        <div class="form-text">{% trans "يثبت في أعلى الفئة الفرعية" %}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="premium-feature">
+                                    <div class="form-check">
+                                        {{ form.show_in_homepage }}
+                                        <label class="form-check-label" for="{{ form.show_in_homepage.id_for_label }}">
+                                            <i class="fas fa-home text-success me-2"></i>
+                                            {% trans "عرض في الصفحة الرئيسية" %}
+                                        </label>
+                                        <div class="form-text">{% trans "يظهر في الصفحة الرئيسية للموقع" %}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="premium-feature">
+                                    <div class="form-check">
+                                        {{ form.facebook_share }}
+                                        <label class="form-check-label" for="{{ form.facebook_share.id_for_label }}">
+                                            <i class="fab fa-facebook text-primary me-2"></i>
+                                            {% trans "نشر على فيس بوك" %}
+                                        </label>
+                                        <div class="form-text">{% trans "ينشر تلقائياً على صفحة الموقع" %}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="button" class="btn btn-outline-secondary me-2" id="back-to-details">
+                            <i class="fas fa-arrow-right ms-2"></i> {% trans "السابق" %}
+                        </button>
+                        <button type="button" class="btn btn-custom btn-primary-custom" id="next-to-contact">
+                            {% trans "التالي - التواصل والتوصيل" %} <i class="fas fa-arrow-left ms-2"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 4: Contact and Delivery -->
+                <div class="form-section" id="contact-section" style="display: none;">
+                    <h3 class="section-title">{% trans "طرق التواصل والتوصيل" %}</h3>
+
+                    <!-- Contact Methods -->
+                    <div class="mb-4">
+                        <h4>{% trans "طرق التواصل" %}</h4>
+                        <div class="contact-methods">
+                            {% for choice in form.contact_methods %}
+                                <div class="form-check">
+                                    {{ choice.tag }}
+                                    <label class="form-check-label" for="{{ choice.id_for_label }}">
+                                        {{ choice.choice_label }}
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Phone Number -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label required">{% trans "رقم الهاتف" %}</label>
+                            {{ form.phone_number }}
+                            <div class="form-text">{% trans "رقم الهاتف للتواصل مع المشترين" %}</div>
+                        </div>
+                    </div>
+
+                    <!-- Delivery Options -->
+                    <div class="mb-4">
+                        <h4>{% trans "خيارات التوصيل" %}</h4>
+
+                        <div class="form-check mb-3">
+                            {{ form.enable_cart }}
+                            <label class="form-check-label" for="{{ form.enable_cart.id_for_label }}">
+                                <i class="fas fa-shipping-fast text-primary me-2"></i>
+                                {% trans "تفعيل السلة والتوصيل بواسطة إدريسي مارت" %}
+                            </label>
+                        </div>
+
+                        <div class="delivery-terms" id="delivery-terms">
+                            <h5>{% trans "شروط التوصيل" %}</h5>
+                            <ul>
+                                <li>{% trans "سيتم إخفاء بيانات التواصل المباشر" %}</li>
+                                <li>{% trans "العملاء يطلبون المنتج عبر السلة" %}</li>
+                                <li>{% trans "يتم جمع مبلغ الحجز من العميل" %}</li>
+                                <li>{% trans "تحدد أنت موعد التسليم والاستلام" %}</li>
+                            </ul>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">{% trans "سعر الحجز" %}</label>
+                                    {{ form.reservation_price }}
+                                    <div class="form-text">{% trans "المبلغ المطلوب دفعه عند الحجز" %}</div>
+                                </div>
+                            </div>
+
+                            <div class="form-check mt-3">
+                                {{ form.delivery_terms_accepted }}
+                                <label class="form-check-label" for="{{ form.delivery_terms_accepted.id_for_label }}">
+                                    {% trans "أوافق على شروط التوصيل أعلاه" %}
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="button" class="btn btn-outline-secondary me-2" id="back-to-images">
+                            <i class="fas fa-arrow-right ms-2"></i> {% trans "السابق" %}
+                        </button>
+                        <button type="submit" class="btn btn-custom btn-success-custom" id="submit-ad">
+                            <i class="fas fa-paper-plane me-2"></i> {% trans "نشر الإعلان" %}
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentStep = 1;
+    let selectedCategory = null;
+    let uploadedImages = [];
+    let maxImages = 5;
+
+    // Step navigation
+    function showStep(step) {
+        // Hide all sections
+        document.querySelectorAll('.form-section').forEach(section => {
+            section.style.display = 'none';
+        });
+
+        // Update step indicators
+        document.querySelectorAll('.step').forEach((stepEl, index) => {
+            stepEl.classList.remove('active', 'completed');
+            if (index + 1 === step) {
+                stepEl.classList.add('active');
+            } else if (index + 1 < step) {
+                stepEl.classList.add('completed');
+            }
+        });
+
+        // Show current section
+        const sections = ['category-section', 'details-section', 'images-section', 'contact-section'];
+        document.getElementById(sections[step - 1]).style.display = 'block';
+
+        currentStep = step;
+    }
+
+    // Category selection
+    document.getElementById('category-select').addEventListener('change', function() {
+        const categoryId = this.value;
+        if (categoryId) {
+            fetch(`/ajax/subcategories/${categoryId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    const grid = document.getElementById('subcategory-grid');
+                    grid.innerHTML = '';
+
+                    if (data.subcategories && data.subcategories.length > 0) {
+                        data.subcategories.forEach(subcat => {
+                            const item = document.createElement('div');
+                            item.className = 'subcategory-item';
+                            item.dataset.subcategoryId = subcat.id;
+                            item.innerHTML = `
+                                <div class="subcategory-icon">
+                                    <i class="${subcat.icon}"></i>
+                                </div>
+                                <h6>${subcat.name}</h6>
+                            `;
+
+                            item.addEventListener('click', function() {
+                                // Remove previous selection
+                                grid.querySelectorAll('.subcategory-item').forEach(el => {
+                                    el.classList.remove('selected');
+                                });
+
+                                // Select current
+                                this.classList.add('selected');
+                                selectedCategory = subcat.id;
+
+                                // Enable next button
+                                document.getElementById('next-to-details').disabled = false;
+                            });
+
+                            grid.appendChild(item);
+                        });
+
+                        document.getElementById('subcategory-selection').style.display = 'block';
+                    } else {
+                        // No subcategories, use main category
+                        selectedCategory = categoryId;
+                        document.getElementById('next-to-details').disabled = false;
+                    }
+                });
+        }
+    });
+
+    // Image upload
+    const imageInput = document.getElementById('image-input');
+    const imagePreview = document.getElementById('image-preview');
+    const uploadArea = document.getElementById('image-upload-area');
+
+    uploadArea.addEventListener('click', () => imageInput.click());
+
+    uploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.style.background = '#e3f2fd';
+    });
+
+    uploadArea.addEventListener('dragleave', function(e) {
+        this.style.background = '#f8f9fa';
+    });
+
+    uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.style.background = '#f8f9fa';
+        handleFiles(e.dataTransfer.files);
+    });
+
+    imageInput.addEventListener('change', function() {
+        handleFiles(this.files);
+    });
+
+    function handleFiles(files) {
+        for (let file of files) {
+            if (uploadedImages.length >= maxImages) {
+                alert(`حد أقصى ${maxImages} صور مسموح`);
+                break;
+            }
+
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    addImagePreview(e.target.result, file);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+    }
+
+    function addImagePreview(src, file) {
+        const imageItem = document.createElement('div');
+        imageItem.className = 'image-item';
+
+        imageItem.innerHTML = `
+            <img src="${src}" alt="Preview">
+            <button type="button" class="remove-image" onclick="removeImage(this)">×</button>
+            ${uploadedImages.length === 0 ? '<div class="cover-badge">غلاف</div>' : ''}
+        `;
+
+        imagePreview.appendChild(imageItem);
+        uploadedImages.push(file);
+    }
+
+    window.removeImage = function(button) {
+        const imageItem = button.parentNode;
+        const index = Array.from(imagePreview.children).indexOf(imageItem);
+
+        uploadedImages.splice(index, 1);
+        imageItem.remove();
+
+        // Update cover badges
+        const images = imagePreview.querySelectorAll('.image-item');
+        images.forEach((img, idx) => {
+            const existing = img.querySelector('.cover-badge');
+            if (existing) existing.remove();
+
+            if (idx === 0) {
+                img.innerHTML += '<div class="cover-badge">غلاف</div>';
+            }
+        });
+    };
+
+    // Delivery terms toggle
+    document.getElementById('id_enable_cart').addEventListener('change', function() {
+        const termsDiv = document.getElementById('delivery-terms');
+        termsDiv.style.display = this.checked ? 'block' : 'none';
+    });
+
+    // Step navigation buttons
+    document.getElementById('next-to-details').addEventListener('click', () => showStep(2));
+    document.getElementById('back-to-category').addEventListener('click', () => showStep(1));
+    document.getElementById('next-to-images').addEventListener('click', () => showStep(3));
+    document.getElementById('back-to-details').addEventListener('click', () => showStep(2));
+    document.getElementById('next-to-contact').addEventListener('click', () => showStep(4));
+    document.getElementById('back-to-images').addEventListener('click', () => showStep(3));
+
+    // Form submission
+    document.getElementById('enhanced-ad-form').addEventListener('submit', function(e) {
+        // Validate at least one image
+        if (uploadedImages.length === 0) {
+            e.preventDefault();
+            alert('يرجى إضافة صورة واحدة على الأقل');
+            showStep(3);
+            return;
+        }
+
+        // Update hidden category field
+        if (selectedCategory) {
+            document.getElementById('id_category').value = selectedCategory;
+        }
+    });
+});
+</script>
+{% endblock %}

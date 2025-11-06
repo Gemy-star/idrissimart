@@ -102,8 +102,23 @@
                                         <a class="dropdown-item" href="{% url 'main:my_ads' %}">{% trans "إعلاناتي" %}</a>
                                     </li>
                                     <li>
+                                        <a class="dropdown-item" href="{% url 'main:packages_list' %}">
+                                            <i class="fas fa-gift me-2 text-primary"></i>{% trans "باقات النشر" %}
+                                        </a>
+                                    </li>
+                                    <li>
                                         <a class="dropdown-item" href="{% url 'main:saved_searches' %}">{% trans "عمليات البحث المحفوظة" %}</a>
                                     </li>
+                                    {% if request.user.is_staff %}
+                                        <li>
+                                            <hr class="dropdown-divider">
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="{% url 'main:reservation_management' %}">
+                                                <i class="fas fa-shopping-cart me-2 text-info"></i>{% trans "إدارة الحجوزات" %}
+                                            </a>
+                                        </li>
+                                    {% endif %}
                                     <li>
                                         <hr class="dropdown-divider">
                                     </li>
@@ -216,10 +231,13 @@
                     <div class="swiper-wrapper categories-nav-list">
                         <!-- Dynamic Category Items -->
                         {% for category in header_categories %}
-                            <a href="{% url 'main:categories' %}?section={{ category.section_type }}"
-                               class="category-nav-item swiper-slide"
-                               data-category-id="{{ category.id }}"
-                               data-category-color="category-{{ forloop.counter }}">
+                            <div class="category-nav-item swiper-slide"
+                                 data-category-id="{{ category.id }}"
+                                 data-category-color="category-{{ forloop.counter }}"
+                                 data-category-url="{% url 'main:categories' %}?section={{ category.section_type }}"
+                                 onclick="handleCategoryClick(this, {{ category.id }})"
+                                 role="button"
+                                 tabindex="0">
                                 <div class="category-icon">
                                     {% if category.icon %}
                                         <i class="{{ category.icon }} text-white"></i>
@@ -228,7 +246,10 @@
                                     {% endif %}
                                 </div>
                                 <span class="category-name">{{ category.name_ar|default:category.name }}</span>
-                            </a>
+                                <div class="category-loading" style="display: none;">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                </div>
+                            </div>
                         {% empty %}
                             <!-- Fallback if no categories -->
                             <a href="{% url 'main:categories' %}"
@@ -241,9 +262,45 @@
                             </a>
                         {% endfor %}
                     </div>
-                    <!-- Navigation Arrows -->
-                    <div class="swiper-button-next categories-swiper-next"></div>
-                    <div class="swiper-button-prev categories-swiper-prev"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Subcategories Dropdown -->
+        <div class="subcategories-dropdown" id="subcategoriesDropdown">
+            <div class="container">
+                <div class="subcategories-wrapper">
+                    <div class="subcategories-header">
+                        <h6 class="subcategories-title">الفئات الفرعية</h6>
+                        <span class="parent-category-name" id="parentCategoryName"></span>
+                        <button class="subcategories-close" onclick="hideSubcategories()" aria-label="إغلاق الفئات الفرعية">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <!-- Subcategories Swiper -->
+                    <div class="swiper subcategories-swiper">
+                        <div class="swiper-wrapper" id="subcategoriesList">
+                            <!-- Subcategories will be loaded here dynamically -->
+                        </div>
+                        <div class="swiper-button-next"></div>
+                        <div class="swiper-button-prev"></div>
+                    </div>
+                    <!-- Sub-subcategories container -->
+                    <div class="sub-subcategories-section" id="subSubcategoriesSection" style="display: none;">
+                        <div class="sub-subcategories-header">
+                            <h6 class="sub-subcategories-title">الفئات الفرعية الثانوية</h6>
+                            <span class="parent-subcategory-name" id="parentSubcategoryName"></span>
+                        </div>
+                        <div class="sub-subcategories-grid" id="subSubcategoriesList">
+                            <!-- Sub-subcategories will be loaded here -->
+                        </div>
+                    </div>
+                    <div class="subcategories-footer">
+                        <a href="#" class="view-all-link" id="viewAllSubcategories">
+                            <i class="fas fa-arrow-left me-2"></i>
+                            عرض جميع الفئات الفرعية
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -326,10 +383,22 @@
                     </a>
                 </li>
                 <li>
+                    <a href="{% url 'main:packages_list' %}" class="mobile-nav-link">
+                        <i class="fas fa-gift text-primary"></i><span>{% trans "باقات النشر" %}</span>
+                    </a>
+                </li>
+                <li>
                     <a href="{% url 'main:saved_searches' %}" class="mobile-nav-link">
                         <i class="fas fa-save"></i><span>{% trans "عمليات البحث المحفوظة" %}</span>
                     </a>
                 </li>
+                {% if request.user.is_staff %}
+                    <li>
+                        <a href="{% url 'main:reservation_management' %}" class="mobile-nav-link">
+                            <i class="fas fa-shopping-cart text-info"></i><span>{% trans "إدارة الحجوزات" %}</span>
+                        </a>
+                    </li>
+                {% endif %}
                 <li>
                     <a href="{% url 'main:logout' %}" class="mobile-nav-link logout">
                         <i class="fas fa-sign-out-alt"></i><span>{% trans "تسجيل الخروج" %}</span>
@@ -441,3 +510,272 @@
     </div>
     <div class="mobile-nav-backdrop" id="mobileBackdrop"></div>
 </nav>
+
+<script>
+    // Enhanced header subcategory functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const hamburger = document.getElementById('hamburgerBtn');
+        const mobileNav = document.getElementById('mobileNav');
+        const mobileNavClose = document.getElementById('mobileNavClose');
+        const mobileBackdrop = document.getElementById('mobileBackdrop');
+        const subcategoriesDropdown = document.getElementById('subcategoriesDropdown');
+
+        let currentCategoryId = null;
+        let subcategoriesSwiper = null;
+
+        // Mobile menu toggle
+        function toggleMobileMenu(show) {
+            if (show) {
+                mobileNav.classList.add('show');
+                mobileBackdrop.classList.add('show');
+                document.body.style.overflow = 'hidden';
+            } else {
+                mobileNav.classList.remove('show');
+                mobileBackdrop.classList.remove('show');
+                document.body.style.overflow = '';
+            }
+        }
+
+        // Event listeners
+        hamburger?.addEventListener('click', () => toggleMobileMenu(true));
+        mobileNavClose?.addEventListener('click', () => toggleMobileMenu(false));
+        mobileBackdrop?.addEventListener('click', () => toggleMobileMenu(false));
+
+        // Category click handler
+        globalThis.handleCategoryClick = function(element, categoryId) {
+            const categoryUrl = element.dataset.categoryUrl;
+            const loadingEl = element.querySelector('.category-loading');
+
+            // Check if subcategories are already shown for this category
+            if (currentCategoryId === categoryId && subcategoriesDropdown.classList.contains('show')) {
+                // Navigate to category page
+                globalThis.location.href = categoryUrl;
+                return;
+            }
+
+            // Show loading
+            loadingEl.style.display = 'block';
+
+            // Load subcategories
+            loadSubcategories(categoryId, element.querySelector('.category-name').textContent)
+                .then(() => {
+                    loadingEl.style.display = 'none';
+                    showSubcategories(categoryId);
+                })
+                .catch(() => {
+                    loadingEl.style.display = 'none';
+                    // Navigate to category page if loading fails
+                    globalThis.location.href = categoryUrl;
+                });
+        };
+
+        // Show subcategories dropdown
+        globalThis.showSubcategories = function(categoryId) {
+            currentCategoryId = categoryId;
+            subcategoriesDropdown.classList.add('show');
+
+            // Hide sub-subcategories when showing new subcategories
+            const subSubSection = document.getElementById('subSubcategoriesSection');
+            subSubSection.style.display = 'none';
+        };
+
+        // Hide subcategories dropdown
+        globalThis.hideSubcategories = function() {
+            subcategoriesDropdown.classList.remove('show');
+            currentCategoryId = null;
+
+            // Hide sub-subcategories too
+            const subSubSection = document.getElementById('subSubcategoriesSection');
+            subSubSection.style.display = 'none';
+        };
+
+        // Load subcategories
+        function loadSubcategories(categoryId, categoryName) {
+            return new Promise((resolve, reject) => {
+                const parentCategoryName = document.getElementById('parentCategoryName');
+                const subcategoriesList = document.getElementById('subcategoriesList');
+                const viewAllLink = document.getElementById('viewAllSubcategories');
+
+                parentCategoryName.textContent = categoryName;
+                subcategoriesList.innerHTML = '<div class="swiper-slide"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
+
+                fetch(`/ajax/subcategories/${categoryId}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            subcategoriesList.innerHTML = '<div class="swiper-slide">خطأ في تحميل الفئات الفرعية</div>';
+                            reject(new Error(data.error));
+                            return;
+                        }
+
+                        if (data.subcategories && data.subcategories.length > 0) {
+                            // Render subcategories
+                            subcategoriesList.innerHTML = data.subcategories.map(subcat => `
+                                <div class="swiper-slide">
+                                    <div class="subcategory-item"
+                                         data-subcategory-id="${subcat.id}"
+                                         data-subcategory-url="${subcat.url}"
+                                         data-has-children="${subcat.has_children}"
+                                         onclick="handleSubcategoryClick(this, ${subcat.id}, '${subcat.url}', ${subcat.has_children}, '${subcat.name_ar || subcat.name}')">
+                                        <div class="subcategory-icon">
+                                            <i class="${subcat.icon || 'fas fa-folder'}"></i>
+                                        </div>
+                                        <span class="subcategory-name">${subcat.name_ar || subcat.name}</span>
+                                        ${subcat.has_children ? '<i class="fas fa-chevron-right subcategory-expand"></i>' : ''}
+                                    </div>
+                                </div>
+                            `).join('');
+
+                            // Update view all link
+                            viewAllLink.href = `/categories?parent=${categoryId}`;
+
+                            // Initialize/update swiper
+                            if (subcategoriesSwiper) {
+                                subcategoriesSwiper.destroy(true, true);
+                            }
+
+                            subcategoriesSwiper = new Swiper('.subcategories-swiper', {
+                                slidesPerView: 'auto',
+                                spaceBetween: 15,
+                                navigation: {
+                                    nextEl: '.swiper-button-next',
+                                    prevEl: '.swiper-button-prev',
+                                },
+                                breakpoints: {
+                                    768: {
+                                        slidesPerView: 4,
+                                        spaceBetween: 20,
+                                    },
+                                    1024: {
+                                        slidesPerView: 6,
+                                        spaceBetween: 25,
+                                    }
+                                }
+                            });
+
+                            resolve();
+                        } else {
+                            subcategoriesList.innerHTML = '<div class="swiper-slide">لا توجد فئات فرعية</div>';
+                            resolve();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading subcategories:', error);
+                        subcategoriesList.innerHTML = '<div class="swiper-slide">خطأ في الاتصال</div>';
+                        reject(error);
+                    });
+            });
+        }
+
+        // Handle subcategory click
+        globalThis.handleSubcategoryClick = function(element, subcategoryId, url, hasChildren, subcategoryName) {
+            if (hasChildren) {
+                // Load sub-subcategories
+                loadSubSubcategories(subcategoryId, subcategoryName);
+            } else {
+                // Navigate to subcategory page
+                globalThis.location.href = url;
+            }
+        };
+
+        // Load sub-subcategories
+        function loadSubSubcategories(subcategoryId, subcategoryName) {
+            const subSubSection = document.getElementById('subSubcategoriesSection');
+            const parentSubcategoryName = document.getElementById('parentSubcategoryName');
+            const subSubcategoriesList = document.getElementById('subSubcategoriesList');
+
+            parentSubcategoryName.textContent = subcategoryName;
+            subSubcategoriesList.innerHTML = '<div class="loading-item"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
+            subSubSection.style.display = 'block';
+
+            fetch(`/ajax/subcategories/${subcategoryId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        subSubcategoriesList.innerHTML = '<div class="error-item">خطأ في تحميل الفئات</div>';
+                        return;
+                    }
+
+                    if (data.subcategories && data.subcategories.length > 0) {
+                        subSubcategoriesList.innerHTML = data.subcategories.map(subSubcat => `
+                            <div class="sub-subcategory-item" onclick="globalThis.location.href='${subSubcat.url}'">
+                                <div class="sub-subcategory-icon">
+                                    <i class="${subSubcat.icon || 'fas fa-folder'}"></i>
+                                </div>
+                                <span class="sub-subcategory-name">${subSubcat.name_ar || subSubcat.name}</span>
+                            </div>
+                        `).join('');
+                    } else {
+                        subSubcategoriesList.innerHTML = '<div class="empty-item">لا توجد فئات فرعية إضافية</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading sub-subcategories:', error);
+                    subSubcategoriesList.innerHTML = '<div class="error-item">خطأ في الاتصال</div>';
+                });
+        }
+
+        // Close subcategories when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!subcategoriesDropdown.contains(e.target) &&
+                !e.target.closest('.category-nav-item')) {
+                hideSubcategories();
+            }
+        });
+
+        // Touch-friendly category navigation for mobile
+        const categoryItems = document.querySelectorAll('.category-nav-item');
+        for (const item of categoryItems) {
+            let touchStartTime = 0;
+
+            item.addEventListener('touchstart', function(e) {
+                touchStartTime = Date.now();
+            });
+
+            item.addEventListener('touchend', function(e) {
+                const touchDuration = Date.now() - touchStartTime;
+                const categoryId = this.dataset.categoryId;
+
+                // Handle touch
+                if (touchDuration < 300 && categoryId) {
+                    e.preventDefault();
+                    handleCategoryClick(this, Number.parseInt(categoryId, 10));
+                }
+            });
+
+            // Add keyboard support
+            item.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    const categoryId = this.dataset.categoryId;
+                    if (categoryId) {
+                        handleCategoryClick(this, Number.parseInt(categoryId, 10));
+                    }
+                }
+            });
+        }
+
+        // Mobile country/language selector improvements
+        const mobileCountryItems = document.querySelectorAll('.mobile-country-item');
+        for (const item of mobileCountryItems) {
+            item.addEventListener('click', function() {
+                const countryCode = this.dataset.country;
+                if (countryCode && typeof setCountry === 'function') {
+                    setCountry(countryCode);
+                }
+            });
+        }
+
+        // Close mobile menu on resize to desktop
+        globalThis.addEventListener('resize', function() {
+            if (globalThis.innerWidth > 768 && mobileNav.classList.contains('show')) {
+                toggleMobileMenu(false);
+            }
+        });
+
+        // Prevent menu close on scroll
+        mobileNav?.addEventListener('touchmove', function(e) {
+            e.stopPropagation();
+        });
+    });
+</script>

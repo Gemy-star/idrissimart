@@ -7,11 +7,6 @@
 
 {% endblock title %}
 
-{% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/blog.css' %}">
-
-{% endblock %}
-
 {% block content %}
     <!-- Hero Section -->
     <section class="hero-section" id="home">
@@ -22,14 +17,20 @@
                     <p class="hero-subtitle">
                         {% trans "منصة تجمع سوق واحد متخصص يستفيد منه المتخصصون والجمهور العام الذي يحتاج إلى أيٍ من خدمات هذا السوق" %}
                     </p>
-                    <a href="{% url 'main:categories' %}"
-                       class="btn btn-custom btn-secondary-custom btn-hero me-3">
-                        <i class="fas fa-store me-2"></i>{% trans "استكشف أقسام المنصة" %}
-                    </a>
-                    <a href="{% url 'main:contact' %}"
-                       class="btn btn-custom btn-secondary-custom btn-hero me-3">
-                        <i class="fas fa-handshake me-2"></i>{% trans "تواصل مع فريقنا" %}
-                    </a>
+
+                    <div class="hero-cta-section mb-4">
+                        <div class="d-flex flex-wrap gap-3">
+                            <a href="{% url 'main:enhanced_ad_create' %}"
+                               class="btn btn-custom btn-secondary-custom btn-hero me-3 pulse-btn">
+                                <i class="fas fa-plus-circle me-2"></i>{% trans "نشر إعلان محسن" %}
+                            </a>
+                            <a href="{% url 'main:packages_list' %}"
+                               class="btn btn-custom btn-secondary-custom btn-hero me-3">
+                                <i class="fas fa-gift me-2"></i>{% trans "اشتراك الباقات" %}
+                            </a>
+                        </div>
+                    </div>
+
                 </div>
                 <div class="col-lg-6 mt-5 mt-lg-0">
                     <img src="https://images.unsplash.com/photo-1545239351-1141bd82e8a6?w=600&h=500&fit=crop"
@@ -42,6 +43,7 @@
             </div>
         </div>
     </section>
+
     <!-- Swiper Section -->
     <section class="swiper-section" id="featured">
         <div class="container">
@@ -50,8 +52,7 @@
                 <div class="swiper-wrapper">
                     {% for ad in featured_ads %}
                         <div class="swiper-slide">
-                            {% include "pages/_ad_card.html" with ad=ad %}
-
+                            {% include "classifieds/_ad_card.html" with ad=ad %}
                         </div>
                     {% empty %}
                         <div class="swiper-slide">
@@ -115,8 +116,7 @@
                 <div class="swiper-wrapper">
                     {% for ad in latest_ads %}
                         <div class="swiper-slide">
-                            {% include "pages/_ad_card.html" with ad=ad %}
-
+                            {% include "classifieds/_ad_card.html" with ad=ad %}
                         </div>
                     {% empty %}
                         <div class="swiper-slide">
@@ -129,12 +129,12 @@
         </div>
     </section>
     <!-- Stats Section -->
-    <section class="stats-section py-5 bg-secondary-light">
+    <section class="stats-section py-5">
         <div class="container">
             <div class="row text-center g-4">
                 <div class="col-lg-3 col-md-6">
                     <div class="stat-box">
-                        <i class="fas fa-map fa-3x mb-3 text-primary-color"></i>
+                        <i class="fas fa-map fa-3x mb-3 text-secondary-color"></i>
                         <h3 class="stat-number" data-target="250">0</h3>
                         <p class="stat-label">{% trans "مشروع مساحي منجز" %}</p>
                     </div>
@@ -148,7 +148,7 @@
                 </div>
                 <div class="col-lg-3 col-md-6">
                     <div class="stat-box">
-                        <i class="fas fa-users fa-3x mb-3 text-primary-color"></i>
+                        <i class="fas fa-users fa-3x mb-3 text-secondary-color"></i>
                         <h3 class="stat-number" data-target="150">0</h3>
                         <p class="stat-label">{% trans "عميل راضٍ" %}</p>
                     </div>
@@ -222,7 +222,7 @@
                     <div class="swiper-pagination home-blogs-pagination"></div>
                 </div>
                 <div class="text-center mt-5">
-                    <a href="{% url 'content:blog_list' %}" class="btn btn-primary btn-lg">
+                    <a href="{% url 'content:blog_list' %}" class="btn btn-primary btn-lg btn-post-ad">
                         <i class="fas fa-newspaper me-2"></i>{% trans "عرض جميع المقالات" %}
                     </a>
                 </div>
@@ -422,6 +422,194 @@
                 },
             });
         })
+
+        // Subcategories toggle functionality
+        globalThis.toggleSubcategories = function(element, categoryId, level = 0) {
+            const subcategoriesContainer = document.getElementById(`subcategories-${categoryId}`);
+
+            if (!subcategoriesContainer) return;
+
+            if (subcategoriesContainer.style.display === 'none' || !subcategoriesContainer.style.display) {
+                // Show subcategories
+                element.classList.add('expanded');
+                subcategoriesContainer.style.display = 'block';
+                loadSubcategories(categoryId, level);
+            } else {
+                // Hide subcategories
+                closeSubcategories(categoryId, false);
+            }
+        }
+
+        globalThis.closeSubcategories = function(categoryId, updateParent = true) {
+            const subcategoriesContainer = document.getElementById(`subcategories-${categoryId}`);
+            const categoryLink = document.querySelector(`[data-category-id="${categoryId}"]`);
+
+            if (subcategoriesContainer) {
+                subcategoriesContainer.style.display = 'none';
+            }
+
+            if (categoryLink && updateParent) {
+                categoryLink.classList.remove('expanded');
+            }
+
+            // Close any nested subcategories
+            const nestedContainers = subcategoriesContainer?.querySelectorAll('.sub-subcategories-container');
+            if (nestedContainers) {
+                for (const container of nestedContainers) {
+                    container.style.display = 'none';
+                }
+            }
+        }
+
+        function loadSubcategories(categoryId, level = 0) {
+            const container = document.getElementById(`subcategories-${categoryId}`);
+            const loadingEl = container.querySelector('.subcategories-loading');
+            const gridEl = container.querySelector(`#subcategories-grid-${categoryId}`);
+
+            // Show loading
+            loadingEl.style.display = 'block';
+            gridEl.innerHTML = '';
+
+            // Fetch subcategories
+            fetch(`/ajax/subcategories/${categoryId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    loadingEl.style.display = 'none';
+
+                    if (data.error) {
+                        gridEl.innerHTML = '<p class="text-muted text-center">خطأ في تحميل الفئات الفرعية</p>';
+                        return;
+                    }
+
+                    if (data.subcategories && data.subcategories.length > 0) {
+                        renderSubcategories(data.subcategories, gridEl, level + 1);
+                    } else {
+                        gridEl.innerHTML = '<p class="text-muted text-center">لا توجد فئات فرعية</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading subcategories:', error);
+                    loadingEl.style.display = 'none';
+                    gridEl.innerHTML = '<p class="text-danger text-center">خطأ في الاتصال</p>';
+                });
+        }
+
+        function renderSubcategories(subcategories, container, level) {
+            container.innerHTML = subcategories.map(subcat => {
+                const hasChildren = subcat.has_children;
+                const levelClass = level === 1 ? 'subcategory-item' : 'sub-subcategory-item';
+                const childrenIndicator = hasChildren ? '<i class="fas fa-chevron-left subcategory-expand"></i>' : '';
+                const childrenClass = hasChildren ? 'has-children' : '';
+
+                return `
+                    <div class="${levelClass} ${childrenClass}"
+                         data-subcategory-id="${subcat.id}"
+                         data-has-children="${hasChildren}"
+                         onclick="handleSubcategoryClick(this, ${subcat.id}, '${subcat.url}', ${hasChildren}, ${level})"
+                         role="button" tabindex="0">
+                        <div class="subcategory-content">
+                            <i class="${subcat.icon}"></i>
+                            <span>${subcat.name_ar || subcat.name}</span>
+                        </div>
+                        ${childrenIndicator}
+                        <div class="sub-subcategories-container" id="sub-subcategories-${subcat.id}" style="display: none;">
+                            <div class="sub-subcategories-loading">
+                                <i class="fas fa-spinner fa-spin"></i> جاري تحميل الفئات الفرعية...
+                            </div>
+                            <div class="sub-subcategories-grid" id="sub-subcategories-grid-${subcat.id}"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        globalThis.handleSubcategoryClick = function(element, subcategoryId, url, hasChildren, level) {
+            if (hasChildren && level === 1) {
+                // Toggle sub-subcategories for level 1 subcategories
+                event.preventDefault();
+                event.stopPropagation();
+
+                const subSubContainer = element.querySelector(`#sub-subcategories-${subcategoryId}`);
+                if (!subSubContainer) return;
+
+                if (subSubContainer.style.display === 'none' || !subSubContainer.style.display) {
+                    // Show sub-subcategories
+                    element.classList.add('expanded');
+                    subSubContainer.style.display = 'block';
+                    loadSubSubcategories(subcategoryId, level + 1);
+                } else {
+                    // Hide sub-subcategories
+                    element.classList.remove('expanded');
+                    subSubContainer.style.display = 'none';
+                }
+            } else {
+                // Navigate to category page
+                globalThis.location.href = url;
+            }
+        }
+
+        function loadSubSubcategories(subcategoryId, level) {
+            const container = document.getElementById(`sub-subcategories-${subcategoryId}`);
+            const loadingEl = container.querySelector('.sub-subcategories-loading');
+            const gridEl = container.querySelector(`#sub-subcategories-grid-${subcategoryId}`);
+
+            // Show loading
+            loadingEl.style.display = 'block';
+            gridEl.innerHTML = '';
+
+            // Fetch sub-subcategories
+            fetch(`/ajax/subcategories/${subcategoryId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    loadingEl.style.display = 'none';
+
+                    if (data.error) {
+                        gridEl.innerHTML = '<p class="text-muted text-center">خطأ في تحميل الفئات</p>';
+                        return;
+                    }
+
+                    if (data.subcategories && data.subcategories.length > 0) {
+                        renderSubcategories(data.subcategories, gridEl, level);
+                    } else {
+                        gridEl.innerHTML = '<p class="text-muted text-center">لا توجد فئات فرعية إضافية</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading sub-subcategories:', error);
+                    loadingEl.style.display = 'none';
+                    gridEl.innerHTML = '<p class="text-danger text-center">خطأ في الاتصال</p>';
+                });
+        }
+
+        // Mobile touch handling
+        if ('ontouchstart' in globalThis) {
+            document.addEventListener('touchstart', function(e) {
+                // Handle mobile touch events for better responsiveness
+                const target = e.target.closest('.subcategory-item, .sub-subcategory-item');
+                if (target) {
+                    target.style.transform = 'scale(0.98)';
+                }
+            });
+
+            document.addEventListener('touchend', function(e) {
+                const target = e.target.closest('.subcategory-item, .sub-subcategory-item');
+                if (target) {
+                    setTimeout(() => {
+                        target.style.transform = '';
+                    }, 150);
+                }
+            });
+        }
+
+        // Keyboard navigation support
+        document.addEventListener('keydown', function(e) {
+            if (e.target.matches('.subcategory-item, .sub-subcategory-item')) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.target.click();
+                }
+            }
+        });
     </script>
 
 {% endblock extra_js %}

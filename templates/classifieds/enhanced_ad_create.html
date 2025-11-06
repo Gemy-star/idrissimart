@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+
+{% load static i18n %}
+
+{% block title %}
+    {% trans "نشر إعلان مطور" %}
+{% endblock title %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <!-- Header -->
+            <div class="text-center mb-5">
+                <h1 class="display-6 fw-bold text-primary">{% trans "نشر إعلان جديد" %}</h1>
+                <p class="lead text-muted">{% trans "انشر إعلانك واستفد من الميزات المتقدمة" %}</p>
+            </div>
+
+            <!-- Package Status Card -->
+            {% if active_packages %}
+                <div class="alert alert-success d-flex align-items-center mb-4">
+                    <i class="fas fa-check-circle me-3 fs-4"></i>
+                    <div>
+                        <h6 class="mb-1">{% trans "لديك باقات نشطة" %}</h6>
+                        <small>
+                            {% for package in active_packages %}
+                                {{ package.package.name }} -
+                                {% blocktrans with remaining=package.ads_remaining %}{{ remaining }} إعلانات متبقية{% endblocktrans %}
+                                {% if not forloop.last %} | {% endif %}
+                            {% endfor %}
+                        </small>
+                    </div>
+                </div>
+            {% else %}
+                <div class="alert alert-warning d-flex align-items-center mb-4">
+                    <i class="fas fa-exclamation-triangle me-3 fs-4"></i>
+                    <div>
+                        <h6 class="mb-1">{% trans "لا توجد باقة نشطة" %}</h6>
+                        <small>{% trans "يجب شراء باقة أولاً لنشر الإعلانات" %}</small>
+                        <a href="{% url 'main:packages' %}" class="btn btn-sm btn-warning ms-2">
+                            {% trans "عرض الباقات" %}
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Ad Creation Form -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-plus-circle me-2"></i>{% trans "معلومات الإعلان" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" id="adForm">
+                        {% csrf_token %}
+
+                        <!-- Basic Information -->
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="id_category" class="form-label">{% trans "القسم" %}</label>
+                                {{ form.category }}
+                                <div class="form-text">{% trans "اختر القسم المناسب لإعلانك" %}</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="id_title" class="form-label">{% trans "عنوان الإعلان" %}</label>
+                                {{ form.title }}
+                            </div>
+
+                            <div class="col-12">
+                                <label for="id_description" class="form-label">{% trans "وصف الإعلان" %}</label>
+                                {{ form.description }}
+                                <div class="form-text">{% trans "اكتب وصفاً تفصيلياً ووضحاً لإعلانك" %}</div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="id_price" class="form-label">{% trans "السعر" %}</label>
+                                <div class="input-group">
+                                    {{ form.price }}
+                                    <span class="input-group-text">{% trans "ريال" %}</span>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="id_city" class="form-label">{% trans "المدينة" %}</label>
+                                {{ form.city }}
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-check mt-4">
+                                    {{ form.is_negotiable }}
+                                    <label class="form-check-label" for="id_is_negotiable">
+                                        {% trans "السعر قابل للتفاوض" %}
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cart Settings (if available) -->
+                        {% if cart_settings and cart_settings.is_enabled %}
+                            <hr class="my-4">
+                            <h6 class="text-primary">
+                                <i class="fas fa-shopping-cart me-2"></i>{% trans "إعدادات سلة الحجز" %}
+                            </h6>
+
+                            <div class="alert alert-info">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="" id="enableCart" name="is_cart_enabled">
+                                    <label class="form-check-label" for="enableCart">
+                                        {% trans "تفعيل سلة الحجز" %}
+                                    </label>
+                                </div>
+                                <small class="d-block mt-2">
+                                    {% blocktrans with percentage=cart_settings.reservation_percentage minimum=cart_settings.minimum_reservation %}
+                                    سيدفع المشتري {{ percentage }}% من السعر كمقدم حجز (أقل مبلغ: {{ minimum }} ريال)
+                                    {% endblocktrans %}
+                                </small>
+                            </div>
+
+                            {% if cart_settings.delivery_enabled %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="" id="enableDelivery" name="is_delivery_available">
+                                    <label class="form-check-label" for="enableDelivery">
+                                        {% trans "تفعيل التوصيل" %}
+                                        <small class="text-muted">({% trans "رسوم التوصيل" %}: {{ cart_settings.delivery_fee }} {% trans "ريال" %})</small>
+                                    </label>
+                                </div>
+                            {% endif %}
+                        {% endif %}
+
+                        <!-- Media Section -->
+                        <hr class="my-4">
+                        <h6 class="text-primary">
+                            <i class="fas fa-images me-2"></i>{% trans "الصور والفيديو" %}
+                        </h6>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="images" class="form-label">{% trans "صور الإعلان" %}</label>
+                                <input type="file" class="form-control" id="images" name="images" multiple accept="image/*">
+                                <div class="form-text">{% trans "يمكنك رفع عدة صور (الحد الأقصى: 10 صور)" %}</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="id_video_url" class="form-label">{% trans "رابط فيديو (YouTube)" %}</label>
+                                {{ form.video_url }}
+                                <div class="form-text">{% trans "أو ارفع ملف فيديو بدلاً من الرابط" %}</div>
+
+                                <label for="id_video_file" class="form-label mt-2">{% trans "ملف فيديو" %}</label>
+                                {{ form.video_file }}
+                            </div>
+                        </div>
+
+                        <!-- Custom Fields (Dynamic based on category) -->
+                        <div id="customFields" class="mt-4" style="display: none;">
+                            <hr>
+                            <h6 class="text-primary">
+                                <i class="fas fa-cogs me-2"></i>{% trans "حقول إضافية" %}
+                            </h6>
+                            <div id="customFieldsContainer">
+                                <!-- Custom fields will be loaded here via JavaScript -->
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid mt-4">
+                            {% if can_post_free %}
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-paper-plane me-2"></i>{% trans "نشر الإعلان" %}
+                                </button>
+                            {% else %}
+                                <button type="button" class="btn btn-warning btn-lg" onclick="window.location.href='{% url 'main:packages' %}'">
+                                    <i class="fas fa-shopping-cart me-2"></i>{% trans "شراء باقة للنشر" %}
+                                </button>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Available Features (if category selected) -->
+            {% if feature_prices %}
+                <div class="card mt-4 shadow-sm">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-star me-2"></i>{% trans "ميزات إضافية متاحة" %}
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">{% trans "يمكنك شراء هذه الميزات بعد نشر الإعلان لزيادة ظهوره" %}</p>
+                        <div class="row g-3">
+                            {% for feature_price in feature_prices %}
+                                <div class="col-md-6">
+                                    <div class="card border-success h-100">
+                                        <div class="card-body text-center">
+                                            <div class="feature-icon mb-2">
+                                                {% if feature_price.feature_type == 'pinned' %}
+                                                    <i class="fas fa-thumbtack text-success fs-3"></i>
+                                                {% elif feature_price.feature_type == 'top_search' %}
+                                                    <i class="fas fa-search-plus text-success fs-3"></i>
+                                                {% elif feature_price.feature_type == 'featured_section' %}
+                                                    <i class="fas fa-star text-success fs-3"></i>
+                                                {% elif feature_price.feature_type == 'video' %}
+                                                    <i class="fas fa-video text-success fs-3"></i>
+                                                {% endif %}
+                                            </div>
+                                            <h6>{{ feature_price.get_feature_type_display }}</h6>
+                                            <p class="text-muted small">{{ feature_price.duration_days }} {% trans "أيام" %}</p>
+                                            <div class="price text-success fw-bold fs-5">
+                                                {{ feature_price.price }} {% trans "ريال" %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const categorySelect = document.getElementById('id_category');
+    const customFieldsDiv = document.getElementById('customFields');
+    const customFieldsContainer = document.getElementById('customFieldsContainer');
+
+    // Load custom fields when category changes
+    categorySelect?.addEventListener('change', function() {
+        const categoryId = this.value;
+        if (categoryId) {
+            loadCustomFields(categoryId);
+        } else {
+            customFieldsDiv.style.display = 'none';
+        }
+    });
+
+    function loadCustomFields(categoryId) {
+        fetch(`/ajax/category-fields/?category_id=${categoryId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.custom_fields && data.custom_fields.length > 0) {
+                    renderCustomFields(data.custom_fields);
+                    customFieldsDiv.style.display = 'block';
+                } else {
+                    customFieldsDiv.style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading custom fields:', error);
+                customFieldsDiv.style.display = 'none';
+            });
+    }
+
+    function renderCustomFields(fields) {
+        customFieldsContainer.innerHTML = '';
+
+        fields.forEach(field => {
+            const div = document.createElement('div');
+            div.className = 'col-md-6 mb-3';
+
+            let inputHtml = '';
+            switch(field.type) {
+                case 'text':
+                    inputHtml = `<input type="text" class="form-control" name="custom_${field.name}" id="custom_${field.name}">`;
+                    break;
+                case 'number':
+                    inputHtml = `<input type="number" class="form-control" name="custom_${field.name}" id="custom_${field.name}">`;
+                    break;
+                case 'select':
+                    const options = field.options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+                    inputHtml = `<select class="form-select" name="custom_${field.name}" id="custom_${field.name}">
+                        <option value="">{% trans 'اختر...' %}</option>
+                        ${options}
+                    </select>`;
+                    break;
+                default:
+                    inputHtml = `<input type="text" class="form-control" name="custom_${field.name}" id="custom_${field.name}">`;
+            }
+
+            div.innerHTML = `
+                <label for="custom_${field.name}" class="form-label">${field.label}</label>
+                ${inputHtml}
+                ${field.required ? '<small class="text-danger">*</small>' : ''}
+            `;
+
+            customFieldsContainer.appendChild(div);
+        });
+    }
+
+    // Form submission
+    document.getElementById('adForm')?.addEventListener('submit', function(e) {
+        if (!{{ can_post_free|yesno:"true,false" }}) {
+            e.preventDefault();
+            alert('{% trans "يجب شراء باقة أولاً" %}');
+            return;
+        }
+
+        // Collect custom fields data
+        const customFields = {};
+        const customInputs = document.querySelectorAll('[name^="custom_"]');
+        customInputs.forEach(input => {
+            const fieldName = input.name.replace('custom_', '');
+            customFields[fieldName] = input.value;
+        });
+
+        // Add custom fields as hidden input
+        const customFieldsInput = document.createElement('input');
+        customFieldsInput.type = 'hidden';
+        customFieldsInput.name = 'custom_fields';
+        customFieldsInput.value = JSON.stringify(customFields);
+        this.appendChild(customFieldsInput);
+    });
+});
+</script>
+{% endblock extra_js %}
+
+{% block extra_css %}
+<style>
+    .feature-icon {
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .card {
+        transition: all 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.25);
+    }
+
+    .btn {
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .alert {
+        border-radius: 12px;
+        border: none;
+    }
+
+    .card {
+        border-radius: 12px;
+        border: none;
+    }
+
+    .card-header {
+        border-radius: 12px 12px 0 0 !important;
+    }
+
+    #customFieldsContainer {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1rem;
+    }
+</style>
+{% endblock extra_css %}

@@ -8,8 +8,3 @@ COMPRESS_ENABLED = True
 COMPRESS_OFFLINE = False
 
 # Add Silk for profiling
-INSTALLED_APPS += ["silk"]
-MIDDLEWARE += ["silk.middleware.SilkyMiddleware"]
-
-SILKY_AUTHENTICATION = True
-SILKY_AUTHORISATION = True

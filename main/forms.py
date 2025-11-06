@@ -1,10 +1,17 @@
 # main/forms.py
 from django import forms
-from django.core.exceptions import ValidationError
 from django.forms import inlineformset_factory
 from django.utils.translation import gettext_lazy as _
+from django.core.exceptions import ValidationError
 
-from .models import AdImage, ClassifiedAd, ContactMessage, User
+from .models import (
+    AdImage,
+    ClassifiedAd,
+    ContactMessage,
+    User,
+    Category,
+    AdFeaturePrice,
+)
 
 
 class ContactForm(forms.ModelForm):
@@ -69,13 +76,7 @@ class ContactForm(forms.ModelForm):
 class ClassifiedAdForm(forms.ModelForm):
     """Form for creating and editing classified ads."""
 
-    brand = forms.CharField(
-        label=_("الماركة / الشركة المصنعة"),
-        required=False,
-        widget=forms.TextInput(attrs={"class": "form-control"}),
-    )
-    condition = forms.ChoiceField(
-        label=_("حالة المنتج"),
+    condition = forms.ChoiceField(  # This seems to be a remnant of a previous approach, it's better to handle it dynamically.
         required=False,
         choices=[
             ("", _("---------")),
@@ -85,6 +86,7 @@ class ClassifiedAdForm(forms.ModelForm):
         ],
         widget=forms.Select(attrs={"class": "form-select"}),
     )
+    # The 'brand' field is also better handled dynamically.
 
     class Meta:
         model = ClassifiedAd
@@ -112,16 +114,119 @@ class ClassifiedAdForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        category = None
+        if "category" in self.data:
+            try:
+                category = Category.objects.get(pk=self.data.get("category"))
+            except (Category.DoesNotExist, ValueError):
+                pass
+        elif self.instance and self.instance.pk:
+            category = self.instance.category
+
+        if category:
+            self.add_custom_fields(category)
+
         if self.instance and self.instance.pk and self.instance.custom_fields:
-            self.fields["brand"].initial = self.instance.custom_fields.get("brand")
-            self.fields["condition"].initial = self.instance.custom_fields.get(
-                "condition"
-            )
+            for field_name, value in self.instance.custom_fields.items():
+                if field_name in self.fields:
+                    self.fields[field_name].initial = value
+
+    def add_custom_fields(self, category):
+        """
+        Adds form fields based on the category's custom_field_schema, including validation.
+        """
+        schema = category.custom_field_schema or []
+
+        for field_schema in schema:
+            field_name = field_schema.get("name")
+            if not field_name:
+                continue
+
+            field_label = field_schema.get("label", field_name)
+            field_type = field_schema.get("type", "text")
+            required = field_schema.get("required", False)
+            options = field_schema.get("options", [])
+            validation_rules = field_schema.get("validation", {})
+
+            field_kwargs = {
+                "label": field_label,
+                "required": required,
+            }
+            widget_attrs = {"class": "form-control"}
+
+            if field_type == "select":
+                field_kwargs["choices"] = [("", "---------")] + [
+                    (opt, opt) for opt in options
+                ]
+                widget_attrs["class"] = "form-select"
+                self.fields[field_name] = forms.ChoiceField(
+                    **field_kwargs, widget=forms.Select(attrs=widget_attrs)
+                )
+
+            elif field_type == "checkbox":
+                widget_attrs["class"] = "form-check-input"
+                self.fields[field_name] = forms.BooleanField(
+                    **field_kwargs, widget=forms.CheckboxInput(attrs=widget_attrs)
+                )
+
+            elif field_type == "date":
+                widget_attrs["type"] = "date"
+                self.fields[field_name] = forms.DateField(
+                    **field_kwargs, widget=forms.DateInput(attrs=widget_attrs)
+                )
+
+            elif field_type == "number":
+                field_kwargs.update(
+                    {
+                        "min_value": validation_rules.get("min_value"),
+                        "max_value": validation_rules.get("max_value"),
+                    }
+                )
+                widget_attrs.update(
+                    {
+                        "min": validation_rules.get("min_value"),
+                        "max": validation_rules.get("max_value"),
+                    }
+                )
+                self.fields[field_name] = forms.IntegerField(
+                    **field_kwargs, widget=forms.NumberInput(attrs=widget_attrs)
+                )
+
+            else:  # Default to text
+                field_kwargs.update(
+                    {
+                        "min_length": validation_rules.get("min_length"),
+                        "max_length": validation_rules.get("max_length"),
+                    }
+                )
+                widget_attrs.update(
+                    {
+                        "minlength": validation_rules.get("min_length"),
+                        "maxlength": validation_rules.get("max_length"),
+                    }
+                )
+                self.fields[field_name] = forms.CharField(
+                    **field_kwargs, widget=forms.TextInput(attrs=widget_attrs)
+                )
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        instance.custom_fields["brand"] = self.cleaned_data.get("brand")
-        instance.custom_fields["condition"] = self.cleaned_data.get("condition")
+
+        # Ensure custom_fields is a dict
+        if not isinstance(instance.custom_fields, dict):
+            instance.custom_fields = {}
+
+        # Gather custom field data
+        if instance.category and instance.category.custom_field_schema:
+            schema = instance.category.custom_field_schema or []
+            custom_field_keys = [
+                field.get("name") for field in schema if field.get("name")
+            ]
+
+            for key in custom_field_keys:
+                if key in self.cleaned_data:
+                    instance.custom_fields[key] = self.cleaned_data[key]
+
         if commit:
             instance.save()
         return instance
@@ -239,3 +344,79 @@ class RegistrationForm(forms.Form):
             self.add_error("company_name", _("اسم الشركة مطلوب للتجار."))
 
         return cleaned_data
+
+
+class SimpleEnhancedAdForm(forms.ModelForm):
+    """
+    نموذج مبسط لإنشاء الإعلانات المحسنة
+    Simplified form for enhanced classified ads
+    """
+
+    # حقول التواصل
+    contact_phone = forms.CharField(
+        label=_("رقم الهاتف"),
+        widget=forms.TextInput(
+            attrs={"class": "form-control rtl", "placeholder": _("مثال: 05xxxxxxxx")}
+        ),
+        max_length=20,
+        required=False,
+    )
+
+    contact_whatsapp = forms.CharField(
+        label=_("واتساب"),
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control rtl",
+                "placeholder": _("رقم الواتساب مع كود الدولة"),
+            }
+        ),
+        max_length=20,
+        required=False,
+    )
+
+    # خيارات التوصيل
+    delivery_available = forms.BooleanField(
+        label=_("يتوفر توصيل"), required=False, help_text=_("هل تقدم خدمة التوصيل؟")
+    )
+
+    # معلومات الشروط والأحكام
+    accept_terms = forms.BooleanField(
+        label=_("أوافق على شروط الاستخدام"), required=True
+    )
+
+    class Meta:
+        model = ClassifiedAd
+        fields = [
+            "title",
+            "description",
+            "price",
+            "category",
+            "city",
+            "address",
+            "is_negotiable",
+            "is_delivery_available",
+        ]
+
+        widgets = {
+            "title": forms.TextInput(
+                attrs={"class": "form-control rtl", "placeholder": _("عنوان الإعلان")}
+            ),
+            "description": forms.Textarea(
+                attrs={
+                    "class": "form-control rtl",
+                    "rows": 5,
+                    "placeholder": _("وصف تفصيلي للإعلان..."),
+                }
+            ),
+            "price": forms.NumberInput(
+                attrs={"class": "form-control", "placeholder": _("السعر بالريال")}
+            ),
+            "category": forms.Select(attrs={"class": "form-control select2"}),
+            "subcategory": forms.Select(
+                attrs={"class": "form-control select2", "disabled": True}
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        kwargs.pop("user", None)  # إزالة المعامل غير المستخدم
+        super().__init__(*args, **kwargs)

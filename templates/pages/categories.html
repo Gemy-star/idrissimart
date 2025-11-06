@@ -4,7 +4,29 @@
 
 {% block title %}
     {% trans "الفئات - Categories" %} - {% trans "إدريسي مارت" %}
+{% endblock %}
 
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/categories-enhanced.css' %}">
+    <style>
+        /* Additional responsive adjustments */
+        @media (max-width: 576px) {
+            .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+
+            .row {
+                margin-left: -0.5rem;
+                margin-right: -0.5rem;
+            }
+
+            .row > * {
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
+            }
+        }
+    </style>
 {% endblock %}
 
 {% block content %}
@@ -17,41 +39,31 @@
             </div>
         </div>
     </section>
+
     <!-- Categories Section -->
     <section class="categories-page-section pt-4">
         <div class="container">
-            <!-- Section Tabs (generated from categories_by_section) -->
+            <!-- Section Tabs -->
             <div class="categories-tabs">
                 <div class="tab-buttons" role="tablist" aria-label="Categories sections">
                     <button type="button"
                             id="tab-btn-all"
-                            class="tab-btn
-                                   {% if active_section == 'all' %}active{% endif %}"
+                            class="tab-btn {% if active_section == 'all' %}active{% endif %}"
                             data-tab="all"
                             role="tab"
                             aria-controls="all"
-                            aria-selected="{% if active_section == 'all' %}
-                                               true
-                                           {% else %}
-                                               false
-                                           {% endif %}">
+                            aria-selected="{% if active_section == 'all' %}true{% else %}false{% endif %}">
                         <i class="fas fa-th-large"></i>
-                        {% trans "جميع الفئات" %}
+                        <span>{% trans "جميع الفئات" %}</span>
                     </button>
                     {% for section_code, section_data in categories_by_section.items %}
                         <button type="button"
                                 id="tab-btn-{{ section_code }}"
-                                class="tab-btn
-                                       {% if active_section == section_code %}active{% endif %}"
+                                class="tab-btn {% if active_section == section_code %}active{% endif %}"
                                 data-tab="{{ section_code }}"
                                 role="tab"
                                 aria-controls="{{ section_code }}"
-                                aria-selected="{% if active_section == section_code %}
-                                                   true
-                                               {% else %}
-                                                   false
-                                               {% endif %}">
-                            {# Use icons based on section_code - fallback to folder #}
+                                aria-selected="{% if active_section == section_code %}true{% else %}false{% endif %}">
                             {% if section_code == 'classified' %}
                                 <i class="fas fa-bullhorn"></i>
                             {% elif section_code == 'product' %}
@@ -65,175 +77,296 @@
                             {% else %}
                                 <i class="fas fa-folder"></i>
                             {% endif %}
-                            {{ section_data.name }}
+                            <span>{{ section_data.name }}</span>
                         </button>
                     {% endfor %}
                 </div>
             </div>
-            <!-- All Categories Tab -->
-            <div class="tab-pane fade
-                        {% if active_section == 'all' %}show active{% endif %}"
-                 id="all"
-                 role="tabpanel"
-                 aria-labelledby="tab-btn-all">
+
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <!-- All Categories Tab -->
+                <div class="tab-pane fade {% if active_section == 'all' %}show active{% endif %}"
+                     id="all"
+                     role="tabpanel"
+                     aria-labelledby="tab-btn-all">
+                    {% for section_code, section_data in categories_by_section.items %}
+                        <div class="section-group mb-5">
+                            <h2 class="section-title h4 mb-4">
+                                {% if section_code == 'classified' %}
+                                    <i class="fas fa-bullhorn text-primary me-2"></i>
+                                {% elif section_code == 'product' %}
+                                    <i class="fas fa-shopping-basket text-success me-2"></i>
+                                {% elif section_code == 'service' %}
+                                    <i class="fas fa-concierge-bell text-info me-2"></i>
+                                {% elif section_code == 'course' %}
+                                    <i class="fas fa-chalkboard-teacher text-warning me-2"></i>
+                                {% elif section_code == 'job' %}
+                                    <i class="fas fa-briefcase text-danger me-2"></i>
+                                {% else %}
+                                    <i class="fas fa-folder text-secondary me-2"></i>
+                                {% endif %}
+                                {{ section_data.name }}
+                            </h2>
+                            <div class="row g-3">
+                                {% for cat_data in section_data.categories %}
+                                    {% include 'components/category_card.html' with category=cat_data.category subcats=cat_data.subcategories subcats_count=cat_data.subcategories_count %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Individual Section Tabs -->
                 {% for section_code, section_data in categories_by_section.items %}
-                    <div class="section-group mb-5">
-                        <h2 class="section-title">{{ section_data.name }}</h2>
-                        <div class="row g-4">
-                            {% for cat_data in section_data.categories %}
-                                {% with category=cat_data.category subcats=cat_data.subcategories subcats_count=cat_data.subcategories_count %}
-                                    <div class="col-lg-3 col-md-4 col-sm-6">
-                                        <div class="category-card">
-                                            <div class="category-icon">
-                                                {% if category.icon %}
-                                                    <i class="{{ category.icon }}"></i>
-                                                {% else %}
-                                                    <i class="fas fa-folder"></i>
-                                                {% endif %}
-                                            </div>
-                                            <h3 class="category-title">{{ category.name }}</h3>
-                                            {% if category.description %}<p class="category-desc">{{ category.description|truncatechars:80 }}</p>{% endif %}
-                                            <div class="category-stats">
-                                                {% if subcats %}
-                                                    <span class="subcat-count">
-                                                        <i class="fas fa-list"></i>
-                                                        {{ subcats_count }} {% trans "فئة فرعية" %}
-                                                    </span>
-                                                {% endif %}
-                                            </div>
-                                            {% if category.slug %}
-                                                <a href="{% url 'main:category_detail' category.slug %}"
-                                                   class="btn btn-custom btn-primary-custom mt-3">
-                                                    <i class="fas fa-arrow-left me-2"></i>{% trans "استكشف" %}
-                                                </a>
-                                            {% else %}
-                                                <a href="#"
-                                                   class="btn btn-custom btn-secondary-custom mt-3 disabled"
-                                                   aria-disabled="true">
-                                                    <i class="fas fa-arrow-left me-2"></i>{% trans "استكشف" %}
-                                                </a>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                {% endwith %}
-                            {% endfor %}
+                    <div class="tab-pane fade {% if active_section == section_code %}show active{% endif %}"
+                         id="{{ section_code }}"
+                         role="tabpanel"
+                         aria-labelledby="tab-btn-{{ section_code }}">
+                        <div class="section-group">
+                            <h2 class="section-title h4 mb-4">{{ section_data.name }}</h2>
+                            <div class="row g-3">
+                                {% for cat_data in section_data.categories %}
+                                    {% include 'components/category_card.html' with category=cat_data.category subcats=cat_data.subcategories subcats_count=cat_data.subcategories_count %}
+                                {% endfor %}
+                            </div>
                         </div>
                     </div>
                 {% endfor %}
             </div>
-            <!-- Individual Section Tabs -->
-            {% for section_code, section_data in categories_by_section.items %}
-                <div class="tab-pane fade
-                            {% if active_section == section_code %}show active{% endif %}"
-                     id="{{ section_code }}"
-                     role="tabpanel"
-                     aria-labelledby="tab-btn-{{ section_code }}">
-                    <div class="section-group">
-                        <h2 class="section-title">{{ section_data.name }}</h2>
-                        <div class="row g-4">
-                            {% for cat_data in section_data.categories %}
-                                {% with category=cat_data.category subcats=cat_data.subcategories subcats_count=cat_data.subcategories_count %}
-                                    <div class="col-lg-3 col-md-4 col-sm-6">
-                                        <div class="category-card">
-                                            <div class="category-icon">
-                                                {% if category.icon %}
-                                                    <i class="{{ category.icon }}"></i>
-                                                {% else %}
-                                                    <i class="fas fa-folder"></i>
-                                                {% endif %}
-                                            </div>
-                                            <h3 class="category-title">{{ category.name }}</h3>
-                                            {% if category.description %}<p class="category-desc">{{ category.description|truncatechars:80 }}</p>{% endif %}
-                                            <div class="category-stats">
-                                                {% if subcats %}
-                                                    <span class="subcat-count">
-                                                        <i class="fas fa-list"></i>
-                                                        {{ subcats_count }} {% trans "فئة فرعية" %}
-                                                    </span>
-                                                {% endif %}
-                                            </div>
-                                            {% if category.slug %}
-                                                <a href="{% url 'main:category_detail' category.slug %}"
-                                                   class="btn btn-custom btn-primary-custom mt-3">
-                                                    <i class="fas fa-arrow-left me-2"></i>{% trans "استكشف" %}
-                                                </a>
-                                            {% else %}
-                                                <a href="#"
-                                                   class="btn btn-custom btn-secondary-custom mt-3 disabled"
-                                                   aria-disabled="true">
-                                                    <i class="fas fa-arrow-left me-2"></i>{% trans "استكشف" %}
-                                                </a>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                {% endwith %}
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
-            {% endfor %}
         </div>
     </section>
-
 {% endblock %}
 
 {% block extra_js %}
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Tab functionality (scoped per tab group)
-            document.querySelectorAll('.tab-buttons').forEach((btnContainer) => {
-                const buttons = Array.from(btnContainer.querySelectorAll('.tab-btn'));
-                // Find panes within the same nearest container (parent of btnContainer)
-                // use nearest .container as the common root for buttons and panes
-                const panesRoot = btnContainer.closest('.container') || document.body;
-                const panes = Array.from(panesRoot.querySelectorAll('.tab-pane'));
+        // Enhanced mobile and desktop interactions for categories
+        class CategoriesManager {
+            constructor() {
+                this.isMobile = window.innerWidth <= 768;
+                this.touchStartY = 0;
+                this.touchEndY = 0;
+                this.init();
+            }
 
-                function deactivateLocal() {
-                    buttons.forEach(b => {
-                        b.classList.remove('active');
-                        b.setAttribute('aria-selected', 'false');
-                    });
-                    panes.forEach(p => p.classList.remove('active', 'show'));
+            init() {
+                this.setupCategoryCards();
+                this.setupTabs();
+                this.setupMobileInteractions();
+                this.setupResizeHandler();
+            }
+
+            // Handle category card clicks and navigation
+            handleCategoryClick(cardElement, categorySlug) {
+                if (!categorySlug) return;
+
+                // Show loading state
+                const iconElement = cardElement.querySelector('.category-icon');
+                const loaderElement = cardElement.querySelector('.category-loader');
+
+                if (iconElement && loaderElement) {
+                    iconElement.style.display = 'none';
+                    loaderElement.style.display = 'block';
                 }
 
-                // default activation within this group
-                const anyActiveLocal = buttons.some(b => b.classList.contains('active'));
-                if (!anyActiveLocal && buttons.length) {
-                    const defaultBtn = btnContainer.querySelector('#tab-btn-all') || buttons[0];
-                    defaultBtn.classList.add('active');
-                    defaultBtn.setAttribute('aria-selected', 'true');
-                    const defaultTarget = defaultBtn.getAttribute('data-tab');
-                    const el = defaultTarget ? panesRoot.querySelector('#' + defaultTarget) : null;
-                    if (el) el.classList.add('active', 'show');
-                }
+                // Add active state
+                cardElement.classList.add('active');
 
-                buttons.forEach((button) => {
-                    button.addEventListener('click', function() {
-                        const targetTab = this.getAttribute('data-tab');
-                        if (!targetTab) return;
-                        const targetEl = panesRoot.querySelector('#' + targetTab) || document.getElementById(targetTab);
-                        if (!targetEl) return;
+                // Navigate after short delay for better UX
+                setTimeout(() => {
+                    globalThis.location.href = `/category/${categorySlug}/`;
+                }, 300);
+            }
 
-                        deactivateLocal();
-                        this.classList.add('active');
-                        this.setAttribute('aria-selected', 'true');
-                        targetEl.classList.add('active', 'show');
-                        this.focus();
+            // Setup category cards with proper mobile/desktop interactions
+            setupCategoryCards() {
+                document.querySelectorAll('.category-card').forEach(card => {
+                    const categoryInfo = card.querySelector('.category-info');
+
+                    if (this.isMobile) {
+                        // Mobile: Show info by default and use touch events
+                        if (categoryInfo) {
+                            categoryInfo.style.opacity = '1';
+                            categoryInfo.style.transform = 'translateY(0)';
+                        }
+
+                        // Touch events for mobile
+                        card.addEventListener('touchstart', (e) => {
+                            this.touchStartY = e.touches[0].clientY;
+                            card.classList.add('active');
+                        });
+
+                        card.addEventListener('touchend', (e) => {
+                            e.preventDefault();
+                            this.touchEndY = e.changedTouches[0].clientY;
+
+                            // Check if it's a tap (not a scroll)
+                            if (Math.abs(this.touchStartY - this.touchEndY) < 10) {
+                                const categorySlug = card.getAttribute('data-category-slug') ||
+                                    card.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+                                this.handleCategoryClick(card, categorySlug);
+                            }
+
+                            setTimeout(() => card.classList.remove('active'), 150);
+                        });
+
+                    } else {
+                        // Desktop: Use hover effects
+                        card.addEventListener('mouseenter', () => {
+                            card.style.transform = 'translateY(-5px)';
+                            if (categoryInfo) {
+                                categoryInfo.style.opacity = '1';
+                                categoryInfo.style.transform = 'translateY(0)';
+                            }
+                        });
+
+                        card.addEventListener('mouseleave', () => {
+                            card.style.transform = 'translateY(0)';
+                            if (categoryInfo) {
+                                categoryInfo.style.opacity = '0';
+                                categoryInfo.style.transform = 'translateY(10px)';
+                            }
+                        });
+
+                        // Click handler for desktop
+                        card.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            const categorySlug = card.getAttribute('data-category-slug') ||
+                                card.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+                            this.handleCategoryClick(card, categorySlug);
+                        });
+                    }
+
+                    // Keyboard navigation
+                    card.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            const categorySlug = card.getAttribute('data-category-slug') ||
+                                card.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+                            this.handleCategoryClick(card, categorySlug);
+                        }
                     });
                 });
-            });
+            }
 
-            // Smooth hover effect for category cards
-            document.querySelectorAll('.category-card').forEach((card) => {
-                card.addEventListener('mouseenter', function() {
-                    this.style.transform = 'translateY(-5px)';
+            // Setup responsive tab functionality
+            setupTabs() {
+                const tabButtons = document.querySelectorAll('.tab-btn');
+                const tabPanes = document.querySelectorAll('.tab-pane');
+
+                const deactivateAllTabs = () => {
+                    tabButtons.forEach(btn => {
+                        btn.classList.remove('active');
+                        btn.setAttribute('aria-selected', 'false');
+                    });
+                    tabPanes.forEach(pane => {
+                        pane.classList.remove('active', 'show');
+                    });
+                };
+
+                const activateTab = (targetTab) => {
+                    const targetPane = document.getElementById(targetTab);
+                    if (!targetPane) return;
+
+                    deactivateAllTabs();
+
+                    const activeButton = document.querySelector(`[data-tab="${targetTab}"]`);
+                    if (activeButton) {
+                        activeButton.classList.add('active');
+                        activeButton.setAttribute('aria-selected', 'true');
+                    }
+
+                    targetPane.classList.add('active', 'show');
+                };
+
+                // Tab click handlers
+                tabButtons.forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const targetTab = button.getAttribute('data-tab');
+                        if (targetTab) {
+                            activateTab(targetTab);
+                            button.focus();
+                        }
+                    });
                 });
 
-                card.addEventListener('mouseleave', function() {
-                    this.style.transform = 'translateY(0)';
+                // Initialize first tab if none active
+                const hasActiveTab = Array.from(tabButtons).some(btn => btn.classList.contains('active'));
+                if (!hasActiveTab && tabButtons.length > 0) {
+                    const firstTab = tabButtons[0].getAttribute('data-tab');
+                    if (firstTab) activateTab(firstTab);
+                }
+            }
+
+            // Mobile-specific interaction improvements
+            setupMobileInteractions() {
+                if (!this.isMobile) return;
+
+                // Prevent zoom on double tap for category cards
+                document.querySelectorAll('.category-card').forEach(card => {
+                    card.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                    });
                 });
-            });
+
+                // Smooth scrolling for tabs on mobile
+                const tabContainer = document.querySelector('.tab-buttons');
+                if (tabContainer) {
+                    let isScrolling = false;
+
+                    tabContainer.addEventListener('touchstart', () => {
+                        isScrolling = false;
+                    });
+
+                    tabContainer.addEventListener('touchmove', () => {
+                        isScrolling = true;
+                    });
+
+                    tabContainer.addEventListener('touchend', () => {
+                        if (!isScrolling) {
+                            // Handle tab selection if not scrolling
+                        }
+                    });
+                }
+            }
+
+            // Handle window resize
+            setupResizeHandler() {
+                let resizeTimer;
+                window.addEventListener('resize', () => {
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(() => {
+                        const newIsMobile = window.innerWidth <= 768;
+                        if (newIsMobile !== this.isMobile) {
+                            this.isMobile = newIsMobile;
+                            this.setupCategoryCards(); // Reinitialize for new screen size
+                        }
+                    }, 250);
+                });
+            }
+        }
+
+        // Global function for backward compatibility (called from onclick)
+        function handleCategoryCardClick(cardElement, categorySlug) {
+            if (window.categoriesManager) {
+                window.categoriesManager.handleCategoryClick(cardElement, categorySlug);
+            }
+        }
+
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            window.categoriesManager = new CategoriesManager();
+        });
+
+        // Handle page visibility change
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // Reset any active states when page becomes hidden
+                document.querySelectorAll('.category-card.active').forEach(card => {
+                    card.classList.remove('active');
+                });
+            }
         });
     </script>
-
 {% endblock %}

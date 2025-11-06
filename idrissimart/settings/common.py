@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "sendgrid",
     "taggit",
     "django_q",
+    "mptt",
     # Local apps
     "main.apps.MainConfig",
     "content.apps.ContentConfig",

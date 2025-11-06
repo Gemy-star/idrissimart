@@ -1,6 +1,6 @@
-# management/commands/populate_categories.py
 from django.core.management.base import BaseCommand
 from django.utils.text import slugify
+from django.db import transaction
 
 from content.models import Country
 from main.models import Category
@@ -13,8 +13,8 @@ class Command(BaseCommand):
         parser.add_argument(
             "--country",
             type=str,
-            default="SA",
-            help="Country code to associate categories with (default: SA)",
+            default="EG",
+            help="Country code to associate categories with (default: EG)",
         )
 
     def handle(self, *args, **options):
@@ -22,156 +22,156 @@ class Command(BaseCommand):
 
         try:
             country = Country.objects.get(code=country_code, is_active=True)
-            self.stdout.write(f"Using country: ({country_code})")
+            self.stdout.write(f"Using country: {country.name} ({country.code})")
         except Country.DoesNotExist:
             self.stdout.write(
                 self.style.ERROR(
-                    f"Country with code '{country_code}' not found. Please run populate_countries first."
+                    f"Country with code '{country_code}' not found. "
+                    f"Please run 'python manage.py populate_countries' first."
                 )
             )
             return
 
+        self.created_count = 0
+        self.updated_count = 0
+        self.country = country
+
         categories_data = self.get_default_categories()
-        created_count = 0
-        updated_count = 0
 
-        for section_type, section_categories in categories_data.items():
-            self.stdout.write(f"\n--- Processing {section_type} categories ---")
+        with transaction.atomic():
+            for section_type, section_categories in categories_data.items():
+                self.stdout.write(f"\n--- Processing {section_type} categories ---")
+                for cat_data in section_categories:
+                    self.create_category(cat_data, section_type)
 
-            for category_data in section_categories:
-                # Create main category
-                main_cat_data = {
-                    "name": category_data["name"],
-                    "name_ar": category_data["name_ar"],
-                    "slug": slugify(category_data["name"]),
-                    "section_type": section_type,
-                    "description": category_data.get("description", ""),
-                    "icon": category_data.get("icon", ""),
-                    "country": country,
-                    "is_active": True,
-                    "order": category_data.get("order", 0),
-                }
-
-                main_category, created = Category.objects.update_or_create(
-                    slug=main_cat_data["slug"], defaults=main_cat_data
-                )
-
-                if created:
-                    created_count += 1
-                    self.stdout.write(
-                        self.style.SUCCESS(f"  Created: {main_category.name}")
-                    )
-                else:
-                    updated_count += 1
-                    self.stdout.write(
-                        self.style.WARNING(f"  Updated: {main_category.name}")
-                    )
-
-                # Create subcategories if any
-                if "subcategories" in category_data:
-                    for subcat_data in category_data["subcategories"]:
-                        sub_cat_data = {
-                            "name": subcat_data["name"],
-                            "name_ar": subcat_data["name_ar"],
-                            "slug": slugify(
-                                f"{main_category.slug}-{subcat_data['name']}"
-                            ),
-                            "section_type": section_type,
-                            "parent": main_category,
-                            "description": subcat_data.get("description", ""),
-                            "icon": subcat_data.get("icon", ""),
-                            "country": country,
-                            "is_active": True,
-                            "order": subcat_data.get("order", 0),
-                        }
-
-                        subcategory, created = Category.objects.update_or_create(
-                            slug=sub_cat_data["slug"], defaults=sub_cat_data
-                        )
-
-                        if created:
-                            created_count += 1
-                            self.stdout.write(
-                                self.style.SUCCESS(
-                                    f"    Created subcategory: {subcategory.name}"
-                                )
-                            )
-                        else:
-                            updated_count += 1
-                            self.stdout.write(
-                                self.style.WARNING(
-                                    f"    Updated subcategory: {subcategory.name}"
-                                )
-                            )
+        # Rebuild the MPTT tree after all categories are created/updated
+        self.stdout.write(self.style.NOTICE("\nRebuilding category tree..."))
+        Category.objects.rebuild()
+        self.stdout.write(self.style.SUCCESS("Category tree rebuilt successfully."))
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"\nCompleted! {created_count} created, {updated_count} updated"
+                f"\nCompleted! {self.created_count} created, {self.updated_count} updated"
             )
         )
+
+    def create_category(self, cat_data, section_type, parent=None):
+        """Recursively create categories and subcategories."""
+        slug = slugify(cat_data["name"])
+
+        if parent:
+            # MPTT doesn't require hierarchical slugs, but it can be good for SEO
+            slug = f"{parent.slug}-{slug}"
+
+        category_defaults = {
+            "name": cat_data["name"],
+            "name_ar": cat_data["name_ar"],
+            "section_type": section_type,
+            "parent": parent,
+            "description": cat_data.get("description", ""),
+            "icon": cat_data.get("icon", ""),
+            "country": self.country,
+            "is_active": True,
+            "order": cat_data.get("order", 0),
+            "custom_field_schema": cat_data.get("custom_field_schema", []),
+        }
+
+        category, created = Category.objects.update_or_create(
+            slug=slug,
+            country=self.country,
+            section_type=section_type,
+            defaults=category_defaults,
+        )
+
+        indent = "  " * (category.get_level() + 1)
+        if created:
+            self.created_count += 1
+            self.stdout.write(self.style.SUCCESS(f"{indent}Created: {category.name}"))
+        else:
+            self.updated_count += 1
+            self.stdout.write(self.style.WARNING(f"{indent}Updated: {category.name}"))
+
+        # Create subcategories if they exist
+        if "subcategories" in cat_data:
+            for sub_data in cat_data["subcategories"]:
+                self.create_category(sub_data, section_type, parent=category)
+
+        return category
 
     def get_default_categories(self):
         """Returns default categories structure"""
         return {
             "classified": [
                 {
-                    "name": "Books & Survey Programs",
-                    "name_ar": "كتب وبرامج مساحية",
-                    "description": "Books, manuals, and software programs for surveying and engineering",
-                    "icon": "fas fa-book",
+                    "name": "Classified Ads",
+                    "name_ar": "إعلانات مبوبة",
+                    "description": "General classified ads",
+                    "icon": "fas fa-bullhorn",
                     "order": 1,
-                },
-                {
-                    "name": "Survey Jobs",
-                    "name_ar": "وظائف مساحية",
-                    "description": "Job opportunities in surveying and engineering field",
-                    "icon": "fas fa-briefcase",
-                    "order": 2,
-                },
-                {
-                    "name": "Training Courses",
-                    "name_ar": "الدورات التدريبية في المساحة",
-                    "description": "Professional training courses in surveying and engineering",
-                    "icon": "fas fa-graduation-cap",
-                    "order": 3,
-                },
-                {
-                    "name": "Survey Services",
-                    "name_ar": "الخدمات المساحية",
-                    "description": "Professional surveying and engineering services",
-                    "icon": "fas fa-tools",
-                    "order": 4,
-                },
-                {
-                    "name": "Equipment Maintenance",
-                    "name_ar": "صيانة الاجهزة المساحية",
-                    "description": "Maintenance and repair services for surveying equipment",
-                    "icon": "fas fa-wrench",
-                    "order": 5,
-                },
-                {
-                    "name": "Equipment Rental",
-                    "name_ar": "أجهزة مساحية للإيجار",
-                    "description": "Surveying equipment available for rent",
-                    "icon": "fas fa-exchange-alt",
-                    "order": 6,
-                },
-                {
-                    "name": "Used Equipment",
-                    "name_ar": "أجهزة مساحية مستعملة",
-                    "description": "Pre-owned surveying equipment for sale",
-                    "icon": "fas fa-ruler-combined",
-                    "order": 7,
-                },
-                {
-                    "name": "New Equipment",
-                    "name_ar": "أجهزة مساحية جديدة",
-                    "description": "Brand new surveying equipment for sale",
-                    "icon": "fas fa-ruler",
-                    "order": 8,
-                },
+                    "subcategories": [
+                        {
+                            "name": "Used",
+                            "name_ar": "مستعمل",
+                            "order": 1,
+                            "icon": "fas fa-recycle",
+                            "custom_field_schema": [
+                                {
+                                    "name": "brand",
+                                    "label": "Brand",
+                                    "type": "text",
+                                    "required": True,
+                                    "validation": {"min_length": 2, "max_length": 50},
+                                },
+                                {
+                                    "name": "model_year",
+                                    "label": "Model Year",
+                                    "type": "number",
+                                    "validation": {
+                                        "min_value": 1980,
+                                        "max_value": 2025,
+                                    },
+                                },
+                                {
+                                    "name": "condition",
+                                    "label": "Condition",
+                                    "type": "select",
+                                    "options": ["New-like", "Good", "Fair"],
+                                    "required": True,
+                                },
+                                {
+                                    "name": "warranty_included",
+                                    "label": "Warranty Included",
+                                    "type": "checkbox",
+                                },
+                                {
+                                    "name": "purchase_date",
+                                    "label": "Purchase Date",
+                                    "type": "date",
+                                },
+                            ],
+                        },
+                        {
+                            "name": "Equipment Rental",
+                            "name_ar": "ايجار أجهزة",
+                            "order": 2,
+                            "icon": "fas fa-exchange-alt",
+                        },
+                        {
+                            "name": "Maintenance and Calibration",
+                            "name_ar": "الصيانة والمعايرة",
+                            "order": 3,
+                            "icon": "fas fa-wrench",
+                        },
+                        {
+                            "name": "Books and Programs",
+                            "name_ar": "كتب وبرامج",
+                            "order": 4,
+                            "icon": "fas fa-book",
+                        },
+                    ],
+                }
             ],
-            "classifieds": [
+            "product": [
                 {
                     "name": "Real Estate",
                     "name_ar": "العقارات",
@@ -232,7 +232,7 @@ class Command(BaseCommand):
                     ],
                 },
             ],
-            "marketplace": [
+            "service": [
                 {
                     "name": "Fashion",
                     "name_ar": "الأزياء",
@@ -284,14 +284,12 @@ class Command(BaseCommand):
                         {"name": "Games", "name_ar": "الألعاب", "order": 4},
                     ],
                 },
-            ],
-            "services": [
                 {
                     "name": "Home Services",
                     "name_ar": "خدمات منزلية",
                     "description": "Home maintenance and repair services",
                     "icon": "fas fa-tools",
-                    "order": 1,
+                    "order": 4,
                     "subcategories": [
                         {"name": "Plumbing", "name_ar": "السباكة", "order": 1},
                         {"name": "Electrical", "name_ar": "الكهرباء", "order": 2},
@@ -304,7 +302,7 @@ class Command(BaseCommand):
                     "name_ar": "خدمات مهنية",
                     "description": "Professional and business services",
                     "icon": "fas fa-briefcase",
-                    "order": 2,
+                    "order": 5,
                     "subcategories": [
                         {
                             "name": "Legal Services",
@@ -321,7 +319,7 @@ class Command(BaseCommand):
                     "name_ar": "خدمات تقنية",
                     "description": "Technical and IT services",
                     "icon": "fas fa-laptop-code",
-                    "order": 3,
+                    "order": 6,
                     "subcategories": [
                         {
                             "name": "Computer Repair",
@@ -346,7 +344,7 @@ class Command(BaseCommand):
                     ],
                 },
             ],
-            "training": [
+            "course": [
                 {
                     "name": "Technology Courses",
                     "name_ar": "دورات تكنولوجيا",
@@ -403,7 +401,7 @@ class Command(BaseCommand):
                     ],
                 },
             ],
-            "jobs": [
+            "job": [
                 {
                     "name": "Information Technology",
                     "name_ar": "تكنولوجيا المعلومات",

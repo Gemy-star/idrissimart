@@ -649,4 +649,154 @@
     }
   }
 
+  // ===========================
+  // SUBCATEGORIES FUNCTIONALITY
+  // ===========================
+
+  // Global variables for subcategories
+  let subcategoriesTimeout
+  let subcategoriesSwiper
+  let isSubcategoriesVisible = false
+
+  // Initialize subcategories swiper
+  function initSubcategoriesSwiper() {
+    try {
+      if (subcategoriesSwiper) {
+        subcategoriesSwiper.destroy(true, true)
+      }
+
+      subcategoriesSwiper = new Swiper('.subcategories-swiper', {
+        slidesPerView: 'auto',
+        spaceBetween: 12,
+        freeMode: true,
+        navigation: {
+          nextEl: '.subcategories-swiper .swiper-button-next',
+          prevEl: '.subcategories-swiper .swiper-button-prev',
+        },
+        speed: 400,
+        breakpoints: {
+          320: {
+            slidesPerView: 2,
+            spaceBetween: 8,
+          },
+          480: {
+            slidesPerView: 3,
+            spaceBetween: 10,
+          },
+          768: {
+            slidesPerView: 4,
+            spaceBetween: 12,
+          },
+          1024: {
+            slidesPerView: 5,
+            spaceBetween: 12,
+          },
+          1200: {
+            slidesPerView: 6,
+            spaceBetween: 15,
+          }
+        }
+      })
+      console.log('✅ Subcategories Swiper: Initialized')
+    } catch (error) {
+      console.error('❌ Subcategories Swiper: Error', error)
+    }
+  }
+
+  // Show subcategories for a given category
+  window.showSubcategories = function(categoryId) {
+    if (subcategoriesTimeout) {
+      clearTimeout(subcategoriesTimeout)
+    }
+
+    const dropdown = document.getElementById('subcategoriesDropdown')
+    if (!dropdown) return
+
+    // Show loading state
+    const subcategoriesList = document.getElementById('subcategoriesList')
+    const parentCategoryName = document.getElementById('parentCategoryName')
+    const viewAllLink = document.getElementById('viewAllSubcategories')
+
+    if (subcategoriesList) {
+      subcategoriesList.innerHTML = '<div class="loading-subcategories"><i class="fas fa-spinner fa-spin"></i> جارٍ التحميل...</div>'
+    }
+
+    // Show dropdown immediately
+    dropdown.style.display = 'block'
+    setTimeout(() => {
+      dropdown.classList.add('show')
+      isSubcategoriesVisible = true
+    }, 10)
+
+    // Fetch subcategories
+    fetch(`/ajax/subcategories/${categoryId}/`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.error) {
+          throw new Error(data.error)
+        }
+
+        // Update parent category name
+        if (parentCategoryName && data.parent_category) {
+          parentCategoryName.textContent = data.parent_category.name_ar || data.parent_category.name
+        }
+
+        // Update view all link
+        if (viewAllLink && data.parent_category) {
+          viewAllLink.href = `/category/${data.parent_category.slug}/`
+        }
+
+        // Populate subcategories
+        if (subcategoriesList && data.subcategories) {
+          if (data.subcategories.length === 0) {
+            subcategoriesList.innerHTML = '<div class="no-subcategories">لا توجد فئات فرعية</div>'
+          } else {
+            subcategoriesList.innerHTML = data.subcategories.map(subcat => `
+              <div class="swiper-slide">
+                <a href="${subcat.url}" class="subcategory-item">
+                  <div class="subcategory-icon">
+                    ${subcat.icon ? `<i class="${subcat.icon}"></i>` : '<i class="fas fa-folder"></i>'}
+                  </div>
+                  <span class="subcategory-name">${subcat.name_ar || subcat.name}</span>
+                  ${subcat.has_children ? '<i class="fas fa-angle-left subcategory-arrow"></i>' : ''}
+                </a>
+              </div>
+            `).join('')
+
+            // Reinitialize swiper
+            setTimeout(() => {
+              initSubcategoriesSwiper()
+            }, 100)
+          }
+        }
+      })
+      .catch(error => {
+        console.error('❌ Error fetching subcategories:', error)
+        if (subcategoriesList) {
+          subcategoriesList.innerHTML = '<div class="error-subcategories">حدث خطأ في التحميل</div>'
+        }
+      })
+  }
+
+  // Hide subcategories with delay
+  window.hideSubcategories = function() {
+    subcategoriesTimeout = setTimeout(() => {
+      const dropdown = document.getElementById('subcategoriesDropdown')
+      if (dropdown && isSubcategoriesVisible) {
+        dropdown.classList.remove('show')
+        setTimeout(() => {
+          dropdown.style.display = 'none'
+          isSubcategoriesVisible = false
+        }, 300)
+      }
+    }, 200)
+  }
+
+  // Keep subcategories visible when hovering over them
+  window.keepSubcategoriesVisible = function() {
+    if (subcategoriesTimeout) {
+      clearTimeout(subcategoriesTimeout)
+    }
+  }
+
 })()

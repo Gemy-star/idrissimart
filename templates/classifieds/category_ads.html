@@ -1,0 +1,434 @@
+{% extends "base.html" %}
+
+{% load static i18n %}
+
+{% block title %}
+    {% if category %}
+        {{ category.name }} - {% trans "إعلانات القسم" %}
+    {% else %}
+        {% trans "جميع الإعلانات" %}
+    {% endif %} - {% trans "إدريسي مارت" %}
+{% endblock title %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/categories.css' %}">
+    <style>
+        .filters-sidebar {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .filter-section {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .filter-section:last-child {
+            border-bottom: none;
+        }
+
+        .filter-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .filter-title i {
+            margin-left: 0.5rem;
+            color: #28a745;
+        }
+
+        .sort-controls {
+            background: white;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .ads-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 3rem;
+            color: #6c757d;
+        }
+
+        .category-header {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+            border-radius: 15px;
+        }
+
+        .breadcrumb-custom {
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 0.5rem 1rem;
+        }
+
+        .breadcrumb-custom .breadcrumb-item {
+            font-size: 0.9rem;
+        }
+
+        .breadcrumb-custom .breadcrumb-item a {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+        }
+
+        .breadcrumb-custom .breadcrumb-item.active {
+            color: white;
+            font-weight: 500;
+        }
+
+        .pagination-container {
+            margin-top: 3rem;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .ads-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .sort-controls {
+                padding: 0.75rem;
+            }
+        }
+    </style>
+{% endblock extra_css %}
+
+{% block content %}
+    <!-- Category Header -->
+    {% if category %}
+        <div class="category-header">
+            <div class="container">
+                <!-- Breadcrumb -->
+                <nav aria-label="breadcrumb" class="mb-3">
+                    <ol class="breadcrumb breadcrumb-custom mb-0">
+                        <li class="breadcrumb-item">
+                            <a href="{% url 'main:home' %}">
+                                <i class="fas fa-home me-1"></i>{% trans "الرئيسية" %}
+                            </a>
+                        </li>
+                        <li class="breadcrumb-item">
+                            <a href="{% url 'main:categories' %}">{% trans "الأقسام" %}</a>
+                        </li>
+                        {% if category.parent %}
+                            <li class="breadcrumb-item">
+                                <a href="{% url 'main:category_detail' category.parent.slug %}">
+                                    {{ category.parent.name }}
+                                </a>
+                            </li>
+                        {% endif %}
+                        <li class="breadcrumb-item active" aria-current="page">
+                            {{ category.name }}
+                        </li>
+                    </ol>
+                </nav>
+
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h1 class="mb-2">
+                            {% if category.icon %}
+                                <i class="{{ category.icon }} me-2"></i>
+                            {% endif %}
+                            {{ category.name }}
+                        </h1>
+                        {% if category.description %}
+                            <p class="mb-0 opacity-75">{{ category.description }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <div class="category-stats">
+                            <span class="badge bg-white text-dark fs-6 px-3 py-2">
+                                <i class="fas fa-bullhorn me-1"></i>
+                                {{ ads.count }} {% trans "إعلان" %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="row">
+            <!-- Filters Sidebar -->
+            <div class="col-lg-3 mb-4">
+                <form method="get" action="" id="filterForm">
+                    <div class="filters-sidebar">
+                        <h4 class="mb-3">
+                            <i class="fas fa-filter text-primary me-2"></i>
+                            {% trans "تصفية النتائج" %}
+                        </h4>
+
+                        <!-- Search Filter -->
+                        <div class="filter-section">
+                            <label class="filter-title">
+                                <i class="fas fa-search"></i>
+                                {% trans "البحث" %}
+                            </label>
+                            <input type="text"
+                                   name="search"
+                                   class="form-control"
+                                   placeholder="{% trans 'ابحث في الإعلانات...' %}"
+                                   value="{{ request.GET.search }}">
+                        </div>
+
+                        <!-- Category Filter -->
+                        {% if not category %}
+                            <div class="filter-section">
+                                <label class="filter-title">
+                                    <i class="fas fa-folder"></i>
+                                    {% trans "القسم" %}
+                                </label>
+                                <select name="category" class="form-select">
+                                    <option value="">{% trans "جميع الأقسام" %}</option>
+                                    {% for cat in categories %}
+                                        <option value="{{ cat.id }}"
+                                                {% if cat.id|stringformat:"s" == request.GET.category %}selected{% endif %}>
+                                            {{ cat.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        {% endif %}
+
+                        <!-- Price Range Filter -->
+                        <div class="filter-section">
+                            <label class="filter-title">
+                                <i class="fas fa-tag"></i>
+                                {% trans "نطاق السعر" %}
+                            </label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <input type="number"
+                                           name="min_price"
+                                           class="form-control form-control-sm"
+                                           placeholder="{% trans 'من' %}"
+                                           value="{{ request.GET.min_price }}">
+                                </div>
+                                <div class="col-6">
+                                    <input type="number"
+                                           name="max_price"
+                                           class="form-control form-control-sm"
+                                           placeholder="{% trans 'إلى' %}"
+                                           value="{{ request.GET.max_price }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- City Filter -->
+                        <div class="filter-section">
+                            <label class="filter-title">
+                                <i class="fas fa-map-marker-alt"></i>
+                                {% trans "المدينة" %}
+                            </label>
+                            <select name="city" class="form-select">
+                                <option value="">{% trans "جميع المدن" %}</option>
+                                {% for city in cities %}
+                                    <option value="{{ city }}"
+                                            {% if city == request.GET.city %}selected{% endif %}>
+                                        {{ city }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Additional Options -->
+                        <div class="filter-section">
+                            <label class="filter-title">
+                                <i class="fas fa-cogs"></i>
+                                {% trans "خيارات إضافية" %}
+                            </label>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       name="negotiable"
+                                       value="true"
+                                       {% if request.GET.negotiable %}checked{% endif %}>
+                                <label class="form-check-label">
+                                    {% trans "قابل للتفاوض" %}
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       name="delivery"
+                                       value="true"
+                                       {% if request.GET.delivery %}checked{% endif %}>
+                                <label class="form-check-label">
+                                    {% trans "يتوفر توصيل" %}
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       name="verified_only"
+                                       value="true"
+                                       {% if request.GET.verified_only %}checked{% endif %}>
+                                <label class="form-check-label">
+                                    {% trans "من أعضاء موثقين فقط" %}
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Filter Actions -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-2"></i>
+                                {% trans "تطبيق الفلترة" %}
+                            </button>
+                            <a href="{% if category %}{% url 'main:category_detail' category.slug %}{% else %}{% url 'main:categories' %}{% endif %}"
+                               class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>
+                                {% trans "إزالة الفلترة" %}
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Results Area -->
+            <div class="col-lg-9">
+                <!-- Sort Controls -->
+                <div class="sort-controls d-flex justify-content-between align-items-center flex-wrap">
+                    <div class="results-info">
+                        <h5 class="mb-0 text-muted">
+                            {% blocktrans count counter=ads.count %}
+                                تم العثور على {{ counter }} إعلان
+                            {% plural %}
+                                تم العثور على {{ counter }} إعلان
+                            {% endblocktrans %}
+                        </h5>
+                    </div>
+
+                    <div class="sort-options">
+                        <form method="get" class="d-flex align-items-center" id="sortForm">
+                            <!-- Preserve current filters -->
+                            {% for key, value in request.GET.items %}
+                                {% if key != 'sort' %}
+                                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+                                {% endif %}
+                            {% endfor %}
+
+                            <label class="me-2 text-muted">{% trans "ترتيب حسب:" %}</label>
+                            <select name="sort" class="form-select form-select-sm" onchange="this.form.submit()">
+                                <option value="-created_at" {% if request.GET.sort == '-created_at' or not request.GET.sort %}selected{% endif %}>
+                                    {% trans "الأحدث" %}
+                                </option>
+                                <option value="price" {% if request.GET.sort == 'price' %}selected{% endif %}>
+                                    {% trans "السعر: الأقل أولاً" %}
+                                </option>
+                                <option value="-price" {% if request.GET.sort == '-price' %}selected{% endif %}>
+                                    {% trans "السعر: الأعلى أولاً" %}
+                                </option>
+                                <option value="-views_count" {% if request.GET.sort == '-views_count' %}selected{% endif %}>
+                                    {% trans "الأكثر مشاهدة" %}
+                                </option>
+                                <option value="title" {% if request.GET.sort == 'title' %}selected{% endif %}>
+                                    {% trans "العنوان أ-ي" %}
+                                </option>
+                            </select>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Ads Grid -->
+                {% if ads %}
+                    <div class="ads-grid">
+                        {% for ad in ads %}
+                            {% include "classifieds/_ad_card.html" with ad=ad %}
+                        {% endfor %}
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if is_paginated %}
+                        <div class="pagination-container">
+                            <nav aria-label="{% trans 'تنقل الصفحات' %}">
+                                <ul class="pagination justify-content-center">
+                                    {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                                <i class="fas fa-chevron-right"></i>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+
+                                    {% for num in page_obj.paginator.page_range %}
+                                        {% if page_obj.number == num %}
+                                            <li class="page-item active">
+                                                <span class="page-link">{{ num }}</span>
+                                            </li>
+                                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+
+                                    {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                                <i class="fas fa-chevron-left"></i>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <!-- No Results -->
+                    <div class="no-results">
+                        <i class="fas fa-search fa-3x mb-3 text-muted"></i>
+                        <h4>{% trans "لم يتم العثور على إعلانات" %}</h4>
+                        <p class="text-muted">{% trans "جرب تغيير معايير البحث أو الفلترة" %}</p>
+                        <a href="{% url 'main:enhanced_ad_create' %}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>
+                            {% trans "أضف إعلان جديد" %}
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock content %}
+
+{% block extra_js %}
+    <script>
+        // Auto-submit filters on change for better UX
+        document.querySelectorAll('#filterForm select, #filterForm input[type="checkbox"]').forEach(element => {
+            element.addEventListener('change', function() {
+                document.getElementById('filterForm').submit();
+            });
+        });
+
+        // Debounce search input
+        let searchTimeout;
+        const searchInput = document.querySelector('input[name="search"]');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    document.getElementById('filterForm').submit();
+                }, 500);
+            });
+        }
+    </script>
+{% endblock extra_js %}

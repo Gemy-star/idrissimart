@@ -1,0 +1,682 @@
+{% extends "base.html" %}
+
+{% load static i18n %}
+
+{% block title %}
+    {% trans "إدارة الحجوزات" %}
+{% endblock title %}
+
+{% block content %}
+<div class="container py-5">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="display-6 fw-bold text-primary mb-0">
+                <i class="fas fa-shopping-cart me-2"></i>{% trans "إدارة الحجوزات" %}
+            </h1>
+            <p class="text-muted mb-0">{% trans "إدارة الإعلانات المحجوزة والمعاملات" %}</p>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" onclick="exportReservations()">
+                <i class="fas fa-download me-1"></i>{% trans "تصدير" %}
+            </button>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addReservationModal">
+                <i class="fas fa-plus me-1"></i>{% trans "حجز جديد" %}
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title">{% trans "إجمالي الحجوزات" %}</h5>
+                            <h3 class="mb-0">{{ total_reservations }}</h3>
+                        </div>
+                        <i class="fas fa-shopping-cart fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title">{% trans "في الانتظار" %}</h5>
+                            <h3 class="mb-0">{{ pending_reservations }}</h3>
+                        </div>
+                        <i class="fas fa-clock fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title">{% trans "مكتملة" %}</h5>
+                            <h3 class="mb-0">{{ completed_reservations }}</h3>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-danger text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title">{% trans "ملغية" %}</h5>
+                            <h3 class="mb-0">{{ cancelled_reservations }}</h3>
+                        </div>
+                        <i class="fas fa-times-circle fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">
+                <i class="fas fa-filter me-2"></i>{% trans "تصفية الحجوزات" %}
+            </h5>
+
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">{% trans "الحالة" %}</label>
+                    <select name="status" class="form-select">
+                        <option value="">{% trans "جميع الحالات" %}</option>
+                        <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>
+                            {% trans "في الانتظار" %}
+                        </option>
+                        <option value="confirmed" {% if request.GET.status == 'confirmed' %}selected{% endif %}>
+                            {% trans "مؤكدة" %}
+                        </option>
+                        <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>
+                            {% trans "مكتملة" %}
+                        </option>
+                        <option value="cancelled" {% if request.GET.status == 'cancelled' %}selected{% endif %}>
+                            {% trans "ملغية" %}
+                        </option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">{% trans "من تاريخ" %}</label>
+                    <input type="date" name="date_from" class="form-control" value="{{ request.GET.date_from }}">
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">{% trans "إلى تاريخ" %}</label>
+                    <input type="date" name="date_to" class="form-control" value="{{ request.GET.date_to }}">
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">{% trans "العميل" %}</label>
+                    <input type="text" name="user" class="form-control" placeholder="{% trans 'اسم المستخدم أو البريد' %}" value="{{ request.GET.user }}">
+                </div>
+
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search me-1"></i>{% trans "بحث" %}
+                    </button>
+                    <a href="{% url 'main:reservation_management' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-refresh me-1"></i>{% trans "إعادة تعيين" %}
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Reservations Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-list me-2"></i>{% trans "قائمة الحجوزات" %}
+            </h5>
+        </div>
+
+        <div class="card-body">
+            {% if reservations %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>{% trans "رقم الحجز" %}</th>
+                                <th>{% trans "العميل" %}</th>
+                                <th>{% trans "الإعلان" %}</th>
+                                <th>{% trans "المبلغ" %}</th>
+                                <th>{% trans "الحالة" %}</th>
+                                <th>{% trans "تاريخ الإنشاء" %}</th>
+                                <th>{% trans "انتهاء الحجز" %}</th>
+                                <th>{% trans "الإجراءات" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reservation in reservations %}
+                                <tr>
+                                    <td>
+                                        <strong class="text-primary">#{{ reservation.id }}</strong>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2">
+                                                {{ reservation.user.username|first|upper }}
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold">{{ reservation.user.username }}</div>
+                                                <small class="text-muted">{{ reservation.user.email }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <a href="{% url 'main:ad_detail' reservation.ad.id %}" class="text-decoration-none">
+                                                {{ reservation.ad.title|truncatechars:40 }}
+                                            </a>
+                                            <br>
+                                            <small class="text-muted">
+                                                <i class="fas fa-tag me-1"></i>
+                                                {{ reservation.ad.category.name_ar|default:reservation.ad.category.name }}
+                                            </small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold text-success">
+                                            {{ reservation.total_amount }} {% trans "ريال" %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if reservation.status == 'pending' %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-clock me-1"></i>{% trans "في الانتظار" %}
+                                            </span>
+                                        {% elif reservation.status == 'confirmed' %}
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-check me-1"></i>{% trans "مؤكدة" %}
+                                            </span>
+                                        {% elif reservation.status == 'completed' %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check-circle me-1"></i>{% trans "مكتملة" %}
+                                            </span>
+                                        {% elif reservation.status == 'cancelled' %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-times me-1"></i>{% trans "ملغية" %}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div>{{ reservation.created_at|date:"Y/m/d" }}</div>
+                                        <small class="text-muted">{{ reservation.created_at|time:"H:i" }}</small>
+                                    </td>
+                                    <td>
+                                        {% if reservation.expires_at %}
+                                            <div>{{ reservation.expires_at|date:"Y/m/d" }}</div>
+                                            <small class="text-muted">{{ reservation.expires_at|time:"H:i" }}</small>
+                                        {% else %}
+                                            <span class="text-muted">{% trans "غير محدد" %}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm btn-outline-primary" onclick="viewReservation({{ reservation.id }})">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+
+                                            {% if reservation.status == 'pending' %}
+                                                <button class="btn btn-sm btn-outline-success" onclick="confirmReservation({{ reservation.id }})">
+                                                    <i class="fas fa-check"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" onclick="cancelReservation({{ reservation.id }})">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            {% elif reservation.status == 'confirmed' %}
+                                                <button class="btn btn-sm btn-outline-success" onclick="completeReservation({{ reservation.id }})">
+                                                    <i class="fas fa-check-circle"></i>
+                                                </button>
+                                            {% endif %}
+
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                                    <i class="fas fa-ellipsis-v"></i>
+                                                </button>
+                                                <ul class="dropdown-menu">
+                                                    <li>
+                                                        <a class="dropdown-item" href="#" onclick="sendNotification({{ reservation.id }})">
+                                                            <i class="fas fa-bell me-2"></i>{% trans "إرسال تذكير" %}
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <a class="dropdown-item" href="#" onclick="printReservation({{ reservation.id }})">
+                                                            <i class="fas fa-print me-2"></i>{% trans "طباعة" %}
+                                                        </a>
+                                                    </li>
+                                                    <li><hr class="dropdown-divider"></li>
+                                                    <li>
+                                                        <a class="dropdown-item text-danger" href="#" onclick="deleteReservation({{ reservation.id }})">
+                                                            <i class="fas fa-trash me-2"></i>{% trans "حذف" %}
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if is_paginated %}
+                    <nav aria-label="{% trans 'تنقل الصفحات' %}">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1">{% trans "الأولى" %}</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">{% trans "السابقة" %}</a>
+                                </li>
+                            {% endif %}
+
+                            <li class="page-item active">
+                                <span class="page-link">
+                                    {% trans "صفحة" %} {{ page_obj.number }} {% trans "من" %} {{ page_obj.paginator.num_pages }}
+                                </span>
+                            </li>
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">{% trans "التالية" %}</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">{% trans "الأخيرة" %}</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">{% trans "لا توجد حجوزات" %}</h5>
+                    <p class="text-muted">{% trans "لم يتم العثور على أي حجوزات مطابقة للمعايير المحددة" %}</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Add Reservation Modal -->
+<div class="modal fade" id="addReservationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>{% trans "إضافة حجز جديد" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addReservationForm">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">{% trans "العميل" %}</label>
+                            <select name="user" class="form-select" required>
+                                <option value="">{% trans "اختر العميل" %}</option>
+                                <!-- Users will be loaded via AJAX -->
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">{% trans "الإعلان" %}</label>
+                            <select name="ad" class="form-select" required>
+                                <option value="">{% trans "اختر الإعلان" %}</option>
+                                <!-- Ads will be loaded via AJAX -->
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">{% trans "الكمية" %}</label>
+                            <input type="number" name="quantity" class="form-control" min="1" value="1" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">{% trans "المبلغ الإجمالي" %}</label>
+                            <input type="number" name="total_amount" class="form-control" step="0.01" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">{% trans "انتهاء الحجز" %}</label>
+                            <input type="datetime-local" name="expires_at" class="form-control">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">{% trans "الحالة" %}</label>
+                            <select name="status" class="form-select" required>
+                                <option value="pending">{% trans "في الانتظار" %}</option>
+                                <option value="confirmed">{% trans "مؤكدة" %}</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">{% trans "ملاحظات" %}</label>
+                            <textarea name="notes" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        {% trans "إلغاء" %}
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>{% trans "حفظ الحجز" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- View Reservation Modal -->
+<div class="modal fade" id="viewReservationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-eye me-2"></i>{% trans "تفاصيل الحجز" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="reservationDetails">
+                    <!-- Reservation details will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+function viewReservation(reservationId) {
+    const modal = new bootstrap.Modal(document.getElementById('viewReservationModal'));
+    document.getElementById('reservationDetails').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">{% trans "جارٍ التحميل..." %}</span>
+            </div>
+        </div>
+    `;
+    modal.show();
+
+    // Load reservation details via AJAX
+    fetch(`/ajax/reservation-details/${reservationId}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('reservationDetails').innerHTML = data.html;
+            } else {
+                document.getElementById('reservationDetails').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        ${data.error}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('reservationDetails').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    {% trans "حدث خطأ في تحميل التفاصيل" %}
+                </div>
+            `;
+        });
+}
+
+function confirmReservation(reservationId) {
+    if (confirm('{% trans "هل تريد تأكيد هذا الحجز؟" %}')) {
+        updateReservationStatus(reservationId, 'confirmed');
+    }
+}
+
+function completeReservation(reservationId) {
+    if (confirm('{% trans "هل تريد إكمال هذا الحجز؟" %}')) {
+        updateReservationStatus(reservationId, 'completed');
+    }
+}
+
+function cancelReservation(reservationId) {
+    if (confirm('{% trans "هل تريد إلغاء هذا الحجز؟" %}')) {
+        updateReservationStatus(reservationId, 'cancelled');
+    }
+}
+
+function updateReservationStatus(reservationId, status) {
+    fetch('/ajax/update-reservation-status/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            'reservation_id': reservationId,
+            'status': status
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showNotification(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('{% trans "حدث خطأ في تحديث الحجز" %}', 'error');
+    });
+}
+
+function deleteReservation(reservationId) {
+    if (confirm('{% trans "هل تريد حذف هذا الحجز نهائياً؟ لا يمكن التراجع عن هذا الإجراء." %}')) {
+        fetch('/ajax/delete-reservation/', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                'reservation_id': reservationId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showNotification(data.error, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('{% trans "حدث خطأ في حذف الحجز" %}', 'error');
+        });
+    }
+}
+
+function exportReservations() {
+    const params = new URLSearchParams(window.location.search);
+    params.set('export', 'csv');
+    window.open(`${window.location.pathname}?${params.toString()}`, '_blank');
+}
+
+function sendNotification(reservationId) {
+    fetch('/ajax/send-reservation-notification/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            'reservation_id': reservationId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+        } else {
+            showNotification(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('{% trans "حدث خطأ في إرسال التذكير" %}', 'error');
+    });
+}
+
+function printReservation(reservationId) {
+    window.open(`/print/reservation/${reservationId}/`, '_blank');
+}
+
+// Load users and ads for add reservation modal
+document.getElementById('addReservationModal').addEventListener('show.bs.modal', function() {
+    // Load users
+    fetch('/ajax/get-users/')
+        .then(response => response.json())
+        .then(data => {
+            const userSelect = document.querySelector('#addReservationForm select[name="user"]');
+            userSelect.innerHTML = '<option value="">{% trans "اختر العميل" %}</option>';
+            data.users.forEach(user => {
+                userSelect.innerHTML += `<option value="${user.id}">${user.username} (${user.email})</option>`;
+            });
+        });
+
+    // Load ads
+    fetch('/ajax/get-ads/')
+        .then(response => response.json())
+        .then(data => {
+            const adSelect = document.querySelector('#addReservationForm select[name="ad"]');
+            adSelect.innerHTML = '<option value="">{% trans "اختر الإعلان" %}</option>';
+            data.ads.forEach(ad => {
+                adSelect.innerHTML += `<option value="${ad.id}">${ad.title} - ${ad.price} ريال</option>`;
+            });
+        });
+});
+
+// Handle add reservation form submission
+document.getElementById('addReservationForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+
+    fetch('/ajax/add-reservation/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('addReservationModal')).hide();
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showNotification(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('{% trans "حدث خطأ في إضافة الحجز" %}', 'error');
+    });
+});
+
+function showNotification(message, type) {
+    // Implementation depends on your notification system
+    console.log(`${type}: ${message}`);
+}
+</script>
+{% endblock extra_js %}
+
+{% block extra_css %}
+<style>
+    .avatar-sm {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        border: 1px solid rgba(0, 0, 0, 0.125);
+    }
+
+    .card-header {
+        background-color: rgba(13, 110, 253, 0.05);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: rgba(13, 110, 253, 0.05);
+    }
+
+    .btn-group .btn {
+        border-radius: 0.375rem;
+        margin-right: 2px;
+    }
+
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .pagination .page-link {
+        color: #0d6efd;
+    }
+
+    .pagination .page-item.active .page-link {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+    }
+
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.875rem;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .btn-group .btn {
+            margin-bottom: 2px;
+            margin-right: 0;
+        }
+    }
+</style>
+{% endblock extra_css %}

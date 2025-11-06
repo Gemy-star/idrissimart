@@ -4,176 +4,693 @@
 
 {% block title %}
     {% if category %}
-        {% if LANGUAGE_CODE == 'ar' and
-            category.name_ar %}
+        {% if LANGUAGE_CODE == 'ar' and category.name_ar %}
             {{ category.name_ar }}
         {% else %}
             {{ category.name }}
         {% endif %}
     {% else %}
-        {% trans "القسم غير
-        موجود" %}
+        {% trans "القسم غير موجود" %}
     {% endif %}
     - {% trans "إدريسي مارت" %}
-
 {% endblock title %}
 
 {% block content %}
     <div class="container py-5">
         {% if category %}
+            <!-- Breadcrumbs -->
+            {% if breadcrumbs %}
+                <nav aria-label="breadcrumb" class="mb-4">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'main:home' %}">{% trans "الرئيسية" %}</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'main:categories' %}">{% trans "الأقسام" %}</a></li>
+                        {% for breadcrumb in breadcrumbs %}
+                            {% if forloop.last %}
+                                <li class="breadcrumb-item active" aria-current="page">
+                                    {% if LANGUAGE_CODE == 'ar' and breadcrumb.name_ar %}
+                                        {{ breadcrumb.name_ar }}
+                                    {% else %}
+                                        {{ breadcrumb.name }}
+                                    {% endif %}
+                                </li>
+                            {% else %}
+                                <li class="breadcrumb-item">
+                                    <a href="{% url 'main:category_detail' breadcrumb.slug %}">
+                                        {% if LANGUAGE_CODE == 'ar' and breadcrumb.name_ar %}
+                                            {{ breadcrumb.name_ar }}
+                                        {% else %}
+                                            {{ breadcrumb.name }}
+                                        {% endif %}
+                                    </a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                    </ol>
+                </nav>
+            {% endif %}
+
+            <!-- Category Header -->
             <div class="row">
                 <div class="col-12">
                     <div class="category-header text-center mb-5">
                         <div class="category-icon-large mb-3">
                             {% if category.icon %}
-                                <i class="{{ category.icon }}"
-                                   style="font-size: 4rem;
-                                          color: var(--primary-color)"></i>
+                                <i class="{{ category.icon }}" style="font-size: 4rem; color: var(--primary-color)"></i>
                             {% else %}
-                                <i class="fas fa-folder"
-                                   style="font-size: 4rem;
-                                          color: var(--primary-color)"></i>
+                                <i class="fas fa-folder" style="font-size: 4rem; color: var(--primary-color)"></i>
                             {% endif %}
                         </div>
                         <h1 class="category-main-title">
                             {% if LANGUAGE_CODE == 'ar' and category.name_ar %}
                                 {{ category.name_ar }}
                             {% else %}
-                                {{ category.name }} {%
-                                endif %}
-                            </h1>
-                            {% if category.description %}<p class="category-main-desc">{{ category.description }}</p>{% endif %}
+                                {{ category.name }}
+                            {% endif %}
+                        </h1>
+                        {% if category.description %}
+                            <p class="category-main-desc">{{ category.description }}</p>
+                        {% endif %}
+
+                        <!-- Category Stats -->
+                        <div class="category-stats mt-4">
+                            <div class="row justify-content-center">
+                                <div class="col-auto">
+                                    <div class="stat-card">
+                                        <div class="stat-number" id="categoryAdsCount">
+                                            <i class="fas fa-spinner fa-spin"></i>
+                                        </div>
+                                        <div class="stat-label">{% trans "إعلان" %}</div>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <div class="stat-card">
+                                        <div class="stat-number" id="categorySubcatsCount">
+                                            <i class="fas fa-spinner fa-spin"></i>
+                                        </div>
+                                        <div class="stat-label">{% trans "قسم فرعي" %}</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                {% if subcategories %}
-                    <div class="row">
-                        <div class="col-12">
-                            <h2 class="section-title mb-4">{% trans "التصنيفات الفرعية" %}</h2>
-                            <div class="row g-4">
-                                {% for subcat in subcategories %}
-                                    <div class="col-lg-3 col-md-4 col-sm-6">
-                                        <div class="subcategory-card">
-                                            <div class="subcategory-icon">
-                                                {% if subcat.icon %}
-                                                    <i class="{{ subcat.icon }}"></i>
-                                                {% else %}
-                                                    <i class="fas fa-tag"></i>
-                                                {% endif %}
-                                            </div>
-                                            <h4 class="subcategory-title">
-                                                {% if LANGUAGE_CODE == 'ar' and subcat.name_ar %}
-                                                    {{ subcat.name_ar }}
-                                                {% else %}
-                                                    {{ subcat.name }} {%
-                                                    endif %}
-                                                </h4>
-                                                {% if subcat.description %}<p class="subcategory-desc">{{ subcat.description|truncatewords:10 }}</p>{% endif %}
-                                                {% if subcat.slug %}
-                                                    <a href="{% url 'main:category_detail' subcat.slug %}"
-                                                       class="btn btn-custom btn-primary-custom btn-sm">
-                                                        {% trans "عرض" %}
-                                                    </a>
-                                                {% else %}
-                                                    <a href="#"
-                                                       class="btn btn-custom btn-secondary-custom btn-sm disabled"
-                                                       aria-disabled="true">{% trans "عرض" %}</a>
-                                                {% endif %}
-                                            </div>
-                                        </div>
+            </div>
+
+            <!-- Subcategories Section -->
+            <div class="row mb-5">
+                <div class="col-12">
+                    <div class="subcategories-section">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h2 class="section-title">{% trans "الأقسام الفرعية" %}</h2>
+                            <div class="subcategories-loading" id="subcategoriesLoading" style="display: none;">
+                                <i class="fas fa-spinner fa-spin me-2"></i>{% trans "جارٍ التحميل..." %}
+                            </div>
+                        </div>
+
+                        <!-- Subcategories Grid -->
+                        <div id="subcategoriesGrid" class="row g-4">
+                            <!-- Subcategories will be loaded here via AJAX -->
+                        </div>
+
+                        <!-- No subcategories message -->
+                        <div id="noSubcategoriesMessage" class="alert alert-info text-center" style="display: none;">
+                            <i class="fas fa-info-circle me-2"></i>
+                            {% trans "لا توجد أقسام فرعية لهذا القسم" %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ads Section -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="ads-section">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h2 class="section-title">{% trans "الإعلانات المتاحة" %}</h2>
+                            <div class="view-options">
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-outline-primary active" id="gridViewBtn">
+                                        <i class="fas fa-th-large"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary" id="listViewBtn">
+                                        <i class="fas fa-list"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Ads Grid/List -->
+                        <div id="adsContainer" class="row g-4">
+                            {% for ad in ads %}
+                                <div class="col-lg-4 col-md-6 ads-item">
+                                    {% include "partials/_ad_card_component.html" with ad=ad %}
+                                </div>
+                            {% empty %}
+                                <div class="col-12">
+                                    <div class="alert alert-warning text-center">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        {% trans "لا توجد إعلانات في هذا القسم حالياً" %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if is_paginated %}
+                            <nav aria-label="Page navigation" class="mt-5">
+                                <ul class="pagination justify-content-center">
+                                    {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ query_params }}">
+                                                {% trans "السابق" %}
+                                            </a>
+                                        </li>
+                                    {% endif %}
+
+                                    {% for num in paginator.page_range %}
+                                        {% if page_obj.number == num %}
+                                            <li class="page-item active">
+                                                <span class="page-link">{{ num }}</span>
+                                            </li>
+                                        {% else %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ num }}&{{ query_params }}">{{ num }}</a>
+                                            </li>
+                                        {% endif %}
                                     {% endfor %}
-                                </div>
-                            </div>
+
+                                    {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ query_params }}">
+                                                {% trans "التالي" %}
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+        {% else %}
+            <!-- Category not found -->
+            <div class="row">
+                <div class="col-12 text-center">
+                    <div class="error-state">
+                        <div class="error-icon mb-4">
+                            <i class="fas fa-exclamation-triangle" style="font-size: 4rem; color: var(--warning-color)"></i>
                         </div>
-                    {% else %}
-                        <div class="row">
-                            <div class="col-12 text-center">
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    {% trans "لا توجد تصنيفات فرعية لهذا القسم حالياً" %}
-                                </div>
-                            </div>
-                        </div>
-                    {% endif %}
-                {% else %}
-                    <div class="row">
-                        <div class="col-12 text-center">
-                            <div class="alert alert-warning">
-                                <i class="fas fa-exclamation-triangle me-2"></i>
-                                {% trans "القسم المطلوب غير موجود" %}
-                            </div>
-                            <a href="{% url 'main:home' %}"
-                               class="btn btn-custom btn-primary-custom">
+                        <h2 class="error-title">{% trans "القسم غير موجود" %}</h2>
+                        <p class="error-message">{% trans "عذراً، القسم المطلوب غير موجود أو غير متاح حالياً" %}</p>
+                        <div class="error-actions">
+                            <a href="{% url 'main:categories' %}" class="btn btn-primary me-3">
+                                <i class="fas fa-th-large me-2"></i>{% trans "تصفح الأقسام" %}
+                            </a>
+                            <a href="{% url 'main:home' %}" class="btn btn-outline-primary">
                                 <i class="fas fa-home me-2"></i>{% trans "العودة للرئيسية" %}
                             </a>
                         </div>
                     </div>
-                {% endif %}
+                </div>
             </div>
+        {% endif %}
+    </div>
+{% endblock content %}
 
-        {% endblock content %}
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const categoryId = {{ category.id|default:0 }};
 
-        {% block extra_css %}
-            <style>
-                .category-main-title {
-                    font-size: 2.5rem;
-                    color: var(--text-primary);
-                    font-weight: 700;
-                    margin-bottom: 1rem;
+    // Initialize category detail functionality
+    initCategoryDetail(categoryId);
+
+    // Initialize view toggle
+    initViewToggle();
+
+    function initCategoryDetail(categoryId) {
+        if (!categoryId) return;
+
+        // Load subcategories
+        loadSubcategories(categoryId);
+
+        // Load category stats
+        loadCategoryStats(categoryId);
+    }
+
+    function loadSubcategories(categoryId) {
+        const subcategoriesGrid = document.getElementById('subcategoriesGrid');
+        const loadingIndicator = document.getElementById('subcategoriesLoading');
+        const noSubcatsMessage = document.getElementById('noSubcategoriesMessage');
+
+        // Show loading
+        loadingIndicator.style.display = 'block';
+        subcategoriesGrid.innerHTML = '';
+        noSubcatsMessage.style.display = 'none';
+
+        fetch(`/ajax/subcategories/${categoryId}/`)
+            .then(response => response.json())
+            .then(data => {
+                loadingIndicator.style.display = 'none';
+
+                if (data.error) {
+                    console.error('Error loading subcategories:', data.error);
+                    noSubcatsMessage.style.display = 'block';
+                    return;
                 }
 
-                .category-main-desc {
-                    font-size: 1.2rem;
-                    color: var(--text-muted);
-                    max-width: 600px;
-                    margin: 0 auto;
+                if (data.subcategories && data.subcategories.length > 0) {
+                    renderSubcategories(data.subcategories);
+                } else {
+                    noSubcatsMessage.style.display = 'block';
                 }
+            })
+            .catch(error => {
+                console.error('Error fetching subcategories:', error);
+                loadingIndicator.style.display = 'none';
+                noSubcatsMessage.style.display = 'block';
+            });
+    }
 
-                .subcategory-card {
-                    background: var(--bg-secondary);
-                    border-radius: 15px;
-                    padding: 30px 20px;
-                    text-align: center;
-                    transition: all 0.3s ease;
-                    border: 1px solid var(--border-color);
-                    height: 100%;
+    function renderSubcategories(subcategories) {
+        const subcategoriesGrid = document.getElementById('subcategoriesGrid');
+
+        subcategories.forEach(subcat => {
+            const subcatCard = createSubcategoryCard(subcat);
+            subcategoriesGrid.appendChild(subcatCard);
+        });
+
+        // Add click handlers for subcategory cards
+        addSubcategoryClickHandlers();
+    }
+
+    function createSubcategoryCard(subcat) {
+        const col = document.createElement('div');
+        col.className = 'col-lg-3 col-md-4 col-sm-6';
+
+        col.innerHTML = `
+            <div class="subcategory-card" data-category-id="${subcat.id}" data-category-slug="${subcat.slug}">
+                <div class="subcategory-icon">
+                    <i class="${subcat.icon || 'fas fa-tag'}"></i>
+                </div>
+                <h4 class="subcategory-title">${subcat.name}</h4>
+                <div class="subcategory-stats">
+                    <div class="stat-item">
+                        <span class="stat-count" data-stat="ads">
+                            <i class="fas fa-spinner fa-spin"></i>
+                        </span>
+                        <span class="stat-label">{% trans "إعلان" %}</span>
+                    </div>
+                    ${subcat.has_children ? '<div class="subcategory-badge"><i class="fas fa-plus"></i></div>' : ''}
+                </div>
+                <div class="subcategory-actions">
+                    <button class="btn btn-primary btn-sm view-subcategory" onclick="viewSubcategory('${subcat.slug}')">
+                        <i class="fas fa-eye me-1"></i>{% trans "عرض" %}
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm load-subcat-data"
+                            onclick="loadSubcategoryData(${subcat.id})"
+                            title="{% trans 'تحميل البيانات' %}">
+                        <i class="fas fa-info-circle"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Load subcategory stats
+        setTimeout(() => loadSubcategoryStats(subcat.id), 100);
+
+        return col;
+    }
+
+    function addSubcategoryClickHandlers() {
+        document.querySelectorAll('.subcategory-card').forEach(card => {
+            card.addEventListener('click', function(e) {
+                if (e.target.closest('.subcategory-actions')) return;
+
+                const slug = this.dataset.categorySlug;
+                if (slug) {
+                    window.location.href = `/category/${slug}/`;
                 }
+            });
+        });
+    }
 
-                .subcategory-card:hover {
-                    transform: translateY(-5px);
-                    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-                    border-color: var(--primary-color);
+    function loadSubcategoryStats(subcatId) {
+        fetch(`/ajax/category-stats/?category_id=${subcatId}`)
+            .then(response => response.json())
+            .then(data => {
+                const statElement = document.querySelector(`[data-category-id="${subcatId}"] [data-stat="ads"]`);
+                if (statElement) {
+                    statElement.innerHTML = data.ads_count || 0;
                 }
-
-                .subcategory-icon {
-                    font-size: 2.5rem;
-                    color: var(--secondary-color);
-                    margin-bottom: 15px;
+            })
+            .catch(error => {
+                console.error('Error loading subcategory stats:', error);
+                const statElement = document.querySelector(`[data-category-id="${subcatId}"] [data-stat="ads"]`);
+                if (statElement) {
+                    statElement.innerHTML = '0';
                 }
+            });
+    }
 
-                .subcategory-title {
-                    font-size: 1.2rem;
-                    color: var(--text-primary);
-                    font-weight: 600;
-                    margin-bottom: 10px;
-                }
+    function loadCategoryStats(categoryId) {
+        fetch(`/ajax/category-stats/?category_id=${categoryId}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('categoryAdsCount').textContent = data.ads_count || 0;
+                document.getElementById('categorySubcatsCount').textContent = data.subcategories_count || 0;
+            })
+            .catch(error => {
+                console.error('Error loading category stats:', error);
+                document.getElementById('categoryAdsCount').textContent = '0';
+                document.getElementById('categorySubcatsCount').textContent = '0';
+            });
+    }
 
-                .subcategory-desc {
-                    font-size: 0.9rem;
-                    color: var(--text-muted);
-                    margin-bottom: 20px;
-                    line-height: 1.6;
-                }
+    function initViewToggle() {
+        const gridViewBtn = document.getElementById('gridViewBtn');
+        const listViewBtn = document.getElementById('listViewBtn');
+        const adsContainer = document.getElementById('adsContainer');
 
-                [data-theme='dark'] .subcategory-card {
-                    background: var(--bg-secondary);
-                    border-color: var(--border-color);
-                }
+        if (gridViewBtn && listViewBtn && adsContainer) {
+            gridViewBtn.addEventListener('click', () => {
+                gridViewBtn.classList.add('active');
+                listViewBtn.classList.remove('active');
+                adsContainer.className = 'row g-4';
+                adsContainer.querySelectorAll('.ads-item').forEach(item => {
+                    item.className = 'col-lg-4 col-md-6 ads-item';
+                });
+            });
 
-                [data-theme='dark'] .subcategory-card:hover {
-                    border-color: var(--secondary-color);
-                    box-shadow: 0 10px 25px rgba(255, 96, 1, 0.1);
-                }
-            </style>
+            listViewBtn.addEventListener('click', () => {
+                listViewBtn.classList.add('active');
+                gridViewBtn.classList.remove('active');
+                adsContainer.className = 'row g-3';
+                adsContainer.querySelectorAll('.ads-item').forEach(item => {
+                    item.className = 'col-12 ads-item';
+                });
+            });
+        }
+    }
 
-        {% endblock extra_css %}
+    // Global functions for onclick handlers
+    window.viewSubcategory = function(slug) {
+        window.location.href = `/category/${slug}/`;
+    };
+
+    window.loadSubcategoryData = function(categoryId) {
+        // Show modal or sidebar with detailed subcategory information
+        showSubcategoryModal(categoryId);
+    };
+
+    function showSubcategoryModal(categoryId) {
+        // Create and show a modal with subcategory details
+        fetch(`/ajax/subcategories/${categoryId}/`)
+            .then(response => response.json())
+            .then(data => {
+                // Implementation for modal showing subcategory details
+                console.log('Subcategory data:', data);
+                // You can implement a modal here to show detailed information
+            })
+            .catch(error => {
+                console.error('Error loading subcategory details:', error);
+            });
+    }
+});
+</script>
+{% endblock extra_js %}
+
+{% block extra_css %}
+<style>
+    /* Category Detail Page Styles */
+    .category-main-title {
+        font-size: 2.5rem;
+        color: var(--text-primary);
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+
+    .category-main-desc {
+        font-size: 1.2rem;
+        color: var(--text-muted);
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    /* Category Stats */
+    .category-stats {
+        margin-top: 2rem;
+    }
+
+    .stat-card {
+        background: var(--bg-secondary);
+        border-radius: 12px;
+        padding: 1.5rem 1rem;
+        text-align: center;
+        border: 1px solid var(--border-color);
+        min-width: 120px;
+        margin: 0 1rem;
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+
+    /* Subcategory Cards */
+    .subcategory-card {
+        background: var(--bg-secondary);
+        border-radius: 15px;
+        padding: 1.5rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        border: 1px solid var(--border-color);
+        height: 100%;
+        cursor: pointer;
+        position: relative;
+    }
+
+    .subcategory-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        border-color: var(--primary-color);
+    }
+
+    .subcategory-icon {
+        font-size: 2.5rem;
+        color: var(--secondary-color);
+        margin-bottom: 1rem;
+    }
+
+    .subcategory-title {
+        font-size: 1.2rem;
+        color: var(--text-primary);
+        font-weight: 600;
+        margin-bottom: 1rem;
+        min-height: 3rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .subcategory-stats {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 1rem;
+        gap: 1rem;
+    }
+
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .stat-count {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+
+    .stat-item .stat-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+
+    .subcategory-badge {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: var(--success-color);
+        color: white;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+    }
+
+    .subcategory-actions {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: center;
+    }
+
+    .subcategory-actions .btn {
+        border-radius: 8px;
+        font-size: 0.875rem;
+    }
+
+    /* View Toggle Buttons */
+    .view-options .btn-group .btn {
+        border-radius: 8px;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .view-options .btn-group .btn.active {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+        color: white;
+    }
+
+    /* Loading States */
+    .subcategories-loading {
+        color: var(--text-muted);
+        font-size: 0.875rem;
+    }
+
+    /* Error State */
+    .error-state {
+        padding: 3rem 1rem;
+    }
+
+    .error-icon {
+        opacity: 0.7;
+    }
+
+    .error-title {
+        color: var(--text-primary);
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+
+    .error-message {
+        color: var(--text-muted);
+        margin-bottom: 2rem;
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .error-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .category-main-title {
+            font-size: 2rem;
+        }
+
+        .stat-card {
+            margin: 0 0.5rem;
+            min-width: 100px;
+            padding: 1rem 0.5rem;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+        }
+
+        .subcategory-card {
+            padding: 1rem;
+        }
+
+        .subcategory-icon {
+            font-size: 2rem;
+        }
+
+        .subcategory-title {
+            font-size: 1rem;
+            min-height: 2.5rem;
+        }
+
+        .error-actions {
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .error-actions .btn {
+            width: 200px;
+        }
+    }
+
+    /* Dark Theme Support */
+    [data-theme='dark'] .subcategory-card {
+        background: var(--bg-secondary);
+        border-color: var(--border-color);
+    }
+
+    [data-theme='dark'] .subcategory-card:hover {
+        border-color: var(--secondary-color);
+        box-shadow: 0 10px 25px rgba(255, 96, 1, 0.1);
+    }
+
+    [data-theme='dark'] .stat-card {
+        background: var(--bg-secondary);
+        border-color: var(--border-color);
+    }
+
+    /* Animation for loading states */
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+
+    .loading-pulse {
+        animation: pulse 1.5s infinite;
+    }
+
+    /* Breadcrumb styling */
+    .breadcrumb {
+        background: var(--bg-secondary);
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: ">";
+        color: var(--text-muted);
+    }
+
+    .breadcrumb-item a {
+        color: var(--primary-color);
+        text-decoration: none;
+    }
+
+    .breadcrumb-item a:hover {
+        text-decoration: underline;
+    }
+
+    .breadcrumb-item.active {
+        color: var(--text-primary);
+    }
+</style>
+{% endblock extra_css %}

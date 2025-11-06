@@ -1,0 +1,308 @@
+{% extends 'base.html' %}
+
+{% load static i18n %}
+
+{% block title %}
+    {% trans "تم نشر إعلانك بنجاح!" %} - {% trans "إدريسي مارت" %}
+{% endblock %}
+
+{% block extra_css %}
+    <style>
+        .success-animation {
+            animation: bounceIn 0.8s ease-out;
+        }
+
+        @keyframes bounceIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.3);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.05);
+            }
+            70% {
+                transform: scale(0.9);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .success-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e3f2fd 100%);
+            border-radius: 20px;
+            padding: 3rem;
+            text-align: center;
+            box-shadow: var(--shadow-card);
+            margin-bottom: 2rem;
+        }
+
+        .success-icon {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #4caf50 0%, #81c784 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2rem;
+            color: white;
+            font-size: 3rem;
+        }
+
+        .ad-preview-card {
+            background: var(--bg-primary);
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-card);
+            margin-bottom: 1.5rem;
+        }
+
+        .upgrade-feature {
+            background: linear-gradient(135deg, #fff3e0 0%, #ffcc80 100%);
+            border: 1px solid #ffcc80;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .upgrade-feature:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 152, 0, 0.2);
+        }
+
+        .feature-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--secondary-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            margin-left: 1rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 2rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <section class="py-5">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <!-- Success Message -->
+                    <div class="success-card success-animation">
+                        <div class="success-icon">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <h1 class="text-success mb-3">{% trans "تم نشر إعلانك بنجاح!" %}</h1>
+                        <p class="lead">
+                            {% if latest_ad.status == 'active' %}
+                                {% trans "إعلانك الآن مباشر ويمكن للعملاء رؤيته والتواصل معك" %}
+                            {% else %}
+                                {% trans "تم إرسال إعلانك للمراجعة وسيتم نشره خلال 24 ساعة" %}
+                            {% endif %}
+                        </p>
+
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-number">{{ latest_ad.views_count|default:0 }}</div>
+                                <div class="stat-label">{% trans "مشاهدة" %}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">{{ latest_ad.contact_requests_count|default:0 }}</div>
+                                <div class="stat-label">{% trans "طلب تواصل" %}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">{{ latest_ad.favorites_count|default:0 }}</div>
+                                <div class="stat-label">{% trans "إعجاب" %}</div>
+                            </div>
+                        </div>
+
+                        <div class="action-buttons">
+                            <a href="{% url 'main:ad_detail' latest_ad.pk %}" class="btn btn-custom btn-primary-custom">
+                                <i class="fas fa-eye me-2"></i>{% trans "عرض الإعلان" %}
+                            </a>
+                            <a href="{% url 'main:my_ads' %}" class="btn btn-outline-primary">
+                                <i class="fas fa-list me-2"></i>{% trans "إعلاناتي" %}
+                            </a>
+                        </div>
+                    </div>
+
+                    {% if latest_ad %}
+                    <!-- Ad Preview -->
+                    <div class="ad-preview-card">
+                        <h3 class="mb-3">{% trans "معاينة الإعلان" %}</h3>
+                        <div class="row">
+                            {% if latest_ad.cover_image %}
+                            <div class="col-md-4">
+                                <img src="{{ latest_ad.cover_image.image.url }}"
+                                     alt="{{ latest_ad.title }}"
+                                     class="img-fluid rounded">
+                            </div>
+                            {% endif %}
+                            <div class="col-md-{% if latest_ad.cover_image %}8{% else %}12{% endif %}">
+                                <h4>{{ latest_ad.title }}</h4>
+                                <p class="text-muted">{{ latest_ad.description|truncatechars:150 }}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="h5 text-success">
+                                        {{ latest_ad.price|floatformat:0 }} {% trans "ريال" %}
+                                        {% if latest_ad.is_negotiable %}
+                                            <small class="text-muted">({% trans "قابل للتفاوض" %})</small>
+                                        {% endif %}
+                                    </span>
+                                    <span class="badge badge-primary">{{ latest_ad.category.name }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Upgrade Suggestions -->
+                    <div class="upgrade-suggestions">
+                        <h3 class="text-center mb-4">{% trans "اجعل إعلانك أكثر تميزاً!" %}</h3>
+                        <p class="text-center text-muted mb-4">
+                            {% trans "اختر من الميزات التالية لزيادة مشاهدات إعلانك وجذب المزيد من العملاء" %}
+                        </p>
+
+                        <div class="row">
+                            {% for feature in available_upgrades %}
+                            <div class="col-md-6">
+                                <div class="upgrade-feature">
+                                    <div class="d-flex align-items-center">
+                                        <div class="feature-icon">
+                                            <i class="{{ feature.icon|default:'fas fa-star' }}"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h5 class="mb-1">{{ feature.name }}</h5>
+                                            <p class="mb-2 text-muted">{{ feature.description }}</p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="h6 text-success">{{ feature.price }} {% trans "ريال" %}</span>
+                                                <button class="btn btn-sm btn-custom btn-secondary-custom">
+                                                    {% trans "ترقية" %}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Tips for Better Performance -->
+                    <div class="mt-5">
+                        <h3 class="text-center mb-4">{% trans "نصائح لإعلان ناجح" %}</h3>
+                        <div class="row">
+                            <div class="col-md-4 text-center">
+                                <div class="feature-icon mx-auto mb-3" style="background: #2196f3;">
+                                    <i class="fas fa-images"></i>
+                                </div>
+                                <h5>{% trans "صور عالية الجودة" %}</h5>
+                                <p class="text-muted">{% trans "استخدم صوراً واضحة ومتعددة الزوايا" %}</p>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <div class="feature-icon mx-auto mb-3" style="background: #4caf50;">
+                                    <i class="fas fa-edit"></i>
+                                </div>
+                                <h5>{% trans "وصف مفصل" %}</h5>
+                                <p class="text-muted">{% trans "اكتب وصفاً شاملاً وواضحاً للمنتج" %}</p>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <div class="feature-icon mx-auto mb-3" style="background: #ff9800;">
+                                    <i class="fas fa-phone"></i>
+                                </div>
+                                <h5>{% trans "تواصل سريع" %}</h5>
+                                <p class="text-muted">{% trans "رد على استفسارات العملاء بسرعة" %}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Next Steps -->
+                    <div class="text-center mt-5">
+                        <h4>{% trans "ماذا بعد؟" %}</h4>
+                        <div class="action-buttons">
+                            <a href="{% url 'main:enhanced_ad_create' %}" class="btn btn-custom btn-success-custom">
+                                <i class="fas fa-plus me-2"></i>{% trans "نشر إعلان آخر" %}
+                            </a>
+                            <a href="{% url 'main:packages_list' %}" class="btn btn-custom btn-primary-custom">
+                                <i class="fas fa-gift me-2"></i>{% trans "عرض الباقات" %}
+                            </a>
+                            <a href="{% url 'main:home' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-home me-2"></i>{% trans "الصفحة الرئيسية" %}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add some interactive effects
+    const upgradeFeatures = document.querySelectorAll('.upgrade-feature');
+
+    upgradeFeatures.forEach(feature => {
+        const button = feature.querySelector('.btn');
+
+        button.addEventListener('click', function() {
+            // Here you would handle the upgrade process
+            // For now, just show a message
+            alert('{% trans "قريباً - سيتم تفعيل نظام الترقيات" %}');
+        });
+    });
+
+    // Auto-refresh stats every 30 seconds
+    setInterval(function() {
+        // In a real implementation, you'd fetch updated stats via AJAX
+        // For now, we'll just show a visual indicator
+        const statNumbers = document.querySelectorAll('.stat-number');
+        statNumbers.forEach(stat => {
+            stat.style.animation = 'pulse 0.5s ease-in-out';
+            setTimeout(() => {
+                stat.style.animation = '';
+            }, 500);
+        });
+    }, 30000);
+});
+</script>
+{% endblock %}

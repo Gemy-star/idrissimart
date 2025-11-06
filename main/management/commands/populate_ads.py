@@ -1,27 +1,20 @@
-import os
-import random
-
-from django.conf import settings
-from django.core.files import File
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
+from decimal import Decimal
 from faker import Faker
+import random
 
 from content.models import Country
-from main.models import AdFeature, AdImage, Category, ClassifiedAd, User
+from main.models import Category, ClassifiedAd, User
 
 
 class Command(BaseCommand):
     """
-    A custom management command to populate the database with dummy classified ads.
-    This is useful for testing and development.
-
-    Example usage:
-    python manage.py populate_ads 50 --country_code EG
+    A custom management command to populate the database with surveying engineering classified ads.
     """
 
-    help = "Populates the database with dummy classified ads for a specific country."
+    help = "Populates the database with surveying engineering classified ads for a specific country."
 
     def add_arguments(self, parser):
         """Add command line arguments."""
@@ -43,10 +36,10 @@ class Command(BaseCommand):
         total = kwargs["total"]
         country_code = kwargs["country_code"].upper()
 
-        fake = Faker("ar_SA")
+        fake = Faker("ar_EG")
         self.stdout.write(
             self.style.SUCCESS(
-                f"Starting to populate {total} ads for country: {country_code}"
+                f"Starting to populate {total} surveying engineering ads for country: {country_code}"
             )
         )
 
@@ -54,281 +47,322 @@ class Command(BaseCommand):
         try:
             country = Country.objects.get(code=country_code)
         except Country.DoesNotExist:
-            self.stderr.write(self.style.ERROR(f"Country '{country_code}' not found."))
+            self.stdout.write(
+                self.style.ERROR(
+                    f"Country {country_code} not found. Please run populate_countries first."
+                )
+            )
             return
 
-        # Get a list of regular users to assign ads to.
-        # Prioritize verified users (including verified vendors/merchants)
-        verified_users = list(
-            User.objects.filter(is_superuser=False, verification_status="verified")
-        )
-        regular_users = list(User.objects.filter(is_superuser=False))
+        # Get users to assign ads to
+        users = list(User.objects.filter(is_superuser=False))
+        if not users:
+            self.stdout.write(
+                self.style.ERROR("No users found. Please run populate_users first.")
+            )
+            return
 
-        # Create a weighted pool: 70% verified users, 30% regular users
-        if verified_users:
-            # Use verified users more frequently
-            users = verified_users * 7 + regular_users * 3
-            self.stdout.write(
-                self.style.SUCCESS(
-                    f"Found {len(verified_users)} verified users and {len(regular_users)} total users."
-                )
-            )
-        elif regular_users:
-            users = regular_users
-            self.stdout.write(
-                self.style.WARNING("No verified users found. Using regular users only.")
-            )
-        else:
-            # If no regular users, fall back to the first superuser.
-            self.stdout.write(
-                self.style.WARNING("No regular users found. Falling back to superuser.")
-            )
-            superuser = User.objects.filter(is_superuser=True).first()
-            if not superuser:
-                self.stderr.write(
-                    self.style.ERROR(
-                        "No users found at all. Please create a superuser or run populate_users first."
-                    )
-                )
-                return
-            users = [superuser]
-
-        # Get classified ad categories for the specified country
+        # Get surveying categories
         categories = list(
-            Category.get_by_section_and_country("classified", country_code)
+            Category.objects.filter(
+                section_type="classified",
+                country=country,
+                parent__isnull=False,  # Get subcategories only
+            )
         )
         if not categories:
-            self.stderr.write(
+            self.stdout.write(
                 self.style.ERROR(
-                    f"No 'classified' categories found for country '{country_code}'."
+                    "No classified categories found. Please run populate_categories first."
                 )
             )
             return
 
-        # Arabic ad titles and descriptions for different categories
-        arabic_ad_templates = {
-            "surveying": {
-                "titles": [
-                    "جهاز {item} للبيع بحالة ممتازة",
-                    "للإيجار اليومي: جهاز {item} معاير وحديث",
-                    "عرض خاص على جهاز {item} مع كافة الملحقات",
-                    "جهاز {item} مستعمل للبيع بسعر مغري",
-                ],
-                "items": [
-                    "توتال ستيشن لايكا TS07",
-                    "جهاز GPS ترايمبل R10",
-                    "محطة شاملة توبكون GT-1000",
-                    "جهاز ليزر سكانر Trimble X7",
-                    "درون فانتوم 4 RTK للمسح الجوي",
-                    "جهاز ميزان Sokkia B40",
-                ],
-                "price_range": (2000, 150000),
-            },
-            "vehicles": {
-                "titles": [
-                    "سيارة {item} موديل {year} للبيع",
-                    "امتلك {item} {year} بحالة ممتازة",
-                    "عرض خاص على {item} {year}",
-                    "للبيع: {item} {year} نظيفة جداً",
-                ],
-                "items": [
-                    "تويوتا كامري",
-                    "هونداي سوناتا",
-                    "فورد تورس",
-                    "نيسان باترول",
-                    "شيفروليه تاهو",
-                ],
-                "price_range": (30000, 250000),
-            },
-            "electronics": {
-                "titles": [
-                    "جهاز {item} جديد بالكرتونة",
-                    "{item} مستعمل بحالة ممتازة",
-                    "للبيع {item} مع كامل الملحقات",
-                    "خصم على {item} لفترة محدودة",
-                ],
-                "items": [
-                    "آيفون 15 برو",
-                    "لابتوب ديل XPS",
-                    "شاشة سامسونج 4K",
-                    "سماعات سوني WH-1000XM5",
-                    "بلايستيشن 5",
-                ],
-                "price_range": (500, 8000),
-            },
-            "default": {
-                "titles": [
-                    "عرض خاص على {item}",
-                    "{item} للبيع بسعر مناسب",
-                    "{item} جديد وبحالة ممتازة",
-                ],
-                "items": [
-                    "منتج عالي الجودة",
-                    "خدمة احترافية",
-                    "سلعة نادرة",
-                    "عرض مميز",
-                ],
-                "price_range": (100, 50000),
-            },
-        }
+        # Define surveying equipment data per category
+        surveying_data = self.get_surveying_equipment_data()
 
-        # Arabic city names by country
-        cities_by_country = {
-            "SA": [
-                "الرياض",
-                "جدة",
-                "مكة المكرمة",
-                "المدينة المنورة",
-                "الدمام",
-                "الخبر",
-                "الطائف",
-                "تبوك",
-                "أبها",
-                "نجران",
-                "جازان",
-                "حائل",
-                "الجبيل",
-                "الخرج",
-                "القطيف",
-            ],
-            "EG": [
-                "القاهرة",
-                "الإسكندرية",
-                "الجيزة",
-                "الأقصر",
-                "أسوان",
-                "بورسعيد",
-                "السويس",
-                "طنطا",
-                "المنصورة",
-                "الزقازيق",
-                "أسيوط",
-                "الفيوم",
-                "الإسماعيلية",
-                "دمنهور",
-                "بني سويف",
-            ],
-            "AE": [
-                "دبي",
-                "أبو ظبي",
-                "الشارقة",
-                "عجمان",
-                "رأس الخيمة",
-                "الفجيرة",
-                "أم القيوين",
-            ],
-            "KW": [
-                "مدينة الكويت",
-                "حولي",
-                "الفروانية",
-                "الأحمدي",
-                "الجهراء",
-                "مبارك الكبير",
-            ],
-            "QA": ["الدوحة", "الريان", "الوكرة", "الخور", "أم صلال"],
-            "BH": ["المنامة", "المحرق", "الرفاع", "مدينة حمد", "مدينة عيسى"],
-            "OM": ["مسقط", "صلالة", "نزوى", "صحار", "البريمي"],
-            "JO": ["عمان", "إربد", "الزرقاء", "العقبة", "السلط", "مأدبا"],
-        }
-
-        # --- 2. Create Ads ---
-        # The loop variable `i` is intentionally unused.
+        created_count = 0
         for i in range(total):
             category = random.choice(categories)
+            user = random.choice(users)
 
-            # --- Smarter Template Selection ---
-            template_key = "default"
-            slug = category.slug.lower()
-            if "vehicle" in slug:
-                template_key = "vehicles"
-            elif "electronic" in slug:
-                template_key = "electronics"
-            elif "survey" in slug or "equipment" in slug:
-                template_key = "surveying"
-            template_data = arabic_ad_templates.get(template_key)
-
-            # Generate Title
-            title_template = random.choice(template_data["titles"])
-            item = random.choice(template_data["items"])
-            if "{year}" in title_template:
-                year = random.randint(2018, 2024)
-                title = title_template.format(item=item, year=year)
+            # Get specific data for this category
+            category_name = category.name_ar
+            if "مستعمل" in category_name:
+                ads_data = surveying_data["used_equipment"]
+            elif "إيجار" in category_name:
+                ads_data = surveying_data["rental"]
+            elif "صيانة" in category_name:
+                ads_data = surveying_data["maintenance"]
+            elif "كتب" in category_name:
+                ads_data = surveying_data["books"]
             else:
-                title = title_template.format(item=item)
+                ads_data = surveying_data["used_equipment"]  # default
 
-            # Generate Description
-            description = (
-                fake.paragraph(nb_sentences=5, variable_nb_sentences=True)
-                + "\n"
-                + f"المواصفات: {fake.sentence(nb_words=6)}.\n"
-                + f"الحالة: {fake.word()}."
-            )
+            ad_data = random.choice(ads_data)
 
-            # Generate Price based on category
-            price_min, price_max = template_data["price_range"]
-            price = random.randint(price_min, price_max)
-
-            # Generate Custom Fields
-            custom_fields = {
-                "brand": item.split(" ")[0],  # Use the first word of the item as brand
-                "condition": random.choice(["new", "used", "used_good"]),
-            }
-
-            # Get city name based on country
-            city = random.choice(
-                cities_by_country.get(country_code, ["مدينة افتراضية"])
-            )
-
-            ad = ClassifiedAd.objects.create(
-                user=random.choice(users),
-                category=category,
-                title=title,
-                description=description,
-                price=price,
-                is_negotiable=random.choice([True, False]),
-                country=country,
-                city=city,
-                custom_fields=custom_fields,
-                status=ClassifiedAd.AdStatus.ACTIVE,
-            )
-
-            # Randomly add features to some ads (e.g., 20% chance)
-            if random.random() < 0.2:
-                feature_type = random.choice(AdFeature.FeatureType.choices)[0]
-                end_date = timezone.now() + timezone.timedelta(
-                    days=random.randint(7, 30)
+            # Create the classified ad
+            try:
+                ad = ClassifiedAd.objects.create(
+                    user=user,
+                    category=category,
+                    title=ad_data["title"],
+                    description=ad_data["description"],
+                    price=Decimal(str(ad_data["price"])),
+                    is_negotiable=ad_data.get("is_negotiable", True),
+                    country=country,
+                    city=random.choice(
+                        [
+                            "القاهرة",
+                            "الجيزة",
+                            "الإسكندرية",
+                            "المنصورة",
+                            "طنطا",
+                            "أسوان",
+                            "الأقصر",
+                            "بورسعيد",
+                            "السويس",
+                            "شرم الشيخ",
+                        ]
+                    ),
+                    custom_fields=ad_data.get("custom_fields", {}),
+                    status=random.choices(["active", "pending"], weights=[85, 15], k=1)[
+                        0
+                    ],
+                    is_urgent=(
+                        random.choice([True, False]) if random.random() < 0.2 else False
+                    ),
+                    is_highlighted=(
+                        random.choice([True, False])
+                        if random.random() < 0.15
+                        else False
+                    ),
+                    views_count=random.randint(0, 200),
+                    created_at=fake.date_time_between(
+                        start_date="-30d",
+                        end_date="now",
+                        tzinfo=timezone.get_current_timezone(),
+                    ),
                 )
-                AdFeature.objects.create(
-                    ad=ad, feature_type=feature_type, end_date=end_date, is_active=True
-                )
-                # Feature added (suppressed output to avoid encoding errors)
 
-            # --- Dynamic Image Selection ---
-            image_filenames = [
-                "mini-logo-dark-theme.png",
-                "mini-logo-white-theme.png",
-                "logo-dark-theme.png",
-                "logo-white-theme.png",
-            ]
-            selected_image_name = random.choice(image_filenames)
-            static_image_path = os.path.join(
-                settings.BASE_DIR, "static", "images", "logos", selected_image_name
-            )
+                created_count += 1
+                if created_count % 10 == 0:
+                    self.stdout.write(f"  Created {created_count}/{total} ads...")
 
-            if os.path.exists(static_image_path):
-                with open(static_image_path, "rb") as f:
-                    # Use a unique name to avoid conflicts if the same image is used multiple times
-                    image_name = f"{random.randint(1000, 9999)}_{selected_image_name}"
-                    image_file = File(f, name=image_name)
-                    AdImage.objects.create(ad=ad, image=image_file)
-                # Avoid printing Arabic characters to prevent encoding errors on Windows
-            else:
-                self.stderr.write(
-                    self.style.WARNING(
-                        f"  - Warning: Static image not found. No image added for ad {ad.pk}."
-                    )
-                )
+            except Exception as e:
+                self.stdout.write(self.style.WARNING(f"Failed to create ad {i+1}: {e}"))
 
         self.stdout.write(
-            self.style.SUCCESS(f"\nSuccessfully created {total} classified ads.")
+            self.style.SUCCESS(
+                f"\n✅ Successfully created {created_count} surveying engineering ads!"
+            )
         )
+
+    def get_surveying_equipment_data(self):
+        """Returns realistic surveying equipment data for different categories"""
+        return {
+            "used_equipment": [
+                {
+                    "title": "توتال ستيشن لايكا TC407 للبيع",
+                    "description": "جهاز توتال ستيشن لايكا TC407 حالة ممتازة، تم استخدامه لمدة سنتين فقط في مشاريع صغيرة. يأتي مع حقيبة النقل الأصلية وجميع الملحقات. دقة القياس ±2 ثانية. مناسب للمساحين المبتدئين والمتوسطين.",
+                    "price": 45000,
+                    "custom_fields": {
+                        "brand": "Leica",
+                        "model": "TC407",
+                        "condition": "ممتاز",
+                        "year_purchased": "2022",
+                        "usage_hours": "800 ساعة",
+                        "warranty_remaining": "سنة واحدة",
+                    },
+                },
+                {
+                    "title": "جهاز GPS تريمبل R8s مستعمل",
+                    "description": "جهاز استقبال GPS/GNSS تريمبل R8s، دقة RTK تصل إلى 1 سم. مناسب للمسح الجيوديسي والمشاريع الهندسية الكبيرة. يأتي مع قاعدة البيانات والشاحن ومجموعة من العواكس.",
+                    "price": 85000,
+                    "custom_fields": {
+                        "brand": "Trimble",
+                        "model": "R8s",
+                        "condition": "جيد جداً",
+                        "year_purchased": "2021",
+                        "usage_hours": "1200 ساعة",
+                        "warranty_remaining": "منتهية",
+                    },
+                },
+                {
+                    "title": "مستوى ليزر روتيو RL-H5A",
+                    "description": "مستوى ليزر دوار روتيو RL-H5A للأعمال الإنشائية. مداه 500 متر، مقاوم للماء والغبار. تم استخدامه في مشروع واحد فقط. حالة كالجديد مع جميع الملحقات الأصلية.",
+                    "price": 28000,
+                    "custom_fields": {
+                        "brand": "Roteo",
+                        "model": "RL-H5A",
+                        "condition": "كالجديد",
+                        "year_purchased": "2023",
+                        "usage_hours": "200 ساعة",
+                        "warranty_remaining": "سنتين",
+                    },
+                },
+                {
+                    "title": "نيكون نيفو C5 توتال ستيشن مستعمل",
+                    "description": "جهاز توتال ستيشن نيكون نيفو C5 بحالة جيدة. دقة ±5 ثواني، مناسب للأعمال الطبوغرافية والهندسية. يحتوي على ذاكرة داخلية 4 جيجا ونظام تشغيل Windows المدمج.",
+                    "price": 55000,
+                    "custom_fields": {
+                        "brand": "Nikon",
+                        "model": "Nivo C5",
+                        "condition": "جيد",
+                        "year_purchased": "2020",
+                        "usage_hours": "1500 ساعة",
+                        "warranty_remaining": "منتهية",
+                    },
+                },
+                {
+                    "title": "ثيودوليت وايلد T16 كلاسيكي",
+                    "description": "ثيودوليت وايلد T16 كلاسيكي، حالة ممتازة. دقة قراءة 20 ثانية. مناسب للتدريب والأعمال التقليدية. تم صيانته مؤخراً ومعاير بالكامل.",
+                    "price": 12000,
+                    "custom_fields": {
+                        "brand": "Wild",
+                        "model": "T16",
+                        "condition": "ممتاز",
+                        "year_purchased": "1995",
+                        "usage_hours": "غير محدد",
+                        "warranty_remaining": "بدون ضمان",
+                    },
+                },
+            ],
+            "rental": [
+                {
+                    "title": "تأجير توتال ستيشن لايكا TS16 بالشهر",
+                    "description": "تأجير جهاز توتال ستيشن لايكا TS16 أحدث إصدار مع تقنية ATRplus للتتبع التلقائي. مناسب للمشاريع الكبيرة والمسح التفصيلي. يأتي مع جميع الملحقات والبرمجيات.",
+                    "price": 8000,
+                    "is_negotiable": False,
+                    "custom_fields": {
+                        "rental_period": "شهري",
+                        "hourly_rate": "غير متاح",
+                        "daily_rate": "300",
+                        "monthly_rate": "8000",
+                        "deposit_required": "5000",
+                        "delivery_available": "نعم",
+                    },
+                },
+                {
+                    "title": "إيجار ماسح ليزر ثلاثي الأبعاد FARO",
+                    "description": "تأجير ماسح ليزر FARO Focus3D X130 للمسح ثلاثي الأبعاد. مناسب لتوثيق المباني والآثار وإنشاء نماذج ثلاثية الأبعاد دقيقة. متاح للإيجار بالأسبوع أو الشهر.",
+                    "price": 15000,
+                    "custom_fields": {
+                        "rental_period": "أسبوعي",
+                        "hourly_rate": "غير متاح",
+                        "daily_rate": "2500",
+                        "monthly_rate": "15000",
+                        "deposit_required": "20000",
+                        "delivery_available": "نعم مع تدريب",
+                    },
+                },
+                {
+                    "title": "تأجير طائرة مسح DJI Phantom 4 RTK",
+                    "description": "طائرة مسح جوي DJI Phantom 4 RTK للفوتوغراميتري والمسح الجوي. تحتوي على GPS RTK مدمج لدقة سنتيمترية. مناسبة لمسح المساحات الكبيرة وإنتاج الخرائط الطبوغرافية.",
+                    "price": 3000,
+                    "custom_fields": {
+                        "rental_period": "أسبوعي",
+                        "hourly_rate": "500",
+                        "daily_rate": "800",
+                        "monthly_rate": "3000",
+                        "deposit_required": "10000",
+                        "delivery_available": "نعم",
+                    },
+                },
+            ],
+            "maintenance": [
+                {
+                    "title": "صيانة ومعايرة أجهزة التوتال ستيشن",
+                    "description": "نقدم خدمات صيانة ومعايرة شاملة لجميع أجهزة التوتال ستيشن من جميع الماركات. فريق فنيين معتمدين مع خبرة أكثر من 10 سنوات. نوفر شهادات معايرة معتمدة وضمان على الخدمة.",
+                    "price": 2500,
+                    "custom_fields": {
+                        "service_type": "صيانة ومعايرة",
+                        "brands_supported": "Leica, Trimble, Topcon, Nikon",
+                        "turnaround_time": "3-5 أيام عمل",
+                        "certification_provided": "شهادة معايرة معتمدة",
+                        "warranty_period": "6 شهور",
+                        "pickup_delivery": "متاح",
+                    },
+                },
+                {
+                    "title": "خدمة معايرة أجهزة GPS وGNSS",
+                    "description": "معايرة متخصصة لأجهزة استقبال GPS وGNSS لضمان أعلى دقة في القياسات. نستخدم محطات مرجعية معتمدة ومعايير دولية. خدمة سريعة مع تقرير تفصيلي عن حالة الجهاز.",
+                    "price": 3500,
+                    "custom_fields": {
+                        "service_type": "معايرة GPS/GNSS",
+                        "brands_supported": "Trimble, Leica, Topcon, Septentrio",
+                        "turnaround_time": "2-3 أيام عمل",
+                        "certification_provided": "تقرير معايرة مفصل",
+                        "warranty_period": "3 شهور",
+                        "pickup_delivery": "متاح مع التأمين",
+                    },
+                },
+                {
+                    "title": "إصلاح وتجديد أجهزة المساحة القديمة",
+                    "description": "نتخصص في إصلاح وتجديد أجهزة المساحة الكلاسيكية والقديمة. لدينا قطع غيار أصلية ومطورين مهرة. نعيد الحياة لأجهزتك القديمة بمعايير الجودة الحديثة.",
+                    "price": 1800,
+                    "custom_fields": {
+                        "service_type": "إصلاح وتجديد",
+                        "brands_supported": "جميع الماركات الكلاسيكية",
+                        "turnaround_time": "1-2 أسبوع",
+                        "certification_provided": "ضمان على الإصلاح",
+                        "warranty_period": "سنة واحدة",
+                        "pickup_delivery": "متاح",
+                    },
+                },
+            ],
+            "books": [
+                {
+                    "title": "كتاب المساحة الهندسية الحديثة - الطبعة الثالثة",
+                    "description": "كتاب شامل في المساحة الهندسية يغطي جميع الموضوعات من الأساسيات إلى التقنيات المتقدمة. يشمل أمثلة تطبيقية وتمارين محلولة. مناسب للطلاب والممارسين المحترفين.",
+                    "price": 180,
+                    "custom_fields": {
+                        "type": "كتاب مطبوع",
+                        "language": "العربية",
+                        "edition": "الطبعة الثالثة 2023",
+                        "publisher": "دار المعرفة للنشر",
+                        "format": "غلاف مقوى",
+                        "license_type": "غير متاح",
+                    },
+                },
+                {
+                    "title": "برنامج AutoCAD Civil 3D 2024 مع الترخيص",
+                    "description": "برنامج AutoCAD Civil 3D 2024 الأحدث للتصميم المدني والمساحي. يأتي مع ترخيص كامل لمدة سنة واحدة. مناسب للمكاتب الهندسية وشركات المساحة.",
+                    "price": 12000,
+                    "custom_fields": {
+                        "type": "برنامج",
+                        "language": "الإنجليزية مع واجهة عربية",
+                        "edition": "2024",
+                        "publisher": "Autodesk",
+                        "format": "رقمي",
+                        "license_type": "ترخيص سنوي",
+                    },
+                },
+                {
+                    "title": "كتاب الفوتوغراميتري والاستشعار عن بعد",
+                    "description": "مرجع متخصص في تقنيات الفوتوغراميتري والاستشعار عن بعد. يغطي النظرية والتطبيق العملي باستخدام أحدث البرمجيات والتقنيات.",
+                    "price": 220,
+                    "custom_fields": {
+                        "type": "كتاب مطبوع",
+                        "language": "العربية والإنجليزية",
+                        "edition": "الطبعة الثانية 2023",
+                        "publisher": "دار الفكر الجامعي",
+                        "format": "غلاف عادي",
+                        "license_type": "غير متاح",
+                    },
+                },
+                {
+                    "title": "مجموعة برامج المساحة المتكاملة Trimble Business Center",
+                    "description": "مجموعة شاملة من برامج Trimble Business Center لمعالجة بيانات المساحة وإدارة المشاريع. تشمل معالجة بيانات GPS والتوتال ستيشن وإنتاج الخرائط.",
+                    "price": 25000,
+                    "custom_fields": {
+                        "type": "مجموعة برامج",
+                        "language": "الإنجليزية",
+                        "edition": "أحدث إصدار",
+                        "publisher": "Trimble Inc.",
+                        "format": "رقمي",
+                        "license_type": "ترخيص دائم",
+                    },
+                },
+            ],
+        }
