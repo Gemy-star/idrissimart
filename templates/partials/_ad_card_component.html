@@ -1,117 +1,227 @@
-{% load i18n currency_tags static %}
+{% load i18n static idrissimart_tags %}
 
-<div class="card h-100 shadow-sm ad-card position-relative">
-    {# Featured Badge #}
-    {% if ad.features.all and not is_owner %}
-        <span class="badge featured-badge position-absolute"
-              style="top: 10px; right: 10px; z-index: 3;">
-            <i class="fas fa-star me-1"></i> {% trans "مميز" %}
-        </span>
-    {% endif %}
+<div class="modern-ad-card" data-ad-id="{{ ad.pk }}" data-quality-score="{% ad_quality_score ad %}">
+    {# Image Container with Overlay Badges #}
+    <div class="ad-image-container">
+        <a href="{{ ad.get_absolute_url }}" class="ad-image-link">
+            {% ad_image_optimized ad as optimized_image %}
+            <img src="{{ optimized_image }}"
+                 class="ad-image"
+                 alt="{{ ad.title }}"
+                 loading="lazy">
 
-    {# Urgent Badge #}
-    {% if ad.is_urgent and not is_owner %}
-        <span class="badge urgent-badge position-absolute"
-              style="top: 10px; left: 10px; z-index: 3;">
-            <i class="fas fa-exclamation-circle me-1"></i> {% trans "عاجل" %}
-        </span>
-    {% endif %}
-
-    {# Ad Image #}
-    {% with ad.images.first as first_image %}
-        <a href="{{ ad.get_absolute_url }}" class="position-relative d-block">
-            {% if first_image and first_image.image %}
-                <img src="{{ first_image.image.url }}"
-                     class="card-img-top"
-                     alt="{{ ad.title }}"
-                     style="height: 200px; object-fit: cover;">
-            {% else %}
-                <img src="https://via.placeholder.com/400x200.png?text={% trans 'No Image' %}"
-                     class="card-img-top"
-                     alt="{% trans 'No Image' %}"
-                     style="height: 200px; object-fit: cover;">
-            {% endif %}
-
-            {# Views Count Overlay #}
-            <div class="position-absolute bottom-0 start-0 m-2">
-                <small class="badge bg-dark bg-opacity-75 text-white">
-                    <i class="fas fa-eye me-1"></i>{{ ad.views_count|default:0 }}
-                </small>
-            </div>
+            {# Image overlay gradient #}
+            <div class="image-overlay-gradient"></div>
         </a>
-    {% endwith %}
 
-    {# Card Body #}
-    <div class="card-body d-flex flex-column">
-        <h5 class="card-title">
-            <a href="{{ ad.get_absolute_url }}"
-               class="text-decoration-none text-dark">{{ ad.title|truncatechars:50 }}</a>
-        </h5>
-        <p class="card-text text-muted flex-grow-1">{{ ad.description|truncatewords:15 }}</p>
+        {# Top Badges Row #}
+        <div class="ad-badges-top">
+            {% render_ad_badges ad %}
+        </div>
 
-        {# Price and Negotiable #}
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <div>
-                <span class="text-primary fw-bold fs-5">{{ ad.price|floatformat:2 }} {% get_currency ad %}</span>
-                {% if ad.is_negotiable %}
-                    <small class="text-success ms-1">
-                        <i class="fas fa-handshake me-1"></i>{% trans "قابل للتفاوض" %}
-                    </small>
-                {% endif %}
+        {# Bottom Info Overlay #}
+        <div class="ad-info-overlay">
+            {% render_ad_stats ad %}
+
+            {# Quick Actions #}
+            <div class="ad-quick-actions">
+                <button class="quick-action-btn" onclick="toggleFavorite({{ ad.pk }})" title="إضافة للمفضلة">
+                    <i class="far fa-heart"></i>
+                </button>
+                <button class="quick-action-btn" onclick="shareAd({{ ad.pk }})" title="مشاركة">
+                    <i class="fas fa-share-alt"></i>
+                </button>
             </div>
-            {% if is_owner %}
-                <span class="badge bg-{{ ad.status|lower }}">{{ ad.get_status_display }}</span>
-            {% else %}
-                <small class="text-muted">
-                    <i class="fas fa-map-marker-alt me-1"></i>{{ ad.city }}
-                </small>
+        </div>
+    </div>
+
+    {# Content Container #}
+    <div class="ad-content">
+        {# Header Section #}
+        <div class="ad-header">
+            <h3 class="ad-title">
+                <a href="{{ ad.get_absolute_url }}">{{ ad.title|smart_truncate:55 }}</a>
+            </h3>
+
+            {% if not is_owner %}
+                <div class="ad-location">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>{{ ad.city }}</span>
+                    <span class="ad-time-badge">{% ad_time_friendly ad %}</span>
+                </div>
             {% endif %}
         </div>
 
-        {# Delivery Badge #}
-        {% if ad.is_delivery_available and not is_owner %}
-            <div class="mb-2">
-                <small class="badge bg-info">
-                    <i class="fas fa-shipping-fast me-1"></i>{% trans "يتوفر توصيل" %}
-                </small>
-            </div>
-        {% endif %}
-    </div>
+        {# Features Section - Modern Design #}
+        <div class="ad-features-modern">
+            {% if ad.is_delivery_available %}
+                <div class="feature-pill delivery-feature">
+                    <i class="fas fa-shipping-fast"></i>
+                    <span>توصيل متاح</span>
+                </div>
+            {% endif %}
+            {% if ad.is_negotiable %}
+                <div class="feature-pill negotiable-feature">
+                    <i class="fas fa-handshake"></i>
+                    <span>قابل للتفاوض</span>
+                </div>
+            {% endif %}
+            {% if ad.video_url or ad.video_file %}
+                <div class="feature-pill video-feature">
+                    <i class="fas fa-play-circle"></i>
+                    <span>فيديو</span>
+                </div>
+            {% endif %}
+            {% if ad.images.count > 1 %}
+                <div class="feature-pill gallery-feature">
+                    <i class="fas fa-images"></i>
+                    <span>{{ ad.images.count }} صور</span>
+                </div>
+            {% endif %}
+            {% if ad.is_featured %}
+                <div class="feature-pill featured-feature">
+                    <i class="fas fa-star"></i>
+                    <span>مميز</span>
+                </div>
+            {% endif %}
+        </div>
 
-    {# Card Footer #}
-    <div class="card-footer d-flex align-items-center justify-content-between bg-light">
-        {% if is_owner %}
-            <div class="d-grid w-100">
-                <a href="{% url 'main:ad_update' ad.pk %}"
-                   class="btn btn-sm btn-outline-primary">
-                    <i class="fas fa-edit me-2"></i> {% trans "تعديل" %}
-                </a>
-            </div>
-        {% else %}
-            <div class="d-flex align-items-center">
-                {% load user_tags %}
-                {% user_avatar user=ad.user size=30 css_class="rounded-circle me-2" %}
-                <small class="text-muted">{{ ad.user.get_display_name|truncatechars:15 }}</small>
+        {# Price Section #}
+        <div class="ad-price-section">
+            <div class="ad-price">
+                {% ad_price_formatted ad as formatted_price %}
+                <span class="price-display">{{ formatted_price }}</span>
             </div>
 
-            <div class="d-flex flex-column align-items-end">
-                {# Verification Badge #}
-                {% if ad.user.verification_status == 'verified' %}
-                    <span class="verified-badge mb-1">
-                        <i class="fas fa-check-circle me-1"></i>
-                        {% if ad.user.profile_type == 'merchant' or ad.user.rank == 'company' %}
-                            {% trans "شركة موثقة" %}
-                        {% else %}
-                            {% trans "عضو موثق" %}
-                        {% endif %}
+            <div class="ad-price-meta">
+                {% if is_owner %}
+                    <span class="status-badge status-{{ ad.status|lower }}">
+                        <i class="fas fa-circle"></i>
+                        {{ ad.get_status_display }}
                     </span>
                 {% endif %}
+            </div>
+        </div>
+    </div>
 
-                {# Time Since Posted #}
-                <small class="text-muted">
-                    <i class="fas fa-clock me-1"></i>{{ ad.created_at|timesince }}
-                </small>
+    {# Footer Section #}
+    <div class="ad-footer">
+        {% if is_owner %}
+            <div class="owner-actions">
+                <a href="{% url 'main:ad_update' ad.pk %}" class="btn-edit">
+                    <i class="fas fa-edit"></i>
+                    <span>{% trans "تعديل" %}</span>
+                </a>
+                <div class="ad-stats-footer">
+                    <span class="stat-item">
+                        <i class="fas fa-eye"></i>
+                        {{ ad.views_count|default:0 }}
+                    </span>
+                </div>
+            </div>
+        {% else %}
+            <div class="ad-author">
+                <div class="author-info">
+                    {% user_avatar user=ad.user size=48 css_class="author-avatar" %}
+                    <div class="author-details">
+                        <div class="author-name-container">
+                            <span class="author-name">{{ ad.user.get_display_name|truncatechars:20 }}</span>
+                            {% ad_verification_status ad.user %}
+                        </div>
+                        <div class="author-meta">
+                            {% if ad.user.total_sales > 0 %}
+                                <span class="author-sales">
+                                    <i class="fas fa-chart-line"></i>
+                                    {{ ad.user.total_sales|floatformat:0 }} مبيعة
+                                </span>
+                            {% endif %}
+                            {% if ad.user.average_rating > 0 %}
+                                <div class="author-rating">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= ad.user.average_rating %}
+                                            <i class="fas fa-star"></i>
+                                        {% else %}
+                                            <i class="far fa-star"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ad-actions">
+                    <button class="contact-btn" onclick="showContactModal({{ ad.pk }})" title="تواصل مع البائع">
+                        <i class="fab fa-whatsapp"></i>
+                    </button>
+                    <button class="call-btn" onclick="callSeller({{ ad.pk }})" title="اتصال">
+                        <i class="fas fa-phone"></i>
+                    </button>
+                </div>
             </div>
         {% endif %}
     </div>
+
+    {# Quality Indicator #}
+    {% ad_quality_score ad as quality_score %}
+    {% if quality_score >= 80 %}
+        <div class="quality-indicator high-quality" title="إعلان عالي الجودة">
+            <i class="fas fa-award"></i>
+        </div>
+    {% elif quality_score >= 60 %}
+        <div class="quality-indicator good-quality" title="إعلان جيد الجودة">
+            <i class="fas fa-check-circle"></i>
+        </div>
+    {% endif %}
 </div>
+
+{# JavaScript for interactions #}
+<script>
+// Favorite toggle
+function toggleFavorite(adId) {
+    // Implementation for favorite toggle
+    console.log('Toggle favorite for ad:', adId);
+    // Add AJAX call to toggle favorite
+}
+
+// Share functionality
+function shareAd(adId) {
+    if (navigator.share) {
+        navigator.share({
+            title: 'إعلان مميز',
+            text: 'شاهد هذا الإعلان المميز',
+            url: globalThis.location.href
+        });
+    } else {
+        // Fallback: copy to clipboard
+        navigator.clipboard.writeText(globalThis.location.href);
+        // Show notification
+        showNotification('تم نسخ الرابط');
+    }
+}
+
+// Contact modal
+function showContactModal(adId) {
+    // Implementation for contact modal
+    console.log('Show contact for ad:', adId);
+}
+
+// Call seller
+function callSeller(adId) {
+    // Implementation for calling seller
+    console.log('Call seller for ad:', adId);
+}
+
+// Notification helper
+function showNotification(message) {
+    // Simple notification implementation
+    const notification = document.createElement('div');
+    notification.className = 'notification-toast';
+    notification.textContent = message;
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+</script>

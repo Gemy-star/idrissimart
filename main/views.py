@@ -30,7 +30,8 @@ from main.models import (
     AdPackage,
     CartSettings,
 )
-from main.templatetags.format_tags import phone_format
+from main.templatetags.idrissimart_tags import phone_format
+from main.utils import get_selected_country_from_request
 
 
 class HomeView(TemplateView):
@@ -39,8 +40,8 @@ class HomeView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # Get user's selected country from session and categories
-        selected_country = self.request.session.get("selected_country", "EG")
+        # Get selected country from middleware/utility function
+        selected_country = get_selected_country_from_request(self.request)
 
         # Fetch categories efficiently using MPTT
         categories_by_section = {}
@@ -62,33 +63,10 @@ class HomeView(TemplateView):
             }
 
         # Fetch latest and featured ads based on selected country
-        latest_ads = (
-            ClassifiedAd.objects.filter(
-                status=ClassifiedAd.AdStatus.ACTIVE, country__code=selected_country
-            )
-            .order_by("-created_at")
-            .select_related("user", "country")
-            .prefetch_related("images")[:6]
-        )
-
-        # Broaden the filter to include any ad with an active feature in the selected country
-        featured_ad_pks = (
-            AdFeature.objects.filter(
-                end_date__gte=timezone.now(),
-                is_active=True,
-                ad__country__code=selected_country,
-            )
-            .values_list("ad_id", flat=True)
-            .distinct()
-        )
-
-        featured_ads = (
-            ClassifiedAd.objects.filter(
-                pk__in=featured_ad_pks, status=ClassifiedAd.AdStatus.ACTIVE
-            )
-            .select_related("user", "country")
-            .prefetch_related("images", "features")[:6]
-        )
+        latest_ads = ClassifiedAd.objects.active_for_country(selected_country).order_by(
+            "-created_at"
+        )[:6]
+        featured_ads = ClassifiedAd.objects.featured_for_country(selected_country)[:6]
 
         # Fallback: If there are no featured ads, show the latest ads instead.
         if not featured_ads.exists():
@@ -137,8 +115,90 @@ def _get_categories_with_subcategories(country_code=None):
     return categories_by_section
 
 
-class CategoriesView(TemplateView):
+class CategoriesView(FilterView):
+    """
+    Enhanced Categories View with Classified Ads Integration and Filtering
+    """
+
+    model = ClassifiedAd
+    filterset_class = ClassifiedAdFilter
     template_name = "pages/categories.html"
+    context_object_name = "ads"
+    paginate_by = 12
+
+    def get_queryset(self):
+        """
+        Get classified ads with filtering support
+        """
+        # Get selected country from middleware/utility function
+        selected_country = get_selected_country_from_request(self.request)
+
+        # Start with active ads for the selected country
+        queryset = (
+            ClassifiedAd.objects.filter(
+                status=ClassifiedAd.AdStatus.ACTIVE,
+                country__code=selected_country,
+            )
+            .select_related("user", "category", "country")
+            .prefetch_related("images", "features")
+            .order_by("-created_at")
+        )
+
+        # Apply category filtering if specified
+        category_slug = self.request.GET.get("category")
+        if category_slug:
+            try:
+                category = Category.objects.get(slug=category_slug, is_active=True)
+                descendants = category.get_descendants(include_self=True)
+                queryset = queryset.filter(category__in=descendants)
+            except Category.DoesNotExist:
+                pass
+
+        # Apply section filtering
+        section = self.request.GET.get("section")
+        if section and section != "all":
+            queryset = queryset.filter(category__section_type=section)
+
+        # Apply text search
+        search = self.request.GET.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(title__icontains=search)
+                | models.Q(description__icontains=search)
+                | models.Q(category__name__icontains=search)
+                | models.Q(category__name_ar__icontains=search)
+            )
+
+        # Apply price range filtering
+        min_price = self.request.GET.get("min_price")
+        max_price = self.request.GET.get("max_price")
+        if min_price:
+            try:
+                queryset = queryset.filter(price__gte=float(min_price))
+            except (ValueError, TypeError):
+                pass
+        if max_price:
+            try:
+                queryset = queryset.filter(price__lte=float(max_price))
+            except (ValueError, TypeError):
+                pass
+
+        # Apply sorting
+        sort_by = self.request.GET.get("sort", "-created_at")
+        valid_sorts = [
+            "price",
+            "-price",
+            "created_at",
+            "-created_at",
+            "views_count",
+            "-views_count",
+            "title",
+            "-title",
+        ]
+        if sort_by in valid_sorts:
+            queryset = queryset.order_by(sort_by)
+
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -146,27 +206,105 @@ class CategoriesView(TemplateView):
         # Get active section from URL parameter
         active_section = self.request.GET.get("section", "all")
 
-        # Get user's selected country from session
-        selected_country = self.request.session.get("selected_country", "EG")
+        # Get selected country from middleware/utility function
+        selected_country = get_selected_country_from_request(self.request)
 
-        # Get categories by country and section
-        # Fetch all categories using the helper function for the categories page
-        categories_by_section = _get_categories_with_subcategories(
+        # Get categories by country and section with ad counts
+        categories_by_section = self._get_categories_with_ad_counts(
             country_code=selected_country
         )
+
         # Get cart and wishlist counts from session
         cart_count = len(self.request.session.get("cart", []))
         wishlist_count = len(self.request.session.get("wishlist", []))
 
-        context["selected_country"] = selected_country
-        context["categories_by_section"] = categories_by_section
-        context["active_section"] = active_section
-        context["cart_count"] = cart_count
-        context["wishlist_count"] = wishlist_count
-        context["page_title"] = _("الفئات - إدريسي مارت")
-        context["meta_description"] = _("استكشف جميع فئات منصة إدريسي مارت المتنوعة")
+        # Get current filters for display
+        current_filters = {
+            "search": self.request.GET.get("search", ""),
+            "category": self.request.GET.get("category", ""),
+            "section": self.request.GET.get("section", "all"),
+            "min_price": self.request.GET.get("min_price", ""),
+            "max_price": self.request.GET.get("max_price", ""),
+            "sort": self.request.GET.get("sort", "-created_at"),
+        }
+
+        # Calculate statistics
+        total_ads = self.get_queryset().count()
+        active_categories = Category.objects.filter(
+            is_active=True, section_type=Category.SectionType.CLASSIFIED
+        ).count()
+
+        context.update(
+            {
+                "selected_country": selected_country,
+                "categories_by_section": categories_by_section,
+                "active_section": active_section,
+                "cart_count": cart_count,
+                "wishlist_count": wishlist_count,
+                "current_filters": current_filters,
+                "total_ads": total_ads,
+                "active_categories": active_categories,
+                "page_title": _("الفئات - إدريسي مارت"),
+                "meta_description": _("استكشف جميع فئات منصة إدريسي مارت المتنوعة"),
+                "has_filters": any(current_filters.values()),
+            }
+        )
 
         return context
+
+    def _get_categories_with_ad_counts(self, country_code=None):
+        """
+        Enhanced helper function to get categories with their subcategories and ad counts
+        """
+        # Get main categories (parent categories)
+        main_categories = Category.objects.filter(
+            parent__isnull=True,
+            is_active=True,
+            section_type=Category.SectionType.CLASSIFIED,
+        ).order_by("order", "name")
+
+        categories_by_section = {}
+
+        for category in main_categories:
+            section = category.section_type
+            if section not in categories_by_section:
+                categories_by_section[section] = []
+
+            # Get subcategories for this main category
+            subcategories = (
+                category.get_children().filter(is_active=True).order_by("order", "name")
+            )
+
+            # Count active ads for this category and its descendants
+            descendants = category.get_descendants(include_self=True)
+            ads_count = ClassifiedAd.objects.filter(
+                category__in=descendants,
+                status=ClassifiedAd.AdStatus.ACTIVE,
+                country__code=country_code,
+            ).count()
+
+            # Add subcategory ad counts
+            subcategory_data = []
+            for subcat in subcategories:
+                subcat_descendants = subcat.get_descendants(include_self=True)
+                subcat_ads_count = ClassifiedAd.objects.filter(
+                    category__in=subcat_descendants,
+                    status=ClassifiedAd.AdStatus.ACTIVE,
+                    country__code=country_code,
+                ).count()
+                subcategory_data.append(
+                    {"category": subcat, "ads_count": subcat_ads_count}
+                )
+
+            categories_by_section[section].append(
+                {
+                    "category": category,
+                    "subcategories": subcategory_data,
+                    "ads_count": ads_count,
+                }
+            )
+
+        return categories_by_section
 
 
 @require_POST
@@ -222,24 +360,129 @@ class CategoryDetailView(FilterView):
 
     model = ClassifiedAd
     filterset_class = ClassifiedAdFilter
-    template_name = "classifieds/category_ads.html"
+    template_name = "pages/category_detail.html"
     context_object_name = "ads"
     paginate_by = 12
+
+    def dispatch(self, request, *args, **kwargs):
+        """Get the category object and add it to the instance"""
+        try:
+            self.category = get_object_or_404(
+                Category, slug=self.kwargs["slug"], is_active=True
+            )
+        except Http404:
+            self.category = None
+
+        return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         """
         إرجاع الإعلانات من القسم الحالي وجميع الأقسام الفرعية
         Return ads from the current category and all its descendants.
         """
+        if not self.category:
+            return ClassifiedAd.objects.none()
+
         # self.category is set in dispatch()
         descendants = self.category.get_descendants(include_self=True)
+        selected_country = get_selected_country_from_request(self.request)
+
         queryset = (
             ClassifiedAd.objects.filter(
-                category__in=descendants, status=ClassifiedAd.AdStatus.ACTIVE
+                category__in=descendants,
+                status=ClassifiedAd.AdStatus.ACTIVE,
+                country__code=selected_country,
             )
-            .select_related("user", "category")
+            .select_related("user", "category", "country")
             .prefetch_related("images", "features")
         )
+
+        # تطبيق الفلاتر الإضافية
+        queryset = self.apply_custom_filters(queryset)
+
+        # تطبيق الترتيب
+        queryset = self.apply_sorting(queryset)
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        if not self.category:
+            context["category"] = None
+            context["page_title"] = _("القسم غير موجود")
+            return context
+
+        # Get selected country
+        selected_country = get_selected_country_from_request(self.request)
+
+        # Build breadcrumbs
+        breadcrumbs = []
+        ancestors = self.category.get_ancestors(ascending=True)
+        for ancestor in ancestors:
+            breadcrumbs.append(
+                {
+                    "name": ancestor.name_ar if ancestor.name_ar else ancestor.name,
+                    "url": f"/category/{ancestor.slug}/",
+                }
+            )
+
+        # Category statistics
+        descendants = self.category.get_descendants(include_self=True)
+        total_ads = ClassifiedAd.objects.filter(
+            category__in=descendants,
+            status=ClassifiedAd.AdStatus.ACTIVE,
+            country__code=selected_country,
+        ).count()
+
+        subcategories_count = (
+            self.category.get_children().filter(is_active=True).count()
+        )
+
+        # Current filters for display
+        current_filters = {
+            "search": self.request.GET.get("search", ""),
+            "min_price": self.request.GET.get("min_price", ""),
+            "max_price": self.request.GET.get("max_price", ""),
+            "city": self.request.GET.get("city", ""),
+            "sort": self.request.GET.get("sort", "-created_at"),
+            "negotiable": bool(self.request.GET.get("negotiable")),
+            "delivery": bool(self.request.GET.get("delivery")),
+            "verified_only": bool(self.request.GET.get("verified_only")),
+        }
+
+        context.update(
+            {
+                "category": self.category,
+                "breadcrumbs": breadcrumbs,
+                "total_ads": total_ads,
+                "subcategories_count": subcategories_count,
+                "current_filters": current_filters,
+                "has_filters": any(v for v in current_filters.values() if v),
+                "selected_country": selected_country,
+                "page_title": (
+                    self.category.name_ar
+                    if self.category.name_ar
+                    else self.category.name
+                )
+                + " - "
+                + _("إدريسي مارت"),
+                "meta_description": (
+                    self.category.description_ar
+                    if self.category.description_ar
+                    else self.category.description
+                )
+                or _("تصفح إعلانات قسم {category}").format(
+                    category=(
+                        self.category.name_ar
+                        if self.category.name_ar
+                        else self.category.name
+                    )
+                ),
+            }
+        )
+
+        return context
 
         # تطبيق الفلاتر الإضافية
         queryset = self.apply_custom_filters(queryset)
@@ -330,9 +573,13 @@ class CategoryDetailView(FilterView):
 
         # إضافة قائمة المدن المتاحة للفلترة
         descendants = self.category.get_descendants(include_self=True)
+        selected_country = get_selected_country_from_request(self.request)
+
         context["cities"] = (
             ClassifiedAd.objects.filter(
-                category__in=descendants, status=ClassifiedAd.AdStatus.ACTIVE
+                category__in=descendants,
+                status=ClassifiedAd.AdStatus.ACTIVE,
+                country__code=selected_country,
             )
             .values_list("city", flat=True)
             .distinct()
@@ -345,7 +592,9 @@ class CategoryDetailView(FilterView):
 
         # Add category stats
         context["ads_count"] = ClassifiedAd.objects.filter(
-            category__in=descendants, status=ClassifiedAd.AdStatus.ACTIVE
+            category__in=descendants,
+            status=ClassifiedAd.AdStatus.ACTIVE,
+            country__code=selected_country,
         ).count()
         context["subcategories_count"] = context["subcategories"].count()
 
@@ -370,6 +619,182 @@ class CategoryDetailView(FilterView):
             raise Http404("Category not found")
 
         return super().dispatch(request, *args, **kwargs)
+
+
+class SubcategoryDetailView(FilterView):
+    """
+    عرض تفاصيل القسم الفرعي مع الإعلانات والفلترة المتقدمة
+    Displays a subcategory page with ads listing and advanced filtering
+    """
+
+    model = ClassifiedAd
+    filterset_class = ClassifiedAdFilter
+    template_name = "pages/categories.html"
+    context_object_name = "ads"
+    paginate_by = 12
+
+    def dispatch(self, request, *args, **kwargs):
+        """Get the category object and add it to the instance"""
+        try:
+            self.category = get_object_or_404(
+                Category, slug=self.kwargs["slug"], is_active=True
+            )
+        except Http404:
+            self.category = None
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        """
+        إرجاع الإعلانات من القسم الفرعي الحالي
+        Return ads from the current subcategory only.
+        """
+        if not self.category:
+            return ClassifiedAd.objects.none()
+
+        selected_country = get_selected_country_from_request(self.request)
+
+        queryset = (
+            ClassifiedAd.objects.filter(
+                category=self.category,  # Only this specific subcategory
+                status=ClassifiedAd.AdStatus.ACTIVE,
+                country__code=selected_country,
+            )
+            .select_related("user", "category", "country")
+            .prefetch_related("images", "features")
+        )
+
+        # تطبيق الفلاتر الإضافية
+        queryset = self.apply_custom_filters(queryset)
+
+        # تطبيق الترتيب
+        queryset = self.apply_sorting(queryset)
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        if not self.category:
+            context["category"] = None
+            context["page_title"] = _("القسم غير موجود")
+            return context
+
+        # Get selected country
+        selected_country = get_selected_country_from_request(self.request)
+
+        # Build breadcrumbs
+        breadcrumbs = []
+        ancestors = self.category.get_ancestors(ascending=True)
+        for ancestor in ancestors:
+            breadcrumbs.append(
+                {
+                    "name": ancestor.name_ar if ancestor.name_ar else ancestor.name,
+                    "url": f"/category/{ancestor.slug}/",
+                }
+            )
+
+        # Category statistics
+        total_ads = ClassifiedAd.objects.filter(
+            category=self.category,
+            status=ClassifiedAd.AdStatus.ACTIVE,
+            country__code=selected_country,
+        ).count()
+
+        # Current filters for display
+        current_filters = {
+            "search": self.request.GET.get("search", ""),
+            "min_price": self.request.GET.get("min_price", ""),
+            "max_price": self.request.GET.get("max_price", ""),
+            "city": self.request.GET.get("city", ""),
+            "sort": self.request.GET.get("sort", "-created_at"),
+            "negotiable": bool(self.request.GET.get("negotiable")),
+            "delivery": bool(self.request.GET.get("delivery")),
+            "verified": bool(self.request.GET.get("verified")),
+        }
+
+        context.update(
+            {
+                "category": self.category,
+                "breadcrumbs": breadcrumbs,
+                "total_ads": total_ads,
+                "current_filters": current_filters,
+                "selected_country": selected_country,
+                "page_title": (
+                    self.category.name_ar
+                    if self.category.name_ar
+                    else self.category.name
+                ),
+                "meta_description": (
+                    self.category.description_ar
+                    if self.category.description_ar
+                    else self.category.description
+                ),
+                "has_filters": any(current_filters.values()),
+            }
+        )
+
+        return context
+
+    def apply_custom_filters(self, queryset):
+        """تطبيق فلاتر مخصصة إضافية"""
+        # البحث النصي
+        search = self.request.GET.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(title__icontains=search)
+                | models.Q(description__icontains=search)
+            )
+
+        # فلتر السعر
+        min_price = self.request.GET.get("min_price")
+        if min_price:
+            try:
+                queryset = queryset.filter(price__gte=float(min_price))
+            except ValueError:
+                pass
+
+        max_price = self.request.GET.get("max_price")
+        if max_price:
+            try:
+                queryset = queryset.filter(price__lte=float(max_price))
+            except ValueError:
+                pass
+
+        # فلتر المدينة
+        city = self.request.GET.get("city")
+        if city:
+            queryset = queryset.filter(city__icontains=city)
+
+        # فلاتر منطقية
+        if self.request.GET.get("negotiable"):
+            queryset = queryset.filter(is_negotiable=True)
+
+        if self.request.GET.get("delivery"):
+            queryset = queryset.filter(delivery_available=True)
+
+        if self.request.GET.get("verified"):
+            queryset = queryset.filter(user__is_verified=True)
+
+        return queryset
+
+    def apply_sorting(self, queryset):
+        """تطبيق الترتيب"""
+        sort_by = self.request.GET.get("sort", "-created_at")
+        valid_sorts = [
+            "price",
+            "-price",
+            "created_at",
+            "-created_at",
+            "views_count",
+            "-views_count",
+            "title",
+            "-title",
+        ]
+        if sort_by in valid_sorts:
+            queryset = queryset.order_by(sort_by)
+
+        return queryset
 
 
 class AboutView(TemplateView):
@@ -802,9 +1227,14 @@ def get_category_stats(request):
             # Get all descendants including self for ads count
             descendants = category.get_descendants(include_self=True)
 
+            # Get country from utility function for filtering
+            selected_country = get_selected_country_from_request(request)
+
             # Count active ads in this category and its descendants
             ads_count = ClassifiedAd.objects.filter(
-                category__in=descendants, status=ClassifiedAd.AdStatus.ACTIVE
+                category__in=descendants,
+                status=ClassifiedAd.AdStatus.ACTIVE,
+                country__code=selected_country,
             ).count()
 
             # Count direct subcategories
@@ -980,3 +1410,197 @@ def check_ad_allowance(request):
             ),
         }
     )
+
+
+@csrf_exempt
+def filter_categories_ajax(request):
+    """
+    AJAX endpoint for filtering categories and ads on categories page
+    """
+    if request.method == "GET":
+        # Get filter parameters
+        search = request.GET.get("search", "").strip()
+        section = request.GET.get("section", "all")
+        category_slug = request.GET.get("category", "")
+        min_price = request.GET.get("min_price")
+        max_price = request.GET.get("max_price")
+        sort_by = request.GET.get("sort", "-created_at")
+
+        # Get selected country
+        selected_country = get_selected_country_from_request(request)
+
+        try:
+            # Start with active categories
+            categories_queryset = Category.objects.filter(
+                is_active=True,
+                section_type=Category.SectionType.CLASSIFIED,
+                parent__isnull=True,
+            )
+
+            # Apply search filter to categories
+            if search:
+                categories_queryset = categories_queryset.filter(
+                    models.Q(name__icontains=search)
+                    | models.Q(name_ar__icontains=search)
+                    | models.Q(description__icontains=search)
+                    | models.Q(description_ar__icontains=search)
+                )
+
+            # Apply section filter
+            if section != "all":
+                categories_queryset = categories_queryset.filter(section_type=section)
+
+            # Get ads queryset
+            ads_queryset = ClassifiedAd.objects.filter(
+                status=ClassifiedAd.AdStatus.ACTIVE,
+                country__code=selected_country,
+            ).select_related("category", "user")
+
+            # Apply category filter to ads
+            if category_slug:
+                try:
+                    category = Category.objects.get(slug=category_slug, is_active=True)
+                    descendants = category.get_descendants(include_self=True)
+                    ads_queryset = ads_queryset.filter(category__in=descendants)
+                except Category.DoesNotExist:
+                    pass
+
+            # Apply search filter to ads
+            if search:
+                ads_queryset = ads_queryset.filter(
+                    models.Q(title__icontains=search)
+                    | models.Q(description__icontains=search)
+                    | models.Q(category__name__icontains=search)
+                    | models.Q(category__name_ar__icontains=search)
+                )
+
+            # Apply price filters
+            if min_price:
+                try:
+                    ads_queryset = ads_queryset.filter(price__gte=float(min_price))
+                except (ValueError, TypeError):
+                    pass
+
+            if max_price:
+                try:
+                    ads_queryset = ads_queryset.filter(price__lte=float(max_price))
+                except (ValueError, TypeError):
+                    pass
+
+            # Apply sorting
+            valid_sorts = [
+                "price",
+                "-price",
+                "created_at",
+                "-created_at",
+                "views_count",
+                "-views_count",
+                "title",
+                "-title",
+            ]
+            if sort_by in valid_sorts:
+                ads_queryset = ads_queryset.order_by(sort_by)
+
+            # Build response data
+            filtered_categories = []
+            for category in categories_queryset[:50]:  # Limit categories
+                # Get ad count for this category
+                descendants = category.get_descendants(include_self=True)
+                category_ads_count = ads_queryset.filter(
+                    category__in=descendants
+                ).count()
+
+                # Get subcategories with counts
+                subcategories_data = []
+                subcategories = category.get_children().filter(is_active=True)[:10]
+                for subcat in subcategories:
+                    subcat_descendants = subcat.get_descendants(include_self=True)
+                    subcat_ads_count = ads_queryset.filter(
+                        category__in=subcat_descendants
+                    ).count()
+                    subcategories_data.append(
+                        {
+                            "id": subcat.id,
+                            "name": subcat.name_ar if subcat.name_ar else subcat.name,
+                            "slug": subcat.slug_ar if subcat.slug_ar else subcat.slug,
+                            "icon": subcat.icon or "",
+                            "ads_count": subcat_ads_count,
+                            "url": f"/category/{subcat.slug}/",
+                        }
+                    )
+
+                filtered_categories.append(
+                    {
+                        "id": category.id,
+                        "name": category.name_ar if category.name_ar else category.name,
+                        "slug": category.slug_ar if category.slug_ar else category.slug,
+                        "icon": category.icon or "",
+                        "description": (
+                            category.description_ar
+                            if category.description_ar
+                            else category.description
+                        ),
+                        "ads_count": category_ads_count,
+                        "subcategories": subcategories_data,
+                        "url": f"/category/{category.slug}/",
+                    }
+                )
+
+            # Get sample ads for the current filters
+            sample_ads = []
+            for ad in ads_queryset[:12]:  # Limit ads
+                sample_ads.append(
+                    {
+                        "id": ad.id,
+                        "title": ad.title,
+                        "price": float(ad.price) if ad.price else 0,
+                        "currency": "MAD",  # or get from ad/settings
+                        "category_name": (
+                            ad.category.name_ar
+                            if ad.category.name_ar
+                            else ad.category.name
+                        ),
+                        "location": ad.city or "",
+                        "created_at": ad.created_at.strftime("%Y-%m-%d"),
+                        "image_url": (
+                            ad.images.first().image.url if ad.images.exists() else ""
+                        ),
+                        "url": f"/classifieds/{ad.id}/",
+                        "is_featured": getattr(ad, "is_featured", False),
+                    }
+                )
+
+            return JsonResponse(
+                {
+                    "success": True,
+                    "categories": filtered_categories,
+                    "ads": sample_ads,
+                    "total_categories": len(filtered_categories),
+                    "total_ads": ads_queryset.count(),
+                    "filters_applied": {
+                        "search": search,
+                        "section": section,
+                        "category": category_slug,
+                        "price_range": [min_price, max_price],
+                        "sort": sort_by,
+                    },
+                }
+            )
+
+        except Exception as e:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": str(e),
+                    "message": _("حدث خطأ في تحديث النتائج"),
+                },
+                status=500,
+            )
+
+    return JsonResponse({"error": "Invalid request method"}, status=405)
+
+
+class AdCardShowcaseView(TemplateView):
+    """Showcase view to demonstrate the modern ad card design"""
+
+    template_name = "test/ad_card_showcase.html"

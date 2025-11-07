@@ -1189,6 +1189,55 @@ class CompanyValue(models.Model):  # This model is correct, no changes needed he
         return self.title
 
 
+class ClassifiedAdManager(models.Manager):
+    """Custom manager for ClassifiedAd with country filtering support"""
+
+    def get_queryset(self):
+        """Return the base queryset"""
+        return (
+            super()
+            .get_queryset()
+            .select_related("user", "category", "country")
+            .prefetch_related("images", "features")
+        )
+
+    def for_country(self, country_code):
+        """Filter ads by country code"""
+        if not country_code:
+            return self.get_queryset()
+        return self.get_queryset().filter(country__code=country_code)
+
+    def active(self):
+        """Get only active ads"""
+        return self.get_queryset().filter(status=self.model.AdStatus.ACTIVE)
+
+    def active_for_country(self, country_code):
+        """Get active ads for a specific country"""
+        return (
+            self.active().filter(country__code=country_code)
+            if country_code
+            else self.active()
+        )
+
+    def featured_for_country(self, country_code):
+        """Get featured ads for a specific country"""
+        from django.utils import timezone
+
+        featured_ad_pks = (
+            AdFeature.objects.filter(
+                end_date__gte=timezone.now(),
+                is_active=True,
+                ad__country__code=country_code if country_code else "EG",
+            )
+            .values_list("ad_id", flat=True)
+            .distinct()
+        )
+
+        return self.get_queryset().filter(
+            pk__in=featured_ad_pks, status=self.model.AdStatus.ACTIVE
+        )
+
+
 class ClassifiedAd(models.Model):  # This model is correct, no changes needed here.
     """Model for classified ads"""
 
@@ -1259,6 +1308,9 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
     views_count = models.PositiveIntegerField(
         default=0, verbose_name=_("عدد المشاهدات")
     )
+
+    # Custom manager
+    objects = ClassifiedAdManager()
 
     class Meta:
         db_table = "classified_ads"

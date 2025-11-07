@@ -83,6 +83,10 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # force App to open in AR language
     "content.middleware.ForceArabicDefaultMiddleware",
+    # Country filtering middleware
+    "main.middleware.CountryFilterMiddleware",
+    # User permissions middleware
+    "main.middleware.UserPermissionMiddleware",
 ]
 
 ROOT_URLCONF = "idrissimart.urls"

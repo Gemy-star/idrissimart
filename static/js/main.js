@@ -610,7 +610,7 @@
 
     try {
       new Swiper('.categories-swiper', {
-        slidesPerView: 'auto',
+        slidesPerView: 1,
         spaceBetween: 8,
         freeMode: true,
         loop: true,
@@ -626,20 +626,20 @@
         speed: 800,
         breakpoints: {
           320: {
-            slidesPerView: 'auto',
+            slidesPerView: 1,
             spaceBetween: 8,
           },
           768: {
-            slidesPerView: 'auto',
-            spaceBetween: 8,
+            slidesPerView: 2,
+            spaceBetween: 12,
           },
           1024: {
-            slidesPerView: 'auto',
-            spaceBetween: 10,
+            slidesPerView: 3,
+            spaceBetween: 15,
           },
           1200: {
-            slidesPerView: 'auto',
-            spaceBetween: 12,
+            slidesPerView: 3,
+            spaceBetween: 20,
           }
         }
       })
@@ -666,7 +666,7 @@
       }
 
       subcategoriesSwiper = new Swiper('.subcategories-swiper', {
-        slidesPerView: 'auto',
+        slidesPerView: 1,
         spaceBetween: 12,
         freeMode: true,
         navigation: {
@@ -676,24 +676,24 @@
         speed: 400,
         breakpoints: {
           320: {
-            slidesPerView: 2,
+            slidesPerView: 1,
             spaceBetween: 8,
           },
           480: {
-            slidesPerView: 3,
+            slidesPerView: 2,
             spaceBetween: 10,
           },
           768: {
-            slidesPerView: 4,
+            slidesPerView: 2,
             spaceBetween: 12,
           },
           1024: {
-            slidesPerView: 5,
-            spaceBetween: 12,
+            slidesPerView: 3,
+            spaceBetween: 15,
           },
           1200: {
-            slidesPerView: 6,
-            spaceBetween: 15,
+            slidesPerView: 3,
+            spaceBetween: 20,
           }
         }
       })

@@ -23,6 +23,7 @@ from .models import (
     User,
     UserPackage,
 )
+from .utils import get_selected_country_from_request
 
 
 class ClassifiedAdListView(FilterView):
@@ -37,12 +38,9 @@ class ClassifiedAdListView(FilterView):
     paginate_by = 12
 
     def get_queryset(self):
-        # Start with only active ads
-        queryset = (
-            ClassifiedAd.objects.filter(status=ClassifiedAd.AdStatus.ACTIVE)
-            .select_related("user", "category", "country")
-            .prefetch_related("images", "features")
-        )
+        # Start with only active ads for the selected country
+        selected_country = get_selected_country_from_request(self.request)
+        queryset = ClassifiedAd.objects.active_for_country(selected_country)
         return queryset
 
 

@@ -18,6 +18,12 @@ urlpatterns = [
         views.CategoryDetailView.as_view(),
         name="category_detail",
     ),
+    # Subcategory detail URL
+    path(
+        "subcategory/<slug:slug>/",
+        views.SubcategoryDetailView.as_view(),
+        name="subcategory_detail",
+    ),
     # Classified Ads URLs
     path(
         "classifieds/",
@@ -87,6 +93,12 @@ urlpatterns = [
         "ajax/category-stats/",
         views.get_category_stats,
         name="ajax_category_stats",
+    ),
+    # AJAX endpoint for categories page filtering
+    path(
+        "ajax/filter-categories/",
+        views.filter_categories_ajax,
+        name="ajax_filter_categories",
     ),
     # Enhanced Classified Ads URLs
     path(
