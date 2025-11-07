@@ -1,0 +1,416 @@
+{% extends 'base.html' %}
+{% load static i18n compress %}
+
+{% block title %}
+    {% trans "لوحة تحكم المدير" %}
+{% endblock %}
+
+{% block extra_css %}
+    {% compress css %}
+        <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+        <link rel="stylesheet" href="{% static 'css/admin-dashboard.css' %}">
+    {% endcompress %}
+{% endblock %}
+
+{% block content %}
+<div class="admin-dashboard-container">
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Admin Sidebar -->
+            <div class="col-md-3">
+                <div class="admin-sidebar p-4">
+                    <div class="admin-header text-center mb-4">
+                        <div class="admin-avatar mb-3">
+                            <i class="fas fa-user-shield fa-3x text-primary"></i>
+                        </div>
+                        <h5 class="mb-0">{% trans "لوحة تحكم المدير" %}</h5>
+                        <small class="text-muted">{{ user.username }}</small>
+                    </div>
+
+                    <nav class="admin-nav">
+                        <a href="{% url 'main:admin_dashboard' %}" class="admin-nav-item active">
+                            <i class="fas fa-tachometer-alt me-2"></i>
+                            {% trans "الرئيسية" %}
+                        </a>
+                        <a href="{% url 'main:admin_categories' %}" class="admin-nav-item">
+                            <i class="fas fa-tags me-2"></i>
+                            {% trans "إدارة الأقسام" %}
+                        </a>
+                        <a href="{% url 'main:admin_ads' %}" class="admin-nav-item">
+                            <i class="fas fa-bullhorn me-2"></i>
+                            {% trans "إدارة الإعلانات" %}
+                        </a>
+                        <a href="{% url 'main:admin_payments' %}" class="admin-nav-item">
+                            <i class="fas fa-credit-card me-2"></i>
+                            {% trans "المدفوعات والعضويات" %}
+                        </a>
+                        <a href="{% url 'main:admin_settings' %}" class="admin-nav-item">
+                            <i class="fas fa-cogs me-2"></i>
+                            {% trans "إعدادات النظام" %}
+                        </a>
+                        <a href="/admin/" class="admin-nav-item" target="_blank">
+                            <i class="fas fa-tools me-2"></i>
+                            {% trans "إدارة Django" %}
+                        </a>
+                        <a href="{% url 'main:dashboard' %}" class="admin-nav-item">
+                            <i class="fas fa-user me-2"></i>
+                            {% trans "لوحة المستخدم" %}
+                        </a>
+                        <a href="{% url 'main:logout' %}" class="admin-nav-item text-danger">
+                            <i class="fas fa-sign-out-alt me-2"></i>
+                            {% trans "تسجيل الخروج" %}
+                        </a>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9">
+                <!-- Header -->
+                <div class="admin-dashboard-header">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h1 class="display-6 mb-1">
+                                <i class="fas fa-tachometer-alt me-3"></i>
+                                {% trans "لوحة تحكم المدير" %}
+                            </h1>
+                            <p class="text-muted mb-0">{% trans "إدارة شاملة لجميع جوانب النظام" %}</p>
+                        </div>
+                        <div class="col-auto">
+                            <div class="admin-quick-stats">
+                                <span class="badge bg-primary fs-6">
+                                    {% trans "اليوم" %}: {{ dashboard_stats.today_ads }} {% trans "إعلان" %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Statistics -->
+                <div class="row mb-4">
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="admin-stat-card stat-primary">
+                            <div class="stat-icon">
+                                <i class="fas fa-bullhorn"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3>{{ dashboard_stats.total_ads }}</h3>
+                                <p>{% trans "إجمالي الإعلانات" %}</p>
+                                {% if dashboard_stats.ads_growth > 0 %}
+                                    <small class="stat-change positive">
+                                        <i class="fas fa-arrow-up"></i> {{ dashboard_stats.ads_growth }}%
+                                    </small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="admin-stat-card stat-success">
+                            <div class="stat-icon">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3>{{ dashboard_stats.active_ads }}</h3>
+                                <p>{% trans "إعلانات نشطة" %}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="admin-stat-card stat-warning">
+                            <div class="stat-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3>{{ dashboard_stats.pending_ads }}</h3>
+                                <p>{% trans "قيد المراجعة" %}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="admin-stat-card stat-info">
+                            <div class="stat-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3>{{ dashboard_stats.total_users }}</h3>
+                                <p>{% trans "إجمالي المستخدمين" %}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Secondary Statistics -->
+                <div class="row mb-4">
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="admin-stat-card stat-secondary">
+                            <div class="stat-icon">
+                                <i class="fas fa-shopping-cart"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3>{{ dashboard_stats.cart_ads }}</h3>
+                                <p>{% trans "إعلانات السلة" %}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="admin-stat-card stat-danger">
+                            <div class="stat-icon">
+                                <i class="fas fa-eye-slash"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3>{{ dashboard_stats.hidden_ads }}</h3>
+                                <p>{% trans "إعلانات مخفية" %}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="admin-stat-card stat-expired">
+                            <div class="stat-icon">
+                                <i class="fas fa-calendar-times"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3>{{ dashboard_stats.expired_ads }}</h3>
+                                <p>{% trans "إعلانات منتهية" %}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="admin-stat-card stat-verified">
+                            <div class="stat-icon">
+                                <i class="fas fa-user-check"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3>{{ dashboard_stats.verified_users }}</h3>
+                                <p>{% trans "مستخدمين موثقين" %}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Dashboard Content -->
+                <div class="row">
+                    <!-- Recent Ads -->
+                    <div class="col-lg-6 mb-4">
+                        <div class="admin-content-card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-bullhorn me-2"></i>
+                                    {% trans "أحدث الإعلانات" %}
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                {% for ad in recent_ads %}
+                                    <div class="recent-item">
+                                        <div class="item-avatar">
+                                            {% if ad.images.first %}
+                                                <img src="{{ ad.images.first.image.url }}" alt="{{ ad.title }}">
+                                            {% else %}
+                                                <i class="fas fa-image"></i>
+                                            {% endif %}
+                                        </div>
+                                        <div class="item-content">
+                                            <h6 class="mb-1">{{ ad.title|truncatechars:40 }}</h6>
+                                            <p class="text-muted mb-1">
+                                                {{ ad.user.username }} - {{ ad.category.name }}
+                                            </p>
+                                            <small class="text-muted">{{ ad.created_at|timesince }}</small>
+                                        </div>
+                                        <div class="item-actions">
+                                            <span class="badge bg-{{ ad.status|default:'secondary' }}">
+                                                {{ ad.get_status_display }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                {% empty %}
+                                    <p class="text-muted text-center">{% trans "لا توجد إعلانات حديثة" %}</p>
+                                {% endfor %}
+                                <div class="text-center mt-3">
+                                    <a href="{% url 'main:admin_ads' %}" class="btn btn-outline-primary">
+                                        {% trans "عرض جميع الإعلانات" %}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Users -->
+                    <div class="col-lg-6 mb-4">
+                        <div class="admin-content-card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-users me-2"></i>
+                                    {% trans "أحدث المستخدمين" %}
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                {% for user in recent_users %}
+                                    <div class="recent-item">
+                                        <div class="item-avatar">
+                                            {% if user.userprofile.profile_image %}
+                                                <img src="{{ user.userprofile.profile_image.url }}" alt="{{ user.username }}">
+                                            {% else %}
+                                                <i class="fas fa-user"></i>
+                                            {% endif %}
+                                        </div>
+                                        <div class="item-content">
+                                            <h6 class="mb-1">{{ user.get_full_name|default:user.username }}</h6>
+                                            <p class="text-muted mb-1">{{ user.email }}</p>
+                                            <small class="text-muted">{{ user.date_joined|timesince }}</small>
+                                        </div>
+                                        <div class="item-actions">
+                                            {% if user.userprofile.is_person_verified or user.userprofile.is_company_verified %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check-circle"></i> {% trans "موثق" %}
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% empty %}
+                                    <p class="text-muted text-center">{% trans "لا توجد مستخدمين جدد" %}</p>
+                                {% endfor %}
+                                <div class="text-center mt-3">
+                                    <a href="/admin/auth/user/" class="btn btn-outline-primary">
+                                        {% trans "إدارة المستخدمين" %}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Metrics -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="admin-content-card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-chart-bar me-2"></i>
+                                    {% trans "مؤشرات النظام" %}
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col-md-3">
+                                        <div class="metric-item">
+                                            <h4 class="text-primary">{{ system_metrics.avg_ads_per_user|floatformat:1 }}</h4>
+                                            <p class="text-muted">{% trans "متوسط الإعلانات لكل مستخدم" %}</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="metric-item">
+                                            <h4 class="text-success">{{ dashboard_stats.total_categories }}</h4>
+                                            <p class="text-muted">{% trans "الأقسام الرئيسية" %}</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="metric-item">
+                                            <h4 class="text-info">{{ dashboard_stats.total_subcategories }}</h4>
+                                            <p class="text-muted">{% trans "الأقسام الفرعية" %}</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="metric-item">
+                                            <h4 class="text-warning">{{ dashboard_stats.new_users_week }}</h4>
+                                            <p class="text-muted">{% trans "مستخدمين جدد هذا الأسبوع" %}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="quick-actions-card">
+                            <h5 class="mb-3">
+                                <i class="fas fa-bolt me-2"></i>
+                                {% trans "إجراءات سريعة" %}
+                            </h5>
+                            <div class="row">
+                                <div class="col-md-3 mb-2">
+                                    <a href="{% url 'main:admin_categories' %}" class="btn btn-outline-primary w-100">
+                                        <i class="fas fa-plus-circle me-2"></i>
+                                        {% trans "إضافة قسم جديد" %}
+                                    </a>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <a href="{% url 'main:admin_ads' %}?tab=pending" class="btn btn-outline-warning w-100">
+                                        <i class="fas fa-eye me-2"></i>
+                                        {% trans "مراجعة الإعلانات" %}
+                                    </a>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <a href="{% url 'main:admin_settings' %}" class="btn btn-outline-info w-100">
+                                        <i class="fas fa-cogs me-2"></i>
+                                        {% trans "إعدادات النظام" %}
+                                    </a>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <a href="/admin/" class="btn btn-outline-secondary w-100" target="_blank">
+                                        <i class="fas fa-tools me-2"></i>
+                                        {% trans "إدارة متقدمة" %}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Admin Dashboard JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    // Animate statistics cards
+    gsap.fromTo('.admin-stat-card', {
+        opacity: 0,
+        y: 30,
+        scale: 0.95
+    }, {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        duration: 0.5,
+        stagger: 0.1,
+        ease: 'back.out(1.7)'
+    });
+
+    // Animate content cards
+    gsap.fromTo('.admin-content-card', {
+        opacity: 0,
+        y: 20
+    }, {
+        opacity: 1,
+        y: 0,
+        duration: 0.6,
+        stagger: 0.15,
+        ease: 'power2.out',
+        delay: 0.3
+    });
+
+    // Auto-refresh dashboard every 5 minutes
+    setInterval(function() {
+        location.reload();
+    }, 300000); // 5 minutes
+});
+
+// Admin navigation active state
+document.querySelectorAll('.admin-nav-item').forEach(item => {
+    if (item.href === window.location.href) {
+        item.classList.add('active');
+    }
+});
+</script>
+{% endblock %}

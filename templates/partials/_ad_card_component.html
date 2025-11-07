@@ -12,24 +12,27 @@
 
             {# Image overlay gradient #}
             <div class="image-overlay-gradient"></div>
+
+            {# Watermark for Premium/Featured Ads #}
+            {% if ad.is_featured %}
+                <div class="ad-watermark">
+                    <i class="fas fa-star"></i>
+                    <span>مميز</span>
+                </div>
+            {% endif %}
         </a>
 
         {# Top Badges Row #}
         <div class="ad-badges-top">
             {% render_ad_badges ad %}
-            {# Modern Verified Badge - Enhanced with Person/Company Types #}
-            {% if ad.user.is_verified %}
-                {% if ad.user.is_company %}
-                    <div class="verified-badge-modern verified-company">
-                        <i class="fas fa-building"></i>
-                        <span>شركة موثقة</span>
-                    </div>
-                {% else %}
-                    <div class="verified-badge-modern verified-person">
-                        <i class="fas fa-user-check"></i>
-                        <span>شخص موثوق</span>
-                    </div>
-                {% endif %}
+
+            {# Excellence Badge for High Quality Ads #}
+            {% ad_quality_score ad as quality_score %}
+            {% if quality_score >= 85 %}
+                <div class="excellence-badge">
+                    <i class="fas fa-award"></i>
+                    <span>ممتاز</span>
+                </div>
             {% endif %}
         </div>
 
@@ -68,21 +71,27 @@
 
         {# Features Section - Modern Design #}
         <div class="ad-features-modern">
-            {# Publisher Info with Photo and Verified Badge #}
-            {% if not is_owner %}
-                <div class="feature-pill publisher-info">
-                    {% user_avatar user=ad.user size=24 css_class="publisher-avatar" %}
-                    <div class="publisher-details">
-                        <span class="publisher-name">{{ ad.user.get_display_name|truncatechars:15 }}</span>
-                        {% if ad.user.is_verified %}
-                            {% if ad.user.is_company %}
-                                <i class="fas fa-building verified-icon company-verified" title="شركة موثقة"></i>
-                            {% else %}
-                                <i class="fas fa-user-check verified-icon person-verified" title="شخص موثوق"></i>
-                            {% endif %}
-                        {% endif %}
+            {# Verified Badge in Card Body #}
+            {% if ad.user.is_verified %}
+                {% if ad.user.is_company %}
+                    <div class="verified-badge-modern verified-company">
+                        <i class="fas fa-building"></i>
+                        <span>شركة موثقة</span>
                     </div>
-                </div>
+                {% else %}
+                    <div class="verified-badge-modern verified-person">
+                        <i class="fas fa-user-check"></i>
+                        <span>شخص موثوق</span>
+                    </div>
+                {% endif %}
+            {% endif %}
+
+            {# Negotiable Badge in Card Body #}
+            {% if ad.is_negotiable %}
+                <span class="ad-badge negotiable-badge">
+                    <i class="fas fa-handshake"></i>
+                    <span>قابل للتفاوض</span>
+                </span>
             {% endif %}
 
             {% if ad.is_delivery_available %}
@@ -113,16 +122,11 @@
 
         {# Price Section #}
         <div class="ad-price-section">
-            <div class="ad-price-modern">
+            <div class="ad-price-clean">
                 {% ad_price_formatted ad as formatted_price %}
                 <div class="price-container">
+                    <i class="fas fa-dollar-sign price-icon"></i>
                     <span class="price-amount">{{ formatted_price }}</span>
-                    {% if ad.is_negotiable %}
-                        <span class="price-badge negotiable-badge">
-                            <i class="fas fa-handshake"></i>
-                            قابل للتفاوض
-                        </span>
-                    {% endif %}
                 </div>
                 {% if ad.original_price and ad.original_price != ad.price %}
                     <div class="price-comparison">
@@ -161,15 +165,26 @@
                 </div>
             </div>
         {% else %}
-            <div class="ad-actions">
-                <button class="contact-btn" onclick="showContactModal({{ ad.pk }})" title="تواصل مع البائع">
-                    <i class="fab fa-whatsapp"></i>
-                    <span>تواصل</span>
-                </button>
-                <button class="call-btn" onclick="callSeller({{ ad.pk }})" title="اتصال">
-                    <i class="fas fa-phone"></i>
-                    <span>اتصال</span>
-                </button>
+            {# Publisher Avatar in Footer #}
+            <div class="publisher-footer-info">
+                <div class="publisher-avatar-wrapper">
+                    {% user_avatar user=ad.user size=32 css_class="publisher-avatar-simple" %}
+                    {% if ad.user.is_verified %}
+                        {% if ad.user.is_company %}
+                            <div class="avatar-badge company-badge">
+                                <i class="fas fa-building"></i>
+                            </div>
+                        {% else %}
+                            <div class="avatar-badge person-badge">
+                                <i class="fas fa-user-check"></i>
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+                <div class="publisher-info">
+                    <span class="publisher-label">منشور بواسطة</span>
+                    <span class="publisher-name">{{ ad.user.get_full_name|default:ad.user.username }}</span>
+                </div>
             </div>
         {% endif %}
     </div>
@@ -187,13 +202,85 @@
     {% endif %}
 </div>
 
-{# JavaScript for interactions #}
+{# JavaScript for interactions with GSAP animations #}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 <script>
-// Favorite toggle
+// GSAP Animations
+document.addEventListener('DOMContentLoaded', function() {
+    // Card hover animations
+    const cards = document.querySelectorAll('.modern-ad-card');
+
+    for (const card of cards) {
+        const tl = gsap.timeline({ paused: true });
+        const avatar = card.querySelector('.publisher-avatar-enhanced');
+        const verifiedBadge = card.querySelector('.avatar-verified-badge');
+        const priceSection = card.querySelector('.ad-price-clean') || card.querySelector('.ad-price-modern');
+
+        tl.to(card, {
+            y: -8,
+            scale: 1.02,
+            boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)',
+            duration: 0.3,
+            ease: 'power2.out'
+        })
+        .to(avatar, {
+            scale: 1.15,
+            rotation: 360,
+            duration: 0.4,
+            ease: 'back.out(1.7)'
+        }, 0.1)
+        .to(verifiedBadge, {
+            scale: 1.2,
+            rotation: 5,
+            duration: 0.3,
+            ease: 'elastic.out(1, 0.75)'
+        }, 0.2)
+        .to(priceSection, {
+            scale: 1.05,
+            duration: 0.3,
+            ease: 'power2.out'
+        }, 0.1);
+
+        card.addEventListener('mouseenter', () => tl.play());
+        card.addEventListener('mouseleave', () => tl.reverse());
+
+        // Initial entrance animation
+        gsap.fromTo(card,
+            {
+                opacity: 0,
+                y: 50,
+                scale: 0.9
+            },
+            {
+                opacity: 1,
+                y: 0,
+                scale: 1,
+                duration: 0.6,
+                ease: 'back.out(1.7)',
+                delay: Math.random() * 0.3
+            }
+        );
+    }
+});
+
+// Favorite toggle with GSAP
 function toggleFavorite(adId) {
-    // Implementation for favorite toggle
+    const heartIcon = event.target.closest('.quick-action-btn').querySelector('i');
+
+    gsap.to(heartIcon, {
+        scale: 1.5,
+        duration: 0.1,
+        yoyo: true,
+        repeat: 1,
+        ease: 'power2.inOut',
+        onComplete: () => {
+            heartIcon.classList.toggle('far');
+            heartIcon.classList.toggle('fas');
+            heartIcon.style.color = heartIcon.classList.contains('fas') ? '#e74c3c' : '';
+        }
+    });
+
     console.log('Toggle favorite for ad:', adId);
-    // Add AJAX call to toggle favorite
 }
 
 // Share functionality
@@ -237,648 +324,3 @@ function showNotification(message) {
     }, 3000);
 }
 </script>
-
-<style>
-/* Modern Ad Card with Fixed Dimensions */
-.modern-ad-card {
-    width: 100%;
-    max-width: 320px;
-    height: 420px;
-    background: var(--card-bg, #ffffff);
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    margin: 0 auto;
-}
-
-.modern-ad-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-}
-
-/* Ad Image Container */
-.ad-image-container {
-    position: relative;
-    width: 100%;
-    height: 200px;
-    overflow: hidden;
-    flex-shrink: 0;
-}
-
-.ad-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.3s ease;
-}
-
-.modern-ad-card:hover .ad-image {
-    transform: scale(1.05);
-}
-
-.image-overlay-gradient {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 60px;
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.4));
-    pointer-events: none;
-}
-
-/* Ad Content Area */
-.ad-content {
-    flex: 1;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    overflow: hidden;
-}
-
-/* Ad Header */
-.ad-header {
-    flex-shrink: 0;
-}
-
-.ad-title {
-    margin: 0 0 8px 0;
-    font-size: 1rem;
-    font-weight: 600;
-    line-height: 1.4;
-    height: 2.8rem;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-}
-
-.ad-title a {
-    color: var(--text-primary);
-    text-decoration: none;
-    transition: color 0.3s ease;
-}
-
-.ad-title a:hover {
-    color: var(--primary-color);
-}
-
-.ad-location {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    margin-bottom: 8px;
-}
-
-.ad-time-badge {
-    margin-left: auto;
-    background: rgba(0, 0, 0, 0.1);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 0.7rem;
-}
-
-/* Features Section */
-.ad-features-modern {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    flex-shrink: 0;
-    max-height: 70px;
-    overflow: hidden;
-}
-
-/* Price Section */
-.ad-price-section {
-    margin-top: auto;
-    flex-shrink: 0;
-}
-
-/* Enhanced Price Display with Better Visibility */
-.ad-price-modern {
-    background: linear-gradient(135deg, #059669, #047857);
-    color: #ffffff;
-    padding: 14px 18px;
-    border-radius: 12px;
-    margin: 12px 0;
-    position: relative;
-    overflow: hidden;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 4px 16px rgba(5, 150, 105, 0.2);
-}
-
-/* Enhanced Price Display with Better Visibility */
-.ad-price-modern {
-    background: linear-gradient(135deg, #059669, #047857);
-    color: #ffffff;
-    padding: 14px 18px;
-    border-radius: 12px;
-    margin: 12px 0;
-    position: relative;
-    overflow: hidden;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 4px 16px rgba(5, 150, 105, 0.2);
-}
-
-/* Footer Section */
-.ad-footer {
-    padding: 12px 16px;
-    background: rgba(0, 0, 0, 0.02);
-    border-top: 1px solid rgba(0, 0, 0, 0.05);
-    flex-shrink: 0;
-    height: 60px;
-    display: flex;
-    align-items: center;
-}
-
-/* Quality Indicator */
-.quality-indicator {
-    position: absolute;
-    top: 12px;
-    left: 12px;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.7rem;
-    z-index: 2;
-}
-
-.quality-indicator.high-quality {
-    background: linear-gradient(135deg, #fbbf24, #f59e0b);
-    color: #ffffff;
-}
-
-.quality-indicator.good-quality {
-    background: linear-gradient(135deg, #10b981, #059669);
-    color: #ffffff;
-}
-
-/* Dark Theme Support */
-[data-theme="dark"] .modern-ad-card {
-    background: var(--card-bg, #1f2937);
-    border-color: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-}
-
-[data-theme="dark"] .modern-ad-card:hover {
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
-}
-
-[data-theme="dark"] .ad-footer {
-    background: rgba(255, 255, 255, 0.05);
-    border-top-color: rgba(255, 255, 255, 0.1);
-}
-
-[data-theme="dark"] .ad-time-badge {
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.8);
-}
-
-/* Responsive Design */
-@media (max-width: 1200px) {
-    .modern-ad-card {
-        max-width: 300px;
-        height: 400px;
-    }
-
-    .ad-image-container {
-        height: 180px;
-    }
-}
-
-@media (max-width: 992px) {
-    .modern-ad-card {
-        max-width: 280px;
-        height: 380px;
-    }
-
-    .ad-image-container {
-        height: 170px;
-    }
-
-    .ad-content {
-        padding: 14px;
-        gap: 10px;
-    }
-
-    .ad-title {
-        font-size: 0.95rem;
-    }
-}
-
-@media (max-width: 768px) {
-    .modern-ad-card {
-        max-width: 260px;
-        height: 360px;
-    }
-
-    .ad-image-container {
-        height: 160px;
-    }
-
-    .ad-content {
-        padding: 12px;
-        gap: 8px;
-    }
-
-    .ad-title {
-        font-size: 0.9rem;
-        height: 2.4rem;
-    }
-
-    .ad-footer {
-        height: 50px;
-        padding: 8px 12px;
-    }
-}
-
-@media (max-width: 576px) {
-    .modern-ad-card {
-        max-width: 240px;
-        height: 340px;
-    }
-
-    .ad-image-container {
-        height: 150px;
-    }
-
-    .ad-content {
-        padding: 10px;
-        gap: 6px;
-    }
-
-    .ad-title {
-        font-size: 0.85rem;
-        height: 2.2rem;
-    }
-
-    .ad-features-modern {
-        max-height: 60px;
-        gap: 4px;
-    }
-
-    .ad-footer {
-        height: 45px;
-        padding: 6px 10px;
-    }
-}
-
-@media (max-width: 480px) {
-    .modern-ad-card {
-        max-width: 220px;
-        height: 320px;
-    }
-
-    .ad-image-container {
-        height: 140px;
-    }
-
-    .ad-content {
-        padding: 8px;
-        gap: 4px;
-    }
-
-    .ad-title {
-        font-size: 0.8rem;
-        height: 2rem;
-    }
-
-    .ad-features-modern {
-        max-height: 50px;
-        gap: 3px;
-    }
-
-    .ad-footer {
-        height: 40px;
-        padding: 4px 8px;
-    }
-
-    .quality-indicator {
-        width: 20px;
-        height: 20px;
-        font-size: 0.6rem;
-        top: 8px;
-        left: 8px;
-    }
-}
-
-/* Modern Verified Badge - Enhanced with Person/Company Types */
-.verified-badge-modern {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    z-index: 2;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    transition: all 0.3s ease;
-}
-
-.verified-badge-modern.verified-person {
-    background: linear-gradient(135deg, #3b82f6, #1e40af);
-    color: #ffffff;
-}
-
-.verified-badge-modern.verified-company {
-    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-    color: #ffffff;
-}
-
-.verified-badge-modern i {
-    font-size: 0.8rem;
-}
-
-.verified-badge-modern:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-/* Dark theme support for modern elements */
-[data-theme="dark"] .verified-badge-modern.verified-person {
-    background: linear-gradient(135deg, #1e40af, #1e3a8a);
-    border-color: rgba(255, 255, 255, 0.15);
-    color: #ffffff;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-}
-
-[data-theme="dark"] .verified-badge-modern.verified-company {
-    background: linear-gradient(135deg, #6b46c1, #581c87);
-    border-color: rgba(255, 255, 255, 0.15);
-    color: #ffffff;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-}
-
-[data-theme="dark"] .ad-price-modern {
-    background: linear-gradient(135deg, #065f46, #064e3b);
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    color: #ffffff;
-    box-shadow: 0 4px 16px rgba(6, 95, 70, 0.3);
-}
-
-[data-theme="dark"] .price-badge {
-    background: rgba(0, 0, 0, 0.5);
-    border-color: rgba(255, 255, 255, 0.2);
-    color: #ffffff;
-}
-
-[data-theme="dark"] .negotiable-badge {
-    background: rgba(16, 185, 129, 0.7);
-    border-color: rgba(16, 185, 129, 0.8);
-    color: #ffffff;
-}
-
-[data-theme="dark"] .verified-icon.person-verified {
-    color: #60a5fa;
-    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
-}
-
-[data-theme="dark"] .verified-icon.company-verified {
-    color: #a78bfa;
-    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .verified-badge-modern {
-        font-size: 0.7rem;
-        padding: 4px 8px;
-        top: 8px;
-        right: 8px;
-    }
-
-    .verified-badge-modern span {
-        display: none; /* Hide text on mobile, show only icon */
-    }
-
-    .verified-badge-modern i {
-        font-size: 0.8rem;
-    }
-
-    .price-amount {
-        font-size: 1.2rem;
-    }
-
-    .price-container {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-    }
-
-    .ad-price-modern {
-        padding: 12px 14px;
-    }
-}
-
-@media (max-width: 480px) {
-    .verified-badge-modern {
-        width: 28px;
-        height: 28px;
-        padding: 0;
-        justify-content: center;
-        border-radius: 50%;
-    }
-
-    .price-amount {
-        font-size: 1.1rem;
-    }
-
-    .ad-price-modern {
-        padding: 10px 12px;
-    }
-}
-
-/* Animation for modern elements */
-.modern-ad-card .ad-price-modern {
-    transition: all 0.3s ease;
-}
-
-.modern-ad-card:hover .ad-price-modern {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-}
-
-.modern-ad-card:hover .verified-badge-modern {
-    transform: translateY(-1px) scale(1.05);
-}
-
-/* Publisher Info Feature Pill */
-.feature-pill.publisher-info {
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    border-radius: 20px;
-    min-width: 140px;
-    max-width: 160px;
-    height: 32px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-}
-
-.publisher-avatar {
-    width: 24px !important;
-    height: 24px !important;
-    border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    flex-shrink: 0;
-}
-
-.publisher-details {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex: 1;
-    min-width: 0;
-}
-
-.publisher-name {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #ffffff;
-    text-overflow: ellipsis;
-    overflow: hidden;
-    white-space: nowrap;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-}
-
-/* Enhanced Feature Pills with Fixed Dimensions */
-.feature-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: 16px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    height: 32px;
-    min-width: 80px;
-    max-width: 120px;
-    text-align: center;
-    justify-content: center;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(5px);
-}
-
-.feature-pill i {
-    font-size: 0.7rem;
-    flex-shrink: 0;
-}
-
-.feature-pill span {
-    text-overflow: ellipsis;
-    overflow: hidden;
-    white-space: nowrap;
-    flex: 1;
-    min-width: 0;
-}
-
-/* Enhanced Footer Actions */
-.ad-actions {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-    width: 100%;
-}
-
-.contact-btn, .call-btn {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 8px 12px;
-    border: none;
-    border-radius: 8px;
-    font-size: 0.8rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    min-height: 36px;
-}
-
-.contact-btn {
-    background: linear-gradient(135deg, #25d366, #128c7e);
-    color: #ffffff;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-}
-
-.contact-btn:hover {
-    background: linear-gradient(135deg, #128c7e, #075e54);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
-}
-
-.call-btn {
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-    color: #ffffff;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-}
-
-.call-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(138, 43, 226, 0.3);
-}
-
-/* Responsive Adjustments for Feature Pills */
-@media (max-width: 768px) {
-    .feature-pill.publisher-info {
-        min-width: 120px;
-        max-width: 140px;
-        height: 28px;
-        padding: 6px 10px;
-    }
-
-    .publisher-avatar {
-        width: 20px !important;
-        height: 20px !important;
-    }
-
-    .publisher-name {
-        font-size: 0.7rem;
-    }
-
-    .verified-icon {
-        font-size: 0.6rem;
-    }
-
-    .feature-pill {
-        height: 28px;
-        min-width: 70px;
-        max-width: 100px;
-        font-size: 0.7rem;
-        padding: 4px 8px;
-    }
-
-    .contact-btn, .call-btn {
-        font-size: 0.75rem;
-        padding: 6px 10px;
-        min-height: 32px;
-    }
-}
-</style>

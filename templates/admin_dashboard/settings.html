@@ -1,0 +1,688 @@
+{% extends 'base.html' %}
+{% load static i18n compress %}
+
+{% block title %}
+    {% trans "إعدادات النظام - لوحة تحكم المدير" %}
+{% endblock %}
+
+{% block extra_css %}
+    {% compress css %}
+        <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+        <link rel="stylesheet" href="{% static 'css/admin-dashboard.css' %}">
+    {% endcompress %}
+{% endblock %}
+
+{% block content %}
+<div class="admin-dashboard-container">
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Admin Sidebar -->
+            <div class="col-md-3">
+                <div class="admin-sidebar p-4">
+                    <div class="admin-header text-center mb-4">
+                        <div class="admin-avatar mb-3">
+                            <i class="fas fa-user-shield fa-3x text-primary"></i>
+                        </div>
+                        <h5 class="mb-0">{% trans "لوحة تحكم المدير" %}</h5>
+                        <small class="text-muted">{{ user.username }}</small>
+                    </div>
+
+                    <nav class="admin-nav">
+                        <a href="{% url 'main:admin_dashboard' %}" class="admin-nav-item">
+                            <i class="fas fa-tachometer-alt me-2"></i>
+                            {% trans "الرئيسية" %}
+                        </a>
+                        <a href="{% url 'main:admin_categories' %}" class="admin-nav-item">
+                            <i class="fas fa-tags me-2"></i>
+                            {% trans "إدارة الأقسام" %}
+                        </a>
+                        <a href="{% url 'main:admin_ads' %}" class="admin-nav-item">
+                            <i class="fas fa-bullhorn me-2"></i>
+                            {% trans "إدارة الإعلانات" %}
+                        </a>
+                        <a href="{% url 'main:admin_payments' %}" class="admin-nav-item">
+                            <i class="fas fa-credit-card me-2"></i>
+                            {% trans "المدفوعات والعضويات" %}
+                        </a>
+                        <a href="{% url 'main:admin_settings' %}" class="admin-nav-item active">
+                            <i class="fas fa-cogs me-2"></i>
+                            {% trans "إعدادات النظام" %}
+                        </a>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9">
+                <!-- Header -->
+                <div class="admin-dashboard-header">
+                    <h1 class="display-6 mb-1">
+                        <i class="fas fa-cogs me-3"></i>
+                        {% trans "إعدادات النظام" %}
+                    </h1>
+                    <p class="text-muted mb-0">{% trans "إدارة إعدادات النشر، التوصيل، والسلة الإلكترونية" %}</p>
+                </div>
+
+                <!-- Settings Tabs -->
+                <div class="admin-content-card mb-4">
+                    <div class="card-body p-0">
+                        <nav>
+                            <div class="nav nav-tabs admin-tabs" id="settings-nav-tab" role="tablist">
+                                <button class="nav-link active" id="publishing-tab" data-bs-toggle="tab" data-bs-target="#publishing" type="button" role="tab">
+                                    <i class="fas fa-eye me-2"></i>
+                                    {% trans "إعدادات النشر" %}
+                                </button>
+                                <button class="nav-link" id="delivery-tab" data-bs-toggle="tab" data-bs-target="#delivery" type="button" role="tab">
+                                    <i class="fas fa-truck me-2"></i>
+                                    {% trans "التوصيل والتحصيل" %}
+                                </button>
+                                <button class="nav-link" id="cart-tab" data-bs-toggle="tab" data-bs-target="#cart" type="button" role="tab">
+                                    <i class="fas fa-shopping-cart me-2"></i>
+                                    {% trans "إعدادات السلة" %}
+                                </button>
+                                <button class="nav-link" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications" type="button" role="tab">
+                                    <i class="fas fa-bell me-2"></i>
+                                    {% trans "الإشعارات" %}
+                                </button>
+                            </div>
+                        </nav>
+                    </div>
+                </div>
+
+                <!-- Settings Content -->
+                <div class="tab-content" id="settings-nav-tabContent">
+                    <!-- Publishing Settings -->
+                    <div class="tab-pane fade show active" id="publishing" role="tabpanel">
+                        <div class="admin-content-card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-eye me-2"></i>
+                                    {% trans "إعدادات النشر والعرض" %}
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="publishingSettingsForm">
+                                    <!-- Publishing Mode -->
+                                    <div class="settings-group">
+                                        <h6 class="settings-group-title">{% trans "وضع النشر" %}</h6>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="form-check form-switch">
+                                                    <input type="radio" name="publishing_mode" value="direct" class="form-check-input" id="directPublish" checked>
+                                                    <label class="form-check-label" for="directPublish">
+                                                        <strong>{% trans "النشر المباشر" %}</strong>
+                                                        <small class="d-block text-muted">{% trans "الإعلانات تظهر فوراً بدون مراجعة" %}</small>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-check form-switch">
+                                                    <input type="radio" name="publishing_mode" value="review" class="form-check-input" id="reviewPublish">
+                                                    <label class="form-check-label" for="reviewPublish">
+                                                        <strong>{% trans "النشر بعد المراجعة" %}</strong>
+                                                        <small class="d-block text-muted">{% trans "الإعلانات تحتاج موافقة المدير" %}</small>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Verified Users Exception -->
+                                    <div class="settings-group">
+                                        <h6 class="settings-group-title">{% trans "استثناء المستخدمين الموثقين" %}</h6>
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" name="verified_auto_publish" class="form-check-input" id="verifiedAutoPublish" checked>
+                                            <label class="form-check-label" for="verifiedAutoPublish">
+                                                {% trans "نشر إعلانات المستخدمين الموثقين مباشرة (حتى في وضع المراجعة)" %}
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Visitor Access -->
+                                    <div class="settings-group">
+                                        <h6 class="settings-group-title">{% trans "إعدادات الزوار" %}</h6>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="form-check form-switch">
+                                                    <input type="checkbox" name="allow_guest_viewing" class="form-check-input" id="allowGuestViewing" checked>
+                                                    <label class="form-check-label" for="allowGuestViewing">
+                                                        {% trans "السماح للزوار بمشاهدة الإعلانات" %}
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-check form-switch">
+                                                    <input type="checkbox" name="allow_guest_contact" class="form-check-input" id="allowGuestContact">
+                                                    <label class="form-check-label" for="allowGuestContact">
+                                                        {% trans "السماح للزوار برؤية معلومات الاتصال" %}
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Member Only Features -->
+                                    <div class="settings-group">
+                                        <h6 class="settings-group-title">{% trans "ميزات الأعضاء المسجلين فقط" %}</h6>
+                                        <div class="form-check form-switch mb-2">
+                                            <input type="checkbox" name="members_only_contact" class="form-check-input" id="membersOnlyContact" checked>
+                                            <label class="form-check-label" for="membersOnlyContact">
+                                                {% trans "إظهار معلومات الاتصال للأعضاء المسجلين فقط" %}
+                                            </label>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" name="members_only_messaging" class="form-check-input" id="membersOnlyMessaging" checked>
+                                            <label class="form-check-label" for="membersOnlyMessaging">
+                                                {% trans "إرسال الرسائل للأعضاء المسجلين فقط" %}
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="text-end">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save me-2"></i>
+                                            {% trans "حفظ إعدادات النشر" %}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Delivery Settings -->
+                    <div class="tab-pane fade" id="delivery" role="tabpanel">
+                        <div class="admin-content-card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-truck me-2"></i>
+                                    {% trans "إعدادات التوصيل والتحصيل" %}
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="deliverySettingsForm">
+                                    <!-- Enable Delivery Service -->
+                                    <div class="settings-group">
+                                        <h6 class="settings-group-title">{% trans "تفعيل خدمة التوصيل والتحصيل" %}</h6>
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" name="delivery_service_enabled" class="form-check-input" id="deliveryServiceEnabled" checked>
+                                            <label class="form-check-label" for="deliveryServiceEnabled">
+                                                {% trans "تفعيل خدمة التوصيل والتحصيل للمستخدمين" %}
+                                            </label>
+                                        </div>
+                                        <small class="form-text text-muted">
+                                            {% trans "عند تفعيل هذه الخدمة، يمكن للمستخدمين اختيار التوصيل والتحصيل لإعلاناتهم" %}
+                                        </small>
+                                    </div>
+
+                                    <!-- Admin Approval Required -->
+                                    <div class="settings-group">
+                                        <h6 class="settings-group-title">{% trans "موافقة المدير" %}</h6>
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" name="delivery_requires_approval" class="form-check-input" id="deliveryRequiresApproval" checked>
+                                            <label class="form-check-label" for="deliveryRequiresApproval">
+                                                {% trans "تتطلب الإعلانات مع التوصيل والتحصيل موافقة المدير قبل تفعيل السلة" %}
+                                            </label>
+                                        </div>
+                                        <small class="form-text text-muted">
+                                            {% trans "يجب على المدير الاتفاق مع المستخدم على قيمة الخدمة قبل تفعيل السلة" %}
+                                        </small>
+                                    </div>
+
+                                    <!-- Terms and Conditions -->
+                                    <div class="settings-group">
+                                        <h6 class="settings-group-title">{% trans "شروط وأحكام التوصيل والتحصيل" %}</h6>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <label class="form-label">{% trans "الشروط باللغة العربية" %}</label>
+                                                <textarea name="delivery_terms_ar" class="form-control" rows="6" placeholder="{% trans 'شروط وأحكام خدمة التوصيل والتحصيل...' %}">{{ delivery_terms.arabic }}</textarea>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">{% trans "الشروط باللغة الإنجليزية" %}</label>
+                                                <textarea name="delivery_terms_en" class="form-control" rows="6" placeholder="Delivery and collection service terms...">{{ delivery_terms.english }}</textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Delivery Service Fees -->
+                                    <div class="settings-group">
+                                        <h6 class="settings-group-title">{% trans "رسوم الخدمة" %}</h6>
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <label class="form-label">{% trans "نسبة رسوم الخدمة (%)" %}</label>
+                                                <input type="number" name="delivery_fee_percentage" class="form-control" min="0" max="100" step="0.1" value="5">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">{% trans "الحد الأدنى للرسوم (ريال)" %}</label>
+                                                <input type="number" name="delivery_fee_min" class="form-control" min="0" step="1" value="10">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">{% trans "الحد الأقصى للرسوم (ريال)" %}</label>
+                                                <input type="number" name="delivery_fee_max" class="form-control" min="0" step="1" value="500">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="text-end">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save me-2"></i>
+                                            {% trans "حفظ إعدادات التوصيل" %}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cart Settings -->
+                    <div class="tab-pane fade" id="cart" role="tabpanel">
+                        <div class="admin-content-card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-shopping-cart me-2"></i>
+                                    {% trans "إعدادات السلة الإلكترونية" %}
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="cartSettingsForm">
+                                    <!-- Enable Cart System -->
+                                    <div class="settings-group">
+                                        <h6 class="settings-group-title">{% trans "تفعيل نظام السلة" %}</h6>
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" name="cart_system_enabled" class="form-check-input" id="cartSystemEnabled" checked>
+                                            <label class="form-check-label" for="cartSystemEnabled">
+                                                {% trans "تفعيل نظام السلة الإلكترونية" %}
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Cart Activation Levels -->
+                                    <div class="settings-group">
+                                        <h6 class="settings-group-title">{% trans "مستويات تفعيل السلة" %}</h6>
+                                        <div class="form-check mb-2">
+                                            <input type="checkbox" name="cart_by_main_category" class="form-check-input" id="cartByMainCategory">
+                                            <label class="form-check-label" for="cartByMainCategory">
+                                                {% trans "تفعيل السلة على مستوى الأقسام الرئيسية" %}
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input type="checkbox" name="cart_by_subcategory" class="form-check-input" id="cartBySubcategory" checked>
+                                            <label class="form-check-label" for="cartBySubcategory">
+                                                {% trans "تفعيل السلة على مستوى الأقسام الفرعية" %}
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input type="checkbox" name="cart_per_ad" class="form-check-input" id="cartPerAd" checked>
+                                            <label class="form-check-label" for="cartPerAd">
+                                                {% trans "تفعيل السلة على مستوى الإعلان الواحد" %}
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Payment Structure -->
+                                    <div class="settings-group">
+                                        <h6 class="settings-group-title">{% trans "هيكل الدفعات" %}</h6>
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            {% trans "السعر الإجمالي = سعر المنتج + قيمة الحجز" %}<br>
+                                            {% trans "المبلغ المطلوب دفعه = قيمة الحجز فقط (ليس السعر الكامل)" %}
+                                        </div>
+
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <label class="form-label">{% trans "نسبة الحجز الافتراضية (%)" %}</label>
+                                                <input type="number" name="default_reservation_percentage" class="form-control" min="0" max="100" step="1" value="20">
+                                                <small class="form-text text-muted">{% trans "نسبة من السعر الإجمالي" %}</small>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">{% trans "الحد الأدنى للحجز (ريال)" %}</label>
+                                                <input type="number" name="min_reservation_amount" class="form-control" min="0" step="1" value="50">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">{% trans "الحد الأقصى للحجز (ريال)" %}</label>
+                                                <input type="number" name="max_reservation_amount" class="form-control" min="0" step="1" value="5000">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Category-specific Settings -->
+                                    <div class="settings-group">
+                                        <h6 class="settings-group-title">{% trans "إعدادات خاصة بالأقسام" %}</h6>
+                                        <div class="category-settings-list">
+                                            <div class="category-setting-item">
+                                                <div class="row align-items-center">
+                                                    <div class="col-md-4">
+                                                        <select class="form-select" name="category_id[]">
+                                                            <option value="">{% trans "اختر قسم" %}</option>
+                                                            <!-- Categories will be loaded here -->
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-2">
+                                                        <input type="number" class="form-control" name="category_reservation_percentage[]" placeholder="%" min="0" max="100">
+                                                    </div>
+                                                    <div class="col-md-2">
+                                                        <input type="number" class="form-control" name="category_min_amount[]" placeholder="{% trans 'حد أدنى' %}" min="0">
+                                                    </div>
+                                                    <div class="col-md-2">
+                                                        <input type="number" class="form-control" name="category_max_amount[]" placeholder="{% trans 'حد أقصى' %}" min="0">
+                                                    </div>
+                                                    <div class="col-md-2">
+                                                        <button type="button" class="btn btn-danger btn-sm" onclick="removeCategorySetting(this)">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="addCategorySetting()">
+                                            <i class="fas fa-plus me-1"></i>
+                                            {% trans "إضافة إعداد قسم" %}
+                                        </button>
+                                    </div>
+
+                                    <div class="text-end">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save me-2"></i>
+                                            {% trans "حفظ إعدادات السلة" %}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Notifications -->
+                    <div class="tab-pane fade" id="notifications" role="tabpanel">
+                        <div class="admin-content-card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-bell me-2"></i>
+                                    {% trans "إعدادات الإشعارات" %}
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="notificationsSettingsForm">
+                                    <!-- Admin Notifications -->
+                                    <div class="settings-group">
+                                        <h6 class="settings-group-title">{% trans "إشعارات المدير" %}</h6>
+                                        <div class="form-check form-switch mb-2">
+                                            <input type="checkbox" name="notify_admin_new_ads" class="form-check-input" id="notifyAdminNewAds" checked>
+                                            <label class="form-check-label" for="notifyAdminNewAds">
+                                                {% trans "إشعار بالإعلانات الجديدة" %}
+                                            </label>
+                                        </div>
+                                        <div class="form-check form-switch mb-2">
+                                            <input type="checkbox" name="notify_admin_pending_review" class="form-check-input" id="notifyAdminPendingReview" checked>
+                                            <label class="form-check-label" for="notifyAdminPendingReview">
+                                                {% trans "إشعار بالإعلانات قيد المراجعة" %}
+                                            </label>
+                                        </div>
+                                        <div class="form-check form-switch mb-2">
+                                            <input type="checkbox" name="notify_admin_new_users" class="form-check-input" id="notifyAdminNewUsers" checked>
+                                            <label class="form-check-label" for="notifyAdminNewUsers">
+                                                {% trans "إشعار بالمستخدمين الجدد" %}
+                                            </label>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" name="notify_admin_payments" class="form-check-input" id="notifyAdminPayments" checked>
+                                            <label class="form-check-label" for="notifyAdminPayments">
+                                                {% trans "إشعار بالمدفوعات الجديدة" %}
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Email Settings -->
+                                    <div class="settings-group">
+                                        <h6 class="settings-group-title">{% trans "إعدادات الإيميل" %}</h6>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <label class="form-label">{% trans "إيميل المدير للإشعارات" %}</label>
+                                                <input type="email" name="admin_notification_email" class="form-control" value="{{ user.email }}">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">{% trans "اسم الموقع في الإيميلات" %}</label>
+                                                <input type="text" name="site_name_in_emails" class="form-control" value="إدريسي مارت">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Notification Frequency -->
+                                    <div class="settings-group">
+                                        <h6 class="settings-group-title">{% trans "تكرار الإشعارات" %}</h6>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <label class="form-label">{% trans "تجميع إشعارات الإعلانات" %}</label>
+                                                <select name="ads_notification_frequency" class="form-select">
+                                                    <option value="instant">{% trans "فوري" %}</option>
+                                                    <option value="hourly" selected>{% trans "كل ساعة" %}</option>
+                                                    <option value="daily">{% trans "يومي" %}</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">{% trans "تقرير الإحصائيات" %}</label>
+                                                <select name="stats_report_frequency" class="form-select">
+                                                    <option value="daily" selected>{% trans "يومي" %}</option>
+                                                    <option value="weekly">{% trans "أسبوعي" %}</option>
+                                                    <option value="monthly">{% trans "شهري" %}</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="text-end">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save me-2"></i>
+                                            {% trans "حفظ إعدادات الإشعارات" %}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Settings Management
+document.addEventListener('DOMContentLoaded', function() {
+    // Load current settings
+    loadSystemSettings();
+
+    // Form submissions
+    document.getElementById('publishingSettingsForm').addEventListener('submit', savePublishingSettings);
+    document.getElementById('deliverySettingsForm').addEventListener('submit', saveDeliverySettings);
+    document.getElementById('cartSettingsForm').addEventListener('submit', saveCartSettings);
+    document.getElementById('notificationsSettingsForm').addEventListener('submit', saveNotificationSettings);
+});
+
+function loadSystemSettings() {
+    fetch('/admin/settings/get/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                populateSettingsForms(data.settings);
+            }
+        })
+        .catch(error => console.error('Error loading settings:', error));
+}
+
+function populateSettingsForms(settings) {
+    // Publishing settings
+    if (settings.publishing_mode) {
+        document.querySelector(`[name="publishing_mode"][value="${settings.publishing_mode}"]`).checked = true;
+    }
+    if (settings.verified_auto_publish) {
+        document.getElementById('verifiedAutoPublish').checked = settings.verified_auto_publish;
+    }
+    if (settings.allow_guest_viewing !== undefined) {
+        document.getElementById('allowGuestViewing').checked = settings.allow_guest_viewing;
+    }
+    if (settings.allow_guest_contact !== undefined) {
+        document.getElementById('allowGuestContact').checked = settings.allow_guest_contact;
+    }
+
+    // Delivery settings
+    if (settings.delivery_service_enabled !== undefined) {
+        document.getElementById('deliveryServiceEnabled').checked = settings.delivery_service_enabled;
+    }
+    if (settings.delivery_requires_approval !== undefined) {
+        document.getElementById('deliveryRequiresApproval').checked = settings.delivery_requires_approval;
+    }
+
+    // Cart settings
+    if (settings.cart_system_enabled !== undefined) {
+        document.getElementById('cartSystemEnabled').checked = settings.cart_system_enabled;
+    }
+}
+
+function savePublishingSettings(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+
+    fetch('/admin/settings/publishing/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess('تم حفظ إعدادات النشر بنجاح');
+        } else {
+            showError('فشل في حفظ الإعدادات');
+        }
+    });
+}
+
+function saveDeliverySettings(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+
+    fetch('/admin/settings/delivery/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess('تم حفظ إعدادات التوصيل بنجاح');
+        } else {
+            showError('فشل في حفظ الإعدادات');
+        }
+    });
+}
+
+function saveCartSettings(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+
+    fetch('/admin/settings/cart/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess('تم حفظ إعدادات السلة بنجاح');
+        } else {
+            showError('فشل في حفظ الإعدادات');
+        }
+    });
+}
+
+function saveNotificationSettings(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+
+    fetch('/admin/settings/notifications/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess('تم حفظ إعدادات الإشعارات بنجاح');
+        } else {
+            showError('فشل في حفظ الإعدادات');
+        }
+    });
+}
+
+// Category settings for cart
+function addCategorySetting() {
+    const container = document.querySelector('.category-settings-list');
+    const newSetting = document.createElement('div');
+    newSetting.className = 'category-setting-item';
+    newSetting.innerHTML = `
+        <div class="row align-items-center">
+            <div class="col-md-4">
+                <select class="form-select" name="category_id[]">
+                    <option value="">اختر قسم</option>
+                    <!-- Categories will be loaded here -->
+                </select>
+            </div>
+            <div class="col-md-2">
+                <input type="number" class="form-control" name="category_reservation_percentage[]" placeholder="%" min="0" max="100">
+            </div>
+            <div class="col-md-2">
+                <input type="number" class="form-control" name="category_min_amount[]" placeholder="حد أدنى" min="0">
+            </div>
+            <div class="col-md-2">
+                <input type="number" class="form-control" name="category_max_amount[]" placeholder="حد أقصى" min="0">
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-danger btn-sm" onclick="removeCategorySetting(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    container.appendChild(newSetting);
+}
+
+function removeCategorySetting(button) {
+    button.closest('.category-setting-item').remove();
+}
+
+// Utility functions
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showSuccess(message) {
+    console.log('Success:', message);
+    // Implement toast notification
+}
+
+function showError(message) {
+    console.log('Error:', message);
+    // Implement toast notification
+}
+</script>
+{% endblock %}

@@ -18,10 +18,195 @@
 {% block content %}
     {% if category %}
         <!-- Modern Category Hero Section -->
-        <section class="modern-category-hero">
+        <section class="modern-hero-section">
             <div class="hero-background-gradient"></div>
             <div class="container">
-                <!-- Enhanced Modern Breadcrumbs -->
+                <!-- Breadcrumb Navigation using Partial -->
+                <div class="enhanced-breadcrumb mb-4">
+                    {% include 'partials/_breadcrumbs.html' %}
+                </div>
+
+                <div class="hero-content-modern">
+                    <div class="hero-icon-wrapper">
+                        <i class="fas fa-{% if category.icon %}{{ category.icon }}{% else %}tag{% endif %} hero-icon"></i>
+                    </div>
+                    <h1 class="modern-hero-title">
+                        {% if LANGUAGE_CODE == 'ar' and category.name_ar %}
+                            {{ category.name_ar }}
+                        {% else %}
+                            {{ category.name }}
+                        {% endif %}
+                    </h1>
+                    <p class="modern-hero-subtitle">
+                        {% if LANGUAGE_CODE == 'ar' and category.description_ar %}
+                            {{ category.description_ar }}
+                        {% elif category.description %}
+                            {{ category.description }}
+                        {% else %}
+                            {% trans "استكشف جميع الإعلانات في هذا القسم واعثر على ما تبحث عنه بسهولة" %}
+                        {% endif %}
+                    </p>
+
+                    <!-- Enhanced Search and Filter Bar -->
+                    <div class="hero-search-container">
+                        <div class="search-filter-wrapper">
+                            <!-- Search Input -->
+                            <div class="search-input-group">
+                                <div class="search-icon-wrapper">
+                                    <i class="fas fa-search search-icon"></i>
+                                </div>
+                                <input type="text"
+                                       id="categorySearchInput"
+                                       class="form-control modern-search-input"
+                                       placeholder="{% trans 'ابحث في إعلانات هذا القسم...' %}"
+                                       autocomplete="off">
+                                <button type="button" id="clearSearchBtn" class="clear-search-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+
+                            <!-- Price Filter Group -->
+                            <div class="price-filter-group">
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-dollar-sign"></i>
+                                    </span>
+                                    <input type="number"
+                                           id="minPrice"
+                                           class="form-control"
+                                           placeholder="{% trans 'الحد الأدنى' %}"
+                                           min="0">
+                                    <span class="input-group-text">-</span>
+                                    <input type="number"
+                                           id="maxPrice"
+                                           class="form-control"
+                                           placeholder="{% trans 'الحد الأقصى' %}"
+                                           min="0">
+                                </div>
+                            </div>
+
+                            <!-- Country Filter -->
+                            <div class="location-filter-group">
+                                <select class="form-control" id="countryFilter">
+                                    <option value="">{% trans "جميع البلدان" %}</option>
+                                    <option value="MA">{% trans "المغرب" %}</option>
+                                    <option value="DZ">{% trans "الجزائر" %}</option>
+                                    <option value="TN">{% trans "تونس" %}</option>
+                                    <option value="EG">{% trans "مصر" %}</option>
+                                    <option value="SA">{% trans "السعودية" %}</option>
+                                    <option value="AE">{% trans "الإمارات" %}</option>
+                                    <option value="KW">{% trans "الكويت" %}</option>
+                                    <option value="QA">{% trans "قطر" %}</option>
+                                    <option value="BH">{% trans "البحرين" %}</option>
+                                    <option value="OM">{% trans "عمان" %}</option>
+                                    <option value="JO">{% trans "الأردن" %}</option>
+                                    <option value="LB">{% trans "لبنان" %}</option>
+                                    <option value="SY">{% trans "سوريا" %}</option>
+                                    <option value="IQ">{% trans "العراق" %}</option>
+                                    <option value="LY">{% trans "ليبيا" %}</option>
+                                    <option value="SD">{% trans "السودان" %}</option>
+                                    <option value="YE">{% trans "اليمن" %}</option>
+                                </select>
+                            </div>
+
+                            <!-- Advanced Filter Dropdown -->
+                            <div class="filter-dropdown-container">
+                                <button class="btn modern-filter-btn" type="button" id="filterDropdownBtn" data-bs-toggle="dropdown">
+                                    <i class="fas fa-filter me-2"></i>
+                                    <span class="filter-text">{% trans "فلترة متقدمة" %}</span>
+                                    <i class="fas fa-chevron-down ms-2"></i>
+                                </button>
+                                <ul class="dropdown-menu modern-dropdown-menu">
+                                    <!-- Sort Section -->
+                                    <li>
+                                        <h6 class="dropdown-header">
+                                            <i class="fas fa-sort-amount-down me-2"></i>
+                                            {% trans "ترتيب حسب" %}
+                                        </h6>
+                                    </li>
+                                    <li><a class="dropdown-item filter-option" href="#" data-sort="date">
+                                        <i class="fas fa-calendar me-2"></i>{% trans "تاريخ النشر" %}
+                                    </a></li>
+                                    <li><a class="dropdown-item filter-option" href="#" data-sort="price-low">
+                                        <i class="fas fa-sort-amount-down me-2"></i>{% trans "السعر (أقل لأعلى)" %}
+                                    </a></li>
+                                    <li><a class="dropdown-item filter-option" href="#" data-sort="price-high">
+                                        <i class="fas fa-sort-amount-up me-2"></i>{% trans "السعر (أعلى لأقل)" %}
+                                    </a></li>
+                                    <li><a class="dropdown-item filter-option" href="#" data-sort="views">
+                                        <i class="fas fa-eye me-2"></i>{% trans "الأكثر مشاهدة" %}
+                                    </a></li>
+
+                                    <li><hr class="dropdown-divider"></li>
+
+                                    <!-- Ad Type Filter -->
+                                    <li>
+                                        <h6 class="dropdown-header">
+                                            <i class="fas fa-tags me-2"></i>
+                                            {% trans "نوع الإعلان" %}
+                                        </h6>
+                                    </li>
+                                    <li><a class="dropdown-item filter-option active" href="#" data-type="all">
+                                        <i class="fas fa-th-large me-2"></i>{% trans "جميع الإعلانات" %}
+                                    </a></li>
+                                    <li><a class="dropdown-item filter-option" href="#" data-type="featured">
+                                        <i class="fas fa-star me-2"></i>{% trans "إعلانات مميزة" %}
+                                    </a></li>
+                                    <li><a class="dropdown-item filter-option" href="#" data-type="urgent">
+                                        <i class="fas fa-bolt me-2"></i>{% trans "إعلانات عاجلة" %}
+                                    </a></li>
+                                    <li><a class="dropdown-item filter-option" href="#" data-type="verified">
+                                        <i class="fas fa-shield-alt me-2"></i>{% trans "إعلانات موثقة" %}
+                                    </a></li>
+                                </ul>
+                            </div>
+
+                            <!-- View Toggle -->
+                            <div class="view-toggle-container">
+                                <div class="view-toggle-buttons">
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-outline-primary active" id="heroGridViewToggle" data-view="grid">
+                                            <i class="fas fa-th"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary" id="heroListViewToggle" data-view="list">
+                                            <i class="fas fa-list"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Stats -->
+                        <div class="quick-stats-bar">
+                            <div class="stats-item">
+                                <span class="stats-icon"><i class="fas fa-layer-group"></i></span>
+                                <span class="stats-text">
+                                    <span id="subcategoriesCount">{{ category.children.count|default:0 }}</span>
+                                    {% trans "قسم فرعي" %}
+                                </span>
+                            </div>
+                            <div class="stats-item">
+                                <span class="stats-icon"><i class="fas fa-bullhorn"></i></span>
+                                <span class="stats-text">
+                                    <span id="categoryAdsCount">{{ category.ads.count|default:0 }}</span>
+                                    {% trans "إعلان" %}
+                                </span>
+                            </div>
+                            <div class="stats-item">
+                                <span class="stats-icon"><i class="fas fa-eye"></i></span>
+                                <span class="stats-text">
+                                    <span id="visibleAdsCount">{{ category.ads.count|default:0 }}</span>
+                                    {% trans "معروض" %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Modern Category Content Section -->
+        <section class="modern-category-content">
                 {% if breadcrumbs %}
                     <nav aria-label="breadcrumb" class="enhanced-breadcrumb mb-4">
                         <ol class="breadcrumb modern-breadcrumb-nav">
@@ -293,13 +478,15 @@
 
                             <!-- View Toggle -->
                             <div class="view-toggle-container">
-                                <div class="btn-group view-toggle-group" role="group">
-                                    <button type="button" class="btn view-toggle-btn active" id="gridViewBtn" data-view="grid">
-                                        <i class="fas fa-th"></i>
-                                    </button>
-                                    <button type="button" class="btn view-toggle-btn" id="listViewBtn" data-view="list">
-                                        <i class="fas fa-list"></i>
-                                    </button>
+                                <div class="view-toggle-buttons">
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-outline-primary active" id="gridViewToggle" data-view="grid">
+                                            <i class="fas fa-th"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary" id="listViewToggle" data-view="list">
+                                            <i class="fas fa-list"></i>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -401,11 +588,14 @@
                     <div class="section-content-modern" id="adsContent">
                         <!-- Ads Grid/List -->
                         <div id="adsContainer" class="content-grid" data-view="grid">
-                            {% for ad in ads %}
-                                <div class="content-item ads-item" data-type="ad" data-title="{{ ad.title|lower }}" data-price="{{ ad.price|default:0 }}">
-                                    {% include "partials/_ad_card_component.html" with ad=ad %}
-                                </div>
-                            {% empty %}
+                            <div class="row" id="adsBootstrapGrid">
+                                {% for ad in ads %}
+                                    <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-4 bootstrap-ad-card" data-category="{{ ad.category.slug|default:'' }}">
+                                        {% include "partials/_ad_card_component.html" with ad=ad %}
+                                    </div>
+                                {% empty %}
+                            </div>
+                            <div class="col-12">
                                 <div class="empty-state">
                                     <div class="empty-icon">
                                         <i class="fas fa-bullhorn"></i>
@@ -416,6 +606,7 @@
                                         <i class="fas fa-plus me-2"></i>{% trans "أضف إعلانك الأول" %}
                                     </a>
                                 </div>
+                            </div>
                             {% endfor %}
                         </div>
 
@@ -491,13 +682,33 @@ document.addEventListener('DOMContentLoaded', function() {
     class ModernCategoryDetailManager {
         constructor(categoryId) {
             this.categoryId = categoryId;
+            this.currentSort = 'date';
+            this.currentType = 'all';
+            this.searchQuery = '';
+            this.currentView = 'grid';
+            this.currentCountry = '';
+            this.priceRange = { min: null, max: null };
+
+            // Initialize DOM elements
             this.searchInput = document.getElementById('categorySearchInput');
             this.clearSearchBtn = document.getElementById('clearSearchBtn');
+            this.countryFilter = document.getElementById('countryFilter');
+            this.minPriceInput = document.getElementById('minPrice');
+            this.maxPriceInput = document.getElementById('maxPrice');
             this.filterDropdown = document.getElementById('filterDropdownBtn');
             this.contentLoader = document.getElementById('contentLoader');
             this.noResults = document.getElementById('noResultsMessage');
-            this.gridViewBtn = document.getElementById('gridViewBtn');
-            this.listViewBtn = document.getElementById('listViewBtn');
+
+            // View toggle buttons (new IDs)
+            this.heroGridViewToggle = document.getElementById('heroGridViewToggle');
+            this.heroListViewToggle = document.getElementById('heroListViewToggle');
+            this.gridViewToggle = document.getElementById('gridViewToggle');
+            this.listViewToggle = document.getElementById('listViewToggle');
+
+            // Legacy support for old IDs
+            this.gridViewBtn = document.getElementById('gridViewBtn') || this.gridViewToggle;
+            this.listViewBtn = document.getElementById('listViewBtn') || this.listViewToggle;
+
             this.subcategoriesSection = document.getElementById('subcategoriesSection');
             this.adsSection = document.getElementById('adsSection');
             this.subcategoriesGrid = document.getElementById('subcategoriesGrid');
@@ -747,13 +958,57 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         setupViewToggle() {
-            this.gridViewBtn?.addEventListener('click', () => {
-                this.setLayout('grid');
+            // Handle all view toggle buttons
+            const allGridButtons = [
+                this.gridViewBtn,
+                this.gridViewToggle,
+                this.heroGridViewToggle,
+                document.getElementById('gridViewBtn')
+            ].filter(btn => btn);
+
+            const allListButtons = [
+                this.listViewBtn,
+                this.listViewToggle,
+                this.heroListViewToggle,
+                document.getElementById('listViewBtn')
+            ].filter(btn => btn);
+
+            // Grid view handlers
+            allGridButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    this.setLayout('grid');
+                });
             });
 
-            this.listViewBtn?.addEventListener('click', () => {
-                this.setLayout('list');
+            // List view handlers
+            allListButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    this.setLayout('list');
+                });
             });
+
+            // Country filter handler
+            if (this.countryFilter) {
+                this.countryFilter.addEventListener('change', (e) => {
+                    this.currentCountry = e.target.value;
+                    this.applyFilters();
+                });
+            }
+
+            // Price range handlers
+            if (this.minPriceInput) {
+                this.minPriceInput.addEventListener('input', (e) => {
+                    this.priceRange.min = e.target.value ? parseFloat(e.target.value) : null;
+                    this.debounced(() => this.applyFilters(), 500);
+                });
+            }
+
+            if (this.maxPriceInput) {
+                this.maxPriceInput.addEventListener('input', (e) => {
+                    this.priceRange.max = e.target.value ? parseFloat(e.target.value) : null;
+                    this.debounced(() => this.applyFilters(), 500);
+                });
+            }
         }
 
         setupSectionToggling() {
@@ -821,7 +1076,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Update ads counter (already done, but make sure it's current)
-            const adsCount = document.querySelectorAll('.content-item[data-type="ad"]').length;
+            const adsCount = document.querySelectorAll('.bootstrap-ad-card').length;
             const adsStatsElement = document.getElementById('adsStatsCount');
             if (adsStatsElement && !adsStatsElement.textContent.includes('fa-')) {
                 adsStatsElement.innerHTML = adsCount;
@@ -1050,11 +1305,16 @@ document.addEventListener('DOMContentLoaded', function() {
             this.showLoader();
 
             setTimeout(() => {
-                const allItems = document.querySelectorAll('.content-item');
+                // Handle subcategories (still using content-item)
+                const allSubcatItems = document.querySelectorAll('.content-item[data-type="subcategory"]');
+                // Handle ads (now using bootstrap-ad-card)
+                const allAdItems = document.querySelectorAll('.bootstrap-ad-card');
+
                 let visibleCount = 0;
                 let hasResults = false;
 
-                allItems.forEach(item => {
+                // Filter subcategories
+                allSubcatItems.forEach(item => {
                     const itemType = item.dataset.type;
                     const itemTitle = item.dataset.title || '';
 
@@ -1062,8 +1322,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     // Type filter
                     if (this.currentType !== 'all') {
-                        if (this.currentType === 'ads' && itemType !== 'ad') {
-                            shouldShow = false;
+                        if (this.currentType === 'ads') {
+                            shouldShow = false; // Hide subcategories when filtering for ads only
                         } else if (this.currentType === 'subcategories' && itemType !== 'subcategory') {
                             shouldShow = false;
                         }
@@ -1071,6 +1331,37 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     // Search filter
                     if (this.searchQuery && !itemTitle.includes(this.searchQuery.toLowerCase())) {
+                        shouldShow = false;
+                    }
+
+                    // Apply visibility
+                    if (shouldShow) {
+                        item.style.display = 'block';
+                        this.animateIn(item);
+                        visibleCount++;
+                        hasResults = true;
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+
+                // Filter ads
+                allAdItems.forEach(item => {
+                    // Get ad data from the included ad card
+                    const adCard = item.querySelector('.modern-ad-card');
+                    const adTitle = adCard ? (adCard.querySelector('.ad-title')?.textContent || '').toLowerCase() : '';
+
+                    let shouldShow = true;
+
+                    // Type filter
+                    if (this.currentType !== 'all') {
+                        if (this.currentType === 'subcategories') {
+                            shouldShow = false; // Hide ads when filtering for subcategories only
+                        }
+                    }
+
+                    // Search filter
+                    if (this.searchQuery && !adTitle.includes(this.searchQuery.toLowerCase())) {
                         shouldShow = false;
                     }
 
@@ -1102,7 +1393,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         sortContent() {
-            const adsItems = Array.from(document.querySelectorAll('.content-item[data-type="ad"]'));
+            const adsItems = Array.from(document.querySelectorAll('.bootstrap-ad-card'));
             const visibleAdsItems = adsItems.filter(item => item.style.display !== 'none');
 
             if (this.currentSort && visibleAdsItems.length > 0) {
@@ -1127,7 +1418,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         updateSectionsVisibility() {
             const hasVisibleSubcats = document.querySelectorAll('.content-item[data-type="subcategory"]:not([style*="display: none"])').length > 0;
-            const hasVisibleAds = document.querySelectorAll('.content-item[data-type="ad"]:not([style*="display: none"])').length > 0;
+            const hasVisibleAds = document.querySelectorAll('.bootstrap-ad-card:not([style*="display: none"])').length > 0;
 
             if (this.subcategoriesSection) {
                 this.subcategoriesSection.style.display = hasVisibleSubcats ? 'block' : 'none';
@@ -1141,12 +1432,34 @@ document.addEventListener('DOMContentLoaded', function() {
         setLayout(layout) {
             this.currentLayout = layout;
 
-            // Update button states
-            this.gridViewBtn?.classList.toggle('active', layout === 'grid');
-            this.listViewBtn?.classList.toggle('active', layout === 'list');
+            // Update all button states
+            const allButtons = [
+                this.gridViewBtn,
+                this.gridViewToggle,
+                this.heroGridViewToggle,
+                this.listViewBtn,
+                this.listViewToggle,
+                this.heroListViewToggle,
+                document.getElementById('gridViewBtn'),
+                document.getElementById('listViewBtn')
+            ].filter(btn => btn);
+
+            allButtons.forEach(btn => {
+                const isGridBtn = btn.dataset.view === 'grid' ||
+                                  btn.id?.includes('grid') ||
+                                  btn === this.gridViewBtn ||
+                                  btn === this.gridViewToggle ||
+                                  btn === this.heroGridViewToggle;
+
+                if (isGridBtn) {
+                    btn.classList.toggle('active', layout === 'grid');
+                } else {
+                    btn.classList.toggle('active', layout === 'list');
+                }
+            });
 
             // Update container layouts
-            document.querySelectorAll('.content-grid').forEach(container => {
+            document.querySelectorAll('.content-grid, .ads-grid, #adsBootstrapGrid').forEach(container => {
                 container.setAttribute('data-view', layout);
             });
         }
@@ -1240,8 +1553,14 @@ document.addEventListener('DOMContentLoaded', function() {
 {% endblock extra_js %}
 
 {% block extra_css %}
-<style>
-    /* Modern Category Detail Page Styling */
+    <link rel="stylesheet" href="{% static 'css/categories-enhanced.css' %}">
+    <style>
+        /* Category Detail Page - Only page-specific overrides */
+        /* All common styles are in categories-enhanced.css and style.css */
+
+        /* Only keep absolutely necessary category_detail specific styles here */
+    </style>
+{% endblock extra_css %}
 
     /* Modern Category Hero Section */
     .modern-category-hero {
@@ -1825,6 +2144,46 @@ document.addEventListener('DOMContentLoaded', function() {
         font-weight: 600;
     }
 
+    /* View Toggle Buttons - Enhanced */
+    .view-toggle-container {
+        display: flex;
+        align-items: center;
+        z-index: 100;
+    }
+
+    .view-toggle-buttons {
+        display: flex;
+        align-items: center;
+    }
+
+    .view-toggle-buttons .btn-group {
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .view-toggle-buttons .btn-group .btn {
+        border: none;
+        padding: 12px 16px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        background: rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.8);
+        border-radius: 0;
+    }
+
+    .view-toggle-buttons .btn-group .btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        transform: translateY(-1px);
+    }
+
+    .view-toggle-buttons .btn-group .btn.active {
+        background: var(--primary-color);
+        color: white;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
     .view-toggle-group {
         background: rgba(255, 255, 255, 0.2);
         border-radius: 50px;
@@ -1849,6 +2208,54 @@ document.addEventListener('DOMContentLoaded', function() {
     .view-toggle-btn:hover {
         background: rgba(255, 255, 255, 0.2);
         color: white;
+    }
+
+    /* Enhanced Card Spacing for Both Themes */
+    .category-card, .subcategory-card-modern, .modern-ad-card {
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .category-card:hover, .subcategory-card-modern:hover, .modern-ad-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Grid View Card Spacing */
+    .ads-grid .row {
+        --bs-gutter-x: 2rem;
+        --bs-gutter-y: 2rem;
+        margin: 0;
+    }
+
+    .ads-grid .col-12 {
+        padding: 1rem;
+    }
+
+    /* List View Adaptations */
+    .content-grid[data-view="list"] .modern-ad-card,
+    .ads-grid[data-view="list"] .modern-ad-card {
+        display: flex;
+        flex-direction: row;
+        height: auto;
+        max-height: 200px;
+        margin-bottom: 1rem;
+    }
+
+    .content-grid[data-view="list"] .ad-image-container,
+    .ads-grid[data-view="list"] .ad-image-container {
+        width: 250px;
+        height: 180px;
+        flex-shrink: 0;
+    }
+
+    .content-grid[data-view="list"] .ad-content,
+    .ads-grid[data-view="list"] .ad-content {
+        flex: 1;
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
     }
 
     /* Modern Content Section */
@@ -2110,17 +2517,28 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     .content-grid {
-        display: grid;
-        gap: 1.5rem;
-        transition: all 0.3s ease;
+        margin-bottom: 2rem;
     }
 
-    .content-grid[data-view="grid"] {
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    .content-grid .row {
+        --bs-gutter-x: 1.5rem;
+        --bs-gutter-y: 1.5rem;
+        margin: 0;
+        row-gap: 1.5rem;
     }
 
-    .content-grid[data-view="list"] {
-        grid-template-columns: 1fr;
+    /* Bootstrap Grid Classes for Responsive Layout */
+    .content-grid .bootstrap-ad-card {
+        margin-bottom: 1.5rem;
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    /* List View: Single Column Layout */
+    .content-grid[data-view="list"] .bootstrap-ad-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 0 0 100% !important;
     }
 
     /* Modern Subcategory Cards */
@@ -2609,7 +3027,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    /* Dark Theme Support */
+    /* Dark Theme Support - Enhanced */
     [data-theme='dark'] .modern-search-input {
         background: rgba(255, 255, 255, 0.1);
         color: white;
@@ -2627,8 +3045,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     [data-theme='dark'] .modern-dropdown-menu {
-        background: var(--bg-secondary);
-        border: 1px solid var(--border-color);
+        background: #2d3748;
+        border: 1px solid #4a5568;
+        color: white;
     }
 
     [data-theme='dark'] .modern-dropdown-menu .dropdown-item:hover {
@@ -2639,6 +3058,40 @@ document.addEventListener('DOMContentLoaded', function() {
     [data-theme='dark'] .modern-dropdown-menu .dropdown-item.active {
         background: var(--secondary-color);
         color: white;
+    }
+
+    /* Dark Theme View Toggle Buttons */
+    [data-theme='dark'] .view-toggle-buttons .btn-group .btn {
+        background: rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.8);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    [data-theme='dark'] .view-toggle-buttons .btn-group .btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    [data-theme='dark'] .view-toggle-buttons .btn-group .btn.active {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+
+    /* Dark Theme Cards Enhancement */
+    [data-theme='dark'] .modern-ad-card,
+    [data-theme='dark'] .subcategory-card-modern {
+        background: #2d3748;
+        border-color: #4a5568;
+        color: white;
+    }
+
+    [data-theme='dark'] .modern-ad-card:hover,
+    [data-theme='dark'] .subcategory-card-modern:hover {
+        background: #374151;
+        border-color: #6b7280;
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
     }
 
     /* Dark Theme Filter Groups */
@@ -2793,6 +3246,455 @@ document.addEventListener('DOMContentLoaded', function() {
     @keyframes scaleIn {
         from { opacity: 0; transform: scale(0.9); }
         to { opacity: 1; transform: scale(1); }
+    }
+
+    /* Modern Ad Card Component Integration */
+    .modern-ad-card {
+        background: var(--bg-secondary);
+        border-radius: 20px;
+        overflow: hidden;
+        border: 1px solid var(--border-color);
+        transition: all 0.3s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+
+    .modern-ad-card:hover {
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+        border-color: var(--primary-color);
+    }
+
+    .ad-image-container {
+        position: relative;
+        height: 220px;
+        overflow: hidden;
+    }
+
+    .ad-image-link {
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+
+    .ad-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s ease;
+    }
+
+    .modern-ad-card:hover .ad-image {
+        transform: scale(1.05);
+    }
+
+    .image-overlay-gradient {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 50%;
+        background: linear-gradient(transparent, rgba(0, 0, 0, 0.5));
+        pointer-events: none;
+    }
+
+    .ad-watermark {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        background: linear-gradient(135deg, #ffd700, #ffed4a);
+        color: #333;
+        padding: 8px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .ad-badges-top {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        display: flex;
+        gap: 8px;
+        flex-direction: column;
+        align-items: flex-end;
+    }
+
+    .excellence-badge {
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        color: white;
+        padding: 6px 10px;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .ad-info-overlay {
+        position: absolute;
+        bottom: 15px;
+        left: 15px;
+        right: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+    }
+
+    .ad-quick-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .quick-action-btn {
+        width: 35px;
+        height: 35px;
+        background: rgba(255, 255, 255, 0.9);
+        border: none;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+    }
+
+    .quick-action-btn:hover {
+        background: var(--primary-color);
+        color: white;
+        transform: scale(1.1);
+    }
+
+    .ad-content {
+        padding: 1.5rem;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .ad-header {
+        margin-bottom: 1rem;
+    }
+
+    .ad-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        line-height: 1.4;
+    }
+
+    .ad-title a {
+        color: var(--text-primary);
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .ad-title a:hover {
+        color: var(--primary-color);
+    }
+
+    .ad-location {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        margin-bottom: 0.5rem;
+    }
+
+    .ad-time-badge {
+        background: var(--bg-tertiary);
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.8rem;
+        margin-left: auto;
+    }
+
+    .ad-features-modern {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .verified-badge-modern {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .verified-company {
+        background: rgba(52, 152, 219, 0.1);
+        color: #3498db;
+    }
+
+    .verified-person {
+        background: rgba(46, 204, 113, 0.1);
+        color: #2ecc71;
+    }
+
+    .feature-pill {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        background: var(--bg-tertiary);
+        color: var(--text-secondary);
+    }
+
+    .delivery-feature {
+        background: rgba(52, 152, 219, 0.1);
+        color: #3498db;
+    }
+
+    .video-feature {
+        background: rgba(231, 76, 60, 0.1);
+        color: #e74c3c;
+    }
+
+    .gallery-feature {
+        background: rgba(155, 89, 182, 0.1);
+        color: #9b59b6;
+    }
+
+    .featured-feature {
+        background: rgba(241, 196, 15, 0.1);
+        color: #f1c40f;
+    }
+
+    .ad-price-section {
+        margin: 1rem 0;
+        padding: 1rem;
+        background: var(--bg-tertiary);
+        border-radius: 15px;
+        border-left: 4px solid var(--primary-color);
+    }
+
+    .ad-price-clean {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+    }
+
+    .price-container {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .price-icon {
+        color: var(--primary-color);
+    }
+
+    .price-amount {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+
+    .price-comparison {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.2rem;
+    }
+
+    .original-price {
+        text-decoration: line-through;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+
+    .discount-badge {
+        background: var(--danger-color);
+        color: white;
+        padding: 2px 6px;
+        border-radius: 8px;
+        font-size: 0.7rem;
+    }
+
+    .ad-footer {
+        padding: 1rem 1.5rem;
+        background: var(--bg-tertiary);
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .owner-actions {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        width: 100%;
+    }
+
+    .btn-edit {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: var(--primary-color);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-edit:hover {
+        background: var(--secondary-color);
+        transform: translateY(-2px);
+    }
+
+    .ad-stats-footer {
+        margin-left: auto;
+    }
+
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+
+    .publisher-footer-info {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+    }
+
+    .publisher-avatar-wrapper {
+        position: relative;
+    }
+
+    .publisher-avatar-simple {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .avatar-badge {
+        position: absolute;
+        bottom: -2px;
+        right: -2px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        color: white;
+        border: 2px solid white;
+    }
+
+    .company-badge {
+        background: #3498db;
+    }
+
+    .person-badge {
+        background: #2ecc71;
+    }
+
+    .publisher-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+    }
+
+    .publisher-label {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+
+    .publisher-name {
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+
+    .quality-indicator {
+        position: absolute;
+        top: -8px;
+        right: 20px;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        color: white;
+        border: 2px solid white;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .high-quality {
+        background: #f1c40f;
+    }
+
+    .good-quality {
+        background: #2ecc71;
+    }
+
+    /* Notification Toast */
+    .notification-toast {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: var(--primary-color);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        z-index: 9999;
+        animation: slideInRight 0.3s ease-out;
+    }
+
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    /* List view adaptations for modern card */
+    .content-grid[data-view="list"] .modern-ad-card {
+        flex-direction: row;
+        height: auto;
+    }
+
+    .content-grid[data-view="list"] .ad-image-container {
+        width: 250px;
+        height: 180px;
+        flex-shrink: 0;
+    }
+
+    .content-grid[data-view="list"] .ad-content {
+        padding: 1rem 1.5rem;
     }
 </style>
 {% endblock extra_css %}

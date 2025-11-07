@@ -277,12 +277,59 @@ def ad_verification_status(user):
         return ""
 
     if user.verification_status == "verified":
-        profile_type = getattr(user, "profile_type", "individual")
-        if profile_type in ["merchant", "company"]:
-            return mark_safe(
-                '<i class="fas fa-check-circle text-success"></i> شركة موثقة'
-            )
+        if user.is_company:
+            return {
+                "status": "verified_company",
+                "text": "شركة موثقة",
+                "icon": "fas fa-building",
+                "class": "verified-company-badge",
+            }
         else:
-            return mark_safe('<i class="fas fa-check-circle text-success"></i> موثق')
+            return {
+                "status": "verified_person",
+                "text": "عضو موثق",
+                "icon": "fas fa-user-check",
+                "class": "verified-person-badge",
+            }
 
     return ""
+
+
+@register.simple_tag
+def render_verification_badge(user, location="overlay"):
+    """
+    Render verification badge for different locations (overlay, card, footer)
+    """
+    if not user or not user.is_verified:
+        return ""
+
+    badge_data = {
+        "is_verified": True,
+        "is_company": user.is_company,
+        "location": location,
+    }
+
+    if user.is_company:
+        badge_data.update(
+            {
+                "text": "شركة موثقة",
+                "icon": "fas fa-building",
+                "class": "verified-company-badge",
+            }
+        )
+    else:
+        badge_data.update(
+            {
+                "text": "عضو موثق",
+                "icon": "fas fa-user-check",
+                "class": "verified-person-badge",
+            }
+        )
+
+    return badge_data
+
+
+@register.inclusion_tag("partials/_verification_badge.html")
+def verification_badge(user, location="overlay"):
+    """Render verification badge with template"""
+    return render_verification_badge(user, location)

@@ -1,0 +1,657 @@
+{% extends 'base.html' %}
+{% load static i18n compress %}
+
+{% block title %}
+    {% trans "المدفوعات والعضويات - لوحة تحكم المدير" %}
+{% endblock %}
+
+{% block extra_css %}
+    {% compress css %}
+        <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+        <link rel="stylesheet" href="{% static 'css/admin-dashboard.css' %}">
+    {% endcompress %}
+    <style>
+        .revenue-chart {
+            height: 300px;
+        }
+        .package-card {
+            border: 1px solid #e3e6f0;
+            transition: all 0.3s ease;
+        }
+        .package-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+        .package-price {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #5a5c69;
+        }
+        .package-features {
+            list-style: none;
+            padding: 0;
+        }
+        .package-features li {
+            padding: 0.25rem 0;
+            border-bottom: 1px solid #eaecf4;
+        }
+        .package-features li:before {
+            content: "✓";
+            color: #1cc88a;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+        .transaction-item {
+            border-bottom: 1px solid #eaecf4;
+            padding: 1rem 0;
+        }
+        .transaction-item:last-child {
+            border-bottom: none;
+        }
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+        }
+        .status-completed { background-color: #d1edff; color: #0c5aa6; }
+        .status-pending { background-color: #fff3cd; color: #856404; }
+        .status-failed { background-color: #f8d7da; color: #721c24; }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-dashboard-container">
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Admin Sidebar -->
+            <div class="col-md-3">
+                <div class="admin-sidebar p-4">
+                    <div class="admin-header text-center mb-4">
+                        <div class="admin-avatar mb-3">
+                            <i class="fas fa-user-shield fa-3x text-primary"></i>
+                        </div>
+                        <h5 class="mb-0">{% trans "لوحة تحكم المدير" %}</h5>
+                        <small class="text-muted">{{ user.username }}</small>
+                    </div>
+
+                    <nav class="admin-nav">
+                        <a href="{% url 'main:admin_dashboard' %}" class="admin-nav-item">
+                            <i class="fas fa-tachometer-alt me-2"></i>
+                            {% trans "الرئيسية" %}
+                        </a>
+                        <a href="{% url 'main:admin_categories' %}" class="admin-nav-item">
+                            <i class="fas fa-tags me-2"></i>
+                            {% trans "إدارة الأقسام" %}
+                        </a>
+                        <a href="{% url 'main:admin_ads' %}" class="admin-nav-item">
+                            <i class="fas fa-bullhorn me-2"></i>
+                            {% trans "إدارة الإعلانات" %}
+                        </a>
+                        <a href="{% url 'main:admin_payments' %}" class="admin-nav-item active">
+                            <i class="fas fa-credit-card me-2"></i>
+                            {% trans "المدفوعات والعضويات" %}
+                        </a>
+                        <a href="{% url 'main:admin_settings' %}" class="admin-nav-item">
+                            <i class="fas fa-cogs me-2"></i>
+                            {% trans "إعدادات النظام" %}
+                        </a>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9">
+                <!-- Header -->
+                <div class="admin-dashboard-header">
+                    <h1 class="display-6 mb-1">
+                        <i class="fas fa-credit-card me-3"></i>
+                        {% trans "المدفوعات والعضويات المميزة" %}
+                    </h1>
+                    <p class="text-muted mb-0">{% trans "إدارة العمليات المالية وأعضاء الباقات المميزة" %}</p>
+                </div>
+
+                <!-- Payment Statistics -->
+                <div class="row mb-4">
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="admin-stat-card">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="stat-title">{% trans "إجمالي المعاملات" %}</div>
+                                        <div class="stat-value">{{ payment_stats.total_transactions }}</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-receipt fa-2x text-info"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="admin-stat-card">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="stat-title">{% trans "إيرادات هذا الشهر" %}</div>
+                                        <div class="stat-value">{{ payment_stats.total_revenue }} {% trans "ريال" %}</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-dollar-sign fa-2x text-success"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="admin-stat-card">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="stat-title">{% trans "الأعضاء المميزون" %}</div>
+                                        <div class="stat-value">{{ payment_stats.premium_members }}</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-crown fa-2x text-warning"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="admin-stat-card">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="stat-title">{% trans "مدفوعات معلقة" %}</div>
+                                        <div class="stat-value">{{ payment_stats.pending_payments }}</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-clock fa-2x text-primary"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment Tabs -->
+                <div class="admin-content-card mb-4">
+                    <div class="card-body p-0">
+                        <nav>
+                            <div class="nav nav-tabs admin-tabs" id="payments-nav-tab" role="tablist">
+                                <button class="nav-link active" id="transactions-tab" data-bs-toggle="tab" data-bs-target="#transactions" type="button" role="tab">
+                                    <i class="fas fa-list me-2"></i>
+                                    {% trans "المعاملات المالية" %}
+                                </button>
+                                <button class="nav-link" id="packages-tab" data-bs-toggle="tab" data-bs-target="#packages" type="button" role="tab">
+                                    <i class="fas fa-box me-2"></i>
+                                    {% trans "باقات العضوية" %}
+                                </button>
+                                <button class="nav-link" id="members-tab" data-bs-toggle="tab" data-bs-target="#members" type="button" role="tab">
+                                    <i class="fas fa-users me-2"></i>
+                                    {% trans "الأعضاء المميزون" %}
+                                </button>
+                                <button class="nav-link" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports" type="button" role="tab">
+                                    <i class="fas fa-chart-line me-2"></i>
+                                    {% trans "التقارير المالية" %}
+                                </button>
+                            </div>
+                        </nav>
+                    </div>
+                </div>
+
+                <!-- Payment Content -->
+                <div class="tab-content" id="payments-nav-tabContent">
+                    <!-- Transactions -->
+                    <div class="tab-pane fade show active" id="transactions" role="tabpanel">
+                        <div class="admin-content-card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-list me-2"></i>
+                                    {% trans "المعاملات المالية" %}
+                                </h5>
+                                <div class="btn-group" role="group">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="filterTransactions('all')">
+                                        {% trans "الكل" %}
+                                    </button>
+                                    <button class="btn btn-outline-success btn-sm" onclick="filterTransactions('completed')">
+                                        {% trans "مكتملة" %}
+                                    </button>
+                                    <button class="btn btn-outline-warning btn-sm" onclick="filterTransactions('pending')">
+                                        {% trans "معلقة" %}
+                                    </button>
+                                    <button class="btn btn-outline-danger btn-sm" onclick="filterTransactions('failed')">
+                                        {% trans "فاشلة" %}
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>{% trans "رقم المعاملة" %}</th>
+                                                <th>{% trans "المستخدم" %}</th>
+                                                <th>{% trans "نوع العملية" %}</th>
+                                                <th>{% trans "المبلغ" %}</th>
+                                                <th>{% trans "الحالة" %}</th>
+                                                <th>{% trans "التاريخ" %}</th>
+                                                <th>{% trans "إجراءات" %}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="transactionsTable">
+                                            {% if recent_transactions %}
+                                                {% for transaction in recent_transactions %}
+                                                <tr data-status="{{ transaction.status }}">
+                                                    <td>#{{ transaction.id }}</td>
+                                                    <td>{{ transaction.user.username }}</td>
+                                                    <td>{{ transaction.type }}</td>
+                                                    <td>{{ transaction.amount }} {% trans "ريال" %}</td>
+                                                    <td>
+                                                        <span class="status-badge status-{{ transaction.status }}">
+                                                            {{ transaction.get_status_display }}
+                                                        </span>
+                                                    </td>
+                                                    <td>{{ transaction.created_at|date:"d/m/Y H:i" }}</td>
+                                                    <td>
+                                                        <button class="btn btn-sm btn-outline-primary" onclick="viewTransaction({{ transaction.id }})">
+                                                            <i class="fas fa-eye"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            {% else %}
+                                            <tr>
+                                                <td colspan="7" class="text-center text-muted py-4">
+                                                    <i class="fas fa-receipt fa-3x mb-3 d-block"></i>
+                                                    {% trans "لا توجد معاملات مالية بعد" %}
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Membership Packages -->
+                    <div class="tab-pane fade" id="packages" role="tabpanel">
+                        <div class="row">
+                            {% for package in membership_packages %}
+                            <div class="col-lg-6 mb-4">
+                                <div class="package-card card h-100">
+                                    <div class="card-header text-center">
+                                        <h5 class="mb-0">{{ package.name }}</h5>
+                                        <div class="package-price">{{ package.price }} {% trans "ريال" %}</div>
+                                        <small class="text-muted">{% trans "شهرياً" %}</small>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul class="package-features">
+                                            {% for feature in package.features %}
+                                            <li>{{ feature }}</li>
+                                            {% endfor %}
+                                        </ul>
+
+                                        <div class="mt-3">
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <span>{% trans "المشتركون الحاليون:" %}</span>
+                                                <span class="badge bg-primary">{{ package.subscribers }}</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between">
+                                                <span>{% trans "الحالة:" %}</span>
+                                                <span class="badge {% if package.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                                    {% if package.is_active %}{% trans "نشطة" %}{% else %}{% trans "معطلة" %}{% endif %}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card-footer">
+                                        <div class="btn-group w-100" role="group">
+                                            <button class="btn btn-outline-primary" onclick="editPackage({{ package.id }})">
+                                                <i class="fas fa-edit"></i> {% trans "تعديل" %}
+                                            </button>
+                                            <button class="btn btn-outline-{% if package.is_active %}warning{% else %}success{% endif %}" onclick="togglePackage({{ package.id }})">
+                                                {% if package.is_active %}
+                                                    <i class="fas fa-pause"></i> {% trans "إيقاف" %}
+                                                {% else %}
+                                                    <i class="fas fa-play"></i> {% trans "تفعيل" %}
+                                                {% endif %}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+
+                            <!-- Add New Package Card -->
+                            <div class="col-lg-6 mb-4">
+                                <div class="card h-100 border-dashed text-center d-flex align-items-center justify-content-center" style="min-height: 400px; border-style: dashed; border-width: 2px; border-color: #d1d3e2;">
+                                    <div class="card-body">
+                                        <i class="fas fa-plus fa-3x text-muted mb-3"></i>
+                                        <h5 class="text-muted">{% trans "إضافة باقة جديدة" %}</h5>
+                                        <button class="btn btn-primary mt-3" onclick="addNewPackage()">
+                                            <i class="fas fa-plus me-2"></i>
+                                            {% trans "إنشاء باقة" %}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Premium Members -->
+                    <div class="tab-pane fade" id="members" role="tabpanel">
+                        <div class="admin-content-card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-users me-2"></i>
+                                    {% trans "الأعضاء المميزون" %}
+                                </h5>
+                                <button class="btn btn-primary" onclick="addPremiumMember()">
+                                    <i class="fas fa-plus me-2"></i>
+                                    {% trans "إضافة عضو مميز" %}
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>{% trans "المستخدم" %}</th>
+                                                <th>{% trans "الباقة" %}</th>
+                                                <th>{% trans "تاريخ الاشتراك" %}</th>
+                                                <th>{% trans "تاريخ الانتهاء" %}</th>
+                                                <th>{% trans "الحالة" %}</th>
+                                                <th>{% trans "إجراءات" %}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% if premium_members %}
+                                                {% for member in premium_members %}
+                                                <tr>
+                                                    <td>
+                                                        <div class="d-flex align-items-center">
+                                                            <div class="avatar-sm me-2">
+                                                                <i class="fas fa-user-circle fa-2x text-muted"></i>
+                                                            </div>
+                                                            <div>
+                                                                <div class="fw-bold">{{ member.username }}</div>
+                                                                <small class="text-muted">{{ member.email }}</small>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-warning">
+                                                            {% comment %}{{ member.userprofile.membership_package }}{% endcomment %}
+                                                            {% trans "الباقة الذهبية" %}
+                                                        </span>
+                                                    </td>
+                                                    <td>{{ member.date_joined|date:"d/m/Y" }}</td>
+                                                    <td>
+                                                        {% comment %}{{ member.userprofile.membership_expires|date:"d/m/Y" }}{% endcomment %}
+                                                        {% trans "غير محدد" %}
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-success">{% trans "نشط" %}</span>
+                                                    </td>
+                                                    <td>
+                                                        <div class="btn-group" role="group">
+                                                            <button class="btn btn-sm btn-outline-primary" onclick="viewMember({{ member.id }})">
+                                                                <i class="fas fa-eye"></i>
+                                                            </button>
+                                                            <button class="btn btn-sm btn-outline-warning" onclick="extendMembership({{ member.id }})">
+                                                                <i class="fas fa-clock"></i>
+                                                            </button>
+                                                            <button class="btn btn-sm btn-outline-danger" onclick="cancelMembership({{ member.id }})">
+                                                                <i class="fas fa-times"></i>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            {% else %}
+                                            <tr>
+                                                <td colspan="6" class="text-center text-muted py-4">
+                                                    <i class="fas fa-crown fa-3x mb-3 d-block"></i>
+                                                    {% trans "لا يوجد أعضاء مميزون بعد" %}
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Financial Reports -->
+                    <div class="tab-pane fade" id="reports" role="tabpanel">
+                        <div class="row">
+                            <div class="col-lg-8 mb-4">
+                                <div class="admin-content-card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="fas fa-chart-line me-2"></i>
+                                            {% trans "الإيرادات الشهرية" %}
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <canvas id="revenueChart" class="revenue-chart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-lg-4 mb-4">
+                                <div class="admin-content-card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="fas fa-download me-2"></i>
+                                            {% trans "تصدير التقارير" %}
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="d-grid gap-2">
+                                            <button class="btn btn-outline-primary" onclick="exportReport('monthly')">
+                                                <i class="fas fa-file-excel me-2"></i>
+                                                {% trans "التقرير الشهري" %}
+                                            </button>
+                                            <button class="btn btn-outline-primary" onclick="exportReport('yearly')">
+                                                <i class="fas fa-file-pdf me-2"></i>
+                                                {% trans "التقرير السنوي" %}
+                                            </button>
+                                            <button class="btn btn-outline-primary" onclick="exportReport('transactions')">
+                                                <i class="fas fa-file-csv me-2"></i>
+                                                {% trans "جميع المعاملات" %}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Quick Stats -->
+                                <div class="admin-content-card mt-4">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">{% trans "إحصائيات سريعة" %}</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="small text-muted mb-1">{% trans "متوسط قيمة المعاملة" %}</div>
+                                        <div class="h5 mb-3">0 {% trans "ريال" %}</div>
+
+                                        <div class="small text-muted mb-1">{% trans "أفضل باقة مبيعاً" %}</div>
+                                        <div class="h6 mb-3">{% trans "الباقة الذهبية" %}</div>
+
+                                        <div class="small text-muted mb-1">{% trans "معدل النمو الشهري" %}</div>
+                                        <div class="h6 text-success">+0%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    initializeRevenueChart();
+});
+
+// Revenue Chart
+function initializeRevenueChart() {
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+    const monthlyData = {{ monthly_data|safe }};
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: monthlyData.map(item => item.month),
+            datasets: [{
+                label: 'الإيرادات (ريال)',
+                data: monthlyData.map(item => item.revenue),
+                borderColor: '#4e73df',
+                backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value + ' ريال';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            }
+        }
+    });
+}
+
+// Transaction Management
+function filterTransactions(status) {
+    const rows = document.querySelectorAll('#transactionsTable tr[data-status]');
+
+    rows.forEach(row => {
+        if (status === 'all' || row.dataset.status === status) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    // Update active button
+    document.querySelectorAll('.btn-group .btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+}
+
+function viewTransaction(transactionId) {
+    // TODO: Open transaction details modal
+    console.log('View transaction:', transactionId);
+}
+
+// Package Management
+function editPackage(packageId) {
+    // TODO: Open package edit modal
+    console.log('Edit package:', packageId);
+}
+
+function togglePackage(packageId) {
+    // TODO: Toggle package active status
+    fetch(`/admin/packages/${packageId}/toggle/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        }
+    });
+}
+
+function addNewPackage() {
+    // TODO: Open new package modal
+    console.log('Add new package');
+}
+
+// Member Management
+function addPremiumMember() {
+    // TODO: Open add premium member modal
+    console.log('Add premium member');
+}
+
+function viewMember(memberId) {
+    // TODO: Open member details modal
+    console.log('View member:', memberId);
+}
+
+function extendMembership(memberId) {
+    // TODO: Open extend membership modal
+    console.log('Extend membership:', memberId);
+}
+
+function cancelMembership(memberId) {
+    if (confirm('هل أنت متأكد من إلغاء العضوية المميزة؟')) {
+        fetch(`/admin/members/${memberId}/cancel/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            }
+        });
+    }
+}
+
+// Reports
+function exportReport(type) {
+    // TODO: Generate and download report
+    window.open(`/admin/reports/export/${type}/`, '_blank');
+}
+
+// Utility functions
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

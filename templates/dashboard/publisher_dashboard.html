@@ -1,0 +1,666 @@
+{% extends 'base.html' %}
+{% load static i18n compress %}
+
+{% block title %}
+    {% trans "لوحة التحكم" %}
+{% endblock %}
+
+{% block extra_css %}
+    {% compress css %}
+        <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+    {% endcompress %}
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3">
+                <div class="dashboard-sidebar p-4">
+                    <div class="text-center mb-4">
+                        <div class="user-avatar mb-3">
+                            {% if user.profile_image %}
+                                <img src="{{ user.profile_image.url }}" alt="{{ user.username }}"
+                                     class="rounded-circle" width="80" height="80">
+                            {% else %}
+                                <div class="default-avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center"
+                                     style="width: 80px; height: 80px; font-size: 2rem;">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <h5 class="mb-0">{{ user.get_full_name|default:user.username }}</h5>
+                        <small class="text-muted">{{ user.email }}</small>
+                    </div>
+
+                    <nav class="nav flex-column">
+                        <a class="nav-link active dashboard-nav-item" href="{% url 'main:dashboard' %}">
+                            <i class="fas fa-tachometer-alt me-2"></i>
+                            {% trans "لوحة التحكم" %}
+                        </a>
+                        <a class="nav-link dashboard-nav-item" href="{% url 'main:dashboard' %}">
+                            <i class="fas fa-bullhorn me-2"></i>
+                            {% trans "إعلاناتي" %}
+                        </a>
+                        <a class="nav-link dashboard-nav-item" href="{% url 'main:ad_create' %}">
+                            <i class="fas fa-plus-circle me-2"></i>
+                            {% trans "إضافة إعلان جديد" %}
+                        </a>
+                        <a class="nav-link dashboard-nav-item" href="#">
+                            <i class="fas fa-chart-line me-2"></i>
+                            {% trans "الإحصائيات" %}
+                        </a>
+                        <a class="nav-link dashboard-nav-item" href="#">
+                            <i class="fas fa-cog me-2"></i>
+                            {% trans "الإعدادات" %}
+                        </a>
+                        <a class="nav-link dashboard-nav-item" href="{% url 'main:logout' %}">
+                            <i class="fas fa-sign-out-alt me-2"></i>
+                            {% trans "تسجيل الخروج" %}
+                        </a>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9">
+                <!-- Header -->
+                <div class="dashboard-header">
+                    <h1 class="display-6 mb-3">
+                        <i class="fas fa-tachometer-alt me-3"></i>
+                        {% trans "لوحة التحكم" %}
+                    </h1>
+                    <p class="lead text-muted">{% trans "إدارة إعلاناتك بسهولة وفعالية" %}</p>
+                </div>
+
+                <!-- Statistics Cards -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="stats-card text-center">
+                            <div class="stats-icon mb-2">
+                                <i class="fas fa-bullhorn fa-2x"></i>
+                            </div>
+                            <h3 class="mb-1">{{ dashboard_stats.total_ads }}</h3>
+                            <p class="mb-0">{% trans "إجمالي الإعلانات" %}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card text-center">
+                            <div class="stats-icon mb-2">
+                                <i class="fas fa-check-circle fa-2x"></i>
+                            </div>
+                            <h3 class="mb-1">{{ dashboard_stats.active_ads }}</h3>
+                            <p class="mb-0">{% trans "الإعلانات النشطة" %}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card text-center">
+                            <div class="stats-icon mb-2">
+                                <i class="fas fa-eye fa-2x"></i>
+                            </div>
+                            <h3 class="mb-1">{{ dashboard_stats.total_views }}</h3>
+                            <p class="mb-0">{% trans "إجمالي المشاهدات" %}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card text-center">
+                            <div class="stats-icon mb-2">
+                                <i class="fas fa-clock fa-2x"></i>
+                            </div>
+                            <h3 class="mb-1">{{ dashboard_stats.pending_ads }}</h3>
+                            <p class="mb-0">{% trans "قيد المراجعة" %}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Dashboard Content -->
+                <div class="dashboard-main">
+                    <!-- Filter Section -->
+                    <div class="filter-section">
+                        <h5 class="mb-3">
+                            <i class="fas fa-filter me-2"></i>
+                            {% trans "تصفية وبحث الإعلانات" %}
+                        </h5>
+                        <form method="GET" class="row align-items-end" id="filterForm">
+                            <div class="col-md-3">
+                                <label class="form-label">{% trans "البحث" %}</label>
+                                <input type="text" name="search" class="form-control"
+                                       value="{{ current_filters.search }}"
+                                       placeholder="{% trans 'البحث في العنوان والوصف...' %}">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">{% trans "الحالة" %}</label>
+                                <select name="status" class="form-select">
+                                    <option value="">{% trans "جميع الحالات" %}</option>
+                                    {% for value, label in status_choices %}
+                                        <option value="{{ value }}" {% if current_filters.status == value %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">{% trans "من تاريخ" %}</label>
+                                <input type="date" name="date_from" class="form-control"
+                                       value="{{ current_filters.date_from }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">{% trans "إلى تاريخ" %}</label>
+                                <input type="date" name="date_to" class="form-control"
+                                       value="{{ current_filters.date_to }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">{% trans "ترتيب حسب" %}</label>
+                                <select name="sort" class="form-select">
+                                    <option value="-created_at" {% if current_filters.sort == "-created_at" %}selected{% endif %}>
+                                        {% trans "الأحدث أولاً" %}
+                                    </option>
+                                    <option value="created_at" {% if current_filters.sort == "created_at" %}selected{% endif %}>
+                                        {% trans "الأقدم أولاً" %}
+                                    </option>
+                                    <option value="-views_count" {% if current_filters.sort == "-views_count" %}selected{% endif %}>
+                                        {% trans "الأكثر مشاهدة" %}
+                                    </option>
+                                    <option value="title" {% if current_filters.sort == "title" %}selected{% endif %}>
+                                        {% trans "العنوان أ-ي" %}
+                                    </option>
+                                    <option value="-price" {% if current_filters.sort == "-price" %}selected{% endif %}>
+                                        {% trans "السعر الأعلى" %}
+                                    </option>
+                                    <option value="price" {% if current_filters.sort == "price" %}selected{% endif %}>
+                                        {% trans "السعر الأقل" %}
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="col-md-1">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Ads List -->
+                    <div class="ads-list">
+                        {% if ads %}
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-list me-2"></i>
+                                    {% trans "إعلاناتي" %} ({{ page_obj.paginator.count }})
+                                </h5>
+                                <a href="{% url 'main:ad_create' %}" class="btn btn-primary">
+                                    <i class="fas fa-plus me-2"></i>
+                                    {% trans "إضافة إعلان جديد" %}
+                                </a>
+                            </div>
+
+                            {% for ad in ads %}
+                                <div class="ad-card-dashboard" data-ad-id="{{ ad.pk }}">
+                                    <div class="row g-0">
+                                        <div class="col-md-3">
+                                            <div class="ad-image-wrapper" style="height: 200px; overflow: hidden;">
+                                                {% if ad.images.first %}
+                                                    <img src="{{ ad.images.first.image.url }}"
+                                                         class="img-fluid w-100 h-100"
+                                                         style="object-fit: cover;">
+                                                {% else %}
+                                                    <div class="bg-light d-flex align-items-center justify-content-center h-100">
+                                                        <i class="fas fa-image fa-3x text-muted"></i>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-9">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <h5 class="card-title mb-1">{{ ad.title }}</h5>
+                                                    <span class="status-badge status-{{ ad.status }}">
+                                                        {{ ad.get_status_display }}
+                                                    </span>
+                                                </div>
+
+                                                <div class="row mb-3">
+                                                    <div class="col-md-6">
+                                                        <p class="text-muted mb-1">
+                                                            <i class="fas fa-map-marker-alt me-1"></i>
+                                                            {{ ad.city }}{% if ad.country %}, {{ ad.country.name }}{% endif %}
+                                                        </p>
+                                                        <p class="text-muted mb-1">
+                                                            <i class="fas fa-tag me-1"></i>
+                                                            {{ ad.category.name }}
+                                                        </p>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <p class="text-primary fw-bold mb-1 fs-5">
+                                                            {{ ad.price }} {% trans "ريال" %}
+                                                        </p>
+                                                        <p class="text-muted mb-1">
+                                                            <i class="fas fa-eye me-1"></i>
+                                                            {{ ad.views_count }} {% trans "مشاهدة" %}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div class="text-muted small">
+                                                        <div>
+                                                            <i class="fas fa-calendar me-1"></i>
+                                                            {% trans "أنشئ:" %} {{ ad.created_at|date:"Y-m-d H:i" }}
+                                                        </div>
+                                                        {% if ad.expires_at %}
+                                                            <div>
+                                                                <i class="fas fa-clock me-1"></i>
+                                                                {% trans "ينتهي:" %} {{ ad.expires_at|date:"Y-m-d H:i" }}
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
+
+                                                    <div class="action-buttons">
+                                                        <button class="btn-action btn-view" onclick="viewAdDetails({{ ad.pk }})"
+                                                                title="{% trans 'عرض التفاصيل' %}">
+                                                            <i class="fas fa-eye"></i>
+                                                        </button>
+                                                        <a href="{% url 'main:ad_update' ad.pk %}"
+                                                           class="btn-action btn-edit"
+                                                           title="{% trans 'تعديل' %}">
+                                                            <i class="fas fa-edit"></i>
+                                                        </a>
+                                                        <button class="btn-action btn-toggle"
+                                                                onclick="toggleAdStatus({{ ad.pk }})"
+                                                                title="{% if ad.status == 'active' %}{% trans 'إخفاء' %}{% else %}{% trans 'إظهار' %}{% endif %}">
+                                                            {% if ad.status == 'active' %}
+                                                                <i class="fas fa-eye-slash"></i>
+                                                            {% else %}
+                                                                <i class="fas fa-eye"></i>
+                                                            {% endif %}
+                                                        </button>
+                                                        <button class="btn-action btn-delete"
+                                                                onclick="deleteAd({{ ad.pk }}, '{{ ad.title|escapejs }}')"
+                                                                title="{% trans 'حذف' %}">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+
+                            <!-- Pagination -->
+                            {% if is_paginated %}
+                                <div class="pagination-container">
+                                    <nav aria-label="{% trans 'تصفح الصفحات' %}">
+                                        <ul class="pagination justify-content-center">
+                                            {% if page_obj.has_previous %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                                        <i class="fas fa-angle-double-right"></i>
+                                                    </a>
+                                                </li>
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                                        <i class="fas fa-angle-right"></i>
+                                                    </a>
+                                                </li>
+                                            {% endif %}
+
+                                            {% for num in page_obj.paginator.page_range %}
+                                                {% if page_obj.number == num %}
+                                                    <li class="page-item active">
+                                                        <span class="page-link">{{ num }}</span>
+                                                    </li>
+                                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                                    <li class="page-item">
+                                                        <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                                                    </li>
+                                                {% endif %}
+                                            {% endfor %}
+
+                                            {% if page_obj.has_next %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                                        <i class="fas fa-angle-left"></i>
+                                                    </a>
+                                                </li>
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                                        <i class="fas fa-angle-double-left"></i>
+                                                    </a>
+                                                </li>
+                                            {% endif %}
+                                        </ul>
+                                    </nav>
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-bullhorn fa-5x text-muted mb-3"></i>
+                                <h4 class="text-muted">{% trans "لا توجد إعلانات" %}</h4>
+                                <p class="text-muted">{% trans "لم تقم بنشر أي إعلانات حتى الآن" %}</p>
+                                <a href="{% url 'main:ad_create' %}" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-plus me-2"></i>
+                                    {% trans "إضافة أول إعلان" %}
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ad Details Modal -->
+<div class="modal fade" id="adDetailsModal" tabindex="-1" aria-labelledby="adDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="adDetailsModalLabel">
+                    <i class="fas fa-info-circle me-2"></i>
+                    {% trans "تفاصيل الإعلان" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="adDetailsContent">
+                <!-- Content will be loaded via AJAX -->
+                <div class="text-center py-4">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmDeleteModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
+                    {% trans "تأكيد الحذف" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>{% trans "هل أنت متأكد من حذف الإعلان" %} "<span id="deleteAdTitle"></span>"؟</p>
+                <p class="text-muted">{% trans "هذا الإجراء لا يمكن التراجع عنه." %}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    {% trans "إلغاء" %}
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash me-2"></i>
+                    {% trans "حذف نهائياً" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// GSAP Animations
+document.addEventListener('DOMContentLoaded', function() {
+    // Animate stats cards
+    gsap.fromTo('.stats-card', {
+        opacity: 0,
+        y: 50,
+        scale: 0.9
+    }, {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        duration: 0.6,
+        stagger: 0.1,
+        ease: 'back.out(1.7)'
+    });
+
+    // Animate ad cards
+    gsap.fromTo('.ad-card-dashboard', {
+        opacity: 0,
+        x: -50
+    }, {
+        opacity: 1,
+        x: 0,
+        duration: 0.5,
+        stagger: 0.1,
+        ease: 'power2.out',
+        delay: 0.3
+    });
+
+    // Animate sidebar items
+    gsap.fromTo('.dashboard-nav-item', {
+        opacity: 0,
+        x: -30
+    }, {
+        opacity: 1,
+        x: 0,
+        duration: 0.4,
+        stagger: 0.05,
+        ease: 'power2.out'
+    });
+});
+
+// Dashboard functionality
+let currentAdId = null;
+
+function viewAdDetails(adId) {
+    const modal = new bootstrap.Modal(document.getElementById('adDetailsModal'));
+    modal.show();
+
+    // Load ad details via AJAX
+    fetch(`/dashboard/ad/${adId}/details/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayAdDetails(data.ad);
+            } else {
+                showError('فشل في تحميل تفاصيل الإعلان');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showError('حدث خطأ أثناء تحميل التفاصيل');
+        });
+}
+
+function displayAdDetails(ad) {
+    const content = document.getElementById('adDetailsContent');
+
+    let imagesHtml = '';
+    if (ad.images && ad.images.length > 0) {
+        imagesHtml = ad.images.map(img =>
+            `<img src="${img.url}" class="img-fluid rounded mb-2 me-2" style="max-height: 100px;">`
+        ).join('');
+    }
+
+    content.innerHTML = `
+        <div class="row">
+            <div class="col-md-12">
+                <h5>${ad.title}</h5>
+                <p class="text-muted">${ad.description}</p>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>السعر:</strong> ${ad.price} ريال<br>
+                        <strong>المدينة:</strong> ${ad.city}<br>
+                        <strong>القسم:</strong> ${ad.category}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>الحالة:</strong> <span class="status-badge status-${ad.status_code}">${ad.status}</span><br>
+                        <strong>المشاهدات:</strong> ${ad.views_count}<br>
+                        <strong>تاريخ الإنشاء:</strong> ${ad.created_at}
+                    </div>
+                </div>
+
+                ${imagesHtml ? `<div class="mb-3"><strong>الصور:</strong><br>${imagesHtml}</div>` : ''}
+
+                <div class="mt-3">
+                    <div class="d-flex gap-2">
+                        <span class="badge bg-${ad.is_negotiable ? 'success' : 'secondary'}">
+                            ${ad.is_negotiable ? 'قابل للتفاوض' : 'غير قابل للتفاوض'}
+                        </span>
+                        <span class="badge bg-${ad.is_delivery_available ? 'success' : 'secondary'}">
+                            ${ad.is_delivery_available ? 'التوصيل متاح' : 'التوصيل غير متاح'}
+                        </span>
+                        ${ad.is_urgent ? '<span class="badge bg-warning">عاجل</span>' : ''}
+                        ${ad.is_highlighted ? '<span class="badge bg-info">مميز</span>' : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function toggleAdStatus(adId) {
+    fetch(`/dashboard/ad/${adId}/toggle-status/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess(data.message);
+            // Update UI
+            location.reload(); // Simple approach - could be optimized
+        } else {
+            showError(data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showError('حدث خطأ أثناء تحديث حالة الإعلان');
+    });
+}
+
+function deleteAd(adId, adTitle) {
+    currentAdId = adId;
+    document.getElementById('deleteAdTitle').textContent = adTitle;
+    const modal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
+    modal.show();
+}
+
+document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+    if (currentAdId) {
+        fetch(`/dashboard/ad/${currentAdId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showSuccess(data.message);
+                // Remove the ad card with animation
+                const adCard = document.querySelector(`[data-ad-id="${currentAdId}"]`);
+                if (adCard) {
+                    gsap.to(adCard, {
+                        opacity: 0,
+                        scale: 0.8,
+                        duration: 0.3,
+                        ease: 'power2.out',
+                        onComplete: () => {
+                            adCard.remove();
+                        }
+                    });
+                }
+                bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal')).hide();
+            } else {
+                showError(data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showError('حدث خطأ أثناء حذف الإعلان');
+        });
+    }
+});
+
+// Utility functions
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showSuccess(message) {
+    // Simple toast notification
+    const toast = document.createElement('div');
+    toast.className = 'toast align-items-center text-white bg-success border-0 position-fixed top-0 end-0 m-3';
+    toast.style.zIndex = '9999';
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="fas fa-check-circle me-2"></i>${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    document.body.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+
+    toast.addEventListener('hidden.bs.toast', function () {
+        toast.remove();
+    });
+}
+
+function showError(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast align-items-center text-white bg-danger border-0 position-fixed top-0 end-0 m-3';
+    toast.style.zIndex = '9999';
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="fas fa-exclamation-circle me-2"></i>${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    document.body.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+
+    toast.addEventListener('hidden.bs.toast', function () {
+        toast.remove();
+    });
+}
+
+// Filter form auto-submit on change
+document.getElementById('filterForm').addEventListener('change', function(e) {
+    if (e.target.name !== 'search') {
+        this.submit();
+    }
+});
+
+// Search input with debounce
+let searchTimeout;
+document.querySelector('input[name="search"]').addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        document.getElementById('filterForm').submit();
+    }, 500);
+});
+</script>
+{% endblock %}
