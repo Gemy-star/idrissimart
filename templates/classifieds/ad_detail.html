@@ -14,8 +14,23 @@
                 <!-- Left Column: Main Content -->
                 <div class="col-lg-8">
                     <!-- Ad Title -->
-                    <div class="modern-card ad-title-header mb-4 p-4 rounded-3 shadow-sm" style="background: var(--bg-primary); border-left: 4px solid var(--primary-color);">
-                        <h1 class="ad-title-main mb-3" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800;">{{ ad.title }}</h1>
+                    <div class="modern-card ad-title-header mb-4 p-4 rounded-3 shadow-sm position-relative" style="background: var(--bg-primary); border-left: 4px solid var(--primary-color);">
+                        <!-- Verified Badge in Top Right -->
+                        {% if ad.user.is_verified %}
+                            {% if ad.user.is_company %}
+                                <div class="verified-badge-detail position-absolute" style="top: 15px; right: 15px; background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); z-index: 5;">
+                                    <i class="fas fa-building me-1"></i>
+                                    <span>{% trans "شركة موثقة" %}</span>
+                                </div>
+                            {% else %}
+                                <div class="verified-badge-detail position-absolute" style="top: 15px; right: 15px; background: linear-gradient(135deg, #3b82f6, #1e40af); color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); z-index: 5;">
+                                    <i class="fas fa-user-check me-1"></i>
+                                    <span>{% trans "شخص موثوق" %}</span>
+                                </div>
+                            {% endif %}
+                        {% endif %}
+
+                        <h1 class="ad-title-main mb-3" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; padding-right: 150px;">{{ ad.title }}</h1>
                         <div class="ad-meta-info d-flex flex-wrap gap-3">
                             <span class="badge bg-light text-dark"><i class="fas fa-clock me-1"></i> {% trans "نشر في" %}: {{ ad.created_at|date:"d M, Y" }}</span>
                             <span class="badge bg-light text-dark"><i class="fas fa-eye me-1"></i> {{ ad.views_count }} {% trans "مشاهدة" %}</span>
@@ -88,18 +103,60 @@
                         <div class="modern-card card ad-details-card mb-4 border-0 shadow-lg rounded-4" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); color: white;">
                             <div class="card-body p-4">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <span class="price-display" style="font-size: 2rem; font-weight: 900; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
-                                        {% ad_price_formatted ad %}
-                                    </span>
+                                    <div class="price-section">
+                                        {% ad_price_formatted ad as formatted_price %}
+                                        {% if formatted_price %}
+                                            <span class="price-display" style="font-size: 2rem; font-weight: 900; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                                                {{ formatted_price }}
+                                            </span>
+                                        {% else %}
+                                            <span class="price-display" style="font-size: 2rem; font-weight: 900; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                                                {% if ad.price %}
+                                                    {{ ad.price }} {{ ad.currency|default:"ريال" }}
+                                                {% else %}
+                                                    {% trans "السعر غير محدد" %}
+                                                {% endif %}
+                                            </span>
+                                        {% endif %}
+
+                                        {% if ad.original_price and ad.original_price != ad.price %}
+                                            <div class="price-comparison mt-2">
+                                                <small class="text-decoration-line-through" style="color: rgba(255,255,255,0.8);">
+                                                    {{ ad.original_price }} {{ ad.currency|default:"ريال" }}
+                                                </small>
+                                                <span class="badge bg-danger ms-2">
+                                                    <i class="fas fa-percent me-1"></i>{% trans "خصم" %}
+                                                </span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+
                                     {% if ad.is_negotiable %}
-                                        <span class="badge" style="background: rgba(255,255,255,0.2); color: white; backdrop-filter: blur(10px);">
+                                        <span class="badge negotiable-badge" style="background: rgba(255,255,255,0.2); color: white; backdrop-filter: blur(10px); padding: 8px 12px; border-radius: 20px;">
                                             <i class="fas fa-handshake me-1"></i>{% trans "قابل للتفاوض" %}
                                         </span>
                                     {% endif %}
                                 </div>
-                                <div class="ad-location d-flex align-items-center" style="color: rgba(255,255,255,0.9);">
-                                    <i class="fas fa-map-marker-alt me-2"></i>
-                                    <span>{{ ad.city }}, {{ ad.country.name }}</span>
+
+                                <div class="ad-location d-flex align-items-center justify-content-between" style="color: rgba(255,255,255,0.9);">
+                                    <div class="location-info">
+                                        <i class="fas fa-map-marker-alt me-2"></i>
+                                        <span>{{ ad.city }}, {{ ad.country.name }}</span>
+                                    </div>
+
+                                    <div class="ad-meta-badges">
+                                        {% if ad.is_featured %}
+                                            <span class="badge" style="background: rgba(255,215,0,0.2); color: #ffd700; border: 1px solid rgba(255,215,0,0.3);">
+                                                <i class="fas fa-star me-1"></i>{% trans "مميز" %}
+                                            </span>
+                                        {% endif %}
+
+                                        {% if ad.is_urgent %}
+                                            <span class="badge" style="background: rgba(220,38,38,0.2); color: #dc2626; border: 1px solid rgba(220,38,38,0.3);">
+                                                <i class="fas fa-bolt me-1"></i>{% trans "عاجل" %}
+                                            </span>
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -114,16 +171,19 @@
                                 {% user_avatar user=ad.user size=100 css_class="rounded-circle mb-3 shadow border border-3" %}
                                 <h6 class="seller-name mb-2" style="font-weight: 600; color: var(--text-primary);">{{ ad.user.get_display_name }}</h6>
                                 <small class="text-muted d-block mb-3">{{ ad.user.get_rank_display }}</small>
-                                {% if ad.user.verification_status == 'verified' %}
+                                {% if ad.user.is_verified %}
                                     <div class="verification-badge mb-3">
-                                        <span class="badge" style="background: linear-gradient(135deg, #22c55e, #16a34a); color: white; padding: 8px 16px; border-radius: 15px; font-weight: 600;">
-                                            <i class="fas fa-check-circle me-1"></i>
-                                            {% if ad.user.profile_type == 'merchant' or ad.user.rank == 'company' %}
+                                        {% if ad.user.is_company %}
+                                            <span class="badge verified-company-badge" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; padding: 8px 16px; border-radius: 15px; font-weight: 600; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);">
+                                                <i class="fas fa-building me-1"></i>
                                                 {% trans "شركة موثقة" %}
-                                            {% else %}
-                                                {% trans "عضو موثق" %}
-                                            {% endif %}
-                                        </span>
+                                            </span>
+                                        {% else %}
+                                            <span class="badge verified-person-badge" style="background: linear-gradient(135deg, #3b82f6, #1e40af); color: white; padding: 8px 16px; border-radius: 15px; font-weight: 600; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">
+                                                <i class="fas fa-user-check me-1"></i>
+                                                {% trans "شخص موثوق" %}
+                                            </span>
+                                        {% endif %}
                                     </div>
                                 {% endif %}
                             </div>

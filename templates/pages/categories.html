@@ -652,10 +652,22 @@
         <div class="container">
             <div class="hero-content-modern">
                 <div class="hero-icon-wrapper">
-                    <i class="fas fa-th-large hero-icon"></i>
+                    <i class="fas fa-{% if category %}tag{% else %}th-large{% endif %} hero-icon"></i>
                 </div>
-                <h1 class="modern-hero-title">{% trans "جميع الفئات" %}</h1>
-                <p class="modern-hero-subtitle">{% trans "استكشف جميع فئات منصة إدريسي مارت المتنوعة واعثر على ما تبحث عنه بسهولة" %}</p>
+                <h1 class="modern-hero-title">
+                    {% if category %}
+                        {{ category.name_ar|default:category.name }}
+                    {% else %}
+                        {% trans "جميع الفئات" %}
+                    {% endif %}
+                </h1>
+                <p class="modern-hero-subtitle">
+                    {% if category %}
+                        {{ category.description_ar|default:category.description|default:"استكشف جميع الإعلانات في هذا القسم"|safe }}
+                    {% else %}
+                        {% trans "استكشف جميع فئات منصة إدريسي مارت المتنوعة واعثر على ما تبحث عنه بسهولة" %}
+                    {% endif %}
+                </p>
 
                 <!-- Enhanced Search and Filter Bar -->
                 <div class="hero-search-container">
@@ -810,7 +822,133 @@
 
             <!-- Categories Grid -->
             <div class="categories-grid" id="categoriesGrid">
-                <!-- All Categories View -->
+                {% if category %}
+                    <!-- Single Category Detail View -->
+                    <div class="category-detail-view">
+                        <!-- Breadcrumbs -->
+                        {% if breadcrumbs %}
+                        <nav aria-label="breadcrumb" class="mb-4">
+                            <ol class="breadcrumb">
+                                <li class="breadcrumb-item"><a href="{% url 'main:home' %}">{% trans "الرئيسية" %}</a></li>
+                                <li class="breadcrumb-item"><a href="{% url 'main:categories' %}">{% trans "الفئات" %}</a></li>
+                                {% for breadcrumb in breadcrumbs %}
+                                <li class="breadcrumb-item"><a href="{{ breadcrumb.url }}">{{ breadcrumb.name }}</a></li>
+                                {% endfor %}
+                                <li class="breadcrumb-item active" aria-current="page">{{ category.name_ar|default:category.name }}</li>
+                            </ol>
+                        </nav>
+                        {% endif %}
+
+                        <!-- Subcategories Section -->
+                        {% with category.get_children.all as subcategories %}
+                            {% if subcategories %}
+                            <div class="category-section" data-section="subcategories">
+                                <div class="section-header">
+                                    <div class="section-header-content">
+                                        <div class="section-icon">
+                                            <i class="fas fa-sitemap"></i>
+                                        </div>
+                                        <div class="section-text">
+                                            <h2 class="section-title">{% trans "الأقسام الفرعية" %}</h2>
+                                            <p class="section-count">{{ subcategories|length }} {% trans "قسم فرعي" %}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="categories-container" data-view="grid">
+                                    {% for subcategory in subcategories %}
+                                        <div class="category-item-wrapper" data-category-name="{{ subcategory.name_ar|default:subcategory.name }}">
+                                            <div class="card category-card h-100 shadow-sm" onclick="location.href='{% url 'main:subcategory_detail' subcategory.slug %}'">
+                                                <div class="card-body text-center">
+                                                    <div class="category-icon mb-3">
+                                                        <i class="{{ subcategory.icon|default:'fas fa-folder' }} text-primary"></i>
+                                                    </div>
+                                                    <h5 class="card-title mb-1">{{ subcategory.name_ar|default:subcategory.name }}</h5>
+                                                    <p class="card-text">
+                                                        <span class="text-muted">
+                                                            {{ subcategory.classified_ads_count|default:0 }} {% trans "إعلان" %}
+                                                        </span>
+                                                    </p>
+                                                    {% if subcategory.description_ar or subcategory.description %}
+                                                        <p class="card-text text-muted small">{{ subcategory.description_ar|default:subcategory.description|truncatewords:10 }}</p>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endwith %}
+
+                        <!-- Classified Ads Section -->
+                        {% if ads %}
+                        <div class="category-section" data-section="ads">
+                            <div class="section-header">
+                                <div class="section-header-content">
+                                    <div class="section-icon">
+                                        <i class="fas fa-bullhorn"></i>
+                                    </div>
+                                    <div class="section-text">
+                                        <h2 class="section-title">{% trans "الإعلانات المتاحة" %}</h2>
+                                        <p class="section-count">{{ total_ads|default:0 }} {% trans "إعلان" %}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ads-container" data-view="grid">
+                                {% for ad in ads %}
+                                    {% include 'classifieds/_ad_card.html' with ad=ad %}
+                                {% empty %}
+                                    <div class="col-12">
+                                        <div class="no-results-message">
+                                            <div class="no-results-icon">
+                                                <i class="fas fa-exclamation-circle"></i>
+                                            </div>
+                                            <h3 class="no-results-title">{% trans "لا توجد إعلانات في هذا القسم حالياً" %}</h3>
+                                            <p class="no-results-text">{% trans "كن أول من ينشر إعلان في هذا القسم" %}</p>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Pagination -->
+                            {% if page_obj.has_other_pages %}
+                                <nav aria-label="Page navigation" class="mt-4">
+                                    <ul class="pagination justify-content-center">
+                                        {% if page_obj.has_previous %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in current_filters.items %}{% if value %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                                    <i class="fas fa-chevron-left me-1"></i>{% trans "السابق" %}
+                                                </a>
+                                            </li>
+                                        {% endif %}
+
+                                        {% for num in page_obj.paginator.page_range %}
+                                            {% if page_obj.number == num %}
+                                                <li class="page-item active">
+                                                    <span class="page-link">{{ num }}</span>
+                                                </li>
+                                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?page={{ num }}{% for key, value in current_filters.items %}{% if value %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                                                </li>
+                                            {% endif %}
+                                        {% endfor %}
+
+                                        {% if page_obj.has_next %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in current_filters.items %}{% if value %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                                    {% trans "التالي" %}<i class="fas fa-chevron-right ms-1"></i>
+                                                </a>
+                                            </li>
+                                        {% endif %}
+                                    </ul>
+                                </nav>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <!-- All Categories View -->
                 <div class="categories-view" id="allCategoriesView" style="display: block;">
                     {% for section_code, section_data in categories_by_section.items %}
                         <div class="category-section" data-section="{{ section_code }}">
@@ -886,6 +1024,7 @@
                         </div>
                     </div>
                 {% endfor %}
+                {% endif %}
             </div>
         </div>
     </section>

@@ -588,6 +588,23 @@ class User(AbstractUser):  # This model is correct, no changes needed here.
             return f"{self.first_name} {self.last_name}"
         return self.username
 
+    @property
+    def is_verified(self):
+        """
+        Check if user is verified
+        """
+        return self.verification_status == self.VerificationStatus.VERIFIED
+
+    @property
+    def is_company(self):
+        """
+        Check if user represents a company/organization
+        """
+        return self.rank == self.Rank.COMPANY or self.profile_type in [
+            self.ProfileType.MERCHANT,
+            self.ProfileType.EDUCATIONAL,
+        ]
+
     def can_perform_action(self, action):
         """
         Centralized permission checking
