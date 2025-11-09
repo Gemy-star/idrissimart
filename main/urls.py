@@ -120,7 +120,7 @@ urlpatterns = [
     path(
         "classifieds/packages/",
         classifieds_views.PackageListView.as_view(),
-        name="package_list",
+        name="packages_list",
     ),
     path(
         "classifieds/package/<int:package_id>/purchase/",
