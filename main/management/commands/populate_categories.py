@@ -57,14 +57,27 @@ class Command(BaseCommand):
 
     def create_category(self, cat_data, section_type, parent=None):
         """Recursively create categories and subcategories."""
-        slug = slugify(cat_data["name"])
+        base_slug = slugify(cat_data["name"])
 
+        # Build slug based on hierarchy (keeping it short)
         if parent:
-            # MPTT doesn't require hierarchical slugs, but it can be good for SEO
-            slug = f"{parent.slug}-{slug}"
+            # For subcategories, just use parent slug + base slug
+            slug = f"{parent.slug}-{base_slug}"
         else:
-            # For root categories, include section_type to ensure uniqueness
-            slug = f"{section_type}-{slug}"
+            # For root categories, use section abbreviation + base slug
+            section_abbr = {
+                "classified": "cl",
+                "product": "pr",
+                "service": "sv",
+                "course": "co",
+                "job": "jb",
+            }.get(section_type, section_type[:2])
+            slug = f"{section_abbr}-{base_slug}"
+
+        # Ensure slug doesn't exceed 50 characters (SlugField default max_length)
+        if len(slug) > 50:
+            # Truncate and add country code for uniqueness
+            slug = slug[:44] + f"-{self.country.code.lower()}"
 
         category_defaults = {
             "name": cat_data["name"],
