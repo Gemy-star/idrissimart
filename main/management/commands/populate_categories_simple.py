@@ -53,14 +53,16 @@ class Command(BaseCommand):
             name="Surveying Engineering Classified Ads",
             name_ar="إعلانات مبوبة - هندسة المساحة",
             slug="surveying-engineering-classified-ads",
-            section_type="classified",
+            section_type=Category.SectionType.CLASSIFIED,
             description="إعلانات مبوبة متخصصة في معدات وخدمات هندسة المساحة",
             icon="fas fa-ruler-combined",
             country=self.country,
             parent=None,
-            is_active=True,
             order=1,
             custom_field_schema=["brand", "condition", "model", "year"],
+            allow_cart=False,
+            default_reservation_percentage=10,
+            require_admin_approval=True,
         )
 
         self.created_count += 1
@@ -109,14 +111,16 @@ class Command(BaseCommand):
                 name=subcat_data["name"],
                 name_ar=subcat_data["name_ar"],
                 slug=subcat_data["slug"],
-                section_type="classified",
+                section_type=Category.SectionType.CLASSIFIED,
                 description=subcat_data["description"],
                 icon=subcat_data["icon"],
                 country=self.country,
                 parent=parent,
-                is_active=True,
                 order=subcat_data["order"],
                 custom_field_schema=["brand", "condition", "model"],
+                allow_cart=False,
+                default_reservation_percentage=10,
+                require_admin_approval=True,
             )
 
             self.created_count += 1

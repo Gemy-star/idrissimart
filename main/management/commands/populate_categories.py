@@ -71,9 +71,13 @@ class Command(BaseCommand):
             "description": cat_data.get("description", ""),
             "icon": cat_data.get("icon", ""),
             "country": self.country,
-            "is_active": True,
             "order": cat_data.get("order", 0),
             "custom_field_schema": cat_data.get("custom_field_schema", []),
+            "allow_cart": cat_data.get("allow_cart", False),
+            "default_reservation_percentage": cat_data.get(
+                "default_reservation_percentage", 10
+            ),
+            "require_admin_approval": cat_data.get("require_admin_approval", True),
         }
 
         category, created = Category.objects.update_or_create(

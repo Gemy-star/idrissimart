@@ -29,13 +29,9 @@ class Command(BaseCommand):
         count = expired_ads_qs.count()
 
         if count > 0:
-            updated_count, _ = expired_ads_qs.update(
-                status=ClassifiedAd.AdStatus.EXPIRED
-            )
+            expired_ads_qs.update(status=ClassifiedAd.AdStatus.EXPIRED)
             self.stdout.write(
-                self.style.SUCCESS(
-                    f"Successfully marked {updated_count} ad(s) as expired."
-                )
+                self.style.SUCCESS(f"Successfully marked {count} ad(s) as expired.")
             )
         else:
             self.stdout.write(self.style.SUCCESS("No active ads to expire."))

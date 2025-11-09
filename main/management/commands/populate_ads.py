@@ -65,7 +65,7 @@ class Command(BaseCommand):
         # Get surveying categories
         categories = list(
             Category.objects.filter(
-                section_type="classified",
+                section_type=Category.SectionType.CLASSIFIED,
                 country=country,
                 parent__isnull=False,  # Get subcategories only
             )
@@ -126,9 +126,20 @@ class Command(BaseCommand):
                         ]
                     ),
                     custom_fields=ad_data.get("custom_fields", {}),
-                    status=random.choices(["active", "pending"], weights=[85, 15], k=1)[
-                        0
-                    ],
+                    status=random.choices(
+                        [ClassifiedAd.AdStatus.ACTIVE, ClassifiedAd.AdStatus.PENDING],
+                        weights=[85, 15],
+                        k=1,
+                    )[0],
+                    visibility_type="public",
+                    require_login_for_contact=(
+                        random.choice([True, False]) if random.random() < 0.3 else False
+                    ),
+                    is_hidden=False,
+                    allow_cart=(
+                        random.choice([True, False]) if random.random() < 0.2 else False
+                    ),
+                    cart_enabled_by_admin=False,
                     is_urgent=(
                         random.choice([True, False]) if random.random() < 0.2 else False
                     ),
