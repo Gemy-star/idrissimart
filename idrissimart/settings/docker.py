@@ -3,13 +3,12 @@ import tempfile
 from .common import *
 
 DEBUG = False
-
 ALLOWED_HOSTS = [
     "idrissimart.com",
     "www.idrissimart.com",
     "localhost",
     "127.0.0.1",
-    "45.9.191.23",
+    "72.61.88.27",
 ]
 
 # Respect proxy headers (for HTTPS behind Nginx)
