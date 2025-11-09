@@ -460,7 +460,9 @@ class AdminDashboardView(LoginRequiredMixin, ListView):
     model = ClassifiedAd
     template_name = "admin/dashboard_main.html"
     context_object_name = "ads"
-    paginate_by = 20    def dispatch(self, request, *args, **kwargs):
+    paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
         # Only allow superusers
         if not request.user.is_superuser:
             messages.error(request, _("ليس لديك صلاحية للوصول إلى هذه الصفحة"))
@@ -642,7 +644,9 @@ class CategorySaveView(LoginRequiredMixin, View):
 
     def post(self, request):
         if not request.user.is_superuser:
-            return JsonResponse({"success": False, "error": "Permission denied"}, status=403)
+            return JsonResponse(
+                {"success": False, "error": "Permission denied"}, status=403
+            )
 
         category_id = request.POST.get("category_id")
         name = request.POST.get("name")
@@ -694,7 +698,9 @@ class CategoryGetView(LoginRequiredMixin, View):
 
     def get(self, request, category_id):
         if not request.user.is_superuser:
-            return JsonResponse({"success": False, "error": "Permission denied"}, status=403)
+            return JsonResponse(
+                {"success": False, "error": "Permission denied"}, status=403
+            )
 
         category = get_object_or_404(Category, id=category_id)
 
@@ -708,8 +714,14 @@ class CategoryGetView(LoginRequiredMixin, View):
                 "parent": category.parent_id if category.parent else None,
                 "section_type": category.section_type,
                 "description": category.description,
-                "allow_cart": category.allow_cart if hasattr(category, "allow_cart") else False,
-                "require_admin_approval": category.require_admin_approval if hasattr(category, "require_admin_approval") else True,
+                "allow_cart": (
+                    category.allow_cart if hasattr(category, "allow_cart") else False
+                ),
+                "require_admin_approval": (
+                    category.require_admin_approval
+                    if hasattr(category, "require_admin_approval")
+                    else True
+                ),
                 "is_active": category.is_active,
             }
         )
@@ -720,7 +732,9 @@ class CategoryDeleteView(LoginRequiredMixin, View):
 
     def post(self, request, category_id):
         if not request.user.is_superuser:
-            return JsonResponse({"success": False, "error": "Permission denied"}, status=403)
+            return JsonResponse(
+                {"success": False, "error": "Permission denied"}, status=403
+            )
 
         try:
             category = get_object_or_404(Category, id=category_id)
