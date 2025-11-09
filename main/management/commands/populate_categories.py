@@ -62,6 +62,9 @@ class Command(BaseCommand):
         if parent:
             # MPTT doesn't require hierarchical slugs, but it can be good for SEO
             slug = f"{parent.slug}-{slug}"
+        else:
+            # For root categories, include section_type to ensure uniqueness
+            slug = f"{section_type}-{slug}"
 
         category_defaults = {
             "name": cat_data["name"],
@@ -80,12 +83,18 @@ class Command(BaseCommand):
             "require_admin_approval": cat_data.get("require_admin_approval", True),
         }
 
-        category, created = Category.objects.update_or_create(
-            slug=slug,
-            country=self.country,
-            section_type=section_type,
-            defaults=category_defaults,
-        )
+        # Try to find existing category by slug first
+        try:
+            category = Category.objects.get(slug=slug)
+            # Update existing category
+            for key, value in category_defaults.items():
+                setattr(category, key, value)
+            category.save()
+            created = False
+        except Category.DoesNotExist:
+            # Create new category
+            category = Category.objects.create(slug=slug, **category_defaults)
+            created = True
 
         indent = "  " * (category.get_level() + 1)
         if created:
