@@ -191,14 +191,22 @@ class Command(BaseCommand):
         """Add images to a classified ad from static/images/ads directory"""
         try:
             # Get the path to static/images/ads
+            # From: main/management/commands/populate_ads.py
+            # To: static/images/ads
+            # Go up 4 levels: commands -> management -> main -> idrissimart (project root)
             static_images_path = (
-                Path(__file__).resolve().parent.parent.parent.parent.parent
+                Path(__file__).resolve().parent.parent.parent.parent
                 / "static"
                 / "images"
                 / "ads"
             )
 
             if not static_images_path.exists():
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Images directory not found: {static_images_path}"
+                    )
+                )
                 return
 
             # Get all image files in the directory
@@ -207,47 +215,83 @@ class Command(BaseCommand):
             )
 
             if not image_files:
+                self.stdout.write(
+                    self.style.WARNING("No image files found in ads directory")
+                )
                 return
 
-            # Randomly select 1-3 images
-            num_images = random.randint(1, min(3, len(image_files)))
+            # Randomly select 1-2 images (we only have 2 images)
+            num_images = random.randint(1, min(2, len(image_files)))
             selected_images = random.sample(image_files, num_images)
 
             # Add images to the ad
             for order, image_path in enumerate(selected_images, start=1):
-                with open(image_path, "rb") as img_file:
-                    AdImage.objects.create(
-                        ad=ad,
-                        image=File(img_file, name=f"{ad.id}_{order}_{image_path.name}"),
-                        order=order,
-                    )
+                # Create a new File object with unique name
+                file_obj = File(
+                    open(image_path, "rb"),
+                    name=f"ad_{ad.id}_{order}_{image_path.name}",
+                )
+
+                # Create the AdImage object
+                ad_image = AdImage(
+                    ad=ad,
+                    order=order,
+                )
+                ad_image.image.save(
+                    f"ad_{ad.id}_{order}_{image_path.name}", file_obj, save=True
+                )
+
         except Exception as e:
             self.stdout.write(
                 self.style.WARNING(f"Failed to add images to ad {ad.id}: {e}")
             )
 
     def update_existing_ads(self):
-        """Update existing ads that don't have images"""
-        self.stdout.write(self.style.SUCCESS("Updating existing ads without images..."))
+        """Update all existing ads to have images from static/images/ads"""
+        self.stdout.write(
+            self.style.SUCCESS("Updating all existing ads to add/update images...")
+        )
 
-        # Get all ads without images
-        ads_without_images = ClassifiedAd.objects.filter(images__isnull=True).distinct()
-        total_ads = ads_without_images.count()
+        # Get ALL classified ads
+        all_ads = ClassifiedAd.objects.all()
+        total_ads = all_ads.count()
 
         if total_ads == 0:
-            self.stdout.write(self.style.WARNING("No ads found without images."))
+            self.stdout.write(self.style.WARNING("No ads found in database."))
             return
 
-        self.stdout.write(f"Found {total_ads} ads without images.")
+        self.stdout.write(f"Found {total_ads} ads to update.")
 
         updated_count = 0
-        for ad in ads_without_images:
+        skipped_count = 0
+
+        for ad in all_ads:
             try:
+                # Check if ad already has images
+                existing_images_count = ad.images.count()
+
+                if existing_images_count > 0:
+                    # Delete existing images and add new ones
+                    ad.images.all().delete()
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"  Deleted {existing_images_count} existing images for ad {ad.id}"
+                        )
+                    )
+
+                # Add new images
                 self.add_images_to_ad(ad)
                 updated_count += 1
+
                 if updated_count % 10 == 0:
-                    self.stdout.write(f"  Updated {updated_count}/{total_ads} ads...")
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"  Updated {updated_count}/{total_ads} ads..."
+                        )
+                    )
+
             except Exception as e:
+                skipped_count += 1
                 self.stdout.write(
                     self.style.WARNING(f"Failed to update ad {ad.id}: {e}")
                 )
@@ -257,6 +301,10 @@ class Command(BaseCommand):
                 f"\n✅ Successfully updated {updated_count} ads with images!"
             )
         )
+        if skipped_count > 0:
+            self.stdout.write(
+                self.style.WARNING(f"⚠️ Skipped {skipped_count} ads due to errors.")
+            )
 
     def get_surveying_equipment_data(self):
         """Returns realistic surveying equipment data for different categories"""
