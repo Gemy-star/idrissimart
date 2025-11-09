@@ -1,4 +1,85 @@
 from content.models import Country
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class BlockMaliciousRequestsMiddleware:
+    """
+    Block common attack patterns and malicious bot requests
+    """
+
+    # Patterns that indicate malicious requests
+    BLOCKED_PATHS = [
+        "telescope",
+        "wp-admin",
+        "wp-login",
+        "wp-json",
+        "wordpress",
+        "xmlrpc.php",
+        "info.php",
+        "phpinfo",
+        ".env",
+        "config.php",
+        ".git",
+        "admin.php",
+        "wp-config",
+        "phpmyadmin",
+        "shell",
+        "eval-stdin.php",
+        "wp-includes",
+        "wp-content",
+    ]
+
+    BLOCKED_QUERY_PARAMS = [
+        "rest_route",
+        "wp_",
+        "XDEBUG",
+    ]
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        from django.http import HttpResponseNotFound
+
+        # Check path for malicious patterns
+        path = request.path.lower()
+        for blocked in self.BLOCKED_PATHS:
+            if blocked in path:
+                logger.warning(
+                    f"Blocked malicious request to {request.path} from {self.get_client_ip(request)}"
+                )
+                return HttpResponseNotFound()
+
+        # Check query parameters
+        query_string = request.META.get("QUERY_STRING", "").lower()
+        for blocked_param in self.BLOCKED_QUERY_PARAMS:
+            if blocked_param in query_string:
+                logger.warning(
+                    f"Blocked malicious query {query_string} from {self.get_client_ip(request)}"
+                )
+                return HttpResponseNotFound()
+
+        # Check for PHP files
+        if path.endswith((".php", ".asp", ".aspx", ".jsp")):
+            logger.warning(
+                f"Blocked request to {path} from {self.get_client_ip(request)}"
+            )
+            return HttpResponseNotFound()
+
+        response = self.get_response(request)
+        return response
+
+    @staticmethod
+    def get_client_ip(request):
+        """Get the client's IP address from the request"""
+        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(",")[0]
+        else:
+            ip = request.META.get("REMOTE_ADDR")
+        return ip
 
 
 class UserPermissionMiddleware:

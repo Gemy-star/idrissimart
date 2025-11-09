@@ -81,6 +81,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Block malicious requests (should be early in middleware stack)
+    "main.middleware.BlockMaliciousRequestsMiddleware",
     # force App to open in AR language
     "content.middleware.ForceArabicDefaultMiddleware",
     # Country filtering middleware

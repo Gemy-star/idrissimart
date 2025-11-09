@@ -82,6 +82,25 @@ LOGGING = {
             "level": "ERROR",
             "propagate": False,
         },
+        "main": {
+            "handlers": ["file", "console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "content": {
+            "handlers": ["file", "console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
     },
 }
+
+# Security Headers
 SESSION_COOKIE_SECURE = True  # Set to True in production with HTTPS
+CSRF_TRUSTED_ORIGINS = [
+    "https://idrissimart.com",
+    "https://www.idrissimart.com",
+]
+
+# Admin URL path - change this to something unique for security
+# ADMIN_URL = os.getenv("ADMIN_URL", "admin/")
