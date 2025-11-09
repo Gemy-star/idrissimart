@@ -1796,10 +1796,13 @@ class AdCardShowcaseView(TemplateView):
 # PUBLISHER DASHBOARD VIEWS
 # ==============================================
 
+from .decorators import PublisherRequiredMixin, publisher_required
 
-class PublisherDashboardView(LoginRequiredMixin, ListView):
+
+class PublisherDashboardView(PublisherRequiredMixin, ListView):
     """
     Publisher Dashboard - Main dashboard view with ad listing and management
+    Restricted to users with publisher profile type or users who have created ads
     """
 
     model = ClassifiedAd
@@ -1895,6 +1898,7 @@ class PublisherDashboardView(LoginRequiredMixin, ListView):
 
 
 @login_required
+@publisher_required
 def dashboard_ad_toggle_status(request, ad_id):
     """AJAX endpoint to toggle ad status (hide/show)"""
     if request.method == "POST":
@@ -1935,7 +1939,11 @@ def dashboard_ad_toggle_status(request, ad_id):
     return JsonResponse({"success": False, "message": _("طلب غير صحيح")})
 
 
+from .decorators import PublisherRequiredMixin, publisher_required
+
+
 @login_required
+@publisher_required
 def dashboard_ad_delete(request, ad_id):
     """AJAX endpoint to delete an ad"""
     if request.method == "POST":
@@ -1960,6 +1968,7 @@ def dashboard_ad_delete(request, ad_id):
 
 
 @login_required
+@publisher_required
 def dashboard_get_ad_details(request, ad_id):
     """AJAX endpoint to get ad details for modal display"""
     try:
@@ -2022,18 +2031,20 @@ def dashboard_get_ad_details(request, ad_id):
 # ============================================================================
 
 from django.contrib.admin.views.decorators import staff_member_required
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User as DjangoUser
 from django.utils.decorators import method_decorator
 from django.db.models import Count, Sum, Q, Avg
 from datetime import datetime, timedelta
+from .decorators import SuperadminRequiredMixin, superadmin_required
 
 
-@method_decorator(staff_member_required, name="dispatch")
-class AdminDashboardView(TemplateView):
+class AdminDashboardView(SuperadminRequiredMixin, TemplateView):
     """
-    Main admin dashboard with comprehensive system overview
+    Main superadmin dashboard with comprehensive system overview
+    Restricted to superusers only
     """
 
+    template_name = "admin_dashboard/dashboard.html"
     template_name = "admin_dashboard/dashboard.html"
 
     def get_context_data(self, **kwargs):
@@ -2130,10 +2141,10 @@ class AdminDashboardView(TemplateView):
         return round(((current - previous) / previous) * 100, 2)
 
 
-@method_decorator(staff_member_required, name="dispatch")
-class AdminCategoriesView(TemplateView):
+class AdminCategoriesView(SuperadminRequiredMixin, TemplateView):
     """
     Admin interface for managing main and subcategories
+    Restricted to superusers only
     """
 
     template_name = "admin_dashboard/categories.html"
@@ -2159,10 +2170,10 @@ class AdminCategoriesView(TemplateView):
         return context
 
 
-@method_decorator(staff_member_required, name="dispatch")
-class AdminAdsManagementView(TemplateView):
+class AdminAdsManagementView(SuperadminRequiredMixin, TemplateView):
     """
     Admin interface for comprehensive ads management with tabs
+    Restricted to superusers only
     """
 
     template_name = "admin_dashboard/ads_management.html"
@@ -2209,10 +2220,10 @@ class AdminAdsManagementView(TemplateView):
         return queryset.none()
 
 
-@method_decorator(staff_member_required, name="dispatch")
-class AdminSettingsView(View):
+class AdminSettingsView(SuperadminRequiredMixin, View):
     """
     Admin system settings and configurations with form handling
+    Restricted to superusers only
     """
 
     def get(self, request):
@@ -2261,12 +2272,13 @@ class AdminSettingsView(View):
         return JsonResponse({"success": True, "message": "تم حفظ الإعدادات بنجاح"})
 
 
-@method_decorator(staff_member_required, name="dispatch")
-class AdminPaymentsView(TemplateView):
+class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
     """
     Admin interface for payment operations and premium members
+    Restricted to superusers only
     """
 
+    template_name = "admin_dashboard/payments.html"
     template_name = "admin_dashboard/payments.html"
 
     def get_context_data(self, **kwargs):
@@ -2353,7 +2365,7 @@ class AdminPaymentsView(TemplateView):
 # AJAX Views for Admin Dashboard
 
 
-@staff_member_required
+@superadmin_required
 @require_POST
 def admin_ad_status_change(request, ad_id):
     """Change ad status from admin panel"""
@@ -2384,7 +2396,7 @@ def admin_ad_status_change(request, ad_id):
         return JsonResponse({"success": False, "message": f"حدث خطأ: {str(e)}"})
 
 
-@staff_member_required
+@superadmin_required
 @require_POST
 def admin_ad_delete(request, ad_id):
     """Delete ad from admin panel"""
@@ -2403,7 +2415,7 @@ def admin_ad_delete(request, ad_id):
         )
 
 
-@staff_member_required
+@superadmin_required
 def admin_get_ads_by_tab(request, tab):
     """Get ads for specific tab via AJAX"""
     try:
@@ -2452,7 +2464,7 @@ def admin_get_ads_by_tab(request, tab):
 # Settings AJAX Endpoints
 
 
-@staff_member_required
+@superadmin_required
 @require_POST
 def admin_settings_get(request):
     """Get current system settings"""
@@ -2476,7 +2488,7 @@ def admin_settings_get(request):
         return JsonResponse({"success": False, "message": f"حدث خطأ: {str(e)}"})
 
 
-@staff_member_required
+@superadmin_required
 @require_POST
 def admin_settings_publishing(request):
     """Save publishing settings"""
@@ -2497,7 +2509,7 @@ def admin_settings_publishing(request):
         return JsonResponse({"success": False, "message": f"حدث خطأ: {str(e)}"})
 
 
-@staff_member_required
+@superadmin_required
 @require_POST
 def admin_settings_delivery(request):
     """Save delivery settings"""
@@ -2523,7 +2535,7 @@ def admin_settings_delivery(request):
         return JsonResponse({"success": False, "message": f"حدث خطأ: {str(e)}"})
 
 
-@staff_member_required
+@superadmin_required
 @require_POST
 def admin_settings_cart(request):
     """Save cart settings"""
@@ -2547,7 +2559,7 @@ def admin_settings_cart(request):
         return JsonResponse({"success": False, "message": f"حدث خطأ: {str(e)}"})
 
 
-@staff_member_required
+@superadmin_required
 @require_POST
 def admin_settings_notifications(request):
     """Save notification settings"""

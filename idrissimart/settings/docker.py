@@ -2,7 +2,7 @@ import tempfile
 
 from .common import *
 
-DEBUG = True
+DEBUG = False
 ALLOWED_HOSTS = [
     "idrissimart.com",
     "www.idrissimart.com",

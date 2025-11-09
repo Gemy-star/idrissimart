@@ -132,6 +132,7 @@ class User(AbstractUser):  # This model is correct, no changes needed here.
         SERVICE = "service", _("خدمي - Service Provider")
         MERCHANT = "merchant", _("تاجر - Merchant")
         EDUCATIONAL = "educational", _("تعليمي - Educational")
+        PUBLISHER = "publisher", _("ناشر - Publisher")
 
     class Rank(models.TextChoices):
         VISITOR = "visitor", _("زائر - Visitor")

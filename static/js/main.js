@@ -450,21 +450,27 @@
       'scroll',
       debounce(() => {
         const current = window.scrollY
-        navbar.style.boxShadow = current > 50 ? '0 6px 25px rgba(0,0,0,0.25)' : 'none'
-        navbar.style.padding = current > 50 ? '0.6rem 0' : '1.2rem 0'
+        const scrollHeight = document.documentElement.scrollHeight - window.innerHeight
+        const scrollPercentage = (current / scrollHeight) * 100
 
-        // Add or remove scrolled class to handle logo swapping
-        if (current > 50) {
+        // Apply sticky position only after 25% scroll
+        if (scrollPercentage >= 25) {
+          navbar.classList.add('is-sticky')
           navbar.classList.add('scrolled')
+          navbar.style.boxShadow = '0 6px 25px rgba(0,0,0,0.25)'
+          navbar.style.padding = '0.6rem 0'
         } else {
+          navbar.classList.remove('is-sticky')
           navbar.classList.remove('scrolled')
+          navbar.style.boxShadow = '0 4px 20px var(--shadow-md)'
+          navbar.style.padding = '1rem 0'
         }
 
         // Keep navbar always visible - no hiding on scroll
         navbar.style.transform = 'translateY(0)'
       }, 10)
     )
-    console.log('✓ Navbar effects initialized - sticky mode (always visible)')
+    console.log('✓ Navbar effects initialized - becomes sticky at 25% scroll')
   }
 
   // ===========================

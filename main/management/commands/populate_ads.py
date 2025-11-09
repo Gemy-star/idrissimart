@@ -1,12 +1,15 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
+from django.core.files import File
 from decimal import Decimal
 from faker import Faker
 import random
+import os
+from pathlib import Path
 
 from content.models import Country
-from main.models import Category, ClassifiedAd, User
+from main.models import Category, ClassifiedAd, User, AdImage
 
 
 class Command(BaseCommand):
@@ -29,14 +32,26 @@ class Command(BaseCommand):
             default="EG",
             help="The country code for which to create ads (e.g., EG, SA).",
         )
+        parser.add_argument(
+            "--update_existing",
+            action="store_true",
+            help="Update existing ads without images to add images.",
+        )
 
     @transaction.atomic
     def handle(self, *args, **kwargs):
         """The main logic for the command."""
         total = kwargs["total"]
         country_code = kwargs["country_code"].upper()
+        update_existing = kwargs.get("update_existing", False)
 
         fake = Faker("ar_EG")
+
+        # Check if update_existing flag is set
+        if update_existing:
+            self.update_existing_ads()
+            return
+
         self.stdout.write(
             self.style.SUCCESS(
                 f"Starting to populate {total} surveying engineering ads for country: {country_code}"
@@ -160,12 +175,86 @@ class Command(BaseCommand):
                 if created_count % 10 == 0:
                     self.stdout.write(f"  Created {created_count}/{total} ads...")
 
+                # Add images to the ad
+                self.add_images_to_ad(ad)
+
             except Exception as e:
                 self.stdout.write(self.style.WARNING(f"Failed to create ad {i+1}: {e}"))
 
         self.stdout.write(
             self.style.SUCCESS(
                 f"\n✅ Successfully created {created_count} surveying engineering ads!"
+            )
+        )
+
+    def add_images_to_ad(self, ad):
+        """Add images to a classified ad from static/images/ads directory"""
+        try:
+            # Get the path to static/images/ads
+            static_images_path = (
+                Path(__file__).resolve().parent.parent.parent.parent.parent
+                / "static"
+                / "images"
+                / "ads"
+            )
+
+            if not static_images_path.exists():
+                return
+
+            # Get all image files in the directory
+            image_files = list(static_images_path.glob("*.jpg")) + list(
+                static_images_path.glob("*.png")
+            )
+
+            if not image_files:
+                return
+
+            # Randomly select 1-3 images
+            num_images = random.randint(1, min(3, len(image_files)))
+            selected_images = random.sample(image_files, num_images)
+
+            # Add images to the ad
+            for order, image_path in enumerate(selected_images, start=1):
+                with open(image_path, "rb") as img_file:
+                    AdImage.objects.create(
+                        ad=ad,
+                        image=File(img_file, name=f"{ad.id}_{order}_{image_path.name}"),
+                        order=order,
+                    )
+        except Exception as e:
+            self.stdout.write(
+                self.style.WARNING(f"Failed to add images to ad {ad.id}: {e}")
+            )
+
+    def update_existing_ads(self):
+        """Update existing ads that don't have images"""
+        self.stdout.write(self.style.SUCCESS("Updating existing ads without images..."))
+
+        # Get all ads without images
+        ads_without_images = ClassifiedAd.objects.filter(images__isnull=True).distinct()
+        total_ads = ads_without_images.count()
+
+        if total_ads == 0:
+            self.stdout.write(self.style.WARNING("No ads found without images."))
+            return
+
+        self.stdout.write(f"Found {total_ads} ads without images.")
+
+        updated_count = 0
+        for ad in ads_without_images:
+            try:
+                self.add_images_to_ad(ad)
+                updated_count += 1
+                if updated_count % 10 == 0:
+                    self.stdout.write(f"  Updated {updated_count}/{total_ads} ads...")
+            except Exception as e:
+                self.stdout.write(
+                    self.style.WARNING(f"Failed to update ad {ad.id}: {e}")
+                )
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"\n✅ Successfully updated {updated_count} ads with images!"
             )
         )
 
