@@ -994,6 +994,8 @@ class ContactView(TemplateView):
     template_name = "pages/contact.html"
 
     def get_context_data(self, **kwargs):
+        from constance import config
+
         context = super().get_context_data(**kwargs)
 
         # Get contact information
@@ -1008,10 +1010,6 @@ class ContactView(TemplateView):
                 map_embed_url="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3620.059022564443!2d46.71516947512605!3d24.7038092779999!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3e2f05072c84c457%3A0xf45cf328d8856bac!2z2KfZhNi52YbYqSDYp9mE2KfYsdiz2YrYp9mEINin2YTYrNix2KfYtNmK2Kkg2YTZhNmF2YrYp9ix2KfYqiDYp9mE2YXYrdmK2KfYqiDYp9mE2KfZhNiz2KfZhdi52Kkg!5e0!3m2!1sar!2ssa!4v1728780637482!5m2!1sar!2ssa",
             )
 
-        # Apply phone formatting
-        contact_info.formatted_phone = phone_format(contact_info.phone)
-        contact_info.formatted_whatsapp = phone_format(contact_info.whatsapp)
-
         # Initialize contact form
         form = ContactForm(
             user=self.request.user if self.request.user.is_authenticated else None
@@ -1019,6 +1017,7 @@ class ContactView(TemplateView):
 
         context["contact_info"] = contact_info
         context["form"] = form
+        context["config"] = config
         context["page_title"] = _("اتصل بنا - إدريسي مارت")
         context["meta_description"] = _("تواصل معنا في إدريسي مارت")
 
@@ -1041,6 +1040,45 @@ class ContactView(TemplateView):
             context = self.get_context_data(**kwargs)
             context["form"] = form
             return self.render_to_response(context)
+
+
+class SocialMediaView(TemplateView):
+    """Social media page view"""
+
+    template_name = "pages/social.html"
+
+    def get_context_data(self, **kwargs):
+        from constance import config
+
+        context = super().get_context_data(**kwargs)
+        context["config"] = config
+        return context
+
+
+class PrivacyPolicyView(TemplateView):
+    """Privacy policy page view"""
+
+    template_name = "pages/privacy.html"
+
+    def get_context_data(self, **kwargs):
+        from constance import config
+
+        context = super().get_context_data(**kwargs)
+        context["config"] = config
+        return context
+
+
+class TermsConditionsView(TemplateView):
+    """Terms and conditions page view"""
+
+    template_name = "pages/terms.html"
+
+    def get_context_data(self, **kwargs):
+        from constance import config
+
+        context = super().get_context_data(**kwargs)
+        context["config"] = config
+        return context
 
 
 @login_required

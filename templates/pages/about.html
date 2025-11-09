@@ -288,83 +288,88 @@
 
 {% block extra_js %}
     <script>
-        // Tab functionality (scoped per tab group)
-        document.querySelectorAll('.tab-buttons').forEach((btnContainer) => {
-            const buttons = Array.from(btnContainer.querySelectorAll('.tab-btn'));
-            // use nearest .container as the common root for buttons and panes
-            const panesRoot = btnContainer.closest('.container') || document.body;
-            const panes = Array.from(panesRoot.querySelectorAll('.tab-pane'));
+        document.addEventListener('DOMContentLoaded', function() {
+            // Tab functionality (scoped per tab group)
+            document.querySelectorAll('.tab-buttons').forEach((btnContainer) => {
+                const buttons = Array.from(btnContainer.querySelectorAll('.tab-btn'));
+                // use nearest .container as the common root for buttons and panes
+                const panesRoot = btnContainer.closest('.container') || document.body;
+                const panes = Array.from(panesRoot.querySelectorAll('.tab-pane'));
 
-            function deactivateLocal() {
-                buttons.forEach(b => {
-                    b.classList.remove('active');
-                    b.setAttribute('aria-selected', 'false');
-                });
-                panes.forEach(p => p.classList.remove('active', 'show'));
-            }
+                function deactivateLocal() {
+                    buttons.forEach(b => {
+                        b.classList.remove('active');
+                        b.setAttribute('aria-selected', 'false');
+                    });
+                    panes.forEach(p => p.classList.remove('active', 'show'));
+                }
 
-            const anyActiveLocal = buttons.some(b => b.classList.contains('active'));
-            if (!anyActiveLocal && buttons.length) {
-                const defaultBtn = buttons[0];
-                defaultBtn.classList.add('active');
-                defaultBtn.setAttribute('aria-selected', 'true');
-                const defaultTarget = defaultBtn.getAttribute('data-tab');
-                const el = defaultTarget ? panesRoot.querySelector('#' + defaultTarget) : null;
-                if (el) el.classList.add('active', 'show');
-            }
+                const anyActiveLocal = buttons.some(b => b.classList.contains('active'));
+                if (!anyActiveLocal && buttons.length) {
+                    const defaultBtn = buttons[0];
+                    defaultBtn.classList.add('active');
+                    defaultBtn.setAttribute('aria-selected', 'true');
+                    const defaultTarget = defaultBtn.getAttribute('data-tab');
+                    const el = defaultTarget ? panesRoot.querySelector('#' + defaultTarget) : null;
+                    if (el) el.classList.add('active', 'show');
+                }
 
-            buttons.forEach((button) => {
-                button.addEventListener('click', function() {
-                    const targetTab = this.getAttribute('data-tab');
-                    if (!targetTab) return;
-                    const targetEl = panesRoot.querySelector('#' + targetTab) || document.getElementById(targetTab);
-                    if (!targetEl) return;
+                buttons.forEach((button) => {
+                    button.addEventListener('click', function() {
+                        const targetTab = this.getAttribute('data-tab');
+                        if (!targetTab) return;
+                        const targetEl = panesRoot.querySelector('#' + targetTab) || document.getElementById(targetTab);
+                        if (!targetEl) return;
 
-                    deactivateLocal();
-                    this.classList.add('active');
-                    this.setAttribute('aria-selected', 'true');
-                    targetEl.classList.add('active', 'show');
-                    this.focus();
+                        deactivateLocal();
+                        this.classList.add('active');
+                        this.setAttribute('aria-selected', 'true');
+                        targetEl.classList.add('active', 'show');
+                        this.focus();
+                    });
                 });
             });
-        });
-        // Statistics counter animation
-        const counters = document.querySelectorAll('.stat-number')
-        const speed = 200 // lower = faster
 
-        const animateCounters = () => {
-            counters.forEach((counter) => {
-                const target = +counter.getAttribute('data-target')
-                const updateCount = () => {
-                    const current = +counter.innerText.replace('+', '')
-                    const increment = Math.ceil(target / speed)
+            // Statistics counter animation
+            const counters = document.querySelectorAll('.stat-number');
+            const speed = 200; // lower = faster
 
-                    if (current < target) {
-                        counter.innerText = current + increment
-                        setTimeout(updateCount, 20)
-                    } else {
-                        counter.innerText = target.toLocaleString() + '+'
+            const animateCounters = () => {
+                counters.forEach((counter) => {
+                    const target = +counter.getAttribute('data-target');
+                    const updateCount = () => {
+                        const current = +counter.innerText.replace('+', '');
+                        const increment = Math.ceil(target / speed);
+
+                        if (current < target) {
+                            counter.innerText = current + increment;
+                            setTimeout(updateCount, 20);
+                        } else {
+                            counter.innerText = target.toLocaleString() + '+';
+                        }
+                    };
+                    updateCount();
+                });
+            };
+
+            // Trigger animation when section is visible
+            const section = document.querySelector('.stats-section');
+            if (section) {
+                let started = false;
+
+                const onScroll = () => {
+                    const sectionTop = section.getBoundingClientRect().top;
+                    const windowHeight = window.innerHeight;
+                    if (!started && sectionTop < windowHeight - 100) {
+                        started = true;
+                        animateCounters();
                     }
-                }
-                updateCount()
-            })
-        }
+                };
 
-        // Trigger animation when section is visible
-        const section = document.querySelector('.stats-section')
-        let started = false
-
-        const onScroll = () => {
-            const sectionTop = section.getBoundingClientRect().top
-            const windowHeight = window.innerHeight
-            if (!started && sectionTop < windowHeight - 100) {
-                started = true
-                animateCounters()
+                window.addEventListener('scroll', onScroll);
+                // Check on page load too
+                onScroll();
             }
-        }
-
-        window.addEventListener('scroll', onScroll)
-        })
+        });
     </script>
-
 {% endblock extra_js %}

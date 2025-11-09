@@ -583,6 +583,10 @@
   function initPreloader() {
     const preloader = document.getElementById('preloader');
     if (!preloader) return;
+
+    // Add loading class to body to hide content
+    document.body.classList.add('loading');
+
     const startTime = Date.now();
 
     window.addEventListener('load', () => {
@@ -592,6 +596,8 @@
 
       setTimeout(() => {
         preloader.classList.add('loader-hidden');
+        // Remove loading class to show content
+        document.body.classList.remove('loading');
       }, remainingTime);
     });
 

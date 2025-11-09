@@ -1,5 +1,6 @@
 from content.models import Country
 from main.models import Notification
+from constance import config
 
 
 def countries(request):
@@ -41,6 +42,7 @@ def header_categories(request):
 
     return {
         "header_categories": categories,
+        "config": config,
     }
 
 
