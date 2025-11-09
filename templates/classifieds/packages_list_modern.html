@@ -1,0 +1,574 @@
+{% extends "base.html" %}
+
+{% load static i18n %}
+
+{% block title %}
+    {% trans "باقات نشر الإعلانات" %} - {% trans "إدريسي مارت" %}
+{% endblock title %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        --premium-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .packages-hero {
+        background: var(--primary-gradient);
+        padding: 60px 0;
+        color: white;
+        margin-bottom: 50px;
+    }
+
+    .packages-hero h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+
+    .packages-hero p {
+        font-size: 1.1rem;
+        opacity: 0.9;
+    }
+
+    /* Package Card */
+    .package-card {
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        background: white;
+        border: none;
+        position: relative;
+    }
+
+    .package-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Recommended Badge */
+    .package-card.recommended {
+        border: 3px solid #667eea;
+    }
+
+    .recommended-badge {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: var(--primary-gradient);
+        color: white;
+        padding: 6px 16px;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        z-index: 10;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .recommended-badge i {
+        margin-inline-end: 6px;
+    }
+
+    /* Package Header */
+    .package-header {
+        padding: 40px 30px 30px;
+        text-align: center;
+        background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%);
+    }
+
+    .package-card.recommended .package-header {
+        background: var(--primary-gradient);
+        color: white;
+    }
+
+    .package-name {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+
+    .package-tagline {
+        font-size: 0.9rem;
+        opacity: 0.8;
+        margin-bottom: 20px;
+    }
+
+    /* Price Section */
+    .package-price {
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+        gap: 5px;
+        margin-bottom: 10px;
+    }
+
+    .currency {
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+
+    .price-amount {
+        font-size: 3rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .price-suffix {
+        font-size: 0.9rem;
+        opacity: 0.7;
+    }
+
+    /* Package Body */
+    .package-body {
+        padding: 30px;
+    }
+
+    /* Features List */
+    .features-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 30px 0;
+    }
+
+    .features-list li {
+        padding: 12px 0;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .features-list li:last-child {
+        border-bottom: none;
+    }
+
+    .feature-icon {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--success-gradient);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 10px;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+
+    .feature-text {
+        flex: 1;
+        color: #4a5568;
+        font-size: 0.95rem;
+    }
+
+    /* Subscribe Button */
+    .btn-subscribe {
+        width: 100%;
+        padding: 14px 28px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 1rem;
+        border: none;
+        background: var(--primary-gradient);
+        color: white;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 14px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-subscribe:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+
+    .package-card.free .btn-subscribe {
+        background: var(--success-gradient);
+        box-shadow: 0 4px 14px rgba(17, 153, 142, 0.3);
+    }
+
+    .package-card.free .btn-subscribe:hover {
+        box-shadow: 0 6px 20px rgba(17, 153, 142, 0.4);
+    }
+
+    /* Category Badge */
+    .category-badge {
+        display: inline-block;
+        padding: 6px 14px;
+        background: rgba(102, 126, 234, 0.1);
+        color: #667eea;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 15px;
+    }
+
+    .package-card.recommended .category-badge {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+    }
+
+    /* Active Packages Section */
+    .active-packages-section {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        border-radius: 20px;
+        padding: 40px;
+        margin-bottom: 50px;
+        color: white;
+    }
+
+    .active-package-card {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 15px;
+        padding: 25px;
+        color: white;
+    }
+
+    .ads-remaining {
+        font-size: 3rem;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+
+    .expiry-date {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 8px 16px;
+        border-radius: 50px;
+        font-size: 0.9rem;
+        display: inline-block;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .packages-hero h1 {
+            font-size: 2rem;
+        }
+
+        .price-amount {
+            font-size: 2.5rem;
+        }
+
+        .package-header {
+            padding: 30px 20px 20px;
+        }
+
+        .package-body {
+            padding: 20px;
+        }
+    }
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="packages-hero">
+    <div class="container">
+        <div class="text-center">
+            <h1>{% trans "باقات نشر الإعلانات" %}</h1>
+            <p>{% trans "اختر الباقة المناسبة لاحتياجاتك وابدأ بنشر إعلاناتك بكل سهولة" %}</p>
+        </div>
+    </div>
+</section>
+
+<div class="container pb-5">
+    <!-- Active Packages -->
+    {% if active_packages %}
+        <div class="active-packages-section" data-aos="fade-up">
+            <h2 class="mb-4">
+                <i class="fas fa-check-circle me-2"></i>{% trans "باقاتك النشطة" %}
+            </h2>
+            <div class="row g-4">
+                {% for user_package in active_packages %}
+                    <div class="col-md-6 col-lg-4">
+                        <div class="active-package-card">
+                            <h4 class="mb-3">{{ user_package.package.name }}</h4>
+
+                            <div class="text-center mb-4">
+                                <div class="ads-remaining">{{ user_package.ads_remaining }}</div>
+                                <div style="opacity: 0.9;">{% trans "إعلانات متبقية" %}</div>
+                            </div>
+
+                            <div class="text-center mb-3">
+                                <span class="expiry-date">
+                                    <i class="fas fa-calendar me-2"></i>
+                                    {% trans "تنتهي في:" %} {{ user_package.expiry_date|date:"Y/m/d" }}
+                                </span>
+                            </div>
+
+                            {% if user_package.package.category %}
+                                <div class="text-center mb-3">
+                                    <span class="badge bg-white text-success">
+                                        {{ user_package.package.category.name_ar|default:user_package.package.category.name }}
+                                    </span>
+                                </div>
+                            {% endif %}
+
+                            <a href="{% url 'main:ad_create' %}" class="btn btn-light w-100 mt-3">
+                                <i class="fas fa-plus me-2"></i>{% trans "نشر إعلان جديد" %}
+                            </a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Available Packages -->
+    <div class="mb-5">
+        <div class="text-center mb-5">
+            <h2 class="fw-bold">{% trans "الباقات المتاحة" %}</h2>
+            <p class="text-muted">{% trans "اختر الباقة التي تناسب احتياجاتك" %}</p>
+        </div>
+
+        <!-- General Packages -->
+        {% if general_packages %}
+            <h3 class="mb-4">
+                <i class="fas fa-globe me-2 text-primary"></i>{% trans "الباقات العامة" %}
+                <small class="text-muted">{% trans "(صالحة لجميع الأقسام)" %}</small>
+            </h3>
+
+            <div class="row g-4 mb-5">
+                {% for package in general_packages %}
+                    <div class="col-md-6 col-lg-4" data-aos="fade-up" data-aos-delay="{{ forloop.counter|add:'-1'|mul:'100' }}">
+                        <div class="package-card {% if package.is_recommended %}recommended{% endif %} {% if package.price == 0 %}free{% endif %}">
+                            {% if package.is_recommended %}
+                                <div class="recommended-badge">
+                                    <i class="fas fa-star"></i>{% trans "موصى به" %}
+                                </div>
+                            {% endif %}
+
+                            <div class="package-header">
+                                <h3 class="package-name">
+                                    {% if LANGUAGE_CODE == 'ar' and package.name %}
+                                        {{ package.name }}
+                                    {% else %}
+                                        {{ package.name_en|default:package.name }}
+                                    {% endif %}
+                                </h3>
+
+                                {% if package.is_default %}
+                                    <span class="category-badge">
+                                        <i class="fas fa-gift me-1"></i>{% trans "باقة افتراضية" %}
+                                    </span>
+                                {% endif %}
+
+                                <div class="package-price">
+                                    {% if package.price == 0 %}
+                                        <span class="price-amount" style="font-size: 2.5rem;">{% trans "مجاناً" %}</span>
+                                    {% else %}
+                                        <span class="currency">EGP</span>
+                                        <span class="price-amount">{{ package.price|floatformat:2 }}</span>
+                                    {% endif %}
+                                </div>
+
+                                {% if package.price > 0 %}
+                                    <div class="price-suffix">{% trans "صالحة لمدة" %} {{ package.duration_days }} {% trans "يوم" %}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="package-body">
+                                <ul class="features-list">
+                                    <!-- عدد الإعلانات -->
+                                    <li>
+                                        <div class="feature-icon"><i class="fas fa-check"></i></div>
+                                        <div class="feature-text">
+                                            <strong>{{ package.ad_count }}</strong>
+                                            {% trans "عدد الإعلانات المسموح بها" %}
+                                        </div>
+                                    </li>
+
+                                    <!-- مدة ظهور الإعلان -->
+                                    <li>
+                                        <div class="feature-icon"><i class="fas fa-check"></i></div>
+                                        <div class="feature-text">
+                                            {% trans "مدة ظهور" %} <strong>{{ package.ad_duration_days }}</strong> {% trans "يوم لكل إعلان" %}
+                                        </div>
+                                    </li>
+
+                                    <!-- Feature Prices -->
+                                    {% if package.feature_pinned_price > 0 %}
+                                    <li>
+                                        <div class="feature-icon"><i class="fas fa-check"></i></div>
+                                        <div class="feature-text">
+                                            {% trans "تثبيت الإعلان" %}
+                                            (<strong>{{ package.feature_pinned_price }} EGP</strong>)
+                                        </div>
+                                    </li>
+                                    {% endif %}
+
+                                    {% if package.feature_urgent_price > 0 %}
+                                    <li>
+                                        <div class="feature-icon"><i class="fas fa-check"></i></div>
+                                        <div class="feature-text">
+                                            {% trans "إعلان عاجل" %}
+                                            (<strong>{{ package.feature_urgent_price }} EGP</strong>)
+                                        </div>
+                                    </li>
+                                    {% endif %}
+
+                                    {% if package.feature_highlighted_price > 0 %}
+                                    <li>
+                                        <div class="feature-icon"><i class="fas fa-check"></i></div>
+                                        <div class="feature-text">
+                                            {% trans "إعلان مميز" %}
+                                            (<strong>{{ package.feature_highlighted_price }} EGP</strong>)
+                                        </div>
+                                    </li>
+                                    {% endif %}
+
+                                    <!-- Custom Features -->
+                                    {% for feature in package.get_features_list %}
+                                    <li>
+                                        <div class="feature-icon"><i class="fas fa-check"></i></div>
+                                        <div class="feature-text">{{ feature }}</div>
+                                    </li>
+                                    {% endfor %}
+
+                                    <!-- Additional Info -->
+                                    {% if package.is_default %}
+                                    <li>
+                                        <div class="feature-icon"><i class="fas fa-check"></i></div>
+                                        <div class="feature-text">{% trans "تُمنح تلقائياً عند التسجيل" %}</div>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+
+                                <a href="{% url 'main:package_purchase' package.id %}" class="btn-subscribe">
+                                    <i class="fas fa-bolt me-2"></i>
+                                    {% if package.price == 0 %}
+                                        {% trans "تفعيل الآن" %}
+                                    {% else %}
+                                        {% trans "اشترك الآن" %}
+                                    {% endif %}
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Category-Specific Packages -->
+        {% if category_packages %}
+            <h3 class="mb-4">
+                <i class="fas fa-layer-group me-2 text-success"></i>{% trans "باقات خاصة بالأقسام" %}
+            </h3>
+
+            {% for category, packages in category_packages.items %}
+                <div class="mb-5">
+                    <h4 class="mb-3 text-primary">
+                        <i class="fas fa-tag me-2"></i>{{ category.name_ar|default:category.name }}
+                    </h4>
+
+                    <div class="row g-4">
+                        {% for package in packages %}
+                            <div class="col-md-6 col-lg-4" data-aos="fade-up">
+                                <div class="package-card {% if package.is_recommended %}recommended{% endif %}">
+                                    {% if package.is_recommended %}
+                                        <div class="recommended-badge">
+                                            <i class="fas fa-star"></i>{% trans "موصى به" %}
+                                        </div>
+                                    {% endif %}
+
+                                    <div class="package-header">
+                                        <div class="category-badge">
+                                            <i class="fas fa-tag me-1"></i>{{ category.name_ar|default:category.name }}
+                                        </div>
+
+                                        <h3 class="package-name">{{ package.name }}</h3>
+
+                                        <div class="package-price">
+                                            <span class="currency">EGP</span>
+                                            <span class="price-amount">{{ package.price|floatformat:2 }}</span>
+                                        </div>
+
+                                        <div class="price-suffix">{% trans "لمدة" %} {{ package.duration_days }} {% trans "يوم" %}</div>
+                                    </div>
+
+                                    <div class="package-body">
+                                        <ul class="features-list">
+                                            <li>
+                                                <div class="feature-icon"><i class="fas fa-check"></i></div>
+                                                <div class="feature-text">
+                                                    <strong>{{ package.ad_count }}</strong> {% trans "إعلان" %}
+                                                </div>
+                                            </li>
+                                            <li>
+                                                <div class="feature-icon"><i class="fas fa-check"></i></div>
+                                                <div class="feature-text">
+                                                    {% trans "ظهور" %} <strong>{{ package.ad_duration_days }}</strong> {% trans "يوم" %}
+                                                </div>
+                                            </li>
+
+                                            {% for feature in package.get_features_list %}
+                                            <li>
+                                                <div class="feature-icon"><i class="fas fa-check"></i></div>
+                                                <div class="feature-text">{{ feature }}</div>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+
+                                        <a href="{% url 'main:package_purchase' package.id %}" class="btn-subscribe">
+                                            <i class="fas fa-shopping-cart me-2"></i>{% trans "شراء الباقة" %}
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <!-- Information Section -->
+    <div class="row mt-5">
+        <div class="col-lg-8 mx-auto">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h4 class="mb-4">
+                        <i class="fas fa-info-circle text-primary me-2"></i>{% trans "معلومات هامة" %}
+                    </h4>
+                    <ul class="list-unstyled">
+                        <li class="mb-3">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            {% trans "يحصل كل مستخدم جديد على باقة مجانية عند التسجيل" %}
+                        </li>
+                        <li class="mb-3">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            {% trans "عدد الإعلانات في الباقة غير مرتبط بمدة صلاحية الباقة" %}
+                        </li>
+                        <li class="mb-3">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            {% trans "كل إعلان له مدة ظهور محددة حسب الباقة" %}
+                        </li>
+                        <li class="mb-3">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            {% trans "يمكنك إضافة مميزات خاصة لإعلانك (تثبيت، عاجل، مميز) برسوم إضافية" %}
+                        </li>
+                        <li>
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            {% trans "الباقات الخاصة بالأقسام تقدم أسعار مخفضة لأقسام محددة" %}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+<script>
+    AOS.init({
+        duration: 800,
+        once: true
+    });
+</script>
+{% endblock extra_js %}

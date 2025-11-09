@@ -1,0 +1,617 @@
+{% extends "base.html" %}
+
+{% load static i18n %}
+
+{% block title %}
+    {{ ad.title }} - {% trans "معاينة الإعلان" %}
+{% endblock title %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        --card-hover-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    }
+
+    .publisher-dashboard {
+        padding: 40px 0;
+        background: #f5f7fa;
+    }
+
+    /* Admin Actions Card */
+    .admin-actions-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: var(--card-shadow);
+        padding: 25px;
+        margin-bottom: 20px;
+    }
+
+    .admin-actions-card h3 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin-bottom: 20px;
+    }
+
+    .btn-action {
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        border: none;
+        transition: all 0.3s ease;
+        margin-right: 10px;
+        margin-bottom: 10px;
+    }
+
+    .btn-hide {
+        background: #3f4254;
+        color: white;
+    }
+
+    .btn-hide:hover {
+        background: #2d3142;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(63, 66, 84, 0.3);
+    }
+
+    .btn-delete {
+        background: #e53e3e;
+        color: white;
+    }
+
+    .btn-delete:hover {
+        background: #c53030;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
+    }
+
+    /* Status Badges */
+    .status-badge {
+        display: inline-block;
+        padding: 6px 14px;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-bottom: 15px;
+    }
+
+    .badge-premium {
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        color: white;
+    }
+
+    .badge-active {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+    }
+
+    /* Ad Image Container */
+    .ad-image-container {
+        background: white;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: var(--card-shadow);
+        margin-bottom: 20px;
+        position: relative;
+    }
+
+    .ad-main-image {
+        width: 100%;
+        height: 400px;
+        object-fit: cover;
+    }
+
+    .image-nav-buttons {
+        position: absolute;
+        top: 50%;
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        padding: 0 15px;
+        transform: translateY(-50%);
+    }
+
+    .nav-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.9);
+        border: none;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .nav-btn:hover {
+        background: white;
+        transform: scale(1.1);
+    }
+
+    /* Ad Details Card */
+    .ad-details-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: var(--card-shadow);
+        padding: 30px;
+        margin-bottom: 20px;
+    }
+
+    .ad-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin-bottom: 15px;
+    }
+
+    .ad-price {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #3b82f6;
+        margin-bottom: 15px;
+    }
+
+    .ad-location {
+        color: #6b7280;
+        font-size: 0.95rem;
+        margin-bottom: 10px;
+    }
+
+    .ad-posted-time {
+        color: #9ca3af;
+        font-size: 0.85rem;
+    }
+
+    /* Statistics Card */
+    .statistics-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: var(--card-shadow);
+        padding: 25px;
+        margin-bottom: 20px;
+    }
+
+    .statistics-card h3 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin-bottom: 20px;
+    }
+
+    .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin-bottom: 5px;
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+        color: #6b7280;
+    }
+
+    /* User Information Card */
+    .user-info-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: var(--card-shadow);
+        padding: 25px;
+        margin-bottom: 20px;
+    }
+
+    .user-info-card h3 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin-bottom: 20px;
+    }
+
+    .user-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 15px;
+    }
+
+    .user-name {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1a202c;
+        margin-bottom: 5px;
+    }
+
+    .member-since {
+        color: #6b7280;
+        font-size: 0.85rem;
+        margin-bottom: 20px;
+    }
+
+    .user-detail-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .user-detail-row:last-child {
+        border-bottom: none;
+    }
+
+    .user-detail-label {
+        color: #6b7280;
+        font-size: 0.9rem;
+    }
+
+    .user-detail-value {
+        color: #1a202c;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .btn-view-profile {
+        width: 100%;
+        padding: 12px;
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        margin-top: 15px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-view-profile:hover {
+        background: #2563eb;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    /* Categories Display */
+    .categories-section {
+        margin: 20px 0;
+    }
+
+    .category-link {
+        color: #3b82f6;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+
+    .category-link:hover {
+        color: #2563eb;
+        text-decoration: underline;
+    }
+
+    .category-separator {
+        color: #9ca3af;
+        margin: 0 8px;
+    }
+
+    /* Tags Section */
+    .tags-section {
+        margin-top: 20px;
+    }
+
+    .tag-badge {
+        display: inline-block;
+        background: #eff6ff;
+        color: #3b82f6;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        margin-right: 8px;
+        margin-bottom: 8px;
+    }
+
+    /* Description Section */
+    .description-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: var(--card-shadow);
+        padding: 30px;
+        margin-bottom: 20px;
+    }
+
+    .description-card h3 {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin-bottom: 15px;
+    }
+
+    .description-text {
+        color: #4b5563;
+        line-height: 1.8;
+        font-size: 0.95rem;
+    }
+
+    /* Expiration Notice */
+    .expiration-section {
+        background: #fef3c7;
+        border-left: 4px solid #f59e0b;
+        padding: 15px 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+
+    .expiration-section h4 {
+        color: #92400e;
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+
+    .expiration-date {
+        color: #78350f;
+        font-size: 0.9rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .stat-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .ad-main-image {
+            height: 250px;
+        }
+
+        .btn-action {
+            width: 100%;
+            margin-right: 0;
+        }
+    }
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="publisher-dashboard">
+    <div class="container">
+        <div class="row">
+            <!-- Left Column -->
+            <div class="col-lg-8">
+                <!-- Admin Actions -->
+                {% if request.user == ad.user or request.user.is_staff %}
+                <div class="admin-actions-card">
+                    <h3>Admin Actions</h3>
+                    <div class="d-flex flex-wrap">
+                        <button class="btn-action btn-hide" onclick="toggleAdVisibility({{ ad.id }})">
+                            Hide Advertisement
+                        </button>
+                        <button class="btn-action btn-delete" onclick="deleteAdvertisement({{ ad.id }})">
+                            Delete Advertisement
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Status Badges -->
+                <div class="mb-3">
+                    {% if ad.is_highlighted %}
+                    <span class="status-badge badge-premium">Premium</span>
+                    {% endif %}
+                    {% if ad.status == 'active' %}
+                    <span class="status-badge badge-active">Active</span>
+                    {% endif %}
+                </div>
+
+                <!-- Main Image -->
+                <div class="ad-image-container">
+                    {% if ad.images.all %}
+                        <img src="{{ ad.images.first.image.url }}" alt="{{ ad.title }}" class="ad-main-image" id="mainAdImage">
+                        {% if ad.images.count > 1 %}
+                        <div class="image-nav-buttons">
+                            <button class="nav-btn" onclick="previousImage()">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <button class="nav-btn" onclick="nextImage()">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <img src="https://via.placeholder.com/800x400?text=No+Image" alt="No Image" class="ad-main-image">
+                    {% endif %}
+                </div>
+
+                <!-- Ad Details -->
+                <div class="ad-details-card">
+                    <h1 class="ad-title">{{ ad.title }}</h1>
+
+                    <div class="ad-price">
+                        EGP {{ ad.price|floatformat:2 }}
+                    </div>
+
+                    <div class="ad-location">
+                        <i class="fas fa-map-marker-alt me-2"></i>
+                        {{ ad.city }}{% if ad.country %}, {{ ad.country.name }}{% endif %}
+                    </div>
+
+                    <div class="ad-posted-time">
+                        <i class="fas fa-clock me-2"></i>
+                        Posted {{ ad.created_at|timesince }} ago
+                    </div>
+
+                    <!-- Categories -->
+                    <div class="categories-section">
+                        <h4 style="font-size: 1rem; font-weight: 600; margin-bottom: 10px;">Categories</h4>
+                        {% if ad.category %}
+                            <a href="{% url 'main:category_detail' ad.category.slug %}" class="category-link">
+                                {{ ad.category.name_ar|default:ad.category.name }}
+                            </a>
+                            {% if ad.category.parent %}
+                                <span class="category-separator">›</span>
+                                <a href="{% url 'main:category_detail' ad.category.parent.slug %}" class="category-link">
+                                    {{ ad.category.parent.name_ar|default:ad.category.parent.name }}
+                                </a>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted">{% trans "غير محدد" %}</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Tags -->
+                    {% if ad.custom_fields %}
+                    <div class="tags-section">
+                        <h4 style="font-size: 1rem; font-weight: 600; margin-bottom: 10px;">Tags</h4>
+                        <span class="tag-badge">sss</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Expiration Notice -->
+                {% if ad.expires_at %}
+                <div class="expiration-section">
+                    <h4>Expiration</h4>
+                    <div class="expiration-date">
+                        Expires on Oct 09, 2025
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Description -->
+                <div class="description-card">
+                    <h3>Description</h3>
+                    <div class="description-text">
+                        {{ ad.description|linebreaksbr }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="col-lg-4">
+                <!-- Advertisement Statistics -->
+                <div class="statistics-card">
+                    <h3>Advertisement Statistics</h3>
+                    <div class="stat-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">{{ ad.views_count|default:3 }}</div>
+                            <div class="stat-label">Views</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">0</div>
+                            <div class="stat-label">Reviews</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">{{ ad.average_rating|default:"0.0" }}</div>
+                            <div class="stat-label">Avg Rating</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">0</div>
+                            <div class="stat-label">Recommendations</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Information -->
+                <div class="user-info-card">
+                    <h3>User Information</h3>
+
+                    <div class="text-center">
+                        <div class="user-avatar mx-auto">
+                            {{ ad.user.get_short_name.0|upper }}
+                        </div>
+                        <div class="user-name">{{ ad.user.get_full_name|default:ad.user.username }}</div>
+                        <div class="member-since">
+                            Member since {{ ad.user.date_joined|date:"M Y" }}
+                        </div>
+                    </div>
+
+                    <div class="user-detail-row">
+                        <span class="user-detail-label">Email:</span>
+                        <span class="user-detail-value">{{ ad.user.email }}</span>
+                    </div>
+
+                    <div class="user-detail-row">
+                        <span class="user-detail-label">Phone:</span>
+                        <span class="user-detail-value">{{ ad.user.phone|default:"+201066959205" }}</span>
+                    </div>
+
+                    <div class="user-detail-row">
+                        <span class="user-detail-label">Total Ads:</span>
+                        <span class="user-detail-value">{{ ad.user.classified_ads.count|default:1 }}</span>
+                    </div>
+
+                    <div class="user-detail-row">
+                        <span class="user-detail-label">Active Ads:</span>
+                        <span class="user-detail-value">{{ ad.user.classified_ads.filter.count|default:1 }}</span>
+                    </div>
+
+                    <button class="btn-view-profile" onclick="window.location.href='{% url 'main:user_profile' ad.user.username %}'">
+                        View User Profile
+                    </button>
+                </div>
+
+                <!-- Reviews Management (Placeholder) -->
+                <div class="user-info-card">
+                    <h3>Reviews Management</h3>
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-star fa-3x mb-3" style="opacity: 0.3;"></i>
+                        <p>{% trans "لا توجد تقييمات بعد" %}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+    // Image navigation
+    let currentImageIndex = 0;
+    const images = [
+        {% for image in ad.images.all %}
+            "{{ image.image.url }}"{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    function previousImage() {
+        if (images.length > 0) {
+            currentImageIndex = (currentImageIndex - 1 + images.length) % images.length;
+            document.getElementById('mainAdImage').src = images[currentImageIndex];
+        }
+    }
+
+    function nextImage() {
+        if (images.length > 0) {
+            currentImageIndex = (currentImageIndex + 1) % images.length;
+            document.getElementById('mainAdImage').src = images[currentImageIndex];
+        }
+    }
+
+    // Admin actions
+    function toggleAdVisibility(adId) {
+        if (confirm('{% trans "هل أنت متأكد من إخفاء هذا الإعلان؟" %}')) {
+            // TODO: AJAX call to toggle visibility
+            alert('{% trans "سيتم إخفاء الإعلان" %}');
+        }
+    }
+
+    function deleteAdvertisement(adId) {
+        if (confirm('{% trans "هل أنت متأكد من حذف هذا الإعلان؟ لا يمكن التراجع عن هذا الإجراء." %}')) {
+            // TODO: AJAX call to delete
+            alert('{% trans "سيتم حذف الإعلان" %}');
+        }
+    }
+</script>
+{% endblock extra_js %}

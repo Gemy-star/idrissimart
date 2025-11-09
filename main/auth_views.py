@@ -15,10 +15,36 @@ class CustomLoginView(LoginView):
     """
     Custom login view that extends Django's built-in LoginView to add
     custom logic for session expiry ("Remember Me") and user status checks.
+    Redirects users to appropriate dashboards based on their role.
     """
 
     template_name = "pages/login.html"
     redirect_authenticated_user = True
+
+    def get_success_url(self):
+        """
+        Determine the redirect URL based on user role:
+        - Superusers -> Admin Dashboard
+        - Regular users with ads -> Publisher Dashboard (their ads list)
+        - Regular users without ads -> Home page
+        """
+        user = self.request.user
+
+        # Check if user is superuser/admin
+        if user.is_superuser or user.is_staff:
+            return reverse_lazy("main:admin_dashboard")
+
+        # Check if user has posted any ads (publisher)
+        from .models import ClassifiedAd
+
+        user_has_ads = ClassifiedAd.objects.filter(user=user).exists()
+
+        if user_has_ads:
+            # Redirect to their ads management page
+            return reverse_lazy("main:my_ads")
+
+        # Default redirect for regular users
+        return reverse_lazy("main:home")
 
     def form_valid(self, form):
         """
@@ -45,7 +71,14 @@ class CustomLoginView(LoginView):
         user.last_login_ip = get_client_ip(self.request)
         user.save(update_fields=["last_login_ip"])
 
-        messages.success(self.request, _(f"مرحباً بك {user.get_display_name()}! 🎉"))
+        # Custom welcome message based on role
+        if user.is_superuser:
+            messages.success(
+                self.request,
+                _(f"مرحباً بك في لوحة الإدارة، {user.get_display_name()}! 👨‍💼"),
+            )
+        else:
+            messages.success(self.request, _(f"مرحباً بك {user.get_display_name()}! 🎉"))
 
         return super().form_valid(form)
 

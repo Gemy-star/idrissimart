@@ -368,3 +368,383 @@ class NotificationListView(LoginRequiredMixin, ListView):
         # Mark all unread notifications as read once the user views the page
         self.get_queryset().filter(is_read=False).update(is_read=True)
         return response
+
+
+class PackageListView(ListView):
+    """
+    عرض قائمة الباقات المتاحة
+    Display available ad packages
+    """
+
+    model = AdPackage
+    template_name = "classifieds/packages_list_modern.html"
+    context_object_name = "packages"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Get all active packages
+        all_packages = AdPackage.objects.filter(is_active=True).select_related(
+            "category"
+        )
+
+        # Separate general packages (no category) from category-specific ones
+        general_packages = all_packages.filter(category__isnull=True).order_by(
+            "display_order", "-is_recommended", "price"
+        )
+
+        # Get category-specific packages grouped by category
+        category_packages = {}
+        for package in all_packages.filter(category__isnull=False).order_by(
+            "category", "display_order", "price"
+        ):
+            if package.category not in category_packages:
+                category_packages[package.category] = []
+            category_packages[package.category].append(package)
+
+        context["general_packages"] = general_packages
+        context["category_packages"] = category_packages
+
+        # If user is authenticated, get their active packages
+        if self.request.user.is_authenticated:
+            context["active_packages"] = (
+                UserPackage.objects.filter(
+                    user=self.request.user,
+                    expiry_date__gte=timezone.now(),
+                    ads_remaining__gt=0,
+                )
+                .select_related("package", "package__category")
+                .order_by("-purchase_date")
+            )
+
+        return context
+
+
+class PackagePurchaseView(LoginRequiredMixin, View):
+    """
+    معالجة شراء/تفعيل الباقة
+    Handle package purchase/activation
+    """
+
+    def post(self, request, package_id):
+        package = get_object_or_404(AdPackage, id=package_id, is_active=True)
+
+        # Check if it's a free package or default package
+        if package.price == 0 or package.is_default:
+            # Create user package immediately
+            user_package = UserPackage.objects.create(
+                user=request.user, package=package
+            )
+            messages.success(
+                request,
+                _("تم تفعيل الباقة بنجاح! لديك الآن {} إعلانات متاحة.").format(
+                    package.ad_count
+                ),
+            )
+            return redirect("main:my_ads")
+        else:
+            # Redirect to payment gateway
+            # TODO: Integrate with payment gateway
+            messages.info(request, _("سيتم تحويلك إلى بوابة الدفع لإتمام عملية الشراء"))
+            return redirect("main:package_list")
+
+    def get(self, request, package_id):
+        # Show package purchase confirmation page
+        package = get_object_or_404(AdPackage, id=package_id, is_active=True)
+        return redirect("main:package_list")
+
+
+class AdminDashboardView(LoginRequiredMixin, ListView):
+    """Admin dashboard for managing all advertisements"""
+
+    model = ClassifiedAd
+    template_name = "admin/dashboard_main.html"
+    context_object_name = "ads"
+    paginate_by = 20    def dispatch(self, request, *args, **kwargs):
+        # Only allow superusers
+        if not request.user.is_superuser:
+            messages.error(request, _("ليس لديك صلاحية للوصول إلى هذه الصفحة"))
+            return redirect("main:home")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = (
+            ClassifiedAd.objects.select_related("user", "category", "country")
+            .prefetch_related("images")
+            .order_by("-created_at")
+        )
+
+        # Filter by status
+        status = self.request.GET.get("status")
+        if status == "active":
+            queryset = queryset.filter(
+                status=ClassifiedAd.AdStatus.ACTIVE, is_hidden=False
+            )
+        elif status == "pending":
+            queryset = queryset.filter(status=ClassifiedAd.AdStatus.PENDING)
+        elif status == "expired":
+            queryset = queryset.filter(status=ClassifiedAd.AdStatus.EXPIRED)
+        elif status == "hidden":
+            queryset = queryset.filter(is_hidden=True)
+
+        # Filter by approval
+        approval = self.request.GET.get("approval")
+        if approval:
+            if approval == "active":
+                queryset = queryset.filter(status=ClassifiedAd.AdStatus.ACTIVE)
+            elif approval == "pending":
+                queryset = queryset.filter(status=ClassifiedAd.AdStatus.PENDING)
+            elif approval == "expired":
+                queryset = queryset.filter(status=ClassifiedAd.AdStatus.EXPIRED)
+            elif approval == "hidden":
+                queryset = queryset.filter(is_hidden=True)
+
+        # Search functionality
+        search = self.request.GET.get("search")
+        if search:
+            queryset = (
+                queryset.filter(title__icontains=search)
+                | queryset.filter(user__username__icontains=search)
+                | queryset.filter(category__name__icontains=search)
+            )
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Calculate statistics
+        context["stats"] = {
+            "active_count": ClassifiedAd.objects.filter(
+                status=ClassifiedAd.AdStatus.ACTIVE, is_hidden=False
+            ).count(),
+            "pending_count": ClassifiedAd.objects.filter(
+                status=ClassifiedAd.AdStatus.PENDING
+            ).count(),
+            "hidden_count": ClassifiedAd.objects.filter(is_hidden=True).count(),
+            "expired_count": ClassifiedAd.objects.filter(
+                status=ClassifiedAd.AdStatus.EXPIRED
+            ).count(),
+        }
+
+        return context
+
+
+class ToggleAdHideView(LoginRequiredMixin, View):
+    """AJAX view to toggle ad visibility"""
+
+    def post(self, request, ad_id):
+        if not request.user.is_superuser:
+            return JsonResponse(
+                {"success": False, "error": "Permission denied"}, status=403
+            )
+
+        ad = get_object_or_404(ClassifiedAd, id=ad_id)
+
+        import json
+
+        data = json.loads(request.body)
+        ad.is_hidden = data.get("hide", False)
+        ad.save()
+
+        # Send notification to user
+        Notification.objects.create(
+            user=ad.user,
+            title=_("تغيير حالة الإعلان"),
+            message=_("تم {} إعلانك '{}'").format(
+                _("إخفاء") if ad.is_hidden else _("إظهار"), ad.title
+            ),
+            link=ad.get_absolute_url(),
+        )
+
+        return JsonResponse({"success": True})
+
+
+class EnableAdCartView(LoginRequiredMixin, View):
+    """AJAX view to enable cart for an ad"""
+
+    def post(self, request, ad_id):
+        if not request.user.is_superuser:
+            return JsonResponse(
+                {"success": False, "error": "Permission denied"}, status=403
+            )
+
+        ad = get_object_or_404(ClassifiedAd, id=ad_id)
+
+        if not ad.allow_cart:
+            return JsonResponse(
+                {"success": False, "error": "Cart not allowed for this ad"}, status=400
+            )
+
+        ad.cart_enabled_by_admin = True
+        ad.save()
+
+        # Send notification to user
+        Notification.objects.create(
+            user=ad.user,
+            title=_("تفعيل السلة"),
+            message=_("تم تفعيل السلة لإعلانك '{}'").format(ad.title),
+            link=ad.get_absolute_url(),
+        )
+
+        return JsonResponse({"success": True})
+
+
+class DeleteAdView(LoginRequiredMixin, View):
+    """AJAX view to delete an ad"""
+
+    def post(self, request, ad_id):
+        if not request.user.is_superuser:
+            return JsonResponse(
+                {"success": False, "error": "Permission denied"}, status=403
+            )
+
+        ad = get_object_or_404(ClassifiedAd, id=ad_id)
+        ad_title = ad.title
+        ad_user = ad.user
+
+        # Send notification before deleting
+        Notification.objects.create(
+            user=ad_user,
+            title=_("حذف إعلان"),
+            message=_("تم حذف إعلانك '{}' من قبل الإدارة").format(ad_title),
+        )
+
+        ad.delete()
+
+        return JsonResponse({"success": True})
+
+
+class AdminCategoriesView(LoginRequiredMixin, ListView):
+    """Admin view for managing categories"""
+
+    model = Category
+    template_name = "admin/categories.html"
+    context_object_name = "categories"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_superuser:
+            messages.error(request, _("ليس لديك صلاحية للوصول إلى هذه الصفحة"))
+            return redirect("main:home")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        return Category.objects.filter(level=0).order_by("order", "name")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["all_categories"] = Category.objects.filter(parent__isnull=True)
+        return context
+
+
+class CategorySaveView(LoginRequiredMixin, View):
+    """Save (create/update) category"""
+
+    def post(self, request):
+        if not request.user.is_superuser:
+            return JsonResponse({"success": False, "error": "Permission denied"}, status=403)
+
+        category_id = request.POST.get("category_id")
+        name = request.POST.get("name")
+        name_ar = request.POST.get("name_ar")
+        slug = request.POST.get("slug")
+        slug_ar = request.POST.get("slug_ar")
+        parent_id = request.POST.get("parent")
+        section_type = request.POST.get("section_type")
+        description = request.POST.get("description", "")
+        allow_cart = request.POST.get("allow_cart") == "on"
+        require_admin_approval = request.POST.get("require_admin_approval") == "on"
+        is_active = request.POST.get("is_active") == "on"
+
+        try:
+            if category_id:
+                # Update existing category
+                category = Category.objects.get(id=category_id)
+            else:
+                # Create new category
+                category = Category()
+
+            category.name = name
+            category.name_ar = name_ar
+            category.slug = slug
+            category.slug_ar = slug_ar
+            category.section_type = section_type
+            category.description = description
+            category.allow_cart = allow_cart
+            category.require_admin_approval = require_admin_approval
+            category.is_active = is_active
+
+            if parent_id:
+                category.parent = Category.objects.get(id=parent_id)
+            else:
+                category.parent = None
+
+            category.save()
+
+            messages.success(request, _("تم حفظ القسم بنجاح"))
+            return redirect("main:admin_categories")
+
+        except Exception as e:
+            messages.error(request, _("حدث خطأ أثناء حفظ القسم"))
+            return redirect("main:admin_categories")
+
+
+class CategoryGetView(LoginRequiredMixin, View):
+    """Get category data for editing"""
+
+    def get(self, request, category_id):
+        if not request.user.is_superuser:
+            return JsonResponse({"success": False, "error": "Permission denied"}, status=403)
+
+        category = get_object_or_404(Category, id=category_id)
+
+        return JsonResponse(
+            {
+                "id": category.id,
+                "name": category.name,
+                "name_ar": category.name_ar,
+                "slug": category.slug,
+                "slug_ar": category.slug_ar,
+                "parent": category.parent_id if category.parent else None,
+                "section_type": category.section_type,
+                "description": category.description,
+                "allow_cart": category.allow_cart if hasattr(category, "allow_cart") else False,
+                "require_admin_approval": category.require_admin_approval if hasattr(category, "require_admin_approval") else True,
+                "is_active": category.is_active,
+            }
+        )
+
+
+class CategoryDeleteView(LoginRequiredMixin, View):
+    """Delete category"""
+
+    def post(self, request, category_id):
+        if not request.user.is_superuser:
+            return JsonResponse({"success": False, "error": "Permission denied"}, status=403)
+
+        try:
+            category = get_object_or_404(Category, id=category_id)
+
+            # Check if category has children
+            if category.get_children().exists():
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "error": _("لا يمكن حذف القسم لأنه يحتوي على أقسام فرعية"),
+                    }
+                )
+
+            # Check if category has ads
+            if category.classified_ads.exists():
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "error": _("لا يمكن حذف القسم لأنه يحتوي على إعلانات"),
+                    }
+                )
+
+            category.delete()
+            return JsonResponse({"success": True})
+
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)})

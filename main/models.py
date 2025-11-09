@@ -864,6 +864,40 @@ class Category(MPTTModel):
         ),
     )
 
+    # Cart and Reservation Settings
+    allow_cart = models.BooleanField(
+        default=False,
+        verbose_name=_("السماح بالسلة"),
+        help_text=_("تفعيل نظام السلة لهذا القسم"),
+    )
+    default_reservation_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=10,
+        verbose_name=_("نسبة الحجز الافتراضية"),
+        help_text=_("النسبة المئوية الافتراضية للحجز"),
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
+    min_reservation_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name=_("الحد الأدنى لمبلغ الحجز"),
+    )
+    max_reservation_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name=_("الحد الأقصى لمبلغ الحجز"),
+    )
+    require_admin_approval = models.BooleanField(
+        default=True,
+        verbose_name=_("يتطلب موافقة الإدارة"),
+        help_text=_("الإعلانات تتطلب مراجعة قبل النشر"),
+    )
+
     order = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
 
@@ -1312,6 +1346,88 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
     # Badge Features
     is_urgent = models.BooleanField(default=False, verbose_name=_("إعلان عاجل"))
     is_highlighted = models.BooleanField(default=False, verbose_name=_("إعلان مميز"))
+    is_pinned = models.BooleanField(default=False, verbose_name=_("إعلان مثبت"))
+
+    # Visibility and Access Control
+    class VisibilityType(models.TextChoices):
+        PUBLIC = "public", _("عام - متاح للجميع")
+        MEMBERS_ONLY = "members_only", _("للأعضاء المسجلين فقط")
+        VERIFIED_ONLY = "verified_only", _("للأعضاء الموثقين فقط")
+
+    visibility_type = models.CharField(
+        max_length=20,
+        choices=VisibilityType.choices,
+        default=VisibilityType.PUBLIC,
+        verbose_name=_("نوع الظهور"),
+        help_text=_("تحديد من يمكنه مشاهدة الإعلان"),
+    )
+    require_login_for_contact = models.BooleanField(
+        default=False,
+        verbose_name=_("تسجيل الدخول مطلوب للتواصل"),
+        help_text=_("إذا كان نشطاً، يجب على الزوار تسجيل الدخول لرؤية معلومات الاتصال"),
+    )
+
+    # Cart and Reservation Settings
+    allow_cart = models.BooleanField(
+        default=False,
+        verbose_name=_("السماح بالسلة"),
+        help_text=_("تفعيل نظام السلة والحجز لهذا الإعلان"),
+    )
+    cart_enabled_by_admin = models.BooleanField(
+        default=False,
+        verbose_name=_("السلة مفعلة من الإدارة"),
+        help_text=_("يتم تفعيلها بعد استلام المنتج"),
+    )
+    reservation_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        verbose_name=_("نسبة الحجز"),
+        help_text=_("نسبة مئوية من السعر الإجمالي للحجز"),
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
+    reservation_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        verbose_name=_("مبلغ الحجز"),
+        help_text=_("المبلغ المطلوب للحجز"),
+    )
+    delivery_terms = models.TextField(
+        blank=True,
+        verbose_name=_("شروط التوصيل والتحصيل"),
+        help_text=_("شروط خدمة التوصيل والتحصيل"),
+    )
+    delivery_terms_en = models.TextField(
+        blank=True,
+        verbose_name=_("شروط التوصيل والتحصيل (EN)"),
+    )
+
+    # Admin Control
+    is_hidden = models.BooleanField(
+        default=False,
+        verbose_name=_("مخفي"),
+        help_text=_("الإعلان مخفي من قبل الإدارة"),
+    )
+    require_review = models.BooleanField(
+        default=True,
+        verbose_name=_("يتطلب مراجعة"),
+        help_text=_(
+            "يتطلب موافقة الإدارة قبل النشر (الأعضاء الموثقين يتم نشرهم تلقائياً)"
+        ),
+    )
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_ads",
+        verbose_name=_("تمت المراجعة بواسطة"),
+    )
+    reviewed_at = models.DateTimeField(
+        null=True, blank=True, verbose_name=_("تاريخ المراجعة")
+    )
+    admin_notes = models.TextField(blank=True, verbose_name=_("ملاحظات الإدارة"))
 
     # Status and Timestamps
     status = models.CharField(
@@ -1341,7 +1457,61 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
     def save(self, *args, **kwargs):
         if not self.expires_at:
             self.expires_at = timezone.now() + timezone.timedelta(days=30)
+
+        # Calculate reservation amount if percentage is set
+        if self.reservation_percentage > 0 and self.price:
+            calculated_amount = (self.price * self.reservation_percentage) / 100
+            # Apply min/max limits from category settings if available
+            if hasattr(self.category, "min_reservation_amount"):
+                calculated_amount = max(
+                    calculated_amount, self.category.min_reservation_amount or 0
+                )
+            if hasattr(self.category, "max_reservation_amount"):
+                calculated_amount = min(
+                    calculated_amount,
+                    self.category.max_reservation_amount or calculated_amount,
+                )
+            self.reservation_amount = calculated_amount
+
+        # Auto-approve for verified users if setting is enabled
+        if (
+            not self.pk
+            and self.user.verification_status == User.VerificationStatus.VERIFIED
+        ):
+            if not self.require_review:
+                self.status = self.AdStatus.ACTIVE
+                self.reviewed_at = timezone.now()
+
         super().save(*args, **kwargs)
+
+    def calculate_reservation_amount(self):
+        """Calculate the reservation amount based on percentage"""
+        if self.reservation_percentage > 0 and self.price:
+            return (self.price * self.reservation_percentage) / 100
+        return self.reservation_amount
+
+    def can_user_view(self, user):
+        """Check if user can view this ad based on visibility settings"""
+        if self.is_hidden:
+            return False
+
+        if self.visibility_type == self.VisibilityType.PUBLIC:
+            return True
+        elif self.visibility_type == self.VisibilityType.MEMBERS_ONLY:
+            return user.is_authenticated
+        elif self.visibility_type == self.VisibilityType.VERIFIED_ONLY:
+            return (
+                user.is_authenticated
+                and user.verification_status == User.VerificationStatus.VERIFIED
+            )
+
+        return True
+
+    def can_view_contact_info(self, user):
+        """Check if user can view contact information"""
+        if not self.require_login_for_contact:
+            return True
+        return user.is_authenticated
 
     def get_absolute_url(self):
         from django.urls import reverse
@@ -1391,40 +1561,122 @@ class AdFeature(models.Model):  # This model is correct, no changes needed here.
         return self.is_active and self.end_date >= timezone.now()
 
 
-class AdPackage(models.Model):  # This model is correct, no changes needed here.
-    """Model for ad posting packages"""
+class AdPackage(models.Model):
+    """
+    نموذج باقات نشر الإعلانات
+    Model for ad posting packages with enhanced pricing system
+    """
 
     name = models.CharField(max_length=100, verbose_name=_("اسم الباقة"))
+    name_en = models.CharField(
+        max_length=100, blank=True, verbose_name=_("Package Name (English)")
+    )
     description = models.TextField(blank=True, verbose_name=_("وصف الباقة"))
+    description_en = models.TextField(
+        blank=True, verbose_name=_("Description (English)")
+    )
+
+    # Pricing
     price = models.DecimalField(
         max_digits=10, decimal_places=2, verbose_name=_("السعر")
     )
-    ad_count = models.PositiveIntegerField(verbose_name=_("عدد الإعلانات"))
-    duration_days = models.PositiveIntegerField(
-        verbose_name=_("صلاحية الباقة (بالأيام)")
+
+    # Package limits - عدد الإعلانات غير مرتبطة بوقت
+    ad_count = models.PositiveIntegerField(
+        verbose_name=_("عدد الإعلانات"),
+        help_text=_("عدد الإعلانات المسموحة في هذه الباقة (غير مرتبطة بوقت)"),
     )
+
+    # مدة ظهور الإعلان
+    ad_duration_days = models.PositiveIntegerField(
+        default=30,
+        verbose_name=_("مدة ظهور الإعلان الواحد (بالأيام)"),
+        help_text=_("كم يوم سيظل كل إعلان ظاهراً"),
+    )
+
+    # Package validity period
+    duration_days = models.PositiveIntegerField(
+        verbose_name=_("صلاحية الباقة (بالأيام)"), help_text=_("صلاحية الباقة للمستخدم")
+    )
+
+    # أسعار تمييز الإعلان
+    feature_pinned_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name=_("سعر التثبيت"),
+        help_text=_("سعر إضافي لتثبيت الإعلان"),
+    )
+    feature_urgent_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name=_("سعر العاجل"),
+        help_text=_("سعر إضافي لجعل الإعلان عاجل"),
+    )
+    feature_highlighted_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name=_("سعر التمييز"),
+        help_text=_("سعر إضافي لتمييز الإعلان"),
+    )
+
+    # Status flags - خطة نشطة او لا - موصي بها او لا
     is_default = models.BooleanField(
         default=False, verbose_name=_("باقة افتراضية للمستخدمين الجدد")
     )
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
+    is_recommended = models.BooleanField(
+        default=False,
+        verbose_name=_("موصى بها"),
+        help_text=_("عرض شارة 'موصى بها' على هذه الباقة"),
+    )
+    is_popular = models.BooleanField(default=False, verbose_name=_("الأكثر شعبية"))
 
-    # Can be restricted to a specific category
+    # نص او مميزات الخطة
+    features = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name=_("مميزات الباقة"),
+        help_text=_("قائمة بمميزات الباقة بصيغة JSON"),
+    )
+
+    # تحديد القسم الرئيسي والفرعى
     category = models.ForeignKey(
         Category,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="packages",
+        verbose_name=_("القسم"),
         help_text=_("إذا تم تحديده، ستكون هذه الباقة مخصصة لهذا القسم فقط"),
     )
+
+    # Display order
+    display_order = models.PositiveIntegerField(
+        default=0, verbose_name=_("ترتيب العرض")
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "ad_packages"
         verbose_name = _("Ad Package")
         verbose_name_plural = _("Ad Packages")
+        ordering = ["display_order", "-is_recommended", "price"]
 
     def __str__(self):
-        return self.name
+        category_name = f" - {self.category.name}" if self.category else ""
+        return f"{self.name}{category_name}"
+
+    def get_features_list(self):
+        """Return features as a list"""
+        if isinstance(self.features, list):
+            return self.features
+        return []
 
 
 class UserPackage(models.Model):  # This model is correct, no changes needed here.

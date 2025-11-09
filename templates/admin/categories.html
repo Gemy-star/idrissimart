@@ -1,0 +1,634 @@
+{% extends "base.html" %}
+{% load static i18n mptt_tags %}
+
+{% block title %}{% trans "إدارة الأقسام" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        --card-hover-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --success-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+
+    body {
+        background: #f5f7fa;
+    }
+
+    .admin-container {
+        padding: 40px 0;
+    }
+
+    /* Navigation */
+    .admin-nav {
+        background: white;
+        border-radius: 16px;
+        box-shadow: var(--card-shadow);
+        padding: 20px;
+        margin-bottom: 30px;
+    }
+
+    .admin-nav-links {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+
+    .nav-link-item {
+        padding: 12px 24px;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .nav-link-item.active {
+        background: var(--primary-gradient);
+        color: white;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .nav-link-item:not(.active) {
+        background: #f3f4f6;
+        color: #4b5563;
+    }
+
+    .nav-link-item:not(.active):hover {
+        background: #e5e7eb;
+        transform: translateY(-2px);
+    }
+
+    /* Page Header */
+    .page-header {
+        background: white;
+        border-radius: 16px;
+        box-shadow: var(--card-shadow);
+        padding: 30px;
+        margin-bottom: 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .page-header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin: 0;
+    }
+
+    .btn-primary {
+        background: var(--primary-gradient);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+
+    /* Categories Tree */
+    .categories-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: var(--card-shadow);
+        overflow: hidden;
+    }
+
+    .category-item {
+        padding: 20px 25px;
+        border-bottom: 1px solid #f3f4f6;
+        transition: background 0.2s ease;
+    }
+
+    .category-item:hover {
+        background: #f9fafb;
+    }
+
+    .category-item:last-child {
+        border-bottom: none;
+    }
+
+    .category-main {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .category-info {
+        flex: 1;
+    }
+
+    .category-name {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin-bottom: 8px;
+    }
+
+    .category-meta {
+        display: flex;
+        gap: 20px;
+        font-size: 0.875rem;
+        color: #6b7280;
+        flex-wrap: wrap;
+    }
+
+    .category-meta span {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .category-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn-action {
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.875rem;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+    }
+
+    .btn-edit {
+        background: linear-gradient(135deg, #06b6d4, #0891b2);
+        color: white;
+    }
+
+    .btn-edit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4);
+    }
+
+    .btn-delete-cat {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: white;
+    }
+
+    .btn-delete-cat:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    }
+
+    .badge {
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .badge-success {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .badge-secondary {
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    /* Subcategories */
+    .subcategories {
+        margin-top: 15px;
+        padding-left: 30px;
+        border-left: 3px solid #e5e7eb;
+    }
+
+    .subcategory-item {
+        padding: 12px 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .subcategory-name {
+        font-weight: 600;
+        color: #4b5563;
+    }
+
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal.active {
+        display: flex;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 600px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+    }
+
+    .modal-header h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin: 0;
+    }
+
+    .btn-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: #6b7280;
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-close:hover {
+        background: #f3f4f6;
+        color: #1a202c;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 8px;
+        font-size: 0.875rem;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        font-size: 0.875rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-group textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 30px;
+    }
+
+    .btn-cancel {
+        background: #f3f4f6;
+        color: #4b5563;
+    }
+
+    .btn-cancel:hover {
+        background: #e5e7eb;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="container">
+        <!-- Navigation Menu -->
+        <div class="admin-nav">
+            <div class="admin-nav-links">
+                <a href="{% url 'main:admin_dashboard' %}" class="nav-link-item">
+                    <i class="fas fa-th-large"></i> {% trans "لوحة التحكم" %}
+                </a>
+                <a href="{% url 'main:admin_categories' %}" class="nav-link-item active">
+                    <i class="fas fa-folder"></i> {% trans "الأقسام" %}
+                </a>
+                <a href="{% url 'main:admin_custom_fields' %}" class="nav-link-item">
+                    <i class="fas fa-cog"></i> {% trans "الحقول المخصصة" %}
+                </a>
+                <a href="{% url 'main:admin_users' %}" class="nav-link-item">
+                    <i class="fas fa-users"></i> {% trans "المستخدمين" %}
+                </a>
+                <a href="{% url 'main:admin_packages' %}" class="nav-link-item">
+                    <i class="fas fa-box"></i> {% trans "الباقات" %}
+                </a>
+                <a href="{% url 'main:admin_transactions' %}" class="nav-link-item">
+                    <i class="fas fa-dollar-sign"></i> {% trans "المعاملات" %}
+                </a>
+            </div>
+        </div>
+
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1>
+                <i class="fas fa-folder"></i>
+                {% trans "إدارة الأقسام" %}
+            </h1>
+            <button onclick="openModal('add')" class="btn-primary">
+                <i class="fas fa-plus"></i>
+                {% trans "إضافة قسم جديد" %}
+            </button>
+        </div>
+
+        <!-- Categories List -->
+        <div class="categories-card">
+            {% recursetree categories %}
+                <div class="category-item">
+                    <div class="category-main">
+                        <div class="category-info">
+                            <div class="category-name">
+                                {% if node.level > 0 %}
+                                    <span style="margin-left: {{ node.level }}0px;">↳</span>
+                                {% endif %}
+                                {{ node.name }}
+                                {% if node.name_ar %}
+                                    <small style="color: #6b7280;">({{ node.name_ar }})</small>
+                                {% endif %}
+                                {% if node.is_active %}
+                                    <span class="badge badge-success">{% trans "نشط" %}</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">{% trans "غير نشط" %}</span>
+                                {% endif %}
+                            </div>
+                            <div class="category-meta">
+                                <span>
+                                    <i class="fas fa-link"></i>
+                                    {{ node.slug }}
+                                </span>
+                                <span>
+                                    <i class="fas fa-tag"></i>
+                                    {{ node.section_type }}
+                                </span>
+                                {% if node.parent %}
+                                <span>
+                                    <i class="fas fa-folder-open"></i>
+                                    {% trans "قسم فرعي من" %}: {{ node.parent.name }}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="category-actions">
+                            <button onclick="editCategory({{ node.id }})" class="btn-action btn-edit">
+                                <i class="fas fa-edit"></i> {% trans "تعديل" %}
+                            </button>
+                            <button onclick="deleteCategory({{ node.id }}, '{{ node.name|escapejs }}')"
+                                    class="btn-action btn-delete-cat">
+                                <i class="fas fa-trash"></i> {% trans "حذف" %}
+                            </button>
+                        </div>
+                    </div>
+
+                    {% if not node.is_leaf_node %}
+                        {{ children }}
+                    {% endif %}
+                </div>
+            {% endrecursetree %}
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div id="categoryModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalTitle">{% trans "إضافة قسم جديد" %}</h2>
+            <button class="btn-close" onclick="closeModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <form id="categoryForm" method="post" action="{% url 'main:admin_category_save' %}">
+            {% csrf_token %}
+            <input type="hidden" name="category_id" id="categoryId">
+
+            <div class="form-group">
+                <label for="name">{% trans "اسم القسم (EN)" %} *</label>
+                <input type="text" name="name" id="name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="name_ar">{% trans "اسم القسم (AR)" %} *</label>
+                <input type="text" name="name_ar" id="name_ar" required dir="rtl">
+            </div>
+
+            <div class="form-group">
+                <label for="slug">{% trans "الرابط (Slug EN)" %} *</label>
+                <input type="text" name="slug" id="slug" required>
+            </div>
+
+            <div class="form-group">
+                <label for="slug_ar">{% trans "الرابط (Slug AR)" %} *</label>
+                <input type="text" name="slug_ar" id="slug_ar" required dir="rtl">
+            </div>
+
+            <div class="form-group">
+                <label for="parent">{% trans "القسم الرئيسي" %}</label>
+                <select name="parent" id="parent">
+                    <option value="">{% trans "لا يوجد (قسم رئيسي)" %}</option>
+                    {% for cat in all_categories %}
+                        <option value="{{ cat.id }}">{{ cat.name }} ({{ cat.name_ar }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="section_type">{% trans "نوع القسم" %} *</label>
+                <select name="section_type" id="section_type" required>
+                    <option value="classified">{% trans "إعلانات مبوبة" %}</option>
+                    <option value="marketplace">{% trans "سوق" %}</option>
+                    <option value="services">{% trans "خدمات" %}</option>
+                    <option value="jobs">{% trans "وظائف" %}</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="description">{% trans "الوصف" %}</label>
+                <textarea name="description" id="description"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="allow_cart">
+                    <input type="checkbox" name="allow_cart" id="allow_cart">
+                    {% trans "السماح بالسلة" %}
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label for="require_admin_approval">
+                    <input type="checkbox" name="require_admin_approval" id="require_admin_approval" checked>
+                    {% trans "يتطلب موافقة الإدارة" %}
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label for="is_active">
+                    <input type="checkbox" name="is_active" id="is_active" checked>
+                    {% trans "نشط" %}
+                </label>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" onclick="closeModal()" class="btn-primary btn-cancel">
+                    {% trans "إلغاء" %}
+                </button>
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-save"></i>
+                    {% trans "حفظ" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openModal(mode, categoryId = null) {
+    const modal = document.getElementById('categoryModal');
+    const form = document.getElementById('categoryForm');
+    const title = document.getElementById('modalTitle');
+
+    if (mode === 'add') {
+        title.textContent = '{% trans "إضافة قسم جديد" %}';
+        form.reset();
+        document.getElementById('categoryId').value = '';
+    } else {
+        title.textContent = '{% trans "تعديل القسم" %}';
+        // Load category data via AJAX
+        loadCategoryData(categoryId);
+    }
+
+    modal.classList.add('active');
+}
+
+function closeModal() {
+    const modal = document.getElementById('categoryModal');
+    modal.classList.remove('active');
+}
+
+function editCategory(categoryId) {
+    openModal('edit', categoryId);
+}
+
+function loadCategoryData(categoryId) {
+    fetch(`/admin/categories/${categoryId}/`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('categoryId').value = data.id;
+            document.getElementById('name').value = data.name;
+            document.getElementById('name_ar').value = data.name_ar || '';
+            document.getElementById('slug').value = data.slug;
+            document.getElementById('slug_ar').value = data.slug_ar || '';
+            document.getElementById('parent').value = data.parent || '';
+            document.getElementById('section_type').value = data.section_type;
+            document.getElementById('description').value = data.description || '';
+            document.getElementById('allow_cart').checked = data.allow_cart || false;
+            document.getElementById('require_admin_approval').checked = data.require_admin_approval !== false;
+            document.getElementById('is_active').checked = data.is_active !== false;
+        })
+        .catch(error => {
+            alert('{% trans "حدث خطأ أثناء تحميل بيانات القسم" %}');
+        });
+}
+
+function deleteCategory(categoryId, categoryName) {
+    if (confirm(`{% trans "هل أنت متأكد من حذف القسم" %} "${categoryName}"؟`)) {
+        fetch(`/admin/categories/${categoryId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.error || '{% trans "حدث خطأ أثناء حذف القسم" %}');
+            }
+        })
+        .catch(error => {
+            alert('{% trans "حدث خطأ في الاتصال" %}');
+        });
+    }
+}
+
+// Auto-generate slug from name
+document.getElementById('name').addEventListener('input', function() {
+    const slug = this.value.toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+    document.getElementById('slug').value = slug;
+});
+
+document.getElementById('name_ar').addEventListener('input', function() {
+    const slug = this.value
+        .replace(/\s+/g, '-')
+        .replace(/^-|-$/g, '');
+    document.getElementById('slug_ar').value = slug;
+});
+
+// Close modal on outside click
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('categoryModal');
+    if (event.target === modal) {
+        closeModal();
+    }
+});
+</script>
+{% endblock %}

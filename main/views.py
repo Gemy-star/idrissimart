@@ -2534,3 +2534,28 @@ def admin_settings_notifications(request):
 
     except Exception as e:
         return JsonResponse({"success": False, "message": f"حدث خطأ: {str(e)}"})
+
+
+@login_required
+def dashboard_redirect(request):
+    """
+    Smart dashboard redirect based on user role:
+    - Superusers/Staff -> Admin Dashboard
+    - Users with ads -> Publisher Dashboard (My Ads)
+    - Regular users -> Home page
+    """
+    user = request.user
+
+    # Redirect admins to admin dashboard
+    if user.is_superuser or user.is_staff:
+        return redirect("main:admin_dashboard")
+
+    # Check if user has posted any ads
+    user_has_ads = ClassifiedAd.objects.filter(user=user).exists()
+
+    if user_has_ads:
+        # Redirect to publisher dashboard (their ads list)
+        return redirect("main:my_ads")
+
+    # Default redirect for users without ads
+    return redirect("main:home")

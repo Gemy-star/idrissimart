@@ -6,6 +6,7 @@ from . import enhanced_views
 app_name = "main"
 urlpatterns = [
     path("", views.HomeView.as_view(), name="home"),
+    path("dashboard/", views.dashboard_redirect, name="dashboard"),
     path("categories/", views.CategoriesView.as_view(), name="categories"),
     path("about/", views.AboutView.as_view(), name="about"),
     path("contact/", views.ContactView.as_view(), name="contact"),
@@ -118,8 +119,74 @@ urlpatterns = [
     ),
     path(
         "classifieds/packages/",
-        enhanced_views.packages_list,
-        name="packages_list",
+        classifieds_views.PackageListView.as_view(),
+        name="package_list",
+    ),
+    path(
+        "classifieds/package/<int:package_id>/purchase/",
+        classifieds_views.PackagePurchaseView.as_view(),
+        name="package_purchase",
+    ),
+    # Admin Dashboard
+    path(
+        "admin/classifieds/dashboard/",
+        classifieds_views.AdminDashboardView.as_view(),
+        name="admin_dashboard",
+    ),
+    path(
+        "admin/categories/",
+        classifieds_views.AdminCategoriesView.as_view(),
+        name="admin_categories",
+    ),
+    path(
+        "admin/categories/save/",
+        classifieds_views.CategorySaveView.as_view(),
+        name="admin_category_save",
+    ),
+    path(
+        "admin/categories/<int:category_id>/",
+        classifieds_views.CategoryGetView.as_view(),
+        name="admin_category_get",
+    ),
+    path(
+        "admin/categories/<int:category_id>/delete/",
+        classifieds_views.CategoryDeleteView.as_view(),
+        name="admin_category_delete",
+    ),
+    path(
+        "admin/custom-fields/",
+        classifieds_views.AdminDashboardView.as_view(),  # TODO: Create AdminCustomFieldsView
+        name="admin_custom_fields",
+    ),
+    path(
+        "admin/users/",
+        classifieds_views.AdminDashboardView.as_view(),  # TODO: Create AdminUsersView
+        name="admin_users",
+    ),
+    path(
+        "admin/packages/",
+        classifieds_views.AdminDashboardView.as_view(),  # TODO: Create AdminPackagesView
+        name="admin_packages",
+    ),
+    path(
+        "admin/transactions/",
+        classifieds_views.AdminDashboardView.as_view(),  # TODO: Create AdminTransactionsView
+        name="admin_transactions",
+    ),
+    path(
+        "admin/ads/<int:ad_id>/toggle-hide/",
+        classifieds_views.ToggleAdHideView.as_view(),
+        name="toggle_ad_hide",
+    ),
+    path(
+        "admin/ads/<int:ad_id>/enable-cart/",
+        classifieds_views.EnableAdCartView.as_view(),
+        name="enable_ad_cart",
+    ),
+    path(
+        "admin/ads/<int:ad_id>/delete/",
+        classifieds_views.DeleteAdView.as_view(),
+        name="delete_ad",
     ),
     path(
         "classifieds/reservations/",

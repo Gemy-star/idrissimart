@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
+from django.utils.translation import gettext_lazy as _
 from mptt.admin import MPTTModelAdmin
 
 from .models import (
@@ -60,6 +61,19 @@ class CategoryAdmin(MPTTModelAdmin):
         ),
         ("Details", {"fields": ("description", "icon", "image")}),
         ("Advanced", {"fields": ("custom_field_schema",)}),
+        (
+            _("إعدادات السلة والحجز - Cart & Reservation"),
+            {
+                "fields": (
+                    "allow_cart",
+                    "default_reservation_percentage",
+                    "min_reservation_amount",
+                    "max_reservation_amount",
+                    "require_admin_approval",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
         ("Settings", {"fields": ("order", "is_active")}),
     )
     ordering = ("country", "name")
@@ -89,21 +103,63 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
         "category",
         "price",
         "status",
+        "is_hidden",
+        "cart_enabled_by_admin",
         "created_at",
         "expires_at",
     )
-    list_filter = ("status", "category", "is_cart_enabled", "is_delivery_available")
+    list_filter = (
+        "status",
+        "category",
+        "is_hidden",
+        "visibility_type",
+        "allow_cart",
+        "cart_enabled_by_admin",
+        "is_cart_enabled",
+        "is_delivery_available",
+        "is_urgent",
+        "is_highlighted",
+        "is_pinned",
+    )
     search_fields = ("title", "description", "user__username")
-    readonly_fields = ("created_at", "updated_at", "views_count")
+    readonly_fields = ("created_at", "updated_at", "views_count", "reviewed_at")
     inlines = [AdImageInline, AdFeatureInline]
+    list_editable = ("status", "is_hidden")
     fieldsets = (
         ("Ad Information", {"fields": ("user", "category", "title", "description")}),
         ("Pricing", {"fields": ("price", "is_negotiable")}),
         ("Location", {"fields": ("country", "city", "address")}),
         (
-            "Features",
+            _("الظهور والتحكم - Visibility & Access"),
             {
                 "fields": (
+                    "visibility_type",
+                    "require_login_for_contact",
+                    "is_hidden",
+                    "require_review",
+                )
+            },
+        ),
+        (
+            _("السلة والحجز - Cart & Reservation"),
+            {
+                "fields": (
+                    "allow_cart",
+                    "cart_enabled_by_admin",
+                    "reservation_percentage",
+                    "reservation_amount",
+                    "delivery_terms",
+                    "delivery_terms_en",
+                )
+            },
+        ),
+        (
+            _("المميزات - Features"),
+            {
+                "fields": (
+                    "is_urgent",
+                    "is_highlighted",
+                    "is_pinned",
                     "video_url",
                     "video_file",
                     "is_cart_enabled",
@@ -111,32 +167,134 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
                 )
             },
         ),
-        ("Status", {"fields": ("status", "expires_at", "views_count")}),
+        (
+            _("الحالة والمراجعة - Status & Review"),
+            {
+                "fields": (
+                    "status",
+                    "reviewed_by",
+                    "reviewed_at",
+                    "admin_notes",
+                    "expires_at",
+                    "views_count",
+                )
+            },
+        ),
     )
 
 
 @admin.register(AdPackage)
 class AdPackageAdmin(admin.ModelAdmin):
+    """
+    إدارة باقات الإعلانات في لوحة التحكم
+    Admin interface for Ad Packages
+    """
+
     list_display = (
         "name",
         "price",
         "ad_count",
+        "ad_duration_days",
         "duration_days",
         "is_default",
+        "is_recommended",
+        "is_popular",
         "is_active",
         "category",
+        "display_order",
     )
-    list_filter = ("is_active", "is_default", "category")
-    search_fields = ("name", "description")
-    list_editable = ("is_active", "is_default")
+    list_filter = (
+        "is_active",
+        "is_default",
+        "is_recommended",
+        "is_popular",
+        "category",
+    )
+    search_fields = ("name", "name_en", "description", "description_en")
+    list_editable = (
+        "is_active",
+        "is_default",
+        "is_recommended",
+        "is_popular",
+        "display_order",
+    )
+
+    fieldsets = (
+        (
+            _("معلومات أساسية"),
+            {
+                "fields": (
+                    "name",
+                    "name_en",
+                    "description",
+                    "description_en",
+                    "category",
+                )
+            },
+        ),
+        (
+            _("التسعير"),
+            {"fields": ("price", "ad_count", "ad_duration_days", "duration_days")},
+        ),
+        (
+            _("أسعار المميزات"),
+            {
+                "fields": (
+                    "feature_pinned_price",
+                    "feature_urgent_price",
+                    "feature_highlighted_price",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            _("الحالة والعرض"),
+            {
+                "fields": (
+                    "is_active",
+                    "is_default",
+                    "is_recommended",
+                    "is_popular",
+                    "display_order",
+                )
+            },
+        ),
+        (
+            _("المميزات"),
+            {
+                "fields": ("features",),
+                "classes": ("collapse",),
+                "description": _(
+                    'أدخل قائمة المميزات بصيغة JSON مثل: ["ميزة 1", "ميزة 2"]'
+                ),
+            },
+        ),
+    )
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related("category")
 
 
 @admin.register(UserPackage)
 class UserPackageAdmin(admin.ModelAdmin):
-    list_display = ("user", "package", "purchase_date", "expiry_date", "ads_remaining")
+    list_display = (
+        "user",
+        "package",
+        "purchase_date",
+        "expiry_date",
+        "ads_remaining",
+        "is_active_status",
+    )
     list_filter = ("package", "purchase_date", "expiry_date")
-    search_fields = ("user__username", "package__name")
+    search_fields = ("user__username", "user__email", "package__name")
     readonly_fields = ("purchase_date", "expiry_date", "ads_remaining")
+
+    def is_active_status(self, obj):
+        return obj.is_active()
+
+    is_active_status.boolean = True
+    is_active_status.short_description = _("نشطة")
 
 
 @admin.register(SavedSearch)

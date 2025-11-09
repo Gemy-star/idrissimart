@@ -1,0 +1,809 @@
+{% extends "base.html" %}
+{% load static i18n currency_tags %}
+
+{% block title %}{% trans "لوحة تحكم الإدارة" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        --card-hover-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --success-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        --warning-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        --danger-gradient: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+
+    body {
+        background: #f5f7fa;
+    }
+
+    .admin-container {
+        padding: 40px 0;
+    }
+
+    /* Top Navigation */
+    .admin-nav {
+        background: white;
+        border-radius: 16px;
+        box-shadow: var(--card-shadow);
+        padding: 20px;
+        margin-bottom: 30px;
+    }
+
+    .admin-nav-links {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+
+    .nav-link-item {
+        padding: 12px 24px;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+    }
+
+    .nav-link-item.active {
+        background: var(--primary-gradient);
+        color: white;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .nav-link-item:not(.active) {
+        background: #f3f4f6;
+        color: #4b5563;
+    }
+
+    .nav-link-item:not(.active):hover {
+        background: #e5e7eb;
+        transform: translateY(-2px);
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 16px;
+        padding: 25px;
+        box-shadow: var(--card-shadow);
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 5px;
+        height: 100%;
+        transition: width 0.3s ease;
+    }
+
+    .stat-card.active::before { background: var(--success-gradient); }
+    .stat-card.pending::before { background: var(--warning-gradient); }
+    .stat-card.hidden::before { background: #6b7280; }
+    .stat-card.expired::before { background: var(--danger-gradient); }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--card-hover-shadow);
+    }
+
+    .stat-card:hover::before {
+        width: 100%;
+        opacity: 0.05;
+    }
+
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 15px;
+        font-size: 1.5rem;
+    }
+
+    .stat-card.active .stat-icon {
+        background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+        color: #059669;
+    }
+
+    .stat-card.pending .stat-icon {
+        background: linear-gradient(135deg, #fef3c7, #fde68a);
+        color: #d97706;
+    }
+
+    .stat-card.hidden .stat-icon {
+        background: linear-gradient(135deg, #e5e7eb, #d1d5db);
+        color: #4b5563;
+    }
+
+    .stat-card.expired .stat-icon {
+        background: linear-gradient(135deg, #fee2e2, #fecaca);
+        color: #dc2626;
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 5px;
+        color: #1a202c;
+    }
+
+    .stat-label {
+        color: #6b7280;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    /* Filters Card */
+    .filters-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: var(--card-shadow);
+        padding: 25px;
+        margin-bottom: 30px;
+    }
+
+    .filters-card h3 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+    }
+
+    .filter-group label {
+        display: block;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 8px;
+        font-size: 0.875rem;
+    }
+
+    .filter-group select,
+    .filter-group input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        font-size: 0.875rem;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .filter-group select:focus,
+    .filter-group input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .btn-filter {
+        background: var(--primary-gradient);
+        color: white;
+        padding: 12px 30px;
+        border: none;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        width: 100%;
+    }
+
+    .btn-filter:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    /* Ads List Card */
+    .ads-list-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: var(--card-shadow);
+        overflow: hidden;
+    }
+
+    .ads-list-card .card-header {
+        padding: 20px 25px;
+        border-bottom: 2px solid #f3f4f6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .ads-list-card h3 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin: 0;
+    }
+
+    .ad-item {
+        padding: 20px 25px;
+        border-bottom: 1px solid #f3f4f6;
+        transition: background 0.2s ease;
+    }
+
+    .ad-item:hover {
+        background: #f9fafb;
+    }
+
+    .ad-item:last-child {
+        border-bottom: none;
+    }
+
+    .ad-content {
+        display: flex;
+        gap: 20px;
+        align-items: start;
+    }
+
+    .ad-thumbnail {
+        width: 120px;
+        height: 120px;
+        border-radius: 12px;
+        object-fit: cover;
+        flex-shrink: 0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .ad-placeholder {
+        width: 120px;
+        height: 120px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #9ca3af;
+        font-size: 2rem;
+    }
+
+    .ad-details {
+        flex: 1;
+    }
+
+    .ad-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin-bottom: 10px;
+    }
+
+    .ad-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-bottom: 12px;
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+
+    .ad-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .ad-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .badge {
+        padding: 5px 12px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        display: inline-block;
+    }
+
+    .badge-success {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .badge-warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .badge-danger {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .badge-secondary {
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    .badge-info {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .ad-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 15px;
+    }
+
+    .btn-action {
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.875rem;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .btn-view {
+        background: linear-gradient(135deg, #06b6d4, #0891b2);
+        color: white;
+    }
+
+    .btn-view:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4);
+    }
+
+    .btn-hide {
+        background: #6b7280;
+        color: white;
+    }
+
+    .btn-hide:hover {
+        background: #4b5563;
+        transform: translateY(-2px);
+    }
+
+    .btn-cart {
+        background: var(--success-gradient);
+        color: white;
+    }
+
+    .btn-cart:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    }
+
+    .btn-delete {
+        background: var(--danger-gradient);
+        color: white;
+    }
+
+    .btn-delete:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6b7280;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 20px;
+        opacity: 0.3;
+    }
+
+    .empty-state h3 {
+        font-size: 1.25rem;
+        margin-bottom: 10px;
+        color: #374151;
+    }
+
+    /* Pagination */
+    .pagination-wrapper {
+        padding: 25px;
+        display: flex;
+        justify-content: center;
+        border-top: 2px solid #f3f4f6;
+    }
+
+    .pagination {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .pagination a,
+    .pagination span {
+        padding: 10px 16px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.875rem;
+        transition: all 0.3s ease;
+    }
+
+    .pagination a {
+        background: #f3f4f6;
+        color: #4b5563;
+    }
+
+    .pagination a:hover {
+        background: var(--primary-gradient);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .pagination .current {
+        background: var(--primary-gradient);
+        color: white;
+    }
+
+    @media (max-width: 768px) {
+        .ad-content {
+            flex-direction: column;
+        }
+
+        .ad-thumbnail,
+        .ad-placeholder {
+            width: 100%;
+            height: 200px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="container">
+        <!-- Navigation Menu -->
+        <div class="admin-nav">
+            <div class="admin-nav-links">
+                <a href="{% url 'main:admin_dashboard' %}" class="nav-link-item active">
+                    <i class="fas fa-th-large"></i> {% trans "لوحة التحكم" %}
+                </a>
+                <a href="{% url 'main:admin_categories' %}" class="nav-link-item">
+                    <i class="fas fa-folder"></i> {% trans "الأقسام" %}
+                </a>
+                <a href="{% url 'main:admin_custom_fields' %}" class="nav-link-item">
+                    <i class="fas fa-cog"></i> {% trans "الحقول المخصصة" %}
+                </a>
+                <a href="{% url 'main:admin_users' %}" class="nav-link-item">
+                    <i class="fas fa-users"></i> {% trans "المستخدمين" %}
+                </a>
+                <a href="{% url 'main:admin_packages' %}" class="nav-link-item">
+                    <i class="fas fa-box"></i> {% trans "الباقات" %}
+                </a>
+                <a href="{% url 'main:admin_transactions' %}" class="nav-link-item">
+                    <i class="fas fa-dollar-sign"></i> {% trans "المعاملات" %}
+                </a>
+            </div>
+        </div>
+
+        <!-- Statistics Grid -->
+        <div class="stats-grid">
+            <a href="?status=active" style="text-decoration: none;">
+                <div class="stat-card active">
+                    <div class="stat-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-number">{{ stats.active_count|default:0 }}</div>
+                    <div class="stat-label">{% trans "إعلانات نشطة" %}</div>
+                </div>
+            </a>
+
+            <a href="?status=pending" style="text-decoration: none;">
+                <div class="stat-card pending">
+                    <div class="stat-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-number">{{ stats.pending_count|default:0 }}</div>
+                    <div class="stat-label">{% trans "قيد المراجعة" %}</div>
+                </div>
+            </a>
+
+            <a href="?status=hidden" style="text-decoration: none;">
+                <div class="stat-card hidden">
+                    <div class="stat-icon">
+                        <i class="fas fa-eye-slash"></i>
+                    </div>
+                    <div class="stat-number">{{ stats.hidden_count|default:0 }}</div>
+                    <div class="stat-label">{% trans "إعلانات مخفية" %}</div>
+                </div>
+            </a>
+
+            <a href="?status=expired" style="text-decoration: none;">
+                <div class="stat-card expired">
+                    <div class="stat-icon">
+                        <i class="fas fa-calendar-times"></i>
+                    </div>
+                    <div class="stat-number">{{ stats.expired_count|default:0 }}</div>
+                    <div class="stat-label">{% trans "إعلانات منتهية" %}</div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Filters Card -->
+        <div class="filters-card">
+            <h3>
+                <i class="fas fa-filter"></i>
+                {% trans "تصفية الإعلانات" %}
+            </h3>
+            <form method="get">
+                <div class="filter-grid">
+                    <div class="filter-group">
+                        <label for="statusFilter">{% trans "الحالة" %}</label>
+                        <select name="status" id="statusFilter">
+                            <option value="">{% trans "كل الحالات" %}</option>
+                            <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>
+                                {% trans "نشط" %}
+                            </option>
+                            <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>
+                                {% trans "قيد المراجعة" %}
+                            </option>
+                            <option value="expired" {% if request.GET.status == 'expired' %}selected{% endif %}>
+                                {% trans "منتهي" %}
+                            </option>
+                            <option value="hidden" {% if request.GET.status == 'hidden' %}selected{% endif %}>
+                                {% trans "مخفي" %}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="searchInput">{% trans "البحث" %}</label>
+                        <input type="text" id="searchInput" name="search"
+                               placeholder="{% trans 'ابحث عن إعلان...' %}"
+                               value="{{ request.GET.search }}">
+                    </div>
+
+                    <div class="filter-group">
+                        <label style="opacity: 0;">{% trans "تطبيق" %}</label>
+                        <button type="submit" class="btn-filter">
+                            <i class="fas fa-search"></i> {% trans "بحث" %}
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Ads List Card -->
+        <div class="ads-list-card">
+            <div class="card-header">
+                <h3>{% trans "جميع الإعلانات" %}</h3>
+                <span class="text-muted">{{ ads.paginator.count }} {% trans "إعلان" %}</span>
+            </div>
+
+            {% for ad in ads %}
+            <div class="ad-item">
+                <div class="ad-content">
+                    {% if ad.images.first %}
+                        <img src="{{ ad.images.first.image.url }}" alt="{{ ad.title }}" class="ad-thumbnail">
+                    {% else %}
+                        <div class="ad-placeholder">
+                            <i class="fas fa-image"></i>
+                        </div>
+                    {% endif %}
+
+                    <div class="ad-details">
+                        <h4 class="ad-title">{{ ad.title }}</h4>
+
+                        <div class="ad-meta">
+                            <span class="ad-meta-item">
+                                <i class="fas fa-user"></i>
+                                {{ ad.user.username }}
+                            </span>
+                            <span class="ad-meta-item">
+                                <i class="fas fa-folder"></i>
+                                {{ ad.category.name }}
+                            </span>
+                            <span class="ad-meta-item">
+                                <i class="fas fa-tag"></i>
+                                {{ ad.price|format_currency }}
+                            </span>
+                            <span class="ad-meta-item">
+                                <i class="fas fa-map-marker-alt"></i>
+                                {{ ad.city }}
+                            </span>
+                            <span class="ad-meta-item">
+                                <i class="fas fa-eye"></i>
+                                {{ ad.views_count }} {% trans "مشاهدة" %}
+                            </span>
+                        </div>
+
+                        <div class="ad-badges">
+                            {% if ad.status == 'active' and not ad.is_hidden %}
+                                <span class="badge badge-success">{% trans "نشط" %}</span>
+                            {% elif ad.status == 'pending' %}
+                                <span class="badge badge-warning">{% trans "قيد المراجعة" %}</span>
+                            {% elif ad.status == 'expired' %}
+                                <span class="badge badge-danger">{% trans "منتهي" %}</span>
+                            {% endif %}
+
+                            {% if ad.is_hidden %}
+                                <span class="badge badge-secondary">{% trans "مخفي" %}</span>
+                            {% endif %}
+
+                            {% if ad.is_urgent %}
+                                <span class="badge badge-danger">{% trans "عاجل" %}</span>
+                            {% endif %}
+
+                            {% if ad.is_highlighted %}
+                                <span class="badge badge-warning">{% trans "مميز" %}</span>
+                            {% endif %}
+
+                            {% if ad.is_pinned %}
+                                <span class="badge badge-info">{% trans "مثبت" %}</span>
+                            {% endif %}
+
+                            {% if ad.cart_enabled_by_admin %}
+                                <span class="badge badge-success">{% trans "السلة مفعلة" %}</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="ad-actions">
+                            <a href="{% url 'main:ad_publisher_detail' ad.pk %}" class="btn-action btn-view">
+                                <i class="fas fa-eye"></i> {% trans "عرض التفاصيل" %}
+                            </a>
+
+                            <button onclick="toggleHide({{ ad.pk }}, {{ ad.is_hidden|yesno:'false,true' }})"
+                                    class="btn-action btn-hide">
+                                <i class="fas fa-eye-slash"></i>
+                                {% if ad.is_hidden %}{% trans "إظهار" %}{% else %}{% trans "إخفاء" %}{% endif %}
+                            </button>
+
+                            {% if ad.allow_cart and not ad.cart_enabled_by_admin %}
+                            <button onclick="enableCart({{ ad.pk }})" class="btn-action btn-cart">
+                                <i class="fas fa-shopping-cart"></i> {% trans "تفعيل السلة" %}
+                            </button>
+                            {% endif %}
+
+                            <button onclick="deleteAd({{ ad.pk }}, '{{ ad.title|escapejs }}')"
+                                    class="btn-action btn-delete">
+                                <i class="fas fa-trash"></i> {% trans "حذف" %}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <h3>{% trans "لا توجد إعلانات" %}</h3>
+                <p>{% trans "لم يتم العثور على إعلانات تطابق معايير البحث" %}</p>
+            </div>
+            {% endfor %}
+
+            <!-- Pagination -->
+            {% if ads.has_other_pages %}
+            <div class="pagination-wrapper">
+                <div class="pagination">
+                    {% if ads.has_previous %}
+                        <a href="?page=1{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                            <i class="fas fa-angle-double-left"></i>
+                        </a>
+                        <a href="?page={{ ads.previous_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                            <i class="fas fa-angle-left"></i>
+                        </a>
+                    {% endif %}
+
+                    <span class="current">{{ ads.number }} / {{ ads.paginator.num_pages }}</span>
+
+                    {% if ads.has_next %}
+                        <a href="?page={{ ads.next_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                            <i class="fas fa-angle-right"></i>
+                        </a>
+                        <a href="?page={{ ads.paginator.num_pages }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                            <i class="fas fa-angle-double-right"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleHide(adId, hide) {
+    if (confirm('{% trans "هل أنت متأكد من تغيير حالة ظهور هذا الإعلان؟" %}')) {
+        fetch(`/admin/ads/${adId}/toggle-hide/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ hide: hide })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('{% trans "حدث خطأ أثناء تحديث الإعلان" %}');
+            }
+        })
+        .catch(error => {
+            alert('{% trans "حدث خطأ في الاتصال" %}');
+        });
+    }
+}
+
+function enableCart(adId) {
+    if (confirm('{% trans "تفعيل السلة لهذا الإعلان؟ يجب استلام المنتج أولاً." %}')) {
+        fetch(`/admin/ads/${adId}/enable-cart/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('{% trans "تم تفعيل السلة بنجاح" %}');
+                location.reload();
+            } else {
+                alert('{% trans "حدث خطأ أثناء تفعيل السلة" %}');
+            }
+        })
+        .catch(error => {
+            alert('{% trans "حدث خطأ في الاتصال" %}');
+        });
+    }
+}
+
+function deleteAd(adId, adTitle) {
+    if (confirm(`{% trans "هل أنت متأكد من حذف الإعلان" %} "${adTitle}"؟ {% trans "لا يمكن التراجع عن هذا الإجراء." %}`)) {
+        fetch(`/admin/ads/${adId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('{% trans "حدث خطأ أثناء حذف الإعلان" %}');
+            }
+        })
+        .catch(error => {
+            alert('{% trans "حدث خطأ في الاتصال" %}');
+        });
+    }
+}
+</script>
+{% endblock %}
