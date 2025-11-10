@@ -1,165 +1,99 @@
-{% load i18n static idrissimart_tags %}
+{% load i18n idrissimart_tags %}
 
-<div class="modern-ad-card" data-ad-id="{{ ad.pk }}" data-quality-score="{% ad_quality_score ad %}">
-    {# Image Container with Overlay Badges #}
+<div class="modern-ad-card">
     <div class="ad-image-container">
         <a href="{{ ad.get_absolute_url }}" class="ad-image-link">
-            {% ad_image_optimized ad as optimized_image %}
-            <img src="{{ optimized_image }}"
-                 class="ad-image"
-                 alt="{{ ad.title }}"
-                 loading="lazy">
-
-            {# Image overlay gradient #}
-            <div class="image-overlay-gradient"></div>
+            {% if ad.images.first %}
+                <img src="{{ ad.images.first.image.url }}"
+                     class="ad-image"
+                     alt="{{ ad.title }}"
+                     loading="lazy">
+            {% else %}
+                <div class="ad-image-placeholder">
+                    <i class="fas fa-image"></i>
+                    <span>{% trans "No Image" %}</span>
+                </div>
+            {% endif %}
         </a>
 
-        {# Top Badges Row - Only render_ad_badges (includes featured, urgent, new badges) #}
         <div class="ad-badges-top">
-            {% render_ad_badges ad %}
+            <div class="ad-badges-container">
+                {% if ad.is_featured %}
+                    <span class="ad-badge featured-badge">
+                        <i class="fas fa-star"></i>
+                        <span>{% trans "Featured" %}</span>
+                    </span>
+                {% endif %}
+                {% if ad.is_urgent %}
+                    <span class="ad-badge urgent-badge">
+                        <i class="fas fa-bolt"></i>
+                        <span>{% trans "Urgent" %}</span>
+                    </span>
+                {% endif %}
+            </div>
         </div>
 
-        {# Bottom Info Overlay #}
         <div class="ad-info-overlay">
-            {% render_ad_stats ad %}
-
-            {# Quick Actions #}
-            <div class="ad-quick-actions">
-                <button class="quick-action-btn" onclick="toggleFavorite({{ ad.pk }})" title="إضافة للمفضلة">
-                    <i class="far fa-heart"></i>
-                </button>
-                <button class="quick-action-btn" onclick="shareAd({{ ad.pk }})" title="مشاركة">
-                    <i class="fas fa-share-alt"></i>
-                </button>
+            <div class="ad-stats-container">
+                <span class="ad-stat-item">
+                    <i class="fas fa-eye"></i>
+                    {{ ad.views_count|default:0 }}
+                </span>
+                {% if ad.is_delivery_available %}
+                <span class="ad-stat-item delivery-available">
+                    <i class="fas fa-shipping-fast"></i>
+                    {% trans "Delivery" %}
+                </span>
+                {% endif %}
             </div>
         </div>
     </div>
 
-    {# Content Container #}
     <div class="ad-content">
-        {# Header Section #}
         <div class="ad-header">
             <h3 class="ad-title">
-                <a href="{{ ad.get_absolute_url }}">{{ ad.title|smart_truncate:55 }}</a>
+                <a href="{{ ad.get_absolute_url }}">{{ ad.title|truncatewords:7 }}</a>
             </h3>
-
-            {% if not is_owner %}
-                <div class="ad-location">
-                    <i class="fas fa-map-marker-alt"></i>
-                    <span>{{ ad.city }}</span>
-                    <span class="ad-time-badge">{% ad_time_friendly ad %}</span>
-                </div>
-            {% endif %}
+            <div class="ad-location">
+                <i class="fas fa-map-marker-alt"></i>
+                <span>{{ ad.city }}</span>
+            </div>
         </div>
 
-        {# Features Section - Modern Design (No featured badge - already shown in image overlay) #}
-        <div class="ad-features-modern">
-            {# Negotiable Badge #}
-            {% if ad.is_negotiable %}
-                <div class="feature-pill negotiable-feature">
-                    <i class="fas fa-handshake"></i>
-                    <span>قابل للتفاوض</span>
-                </div>
-            {% endif %}
+        <p class="ad-description">{{ ad.description|striptags|truncatewords:12 }}</p>
 
-            {% if ad.is_delivery_available %}
-                <div class="feature-pill delivery-feature">
-                    <i class="fas fa-shipping-fast"></i>
-                    <span>توصيل متاح</span>
-                </div>
-            {% endif %}
-
-            {% if ad.video_url or ad.video_file %}
-                <div class="feature-pill video-feature">
-                    <i class="fas fa-play-circle"></i>
-                    <span>فيديو</span>
-                </div>
-            {% endif %}
-
-            {% if ad.images.count > 1 %}
-                <div class="feature-pill gallery-feature">
-                    <i class="fas fa-images"></i>
-                    <span>{{ ad.images.count }} صور</span>
-                </div>
-            {% endif %}
-        </div>
-
-        {# Price Section #}
         <div class="ad-price-section">
-            <div class="ad-price-clean">
+            <div class="ad-price">
                 {% ad_price_formatted ad as formatted_price %}
-                <div class="price-container">
-                    <i class="fas fa-dollar-sign price-icon"></i>
-                    <span class="price-amount">{{ formatted_price }}</span>
-                </div>
-                {% if ad.original_price and ad.original_price != ad.price %}
-                    <div class="price-comparison">
-                        <span class="original-price">{{ ad.original_price }} {{ ad.currency }}</span>
-                        <span class="discount-badge">
-                            خصم متاح
-                        </span>
-                    </div>
-                {% endif %}
+                <span class="price-amount">{{ formatted_price|default_if_none:ad.price }}</span>
+                <span class="price-currency">{{ ad.currency|default:"EGP" }}</span>
             </div>
 
+            {% if ad.is_negotiable %}
             <div class="ad-price-meta">
-                {% if is_owner %}
-                    <span class="status-badge status-{{ ad.status|lower }}">
-                        <i class="fas fa-circle"></i>
-                        {{ ad.get_status_display }}
-                    </span>
-                {% endif %}
+                <span class="negotiable-badge">
+                    <i class="fas fa-handshake"></i>
+                    {% trans "Negotiable" %}
+                </span>
             </div>
+            {% endif %}
         </div>
     </div>
 
-    {# Footer Section #}
     <div class="ad-footer">
-        {% if is_owner %}
-            <div class="owner-actions">
-                <a href="{% url 'main:ad_update' ad.pk %}" class="btn-edit">
-                    <i class="fas fa-edit"></i>
-                    <span>{% trans "تعديل" %}</span>
-                </a>
-                <div class="ad-stats-footer">
-                    <span class="stat-item">
-                        <i class="fas fa-eye"></i>
-                        {{ ad.views_count|default:0 }}
-                    </span>
-                </div>
-            </div>
-        {% else %}
-            {# Publisher Avatar in Footer #}
-            <div class="publisher-footer-info">
-                <div class="publisher-avatar-wrapper">
-                    {% user_avatar user=ad.user size=32 css_class="publisher-avatar-simple" %}
+        <div class="ad-author">
+            <div class="author-info">
+                {% user_avatar user=ad.user size=32 css_class="author-avatar" %}
+                <div class="author-details">
+                    <span class="author-name">{{ ad.user.get_full_name|default:ad.user.username }}</span>
                     {% if ad.user.is_verified %}
-                        {% if ad.user.is_company %}
-                            <div class="avatar-badge company-badge">
-                                <i class="fas fa-building"></i>
-                            </div>
-                        {% else %}
-                            <div class="avatar-badge person-badge">
-                                <i class="fas fa-user-check"></i>
-                            </div>
-                        {% endif %}
+                    <span class="verification-badge">
+                        <i class="fas fa-check-circle"></i>
+                        {% trans "Verified" %}
+                    </span>
                     {% endif %}
                 </div>
-                <div class="publisher-info">
-                    <span class="publisher-label">منشور بواسطة</span>
-                    <span class="publisher-name">{{ ad.user.get_full_name|default:ad.user.username }}</span>
-                </div>
             </div>
-        {% endif %}
-    </div>
-
-    {# Quality Indicator - Only for exceptional quality (85+) #}
-    {% ad_quality_score ad as quality_score %}
-    {% if quality_score >= 85 %}
-        <div class="quality-indicator high-quality" title="إعلان عالي الجودة - {{ quality_score }}%">
-            <i class="fas fa-award"></i>
         </div>
-    {% endif %}
+    </div>
 </div>
-
-{# JavaScript moved to global scope - loaded once per page #}
