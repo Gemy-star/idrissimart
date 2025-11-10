@@ -125,7 +125,7 @@ class CategoriesView(FilterView):
     model = ClassifiedAd  # Default model, can be overridden
     filterset_class = ClassifiedAdFilter
     template_name = "pages/categories.html"
-    context_object_name = "content_items"
+    context_object_name = "ads"
     paginate_by = 12
 
     # Configuration for different content types
@@ -322,6 +322,12 @@ class CategoriesView(FilterView):
 
         content_labels = context_names.get(content_type, context_names["classified"])
 
+        # Get all active categories for the category filter dropdown
+        all_categories = Category.objects.filter(
+            is_active=True,
+            section_type=section_type_value or Category.SectionType.CLASSIFIED,
+        ).order_by("name")
+
         context.update(
             {
                 "selected_country": selected_country,
@@ -332,6 +338,8 @@ class CategoriesView(FilterView):
                 "wishlist_count": wishlist_count,
                 "current_filters": current_filters,
                 content_labels["total_items_label"]: total_items,
+                "total_categories": active_categories,
+                "categories": all_categories,
                 "active_categories": active_categories,
                 "page_title": content_labels["page_title"],
                 "meta_description": content_labels["meta_description"],
@@ -849,6 +857,10 @@ class SubcategoryDetailView(FilterView):
             country__code=selected_country,
         ).count()
 
+        # Get subcategories
+        subcategories = self.category.get_children().filter(is_active=True).order_by("order", "name")
+        total_subcategories = subcategories.count()
+
         # Current filters for display
         current_filters = {
             "search": self.request.GET.get("search", ""),
@@ -865,6 +877,8 @@ class SubcategoryDetailView(FilterView):
             {
                 "category": self.category,
                 "breadcrumbs": breadcrumbs,
+                "subcategories": subcategories,
+                "total_subcategories": total_subcategories,
                 "total_ads": total_ads,
                 "current_filters": current_filters,
                 "selected_country": selected_country,
