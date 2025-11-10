@@ -45,51 +45,6 @@
             </div>
         </div>
     </div>
-
-{% endblock content %}
-
-{% block extra_js %}
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const saveSearchForm = document.getElementById('saveSearchForm');
-            if (saveSearchForm) {
-                saveSearchForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    const searchNameInput = document.getElementById('searchNameInput');
-                    const searchName = searchNameInput.value.trim();
-
-                    if (!searchName) return;
-
-                    const queryParams = window.location.search.substring(1);
-                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-                    fetch("{% url 'main:save_search' %}", {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded',
-                                'X-CSRFToken': csrfToken
-                            },
-                            body: new URLSearchParams({
-                                'name': searchName,
-                                'query_params': queryParams
-                            })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            window.showNotification(data.message, data.success ? 'success' : 'error');
-                            if (data.success) {
-                                const modal = bootstrap.Modal.getInstance(document.getElementById('saveSearchModal'));
-                                if (modal) modal.hide();
-                                searchNameInput.value = '';
-                            }
-                        })
-                        .catch(error => console.error('Error:', error));
-                });
-            }
-        });
-    </script>
-
-{% endblock extra_js %}
 <section class="ad-listing-section py-5">
     <div class="container">
         <div class="row">
@@ -202,4 +157,48 @@
     </div>
 </section>
 
+{% endblock content %}
+
+{% block extra_js %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const saveSearchForm = document.getElementById('saveSearchForm');
+            if (saveSearchForm) {
+                saveSearchForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const searchNameInput = document.getElementById('searchNameInput');
+                    const searchName = searchNameInput.value.trim();
+
+                    if (!searchName) return;
+
+                    const queryParams = window.location.search.substring(1);
+                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+                    fetch("{% url 'main:save_search' %}", {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                                'X-CSRFToken': csrfToken
+                            },
+                            body: new URLSearchParams({
+                                'name': searchName,
+                                'query_params': queryParams
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            window.showNotification(data.message, data.success ? 'success' : 'error');
+                            if (data.success) {
+                                const modal = bootstrap.Modal.getInstance(document.getElementById('saveSearchModal'));
+                                if (modal) modal.hide();
+                                searchNameInput.value = '';
+                            }
+                        })
+                        .catch(error => console.error('Error:', error));
+                });
+            }
+        });
+    </script>
+
+{% endblock extra_js %}
 {% endblock content %}
