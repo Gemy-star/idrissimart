@@ -12,28 +12,11 @@
 
             {# Image overlay gradient #}
             <div class="image-overlay-gradient"></div>
-
-            {# Watermark for Premium/Featured Ads #}
-            {% if ad.is_featured %}
-                <div class="ad-watermark">
-                    <i class="fas fa-star"></i>
-                    <span>مميز</span>
-                </div>
-            {% endif %}
         </a>
 
-        {# Top Badges Row #}
+        {# Top Badges Row - Only render_ad_badges (includes featured, urgent, new badges) #}
         <div class="ad-badges-top">
             {% render_ad_badges ad %}
-
-            {# Excellence Badge for High Quality Ads #}
-            {% ad_quality_score ad as quality_score %}
-            {% if quality_score >= 85 %}
-                <div class="excellence-badge">
-                    <i class="fas fa-award"></i>
-                    <span>ممتاز</span>
-                </div>
-            {% endif %}
         </div>
 
         {# Bottom Info Overlay #}
@@ -69,14 +52,14 @@
             {% endif %}
         </div>
 
-        {# Features Section - Modern Design #}
+        {# Features Section - Modern Design (No featured badge - already shown in image overlay) #}
         <div class="ad-features-modern">
-            {# Negotiable Badge in Card Body #}
+            {# Negotiable Badge #}
             {% if ad.is_negotiable %}
-                <span class="ad-badge negotiable-badge">
+                <div class="feature-pill negotiable-feature">
                     <i class="fas fa-handshake"></i>
                     <span>قابل للتفاوض</span>
-                </span>
+                </div>
             {% endif %}
 
             {% if ad.is_delivery_available %}
@@ -85,22 +68,18 @@
                     <span>توصيل متاح</span>
                 </div>
             {% endif %}
+
             {% if ad.video_url or ad.video_file %}
                 <div class="feature-pill video-feature">
                     <i class="fas fa-play-circle"></i>
                     <span>فيديو</span>
                 </div>
             {% endif %}
+
             {% if ad.images.count > 1 %}
                 <div class="feature-pill gallery-feature">
                     <i class="fas fa-images"></i>
                     <span>{{ ad.images.count }} صور</span>
-                </div>
-            {% endif %}
-            {% if ad.is_featured %}
-                <div class="feature-pill featured-feature">
-                    <i class="fas fa-star"></i>
-                    <span>مميز</span>
                 </div>
             {% endif %}
         </div>
@@ -174,138 +153,13 @@
         {% endif %}
     </div>
 
-    {# Quality Indicator #}
+    {# Quality Indicator - Only for exceptional quality (85+) #}
     {% ad_quality_score ad as quality_score %}
-    {% if quality_score >= 80 %}
-        <div class="quality-indicator high-quality" title="إعلان عالي الجودة">
+    {% if quality_score >= 85 %}
+        <div class="quality-indicator high-quality" title="إعلان عالي الجودة - {{ quality_score }}%">
             <i class="fas fa-award"></i>
-        </div>
-    {% elif quality_score >= 60 %}
-        <div class="quality-indicator good-quality" title="إعلان جيد الجودة">
-            <i class="fas fa-check-circle"></i>
         </div>
     {% endif %}
 </div>
 
-{# JavaScript for interactions with GSAP animations #}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-<script>
-// GSAP Animations
-document.addEventListener('DOMContentLoaded', function() {
-    // Card hover animations
-    const cards = document.querySelectorAll('.modern-ad-card');
-
-    for (const card of cards) {
-        const tl = gsap.timeline({ paused: true });
-        const avatar = card.querySelector('.publisher-avatar-enhanced');
-        const verifiedBadge = card.querySelector('.avatar-verified-badge');
-        const priceSection = card.querySelector('.ad-price-clean') || card.querySelector('.ad-price-modern');
-
-        tl.to(card, {
-            y: -8,
-            scale: 1.02,
-            boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)',
-            duration: 0.3,
-            ease: 'power2.out'
-        })
-        .to(avatar, {
-            scale: 1.15,
-            rotation: 360,
-            duration: 0.4,
-            ease: 'back.out(1.7)'
-        }, 0.1)
-        .to(verifiedBadge, {
-            scale: 1.2,
-            rotation: 5,
-            duration: 0.3,
-            ease: 'elastic.out(1, 0.75)'
-        }, 0.2)
-        .to(priceSection, {
-            scale: 1.05,
-            duration: 0.3,
-            ease: 'power2.out'
-        }, 0.1);
-
-        card.addEventListener('mouseenter', () => tl.play());
-        card.addEventListener('mouseleave', () => tl.reverse());
-
-        // Initial entrance animation
-        gsap.fromTo(card,
-            {
-                opacity: 0,
-                y: 50,
-                scale: 0.9
-            },
-            {
-                opacity: 1,
-                y: 0,
-                scale: 1,
-                duration: 0.6,
-                ease: 'back.out(1.7)',
-                delay: Math.random() * 0.3
-            }
-        );
-    }
-});
-
-// Favorite toggle with GSAP
-function toggleFavorite(adId) {
-    const heartIcon = event.target.closest('.quick-action-btn').querySelector('i');
-
-    gsap.to(heartIcon, {
-        scale: 1.5,
-        duration: 0.1,
-        yoyo: true,
-        repeat: 1,
-        ease: 'power2.inOut',
-        onComplete: () => {
-            heartIcon.classList.toggle('far');
-            heartIcon.classList.toggle('fas');
-            heartIcon.style.color = heartIcon.classList.contains('fas') ? '#e74c3c' : '';
-        }
-    });
-
-    console.log('Toggle favorite for ad:', adId);
-}
-
-// Share functionality
-function shareAd(adId) {
-    if (navigator.share) {
-        navigator.share({
-            title: 'إعلان مميز',
-            text: 'شاهد هذا الإعلان المميز',
-            url: globalThis.location.href
-        });
-    } else {
-        // Fallback: copy to clipboard
-        navigator.clipboard.writeText(globalThis.location.href);
-        // Show notification
-        showNotification('تم نسخ الرابط');
-    }
-}
-
-// Contact modal
-function showContactModal(adId) {
-    // Implementation for contact modal
-    console.log('Show contact for ad:', adId);
-}
-
-// Call seller
-function callSeller(adId) {
-    // Implementation for calling seller
-    console.log('Call seller for ad:', adId);
-}
-
-// Notification helper
-function showNotification(message) {
-    // Simple notification implementation
-    const notification = document.createElement('div');
-    notification.className = 'notification-toast';
-    notification.textContent = message;
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-        notification.remove();
-    }, 3000);
-}
-</script>
+{# JavaScript moved to global scope - loaded once per page #}
