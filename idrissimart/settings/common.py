@@ -113,6 +113,7 @@ TEMPLATES = [
                 "content.context_processors.user_preferences",
                 "content.context_processors.header_categories",
                 "content.context_processors.notifications",
+                "main.context_processors.cart_wishlist_counts",
             ],
         },
     },

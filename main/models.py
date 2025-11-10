@@ -2093,3 +2093,119 @@ class CustomField(models.Model):
         if self.options:
             return [opt.strip() for opt in self.options.split(",") if opt.strip()]
         return []
+
+
+class Wishlist(models.Model):
+    """Model for user wishlist"""
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="wishlist",
+        verbose_name=_("المستخدم - User"),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "wishlists"
+        verbose_name = _("Wishlist")
+        verbose_name_plural = _("Wishlists")
+
+    def __str__(self):
+        return f"{self.user.username}'s Wishlist"
+
+    def get_items_count(self):
+        """Get total items in wishlist"""
+        return self.items.count()
+
+
+class WishlistItem(models.Model):
+    """Model for wishlist items"""
+
+    wishlist = models.ForeignKey(
+        Wishlist,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name=_("قائمة الأمنيات"),
+    )
+    ad = models.ForeignKey(
+        ClassifiedAd,
+        on_delete=models.CASCADE,
+        related_name="wishlist_items",
+        verbose_name=_("الإعلان"),
+    )
+    added_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
+
+    class Meta:
+        db_table = "wishlist_items"
+        verbose_name = _("Wishlist Item")
+        verbose_name_plural = _("Wishlist Items")
+        unique_together = [["wishlist", "ad"]]
+        ordering = ["-added_at"]
+
+    def __str__(self):
+        return f"{self.wishlist.user.username} - {self.ad.title}"
+
+
+class Cart(models.Model):
+    """Model for user shopping cart"""
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="cart",
+        verbose_name=_("المستخدم - User"),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "carts"
+        verbose_name = _("Cart")
+        verbose_name_plural = _("Carts")
+
+    def __str__(self):
+        return f"{self.user.username}'s Cart"
+
+    def get_items_count(self):
+        """Get total items in cart"""
+        return self.items.count()
+
+    def get_total_amount(self):
+        """Calculate total cart amount"""
+        total = sum(item.get_total_price() for item in self.items.all())
+        return total
+
+
+class CartItem(models.Model):
+    """Model for cart items"""
+
+    cart = models.ForeignKey(
+        Cart,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name=_("السلة"),
+    )
+    ad = models.ForeignKey(
+        ClassifiedAd,
+        on_delete=models.CASCADE,
+        related_name="cart_items",
+        verbose_name=_("الإعلان"),
+    )
+    quantity = models.PositiveIntegerField(default=1, verbose_name=_("الكمية"))
+    added_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
+
+    class Meta:
+        db_table = "cart_items"
+        verbose_name = _("Cart Item")
+        verbose_name_plural = _("Cart Items")
+        unique_together = [["cart", "ad"]]
+        ordering = ["-added_at"]
+
+    def __str__(self):
+        return f"{self.cart.user.username} - {self.ad.title} (x{self.quantity})"
+
+    def get_total_price(self):
+        """Calculate total price for this cart item"""
+        return self.ad.price * self.quantity

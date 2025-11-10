@@ -69,6 +69,16 @@ class HomeView(TemplateView):
         )[:6]
         featured_ads = ClassifiedAd.objects.featured_for_country(selected_country)[:6]
 
+        # Get cart and wishlist items from session for current user
+        cart_items = self.request.session.get("cart", [])
+        wishlist_items = self.request.session.get("wishlist", [])
+
+        for ad in latest_ads:
+            ad.is_in_cart = str(ad.id) in cart_items
+            ad.is_in_wishlist = str(ad.id) in wishlist_items
+        for ad in featured_ads:
+            ad.is_in_cart = str(ad.id) in cart_items
+            ad.is_in_wishlist = str(ad.id) in wishlist_items
         # Fallback: If there are no featured ads, show the latest ads instead.
         if not featured_ads.exists():
             featured_ads = latest_ads
@@ -276,6 +286,13 @@ class CategoriesView(FilterView):
         # Get content type and configuration
         content_type = self.get_content_type()
         active_section = self.request.GET.get("section", "all")
+
+        # Get cart and wishlist items from session for current user
+        cart_items = self.request.session.get("cart", [])
+        wishlist_items = self.request.session.get("wishlist", [])
+        for ad in context["ads"]:
+            ad.is_in_cart = str(ad.id) in cart_items
+            ad.is_in_wishlist = str(ad.id) in wishlist_items
 
         # Get selected country
         selected_country = get_selected_country_from_request(self.request)
@@ -1214,6 +1231,12 @@ class AdDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         ad = self.get_object()
+
+        # Check if ad is in user's cart or wishlist
+        cart_items = self.request.session.get("cart", [])
+        wishlist_items = self.request.session.get("wishlist", [])
+        ad.is_in_cart = str(ad.id) in cart_items
+        ad.is_in_wishlist = str(ad.id) in wishlist_items
 
         # Increment view count without triggering a full save/update_fields
         ClassifiedAd.objects.filter(pk=ad.pk).update(

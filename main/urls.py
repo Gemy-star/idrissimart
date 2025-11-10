@@ -2,6 +2,7 @@ from django.urls import path
 
 from . import auth_views, classifieds_views, views
 from . import enhanced_views
+from . import cart_wishlist_views
 
 app_name = "main"
 urlpatterns = [
@@ -335,4 +336,39 @@ urlpatterns = [
         views.admin_settings_notifications,
         name="admin_settings_notifications",
     ),
+    # Cart URLs
+    path("api/cart/add/", cart_wishlist_views.add_to_cart, name="cart_add"),
+    path("api/cart/remove/", cart_wishlist_views.remove_from_cart, name="cart_remove"),
+    path(
+        "api/cart/update-quantity/",
+        cart_wishlist_views.update_cart_quantity,
+        name="cart_update_quantity",
+    ),
+    path("api/cart/count/", cart_wishlist_views.get_cart_count, name="cart_count"),
+    path("cart/", cart_wishlist_views.cart_view, name="cart_view"),
+    # Wishlist URLs
+    path(
+        "api/wishlist/add/", cart_wishlist_views.add_to_wishlist, name="wishlist_add"
+    ),
+    path(
+        "api/wishlist/remove/",
+        cart_wishlist_views.remove_from_wishlist,
+        name="wishlist_remove",
+    ),
+    path(
+        "api/wishlist/toggle/",
+        cart_wishlist_views.toggle_wishlist,
+        name="wishlist_toggle",
+    ),
+    path(
+        "api/wishlist/count/",
+        cart_wishlist_views.get_wishlist_count,
+        name="wishlist_count",
+    ),
+    path(
+        "api/wishlist/status/",
+        cart_wishlist_views.check_wishlist_status,
+        name="wishlist_status",
+    ),
+    path("wishlist/", cart_wishlist_views.wishlist_view, name="wishlist_view"),
 ]

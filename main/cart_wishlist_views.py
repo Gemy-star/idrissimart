@@ -1,0 +1,398 @@
+"""
+Cart and Wishlist Views
+Handles all cart and wishlist functionality including AJAX endpoints
+"""
+
+from django.contrib.auth.decorators import login_required
+from django.db import IntegrityError
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, render
+from django.utils.translation import gettext as _
+from django.views.decorators.http import require_POST
+
+from main.models import Cart, CartItem, ClassifiedAd, Wishlist, WishlistItem
+
+
+def get_or_create_cart(user):
+    """Get or create cart for user"""
+    cart, created = Cart.objects.get_or_create(user=user)
+    return cart
+
+
+def get_or_create_wishlist(user):
+    """Get or create wishlist for user"""
+    wishlist, created = Wishlist.objects.get_or_create(user=user)
+    return wishlist
+
+
+# ============================================
+# Cart Views
+# ============================================
+
+
+@login_required
+@require_POST
+def add_to_cart(request):
+    """Add item to cart via AJAX"""
+    try:
+        ad_id = request.POST.get("item_id")
+        if not ad_id:
+            return JsonResponse(
+                {"success": False, "message": _("معرف الإعلان مفقود")}, status=400
+            )
+
+        ad = get_object_or_404(ClassifiedAd, id=ad_id, status=ClassifiedAd.AdStatus.ACTIVE)
+
+        # Check if cart is enabled for this ad
+        if not ad.cart_enabled_by_admin:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": _("السلة غير مفعلة لهذا الإعلان"),
+                },
+                status=400,
+            )
+
+        cart = get_or_create_cart(request.user)
+
+        # Check if item already exists in cart
+        cart_item, created = CartItem.objects.get_or_create(cart=cart, ad=ad)
+
+        if not created:
+            # Item already in cart, increment quantity
+            cart_item.quantity += 1
+            cart_item.save()
+            message = _("تم زيادة الكمية في السلة")
+        else:
+            message = _("تمت إضافة {} إلى السلة").format(ad.title)
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": message,
+                "cart_count": cart.get_items_count(),
+                "item_id": ad_id,
+            }
+        )
+
+    except ClassifiedAd.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "message": _("الإعلان غير موجود")}, status=404
+        )
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500
+        )
+
+
+@login_required
+@require_POST
+def remove_from_cart(request):
+    """Remove item from cart via AJAX"""
+    try:
+        ad_id = request.POST.get("item_id")
+        if not ad_id:
+            return JsonResponse(
+                {"success": False, "message": _("معرف الإعلان مفقود")}, status=400
+            )
+
+        cart = get_or_create_cart(request.user)
+        cart_item = get_object_or_404(CartItem, cart=cart, ad_id=ad_id)
+
+        ad_title = cart_item.ad.title
+        cart_item.delete()
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": _("تمت إزالة {} من السلة").format(ad_title),
+                "cart_count": cart.get_items_count(),
+                "item_id": ad_id,
+            }
+        )
+
+    except CartItem.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "message": _("العنصر غير موجود في السلة")}, status=404
+        )
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500
+        )
+
+
+@login_required
+@require_POST
+def update_cart_quantity(request):
+    """Update cart item quantity via AJAX"""
+    try:
+        ad_id = request.POST.get("item_id")
+        quantity = request.POST.get("quantity")
+
+        if not ad_id or not quantity:
+            return JsonResponse(
+                {"success": False, "message": _("البيانات غير مكتملة")}, status=400
+            )
+
+        quantity = int(quantity)
+        if quantity < 1:
+            return JsonResponse(
+                {"success": False, "message": _("الكمية يجب أن تكون أكبر من صفر")},
+                status=400,
+            )
+
+        cart = get_or_create_cart(request.user)
+        cart_item = get_object_or_404(CartItem, cart=cart, ad_id=ad_id)
+
+        cart_item.quantity = quantity
+        cart_item.save()
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": _("تم تحديث الكمية"),
+                "cart_count": cart.get_items_count(),
+                "item_total": float(cart_item.get_total_price()),
+                "cart_total": float(cart.get_total_amount()),
+            }
+        )
+
+    except CartItem.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "message": _("العنصر غير موجود في السلة")}, status=404
+        )
+    except ValueError:
+        return JsonResponse(
+            {"success": False, "message": _("الكمية غير صحيحة")}, status=400
+        )
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500
+        )
+
+
+@login_required
+def get_cart_count(request):
+    """Get cart items count via AJAX"""
+    try:
+        cart = get_or_create_cart(request.user)
+        return JsonResponse({"success": True, "cart_count": cart.get_items_count()})
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500
+        )
+
+
+@login_required
+def cart_view(request):
+    """Display cart page"""
+    cart = get_or_create_cart(request.user)
+    cart_items = cart.items.select_related("ad", "ad__user", "ad__category").all()
+
+    context = {
+        "cart": cart,
+        "cart_items": cart_items,
+        "total_amount": cart.get_total_amount(),
+    }
+
+    return render(request, "cart/cart.html", context)
+
+
+# ============================================
+# Wishlist Views
+# ============================================
+
+
+@login_required
+@require_POST
+def add_to_wishlist(request):
+    """Add item to wishlist via AJAX"""
+    try:
+        ad_id = request.POST.get("item_id")
+        if not ad_id:
+            return JsonResponse(
+                {"success": False, "message": _("معرف الإعلان مفقود")}, status=400
+            )
+
+        ad = get_object_or_404(ClassifiedAd, id=ad_id, status=ClassifiedAd.AdStatus.ACTIVE)
+        wishlist = get_or_create_wishlist(request.user)
+
+        # Try to create wishlist item
+        try:
+            wishlist_item = WishlistItem.objects.create(wishlist=wishlist, ad=ad)
+            message = _("تمت إضافة {} إلى المفضلة").format(ad.title)
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": message,
+                    "wishlist_count": wishlist.get_items_count(),
+                    "item_id": ad_id,
+                    "is_in_wishlist": True,
+                }
+            )
+        except IntegrityError:
+            # Item already in wishlist
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": _("هذا الإعلان موجود بالفعل في المفضلة"),
+                    "wishlist_count": wishlist.get_items_count(),
+                },
+                status=400,
+            )
+
+    except ClassifiedAd.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "message": _("الإعلان غير موجود")}, status=404
+        )
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500
+        )
+
+
+@login_required
+@require_POST
+def remove_from_wishlist(request):
+    """Remove item from wishlist via AJAX"""
+    try:
+        ad_id = request.POST.get("item_id")
+        if not ad_id:
+            return JsonResponse(
+                {"success": False, "message": _("معرف الإعلان مفقود")}, status=400
+            )
+
+        wishlist = get_or_create_wishlist(request.user)
+        wishlist_item = get_object_or_404(WishlistItem, wishlist=wishlist, ad_id=ad_id)
+
+        ad_title = wishlist_item.ad.title
+        wishlist_item.delete()
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": _("تمت إزالة {} من المفضلة").format(ad_title),
+                "wishlist_count": wishlist.get_items_count(),
+                "item_id": ad_id,
+                "is_in_wishlist": False,
+            }
+        )
+
+    except WishlistItem.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "message": _("العنصر غير موجود في المفضلة")}, status=404
+        )
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500
+        )
+
+
+@login_required
+@require_POST
+def toggle_wishlist(request):
+    """Toggle item in wishlist (add if not exists, remove if exists) via AJAX"""
+    try:
+        ad_id = request.POST.get("item_id")
+        if not ad_id:
+            return JsonResponse(
+                {"success": False, "message": _("معرف الإعلان مفقود")}, status=400
+            )
+
+        ad = get_object_or_404(ClassifiedAd, id=ad_id, status=ClassifiedAd.AdStatus.ACTIVE)
+        wishlist = get_or_create_wishlist(request.user)
+
+        # Check if item exists in wishlist
+        wishlist_item = WishlistItem.objects.filter(wishlist=wishlist, ad=ad).first()
+
+        if wishlist_item:
+            # Remove from wishlist
+            wishlist_item.delete()
+            message = _("تمت إزالة {} من المفضلة").format(ad.title)
+            is_in_wishlist = False
+        else:
+            # Add to wishlist
+            WishlistItem.objects.create(wishlist=wishlist, ad=ad)
+            message = _("تمت إضافة {} إلى المفضلة").format(ad.title)
+            is_in_wishlist = True
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": message,
+                "wishlist_count": wishlist.get_items_count(),
+                "item_id": ad_id,
+                "is_in_wishlist": is_in_wishlist,
+            }
+        )
+
+    except ClassifiedAd.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "message": _("الإعلان غير موجود")}, status=404
+        )
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500
+        )
+
+
+@login_required
+def get_wishlist_count(request):
+    """Get wishlist items count via AJAX"""
+    try:
+        wishlist = get_or_create_wishlist(request.user)
+        return JsonResponse(
+            {"success": True, "wishlist_count": wishlist.get_items_count()}
+        )
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500
+        )
+
+
+@login_required
+def check_wishlist_status(request):
+    """Check if items are in wishlist via AJAX"""
+    try:
+        ad_ids = request.GET.getlist("ad_ids[]")
+        if not ad_ids:
+            return JsonResponse(
+                {"success": False, "message": _("معرفات الإعلانات مفقودة")},
+                status=400,
+            )
+
+        wishlist = get_or_create_wishlist(request.user)
+        wishlist_ad_ids = list(
+            WishlistItem.objects.filter(wishlist=wishlist, ad_id__in=ad_ids).values_list(
+                "ad_id", flat=True
+            )
+        )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "wishlist_ad_ids": wishlist_ad_ids,
+                "wishlist_count": wishlist.get_items_count(),
+            }
+        )
+
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500
+        )
+
+
+@login_required
+def wishlist_view(request):
+    """Display wishlist page"""
+    wishlist = get_or_create_wishlist(request.user)
+    wishlist_items = wishlist.items.select_related(
+        "ad", "ad__user", "ad__category", "ad__country"
+    ).all()
+
+    context = {
+        "wishlist": wishlist,
+        "wishlist_items": wishlist_items,
+    }
+
+    return render(request, "wishlist/wishlist.html", context)

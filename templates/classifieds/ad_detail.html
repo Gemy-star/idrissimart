@@ -211,15 +211,47 @@
                                 {% endif %}
                             </div>
                             <div class="card-footer bg-transparent border-top-0 pt-0">
-                                {% if ad.is_cart_enabled %}
-                                    <div class="d-grid">
-                                        <button class="btn btn-lg shadow-sm" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white; border-radius: 15px; font-weight: 600; transition: all 0.3s ease;">
-                                            <i class="fas fa-shopping-cart me-2"></i> {% trans "حجز الآن" %}
-                                        </button>
+                                {% if ad.cart_enabled_by_admin %}
+                                    <div class="d-grid gap-2">
+                                        {% if request.user.is_authenticated %}
+                                            <button class="btn btn-lg shadow-sm add-to-cart-btn" {# Changed #}
+                                                    data-type="cart" {# Added #}
+                                                    data-action="{% if ad.is_in_cart %}remove-from-cart{% else %}add-to-cart{% endif %}" {# Changed #}
+                                                    data-item-id="{{ ad.id }}"
+                                                    data-item-name="{{ ad.title }}"
+                                                    style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white; border-radius: 15px; font-weight: 600; transition: all 0.3s ease;" {# Changed #}
+                                                    onclick="handleCartWishlistAction(this, event)"> {# Added #}
+                                                <i class="fas fa-shopping-cart me-2"></i> <span class="button-text">{% if ad.is_in_cart %}{% trans "إزالة من السلة" %}{% else %}{% trans "إضافة للسلة" %}{% endif %}</span> {# Changed #}
+                                            </button>
+                                            <button class="btn btn-outline-danger btn-lg shadow-sm wishlist-btn"
+                                                    data-type="wishlist" {# Added #}
+                                                    data-action="{% if ad.is_in_wishlist %}remove-from-wishlist{% else %}add-to-wishlist{% endif %}" {# Changed #}
+                                                    data-item-id="{{ ad.id }}"
+                                                    data-item-name="{{ ad.title }}"
+                                                    style="border-radius: 15px; font-weight: 600;" {# Changed #}
+                                                    onclick="handleCartWishlistAction(this, event)"> {# Added #}
+                                                <i class="{% if ad.is_in_wishlist %}fas{% else %}far{% endif %} fa-heart me-2"></i> <span class="button-text">{% if ad.is_in_wishlist %}{% trans "إزالة من المفضلة" %}{% else %}{% trans "إضافة للمفضلة" %}{% endif %}</span> {# Changed #}
+                                            </button>
+                                        {% else %}
+                                            <a href="{% url 'main:login' %}?next={{ request.path }}" class="btn btn-lg shadow-sm" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white; border-radius: 15px; font-weight: 600; text-decoration: none;">
+                                                <i class="fas fa-sign-in-alt me-2"></i> {% trans "سجل الدخول للشراء" %}
+                                            </a>
+                                        {% endif %}
+                                        <small class="d-block text-center text-muted mt-2">{% trans "هذه الخدمة تتطلب دفع مبلغ حجز." %}</small>
                                     </div>
-                                    <small class="d-block text-center text-muted mt-2">{% trans "هذه الخدمة تتطلب دفع مبلغ حجز." %}</small>
                                 {% else %}
                                     <div class="d-grid gap-3">
+                                        {% if request.user.is_authenticated %} {# Changed #}
+                                            <button class="btn btn-outline-danger btn-lg shadow-sm mb-2 wishlist-btn" {# Changed #}
+                                                    data-type="wishlist" {# Added #}
+                                                    data-action="{% if ad.is_in_wishlist %}remove-from-wishlist{% else %}add-to-wishlist{% endif %}" {# Changed #}
+                                                    data-item-id="{{ ad.id }}"
+                                                    data-item-name="{{ ad.title }}"
+                                                    style="border-radius: 15px; font-weight: 600;" {# Changed #}
+                                                    onclick="handleCartWishlistAction(this, event)"> {# Added #}
+                                                <i class="{% if ad.is_in_wishlist %}fas{% else %}far{% endif %} fa-heart me-2"></i> <span class="button-text">{% if ad.is_in_wishlist %}{% trans "إزالة من المفضلة" %}{% else %}{% trans "إضافة للمفضلة" %}{% endif %}</span> {# Changed #}
+                                            </button>
+                                        {% endif %}
                                         <a href="tel:{{ ad.user.phone|default_if_none:'' }}"
                                            class="btn btn-lg shadow-sm" style="background: linear-gradient(135deg, #6c757d, #495057); color: white; border-radius: 15px; font-weight: 600; text-decoration: none;">
                                             <i class="fas fa-phone-alt me-2"></i> {{ ad.user.phone|phone_format }}
@@ -247,8 +279,8 @@
                             <div class="swiper related-ads-swiper">
                                 <div class="swiper-wrapper">
                                     {% for related_ad in related_ads %}
-                                        <div class="swiper-slide">
-                                            {% include "partials/_ad_card_component.html" with ad=related_ad %}
+                                        <div class="swiper-slide"> {# Changed #}
+                                            {% include "classifieds/_ad_card.html" with ad=related_ad %} {# Changed #}
                                         </div>
                                     {% endfor %}
                                 </div>

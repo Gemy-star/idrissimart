@@ -1,6 +1,7 @@
 /**
  * Ad Card Component Interactions
  * Handles animations and user interactions for modern ad cards
+ * Depends on: cart-wishlist.js (for CartWishlist global object)
  * Requires: GSAP library
  */
 
@@ -88,45 +89,6 @@ function initAdCardAnimations() {
 }
 
 /**
- * Toggle favorite/wishlist status
- * @param {number} adId - The ad ID
- * @param {Event} event - The click event
- */
-function toggleFavorite(adId, event) {
-    event = event || window.event;
-    event.preventDefault();
-
-    const btn = event.target.closest('.quick-action-btn');
-    if (!btn) return;
-
-    const heartIcon = btn.querySelector('i');
-    if (!heartIcon) return;
-
-    if (typeof gsap !== 'undefined') {
-        gsap.to(heartIcon, {
-            scale: 1.5,
-            duration: 0.1,
-            yoyo: true,
-            repeat: 1,
-            ease: 'power2.inOut',
-            onComplete: () => {
-                heartIcon.classList.toggle('far');
-                heartIcon.classList.toggle('fas');
-                heartIcon.style.color = heartIcon.classList.contains('fas') ? '#e74c3c' : '';
-            }
-        });
-    } else {
-        // Fallback without animation
-        heartIcon.classList.toggle('far');
-        heartIcon.classList.toggle('fas');
-        heartIcon.style.color = heartIcon.classList.contains('fas') ? '#e74c3c' : '';
-    }
-
-    // TODO: Send AJAX request to backend to save favorite status
-    console.log('Toggle favorite for ad:', adId);
-}
-
-/**
  * Share ad functionality
  * @param {number} adId - The ad ID
  * @param {Event} event - The click event
@@ -178,57 +140,14 @@ function callSeller(adId, event) {
     console.log('Call seller for ad:', adId);
 }
 
-/**
- * Display notification toast
- * @param {string} message - The notification message
- * @param {string} type - Notification type (success, error, info)
- * @param {number} duration - Duration in milliseconds
- */
-function showNotification(message, type = 'success', duration = 3000) {
-    // Remove existing notifications
-    const existing = document.querySelectorAll('.notification-toast');
-    existing.forEach(n => n.remove());
-
-    const notification = document.createElement('div');
-    notification.className = `notification-toast notification-${type}`;
-    notification.textContent = message;
-
-    // Add icon based on type
-    const icon = document.createElement('i');
-    icon.className = type === 'success' ? 'fas fa-check-circle' :
-                     type === 'error' ? 'fas fa-exclamation-circle' :
-                     'fas fa-info-circle';
-    notification.prepend(icon);
-
-    document.body.appendChild(notification);
-
-    // Animate in
-    if (typeof gsap !== 'undefined') {
-        gsap.fromTo(notification,
-            { x: 100, opacity: 0 },
-            { x: 0, opacity: 1, duration: 0.3, ease: 'power2.out' }
-        );
-
-        setTimeout(() => {
-            gsap.to(notification, {
-                x: 100,
-                opacity: 0,
-                duration: 0.3,
-                ease: 'power2.in',
-                onComplete: () => notification.remove()
-            });
-        }, duration);
-    } else {
-        setTimeout(() => notification.remove(), duration);
-    }
-}
-
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initAdCardAnimations);
 } else {
     initAdCardAnimations();
 }
+
+
 
 // Re-initialize on dynamic content load (e.g., AJAX pagination)
 window.refreshAdCardAnimations = initAdCardAnimations;

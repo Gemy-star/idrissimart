@@ -142,6 +142,11 @@ async function addToCart(itemId, itemName = 'المنتج') {
             const message = data.message || `تمت إضافة ${itemName} إلى السلة`;
             showNotification(message, 'success');
 
+            // Update cart count in header if available
+            if (data.cart_count !== undefined) {
+                updateCartCountInHeader(data.cart_count);
+            }
+
             // Trigger custom event
             document.dispatchEvent(new CustomEvent('cartUpdated', {
                 detail: { count: data.cart_count, itemId: itemId }
@@ -179,6 +184,11 @@ async function removeFromCart(itemId, itemName = 'المنتج') {
             const message = data.message || `تمت إزالة ${itemName} من السلة`;
             showNotification(message, 'success');
 
+            // Update cart count in header if available
+            if (data.cart_count !== undefined) {
+                updateCartCountInHeader(data.cart_count);
+            }
+
             document.dispatchEvent(new CustomEvent('cartUpdated', {
                 detail: { count: data.cart_count, itemId: itemId }
             }));
@@ -215,6 +225,11 @@ async function addToWishlist(itemId, itemName = 'المنتج') {
             const message = data.message || `تمت إضافة ${itemName} إلى المفضلة`;
             showNotification(message, 'success');
 
+             // Update wishlist count in header if available
+            if (data.wishlist_count !== undefined) {
+                updateWishlistCountInHeader(data.wishlist_count);
+            }
+
             document.dispatchEvent(new CustomEvent('wishlistUpdated', {
                 detail: { count: data.wishlist_count, itemId: itemId }
             }));
@@ -250,6 +265,11 @@ async function removeFromWishlist(itemId, itemName = 'المنتج') {
             updateBadgeCount('wishlist', data.wishlist_count);
             const message = data.message || `تمت إزالة ${itemName} من المفضلة`;
             showNotification(message, 'success');
+
+            // Update wishlist count in header if available
+            if (data.wishlist_count !== undefined) {
+                updateWishlistCountInHeader(data.wishlist_count);
+            }
 
             document.dispatchEvent(new CustomEvent('wishlistUpdated', {
                 detail: { count: data.wishlist_count, itemId: itemId }
@@ -366,3 +386,25 @@ window.CartWishlist = {
     updateBadgeCount,
     showNotification
 };
+
+/**
+ * Update cart count in header
+ * @param {number} count - The cart count
+ */
+function updateCartCountInHeader(count) {
+    const cartCountEl = document.getElementById('cart-count');
+    if (cartCountEl) {
+        cartCountEl.textContent = count;
+    }
+}
+
+/**
+ * Update wishlist count in header
+ * @param {number} count - The wishlist count
+ */
+function updateWishlistCountInHeader(count) {
+    const wishlistCountEl = document.getElementById('wishlist-count');
+    if (wishlistCountEl) {
+        wishlistCountEl.textContent = count;
+    }
+}
