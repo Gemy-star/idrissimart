@@ -1,8 +1,9 @@
 {% load i18n idrissimart_tags %}
 
-<div class="modern-ad-card">
+<article class="modern-ad-card">
+    <!-- Image Section -->
     <div class="ad-image-container">
-        <a href="{{ ad.get_absolute_url }}" class="ad-image-link">
+        <a href="{{ ad.get_absolute_url }}" class="ad-image-link" aria-label="{{ ad.title }}">
             {% if ad.images.first %}
                 <img src="{{ ad.images.first.image.url }}"
                      class="ad-image"
@@ -10,90 +11,148 @@
                      loading="lazy">
             {% else %}
                 <div class="ad-image-placeholder">
-                    <i class="fas fa-image"></i>
+                    <i class="fas fa-image" aria-hidden="true"></i>
                     <span>{% trans "No Image" %}</span>
                 </div>
             {% endif %}
         </a>
 
+        <!-- Badges Overlay - Top Priority Badges -->
         <div class="ad-badges-top">
             <div class="ad-badges-container">
-                {% if ad.is_featured %}
-                    <span class="ad-badge featured-badge">
-                        <i class="fas fa-star"></i>
-                        <span>{% trans "Featured" %}</span>
-                    </span>
-                {% endif %}
                 {% if ad.is_urgent %}
                     <span class="ad-badge urgent-badge">
-                        <i class="fas fa-bolt"></i>
-                        <span>{% trans "Urgent" %}</span>
+                        <i class="fas fa-bolt" aria-hidden="true"></i>
+                        <span>عاجل</span>
+                    </span>
+                {% endif %}
+
+                {% if ad.is_pinned %}
+                    <span class="ad-badge pinned-badge">
+                        <i class="fas fa-thumbtack" aria-hidden="true"></i>
+                        <span>مثبت</span>
+                    </span>
+                {% endif %}
+
+                {% if ad.is_highlighted %}
+                    <span class="ad-badge highlighted-badge">
+                        <i class="fas fa-certificate" aria-hidden="true"></i>
+                        <span>بارز</span>
                     </span>
                 {% endif %}
             </div>
         </div>
 
+        <!-- Stats Overlay - Bottom Right -->
         <div class="ad-info-overlay">
             <div class="ad-stats-container">
-                <span class="ad-stat-item">
-                    <i class="fas fa-eye"></i>
-                    {{ ad.views_count|default:0 }}
+                <span class="ad-stat-item" title="{% trans 'Views' %}">
+                    <i class="fas fa-eye" aria-hidden="true"></i>
+                    <span>{{ ad.views_count|default:0 }}</span>
                 </span>
-                {% if ad.is_delivery_available %}
-                <span class="ad-stat-item delivery-available">
-                    <i class="fas fa-shipping-fast"></i>
-                    {% trans "Delivery" %}
-                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Section -->
+    <div class="ad-content">
+        <!-- Category Badge -->
+        {% if ad.category %}
+        <div class="ad-category-badge">
+            <i class="fas fa-tag" aria-hidden="true"></i>
+            <span>{{ ad.category.name }}</span>
+        </div>
+        {% endif %}
+
+        <!-- Title -->
+        <h3 class="ad-title">
+            <a href="{{ ad.get_absolute_url }}" title="{{ ad.title }}">
+                {{ ad.title|truncatewords:8 }}
+            </a>
+        </h3>
+
+        <!-- Location -->
+        <div class="ad-location">
+            <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
+            <span>{{ ad.city }}{% if ad.country %}, {{ ad.country.name }}{% endif %}</span>
+        </div>
+
+        <!-- Features Row with Badges -->
+        <div class="ad-features-row">
+            <!-- Publisher Badge -->
+            <div class="publisher-badge-wrapper">
+                {% user_avatar user=ad.user size=32 css_class="publisher-avatar-mini" %}
+                {% if ad.user.is_verified %}
+                    <span class="avatar-verified-badge person-badge" title="موثق">
+                        <i class="fas fa-check-circle" aria-hidden="true"></i>
+                    </span>
+                {% elif ad.user.is_company %}
+                    <span class="avatar-verified-badge company-badge" title="شركة">
+                        <i class="fas fa-building" aria-hidden="true"></i>
+                    </span>
                 {% endif %}
             </div>
-        </div>
-    </div>
 
-    <div class="ad-content">
-        <div class="ad-header">
-            <h3 class="ad-title">
-                <a href="{{ ad.get_absolute_url }}">{{ ad.title|truncatewords:7 }}</a>
-            </h3>
-            <div class="ad-location">
-                <i class="fas fa-map-marker-alt"></i>
-                <span>{{ ad.city }}</span>
-            </div>
-        </div>
-
-        <p class="ad-description">{{ ad.description|striptags|truncatewords:12 }}</p>
-
-        <div class="ad-price-section">
-            <div class="ad-price">
-                {% ad_price_formatted ad as formatted_price %}
-                <span class="price-amount">{{ formatted_price|default_if_none:ad.price }}</span>
-                <span class="price-currency">{{ ad.currency|default:"EGP" }}</span>
-            </div>
+            <!-- Feature Tags -->
+            {% if ad.is_delivery_available %}
+            <span class="feature-tag delivery-tag">
+                <i class="fas fa-shipping-fast" aria-hidden="true"></i>
+                <span>شحن متاح</span>
+            </span>
+            {% endif %}
 
             {% if ad.is_negotiable %}
-            <div class="ad-price-meta">
-                <span class="negotiable-badge">
-                    <i class="fas fa-handshake"></i>
-                    {% trans "Negotiable" %}
-                </span>
-            </div>
+            <span class="feature-tag negotiable-tag">
+                <i class="fas fa-handshake" aria-hidden="true"></i>
+                <span>قابل للتفاوض</span>
+            </span>
+            {% endif %}
+
+            {% if ad.custom_fields.condition %}
+            <span class="feature-tag condition-tag">
+                <i class="fas fa-box-open" aria-hidden="true"></i>
+                <span>{{ ad.custom_fields.condition }}</span>
+            </span>
             {% endif %}
         </div>
-    </div>
 
-    <div class="ad-footer">
-        <div class="ad-author">
-            <div class="author-info">
-                {% user_avatar user=ad.user size=32 css_class="author-avatar" %}
-                <div class="author-details">
-                    <span class="author-name">{{ ad.user.get_full_name|default:ad.user.username }}</span>
-                    {% if ad.user.is_verified %}
-                    <span class="verification-badge">
-                        <i class="fas fa-check-circle"></i>
-                        {% trans "Verified" %}
+        <!-- Price Section -->
+        <div class="ad-price-section">
+            <div class="ad-price-box">
+                <div class="price-header">
+                    <div class="price-label">
+                        <i class="fas fa-money-bill-wave" aria-hidden="true"></i>
+                        <span>السعر</span>
+                    </div>
+                    {% if ad.is_negotiable %}
+                    <span class="price-negotiable-tag">
+                        <i class="fas fa-handshake" aria-hidden="true"></i>
                     </span>
                     {% endif %}
+                </div>
+                <div class="ad-price-main">
+                    {% ad_price_formatted ad as formatted_price %}
+                    <span class="price-amount">{{ formatted_price|default_if_none:ad.price }}</span>
+                    <span class="price-currency">{{ ad.currency|default:"جنيه" }}</span>
                 </div>
             </div>
         </div>
     </div>
-</div>
+
+    <!-- Footer Section -->
+    <footer class="ad-footer">
+        <div class="ad-footer-content">
+            <!-- Time Posted -->
+            <div class="ad-time-posted">
+                <i class="far fa-clock" aria-hidden="true"></i>
+                <span>{{ ad.created_at|timesince }}</span>
+            </div>
+
+            <!-- Views Count -->
+            <div class="ad-views-count">
+                <i class="fas fa-eye" aria-hidden="true"></i>
+                <span>{{ ad.views_count|default:0 }}</span>
+            </div>
+        </div>
+    </footer>
+</article>
