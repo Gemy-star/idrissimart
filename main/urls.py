@@ -6,7 +6,6 @@ from . import enhanced_views
 app_name = "main"
 urlpatterns = [
     path("", views.HomeView.as_view(), name="home"),
-    path("dashboard/", views.dashboard_redirect, name="dashboard"),
     path("categories/", views.CategoriesView.as_view(), name="categories"),
     path("about/", views.AboutView.as_view(), name="about"),
     path("contact/", views.ContactView.as_view(), name="contact"),
@@ -132,11 +131,6 @@ urlpatterns = [
     ),
     # Admin Dashboard
     path(
-        "admin/classifieds/dashboard/",
-        classifieds_views.AdminDashboardView.as_view(),
-        name="admin_dashboard",
-    ),
-    path(
         "admin/categories/",
         classifieds_views.AdminCategoriesView.as_view(),
         name="admin_categories",
@@ -258,11 +252,7 @@ urlpatterns = [
         name="ajax_get_ads",
     ),
     # Dashboard URLs
-    path(
-        "dashboard/",
-        views.PublisherDashboardView.as_view(),
-        name="dashboard",
-    ),
+    path("dashboard/", views.dashboard_redirect, name="dashboard"),
     path(
         "dashboard/ad/<int:ad_id>/toggle-status/",
         views.dashboard_ad_toggle_status,
@@ -280,8 +270,8 @@ urlpatterns = [
     ),
     # Admin Dashboard URLs
     path(
-        "admin/dashboard/",
-        views.AdminDashboardView.as_view(),
+        "admin/dashboard/",  # This will be the main admin dashboard
+        classifieds_views.AdminDashboardView.as_view(),
         name="admin_dashboard",
     ),
     path(

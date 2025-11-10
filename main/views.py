@@ -858,7 +858,11 @@ class SubcategoryDetailView(FilterView):
         ).count()
 
         # Get subcategories
-        subcategories = self.category.get_children().filter(is_active=True).order_by("order", "name")
+        subcategories = (
+            self.category.get_children()
+            .filter(is_active=True)
+            .order_by("order", "name")
+        )
         total_subcategories = subcategories.count()
 
         # Current filters for display
