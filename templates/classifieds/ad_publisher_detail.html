@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% load static i18n %}
+{% load static i18n string_filters %}
 
 {% block title %}
     {{ ad.title }} - {% trans "معاينة الإعلان" %}
@@ -28,7 +28,7 @@
     }
 
     .admin-actions-card h3 {
-        font-size: 1.1rem;
+        font-size: 1.2rem;
         font-weight: 700;
         color: #1a202c;
         margin-bottom: 20px;
@@ -40,12 +40,12 @@
         font-weight: 600;
         font-size: 0.9rem;
         border: none;
-        transition: all 0.3s ease;
+        transition: all 0.2s ease-in-out;
         margin-right: 10px;
         margin-bottom: 10px;
     }
 
-    .btn-hide {
+    .btn-toggle-hide {
         background: #3f4254;
         color: white;
     }
@@ -55,7 +55,7 @@
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(63, 66, 84, 0.3);
     }
-
+    
     .btn-delete {
         background: #e53e3e;
         color: white;
@@ -67,6 +67,40 @@
         box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
     }
 
+    .btn-suspend {
+        background: #f59e0b;
+        color: white;
+    }
+    .btn-suspend:hover {
+        background: #d97706;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+
+    .btn-verify {
+        background: #10b981;
+        color: white;
+    }
+    .btn-verify:hover {
+        background: #059669;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+    
+    .btn-enable-cart {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .btn-enable-cart:hover {
+        background: #2563eb;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    .btn-enable-cart:disabled {
+        background: #9ca3af;
+    }
+
     /* Status Badges */
     .status-badge {
         display: inline-block;
@@ -76,14 +110,32 @@
         font-weight: 600;
         margin-bottom: 15px;
     }
-
-    .badge-premium {
+    .badge-highlighted {
         background: linear-gradient(135deg, #8b5cf6, #7c3aed);
         color: white;
     }
-
+    .badge-urgent {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: white;
+    }
     .badge-active {
         background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+    }
+    .badge-pending {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: white;
+    }
+    .badge-expired {
+        background: linear-gradient(135deg, #6b7280, #4b5563);
+        color: white;
+    }
+    .badge-hidden {
+        background: linear-gradient(135deg, #4b5563, #374151);
+        color: white;
+    }
+    .badge-rejected {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
         color: white;
     }
 
@@ -135,32 +187,63 @@
         border-radius: 16px;
         box-shadow: var(--card-shadow);
         padding: 30px;
+        transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
         margin-bottom: 20px;
+    }
+
+    .ad-details-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--card-hover-shadow);
     }
 
     .ad-title {
         font-size: 1.75rem;
         font-weight: 700;
+        background: linear-gradient(135deg, var(--primary-color), #2c3e50);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
         color: #1a202c;
         margin-bottom: 15px;
     }
 
     .ad-price {
         font-size: 2rem;
-        font-weight: 700;
+        font-weight: 800;
         color: #3b82f6;
-        margin-bottom: 15px;
+        background: linear-gradient(135deg, #3b82f6, #1e40af);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 10px;
+        animation: pulse-price 2s infinite ease-in-out;
     }
 
-    .ad-location {
+    @keyframes pulse-price {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.03); }
+    }
+
+    .ad-meta-info {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        margin-bottom: 20px;
+    }
+
+    .ad-location, .ad-posted-time {
         color: #6b7280;
         font-size: 0.95rem;
-        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
 
-    .ad-posted-time {
-        color: #9ca3af;
-        font-size: 0.85rem;
+    .ad-meta-info i {
+        color: var(--primary-color);
+        font-size: 1.1rem;
+        transition: transform 0.3s ease;
+    }
+    .ad-meta-info .ad-location:hover i, .ad-meta-info .ad-posted-time:hover i {
+        transform: scale(1.2);
     }
 
     /* Statistics Card */
@@ -286,19 +369,49 @@
 
     /* Categories Display */
     .categories-section {
-        margin: 20px 0;
+        margin-top: 25px;
+        padding-top: 20px;
+        border-top: 1px solid #e5e7eb;
     }
 
-    .category-link {
-        color: #3b82f6;
+    .breadcrumb-modern {
+        display: flex;
+        flex-wrap: wrap;
+        padding: 0;
+        margin: 0;
+        list-style: none;
+        align-items: center;
+    }
+
+    .breadcrumb-modern .breadcrumb-item {
+        display: flex;
+        align-items: center;
+    }
+
+    .breadcrumb-modern .breadcrumb-item a {
+        background-color: #f3f4f6;
+        color: #4b5563;
+        padding: 8px 16px;
+        border-radius: 8px;
         text-decoration: none;
         font-weight: 600;
-        transition: all 0.2s ease;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
 
-    .category-link:hover {
-        color: #2563eb;
-        text-decoration: underline;
+    .breadcrumb-modern .breadcrumb-item a:hover {
+        background-color: #e5e7eb;
+        color: #1f2937;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+
+    .breadcrumb-modern .breadcrumb-item.active a {
+        background: var(--primary-gradient, linear-gradient(135deg, #667eea, #764ba2));
+        color: white;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     }
 
     .category-separator {
@@ -307,19 +420,55 @@
     }
 
     /* Tags Section */
-    .tags-section {
-        margin-top: 20px;
+    .details-grid-section {
+        margin-top: 25px;
+        padding-top: 20px;
+        border-top: 1px solid #e5e7eb;
     }
 
-    .tag-badge {
-        display: inline-block;
-        background: #eff6ff;
-        color: #3b82f6;
-        padding: 6px 12px;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        margin-right: 8px;
-        margin-bottom: 8px;
+    .details-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 1rem;
+    }
+
+    .detail-item {
+        background: #f9fafb;
+        border-radius: 12px;
+        padding: 1rem;
+        border: 1px solid #e5e7eb;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .detail-item:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+        border-color: var(--primary-color);
+    }
+
+    .detail-key {
+        display: block;
+        font-size: 0.8rem;
+        color: #6b7280;
+        font-weight: 500;
+        margin-bottom: 4px;
+        text-transform: capitalize;
+    }
+
+    .detail-value {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1f2937;
+        word-wrap: break-word;
+    }
+    
+    .section-heading {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin-bottom: 15px;
     }
 
     /* Description Section */
@@ -339,9 +488,49 @@
     }
 
     .description-text {
-        color: #4b5563;
+        color: #374151;
         line-height: 1.8;
         font-size: 0.95rem;
+    }
+    .description-text.collapsible {
+        max-height: 150px; /* Initial collapsed height */
+        overflow: hidden;
+        position: relative;
+        transition: max-height 0.5s ease-out;
+    }
+    .description-text.collapsible.expanded {
+        max-height: 2000px; /* A large value to allow full expansion */
+    }
+    .description-text.collapsible:not(.expanded)::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 60px;
+        background: linear-gradient(to top, white, rgba(255, 255, 255, 0));
+    }
+    .toggle-description-btn {
+        background: none;
+        border: none;
+        color: var(--primary-color);
+        font-weight: 600;
+        cursor: pointer;
+        padding: 8px 0;
+        margin-top: 10px;
+    }
+
+    .details-grid.collapsible {
+        max-height: 220px; /* Adjust based on desired collapsed height */
+        overflow: hidden;
+        position: relative;
+        transition: max-height 0.5s ease-out;
+    }
+    .details-grid.collapsible.expanded {
+        max-height: 2000px; /* A large value to allow full expansion */
+    }
+    .toggle-details-btn {
+        display: none; /* Hidden by default, shown by JS if needed */
     }
 
     /* Expiration Notice */
@@ -363,6 +552,73 @@
     .expiration-date {
         color: #78350f;
         font-size: 0.9rem;
+    }
+
+    /* Social Share Section */
+    .social-share-section {
+        margin-top: 25px;
+        padding-top: 20px;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .social-share-section h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 15px;
+        color: #4b5563;
+    }
+
+    .social-share-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .social-share-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        color: white !important; /* Ensure icon color is white */
+        font-size: 1.1rem;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .social-share-btn:hover {
+        transform: translateY(-3px) scale(1.05);
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+    }
+
+    .social-share-btn.facebook { background: #1877F2; }
+    .social-share-btn.twitter { background: #1DA1F2; }
+    .social-share-btn.whatsapp { background: #25D366; }
+    .social-share-btn.telegram { background: #2AABEE; }
+    .social-share-btn.linkedin { background: #0A66C2; }
+    .social-share-btn.copy-link {
+        background: #6b7280;
+    }
+
+    .copy-link-btn {
+        background: #f3f4f6;
+        border: 1px solid #e5e7eb;
+        color: #4b5563;
+        transition: all 0.3s ease;
+        border-radius: 8px;
+    }
+
+    .copy-link-btn:hover {
+        background: #e5e7eb;
+        transform: scale(1.05);
+    }
+    
+    .copy-link-btn.copied {
+        background-color: #10b981;
+        color: white;
+        border-color: #059669;
     }
 
     /* Responsive */
@@ -389,35 +645,53 @@
         <div class="row">
             <!-- Left Column -->
             <div class="col-lg-8">
-                <!-- Admin Actions -->
-                {% if request.user == ad.user or request.user.is_staff %}
+                <!-- Admin Actions (Only for staff) -->
+                {% if request.user.is_staff %}
                 <div class="admin-actions-card">
-                    <h3>Admin Actions</h3>
-                    <div class="d-flex flex-wrap">
-                        <button class="btn-action btn-hide" onclick="toggleAdVisibility({{ ad.id }})">
-                            Hide Advertisement
+                    <h3>{% trans "إجراءات الإدارة" %}</h3>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn-action btn-toggle-hide" id="hideBtn" onclick="toggleAdVisibility({{ ad.id }}, {{ ad.is_hidden|yesno:'true,false' }})">
+                            {% if ad.is_hidden %}
+                                <i class="fas fa-eye me-2"></i> {% trans "إظهار الإعلان" %}
+                            {% else %}
+                                <i class="fas fa-eye-slash me-2"></i> {% trans "إخفاء الإعلان" %}
+                            {% endif %}
                         </button>
-                        <button class="btn-action btn-delete" onclick="deleteAdvertisement({{ ad.id }})">
-                            Delete Advertisement
+                        <button class="btn-action btn-delete" onclick="deleteAdvertisement({{ ad.id }}, '{{ ad.title|escapejs }}')">
+                            <i class="fas fa-trash-alt me-2"></i> {% trans "حذف الإعلان" %}
                         </button>
+                        {% if ad.allow_cart %}
+                            <button class="btn-action btn-enable-cart" id="cartBtn" onclick="enableAdCart({{ ad.id }})" {% if ad.cart_enabled_by_admin %}disabled{% endif %}>
+                                <i class="fas fa-shopping-cart me-2"></i> 
+                                {% if ad.cart_enabled_by_admin %}
+                                    {% trans "تم تفعيل السلة" %}
+                                {% else %}
+                                    {% trans "تفعيل السلة" %}
+                                {% endif %}
+                            </button>
+                        {% endif %}
                     </div>
                 </div>
                 {% endif %}
 
                 <!-- Status Badges -->
                 <div class="mb-3">
-                    {% if ad.is_highlighted %}
-                    <span class="status-badge badge-premium">Premium</span>
+                    <span class="status-badge badge-{{ ad.status }}">{{ ad.get_status_display }}</span> {# This should be translated in the model's method #}
+                    {% if ad.is_hidden %}
+                        <span class="status-badge badge-hidden">{% trans "مخفي" %}</span> {# Hidden #}
                     {% endif %}
-                    {% if ad.status == 'active' %}
-                    <span class="status-badge badge-active">Active</span>
+                    {% if ad.is_highlighted %}
+                        <span class="status-badge badge-highlighted">{% trans "مميز" %}</span> {# Highlighted #}
+                    {% endif %}
+                    {% if ad.is_urgent %}
+                        <span class="status-badge badge-urgent">{% trans "عاجل" %}</span> {# Urgent #}
                     {% endif %}
                 </div>
 
                 <!-- Main Image -->
                 <div class="ad-image-container">
                     {% if ad.images.all %}
-                        <img src="{{ ad.images.first.image.url }}" alt="{{ ad.title }}" class="ad-main-image" id="mainAdImage">
+                        <img src="{{ ad.images.first.image.url }}" alt="{{ ad.title }}" class="ad-main-image" id="mainAdImage" onerror="this.onerror=null;this.src='https://via.placeholder.com/800x400?text={% trans "Image Not Found" %}';">
                         {% if ad.images.count > 1 %}
                         <div class="image-nav-buttons">
                             <button class="nav-btn" onclick="previousImage()">
@@ -429,144 +703,241 @@
                         </div>
                         {% endif %}
                     {% else %}
-                        <img src="https://via.placeholder.com/800x400?text=No+Image" alt="No Image" class="ad-main-image">
+                        <img src="https://via.placeholder.com/800x400?text={% trans 'لا توجد صورة' %}" alt="{% trans 'No Image' %}" class="ad-main-image">
                     {% endif %}
                 </div>
 
                 <!-- Ad Details -->
                 <div class="ad-details-card">
-                    <h1 class="ad-title">{{ ad.title }}</h1>
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h1 class="ad-title" dir="auto">{{ ad.title }}</h1>
+                        <button class="btn btn-sm copy-link-btn" onclick="copyAdUrl(this)" title="{% trans 'Copy Link' %}" data-original-text="<i class='fas fa-link'></i> {% trans 'نسخ' %}">
+                            <i class="fas fa-link"></i> {% trans "نسخ" %}
+                        </button>
+                    </div>
+
 
                     <div class="ad-price">
-                        EGP {{ ad.price|floatformat:2 }}
+                        {{ ad.price|floatformat:2 }} {% if ad.country %}{{ ad.country.currency_symbol }}{% else %}EGP{% endif %}
                     </div>
 
-                    <div class="ad-location">
-                        <i class="fas fa-map-marker-alt me-2"></i>
-                        {{ ad.city }}{% if ad.country %}, {{ ad.country.name }}{% endif %}
+                    <div class="ad-meta-info">
+                        <div class="ad-location">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>{{ ad.city }}{% if ad.country %}, {{ ad.country.name }}{% endif %}</span>
+                        </div>
+                        <div class="ad-posted-time">
+                            <i class="fas fa-clock"></i>
+                            <span>{% trans "نشر منذ" %} {{ ad.created_at|timesince }}</span>
+                        </div>
                     </div>
 
-                    <div class="ad-posted-time">
-                        <i class="fas fa-clock me-2"></i>
-                        Posted {{ ad.created_at|timesince }} ago
+                    <!-- Social Share Buttons -->
+                    <div class="social-share-section">
+                        <h4>{% trans "مشاركة الإعلان" %}</h4>
+                        <div class="social-share-buttons" data-aos="fade-up" data-aos-delay="100">
+                            <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri }}" target="_blank" class="social-share-btn facebook" title="{% trans 'مشاركة على فيسبوك' %}">
+                                <i class="fab fa-facebook-f"></i>
+                            </a>
+                            <a href="https://twitter.com/intent/tweet?url={{ request.build_absolute_uri|urlencode }}&text={{ ad.title|urlencode }}" target="_blank" class="social-share-btn twitter" title="{% trans 'مشاركة على تويتر' %}">
+                                <i class="fab fa-twitter"></i>
+                            </a>
+                            <a href="https://api.whatsapp.com/send?text={{ ad.title|urlencode }}%20{{ request.build_absolute_uri|urlencode }}" target="_blank" class="social-share-btn whatsapp" title="{% trans 'مشاركة على واتساب' %}">
+                                <i class="fab fa-whatsapp"></i>
+                            </a>
+                            <a href="https://t.me/share/url?url={{ request.build_absolute_uri|urlencode }}&text={{ ad.title|urlencode }}" target="_blank" class="social-share-btn telegram" title="{% trans 'مشاركة على تيليجرام' %}">
+                                <i class="fab fa-telegram-plane"></i>
+                            </a>
+                            <a href="https://www.linkedin.com/shareArticle?mini=true&url={{ request.build_absolute_uri|urlencode }}&title={{ ad.title|urlencode }}" target="_blank" class="social-share-btn linkedin" title="{% trans 'مشاركة على لينكدإن' %}">
+                                <i class="fab fa-linkedin-in"></i>
+                            </a>
+                        </div>
                     </div>
 
                     <!-- Categories -->
                     <div class="categories-section">
-                        <h4 style="font-size: 1rem; font-weight: 600; margin-bottom: 10px;">Categories</h4>
-                        {% if ad.category %}
-                            <a href="{% url 'main:category_detail' ad.category.slug %}" class="category-link">
-                                {{ ad.category.name_ar|default:ad.category.name }}
-                            </a>
-                            {% if ad.category.parent %}
-                                <span class="category-separator">›</span>
-                                <a href="{% url 'main:category_detail' ad.category.parent.slug %}" class="category-link">
-                                    {{ ad.category.parent.name_ar|default:ad.category.parent.name }}
-                                </a>
-                            {% endif %}
-                        {% else %}
-                            <span class="text-muted">{% trans "غير محدد" %}</span>
-                        {% endif %}
+                        <h4 class="section-heading">{% trans "القسم" %}</h4>
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb-modern">
+                                {% if ad.category %}
+                                    {% if ad.category.parent %}
+                                        <li class="breadcrumb-item">
+                                            <a href="{% url 'main:category_detail' ad.category.parent.slug %}">
+                                                {% if ad.category.parent.icon %}<i class="{{ ad.category.parent.icon }}"></i>{% endif %}
+                                                <span>{{ ad.category.parent.name_ar|default:ad.category.parent.name }}</span>
+                                            </a>
+                                        </li>
+                                        <li class="category-separator">›</li>
+                                    {% endif %}
+                                    <li class="breadcrumb-item active" aria-current="page">
+                                        <a href="{% url 'main:category_detail' ad.category.slug %}">
+                                            {% if ad.category.icon %}<i class="{{ ad.category.icon }}"></i>{% endif %}
+                                            <span>{{ ad.category.name_ar|default:ad.category.name }}</span>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            </ol>
+                        </nav>
                     </div>
 
                     <!-- Tags -->
                     {% if ad.custom_fields %}
-                    <div class="tags-section">
-                        <h4 style="font-size: 1rem; font-weight: 600; margin-bottom: 10px;">Tags</h4>
-                        <span class="tag-badge">sss</span>
+                    <div class="details-grid-section">
+                        <h4 class="section-heading">{% trans "تفاصيل إضافية" %}</h4>
+                        <div class="details-grid" id="detailsGrid">
+                            {% for key, value in ad.custom_fields.items %}
+                                <div class="detail-item" data-aos="fade-up" data-aos-delay="{% widthratio forloop.counter0 1 50 %}">
+                                    <span class="detail-key">{{ key|replace:'_' }}</span>
+                                    <span class="detail-value">{{ value }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <button id="toggleDetailsBtn" class="toggle-description-btn toggle-details-btn">
+                            {% trans "عرض المزيد" %}
+                        </button>
                     </div>
                     {% endif %}
                 </div>
 
                 <!-- Expiration Notice -->
                 {% if ad.expires_at %}
-                <div class="expiration-section">
-                    <h4>Expiration</h4>
+                <div class="expiration-section" dir="rtl">
+                    <h4>{% trans "تاريخ الانتهاء" %}</h4>
                     <div class="expiration-date">
-                        Expires on Oct 09, 2025
+                        {% trans "ينتهي في" %} {{ ad.expires_at|date:"d M, Y" }}
                     </div>
                 </div>
                 {% endif %}
 
                 <!-- Description -->
                 <div class="description-card">
-                    <h3>Description</h3>
-                    <div class="description-text">
+                    <h3>{% trans "الوصف" %}</h3> {# Description #}
+                    <div class="description-text" id="adDescription" dir="auto">
                         {{ ad.description|linebreaksbr }}
                     </div>
+                    <button id="toggleDescriptionBtn" class="toggle-description-btn" style="display: none;">
+                        {% trans "عرض المزيد" %}
+                    </button>
                 </div>
+
+                <!-- Related Ads by User -->
+                {% if other_ads_by_user %}
+                <div class="related-ads-card mt-4">
+                    <h3 class="mb-4">
+                        <i class="fas fa-user-tag me-2"></i>
+                        {% trans "إعلانات أخرى من نفس المستخدم" %}
+                    </h3>
+                    <div class="swiper related-ads-swiper">
+                        <div class="swiper-wrapper">
+                            {% for related_ad in other_ads_by_user %}
+                                <div class="swiper-slide">
+                                    {% include "partials/_ad_card_component.html" with ad=related_ad %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <!-- Add Pagination -->
+                        <div class="swiper-pagination"></div>
+                    </div>
+                </div>
+                <style>
+                    .related-ads-swiper {
+                        padding-bottom: 40px; /* Space for pagination */
+                    }
+                    .related-ads-swiper .swiper-pagination-bullet-active {
+                        background-color: var(--primary-color);
+                    }
+                </style>
+                {% endif %}
             </div>
 
             <!-- Right Column -->
             <div class="col-lg-4">
                 <!-- Advertisement Statistics -->
                 <div class="statistics-card">
-                    <h3>Advertisement Statistics</h3>
+                    <h3>{% trans "إحصائيات الإعلان" %}</h3> {# Ad Statistics #}
                     <div class="stat-grid">
                         <div class="stat-item">
-                            <div class="stat-value">{{ ad.views_count|default:3 }}</div>
-                            <div class="stat-label">Views</div>
+                            <div class="stat-value">{{ ad.views_count|default:0 }}</div>
+                            <div class="stat-label">{% trans "مشاهدات" %}</div> {# Views #}
                         </div>
                         <div class="stat-item">
                             <div class="stat-value">0</div>
-                            <div class="stat-label">Reviews</div>
+                            <div class="stat-label">{% trans "تقييمات" %}</div> {# Ratings #}
                         </div>
                         <div class="stat-item">
-                            <div class="stat-value">{{ ad.average_rating|default:"0.0" }}</div>
-                            <div class="stat-label">Avg Rating</div>
+                            <div class="stat-value">{{ ad.user.average_rating|default:"0.0" }}</div>
+                            <div class="stat-label">{% trans "متوسط التقييم" %}</div> {# Average Rating #}
                         </div>
                         <div class="stat-item">
                             <div class="stat-value">0</div>
-                            <div class="stat-label">Recommendations</div>
+                            <div class="stat-label">{% trans "توصيات" %}</div> {# Recommendations #}
                         </div>
                     </div>
                 </div>
 
                 <!-- User Information -->
                 <div class="user-info-card">
-                    <h3>User Information</h3>
-
+                    <h3>{% trans "معلومات المستخدم" %}</h3> {# User Information #}
                     <div class="text-center">
                         <div class="user-avatar mx-auto">
-                            {{ ad.user.get_short_name.0|upper }}
+                            {{ ad.user.username.0|upper }}
                         </div>
                         <div class="user-name">{{ ad.user.get_full_name|default:ad.user.username }}</div>
                         <div class="member-since">
-                            Member since {{ ad.user.date_joined|date:"M Y" }}
+                            {% trans "عضو منذ" %} {{ ad.user.date_joined|date:"M Y" }}
                         </div>
                     </div>
 
+                    <!-- User Ad Status Chart -->
+                    <div class="mt-4">
+                        <canvas id="userAdStatusChart"></canvas>
+                    </div>
+
                     <div class="user-detail-row">
-                        <span class="user-detail-label">Email:</span>
+                        <span class="user-detail-label">{% trans "البريد الإلكتروني" %}:</span> {# Email #}
                         <span class="user-detail-value">{{ ad.user.email }}</span>
                     </div>
 
                     <div class="user-detail-row">
-                        <span class="user-detail-label">Phone:</span>
-                        <span class="user-detail-value">{{ ad.user.phone|default:"+201066959205" }}</span>
+                        <span class="user-detail-label">{% trans "الهاتف" %}:</span> {# Phone #}
+                        <span class="user-detail-value">{{ ad.user.phone|default:_("غير متوفر") }}</span>
                     </div>
 
                     <div class="user-detail-row">
-                        <span class="user-detail-label">Total Ads:</span>
-                        <span class="user-detail-value">{{ ad.user.classified_ads.count|default:1 }}</span>
+                        <span class="user-detail-label">{% trans "إجمالي الإعلانات" %}:</span> {# Total Ads #}
+                        <span class="user-detail-value">{{ ad.user.classified_ads.count }}</span>
                     </div>
 
                     <div class="user-detail-row">
-                        <span class="user-detail-label">Active Ads:</span>
-                        <span class="user-detail-value">{{ ad.user.classified_ads.filter.count|default:1 }}</span>
+                        <span class="user-detail-label">{% trans "الإعلانات النشطة" %}:</span> {# Active Ads #}
+                        <span class="user-detail-value">{{ ad.user.active_ads_count }}</span>
                     </div>
 
-                    <button class="btn-view-profile" onclick="window.location.href='{% url 'main:user_profile' ad.user.username %}'">
-                        View User Profile
-                    </button>
+                    <!-- Admin actions for user -->
+                    {% if request.user.is_staff %}
+                        <div class="mt-4 pt-3 border-top">
+                            <button class="btn-action btn-suspend" onclick="handleUserAction('{{ ad.user.is_suspended|yesno:"unsuspend,suspend" }}', {{ ad.user.id }})">
+                                {% if ad.user.is_suspended %}
+                                    <i class="fas fa-play-circle me-2"></i> {% trans "إلغاء تعليق المستخدم" %}
+                                {% else %}
+                                    <i class="fas fa-pause-circle me-2"></i> {% trans "تعليق المستخدم" %}
+                                {% endif %}
+                            </button>
+                            {% if ad.user.verification_status != 'verified' %}
+                                <button class="btn-action btn-verify" onclick="handleUserAction('verify', {{ ad.user.id }})">
+                                    <i class="fas fa-user-check me-2"></i> {% trans "توثيق المستخدم" %}
+                                </button>
+                            {% endif %}
+                        </div>
+                    {% endif %}
                 </div>
 
                 <!-- Reviews Management (Placeholder) -->
                 <div class="user-info-card">
-                    <h3>Reviews Management</h3>
+                    <h3>{% trans "إدارة التقييمات" %}</h3> {# Reviews Management #}
                     <div class="text-center text-muted py-4">
                         <i class="fas fa-star fa-3x mb-3" style="opacity: 0.3;"></i>
-                        <p>{% trans "لا توجد تقييمات بعد" %}</p>
+                        <p>{% trans "لا توجد تقييمات بعد" %}</p> {# No reviews yet #}
                     </div>
                 </div>
             </div>
@@ -576,7 +947,22 @@
 {% endblock content %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
     // Image navigation
     let currentImageIndex = 0;
     const images = [
@@ -600,18 +986,271 @@
     }
 
     // Admin actions
-    function toggleAdVisibility(adId) {
-        if (confirm('{% trans "هل أنت متأكد من إخفاء هذا الإعلان؟" %}')) {
-            // TODO: AJAX call to toggle visibility
-            alert('{% trans "سيتم إخفاء الإعلان" %}');
+    function toggleAdVisibility(adId, isCurrentlyHidden) {
+        const confirmationMessage = isCurrentlyHidden ? '{% trans "هل أنت متأكد من إظهار هذا الإعلان؟" %}' : '{% trans "هل أنت متأكد من إخفاء هذا الإعلان؟" %}';
+        if (!confirm(confirmationMessage)) return;
+
+        fetch(`/admin/ads/${adId}/toggle-hide/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ hide: !isCurrentlyHidden })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.showNotification('{% trans "تم تحديث حالة الإعلان بنجاح." %}', 'success');
+                location.reload();
+            } else {
+                window.showNotification(data.error || '{% trans "حدث خطأ." %}', 'error');
+            }
+        })
+        .catch(() => window.showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error'));
+    }
+
+    function deleteAdvertisement(adId, adTitle) {
+        if (confirm('{% trans "هل أنت متأكد من حذف هذا الإعلان؟ لا يمكن التراجع عن هذا الإجراء." %}')) {
+            fetch(`/admin/ads/${adId}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                window.showNotification(`{% trans "تم حذف الإعلان" %} '${adTitle}' {% trans "بنجاح." %}`, 'success');
+                    window.location.href = "{% url 'main:admin_ads' %}";
+                } else {
+                window.showNotification(data.error || '{% trans "حدث خطأ." %}', 'error');
+                }
+            })
+        .catch(() => window.showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error'));
         }
     }
 
-    function deleteAdvertisement(adId) {
-        if (confirm('{% trans "هل أنت متأكد من حذف هذا الإعلان؟ لا يمكن التراجع عن هذا الإجراء." %}')) {
-            // TODO: AJAX call to delete
-            alert('{% trans "سيتم حذف الإعلان" %}');
-        }
+    function enableAdCart(adId) {
+        if (!confirm('{% trans "هل أنت متأكد من تفعيل السلة لهذا الإعلان؟" %}')) return;
+
+        fetch(`/admin/ads/${adId}/enable-cart/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.showNotification('{% trans "تم تفعيل السلة بنجاح." %}', 'success');
+                const cartBtn = document.getElementById('cartBtn');
+                if(cartBtn) {
+                    cartBtn.disabled = true;
+                    cartBtn.innerHTML = '<i class="fas fa-shopping-cart me-2"></i> {% trans "تم تفعيل السلة" %}';
+                }
+            } else {
+                window.showNotification(data.error || '{% trans "حدث خطأ." %}', 'error');
+            }
+        })
+        .catch(() => window.showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error'));
     }
+
+    function handleUserAction(action, userId) {
+        let message = '';
+        if (action === 'suspend') {
+            message = '{% trans "هل أنت متأكد من تعليق هذا المستخدم؟" %}';
+        } else if (action === 'unsuspend') {
+            message = '{% trans "هل أنت متأكد من إلغاء تعليق هذا المستخدم؟" %}';
+        } else if (action === 'verify') {
+            message = '{% trans "هل أنت متأكد من توثيق هذا المستخدم؟" %}';
+        }
+
+        if (!confirm(message)) return;
+
+        fetch(`/admin/users/${userId}/action/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ action: action })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.showNotification(data.message, 'success');
+                location.reload();
+            } else {
+                window.showNotification(data.message || '{% trans "حدث خطأ." %}', 'error');
+            }
+        })
+        .catch(() => window.showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error'));
+    }
+
+    function copyAdUrl(button) {
+        const url = window.location.href;
+        const originalText = button.dataset.originalText;
+        navigator.clipboard.writeText(url).then(function() {
+            button.innerHTML = '<i class="fas fa-check me-2"></i> {% trans "تم النسخ!" %}';
+            button.classList.add('copied');
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.classList.remove('copied');
+            }, 2000);
+        }, function(err) {
+            console.error('Could not copy text: ', err);
+            // You might want to show a more user-friendly error message here
+            window.showNotification('{% trans "فشل نسخ الرابط." %}', 'error');
+        });
+    }
+
+    // Collapsible custom details
+    document.addEventListener('DOMContentLoaded', function() {
+        const detailsGrid = document.getElementById('detailsGrid');
+        const toggleBtn = document.getElementById('toggleDetailsBtn');
+        const collapsedHeight = 220; // Should match the CSS max-height
+
+        if (detailsGrid && toggleBtn) {
+            // Check if the grid's content is taller than the collapsed height
+            if (detailsGrid.scrollHeight > collapsedHeight) {
+                detailsGrid.classList.add('collapsible');
+                toggleBtn.style.display = 'block';
+
+                toggleBtn.addEventListener('click', function() {
+                    const isExpanded = detailsGrid.classList.toggle('expanded');
+                    this.textContent = isExpanded ? '{% trans "عرض أقل" %}' : '{% trans "عرض المزيد" %}';
+                });
+            }
+        }
+    });
+
+
+    // Collapsible description
+    document.addEventListener('DOMContentLoaded', function() {
+        const description = document.getElementById('adDescription');
+        const toggleBtn = document.getElementById('toggleDescriptionBtn');
+        const collapsedHeight = 150;
+
+        // Check if the description is taller than the collapsed height
+        if (description.scrollHeight > collapsedHeight) {
+            description.classList.add('collapsible');
+            toggleBtn.style.display = 'block';
+
+            toggleBtn.addEventListener('click', function() {
+                const isExpanded = description.classList.toggle('expanded');
+                if (isExpanded) {
+                    this.textContent = '{% trans "عرض أقل" %}';
+                } else {
+                    this.textContent = '{% trans "عرض المزيد" %}';
+                }
+            });
+        }
+    });
+
+
+    // Initialize charts
+    document.addEventListener('DOMContentLoaded', function() {
+        const userAdStats = JSON.parse('{{ user_ad_stats|safe }}');
+        const ctx = document.getElementById('userAdStatusChart').getContext('2d');
+
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['{% trans "نشط" %}', '{% trans "قيد المراجعة" %}', '{% trans "منتهي" %}', '{% trans "مرفوض" %}', '{% trans "مسودة" %}'],
+                datasets: [{
+                    label: '{% trans "Ad Statuses" %}',
+                    data: [userAdStats.active, userAdStats.pending, userAdStats.expired, userAdStats.rejected, userAdStats.draft],
+                    backgroundColor: [
+                        '#10b981', // Active
+                        '#f59e0b', // Pending
+                        '#6b7280', // Expired
+                        '#ef4444', // Rejected
+                        '#4b5563'  // Draft
+                    ],
+                    borderColor: '#fff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'top' } }
+            }
+        });
+    });
+
+    // Initialize related ads swiper
+    document.addEventListener('DOMContentLoaded', function() {
+        const relatedSwiperEl = document.querySelector('.related-ads-swiper');
+        if (relatedSwiperEl) {
+            new Swiper('.related-ads-swiper', {
+                slidesPerView: 1,
+                spaceBetween: 20,
+                loop: true,
+                grabCursor: true,
+                autoplay: {
+                    delay: 4000,
+                    disableOnInteraction: false,
+                    pauseOnMouseEnter: true,
+                },
+                pagination: {
+                    el: '.swiper-pagination',
+                    clickable: true,
+                    dynamicBullets: true,
+                },
+                breakpoints: {
+                    576: {
+                        slidesPerView: 2,
+                        spaceBetween: 20,
+                    },
+                    992: {
+                        slidesPerView: 2,
+                        spaceBetween: 25,
+                    }
+                }
+            });
+        }
+    });
+
+    // Animate statistics on scroll
+    const statsObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const statItems = entry.target.querySelectorAll('.stat-item');
+                statItems.forEach(item => {
+                    const statValueEl = item.querySelector('.stat-value');
+                    const targetValue = parseFloat(statValueEl.textContent.replace(/,/g, ''));
+
+                    if (!isNaN(targetValue) && targetValue > 0) {
+                        let start = 0;
+                        const duration = 1500; // 1.5 seconds
+                        const stepTime = Math.abs(Math.floor(duration / targetValue));
+
+                        const timer = setInterval(() => {
+                            start += 1;
+                            if (statValueEl.textContent.includes('.')) { // Handle floats
+                                statValueEl.textContent = (start / (targetValue * 10)).toFixed(1);
+                            } else {
+                                statValueEl.textContent = start;
+                            }
+
+                            if (start >= targetValue) {
+                                clearInterval(timer);
+                                statValueEl.textContent = targetValue.toLocaleString(); // Format with commas if needed
+                            }
+                        }, stepTime);
+                    }
+                });
+                observer.unobserve(entry.target); // Animate only once
+            }
+        });
+    }, { threshold: 0.5 });
+
+    const statsCard = document.querySelector('.statistics-card');
+    if (statsCard) {
+        statsObserver.observe(statsCard);
+    });
 </script>
 {% endblock extra_js %}

@@ -1,8 +1,9 @@
+import json
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import models, transaction
-from django.http import JsonResponse, Http404
+from django.http import JsonResponse, Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -30,6 +31,8 @@ from main.models import (
     ContactInfo,
     AdPackage,
     CartSettings,
+    User,
+    CustomField,
 )
 from main.templatetags.idrissimart_tags import phone_format
 from main.utils import get_selected_country_from_request
@@ -1137,12 +1140,12 @@ def add_to_cart(request):
         return JsonResponse(
             {
                 "success": True,
-                "message": _("Item added to cart"),
+                "message": _("تمت إضافة العنصر إلى السلة"),
                 "cart_count": len(cart),
             }
         )
 
-    return JsonResponse({"success": False, "message": _("Item already in cart")})
+    return JsonResponse({"success": False, "message": _("العنصر موجود بالفعل في السلة")})
 
 
 @login_required
@@ -1153,7 +1156,7 @@ def add_to_wishlist(request):
 
     if not item_id:
         return JsonResponse(
-            {"success": False, "message": _("Item ID required")}, status=400
+            {"success": False, "message": _("معرف العنصر مطلوب")}, status=400
         )
 
     wishlist = request.session.get("wishlist", [])
@@ -1166,12 +1169,12 @@ def add_to_wishlist(request):
         return JsonResponse(
             {
                 "success": True,
-                "message": _("Item added to wishlist"),
+                "message": _("تمت إضافة العنصر إلى قائمة الرغبات"),
                 "wishlist_count": len(wishlist),
             }
         )
 
-    return JsonResponse({"success": False, "message": _("Item already in wishlist")})
+    return JsonResponse({"success": False, "message": _("العنصر موجود بالفعل في قائمة الرغبات")})
 
 
 @login_required
@@ -1189,12 +1192,12 @@ def remove_from_cart(request):
         return JsonResponse(
             {
                 "success": True,
-                "message": _("Item removed from cart"),
+                "message": _("تمت إزالة العنصر من السلة"),
                 "cart_count": len(cart),
             }
         )
 
-    return JsonResponse({"success": False, "message": _("Item not in cart")})
+    return JsonResponse({"success": False, "message": _("العنصر غير موجود في السلة")})
 
 
 @require_POST
@@ -1211,12 +1214,12 @@ def remove_from_wishlist(request):
         return JsonResponse(
             {
                 "success": True,
-                "message": _("Item removed from wishlist"),
+                "message": _("تمت إزالة العنصر من قائمة الرغبات"),
                 "wishlist_count": len(wishlist),
             }
         )
 
-    return JsonResponse({"success": False, "message": _("Item not in wishlist")})
+    return JsonResponse({"success": False, "message": _("العنصر غير موجود في قائمة الرغبات")})
 
 
 class AdDetailView(DetailView):
@@ -1272,7 +1275,11 @@ class AdDetailView(DetailView):
             .prefetch_related("images")[:4]
         )
 
-        context["page_title"] = f"{ad.title} - {ad.category.name}"
+        category_name = ad.category.name
+        if self.request.LANGUAGE_CODE == 'ar' and ad.category.name_ar:
+            category_name = ad.category.name_ar
+
+        context["page_title"] = f"{ad.title} - {category_name}"
         return context
 
 
@@ -1328,7 +1335,7 @@ class AdCreateView(LoginRequiredMixin, CreateView):
             self.object = form.save()
             image_formset.instance = self.object
             image_formset.save()
-            messages.success(self.request, _("Your ad has been submitted for review!"))
+            messages.success(self.request, _("تم إرسال إعلانك للمراجعة!"))
             return super().form_valid(form)
         else:
             return self.form_invalid(form)
@@ -1369,7 +1376,7 @@ class AdUpdateView(LoginRequiredMixin, UpdateView):
         if image_formset.is_valid():
             self.object = form.save()
             image_formset.save()
-            messages.success(self.request, _("Your ad has been updated successfully!"))
+            messages.success(self.request, _("تم تحديث إعلانك بنجاح!"))
             return super().form_valid(form)
         else:
             return self.form_invalid(form)
@@ -1383,7 +1390,7 @@ def get_subcategories(request):
         selected_country = request.session.get("selected_country", "EG")
 
         if not category_id:
-            return JsonResponse({"error": "Category ID is required"}, status=400)
+            return JsonResponse({"error": _("معرف القسم مطلوب")}, status=400)
 
         try:
             category = Category.objects.get(id=category_id)
@@ -1434,9 +1441,9 @@ def get_subcategories(request):
             )
 
         except Category.DoesNotExist:
-            return JsonResponse({"error": "Category not found"}, status=404)
+            return JsonResponse({"error": _("القسم غير موجود")}, status=404)
 
-    return JsonResponse({"error": "Invalid request method"}, status=405)
+    return JsonResponse({"error": _("طريقة الطلب غير صالحة")}, status=405)
 
 
 @csrf_exempt
@@ -1446,7 +1453,7 @@ def get_category_stats(request):
         category_id = request.GET.get("category_id")
 
         if not category_id:
-            return JsonResponse({"error": "Category ID is required"}, status=400)
+            return JsonResponse({"error": _("معرف القسم مطلوب")}, status=400)
 
         try:
             category = Category.objects.get(id=category_id)
@@ -1480,9 +1487,9 @@ def get_category_stats(request):
             )
 
         except Category.DoesNotExist:
-            return JsonResponse({"error": "Category not found"}, status=404)
+            return JsonResponse({"error": _("القسم غير موجود")}, status=404)
 
-    return JsonResponse({"error": "Invalid request method"}, status=405)
+    return JsonResponse({"error": _("طريقة الطلب غير صالحة")}, status=405)
 
 
 @login_required
@@ -1520,7 +1527,7 @@ def enhanced_ad_create_view(request):
 
 def ad_creation_success_view(request):
     """Simple success view"""
-    return render(request, "classifieds/ad_creation_success.html")
+    return render(request, "classifieds/ad_create_success.html")
 
 
 def get_subcategories_ajax(request, category_id):
@@ -1554,7 +1561,7 @@ def get_subcategories_ajax(request, category_id):
             }
         )
     except Category.DoesNotExist:
-        return JsonResponse({"error": "Category not found"}, status=404)
+        return JsonResponse({"error": _("القسم غير موجود")}, status=404)
 
 
 def enhanced_ad_creation_success_view(request, ad_id=None):
@@ -1566,7 +1573,7 @@ def enhanced_ad_creation_success_view(request, ad_id=None):
             context["ad"] = ad
         except ClassifiedAd.DoesNotExist:
             pass
-    return render(request, "classifieds/ad_creation_success.html", context)
+    return render(request, "classifieds/ad_create_success.html", context)
 
 
 def get_subcategories(request, category_id):
@@ -1601,16 +1608,16 @@ def get_subcategories(request, category_id):
         )
 
     except Category.DoesNotExist:
-        return JsonResponse({"error": "Category not found"}, status=404)
+        return JsonResponse({"error": _("القسم غير موجود")}, status=404)
 
 
 def check_ad_allowance(request):
     """AJAX view to check if user can post ads"""
     if not request.user.is_authenticated:
-        return JsonResponse({"allowed": False, "reason": "not_authenticated"})
+        return JsonResponse({"allowed": False, "reason": _("غير مصادق عليه")})
 
     if not request.user.is_email_verified:
-        return JsonResponse({"allowed": False, "reason": "email_not_verified"})
+        return JsonResponse({"allowed": False, "reason": _("البريد الإلكتروني لم يتم التحقق منه")})
 
     # Check package limits
     user_settings = getattr(request.user, "cart_settings", None)
@@ -1619,8 +1626,7 @@ def check_ad_allowance(request):
         if user_settings.used_ads >= package.max_ads:
             return JsonResponse(
                 {
-                    "allowed": False,
-                    "reason": "package_limit_reached",
+                    "allowed": False, "reason": _("تم الوصول إلى حد الباقة"),
                     "used_ads": user_settings.used_ads,
                     "max_ads": package.max_ads,
                 }
@@ -1833,6 +1839,29 @@ class AdCardShowcaseView(TemplateView):
     template_name = "test/ad_card_showcase.html"
 
 
+class ComparisonView(TemplateView):
+    """
+    View to display a side-by-side comparison of selected ads.
+    """
+
+    template_name = "classifieds/compare_ads.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        ad_ids_str = self.request.GET.get("ids", "")
+        ad_ids = [int(id) for id in ad_ids_str.split(",") if id.isdigit()]
+
+        if ad_ids:
+            # Fetch ads, preserving the order of IDs for display consistency
+            ads = list(ClassifiedAd.objects.filter(pk__in=ad_ids))
+            ads.sort(key=lambda ad: ad_ids.index(ad.pk))
+            context["ads_to_compare"] = ads
+        else:
+            context["ads_to_compare"] = []
+
+        context["page_title"] = _("مقارنة الإعلانات")
+        return context
+
 # ==============================================
 # PUBLISHER DASHBOARD VIEWS
 # ==============================================
@@ -1949,12 +1978,12 @@ def dashboard_ad_toggle_status(request, ad_id):
             # Toggle between active and draft (using draft as hidden)
             if ad.status == ClassifiedAd.AdStatus.ACTIVE:
                 ad.status = ClassifiedAd.AdStatus.DRAFT
-                status_text = _("مخفي")
-                action = "hidden"
+                status_text = _("مخفي") # Hidden
+                action = "hidden" # For JS
             elif ad.status == ClassifiedAd.AdStatus.DRAFT:
                 ad.status = ClassifiedAd.AdStatus.ACTIVE
-                status_text = _("نشط")
-                action = "shown"
+                status_text = _("نشط") # Active
+                action = "shown" # For JS
             else:
                 return JsonResponse(
                     {"success": False, "message": _("لا يمكن تغيير حالة هذا الإعلان")}
@@ -1965,7 +1994,7 @@ def dashboard_ad_toggle_status(request, ad_id):
             return JsonResponse(
                 {
                     "success": True,
-                    "message": _("تم تحديث حالة الإعلان بنجاح"),
+                    "message": _("تم تحديث حالة الإعلان بنجاح."),
                     "new_status": ad.status,
                     "status_text": status_text,
                     "action": action,
@@ -1974,10 +2003,10 @@ def dashboard_ad_toggle_status(request, ad_id):
 
         except Exception:
             return JsonResponse(
-                {"success": False, "message": _("حدث خطأ أثناء تحديث حالة الإعلان")}
+                {"success": False, "message": _("حدث خطأ أثناء تحديث حالة الإعلان.")}
             )
 
-    return JsonResponse({"success": False, "message": _("طلب غير صحيح")})
+    return JsonResponse({"success": False, "message": _("طلب غير صالح.")})
 
 
 from .decorators import PublisherRequiredMixin, publisher_required
@@ -1996,16 +2025,16 @@ def dashboard_ad_delete(request, ad_id):
             return JsonResponse(
                 {
                     "success": True,
-                    "message": _("تم حذف الإعلان '{}' بنجاح").format(ad_title),
+                    "message": _("تم حذف الإعلان '{ad_title}' بنجاح.").format(ad_title=ad_title),
                 }
             )
 
         except Exception:
             return JsonResponse(
-                {"success": False, "message": _("حدث خطأ أثناء حذف الإعلان")}
+                {"success": False, "message": _("حدث خطأ أثناء حذف الإعلان.")}
             )
 
-    return JsonResponse({"success": False, "message": _("طلب غير صحيح")})
+    return JsonResponse({"success": False, "message": _("طلب غير صالح.")})
 
 
 @login_required
@@ -2063,7 +2092,7 @@ def dashboard_get_ad_details(request, ad_id):
 
     except Exception:
         return JsonResponse(
-            {"success": False, "message": _("حدث خطأ أثناء تحميل تفاصيل الإعلان")}
+            {"success": False, "message": _("حدث خطأ أثناء تحميل تفاصيل الإعلان.")}
         )
 
 
@@ -2100,6 +2129,7 @@ class AdminDashboardView(SuperadminRequiredMixin, TemplateView):
 
         # System Metrics
         context["system_metrics"] = self.get_system_metrics()
+        context["active_nav"] = "dashboard"
 
         return context
 
@@ -2207,17 +2237,48 @@ class AdminCategoriesView(SuperadminRequiredMixin, TemplateView):
 
         context["categories_by_section"] = categories_by_section
         context["countries"] = Country.objects.all()
+        context["active_nav"] = "categories"
 
         return context
 
 
-class AdminAdsManagementView(SuperadminRequiredMixin, TemplateView):
+class AdminAdsManagementView(SuperadminRequiredMixin, ListView):
     """
     Admin interface for comprehensive ads management with tabs
     Restricted to superusers only
     """
 
     template_name = "admin_dashboard/ads_management.html"
+    model = ClassifiedAd
+    context_object_name = "ads"
+    paginate_by = 15
+
+    def get_queryset(self):
+        """Get ads filtered by status tab and search query."""
+        status = self.request.GET.get("tab", "active")
+        search_query = self.request.GET.get("search", "")
+
+        queryset = ClassifiedAd.objects.select_related(
+            "user", "category", "country"
+        ).prefetch_related("images")
+
+        if status == "active":
+            queryset = queryset.filter(status="active")
+        elif status == "pending":
+            queryset = queryset.filter(status="pending")
+        elif status == "expired":
+            queryset = queryset.filter(status="expired")
+        elif status == "hidden":
+            queryset = queryset.filter(is_hidden=True)
+        elif status == "cart":
+            queryset = queryset.filter(Q(allow_cart=True) & Q(cart_enabled_by_admin=True))
+
+        if search_query:
+            queryset = queryset.filter(
+                Q(title__icontains=search_query) | Q(user__username__icontains=search_query)
+            )
+
+        return queryset.order_by("-created_at")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -2227,38 +2288,141 @@ class AdminAdsManagementView(SuperadminRequiredMixin, TemplateView):
             "active": ClassifiedAd.objects.filter(status="active").count(),
             "pending": ClassifiedAd.objects.filter(status="pending").count(),
             "expired": ClassifiedAd.objects.filter(status="expired").count(),
-            "hidden": ClassifiedAd.objects.filter(status="draft").count(),
-            "cart": ClassifiedAd.objects.filter(
-                Q(is_in_cart=True) | Q(cart_settings__isnull=False)
-            ).count(),
+            "hidden": ClassifiedAd.objects.filter(is_hidden=True).count(),
+            "cart": ClassifiedAd.objects.filter(Q(allow_cart=True) & Q(cart_enabled_by_admin=True)).count(),
         }
-
-        # Get default tab data (active ads)
-        context["ads"] = self.get_ads_by_status("active")
-        context["current_tab"] = "active"
-        context["categories"] = Category.objects.filter(parent__isnull=True)
-        context["countries"] = Country.objects.all()
-
+        context["current_tab"] = self.request.GET.get("tab", "active")
+        context["search_query"] = self.request.GET.get("search", "")
+        context["active_nav"] = "ads"
         return context
 
-    def get_ads_by_status(self, status):
-        """Get ads filtered by status"""
-        queryset = ClassifiedAd.objects.select_related(
-            "user", "category", "country"
-        ).prefetch_related("images")
 
-        if status == "active":
-            return queryset.filter(status="active")
-        elif status == "pending":
-            return queryset.filter(status="pending")
-        elif status == "expired":
-            return queryset.filter(status="expired")
-        elif status == "hidden":
-            return queryset.filter(status="draft")
-        elif status == "cart":
-            return queryset.filter(Q(is_in_cart=True) | Q(cart_settings__isnull=False))
+class AdminCustomFieldsView(SuperadminRequiredMixin, ListView):
+    """
+    Admin interface for managing custom fields.
+    Restricted to superusers only.
+    """
+    template_name = "admin_dashboard/custom_fields.html"
+    model = CustomField
+    context_object_name = "fields"
 
-        return queryset.none()
+    def get_queryset(self):
+        queryset = CustomField.objects.select_related('category').order_by('category__name', 'order')
+        search_query = self.request.GET.get("search", "")
+
+        if search_query:
+            queryset = queryset.filter(
+                Q(name__icontains=search_query) |
+                Q(label_ar__icontains=search_query) |
+                Q(category__name__icontains=search_query)
+            )
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["active_nav"] = "custom_fields"
+        context['search_query'] = self.request.GET.get("search", "")
+        # Group fields by category for the template
+        context['fields_by_category'] = {}
+        for field in context['fields']:
+            context['fields_by_category'].setdefault(field.category, []).append(field)
+        return context
+
+
+class AdminCustomFieldGetView(SuperadminRequiredMixin, View):
+    """AJAX view to get data for a single custom field."""
+    def get(self, request, field_id):
+        try:
+            field = get_object_or_404(CustomField, pk=field_id)
+            data = {
+                'id': field.id,
+                'name': field.name,
+                'label_ar': field.label_ar,
+                'label_en': field.label_en,
+                'field_type': field.field_type,
+                'is_required': field.is_required,
+                'help_text': field.help_text,
+                'placeholder': field.placeholder,
+                'default_value': field.default_value,
+                'options': field.options,
+                'order': field.order,
+                'is_active': field.is_active,
+                'category_id': field.category_id,
+            }
+            return JsonResponse({'success': True, 'field': data})
+        except Http404:
+            return JsonResponse({'success': False, 'message': _('Field not found.')}, status=404)
+
+
+class AdminCustomFieldSaveView(SuperadminRequiredMixin, View):
+    """AJAX view to save/update a single custom field."""
+    def post(self, request):
+        try:
+            field_id = request.POST.get('field_id')
+            if field_id:
+                field = get_object_or_404(CustomField, pk=field_id)
+            else:
+                # This view is for updating, but could be extended for creation
+                return JsonResponse({'success': False, 'message': _('Field ID is required.')}, status=400)
+
+            # Update fields from POST data
+            field.name = request.POST.get('name', field.name)
+            field.label_ar = request.POST.get('label_ar', field.label_ar)
+            field.label_en = request.POST.get('label_en', field.label_en)
+            field.field_type = request.POST.get('field_type', field.field_type)
+            field.is_required = request.POST.get('is_required') == 'on'
+            field.is_active = request.POST.get('is_active') == 'on'
+            field.order = request.POST.get('order', field.order)
+            field.options = request.POST.get('options', field.options)
+            field.save()
+
+            return JsonResponse({'success': True, 'message': _('تم تحديث الحقل بنجاح.')})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+
+
+class AdminUsersManagementView(SuperadminRequiredMixin, ListView):
+    """
+    Admin interface for comprehensive user management.
+    Restricted to superusers only.
+    """
+    template_name = "admin_dashboard/users_management.html"
+    model = User
+    context_object_name = "users"
+    paginate_by = 20
+
+    def get_queryset(self):
+        """Get users with filtering and searching."""
+        queryset = User.objects.order_by('-date_joined')
+        search_query = self.request.GET.get("search", "")
+        role_filter = self.request.GET.get("role", "")
+
+        if search_query:
+            queryset = queryset.filter(
+                Q(username__icontains=search_query) |
+                Q(email__icontains=search_query) |
+                Q(first_name__icontains=search_query) |
+                Q(last_name__icontains=search_query)
+            )
+
+        if role_filter:
+            queryset = queryset.filter(profile_type=role_filter)
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['search_query'] = self.request.GET.get("search", "")
+        context['role_filter'] = self.request.GET.get("role", "")
+        context['profile_type_choices'] = User.ProfileType.choices
+        context['total_users'] = User.objects.count()
+        context['verified_users'] = User.objects.filter(verification_status=User.VerificationStatus.VERIFIED).count()
+        context['publisher_users'] = User.objects.filter(
+            profile_type__in=['publisher', 'merchant', 'service', 'educational']
+        ).count()
+        context["active_nav"] = "users"
+
+        return context
 
 
 class AdminSettingsView(SuperadminRequiredMixin, View):
@@ -2303,6 +2467,7 @@ class AdminSettingsView(SuperadminRequiredMixin, View):
                 "arabic": "شروط التوصيل والتحصيل باللغة العربية",
                 "english": "Delivery and collection terms in English",
             },
+            "active_nav": "settings",
         }
 
         return render(request, "admin_dashboard/settings.html", context)
@@ -2399,6 +2564,7 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
         )[
             :20
         ]
+        context["active_nav"] = "payments"
 
         return context
 
@@ -2439,6 +2605,94 @@ def admin_ad_status_change(request, ad_id):
 
 @superadmin_required
 @require_POST
+def admin_category_delete(request, category_id):
+    """
+    Delete a category from the admin panel.
+    Ensures the category has no children or associated ads before deletion.
+    """
+    try:
+        category = get_object_or_404(Category, pk=category_id)
+
+        # Prevent deletion if category has children or associated ads
+        if category.get_children().exists():
+            return JsonResponse(
+                {"success": False, "message": _("Cannot delete category because it has subcategories.")},
+                status=400
+            )
+        if category.classified_ads.exists():
+            return JsonResponse(
+                {"success": False, "message": _("Cannot delete category because it contains ads.")},
+                status=400
+            )
+
+        category_name = category.name
+        category.delete()
+
+        return JsonResponse(
+            {"success": True, "message": _("Category '{}' was deleted successfully.").format(category_name)}
+        )
+    except Exception as e:
+        # It's good practice to log the error 'e' here
+        return JsonResponse({"success": False, "message": _("An error occurred while deleting the category.")}, status=500)
+
+
+@superadmin_required
+@require_POST
+def admin_category_reorder(request):
+    """
+    AJAX endpoint to handle reordering of categories via drag-and-drop.
+    """
+    try:
+        data = json.loads(request.body)
+        category_ids = data.get("ordered_ids", [])
+
+        with transaction.atomic():
+            for index, category_id in enumerate(category_ids):
+                Category.objects.filter(pk=category_id).update(order=index)
+
+        return JsonResponse(
+            {"success": True, "message": _("Category order has been updated successfully.")}
+        )
+    except Exception as e:
+        return JsonResponse({"success": False, "message": str(e)}, status=500)
+
+
+@superadmin_required
+@require_POST
+def admin_user_action(request, user_id):
+    """
+    Handle admin actions on a user like suspend, unsuspend, or verify.
+    """
+    try:
+        user_to_act_on = get_object_or_404(User, pk=user_id)
+        data = json.loads(request.body)
+        action = data.get("action")
+
+        if action == "suspend":
+            user_to_act_on.is_suspended = True
+            user_to_act_on.save(update_fields=['is_suspended'])
+            message = _("تم تعليق المستخدم '{}'.").format(user_to_act_on.username)
+        elif action == "unsuspend":
+            user_to_act_on.is_suspended = False
+            user_to_act_on.save(update_fields=['is_suspended'])
+            message = _("تم إلغاء تعليق المستخدم '{}'.").format(user_to_act_on.username)
+        elif action == "verify":
+            user_to_act_on.verification_status = User.VerificationStatus.VERIFIED
+            user_to_act_on.verified_at = timezone.now()
+            user_to_act_on.save(update_fields=['verification_status', 'verified_at'])
+            message = _("تم توثيق المستخدم '{}'.").format(user_to_act_on.username)
+        else:
+            return JsonResponse({"success": False, "message": _("إجراء غير صالح.")}, status=400)
+
+        return JsonResponse({"success": True, "message": message})
+
+    except User.DoesNotExist:
+        return JsonResponse({"success": False, "message": _("المستخدم غير موجود.")}, status=404)
+    except Exception as e:
+        return JsonResponse({"success": False, "message": str(e)}, status=500) # Developer-facing
+
+@superadmin_required
+@require_POST
 def admin_ad_delete(request, ad_id):
     """Delete ad from admin panel"""
     try:
@@ -2447,12 +2701,12 @@ def admin_ad_delete(request, ad_id):
         ad.delete()
 
         return JsonResponse(
-            {"success": True, "message": f'تم حذف الإعلان "{ad_title}" بنجاح'}
+            {"success": True, "message": _("تم حذف الإعلان '{ad_title}' بنجاح.").format(ad_title=ad_title)},
         )
 
     except Exception as e:
         return JsonResponse(
-            {"success": False, "message": f"حدث خطأ أثناء حذف الإعلان: {str(e)}"}
+            {"success": False, "message": _("حدث خطأ أثناء حذف الإعلان: {error}").format(error=str(e))}
         )
 
 
@@ -2499,7 +2753,7 @@ def admin_get_ads_by_tab(request, tab):
         return JsonResponse({"success": True, "ads": ads_data, "count": ads.count()})
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"حدث خطأ: {str(e)}"})
+        return JsonResponse({"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))})
 
 
 # Settings AJAX Endpoints
@@ -2526,7 +2780,7 @@ def admin_settings_get(request):
         return JsonResponse({"success": True, "settings": settings})
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"حدث خطأ: {str(e)}"})
+        return JsonResponse({"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))})
 
 
 @superadmin_required
@@ -2544,10 +2798,10 @@ def admin_settings_publishing(request):
 
         # Here you would save to database/settings
 
-        return JsonResponse({"success": True, "message": "تم حفظ إعدادات النشر بنجاح"})
+        return JsonResponse({"success": True, "message": _("تم حفظ إعدادات النشر بنجاح.")})
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"حدث خطأ: {str(e)}"})
+        return JsonResponse({"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))})
 
 
 @superadmin_required
@@ -2569,11 +2823,11 @@ def admin_settings_delivery(request):
         # Here you would save to database/settings
 
         return JsonResponse(
-            {"success": True, "message": "تم حفظ إعدادات التوصيل بنجاح"}
+            {"success": True, "message": _("تم حفظ إعدادات التوصيل بنجاح.")}
         )
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"حدث خطأ: {str(e)}"})
+        return JsonResponse({"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))})
 
 
 @superadmin_required
@@ -2594,10 +2848,10 @@ def admin_settings_cart(request):
 
         # Here you would save to database/settings
 
-        return JsonResponse({"success": True, "message": "تم حفظ إعدادات السلة بنجاح"})
+        return JsonResponse({"success": True, "message": _("تم حفظ إعدادات السلة بنجاح.")})
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"حدث خطأ: {str(e)}"})
+        return JsonResponse({"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))})
 
 
 @superadmin_required
@@ -2620,11 +2874,50 @@ def admin_settings_notifications(request):
         # Here you would save to database/settings
 
         return JsonResponse(
-            {"success": True, "message": "تم حفظ إعدادات الإشعارات بنجاح"}
+            {"success": True, "message": _("تم حفظ إعدادات الإشعارات بنجاح.")}
         )
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"حدث خطأ: {str(e)}"})
+        return JsonResponse({"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))})
+
+
+@superadmin_required
+def ad_publisher_detail(request, ad_id):
+    """
+    Admin view to see the full details of an ad from a publisher's perspective.
+    """
+    ad = get_object_or_404(
+        ClassifiedAd.objects.select_related(
+            "user", "category", "country", "category__parent"
+        ).prefetch_related("images", "features"),
+        pk=ad_id,
+    )
+
+    # Get other active ads by the same user, excluding the current one
+    other_ads_by_user = (
+        ClassifiedAd.objects.filter(user=ad.user, status=ClassifiedAd.AdStatus.ACTIVE)
+        .exclude(pk=ad.pk)
+        .select_related("category", "country")
+        .prefetch_related("images")
+        .order_by("-created_at")[:8]
+    )
+
+    # Get user's ad status counts for the chart
+    user_ad_stats = ad.user.classified_ads.aggregate(
+        active=Count('pk', filter=Q(status=ClassifiedAd.AdStatus.ACTIVE)),
+        pending=Count('pk', filter=Q(status=ClassifiedAd.AdStatus.PENDING)),
+        expired=Count('pk', filter=Q(status=ClassifiedAd.AdStatus.EXPIRED)),
+        rejected=Count('pk', filter=Q(status=ClassifiedAd.AdStatus.REJECTED)),
+        draft=Count('pk', filter=Q(status=ClassifiedAd.AdStatus.DRAFT)),
+    )
+
+    context = {
+        "ad": ad,
+        "page_title": _("معاينة الإعلان") + f" - {ad.title}",
+        "other_ads_by_user": other_ads_by_user,
+        "user_ad_stats": json.dumps(user_ad_stats),
+    }
+    return render(request, "classifieds/ad_publisher_detail.html", context)
 
 
 @login_required
@@ -2632,6 +2925,7 @@ def dashboard_redirect(request):
     """
     Smart dashboard redirect based on user role:
     - Superusers/Staff -> Admin Dashboard
+    - Publisher profile -> Publisher Dashboard (My Ads)
     - Users with ads -> Publisher Dashboard (My Ads)
     - Regular users -> Home page
     """
@@ -2640,6 +2934,13 @@ def dashboard_redirect(request):
     # Redirect admins to admin dashboard
     if user.is_superuser or user.is_staff:
         return redirect("main:admin_dashboard")
+
+    # Publisher profile type
+    try:
+        if getattr(user, "profile_type", None) == "publisher":
+            return redirect("main:my_ads")
+    except Exception:
+        pass
 
     # Check if user has posted any ads
     user_has_ads = ClassifiedAd.objects.filter(user=user).exists()

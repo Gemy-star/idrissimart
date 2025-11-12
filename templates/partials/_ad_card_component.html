@@ -1,4 +1,4 @@
-{% load i18n idrissimart_tags %}
+{% load i18n static idrissimart_tags %}
 
 <article class="modern-ad-card">
     <!-- Image Section -->
@@ -6,7 +6,7 @@
         <a href="{{ ad.get_absolute_url }}" class="ad-image-link" aria-label="{{ ad.title }}">
             {% if ad.images.first %}
                 <img src="{{ ad.images.first.image.url }}"
-                     class="ad-image"
+                     class="ad-image" 
                      alt="{{ ad.title }}"
                      loading="lazy">
             {% else %}
@@ -21,21 +21,21 @@
         <div class="ad-badges-top">
             <div class="ad-badges-container">
                 {% if ad.is_urgent %}
-                    <span class="ad-badge urgent-badge">
+                    <span class="ad-badge urgent-badge" role="status" aria-label="{% trans 'Urgent Ad' %}"> 
                         <i class="fas fa-bolt" aria-hidden="true"></i>
                         <span>عاجل</span>
                     </span>
                 {% endif %}
 
                 {% if ad.is_pinned %}
-                    <span class="ad-badge pinned-badge">
+                    <span class="ad-badge pinned-badge" role="status" aria-label="{% trans 'Pinned Ad' %}">
                         <i class="fas fa-thumbtack" aria-hidden="true"></i>
                         <span>مثبت</span>
                     </span>
                 {% endif %}
 
                 {% if ad.is_highlighted %}
-                    <span class="ad-badge highlighted-badge">
+                    <span class="ad-badge highlighted-badge" role="status" aria-label="{% trans 'Highlighted Ad' %}">
                         <i class="fas fa-certificate" aria-hidden="true"></i>
                         <span>بارز</span>
                     </span>
@@ -46,10 +46,19 @@
         <!-- Stats Overlay - Bottom Right -->
         <div class="ad-info-overlay">
             <div class="ad-stats-container">
-                <span class="ad-stat-item" title="{% trans 'Views' %}">
+                <span class="ad-stat-item" title="{% trans 'Views' %}" aria-label="{{ ad.views_count|default:0 }} {% trans 'views' %}">
                     <i class="fas fa-eye" aria-hidden="true"></i>
                     <span>{{ ad.views_count|default:0 }}</span>
                 </span>
+            </div>
+            <div class="ad-quick-actions">
+                <button class="quick-action-btn compare-btn"
+                        data-ad-id="{{ ad.id }}"
+                        data-ad-image="{% if ad.images.first %}{{ ad.images.first.image.url }}{% else %}{% static 'images/placeholder-ad.jpg' %}{% endif %}"
+                        data-ad-title="{{ ad.title }}"
+                        title="{% trans 'Compare' %}">
+                    <i class="fas fa-exchange-alt"></i>
+                </button>
             </div>
         </div>
 
@@ -72,9 +81,15 @@
     <div class="ad-content">
         <!-- Category Badge -->
         {% if ad.category %}
-        <div class="ad-category-badge">
+        <div class="ad-category-badge" role="status">
             <i class="fas fa-tag" aria-hidden="true"></i>
-            <span>{{ ad.category.name }}</span>
+            <span>
+                {% if LANGUAGE_CODE == 'ar' and ad.category.name_ar %}
+                    {{ ad.category.name_ar }}
+                {% else %}
+                    {{ ad.category.name }}
+                {% endif %}
+            </span>
         </div>
         {% endif %}
 
@@ -97,7 +112,7 @@
             <div class="publisher-badge-wrapper">
                 {% user_avatar user=ad.user size=32 css_class="publisher-avatar-mini" %}
                 {% if ad.user.is_verified %}
-                    <span class="avatar-verified-badge person-badge" title="موثق">
+                    <span class="avatar-verified-badge person-badge" title="{% trans 'Verified' %}" aria-label="{% trans 'Verified User' %}">
                         <i class="fas fa-check-circle" aria-hidden="true"></i>
                     </span>
                 {% elif ad.user.is_company %}
@@ -109,21 +124,21 @@
 
             <!-- Feature Tags -->
             {% if ad.is_delivery_available %}
-            <span class="feature-tag delivery-tag">
+            <span class="feature-tag delivery-tag" role="status" aria-label="{% trans 'Delivery Available' %}">
                 <i class="fas fa-shipping-fast" aria-hidden="true"></i>
                 <span>شحن متاح</span>
             </span>
             {% endif %}
 
             {% if ad.is_negotiable %}
-            <span class="feature-tag negotiable-tag">
+            <span class="feature-tag negotiable-tag" role="status" aria-label="{% trans 'Negotiable' %}">
                 <i class="fas fa-handshake" aria-hidden="true"></i>
                 <span>قابل للتفاوض</span>
             </span>
             {% endif %}
 
             {% if ad.custom_fields.condition %}
-            <span class="feature-tag condition-tag">
+            <span class="feature-tag condition-tag" role="status" aria-label="{% trans 'Condition' %}: {{ ad.custom_fields.condition }}">
                 <i class="fas fa-box-open" aria-hidden="true"></i>
                 <span>{{ ad.custom_fields.condition }}</span>
             </span>
@@ -135,12 +150,12 @@
             <div class="ad-price-box">
                 <div class="price-header">
                     <div class="price-label">
-                        <i class="fas fa-money-bill-wave" aria-hidden="true"></i>
+                        <i class="fas fa-money-bill-wave" aria-hidden="true" role="img"></i>
                         <span>السعر</span>
                     </div>
                     {% if ad.is_negotiable %}
-                    <span class="price-negotiable-tag">
-                        <i class="fas fa-handshake" aria-hidden="true"></i>
+                    <span class="price-negotiable-tag" title="{% trans 'Negotiable' %}" aria-label="{% trans 'Price is negotiable' %}">
+                        <i class="fas fa-handshake" aria-hidden="true" role="img"></i>
                     </span>
                     {% endif %}
                 </div>
@@ -157,13 +172,13 @@
     <footer class="ad-footer">
         <div class="ad-footer-content">
             <!-- Time Posted -->
-            <div class="ad-time-posted">
+            <div class="ad-time-posted" aria-label="{% trans 'Posted' %} {{ ad.created_at|timesince }} {% trans 'ago' %}">
                 <i class="far fa-clock" aria-hidden="true"></i>
                 <span>{{ ad.created_at|timesince }}</span>
             </div>
 
             <!-- Views Count -->
-            <div class="ad-views-count">
+            <div class="ad-views-count" aria-label="{{ ad.views_count|default:0 }} {% trans 'views' %}">
                 <i class="fas fa-eye" aria-hidden="true"></i>
                 <span>{{ ad.views_count|default:0 }}</span>
             </div>

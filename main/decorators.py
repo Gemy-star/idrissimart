@@ -6,6 +6,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
 
 
 def profile_type_required(*allowed_types):
@@ -23,10 +24,7 @@ def profile_type_required(*allowed_types):
         @login_required
         def wrapper(request, *args, **kwargs):
             if request.user.profile_type not in allowed_types:
-                error_msg = (
-                    "ليس لديك صلاحية للوصول إلى هذه الصفحة - "
-                    "You do not have permission to access this page"
-                )
+                error_msg = _("ليس لديك صلاحية للوصول إلى هذه الصفحة.")
                 messages.error(request, error_msg)
                 return redirect("home")
             return view_func(request, *args, **kwargs)
@@ -50,7 +48,7 @@ def verified_user_required(view_func):
     @login_required
     def wrapper(request, *args, **kwargs):
         if request.user.verification_status != "verified":
-            warning_msg = "يجب توثيق حسابك أولاً - You must verify your account first"
+            warning_msg = _("يجب توثيق حسابك أولاً.")
             messages.warning(request, warning_msg)
             return redirect("profile_verification")
         return view_func(request, *args, **kwargs)
@@ -72,10 +70,7 @@ def premium_required(view_func):
     @login_required
     def wrapper(request, *args, **kwargs):
         if not request.user.has_premium_access():
-            info_msg = (
-                "هذه الميزة متاحة للأعضاء المميزين فقط - "
-                "This feature is only available for premium members"
-            )
+            info_msg = _("هذه الميزة متاحة للأعضاء المميزين فقط.")
             messages.info(request, info_msg)
             return redirect("subscription_plans")
         return view_func(request, *args, **kwargs)
@@ -98,10 +93,7 @@ def action_permission_required(action):
         @login_required
         def wrapper(request, *args, **kwargs):
             if not request.user.can_perform_action(action):
-                error_msg = (
-                    "ليس لديك صلاحية لتنفيذ هذا الإجراء - "
-                    "You do not have permission to perform this action"
-                )
+                error_msg = _("ليس لديك صلاحية لتنفيذ هذا الإجراء.")
                 messages.error(request, error_msg)
                 return redirect("home")
             return view_func(request, *args, **kwargs)
@@ -126,16 +118,14 @@ def api_profile_type_required(*allowed_types):
         def wrapper(request, *args, **kwargs):
             if not request.user.is_authenticated:
                 return JsonResponse(
-                    {"error": "Authentication required"},
+                    {"error": _("المصادقة مطلوبة")},
                     status=401,
                 )
 
             if request.user.profile_type not in allowed_types:
                 error_response = {
-                    "error": "Permission denied",
-                    "message": (
-                        "Your profile type does not have access to this resource"
-                    ),
+                    "error": _("تم رفض الإذن"),
+                    "message": _("نوع ملفك الشخصي لا يملك صلاحية الوصول إلى هذا المورد"),
                     "required_types": list(allowed_types),
                     "your_type": request.user.profile_type,
                 }
@@ -164,7 +154,7 @@ class ProfileTypeRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
 
     allowed_profile_types = []  # Override in subclass
     profile_redirect_url = "main:home"  # Override if needed
-    profile_error_message = "ليس لديك صلاحية للوصول إلى هذه الصفحة"
+    profile_error_message = _("ليس لديك صلاحية للوصول إلى هذه الصفحة.")
 
     def test_func(self):
         """Check if user's profile type is in allowed types"""
@@ -219,7 +209,7 @@ class PublisherRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
 
         messages.warning(
             self.request,
-            "لوحة الناشر متاحة فقط للمستخدمين الذين لديهم إعلانات. قم بإنشاء إعلانك الأول!",
+            _("لوحة الناشر متاحة فقط للمستخدمين الذين لديهم إعلانات. قم بإنشاء إعلانك الأول!"),
         )
         return redirect("main:ad_create")
 
@@ -244,7 +234,7 @@ class SuperadminRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
         if not self.request.user.is_authenticated:
             return redirect(self.login_url)
 
-        messages.error(self.request, "هذه الصفحة متاحة فقط لمسؤولي النظام")
+        messages.error(self.request, _("هذه الصفحة متاحة فقط لمسؤولي النظام."))
         return redirect("main:home")
 
 
@@ -279,7 +269,7 @@ class VerifiedPublisherMixin(PublisherRequiredMixin):
 
         # If publisher but not verified
         messages.warning(
-            self.request, "هذه الميزة متاحة فقط للناشرين الموثقين. يرجى توثيق حسابك."
+            self.request, _("هذه الميزة متاحة فقط للناشرين الموثقين. يرجى توثيق حسابك.")
         )
         return redirect("main:profile_verification")
 
@@ -323,7 +313,7 @@ def publisher_required(view_func):
 
         # No permission
         messages.warning(
-            request, "لوحة الناشر متاحة فقط للمستخدمين الذين لديهم إعلانات"
+            request, _("لوحة الناشر متاحة فقط للمستخدمين الذين لديهم إعلانات.")
         )
         return redirect("main:ad_create")
 
@@ -344,7 +334,7 @@ def superadmin_required(view_func):
     @login_required
     def wrapper(request, *args, **kwargs):
         if not request.user.is_superuser:
-            messages.error(request, "هذه الصفحة متاحة فقط لمسؤولي النظام")
+            messages.error(request, _("هذه الصفحة متاحة فقط لمسؤولي النظام."))
             return redirect("main:home")
         return view_func(request, *args, **kwargs)
 

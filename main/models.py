@@ -597,6 +597,11 @@ class User(AbstractUser):  # This model is correct, no changes needed here.
         return self.verification_status == self.VerificationStatus.VERIFIED
 
     @property
+    def active_ads_count(self):
+        """Returns the count of active classified ads for the user."""
+        return self.classified_ads.filter(status=ClassifiedAd.AdStatus.ACTIVE).count()
+
+    @property
     def is_company(self):
         """
         Check if user represents a company/organization
@@ -1762,6 +1767,7 @@ class Notification(models.Model):  # This model is correct, no changes needed he
     """Model for user notifications"""
 
     class NotificationType(models.TextChoices):
+        GENERAL = "general", _("عام")
         AD_APPROVED = "ad_approved", _("الإعلان معتمد")
         AD_REJECTED = "ad_rejected", _("الإعلان مرفوض")
         AD_EXPIRED = "ad_expired", _("الإعلان منتهي")

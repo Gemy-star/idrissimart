@@ -1,0 +1,227 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n idrissimart_tags %}
+
+{% block title %}{% trans "إدارة المستخدمين" %}{% endblock %}
+
+{% block admin_content %}
+    <!-- Header -->
+    <div class="admin-dashboard-header">
+        <div class="row align-items-center">
+            <div class="col">
+                <h1 class="display-6 mb-1">
+                    <i class="fas fa-users-cog me-3"></i>
+                    {% trans "إدارة المستخدمين" %}
+                </h1>
+                <p class="text-muted mb-0">{% trans "عرض، تعديل، وإدارة جميع المستخدمين على المنصة" %}</p>
+            </div>
+            <div class="col-auto">
+                <div class="admin-quick-stats">
+                    <span class="badge bg-primary fs-6">
+                        {% trans "المستخدمين" %}: {{ total_users }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Statistics -->
+    <div class="row mb-4">
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="admin-stat-card stat-info">
+                <div class="stat-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ total_users }}</h3>
+                    <p>{% trans "إجمالي المستخدمين" %}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="admin-stat-card stat-verified">
+                <div class="stat-icon">
+                    <i class="fas fa-user-check"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ verified_users }}</h3>
+                    <p>{% trans "مستخدمين موثقين" %}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="admin-stat-card stat-primary">
+                <div class="stat-icon">
+                    <i class="fas fa-store"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ publisher_users }}</h3>
+                    <p>{% trans "الناشرون" %}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row">
+        <div class="col-12">
+            <div class="admin-content-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users me-2"></i>
+                        {% trans "قائمة المستخدمين" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Search and Filter -->
+                    <div class="mb-4">
+                        <form method="get">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <input type="text" name="search" class="form-control" placeholder="{% trans 'ابحث بالاسم، المستخدم، أو البريد...' %}" value="{{ search_query }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <select name="role" class="form-select">
+                                        <option value="">{% trans "كل الأدوار" %}</option>
+                                        {% for value, name in profile_type_choices %}
+                                            <option value="{{ value }}" {% if value == role_filter %}selected{% endif %}>{{ name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <button class="btn btn-primary w-100" type="submit">
+                                        <i class="fas fa-search"></i> {% trans "بحث" %}
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Users Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th>{% trans "المستخدم" %}</th>
+                                    <th>{% trans "البريد الإلكتروني" %}</th>
+                                    <th>{% trans "الدور" %}</th>
+                                    <th>{% trans "الحالة" %}</th>
+                                    <th>{% trans "تاريخ التسجيل" %}</th>
+                                    <th>{% trans "إجراءات" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user_obj in users %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% user_avatar user=user_obj size=40 css_class="rounded-circle me-3" %}
+                                            <div>
+                                                <a href="#" class="fw-bold text-dark text-decoration-none">{{ user_obj.get_full_name|default:user_obj.username }}</a>
+                                                <div class="text-muted small">@{{ user_obj.username }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ user_obj.email }}</td>
+                                    <td>
+                                        <span class="badge bg-light text-dark">{{ user_obj.get_profile_type_display }}</span>
+                                    </td>
+                                    <td>
+                                        {% if user_obj.is_suspended %}
+                                            <span class="badge bg-danger">{% trans "معلق" %}</span>
+                                        {% elif user_obj.is_verified %}
+                                            <span class="badge bg-success">{% trans "موثق" %}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{% trans "نشط" %}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ user_obj.date_joined|date:"d M, Y" }}</td>
+                                    <td>
+                                        <a href="#" class="btn btn-sm btn-outline-primary" title="{% trans 'عرض التفاصيل' %}"><i class="fas fa-eye"></i></a>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="handleUserAction('{{ user_obj.is_suspended|yesno:'unsuspend,suspend' }}', {{ user_obj.id }})" title="{% if user_obj.is_suspended %}{% trans 'إلغاء التعليق' %}{% else %}{% trans 'تعليق' %}{% endif %}">
+                                            <i class="fas fa-user-slash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-5">
+                                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                                        <p class="text-muted">{% trans "لا يوجد مستخدمون يطابقون هذه المعايير." %}</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if is_paginated %}
+                    <div class="pagination-container">
+                        <ul class="pagination">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item"><a class="page-link" href="?page=1&{{ request.GET.urlencode|cut:'page=' }}">&laquo;</a></li>
+                                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode|cut:'page=' }}">&lsaquo;</a></li>
+                            {% endif %}
+
+                            {% for num in paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item"><a class="page-link" href="?page={{ num }}&{{ request.GET.urlencode|cut:'page=' }}">{{ num }}</a></li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode|cut:'page=' }}">&rsaquo;</a></li>
+                                <li class="page-item"><a class="page-link" href="?page={{ paginator.num_pages }}&{{ request.GET.urlencode|cut:'page=' }}">&raquo;</a></li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block admin_extra_js %}
+    <script>
+        // Admin Users Management JavaScript
+        document.addEventListener('DOMContentLoaded', function () {
+            // Animate statistics cards
+            gsap.fromTo('.admin-stat-card', {
+                opacity: 0,
+                y: 30,
+                scale: 0.95
+            }, {
+                opacity: 1,
+                y: 0,
+                scale: 1,
+                duration: 0.5,
+                stagger: 0.1,
+                ease: 'back.out(1.7)'
+            });
+
+            // Animate content cards
+            gsap.fromTo('.admin-content-card', {
+                opacity: 0,
+                y: 20
+            }, {
+                opacity: 1,
+                y: 0,
+                duration: 0.6,
+                stagger: 0.15,
+                ease: 'power2.out',
+                delay: 0.3
+            });
+        });
+
+        function handleUserAction(action, userId) {
+            // This function is defined in ad_publisher_detail.html, ensure it's available globally
+            // or move it to a shared JS file.
+            console.log(`Performing ${action} on user ${userId}`);
+        }
+    </script>
+{% endblock %}

@@ -1,6 +1,7 @@
 """
 Utility functions for the main app
 """
+from django.utils.translation import gettext as _
 
 from django.utils import timezone
 from django.utils.timesince import timesince
@@ -30,8 +31,7 @@ def format_ad_price(price, currency_symbol=None):
     Format ad price with proper number formatting and currency symbol
     """
     if not price:
-        return "غير محدد"
-
+        return ""
     # Format with thousands separator
     if price >= 1000000:
         formatted = f"{price/1000000:.1f}M"
@@ -57,22 +57,22 @@ def get_ad_urgency_badge(ad):
     if not created_at:
         # If no creation date, just check if urgent or featured
         if is_urgent:
-            return {"type": "urgent", "text": "عاجل", "class": "urgent-badge"}
+            return {"type": "urgent", "text": _("عاجل"), "class": "urgent-badge"}
         elif is_featured:
-            return {"type": "featured", "text": "مميز", "class": "featured-badge"}
+            return {"type": "featured", "text": _("مميز"), "class": "featured-badge"}
         return None
 
     now = timezone.now()
     hours_diff = (now - created_at).total_seconds() / 3600
 
     if is_urgent:
-        return {"type": "urgent", "text": "عاجل", "class": "urgent-badge"}
+        return {"type": "urgent", "text": _("عاجل"), "class": "urgent-badge"}
     elif hours_diff <= 24:
-        return {"type": "new", "text": "جديد", "class": "new-badge"}
+        return {"type": "new", "text": _("جديد"), "class": "new-badge"}
     elif is_featured or (
         hasattr(ad, "features") and ad.features.filter(is_active=True).exists()
     ):
-        return {"type": "featured", "text": "مميز", "class": "featured-badge"}
+        return {"type": "featured", "text": _("مميز"), "class": "featured-badge"}
 
     return None
 
@@ -89,27 +89,25 @@ def get_ad_time_display(created_at):
         if hours == 0:
             minutes = diff.seconds // 60
             if minutes < 5:
-                return "الآن"
-            return f"منذ {minutes} دقيقة"
-        return f"منذ {hours} ساعة"
+                return _("الآن")
+            return _("منذ {minutes} دقيقة").format(minutes=minutes)
+        return _("منذ {hours} ساعة").format(hours=hours)
     elif diff.days == 1:
-        return "أمس"
+        return _("أمس")
     elif diff.days < 7:
-        return f"منذ {diff.days} أيام"
+        return _("منذ {days} أيام").format(days=diff.days)
     elif diff.days < 30:
         weeks = diff.days // 7
-        return f"منذ {weeks} أسبوع"
+        return _("منذ {weeks} أسبوع").format(weeks=weeks)
     else:
         return created_at.strftime("%Y-%m-%d")
 
-
 def truncate_text_smart(text, max_length=120):
     """
-    Smart text truncation that respects word boundaries
+    Truncates text at word boundaries
     """
     if not text or len(text) <= max_length:
         return text
-
     # Find the last space before max_length
     truncated = text[:max_length]
     last_space = truncated.rfind(" ")

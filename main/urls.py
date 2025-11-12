@@ -3,6 +3,8 @@ from django.urls import path
 from . import auth_views, classifieds_views, views
 from . import enhanced_views
 from . import cart_wishlist_views
+from django.contrib.auth import views as dj_auth_views
+
 
 app_name = "main"
 urlpatterns = [
@@ -16,6 +18,22 @@ urlpatterns = [
     path("login/", auth_views.CustomLoginView.as_view(), name="login"),
     path("register/", auth_views.RegisterView.as_view(), name="register"),
     path("logout/", auth_views.logout_view, name="logout"),
+    path("password_reset/", auth_views.password_reset_request, name="password_reset"),
+    path(
+        "password_reset/done/",
+        dj_auth_views.PasswordResetDoneView.as_view(),
+        name="password_reset_done",
+    ),
+    path(
+        "reset/<uidb64>/<token>/",
+        dj_auth_views.PasswordResetConfirmView.as_view(),
+        name="password_reset_confirm",
+    ),
+    path(
+        "reset/done/",
+        dj_auth_views.PasswordResetCompleteView.as_view(),
+        name="password_reset_complete",
+    ),
     # Temporary category detail URL (you can implement the view later)
     path(
         "category/<slug:slug>/",
@@ -148,17 +166,32 @@ urlpatterns = [
     ),
     path(
         "admin/categories/<int:category_id>/delete/",
-        classifieds_views.CategoryDeleteView.as_view(),
+        views.admin_category_delete,
         name="admin_category_delete",
     ),
     path(
+        "admin/categories/reorder/",
+        views.admin_category_reorder,
+        name="admin_category_reorder",
+    ),
+    path(
         "admin/custom-fields/",
-        classifieds_views.AdminDashboardView.as_view(),  # TODO: Create AdminCustomFieldsView
+        views.AdminCustomFieldsView.as_view(),
         name="admin_custom_fields",
     ),
     path(
+        "admin/custom-fields/<int:field_id>/get/",
+        views.AdminCustomFieldGetView.as_view(),
+        name="admin_custom_field_get",
+    ),
+    path(
+        "admin/custom-fields/save/",
+        views.AdminCustomFieldSaveView.as_view(),
+        name="admin_custom_field_save",
+    ),
+    path(
         "admin/users/",
-        classifieds_views.AdminDashboardView.as_view(),  # TODO: Create AdminUsersView
+        views.AdminUsersManagementView.as_view(),
         name="admin_users",
     ),
     path(
@@ -185,6 +218,21 @@ urlpatterns = [
         "admin/ads/<int:ad_id>/delete/",
         classifieds_views.DeleteAdView.as_view(),
         name="delete_ad",
+    ),
+    path(
+        "admin/ads/<int:ad_id>/publisher/",
+        views.ad_publisher_detail,
+        name="ad_publisher_detail",
+    ),
+    path(
+        "admin/users/<int:user_id>/action/",
+        views.admin_user_action,
+        name="admin_user_action",
+    ),
+    path(
+        "compare/",
+        views.ComparisonView.as_view(),
+        name="compare_ads",
     ),
     path(
         "classifieds/reservations/",
@@ -347,9 +395,7 @@ urlpatterns = [
     path("api/cart/count/", cart_wishlist_views.get_cart_count, name="cart_count"),
     path("cart/", cart_wishlist_views.cart_view, name="cart_view"),
     # Wishlist URLs
-    path(
-        "api/wishlist/add/", cart_wishlist_views.add_to_wishlist, name="wishlist_add"
-    ),
+    path("api/wishlist/add/", cart_wishlist_views.add_to_wishlist, name="wishlist_add"),
     path(
         "api/wishlist/remove/",
         cart_wishlist_views.remove_from_wishlist,

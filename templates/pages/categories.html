@@ -603,11 +603,7 @@
                                         </a>
                                     </li>
                                     <li class="breadcrumb-item active" aria-current="page">
-                                        {% if LANGUAGE_CODE == 'ar' and cat.name_ar %}
-                                            {{ cat.name_ar }}
-                                        {% else %}
-                                            {{ cat.name }}
-                                        {% endif %}
+                                        {{ cat.name_ar|default:cat.name }}
                                     </li>
                                 {% endif %}
                             {% endfor %}
@@ -625,13 +621,7 @@
                         <i class="fas fa-th-large me-3"></i>
                         {% if request.GET.category %}
                             {% for cat in categories %}
-                                {% if cat.slug == request.GET.category %}
-                                    {% if LANGUAGE_CODE == 'ar' and cat.name_ar %}
-                                        {{ cat.name_ar }}
-                                    {% else %}
-                                        {{ cat.name }}
-                                    {% endif %}
-                                {% endif %}
+                                {% if cat.slug == request.GET.category %}{{ cat.name_ar|default:cat.name }}{% endif %}
                             {% endfor %}
                         {% else %}
                             {% trans "جميع الفئات" %}
@@ -764,8 +754,10 @@
                             </label>
                             <select id="categoryFilter" class="filter-select">
                                 <option value="">{% trans "جميع الفئات" %}</option>
-                                {% for category in categories %}
-                                    <option value="{{ category.id }}">{{ category.name }}</option>
+                                {% for category in all_categories %}
+                                    <option value="{{ category.id }}">
+                                        {% if LANGUAGE_CODE == 'ar' and category.name_ar %}{{ category.name_ar }}{% else %}{{ category.name }}{% endif %}
+                                    </option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -841,52 +833,21 @@
 
                     <!-- Ads Grid Container -->
                     <div class="row g-4 ads-grid" id="adsGrid" data-view="grid">
-                        {% for ad in ads %}
-                            <div class="col-lg-4 col-md-6 col-12" data-aos="fade-up">
-                                <article class="ad-card">
-                                    <div class="ad-image-wrapper">
-                                        {% if ad.images.first %}
-                                            <img src="{{ ad.images.first.image.url }}"
-                                                 alt="{{ ad.title }}"
-                                                 class="ad-image"
-                                                 loading="lazy">
-                                        {% else %}
-                                            <img src="{% static 'images/placeholder-ad.jpg' %}"
-                                                 alt="{{ ad.title }}"
-                                                 class="ad-image"
-                                                 loading="lazy">
-                                        {% endif %}
-                                        {% if ad.is_featured %}
-                                            <span class="ad-badge">
-                                                <i class="fas fa-star me-1"></i>
-                                                {% trans "مميز" %}
-                                            </span>
-                                        {% endif %}
-                                    </div>
-                                    <div class="ad-content">
-                                        <a href="{% url 'main:ad_detail' ad.pk %}" class="ad-title">
-                                            {{ ad.title }}
-                                        </a>
-                                        <p class="ad-description">
-                                            {{ ad.description|truncatewords:20 }}
-                                        </p>
-                                        <div class="ad-meta">
-                                            <div class="ad-price">
-                                                {% if ad.price %}
-                                                    {{ ad.price }} {% trans "ر.س" %}
-                                                {% else %}
-                                                    {% trans "حسب الطلب" %}
-                                                {% endif %}
-                                            </div>
-                                            <div class="ad-location">
-                                                <i class="fas fa-map-marker-alt"></i>
-                                                {{ ad.location|default:_("غير محدد") }}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </article>
+                        {% if ads %}
+                            {% for ad in ads %}
+                                <div class="col-lg-4 col-md-6 col-12" data-aos="fade-up">
+                                    {% include "partials/_ad_card_component.html" with ad=ad %}
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <!-- Show skeleton loaders if no ads are passed initially -->
+                            {% for i in "123456" %}
+                            <div class="col-lg-4 col-md-6 col-12" aria-hidden="true">
+                                {% include "partials/_ad_card_skeleton.html" %}
                             </div>
-                        {% empty %}
+                            {% endfor %}
+                        {% endif %}
+                        {% if not ads %}
                             <div class="col-12">
                                 <div class="empty-state">
                                     <div class="empty-icon">

@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% load static i18n idrissimart_tags %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .compare-section {
+        padding: 4rem 0;
+        background-color: var(--bg-secondary);
+    }
+    .compare-table-wrapper {
+        overflow-x: auto;
+    }
+    .compare-table {
+        width: 100%;
+        min-width: 900px;
+        border-collapse: collapse;
+        background: var(--bg-primary);
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: var(--shadow-card);
+    }
+    .compare-table th, .compare-table td {
+        padding: 1.25rem;
+        text-align: center;
+        vertical-align: top;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .compare-table thead th {
+        background: var(--bg-secondary);
+        border-bottom: 2px solid var(--border-color);
+    }
+    .feature-header {
+        text-align: right;
+        font-weight: 700;
+        background: var(--bg-secondary);
+        width: 20%;
+    }
+    .ad-image-compare {
+        width: 150px;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+    }
+    .ad-title-compare {
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    .ad-price-compare {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+    .custom-field-row .key {
+        font-weight: 500;
+        color: var(--text-muted);
+    }
+    .custom-field-row .value {
+        font-weight: 600;
+    }
+    .empty-compare {
+        text-align: center;
+        padding: 4rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="compare-section">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h1 class="display-5 fw-bold">{% trans "مقارنة الإعلانات" %}</h1>
+            <p class="lead text-muted">{% trans "قارن بين الإعلانات التي اخترتها لاتخاذ القرار الأفضل" %}</p>
+        </div>
+
+        {% if ads_to_compare %}
+            <div class="compare-table-wrapper">
+                <table class="compare-table">
+                    <thead>
+                        <tr>
+                            <th class="feature-header">{% trans "الميزة" %}</th>
+                            {% for ad in ads_to_compare %}
+                                <th>
+                                    <a href="{{ ad.get_absolute_url }}">
+                                        {% if ad.images.first %}
+                                            <img src="{{ ad.images.first.image.url }}" alt="{{ ad.title }}" class="ad-image-compare">
+                                        {% else %}
+                                            <img src="https://via.placeholder.com/150?text=No+Image" alt="No Image" class="ad-image-compare">
+                                        {% endif %}
+                                        <h5 class="ad-title-compare">{{ ad.title|truncatechars:40 }}</h5>
+                                    </a>
+                                </th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Price -->
+                        <tr>
+                            <td class="feature-header">{% trans "السعر" %}</td>
+                            {% for ad in ads_to_compare %}
+                                <td>
+                                    <div class="ad-price-compare">{% ad_price_formatted ad %}</div>
+                                    {% if ad.is_negotiable %}
+                                        <span class="badge bg-success">{% trans "قابل للتفاوض" %}</span>
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        <!-- Category -->
+                        <tr>
+                            <td class="feature-header">{% trans "القسم" %}</td>
+                            {% for ad in ads_to_compare %}
+                                <td>{{ ad.category.name }}</td>
+                            {% endfor %}
+                        </tr>
+                        <!-- Location -->
+                        <tr>
+                            <td class="feature-header">{% trans "الموقع" %}</td>
+                            {% for ad in ads_to_compare %}
+                                <td>{{ ad.city }}, {{ ad.country.name }}</td>
+                            {% endfor %}
+                        </tr>
+                        <!-- Description -->
+                        <tr>
+                            <td class="feature-header">{% trans "الوصف" %}</td>
+                            {% for ad in ads_to_compare %}
+                                <td style="text-align: right; white-space: pre-wrap;">{{ ad.description|truncatewords:50 }}</td>
+                            {% endfor %}
+                        </tr>
+                        <!-- Custom Fields -->
+                        {% for ad in ads_to_compare %}
+                            {% for field in ad.custom_fields.items %}
+                                <tr class="custom-field-row">
+                                    <td class="feature-header">{{ field.0|capfirst }}</td>
+                                    {% for inner_ad in ads_to_compare %}
+                                        <td>{{ inner_ad.custom_fields|get_item:field.0|default:"-" }}</td>
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-compare card card-body">
+                <h3>{% trans "لم تختر أي إعلانات للمقارنة" %}</h3>
+                <p>{% trans "أضف إعلانات إلى قائمة المقارنة لعرضها هنا." %}</p>
+                <a href="{% url 'main:categories' %}" class="btn btn-primary">{% trans "تصفح الإعلانات" %}</a>
+            </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

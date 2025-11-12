@@ -1,651 +1,382 @@
-{% extends 'base.html' %}
-{% load static i18n compress %}
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n %}
 
-{% block title %}
-    {% trans "إدارة الإعلانات - لوحة تحكم المدير" %}
+{% block title %}{% trans "إدارة الإعلانات" %}{% endblock %}
+
+{% block admin_extra_css %}
+    <style>
+        .nav-tabs .nav-link {
+            color: #6c757d;
+            border: none;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+        .nav-tabs .nav-link:hover {
+            color: #4b315e;
+            border-bottom-color: rgba(75, 49, 94, 0.3);
+        }
+        .nav-tabs .nav-link.active {
+            color: #4b315e;
+            border-bottom-color: #4b315e;
+            background-color: transparent;
+            font-weight: 600;
+        }
+        [data-theme='dark'] .nav-tabs .nav-link {
+            color: #b8b9be;
+        }
+        [data-theme='dark'] .nav-tabs .nav-link:hover {
+            color: #6b4c7a;
+        }
+        [data-theme='dark'] .nav-tabs .nav-link.active {
+            color: #6b4c7a;
+            border-bottom-color: #6b4c7a;
+        }
+        .ad-item-row {
+            transition: background-color 0.2s ease-in-out;
+        }
+        .ad-item-row:hover {
+            background-color: #f8f9fa;
+        }
+        .ad-thumbnail {
+            width: 70px;
+            height: 70px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        /* Custom Pagination Styles */
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem 0;
+        }
+        .pagination {
+            display: flex;
+            gap: 0.5rem;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            --pagination-color: #6c757d;
+            --pagination-hover-color: var(--primary-color);
+            --pagination-active-bg: var(--primary-color);
+            --pagination-active-color: #fff;
+        }
+        .pagination .page-item .page-link {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-width: 40px;
+            height: 40px;
+            padding: 0 0.5rem;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            color: var(--pagination-color);
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            transform: scale(1);
+        }
+        .pagination .page-item .page-link:hover {
+            border-color: var(--pagination-hover-color);
+            color: var(--pagination-hover-color);
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .pagination .page-item.active .page-link {
+            background-color: var(--pagination-active-bg);
+            border-color: var(--pagination-active-bg);
+            color: var(--pagination-active-color);
+            box-shadow: 0 4px 15px rgba(var(--primary-color-rgb), 0.3);
+            transform: scale(1.1);
+        }
+        .pagination .page-item.disabled .page-link {
+            color: #adb5bd;
+            background-color: #f8f9fa;
+            pointer-events: none;
+        }
+    </style>
 {% endblock %}
 
-{% block extra_css %}
-    {% compress css %}
-        <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
-        <link rel="stylesheet" href="{% static 'css/admin-dashboard.css' %}">
-    {% endcompress %}
-{% endblock %}
-
-{% block content %}
-<div class="admin-dashboard-container">
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Admin Sidebar -->
-            <div class="col-md-3">
-                <div class="admin-sidebar p-4">
-                    <div class="admin-header text-center mb-4">
-                        <div class="admin-avatar mb-3">
-                            <i class="fas fa-user-shield fa-3x text-primary"></i>
-                        </div>
-                        <h5 class="mb-0">{% trans "لوحة تحكم المدير" %}</h5>
-                        <small class="text-muted">{{ user.username }}</small>
-                    </div>
-
-                    <nav class="admin-nav">
-                        <a href="{% url 'main:admin_dashboard' %}" class="admin-nav-item">
-                            <i class="fas fa-tachometer-alt me-2"></i>
-                            {% trans "الرئيسية" %}
-                        </a>
-                        <a href="{% url 'main:admin_categories' %}" class="admin-nav-item">
-                            <i class="fas fa-tags me-2"></i>
-                            {% trans "إدارة الأقسام" %}
-                        </a>
-                        <a href="{% url 'main:admin_ads' %}" class="admin-nav-item active">
-                            <i class="fas fa-bullhorn me-2"></i>
-                            {% trans "إدارة الإعلانات" %}
-                        </a>
-                        <a href="{% url 'main:admin_payments' %}" class="admin-nav-item">
-                            <i class="fas fa-credit-card me-2"></i>
-                            {% trans "المدفوعات والعضويات" %}
-                        </a>
-                        <a href="{% url 'main:admin_settings' %}" class="admin-nav-item">
-                            <i class="fas fa-cogs me-2"></i>
-                            {% trans "إعدادات النظام" %}
-                        </a>
-                    </nav>
+{% block admin_content %}
+    <!-- Header -->
+    <div class="admin-dashboard-header">
+        <div class="row align-items-center">
+            <div class="col">
+                <h1 class="display-6 mb-1">
+                    <i class="fas fa-bullhorn me-3"></i>
+                    {% trans "إدارة الإعلانات" %}
+                </h1>
+                <p class="text-muted mb-0">{% trans "مراجعة، تعديل، وحذف الإعلانات على المنصة" %}</p>
+            </div>
+            <div class="col-auto">
+                <div class="admin-quick-stats">
+                    <span class="badge bg-primary fs-6">
+                        {% trans "الإعلانات" %}: {{ paginator.count|default:0 }}
+                    </span>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <!-- Main Content -->
-            <div class="col-md-9">
-                <!-- Header -->
-                <div class="admin-dashboard-header">
-                    <h1 class="display-6 mb-1">
-                        <i class="fas fa-bullhorn me-3"></i>
-                        {% trans "إدارة الإعلانات" %}
-                    </h1>
-                    <p class="text-muted mb-0">{% trans "إدارة شاملة لجميع الإعلانات في النظام" %}</p>
+    <!-- Main Content -->
+    <div class="row">
+        <div class="col-12">
+            <div class="admin-content-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        {% trans "قائمة الإعلانات" %}
+                    </h5>
                 </div>
+                <div class="card-body">
+                    <!-- Tabs -->
+                    <ul class="nav nav-tabs mb-4">
+                        <li class="nav-item">
+                            <a class="nav-link {% if current_tab == 'active' %}active{% endif %}" href="?tab=active">
+                                {% trans "نشط" %} <span class="badge bg-success ms-1">{{ tab_counts.active|default:0 }}</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if current_tab == 'pending' %}active{% endif %}" href="?tab=pending">
+                                {% trans "قيد المراجعة" %} <span class="badge bg-warning ms-1">{{ tab_counts.pending|default:0 }}</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if current_tab == 'expired' %}active{% endif %}" href="?tab=expired">
+                                {% trans "منتهي" %} <span class="badge bg-danger ms-1">{{ tab_counts.expired|default:0 }}</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if current_tab == 'hidden' %}active{% endif %}" href="?tab=hidden">
+                                {% trans "مخفي" %} <span class="badge bg-secondary ms-1">{{ tab_counts.hidden|default:0 }}</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if current_tab == 'cart' %}active{% endif %}" href="?tab=cart">
+                                {% trans "متاح للسلة" %} <span class="badge bg-info ms-1">{{ tab_counts.cart|default:0 }}</span>
+                            </a>
+                        </li>
+                    </ul>
 
-                <!-- Tabs Navigation -->
-                <div class="ads-tabs-container mb-4">
-                    <div class="admin-content-card">
-                        <div class="card-body p-0">
-                            <nav>
-                                <div class="nav nav-tabs admin-tabs" id="ads-nav-tab" role="tablist">
-                                    <button class="nav-link active" id="active-tab" data-bs-toggle="tab" data-bs-target="#active" type="button" role="tab" data-tab="active">
-                                        <i class="fas fa-check-circle me-2"></i>
-                                        {% trans "نشطة" %}
-                                        <span class="badge bg-success ms-2">{{ tab_counts.active }}</span>
-                                    </button>
-                                    <button class="nav-link" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab" data-tab="pending">
-                                        <i class="fas fa-clock me-2"></i>
-                                        {% trans "قيد المراجعة" %}
-                                        <span class="badge bg-warning ms-2">{{ tab_counts.pending }}</span>
-                                    </button>
-                                    <button class="nav-link" id="expired-tab" data-bs-toggle="tab" data-bs-target="#expired" type="button" role="tab" data-tab="expired">
-                                        <i class="fas fa-calendar-times me-2"></i>
-                                        {% trans "منتهية" %}
-                                        <span class="badge bg-danger ms-2">{{ tab_counts.expired }}</span>
-                                    </button>
-                                    <button class="nav-link" id="hidden-tab" data-bs-toggle="tab" data-bs-target="#hidden" type="button" role="tab" data-tab="hidden">
-                                        <i class="fas fa-eye-slash me-2"></i>
-                                        {% trans "مخفية" %}
-                                        <span class="badge bg-secondary ms-2">{{ tab_counts.hidden }}</span>
-                                    </button>
-                                    <button class="nav-link" id="cart-tab" data-bs-toggle="tab" data-bs-target="#cart" type="button" role="tab" data-tab="cart">
-                                        <i class="fas fa-shopping-cart me-2"></i>
-                                        {% trans "السلة" %}
-                                        <span class="badge bg-info ms-2">{{ tab_counts.cart }}</span>
-                                    </button>
-                                </div>
-                            </nav>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Filters Section -->
-                <div class="admin-content-card mb-4">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="fas fa-filter me-2"></i>
-                            {% trans "تصفية وبحث الإعلانات" %}
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <form id="adsFilterForm" class="row">
-                            <div class="col-md-3 mb-3">
-                                <label class="form-label">{% trans "البحث" %}</label>
-                                <input type="text" name="search" class="form-control" placeholder="{% trans 'البحث في العنوان والوصف...' %}">
-                            </div>
-                            <div class="col-md-2 mb-3">
-                                <label class="form-label">{% trans "القسم" %}</label>
-                                <select name="category" class="form-select">
-                                    <option value="">{% trans "جميع الأقسام" %}</option>
-                                    {% for category in categories %}
-                                        <option value="{{ category.id }}">{{ category.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-2 mb-3">
-                                <label class="form-label">{% trans "الدولة" %}</label>
-                                <select name="country" class="form-select">
-                                    <option value="">{% trans "جميع الدول" %}</option>
-                                    {% for country in countries %}
-                                        <option value="{{ country.code }}">{{ country.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-2 mb-3">
-                                <label class="form-label">{% trans "من تاريخ" %}</label>
-                                <input type="date" name="date_from" class="form-control">
-                            </div>
-                            <div class="col-md-2 mb-3">
-                                <label class="form-label">{% trans "إلى تاريخ" %}</label>
-                                <input type="date" name="date_to" class="form-control">
-                            </div>
-                            <div class="col-md-1 mb-3">
-                                <label class="form-label">&nbsp;</label>
-                                <button type="submit" class="btn btn-primary w-100">
+                    <!-- Search and Filter -->
+                    <div class="mb-4">
+                        <form method="get">
+                            <input type="hidden" name="tab" value="{{ current_tab }}">
+                            <div class="input-group">
+                                <input type="text" name="search" class="form-control" placeholder="{% trans 'ابحث بالاسم أو المستخدم...' %}" value="{{ search_query }}">
+                                <button class="btn btn-primary" type="submit">
                                     <i class="fas fa-search"></i>
                                 </button>
                             </div>
                         </form>
                     </div>
-                </div>
 
-                <!-- Ads Content -->
-                <div class="tab-content" id="ads-nav-tabContent">
-                    <div class="tab-pane fade show active" id="active" role="tabpanel">
-                        <div class="admin-content-card">
-                            <div class="card-header">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <h5 class="mb-0">{% trans "الإعلانات النشطة" %}</h5>
-                                    <div class="admin-bulk-actions">
-                                        <button class="btn btn-outline-primary btn-sm" onclick="selectAllAds()">
-                                            <i class="fas fa-check-square me-1"></i>
-                                            {% trans "تحديد الكل" %}
-                                        </button>
-                                        <button class="btn btn-outline-warning btn-sm" onclick="bulkAction('hide')">
-                                            <i class="fas fa-eye-slash me-1"></i>
-                                            {% trans "إخفاء المحدد" %}
-                                        </button>
-                                        <button class="btn btn-outline-danger btn-sm" onclick="bulkAction('delete')">
-                                            <i class="fas fa-trash me-1"></i>
-                                            {% trans "حذف المحدد" %}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="card-body p-0">
-                                <div class="ads-list" id="ads-list-active">
-                                    <!-- Ads will be loaded here via AJAX -->
-                                    <div class="loading-state text-center py-5">
-                                        <div class="loading-spinner"></div>
-                                        <p class="mt-3 text-muted">{% trans "جاري تحميل الإعلانات..." %}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <!-- Ads Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th>{% trans "الإعلان" %}</th>
+                                    <th>{% trans "المستخدم" %}</th>
+                                    <th>{% trans "السعر" %}</th>
+                                    <th>{% trans "الحالة" %}</th>
+                                    <th>{% trans "تاريخ النشر" %}</th>
+                                    <th>{% trans "إجراءات" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ad in page_obj %}
+                                <tr class="ad-item-row">
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if ad.images.first %}
+                                                <img src="{{ ad.images.first.image.url }}" alt="{{ ad.title }}" class="ad-thumbnail me-3" loading="lazy">
+                                            {% else %}
+                                                <div class="ad-thumbnail bg-light me-3 d-flex align-items-center justify-content-center">
+                                                    <i class="fas fa-image text-muted"></i>
+                                                </div>
+                                            {% endif %}
+                                            <div>
+                                                <a href="{% url 'main:ad_publisher_detail' ad.id %}" class="fw-bold text-dark text-decoration-none">{{ ad.title|truncatechars:40 }}</a>
+                                                <div class="text-muted small">{{ ad.category.name }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td><a href="#">{{ ad.user.username }}</a></td>
+                                    <td>{{ ad.price|floatformat:2 }}</td>
+                                    <td>
+                                        <span class="badge rounded-pill bg-light text-dark status-{{ ad.status }}">
+                                            {{ ad.get_status_display }}
+                                        </span>
+                                        {% if ad.is_hidden %}
+                                            <span class="badge rounded-pill bg-secondary">{% trans "مخفي" %}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ ad.created_at|date:"d M, Y" }}</td>
+                                    <td>
+                                        <a href="{% url 'main:ad_publisher_detail' ad.id %}" class="btn btn-sm btn-outline-primary" title="{% trans 'عرض' %}"><i class="fas fa-eye"></i></a>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteAd({{ ad.id }}, '{{ ad.title|escapejs }}')" title="{% trans 'حذف' %}"><i class="fas fa-trash"></i></button>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-5">
+                                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                        <p class="text-muted">{% trans "لا توجد إعلانات تطابق هذه المعايير." %}</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
 
-                    <!-- Pending Tab -->
-                    <div class="tab-pane fade" id="pending" role="tabpanel">
-                        <div class="admin-content-card">
-                            <div class="card-header">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <h5 class="mb-0">{% trans "الإعلانات قيد المراجعة" %}</h5>
-                                    <div class="admin-bulk-actions">
-                                        <button class="btn btn-outline-success btn-sm" onclick="bulkAction('approve')">
-                                            <i class="fas fa-check me-1"></i>
-                                            {% trans "موافقة المحدد" %}
-                                        </button>
-                                        <button class="btn btn-outline-danger btn-sm" onclick="bulkAction('reject')">
-                                            <i class="fas fa-times me-1"></i>
-                                            {% trans "رفض المحدد" %}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="card-body p-0">
-                                <div class="ads-list" id="ads-list-pending">
-                                    <!-- Pending ads will be loaded here -->
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Pagination -->
+                    {% if is_paginated %}
+                    <div class="pagination-container">
+                        <ul class="pagination">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1&tab={{ current_tab }}&search={{ search_query }}" aria-label="First">
+                                        <i class="fas fa-angle-double-right"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}&tab={{ current_tab }}&search={{ search_query }}" aria-label="Previous">
+                                        <i class="fas fa-angle-right"></i>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="fas fa-angle-double-right"></i></span>
+                                </li>
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="fas fa-angle-right"></i></span>
+                                </li>
+                            {% endif %}
 
-                    <!-- Other tabs content... -->
-                    <div class="tab-pane fade" id="expired" role="tabpanel">
-                        <div class="admin-content-card">
-                            <div class="card-header">
-                                <h5 class="mb-0">{% trans "الإعلانات المنتهية" %}</h5>
-                            </div>
-                            <div class="card-body p-0">
-                                <div class="ads-list" id="ads-list-expired">
-                                    <!-- Expired ads will be loaded here -->
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                            {% for num in paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}&tab={{ current_tab }}&search={{ search_query }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
 
-                    <div class="tab-pane fade" id="hidden" role="tabpanel">
-                        <div class="admin-content-card">
-                            <div class="card-header">
-                                <h5 class="mb-0">{% trans "الإعلانات المخفية" %}</h5>
-                            </div>
-                            <div class="card-body p-0">
-                                <div class="ads-list" id="ads-list-hidden">
-                                    <!-- Hidden ads will be loaded here -->
-                                </div>
-                            </div>
-                        </div>
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}&tab={{ current_tab }}&search={{ search_query }}" aria-label="Next">
+                                        <i class="fas fa-angle-left"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ paginator.num_pages }}&tab={{ current_tab }}&search={{ search_query }}" aria-label="Last">
+                                        <i class="fas fa-angle-double-left"></i>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="fas fa-angle-left"></i></span>
+                                </li>
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="fas fa-angle-double-left"></i></span>
+                                </li>
+                            {% endif %}
+                        </ul>
                     </div>
-
-                    <div class="tab-pane fade" id="cart" role="tabpanel">
-                        <div class="admin-content-card">
-                            <div class="card-header">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <h5 class="mb-0">{% trans "إعلانات السلة" %}</h5>
-                                    <div class="admin-bulk-actions">
-                                        <button class="btn btn-outline-success btn-sm" onclick="bulkAction('activate_cart')">
-                                            <i class="fas fa-shopping-cart me-1"></i>
-                                            {% trans "تفعيل السلة" %}
-                                        </button>
-                                        <button class="btn btn-outline-warning btn-sm" onclick="bulkAction('deactivate_cart')">
-                                            <i class="fas fa-times-circle me-1"></i>
-                                            {% trans "إلغاء تفعيل السلة" %}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="card-body p-0">
-                                <div class="ads-list" id="ads-list-cart">
-                                    <!-- Cart ads will be loaded here -->
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Ad Details Modal -->
-<div class="modal fade" id="adminAdDetailsModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-info-circle me-2"></i>
-                    {% trans "تفاصيل الإعلان" %}
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="adminAdDetailsContent">
-                <!-- Content will be loaded via AJAX -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    {% trans "إغلاق" %}
-                </button>
-                <div class="modal-actions">
-                    <!-- Action buttons will be added dynamically -->
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Status Change Modal -->
-<div class="modal fade" id="statusChangeModal" tabindex="-1">
-    <div class="modal-dialog">
+<!-- Confirm Delete Modal -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-edit me-2"></i>
-                    {% trans "تغيير حالة الإعلان" %}
-                </h5>
+                <h5 class="modal-title">{% trans "تأكيد الحذف" %}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="statusChangeForm">
-                    <input type="hidden" id="statusAdId" name="ad_id">
-                    <div class="mb-3">
-                        <label class="form-label">{% trans "الحالة الجديدة" %}</label>
-                        <select name="new_status" class="form-select" id="newStatusSelect">
-                            <option value="active">{% trans "نشط" %}</option>
-                            <option value="pending">{% trans "قيد المراجعة" %}</option>
-                            <option value="draft">{% trans "مخفي" %}</option>
-                            <option value="expired">{% trans "منتهي" %}</option>
-                            <option value="rejected">{% trans "مرفوض" %}</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">{% trans "ملاحظات (اختياري)" %}</label>
-                        <textarea name="notes" class="form-control" rows="3" placeholder="{% trans 'أضف ملاحظات حول تغيير الحالة...' %}"></textarea>
-                    </div>
-                </form>
+                <p>{% trans "هل أنت متأكد من حذف الإعلان" %} "<span id="deleteAdTitle"></span>"؟</p>
+                <p class="text-danger">{% trans "لا يمكن التراجع عن هذا الإجراء." %}</p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    {% trans "إلغاء" %}
-                </button>
-                <button type="button" class="btn btn-primary" onclick="confirmStatusChange()">
-                    <i class="fas fa-save me-2"></i>
-                    {% trans "تغيير الحالة" %}
-                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">{% trans "حذف" %}</button>
             </div>
         </div>
     </div>
 </div>
 {% endblock %}
+{% block admin_extra_js %}
+    <script>
+        let adToDeleteId = null;
+        const confirmDeleteModal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
 
-{% block extra_js %}
-<script>
-let currentTab = 'active';
-let selectedAds = [];
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Load initial ads
-    loadAdsForTab('active');
-
-    // Tab switching
-    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
-        tab.addEventListener('shown.bs.tab', function(e) {
-            const tabName = e.target.getAttribute('data-tab');
-            currentTab = tabName;
-            loadAdsForTab(tabName);
-        });
-    });
-
-    // Filter form submission
-    document.getElementById('adsFilterForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        loadAdsForTab(currentTab, getFilterData());
-    });
-});
-
-function loadAdsForTab(tab, filters = {}) {
-    const listContainer = document.getElementById(`ads-list-${tab}`);
-    listContainer.innerHTML = `
-        <div class="loading-state text-center py-5">
-            <div class="loading-spinner"></div>
-            <p class="mt-3 text-muted">جاري تحميل الإعلانات...</p>
-        </div>
-    `;
-
-    const params = new URLSearchParams({
-        tab: tab,
-        ...filters
-    });
-
-    fetch(`/admin/ads/tab/${tab}/?${params}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                displayAds(data.ads, tab);
-            } else {
-                showError('فشل في تحميل الإعلانات');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showError('حدث خطأ أثناء تحميل الإعلانات');
-        });
-}
-
-function displayAds(ads, tab) {
-    const listContainer = document.getElementById(`ads-list-${tab}`);
-
-    if (ads.length === 0) {
-        listContainer.innerHTML = `
-            <div class="empty-state text-center py-5">
-                <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
-                <h5 class="text-muted">لا توجد إعلانات</h5>
-                <p class="text-muted">لا توجد إعلانات في هذا القسم حالياً</p>
-            </div>
-        `;
-        return;
+    function deleteAd(adId, adTitle) {
+        adToDeleteId = adId;
+        document.getElementById('deleteAdTitle').textContent = adTitle;
+        confirmDeleteModal.show();
     }
 
-    let html = '<div class="ads-grid">';
+        document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+        if (!adToDeleteId) return;
 
-    ads.forEach(ad => {
-        html += `
-            <div class="admin-ad-item" data-ad-id="${ad.id}">
-                <div class="ad-selection">
-                    <input type="checkbox" class="form-check-input ad-checkbox" value="${ad.id}">
-                </div>
-                <div class="ad-image">
-                    ${ad.image ?
-                        `<img src="${ad.image}" alt="${ad.title}">` :
-                        '<i class="fas fa-image"></i>'
-                    }
-                </div>
-                <div class="ad-content">
-                    <h6 class="ad-title">${ad.title}</h6>
-                    <p class="ad-meta">
-                        <span class="ad-user"><i class="fas fa-user me-1"></i>${ad.user}</span>
-                        <span class="ad-category"><i class="fas fa-tag me-1"></i>${ad.category}</span>
-                    </p>
-                    <p class="ad-price">${ad.price} ريال</p>
-                    <span class="badge bg-${ad.status}">${ad.status_display}</span>
-                    <small class="ad-date">${ad.created_at}</small>
-                </div>
-                <div class="ad-actions">
-                    <button class="btn btn-sm btn-outline-primary" onclick="viewAdDetails(${ad.id})" title="عرض التفاصيل">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-warning" onclick="changeAdStatus(${ad.id})" title="تغيير الحالة">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteAd(${ad.id}, '${ad.title}')" title="حذف">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-    });
-
-    html += '</div>';
-    listContainer.innerHTML = html;
-}
-
-function viewAdDetails(adId) {
-    // Implementation for viewing ad details
-    const modal = new bootstrap.Modal(document.getElementById('adminAdDetailsModal'));
-    modal.show();
-
-    // Load ad details via AJAX
-    fetch(`/dashboard/ad/${adId}/details/`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById('adminAdDetailsContent').innerHTML = generateAdDetailsHTML(data.ad);
-            }
-        });
-}
-
-function changeAdStatus(adId) {
-    document.getElementById('statusAdId').value = adId;
-    const modal = new bootstrap.Modal(document.getElementById('statusChangeModal'));
-    modal.show();
-}
-
-function confirmStatusChange() {
-    const form = document.getElementById('statusChangeForm');
-    const formData = new FormData(form);
-    const adId = formData.get('ad_id');
-    const newStatus = formData.get('new_status');
-
-    fetch(`/admin/ads/${adId}/status/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken'),
-            'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: new URLSearchParams(formData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showSuccess(data.message);
-            bootstrap.Modal.getInstance(document.getElementById('statusChangeModal')).hide();
-            loadAdsForTab(currentTab);
-        } else {
-            showError(data.message);
-        }
-    });
-}
-
-function deleteAd(adId, adTitle) {
-    if (confirm(`هل أنت متأكد من حذف الإعلان "${adTitle}"؟`)) {
-        fetch(`/admin/ads/${adId}/delete/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken')
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showSuccess(data.message);
-                loadAdsForTab(currentTab);
-            } else {
-                showError(data.message);
-            }
-        });
-    }
-}
-
-function selectAllAds() {
-    const checkboxes = document.querySelectorAll('.ad-checkbox');
-    const allSelected = Array.from(checkboxes).every(cb => cb.checked);
-
-    checkboxes.forEach(cb => {
-        cb.checked = !allSelected;
-    });
-
-    updateSelectedAds();
-}
-
-function updateSelectedAds() {
-    selectedAds = Array.from(document.querySelectorAll('.ad-checkbox:checked')).map(cb => cb.value);
-}
-
-function bulkAction(action) {
-    updateSelectedAds();
-
-    if (selectedAds.length === 0) {
-        showError('يرجى تحديد إعلان واحد على الأقل');
-        return;
-    }
-
-    let confirmMessage = '';
-    switch(action) {
-        case 'approve':
-            confirmMessage = `هل تريد الموافقة على ${selectedAds.length} إعلان؟`;
-            break;
-        case 'reject':
-            confirmMessage = `هل تريد رفض ${selectedAds.length} إعلان؟`;
-            break;
-        case 'hide':
-            confirmMessage = `هل تريد إخفاء ${selectedAds.length} إعلان؟`;
-            break;
-        case 'delete':
-            confirmMessage = `هل تريد حذف ${selectedAds.length} إعلان نهائياً؟`;
-            break;
-    }
-
-    if (confirm(confirmMessage)) {
-        // Perform bulk action
-        fetch('/admin/ads/bulk-action/', {
+        fetch(`/admin/ads/${adToDeleteId}/delete/`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken'),
                 'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                action: action,
-                ad_ids: selectedAds
-            })
+            }
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                showSuccess(data.message);
-                loadAdsForTab(currentTab);
-                selectedAds = [];
+                showSuccess(data.message || '{% trans "تم حذف الإعلان بنجاح." %}');
+                document.querySelector(`.ad-item-row[data-ad-id="${adToDeleteId}"]`).remove();
+                location.reload(); // Easiest way to update counts and pagination
             } else {
-                showError(data.message);
+                showError(data.message || '{% trans "حدث خطأ أثناء الحذف." %}');
             }
+        })
+        .catch(error => {
+            showError('{% trans "خطأ في الاتصال بالخادم." %}');
+        })
+        .finally(() => {
+            confirmDeleteModal.hide();
+            adToDeleteId = null;
         });
-    }
-}
+    });
 
-function getFilterData() {
-    const form = document.getElementById('adsFilterForm');
-    const formData = new FormData(form);
-    const filters = {};
+        // Admin Ads Management JavaScript
+        document.addEventListener('DOMContentLoaded', function() {
+            // Animate content cards
+            gsap.fromTo('.admin-content-card', {
+                opacity: 0,
+                y: 20
+            }, {
+                opacity: 1,
+                y: 0,
+                duration: 0.6,
+                stagger: 0.15,
+                ease: 'power2.out',
+                delay: 0.3
+            });
 
-    for (let [key, value] of formData.entries()) {
-        if (value) filters[key] = value;
-    }
-
-    return filters;
-}
-
-function generateAdDetailsHTML(ad) {
-    return `
-        <div class="row">
-            <div class="col-md-8">
-                <h5>${ad.title}</h5>
-                <p class="text-muted">${ad.description}</p>
-                <div class="row mb-3">
-                    <div class="col-6">
-                        <strong>المستخدم:</strong> ${ad.user}<br>
-                        <strong>القسم:</strong> ${ad.category}<br>
-                        <strong>الدولة:</strong> ${ad.country || 'غير محدد'}
-                    </div>
-                    <div class="col-6">
-                        <strong>السعر:</strong> ${ad.price} ريال<br>
-                        <strong>المشاهدات:</strong> ${ad.views_count}<br>
-                        <strong>تاريخ الإنشاء:</strong> ${ad.created_at}
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                ${ad.images && ad.images.length > 0 ?
-                    ad.images.map(img => `<img src="${img.url}" class="img-fluid mb-2" style="max-height: 100px;">`).join('') :
-                    '<p class="text-muted">لا توجد صور</p>'
-                }
-            </div>
-        </div>
-    `;
-}
-
-// Utility functions
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
-
-function showSuccess(message) {
-    // Toast notification implementation
-    console.log('Success:', message);
-}
-
-function showError(message) {
-    // Toast notification implementation
-    console.log('Error:', message);
-}
-</script>
+            // Add animation to pagination on load
+            gsap.from(".pagination .page-item", {
+                duration: 0.5,
+                scale: 0.5,
+                opacity: 0,
+                delay: 0.2,
+                stagger: 0.05,
+                ease: "elastic.out(1, 0.5)",
+            });
+        });
+    </script>
 {% endblock %}

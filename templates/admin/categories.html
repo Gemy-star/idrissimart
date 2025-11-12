@@ -581,31 +581,62 @@ function loadCategoryData(categoryId) {
             document.getElementById('is_active').checked = data.is_active !== false;
         })
         .catch(error => {
-            alert('{% trans "حدث خطأ أثناء تحميل بيانات القسم" %}');
+            if (window.showNotification) window.showNotification('{% trans "حدث خطأ أثناء تحميل بيانات القسم" %}', 'error');
         });
 }
 
 function deleteCategory(categoryId, categoryName) {
-    if (confirm(`{% trans "هل أنت متأكد من حذف القسم" %} "${categoryName}"؟`)) {
+    confirmDelete(`{% trans "هل أنت متأكد من حذف القسم" %} "${categoryName}"؟`, () => {
         fetch(`/admin/categories/${categoryId}/delete/`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
+                'X-CSRFToken': (document.cookie.split(';').reduce((acc, c) => { const [k,v] = c.trim().split('='); return k==='csrftoken'?decodeURIComponent(v):acc; }, null) || '')
             }
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                if (window.showNotification) window.showNotification('{% trans "تم حذف القسم بنجاح" %}', 'success');
                 location.reload();
             } else {
-                alert(data.error || '{% trans "حدث خطأ أثناء حذف القسم" %}');
+                if (window.showNotification) window.showNotification(data.error || '{% trans "حدث خطأ أثناء حذف القسم" %}', 'error');
             }
         })
         .catch(error => {
-            alert('{% trans "حدث خطأ في الاتصال" %}');
+            if (window.showNotification) window.showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error');
         });
-    }
+    });
+}
+
+// Toast-like confirmation using main.js notification style
+function confirmDelete(message, onConfirm) {
+    const box = document.createElement('div');
+    box.className = 'custom-notification';
+    box.style.cssText = 'position:fixed;top:90px;right:20px;z-index:9999;background:linear-gradient(135deg,#4B315E 0%,#6B4C7A 100%);color:#fff;padding:14px 16px;border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,0.2);display:flex;align-items:center;gap:12px;max-width:420px;';
+
+    const text = document.createElement('span');
+    text.textContent = message || '{% trans "تأكيد العملية" %}';
+
+    const actions = document.createElement('div');
+    actions.style.cssText = 'display:flex;gap:8px;margin-right:auto;';
+
+    const ok = document.createElement('button');
+    ok.textContent = '{% trans "تأكيد" %}';
+    ok.className = 'btn btn-sm btn-light';
+    ok.style.cssText = 'color:#4B315E;font-weight:700;';
+
+    const cancel = document.createElement('button');
+    cancel.textContent = '{% trans "إلغاء" %}';
+    cancel.className = 'btn btn-sm btn-outline-light';
+
+    ok.addEventListener('click', () => { document.body.removeChild(box); if (typeof onConfirm === 'function') onConfirm(); });
+    cancel.addEventListener('click', () => { document.body.removeChild(box); });
+
+    actions.appendChild(ok);
+    actions.appendChild(cancel);
+    box.appendChild(text);
+    box.appendChild(actions);
+    document.body.appendChild(box);
 }
 
 // Auto-generate slug from name

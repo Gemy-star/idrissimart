@@ -100,9 +100,7 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
                 request,
                 _("لقد استنفدت رصيدك من الإعلانات. يرجى شراء باقة جديدة للمتابعة."),
             )
-            # In a real application, you would redirect to a 'purchase-package' page.
-            # For now, we redirect to the 'my_ads' list.
-            return redirect("main:my_ads")
+            return redirect("main:packages_list")
 
         return super().dispatch(request, *args, **kwargs)
 
@@ -644,9 +642,7 @@ class CategorySaveView(LoginRequiredMixin, View):
 
     def post(self, request):
         if not request.user.is_superuser:
-            return JsonResponse(
-                {"success": False, "error": "Permission denied"}, status=403
-            )
+            return JsonResponse({"success": False, "message": "Permission denied"}, status=403)
 
         category_id = request.POST.get("category_id")
         name = request.POST.get("name")
@@ -659,6 +655,10 @@ class CategorySaveView(LoginRequiredMixin, View):
         allow_cart = request.POST.get("allow_cart") == "on"
         require_admin_approval = request.POST.get("require_admin_approval") == "on"
         is_active = request.POST.get("is_active") == "on"
+        order = request.POST.get("order") or 0
+        icon = request.POST.get("icon", "")
+        color = request.POST.get("color", "")
+        country_code = request.POST.get("country")  # optional
 
         try:
             if category_id:
@@ -668,12 +668,18 @@ class CategorySaveView(LoginRequiredMixin, View):
                 # Create new category
                 category = Category()
 
+            # Basic required fields
             category.name = name
             category.name_ar = name_ar
             category.slug = slug
             category.slug_ar = slug_ar
             category.section_type = section_type
             category.description = description
+            category.icon = icon
+            category.order = int(order) if str(order).isdigit() else 0
+            # Optional color stored in meta or dedicated field if exists
+            if hasattr(category, "color"):
+                setattr(category, "color", color)
             category.allow_cart = allow_cart
             category.require_admin_approval = require_admin_approval
             category.is_active = is_active
@@ -683,14 +689,41 @@ class CategorySaveView(LoginRequiredMixin, View):
             else:
                 category.parent = None
 
+            # Optional: country by code
+            if country_code:
+                from content.models import Country
+                try:
+                    category.country = Country.objects.get(code=country_code)
+                except Country.DoesNotExist:
+                    category.country = None
+
             category.save()
 
-            messages.success(request, _("تم حفظ القسم بنجاح"))
-            return redirect("main:admin_categories")
+            # AJAX-friendly response
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": _("تم حفظ القسم بنجاح"),
+                    "category": {
+                        "id": category.id,
+                        "name": category.name,
+                        "name_ar": category.name_ar,
+                        "slug": category.slug,
+                        "slug_ar": category.slug_ar,
+                        "section_type": category.section_type,
+                        "description": category.description,
+                        "is_active": category.is_active,
+                        "order": category.order,
+                        "parent": category.parent_id,
+                    },
+                }
+            )
 
         except Exception as e:
-            messages.error(request, _("حدث خطأ أثناء حفظ القسم"))
-            return redirect("main:admin_categories")
+            return JsonResponse(
+                {"success": False, "message": _("حدث خطأ أثناء حفظ القسم"), "error": str(e)},
+                status=400,
+            )
 
 
 class CategoryGetView(LoginRequiredMixin, View):
@@ -698,33 +731,27 @@ class CategoryGetView(LoginRequiredMixin, View):
 
     def get(self, request, category_id):
         if not request.user.is_superuser:
-            return JsonResponse(
-                {"success": False, "error": "Permission denied"}, status=403
-            )
+            return JsonResponse({"success": False, "message": "Permission denied"}, status=403)
 
         category = get_object_or_404(Category, id=category_id)
 
-        return JsonResponse(
-            {
-                "id": category.id,
-                "name": category.name,
-                "name_ar": category.name_ar,
-                "slug": category.slug,
-                "slug_ar": category.slug_ar,
-                "parent": category.parent_id if category.parent else None,
-                "section_type": category.section_type,
-                "description": category.description,
-                "allow_cart": (
-                    category.allow_cart if hasattr(category, "allow_cart") else False
-                ),
-                "require_admin_approval": (
-                    category.require_admin_approval
-                    if hasattr(category, "require_admin_approval")
-                    else True
-                ),
-                "is_active": category.is_active,
-            }
-        )
+        return JsonResponse({
+            "id": category.id,
+            "name": category.name,
+            "name_ar": category.name_ar,
+            "slug": category.slug,
+            "slug_ar": category.slug_ar,
+            "parent": category.parent_id if category.parent else None,
+            "section_type": category.section_type,
+            "description": category.description,
+            "allow_cart": getattr(category, "allow_cart", False),
+            "require_admin_approval": getattr(category, "require_admin_approval", True),
+            "is_active": category.is_active,
+            "order": getattr(category, "order", 0),
+            "icon": getattr(category, "icon", ""),
+            "color": getattr(category, "color", ""),
+            "country": getattr(category.country, "code", None),
+        })
 
 
 class CategoryDeleteView(LoginRequiredMixin, View):

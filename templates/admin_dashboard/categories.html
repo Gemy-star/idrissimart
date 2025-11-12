@@ -1,78 +1,74 @@
-{% extends 'base.html' %}
-{% load static i18n compress %}
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n %}
 
 {% block title %}
     {% trans "إدارة الأقسام - لوحة تحكم المدير" %}
 {% endblock %}
 
-{% block extra_css %}
-    {% compress css %}
-        <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
-        <link rel="stylesheet" href="{% static 'css/admin-dashboard.css' %}">
-    {% endcompress %}
+{% block admin_extra_css %}
+    <style>
+        /* Hide public header categories bar on admin pages to avoid layout interference */
+        .categories-nav-bar,
+        .subcategories-dropdown {
+            display: none !important;
+        }
+        /* Ensure admin modals overlay correctly and are centered */
+        .admin-dashboard-container .modal {
+            z-index: 2000;
+        }
+        .admin-dashboard-container .modal-backdrop {
+            z-index: 1990;
+        }
+        .modal-dialog-centered {
+            display: flex;
+            align-items: center;
+            min-height: calc(100% - 1rem);
+        }
+        .sortable-ghost {
+            opacity: 0.4;
+            background: #e3f2fd;
+        }
+        .category-item {
+            cursor: grab;
+        }
+        .category-item:grabbing {
+            cursor: grabbing;
+        }
+        .subcategories-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .subcategory-item {
+            cursor: grab;
+        }
+        .saving-indicator {
+            display: none;
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+    </style>
 {% endblock %}
 
 {% block content %}
-<div class="admin-dashboard-container">
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Admin Sidebar -->
-            <div class="col-md-3">
-                <div class="admin-sidebar p-4">
-                    <div class="admin-header text-center mb-4">
-                        <div class="admin-avatar mb-3">
-                            <i class="fas fa-user-shield fa-3x text-primary"></i>
-                        </div>
-                        <h5 class="mb-0">{% trans "لوحة تحكم المدير" %}</h5>
-                        <small class="text-muted">{{ user.username }}</small>
-                    </div>
-
-                    <nav class="admin-nav">
-                        <a href="{% url 'main:admin_dashboard' %}" class="admin-nav-item">
-                            <i class="fas fa-tachometer-alt me-2"></i>
-                            {% trans "الرئيسية" %}
-                        </a>
-                        <a href="{% url 'main:admin_categories' %}" class="admin-nav-item active">
-                            <i class="fas fa-tags me-2"></i>
-                            {% trans "إدارة الأقسام" %}
-                        </a>
-                        <a href="{% url 'main:admin_ads' %}" class="admin-nav-item">
-                            <i class="fas fa-bullhorn me-2"></i>
-                            {% trans "إدارة الإعلانات" %}
-                        </a>
-                        <a href="{% url 'main:admin_payments' %}" class="admin-nav-item">
-                            <i class="fas fa-credit-card me-2"></i>
-                            {% trans "المدفوعات والعضويات" %}
-                        </a>
-                        <a href="{% url 'main:admin_settings' %}" class="admin-nav-item">
-                            <i class="fas fa-cogs me-2"></i>
-                            {% trans "إعدادات النظام" %}
-                        </a>
-                    </nav>
-                </div>
+    <!-- Header -->
+    <div class="admin-dashboard-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="display-6 mb-1">
+                    <i class="fas fa-tags me-3"></i>
+                    {% trans "إدارة الأقسام والحقول المخصصة" %}
+                </h1>
+                <p class="text-muted mb-0">{% trans "إنشاء وتعديل الأقسام الرئيسية والفرعية والحقول المخصصة" %}</p>
             </div>
-
-            <!-- Main Content -->
-            <div class="col-md-9">
-                <!-- Header -->
-                <div class="admin-dashboard-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h1 class="display-6 mb-1">
-                                <i class="fas fa-tags me-3"></i>
-                                {% trans "إدارة الأقسام والحقول المخصصة" %}
-                            </h1>
-                            <p class="text-muted mb-0">{% trans "إنشاء وتعديل الأقسام الرئيسية والفرعية والحقول المخصصة" %}</p>
-                        </div>
-                        <div>
-                            <button class="btn btn-primary" onclick="showAddCategoryModal()">
-                                <i class="fas fa-plus-circle me-2"></i>
-                                {% trans "إضافة قسم جديد" %}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
+            <div>
+                <button class="btn btn-primary" onclick="showAddCategoryModal()">
+                    <i class="fas fa-plus-circle me-2"></i>
+                    {% trans "إضافة قسم جديد" %}
+                </button>
+            </div>
+        </div>
+    </div>
                 <!-- Categories by Section -->
                 {% for section_code, section_data in categories_by_section.items %}
                     <div class="admin-content-card mb-4">
@@ -82,6 +78,10 @@
                                     <i class="fas fa-layer-group me-2"></i>
                                     {{ section_data.name }}
                                 </h5>
+                                <span class="saving-indicator ms-2" id="saving-indicator-{{ section_code }}">
+                                    <i class="fas fa-spinner fa-spin me-1"></i>
+                                    {% trans "جاري الحفظ..." %}
+                                </span>
                                 <button class="btn btn-outline-primary btn-sm" onclick="addCategoryToSection('{{ section_code }}')">
                                     <i class="fas fa-plus me-1"></i>
                                     {% trans "إضافة قسم" %}
@@ -97,7 +97,11 @@
                                                 <div class="category-info">
                                                     <h6 class="category-name">
                                                         <i class="fas fa-folder me-2"></i>
-                                                        {{ category.name }}
+                                                        {% if LANGUAGE_CODE == 'ar' and category.name_ar %}
+                                                            {{ category.name_ar }}
+                                                        {% else %}
+                                                            {{ category.name }}
+                                                        {% endif %}
                                                     </h6>
                                                     <p class="category-meta">
                                                         <span class="badge bg-info me-2">{{ category.ad_count }} {% trans "إعلان" %}</span>
@@ -120,7 +124,7 @@
                                                                 <i class="fas fa-list me-2"></i>{% trans "الحقول المخصصة" %}
                                                             </a></li>
                                                             <li><hr class="dropdown-divider"></li>
-                                                            <li><a class="dropdown-item text-danger" href="#" onclick="deleteCategory({{ category.id }})">
+                                                            <li><a class="dropdown-item text-danger" href="#" onclick="deleteCategory({{ category.id }}, '{{ category.name|escapejs }}')">
                                                                 <i class="fas fa-trash me-2"></i>{% trans "حذف" %}
                                                             </a></li>
                                                         </ul>
@@ -130,13 +134,17 @@
 
                                             {% if category.children.all %}
                                                 <div class="subcategories mt-3">
-                                                    <h6 class="subcategories-title">{% trans "الأقسام الفرعية" %}:</h6>
+                                                    <h6 class="subcategories-title">{% trans "الأقسام الفرعية" %}: <small class="text-muted">({% trans "يمكنك السحب والإفلات للترتيب" %})</small></h6>
                                                     <div class="subcategories-list">
                                                         {% for subcategory in category.children.all %}
                                                             <div class="subcategory-item">
                                                                 <span class="subcategory-name">
                                                                     <i class="fas fa-folder-open me-1"></i>
-                                                                    {{ subcategory.name }}
+                                                                    {% if LANGUAGE_CODE == 'ar' and subcategory.name_ar %}
+                                                                        {{ subcategory.name_ar }}
+                                                                    {% else %}
+                                                                        {{ subcategory.name }}
+                                                                    {% endif %}
                                                                 </span>
                                                                 <div class="subcategory-actions">
                                                                     <button class="btn btn-xs btn-outline-primary" onclick="editCategory({{ subcategory.id }})">
@@ -145,7 +153,7 @@
                                                                     <button class="btn btn-xs btn-outline-secondary" onclick="manageCustomFields({{ subcategory.id }})">
                                                                         <i class="fas fa-list"></i>
                                                                     </button>
-                                                                    <button class="btn btn-xs btn-outline-danger" onclick="deleteCategory({{ subcategory.id }})">
+                                                                    <button class="btn btn-xs btn-outline-danger" onclick="deleteCategory({{ subcategory.id }}, '{{ subcategory.name|escapejs }}')">
                                                                         <i class="fas fa-trash"></i>
                                                                     </button>
                                                                 </div>
@@ -169,14 +177,10 @@
                         </div>
                     </div>
                 {% endfor %}
-            </div>
-        </div>
     </div>
-</div>
-
 <!-- Add/Edit Category Modal -->
 <div class="modal fade" id="categoryModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="categoryModalTitle">
@@ -274,6 +278,10 @@
 <!-- Custom Fields Modal -->
 <div class="modal fade" id="customFieldsModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
+        <!-- ... modal content ... -->
+    </div>
+</div>
+{% endblock %}
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
@@ -307,11 +315,15 @@
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
-<script>
-let currentCategoryId = null;
+<!-- Toast container -->
+<div class="admin-toast-container" id="adminToastContainer" aria-live="polite" aria-atomic="true"></div>
+
+
+{% block admin_extra_js %}
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script>
+        let currentCategoryId = null;
 
 // Category Management
 function showAddCategoryModal() {
@@ -341,29 +353,34 @@ function editCategory(categoryId) {
     // Load category data via AJAX
     fetch(`/admin/categories/${categoryId}/`)
         .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const category = data.category;
-                document.getElementById('categoryId').value = category.id;
-                document.querySelector('[name="name_ar"]').value = category.name_ar;
-                document.querySelector('[name="name_en"]').value = category.name_en;
-                document.querySelector('[name="slug"]').value = category.slug;
-                document.querySelector('[name="section_type"]').value = category.section_type;
-                document.querySelector('[name="description"]').value = category.description;
-                document.querySelector('[name="icon"]').value = category.icon;
-                document.querySelector('[name="color"]').value = category.color;
-                document.querySelector('[name="order"]').value = category.order;
-                document.querySelector('[name="is_active"]').checked = category.is_active;
-
-                const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
-                modal.show();
+        .then(category => {
+            document.getElementById('categoryId').value = category.id || '';
+            document.querySelector('[name="name_ar"]').value = category.name_ar || '';
+            // Backend uses 'name' not 'name_en'; use it for English field if available
+            document.querySelector('[name="name_en"]').value = category.name || '';
+            document.querySelector('[name="slug"]').value = category.slug || '';
+            document.querySelector('[name="section_type"]').value = category.section_type || '';
+            document.querySelector('[name="description"]').value = category.description || '';
+            // Optional fields may not exist server-side; guard accordingly
+            if (document.querySelector('[name="icon"]')) {
+                document.querySelector('[name="icon"]').value = category.icon || '';
             }
+            if (document.querySelector('[name="color"]')) {
+                document.querySelector('[name="color"]').value = category.color || '';
+            }
+            if (document.querySelector('[name="order"]')) {
+                document.querySelector('[name="order"]').value = category.order || 0;
+            }
+            document.querySelector('[name="is_active"]').checked = !!category.is_active;
+
+            const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
+            modal.show();
         });
 }
 
-function deleteCategory(categoryId) {
-    if (confirm('هل أنت متأكد من حذف هذا القسم؟ سيؤدي هذا لحذف جميع الأقسام الفرعية والإعلانات المرتبطة.')) {
-        fetch(`/admin/categories/${categoryId}/delete/`, {
+function deleteCategory(categoryId, categoryName) {
+    confirmDelete(`{% trans "هل أنت متأكد من حذف القسم" %} "${categoryName || ''}"؟`, () => {
+        fetch(`/admin/categories/${categoryId}/delete/`, { // Use the correct, non-prefixed URL
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken')
@@ -372,23 +389,34 @@ function deleteCategory(categoryId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                showSuccess(data.message);
+                showSuccess(data.message || 'تم حذف القسم بنجاح');
                 location.reload();
             } else {
-                showError(data.message);
+                showError(data.message || 'تعذر حذف القسم');
             }
         });
-    }
+    });
 }
 
 function saveCategory() {
     const form = document.getElementById('categoryForm');
     const formData = new FormData(form);
-    const categoryId = formData.get('category_id');
 
-    const url = categoryId ? `/admin/categories/${categoryId}/update/` : '/admin/categories/create/';
+    // Map form field names to backend expectations
+    // Backend expects 'parent' not 'parent_id'
+    const parentId = document.getElementById('parentCategoryId').value;
+    if (parentId) {
+        formData.set('parent', parentId);
+    } else {
+        formData.delete('parent');
+    }
+    // Ensure 'name' exists (mirror from name_en if provided)
+    const nameEn = formData.get('name_en');
+    if (nameEn && !formData.get('name')) {
+        formData.set('name', nameEn);
+    }
 
-    fetch(url, {
+    fetch('/admin/categories/save/', {
         method: 'POST',
         headers: {
             'X-CSRFToken': getCookie('csrftoken')
@@ -398,11 +426,11 @@ function saveCategory() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showSuccess(data.message);
+            showSuccess(data.message || 'تم الحفظ بنجاح');
             bootstrap.Modal.getInstance(document.getElementById('categoryModal')).hide();
             location.reload();
         } else {
-            showError(data.message);
+            showError(data.message || 'تعذر حفظ البيانات');
         }
     });
 }
@@ -557,10 +585,10 @@ function saveCustomFields() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showSuccess(data.message);
+            showSuccess(data.message || 'تم حفظ الحقول بنجاح');
             bootstrap.Modal.getInstance(document.getElementById('customFieldsModal')).hide();
         } else {
-            showError(data.message);
+            showError(data.message || 'تعذر حفظ الحقول');
         }
     });
 }
@@ -582,13 +610,113 @@ function getCookie(name) {
 }
 
 function showSuccess(message) {
-    console.log('Success:', message);
-    // Implement toast notification
+    if (typeof window.showNotification === 'function') {
+        window.showNotification(message || 'تمت العملية بنجاح', 'success');
+    } else {
+        console.log('Success:', message);
+    }
 }
 
 function showError(message) {
-    console.log('Error:', message);
-    // Implement toast notification
+    if (typeof window.showNotification === 'function') {
+        window.showNotification(message || 'حدث خطأ', 'error');
+    } else {
+        console.error('Error:', message);
+    }
+}
+
+// Toast-like confirmation using main.js style
+function confirmDelete(message, onConfirm) {
+    const colors = {
+        base: 'linear-gradient(135deg, #4B315E 0%, #6B4C7A 100%)'
+    }
+    const box = document.createElement('div')
+    box.className = 'custom-notification'
+    box.style.cssText = `
+        position: fixed; top: 90px; right: 20px; z-index: 9999;
+        background: ${colors.base}; color: white; padding: 14px 16px;
+        border-radius: 12px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        display: flex; align-items: center; gap: 12px; max-width: 420px;
+    `
+
+    const text = document.createElement('span')
+    text.textContent = message || 'تأكيد العملية'
+
+    const actions = document.createElement('div')
+    actions.style.cssText = 'display:flex; gap:8px; margin-right:auto;'
+
+    const confirmBtn = document.createElement('button')
+    confirmBtn.textContent = 'تأكيد'
+    confirmBtn.className = 'btn btn-sm btn-light'
+    confirmBtn.style.cssText = 'color:#4B315E; font-weight:700;'
+
+    const cancelBtn = document.createElement('button')
+    cancelBtn.textContent = 'إلغاء'
+    cancelBtn.className = 'btn btn-sm btn-outline-light'
+
+    confirmBtn.addEventListener('click', () => {
+        document.body.removeChild(box)
+        if (typeof onConfirm === 'function') onConfirm()
+    })
+    cancelBtn.addEventListener('click', () => {
+        document.body.removeChild(box)
+    })
+
+    actions.appendChild(confirmBtn)
+    actions.appendChild(cancelBtn)
+    box.appendChild(text)
+    box.appendChild(actions)
+    document.body.appendChild(box)
 }
 </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Function to initialize SortableJS on a given element
+            const initSortable = (element, options) => {
+        new Sortable(element, {
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            ...options,
+            onEnd: function (evt) {
+                const orderedIds = Array.from(evt.to.children).map(item => item.dataset.categoryId);
+                const indicator = evt.from.closest('.admin-content-card').querySelector('.saving-indicator');
+
+                if (indicator) indicator.style.display = 'inline';
+
+                fetch("{% url 'main:admin_category_reorder' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ ordered_ids: orderedIds })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showSuccess('{% trans "تم تحديث الترتيب بنجاح." %}');
+                    } else {
+                        showError(data.message || '{% trans "حدث خطأ أثناء تحديث الترتيب." %}');
+                    }
+                })
+                .catch(() => showError('{% trans "خطأ في الاتصال بالخادم." %}'))
+                .finally(() => {
+                    if (indicator) indicator.style.display = 'none';
+                });
+            }
+        });
+    };
+
+            // Initialize for main category grids
+            document.querySelectorAll('.categories-grid').forEach(grid => {
+                initSortable(grid, {group: 'main-categories'});
+            });
+
+            // Initialize for subcategory lists
+            document.querySelectorAll('.subcategories-list').forEach(list => {
+                initSortable(list, {group: 'sub-categories'});
+            });
+        });
+    </script>
 {% endblock %}

@@ -67,7 +67,7 @@ def send_ad_approval_notification(sender, instance, **kwargs):
                 Notification.objects.create(
                     user=instance.user,
                     message=_(
-                        'تمت الموافقة على إعلانك "{ad_title}" وهو الآن مباشر.'
+                        'تهانينا! تمت الموافقة على إعلانك "{ad_title}" وهو الآن نشط على المنصة.'
                     ).format(ad_title=instance.title),
                     link=instance.get_absolute_url(),
                 )
@@ -75,7 +75,7 @@ def send_ad_approval_notification(sender, instance, **kwargs):
                 # 2. Send an email notification
                 current_site = Site.objects.get_current()
                 subject = config.AD_APPROVAL_EMAIL_SUBJECT.format(
-                    ad_title=instance.title
+                    ad_title=instance.title, site_name=current_site.name
                 )
                 context = {
                     "user": instance.user,
@@ -118,14 +118,11 @@ def assign_default_package_to_new_user(sender, instance, created, **kwargs):
                 Notification.objects.create(
                     user=instance,
                     title=_("مرحباً بك في إدريسي مارت!"),
-                    message=_(
-                        'تم منحك باقة "{package_name}" المجانية. '
-                        "يمكنك الآن نشر {ad_count} إعلانات!"
-                    ).format(
+                    message=_('تم منحك باقة "{package_name}" المجانية. يمكنك الآن نشر {ad_count} إعلانات!').format(
                         package_name=default_package.name,
                         ad_count=default_package.ad_count,
                     ),
-                    notification_type=Notification.NotificationType.PACKAGE_EXPIRED,
+                    notification_type=Notification.NotificationType.GENERAL,
                 )
         except Exception as e:
             # Log error but don't fail user registration
