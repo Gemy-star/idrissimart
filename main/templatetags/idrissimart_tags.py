@@ -333,3 +333,23 @@ def render_verification_badge(user, location="overlay"):
 def verification_badge(user, location="overlay"):
     """Render verification badge with template"""
     return render_verification_badge(user, location)
+
+
+# ======================
+# Utility Filters
+# ======================
+
+
+@register.filter(name="get_item")
+def get_item(mapping, key):
+    """
+    Safely get a key from a dict-like object in templates.
+    Usage: {{ my_dict|get_item:key }}
+    """
+    try:
+        if mapping is None:
+            return ""
+        # Support dict and Django QueryDict-like objects
+        return mapping.get(key, "")
+    except Exception:
+        return ""
