@@ -67,38 +67,26 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
 
     def dispatch(self, request, *args, **kwargs):
         """
-        Check if the user has an active package with remaining ads before allowing
-        them to access the creation form.
+        Allow access only if the user has an active package with remaining ads.
+        If none, redirect to packages page to acquire a package (free or paid).
         """
-        # First, run the LoginRequiredMixin's check to ensure user is authenticated.
-        handler = super().dispatch(request, *args, **kwargs)
-        if handler.status_code != 200:
-            return handler
+        user = request.user
 
-        user = self.request.user
-        active_package = UserPackage.objects.filter(
-            user=user, ads_remaining__gt=0, expiry_date__gte=timezone.now()
-        ).first()
+        # Require an active user package with remaining ads
+        has_quota = (
+            UserPackage.objects.filter(
+                user=user,
+                expiry_date__gte=timezone.now(),
+                ads_remaining__gt=0,
+            )
+            .order_by("expiry_date")
+            .exists()
+        )
 
-        if not active_package:
-            # If no active package, check if a default package should be assigned (for new users)
-            if not UserPackage.objects.filter(user=user).exists():
-                default_package = AdPackage.objects.filter(
-                    is_default=True, is_active=True
-                ).first()
-                if default_package:
-                    UserPackage.objects.create(user=user, package=default_package)
-                    messages.info(
-                        request,
-                        _(
-                            "لقد تم منحك الباقة الافتراضية المجانية! يمكنك الآن نشر إعلانك الأول."
-                        ),
-                    )
-                    return super().dispatch(request, *args, **kwargs)
-
+        if not has_quota:
             messages.error(
                 request,
-                _("لقد استنفدت رصيدك من الإعلانات. يرجى شراء باقة جديدة للمتابعة."),
+                _("لقد استنفدت رصيدك من الإعلانات أو لا تملك باقة نشطة. يرجى اختيار باقة."),
             )
             return redirect("main:packages_list")
 

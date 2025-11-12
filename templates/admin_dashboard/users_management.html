@@ -137,11 +137,19 @@
                                         {% endif %}
                                     </td>
                                     <td>{{ user_obj.date_joined|date:"d M, Y" }}</td>
-                                    <td>
-                                        <a href="#" class="btn btn-sm btn-outline-primary" title="{% trans 'عرض التفاصيل' %}"><i class="fas fa-eye"></i></a>
-                                        <button class="btn btn-sm btn-outline-danger" onclick="handleUserAction('{{ user_obj.is_suspended|yesno:'unsuspend,suspend' }}', {{ user_obj.id }})" title="{% if user_obj.is_suspended %}{% trans 'إلغاء التعليق' %}{% else %}{% trans 'تعليق' %}{% endif %}">
-                                            <i class="fas fa-user-slash"></i>
-                                        </button>
+                                    <td class="text-nowrap">
+                                        <div class="btn-group" role="group" aria-label="{% trans 'إجراءات المستخدم' %}">
+                                            <a href="#" onclick="event.preventDefault(); viewUserDetails({{ user_obj.id }})" class="btn btn-sm btn-outline-primary" title="{% trans 'عرض التفاصيل' %}" aria-label="{% trans 'عرض التفاصيل' %}">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-danger"
+                                                    onclick="handleUserAction('{{ user_obj.is_suspended|yesno:'unsuspend,suspend' }}', {{ user_obj.id }})"
+                                                    title="{% if user_obj.is_suspended %}{% trans 'إلغاء التعليق' %}{% else %}{% trans 'تعليق' %}{% endif %}"
+                                                    aria-label="{% if user_obj.is_suspended %}{% trans 'إلغاء التعليق' %}{% else %}{% trans 'تعليق' %}{% endif %}">
+                                                <i class="fas fa-user-slash"></i>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% empty %}
@@ -218,10 +226,56 @@
             });
         });
 
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
         function handleUserAction(action, userId) {
-            // This function is defined in ad_publisher_detail.html, ensure it's available globally
-            // or move it to a shared JS file.
-            console.log(`Performing ${action} on user ${userId}`);
+            if (!action || !userId) return;
+            const msgMap = {
+                suspend: '{% trans "هل أنت متأكد من تعليق هذا المستخدم؟" %}',
+                unsuspend: '{% trans "هل أنت متأكد من إلغاء تعليق هذا المستخدم؟" %}',
+                verify: '{% trans "هل أنت متأكد من توثيق هذا المستخدم؟" %}'
+            };
+            const confirmMsg = msgMap[action] || '{% trans "هل أنت متأكد؟" %}';
+            if (!confirm(confirmMsg)) return;
+
+            fetch(`/admin/users/${userId}/action/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ action })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    if (window.showNotification) {
+                        window.showNotification(data.message, 'success');
+                    }
+                    location.reload();
+                } else {
+                    alert(data.message || '{% trans "حدث خطأ أثناء تنفيذ العملية." %}');
+                }
+            })
+            .catch(() => alert('{% trans "خطأ في الاتصال بالخادم." %}'));
+        }
+
+        function viewUserDetails(userId) {
+            // Placeholder: navigate to a user details page if exists.
+            // window.location.href = `/admin/users/${userId}/`; 
         }
     </script>
 {% endblock %}

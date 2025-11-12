@@ -24,6 +24,7 @@
         overflow: hidden;
         box-shadow: var(--card-shadow);
     }
+
 </style>
 {% endblock %}
 
@@ -39,10 +40,10 @@
                 <p class="text-muted mb-0">{% trans "عرض وتعديل جميع الحقول المخصصة المرتبطة بالأقسام" %}</p>
             </div>
             <div>
-                <a href="{% url 'main:admin_categories' %}" class="btn btn-primary">
+                <button type="button" data-bs-toggle="modal" data-bs-target="#addFieldModal" class="btn btn-primary">
                     <i class="fas fa-plus-circle me-2"></i>
                     {% trans "إضافة حقل جديد" %}
-                </a>
+                </button>
             </div>
         </div>
     </div>
@@ -105,9 +106,9 @@
                                             {% endif %}
                                         </td>
                                         <td>
-                                            <a href="#" onclick="editCustomField({{ field.id }})" class="btn btn-sm btn-outline-primary" title="{% trans 'تعديل' %}">
+                                            <button type="button" onclick="editCustomField({{ field.id }})" class="btn btn-sm btn-outline-primary" title="{% trans 'تعديل' %}" data-bs-toggle="modal" data-bs-target="#editFieldModal">
                                                 <i class="fas fa-edit"></i>
-                                            </a>
+                                            </button>
                                         </td>
                                     </tr>
                                 {% endfor %}
@@ -123,6 +124,87 @@
                 <p>{% trans "يمكنك إضافة حقول مخصصة من صفحة إدارة الأقسام." %}</p>
             </div>
         {% endif %}
+    </div>
+
+    <!-- Add Custom Field Modal -->
+    <div class="modal fade" id="addFieldModal" tabindex="-1" aria-labelledby="addFieldModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addFieldModalLabel">{% trans "إضافة حقل مخصص جديد" %}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addFieldForm">
+                        <div class="mb-3">
+                            <label for="addCategory" class="form-label">{% trans "القسم التابع له" %} *</label>
+                            <select id="addCategory" name="category" class="form-select" required>
+                                <option value="">{% trans "اختر القسم..." %}</option>
+                                {% for category, fields in fields_by_category.items %}
+                                    <option value="{{ category.id }}">{{ category.name_ar|default:category.name }}</option>
+                                    {% for child in category.get_children %}
+                                        <option value="{{ child.id }}">&nbsp;&nbsp;&nbsp;↳ {{ child.name_ar|default:child.name }}</option>
+                                    {% endfor %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="addFieldName" class="form-label">{% trans "اسم الحقل (Name)" %}</label>
+                                <input type="text" id="addFieldName" name="name" class="form-control" required placeholder="e.g., 'year_of_manufacture'">
+                                <small class="form-text text-muted">{% trans "English, no spaces, use underscores." %}</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="addFieldType" class="form-label">{% trans "نوع الحقل" %}</label>
+                                <select id="addFieldType" name="field_type" class="form-select">
+                                    {% for value, name in field_type_choices %}
+                                        <option value="{{ value }}">{{ name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="addFieldLabelAr" class="form-label">{% trans "التسمية (عربي)" %}</label>
+                                <input type="text" id="addFieldLabelAr" name="label_ar" class="form-control" required placeholder="مثال: سنة الصنع">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="addFieldLabelEn" class="form-label">{% trans "التسمية (إنجليزي)" %}</label>
+                                <input type="text" id="addFieldLabelEn" name="label_en" class="form-control" placeholder="e.g., Year of Manufacture">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="addFieldOptions" class="form-label">{% trans "الخيارات (مفصولة بفاصلة)" %}</label>
+                            <input type="text" id="addFieldOptions" name="options" class="form-control" placeholder="خيار 1, خيار 2, خيار 3">
+                            <small class="form-text text-muted">{% trans "للحقول من نوع اختيار فقط" %}</small>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="addFieldOrder" class="form-label">{% trans "الترتيب" %}</label>
+                                <input type="number" id="addFieldOrder" name="order" class="form-control" value="0">
+                            </div>
+                            <div class="col-md-4 d-flex align-items-center">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="addFieldIsRequired" name="is_required">
+                                    <label class="form-check-label" for="addFieldIsRequired">{% trans "مطلوب" %}</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4 d-flex align-items-center">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="addFieldIsActive" name="is_active" checked>
+                                    <label class="form-check-label" for="addFieldIsActive">{% trans "نشط" %}</label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إغلاق" %}</button>
+                    <button type="button" class="btn btn-primary" onclick="addNewCustomField()">{% trans "إضافة الحقل" %}</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Edit Custom Field Modal -->
@@ -196,6 +278,7 @@
 
 {% block admin_extra_js %}
 <script>
+    const addFieldModal = new bootstrap.Modal(document.getElementById('addFieldModal'));
     const editFieldModal = new bootstrap.Modal(document.getElementById('editFieldModal'));
 
     function editCustomField(fieldId) {
@@ -205,23 +288,68 @@
                 if (data.success) {
                     const field = data.field;
                     document.getElementById('editFieldId').value = field.id;
-                    document.getElementById('editFieldName').value = field.name;
-                    document.getElementById('editFieldLabelAr').value = field.label_ar;
-                    document.getElementById('editFieldLabelEn').value = field.label_en;
-                    document.getElementById('editFieldType').value = field.field_type;
-                    document.getElementById('editFieldOptions').value = field.options;
-                    document.getElementById('editFieldOrder').value = field.order;
-                    document.getElementById('editFieldIsRequired').checked = field.is_required;
-                    document.getElementById('editFieldIsActive').checked = field.is_active;
-                    editFieldModal.show();
+                    document.getElementById('editFieldName').value = field.name || '';
+                    document.getElementById('editFieldLabelAr').value = field.label_ar || '';
+                    document.getElementById('editFieldLabelEn').value = field.label_en || '';
+                    document.getElementById('editFieldType').value = field.field_type || '';
+                    document.getElementById('editFieldOptions').value = field.options || '';
+                    document.getElementById('editFieldOrder').value = field.order || 0;
+                    document.getElementById('editFieldIsRequired').checked = field.is_required || false;
+                    document.getElementById('editFieldIsActive').checked = field.is_active || false;
+
+                    // The modal is shown via data-bs-toggle attributes
                 } else {
                     alert(data.message || '{% trans "Failed to load field data." %}');
                 }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('{% trans "An error occurred while loading field data." %}');
             });
+    }
+
+    function addNewCustomField() {
+        const form = document.getElementById('addFieldForm');
+        if (!form) {
+            console.error('Form not found');
+            return;
+        }
+
+        const formData = new FormData(form);
+
+        // Basic validation
+        if (!formData.get('category') || !formData.get('name') || !formData.get('label_ar')) {
+            alert('{% trans "Please fill all required fields." %}');
+            return;
+        }
+
+        fetch("{% url 'main:admin_custom_field_save' %}", {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                addFieldModal.hide();
+                location.reload();
+            } else {
+                alert(data.message || '{% trans "Failed to add field." %}');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('{% trans "An error occurred while adding the field." %}');
+        });
     }
 
     function saveCustomField() {
         const form = document.getElementById('editFieldForm');
+        if (!form) {
+            console.error('Form not found');
+            return;
+        }
+
         const formData = new FormData(form);
 
         fetch("{% url 'main:admin_custom_field_save' %}", {
@@ -240,6 +368,10 @@
             } else {
                 alert(data.message || '{% trans "Failed to save field." %}');
             }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('{% trans "An error occurred while saving the field." %}');
         });
     }
 

@@ -2361,11 +2361,17 @@ class AdminCustomFieldSaveView(SuperadminRequiredMixin, View):
             field_id = request.POST.get('field_id')
             if field_id:
                 field = get_object_or_404(CustomField, pk=field_id)
+                message = _('تم تحديث الحقل بنجاح.')
             else:
-                # This view is for updating, but could be extended for creation
-                return JsonResponse({'success': False, 'message': _('Field ID is required.')}, status=400)
+                field = CustomField()
+                message = _('تم إنشاء الحقل بنجاح.')
 
             # Update fields from POST data
+            category_id = request.POST.get('category')
+            if not category_id:
+                return JsonResponse({'success': False, 'message': _('Category is required.')}, status=400)
+            
+            field.category = get_object_or_404(Category, pk=category_id)
             field.name = request.POST.get('name', field.name)
             field.label_ar = request.POST.get('label_ar', field.label_ar)
             field.label_en = request.POST.get('label_en', field.label_en)
@@ -2376,7 +2382,7 @@ class AdminCustomFieldSaveView(SuperadminRequiredMixin, View):
             field.options = request.POST.get('options', field.options)
             field.save()
 
-            return JsonResponse({'success': True, 'message': _('تم تحديث الحقل بنجاح.')})
+            return JsonResponse({'success': True, 'message': message})
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)}, status=500)
 
@@ -2916,6 +2922,7 @@ def ad_publisher_detail(request, ad_id):
         "page_title": _("معاينة الإعلان") + f" - {ad.title}",
         "other_ads_by_user": other_ads_by_user,
         "user_ad_stats": json.dumps(user_ad_stats),
+        "active_nav": "ads",
     }
     return render(request, "classifieds/ad_publisher_detail.html", context)
 
