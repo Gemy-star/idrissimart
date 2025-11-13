@@ -1925,6 +1925,13 @@ class ComparisonView(TemplateView):
             ads = list(ClassifiedAd.objects.filter(pk__in=ad_ids))
             ads.sort(key=lambda ad: ad_ids.index(ad.pk))
             context["ads_to_compare"] = ads
+            
+            # Increment view count for each ad being compared
+            # Use F() expression to avoid race conditions
+            from django.db.models import F
+            ClassifiedAd.objects.filter(pk__in=ad_ids).update(
+                views_count=F('views_count') + 1
+            )
         else:
             context["ads_to_compare"] = []
 

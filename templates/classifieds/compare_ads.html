@@ -68,7 +68,7 @@
     .feature-header {
         text-align: right;
         font-weight: 700;
-        background: var(--bg-secondary);
+        background: transparent;
         width: 20%;
         color: var(--text-primary);
         position: sticky;
@@ -285,6 +285,86 @@
         padding: 0.75rem 1.5rem;
     }
     
+    /* Compare Page Wishlist Styling */
+    .ad-header-compare {
+        position: relative;
+        text-align: center;
+    }
+    
+    .wishlist-btn-container {
+        margin-top: 1rem;
+        display: flex;
+        justify-content: center;
+    }
+    
+    .wishlist-btn {
+        border-radius: 50%;
+        font-size: 1rem;
+        padding: 0.5rem;
+        width: 40px;
+        height: 40px;
+        transition: all 0.3s ease;
+        border: 2px solid #dc3545;
+        background: transparent;
+        color: #dc3545;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .wishlist-btn:hover {
+        background: #dc3545;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+    }
+    
+    .wishlist-btn.active {
+        background: #dc3545;
+        color: white;
+        border-color: #dc3545;
+    }
+    
+    .wishlist-btn.active i {
+        animation: heartBeat 1s ease-in-out;
+    }
+    
+    .wishlist-btn i {
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .wishlist-btn.active .wishlist-text {
+        content: "{% trans 'في المفضلة' %}";
+    }
+    
+    @keyframes heartBeat {
+        0% { transform: scale(1); }
+        25% { transform: scale(1.2); }
+        50% { transform: scale(1); }
+        75% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+    
+    /* Wishlist notification styling */
+    .wishlist-notification {
+        position: fixed;
+        top: 100px;
+        right: 20px;
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        color: white;
+        padding: 15px 25px;
+        border-radius: 10px;
+        box-shadow: 0 8px 25px rgba(220, 53, 69, 0.3);
+        z-index: 9999;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        max-width: 350px;
+        animation: slideInRight 0.3s ease;
+    }
+    
     .empty-compare {
         text-align: center;
         padding: 4rem;
@@ -381,14 +461,26 @@
                             <th class="feature-header">{% trans "الميزة" %}</th>
                             {% for ad in ads_to_compare %}
                                 <th>
-                                    <a href="{{ ad.get_absolute_url }}">
-                                        {% if ad.images.first %}
-                                            <img src="{{ ad.images.first.image.url }}" alt="{{ ad.title }}" class="ad-image-compare">
-                                        {% else %}
-                                            <img src="https://via.placeholder.com/150?text=No+Image" alt="No Image" class="ad-image-compare">
-                                        {% endif %}
-                                        <h5 class="ad-title-compare">{{ ad.title|truncatechars:40 }}</h5>
-                                    </a>
+                                    <div class="ad-header-compare">
+                                        <a href="{{ ad.get_absolute_url }}">
+                                            {% if ad.images.first %}
+                                                <img src="{{ ad.images.first.image.url }}" alt="{{ ad.title }}" class="ad-image-compare">
+                                            {% else %}
+                                                <img src="https://via.placeholder.com/150?text=No+Image" alt="No Image" class="ad-image-compare">
+                                            {% endif %}
+                                            <h5 class="ad-title-compare">{{ ad.title|truncatechars:40 }}</h5>
+                                        </a>
+                                        <!-- Wishlist Button -->
+                                        <div class="wishlist-btn-container">
+                                            <button class="btn btn-outline-danger btn-sm wishlist-btn" 
+                                                    data-ad-id="{{ ad.id }}" 
+                                                    data-ad-title="{{ ad.title }}"
+                                                    data-ad-image="{% if ad.images.first %}{{ ad.images.first.image.url }}{% else %}https://via.placeholder.com/150?text=No+Image{% endif %}"
+                                                    onclick="toggleWishlist({{ ad.id }}, this)">
+                                                <i class="far fa-heart"></i>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </th>
                             {% endfor %}
                         </tr>
@@ -903,5 +995,181 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// Wishlist functionality for compare page
+function toggleWishlist(adId, button) {
+    const adTitle = button.dataset.adTitle;
+    const adImage = button.dataset.adImage;
+    const isActive = button.classList.contains('active');
+    
+    // Check if user is authenticated
+    const isAuthenticated = {{ user.is_authenticated|yesno:"true,false" }};
+    
+    if (isAuthenticated) {
+        // Handle authenticated user with server request
+        toggleWishlistServer(adId, adTitle, adImage, button, isActive);
+    } else {
+        // Handle guest user with localStorage
+        toggleWishlistGuest(adId, adTitle, adImage, button, isActive);
+    }
+}
+
+// Server-side wishlist toggle for authenticated users
+async function toggleWishlistServer(adId, adTitle, adImage, button, isActive) {
+    try {
+        const action = isActive ? 'remove' : 'add';
+        const response = await fetch(`/api/wishlist/${action}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: `item_id=${adId}`
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            updateWishlistButton(button, !isActive);
+            const message = isActive ? 
+                `{% trans "تم إزالة" %} ${adTitle} {% trans "من المفضلة" %}` : 
+                `{% trans "تم إضافة" %} ${adTitle} {% trans "إلى المفضلة" %}`;
+            showWishlistNotification(message, 'success');
+        } else {
+            showWishlistNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
+        }
+    } catch (error) {
+        console.error('Wishlist error:', error);
+        showWishlistNotification('{% trans "حدث خطأ في الاتصال" %}', 'error');
+    }
+}
+
+// Client-side wishlist toggle for guest users
+function toggleWishlistGuest(adId, adTitle, adImage, button, isActive) {
+    let guestWishlist = JSON.parse(localStorage.getItem('guestWishlist') || '[]');
+    
+    if (isActive) {
+        // Remove from wishlist
+        guestWishlist = guestWishlist.filter(item => item.id != adId);
+        updateWishlistButton(button, false);
+        showWishlistNotification(`{% trans "تم إزالة" %} ${adTitle} {% trans "من المفضلة" %}`, 'success');
+    } else {
+        // Add to wishlist
+        if (!guestWishlist.some(item => item.id == adId)) {
+            guestWishlist.push({
+                id: adId,
+                title: adTitle,
+                image: adImage,
+                addedAt: new Date().toISOString()
+            });
+        }
+        updateWishlistButton(button, true);
+        showWishlistNotification(`{% trans "تم إضافة" %} ${adTitle} {% trans "إلى المفضلة" %}`, 'success');
+    }
+    
+    localStorage.setItem('guestWishlist', JSON.stringify(guestWishlist));
+}
+
+// Update wishlist button appearance
+function updateWishlistButton(button, isActive) {
+    const icon = button.querySelector('i');
+    
+    if (isActive) {
+        button.classList.add('active');
+        icon.classList.remove('far');
+        icon.classList.add('fas');
+        button.title = '{% trans "في المفضلة" %}';
+    } else {
+        button.classList.remove('active');
+        icon.classList.remove('fas');
+        icon.classList.add('far');
+        button.title = '{% trans "إضافة للمفضلة" %}';
+    }
+}
+
+// Wishlist functionality for ad cards (reusable function)
+function toggleWishlistCard(adId, button) {
+    const adTitle = button.dataset.adTitle;
+    const adImage = button.dataset.adImage;
+    const isActive = button.classList.contains('active');
+    
+    // Check if user is authenticated
+    const isAuthenticated = {{ user.is_authenticated|yesno:"true,false" }};
+    
+    if (isAuthenticated) {
+        // Handle authenticated user with server request
+        toggleWishlistServer(adId, adTitle, adImage, button, isActive);
+    } else {
+        // Handle guest user with localStorage
+        toggleWishlistGuest(adId, adTitle, adImage, button, isActive);
+    }
+}
+
+// Show wishlist notification
+function showWishlistNotification(message, type = 'success') {
+    const colors = {
+        success: 'linear-gradient(135deg, #dc3545, #c82333)',
+        error: 'linear-gradient(135deg, #e74c3c, #c0392b)'
+    };
+    
+    const icons = {
+        success: '❤️',
+        error: '✗'
+    };
+    
+    const notification = document.createElement('div');
+    notification.className = 'wishlist-notification';
+    notification.style.background = colors[type];
+    notification.innerHTML = `<span>${icons[type]}</span> ${message}`;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// Initialize wishlist buttons on page load
+function initializeWishlistButtons() {
+    const isAuthenticated = {{ user.is_authenticated|yesno:"true,false" }};
+    
+    if (!isAuthenticated) {
+        // For guest users, check localStorage and update button states
+        const guestWishlist = JSON.parse(localStorage.getItem('guestWishlist') || '[]');
+        
+        // Handle both compare page and ad card wishlist buttons
+        document.querySelectorAll('.wishlist-btn, .wishlist-btn-card').forEach(button => {
+            const adId = button.dataset.adId;
+            const isInWishlist = guestWishlist.some(item => item.id == adId);
+            updateWishlistButton(button, isInWishlist);
+        });
+    } else {
+        // For authenticated users, you might want to fetch wishlist status from server
+        // This would require an additional API endpoint
+        console.log('Authenticated user - wishlist status should be loaded from server');
+    }
+}
+
+// Get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Initialize wishlist when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    initializeWishlistButtons();
+});
 </script>
 {% endblock %}
