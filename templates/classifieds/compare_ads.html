@@ -137,6 +137,154 @@
         padding: 1rem 1.5rem;
     }
     
+    .contact-info {
+        text-align: right;
+        font-size: 0.9rem;
+    }
+    
+    .contact-info div {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .badge {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: 15px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .badge.bg-info {
+        background: linear-gradient(135deg, #17a2b8, #138496) !important;
+        border: none;
+        box-shadow: 0 2px 8px rgba(23, 162, 184, 0.3);
+    }
+    
+    .badge.bg-primary {
+        background: linear-gradient(135deg, var(--accent-purple), var(--accent-orange)) !important;
+        border: none;
+        box-shadow: 0 2px 8px rgba(107, 76, 122, 0.3);
+    }
+    
+    .badge.bg-warning {
+        background: linear-gradient(135deg, #ffc107, #e0a800) !important;
+        border: none;
+        box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+    }
+    
+    .badge.bg-secondary {
+        background: linear-gradient(135deg, #6c757d, #5a6268) !important;
+        border: none;
+        box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3);
+    }
+    
+    .text-muted {
+        color: var(--text-muted) !important;
+        font-style: italic;
+    }
+    
+    /* RTL Support */
+    [dir="rtl"] .compare-table td {
+        text-align: right;
+    }
+    
+    [dir="rtl"] .feature-header {
+        text-align: right;
+    }
+    
+    [dir="rtl"] .contact-info div {
+        flex-direction: row-reverse;
+    }
+    
+    /* Compare Actions Bar */
+    .compare-actions-bar {
+        background: var(--bg-primary);
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        border: 1px solid var(--border-color);
+    }
+    
+    .compare-stats h6,
+    .compare-actions h6 {
+        color: var(--text-primary);
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+    
+    .stats-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .stat-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem;
+        background: var(--bg-secondary);
+        border-radius: 10px;
+        border: 1px solid var(--border-color);
+    }
+    
+    .stat-label {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .stat-value {
+        font-weight: 700;
+        color: var(--accent-purple);
+        font-size: 1.1rem;
+    }
+    
+    .action-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .action-buttons .btn {
+        border-radius: 10px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .action-buttons .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    
+    /* Empty State Improvements */
+    .empty-icon {
+        text-align: center;
+    }
+    
+    .empty-icon i {
+        font-size: 4rem;
+        color: var(--text-muted);
+        opacity: 0.5;
+    }
+    
+    .empty-actions {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .empty-actions .btn {
+        border-radius: 15px;
+        font-weight: 600;
+        padding: 0.75rem 1.5rem;
+    }
+    
     .empty-compare {
         text-align: center;
         padding: 4rem;
@@ -279,27 +427,393 @@
                                 <td style="text-align: right; white-space: pre-wrap;">{{ ad.description|truncatewords:50 }}</td>
                             {% endfor %}
                         </tr>
-                        <!-- Custom Fields -->
+                        <!-- Date Posted -->
+                        <tr>
+                            <td class="feature-header">{% trans "تاريخ النشر" %}</td>
+                            {% for ad in ads_to_compare %}
+                                <td>{{ ad.created_at|date:"d/m/Y" }}</td>
+                            {% endfor %}
+                        </tr>
+                        <!-- Views Count -->
+                        <tr>
+                            <td class="feature-header">{% trans "عدد المشاهدات" %}</td>
+                            {% for ad in ads_to_compare %}
+                                <td>
+                                    <i class="fas fa-eye text-muted me-1"></i>
+                                    {{ ad.views_count|default:0 }}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        <!-- Delivery Available -->
+                        <tr>
+                            <td class="feature-header">{% trans "التوصيل متاح" %}</td>
+                            {% for ad in ads_to_compare %}
+                                <td>
+                                    {% if ad.is_delivery_available %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>
+                                            {% trans "نعم" %}
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-times me-1"></i>
+                                            {% trans "لا" %}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        <!-- Condition -->
+                        {% if ads_to_compare|first.custom_fields.condition %}
+                        <tr>
+                            <td class="feature-header">{% trans "الحالة" %}</td>
+                            {% for ad in ads_to_compare %}
+                                <td>
+                                    {% if ad.custom_fields.condition %}
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-box-open me-1"></i>
+                                            {{ ad.custom_fields.condition }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">{% trans "غير محدد" %}</span>
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        {% endif %}
+                        <!-- Brand -->
+                        {% if ads_to_compare|first.custom_fields.brand %}
+                        <tr>
+                            <td class="feature-header">{% trans "الماركة" %}</td>
+                            {% for ad in ads_to_compare %}
+                                <td>
+                                    {% if ad.custom_fields.brand %}
+                                        <span class="badge bg-primary">
+                                            <i class="fas fa-tag me-1"></i>
+                                            {{ ad.custom_fields.brand }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">{% trans "غير محدد" %}</span>
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        {% endif %}
+                        <!-- Model -->
+                        {% if ads_to_compare|first.custom_fields.model %}
+                        <tr>
+                            <td class="feature-header">{% trans "الموديل" %}</td>
+                            {% for ad in ads_to_compare %}
+                                <td>
+                                    {% if ad.custom_fields.model %}
+                                        {{ ad.custom_fields.model }}
+                                    {% else %}
+                                        <span class="text-muted">{% trans "غير محدد" %}</span>
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        {% endif %}
+                        <!-- Year -->
+                        {% if ads_to_compare|first.custom_fields.year %}
+                        <tr>
+                            <td class="feature-header">{% trans "السنة" %}</td>
+                            {% for ad in ads_to_compare %}
+                                <td>
+                                    {% if ad.custom_fields.year %}
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="fas fa-calendar me-1"></i>
+                                            {{ ad.custom_fields.year }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">{% trans "غير محدد" %}</span>
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        {% endif %}
+                        <!-- Contact Information -->
+                        <tr>
+                            <td class="feature-header">{% trans "معلومات الاتصال" %}</td>
+                            {% for ad in ads_to_compare %}
+                                <td>
+                                    <div class="contact-info">
+                                        {% if ad.user.phone %}
+                                            <div class="mb-2">
+                                                <i class="fas fa-phone text-success me-1"></i>
+                                                <small>{{ ad.user.phone }}</small>
+                                            </div>
+                                        {% endif %}
+                                        {% if ad.user.email %}
+                                            <div class="mb-2">
+                                                <i class="fas fa-envelope text-primary me-1"></i>
+                                                <small>{{ ad.user.email|truncatechars:20 }}</small>
+                                            </div>
+                                        {% endif %}
+                                        <div>
+                                            <i class="fas fa-user text-muted me-1"></i>
+                                            <small>{{ ad.user.get_full_name|default:ad.user.username }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        <!-- Custom Fields (Dynamic) -->
                         {% for ad in ads_to_compare %}
                             {% for field in ad.custom_fields.items %}
+                                {% if field.0 not in "condition,brand,model,year" %}
                                 <tr class="custom-field-row">
-                                    <td class="feature-header">{{ field.0|capfirst }}</td>
+                                    <td class="feature-header">
+                                        {% if field.0 == "color" %}
+                                            {% trans "اللون" %}
+                                        {% elif field.0 == "size" %}
+                                            {% trans "الحجم" %}
+                                        {% elif field.0 == "weight" %}
+                                            {% trans "الوزن" %}
+                                        {% elif field.0 == "material" %}
+                                            {% trans "المادة" %}
+                                        {% elif field.0 == "warranty" %}
+                                            {% trans "الضمان" %}
+                                        {% else %}
+                                            {{ field.0|capfirst }}
+                                        {% endif %}
+                                    </td>
                                     {% for inner_ad in ads_to_compare %}
-                                        <td>{{ inner_ad.custom_fields|get_item:field.0|default:"-" }}</td>
+                                        <td>
+                                            {% with field_value=inner_ad.custom_fields|get_item:field.0 %}
+                                                {% if field_value %}
+                                                    {{ field_value }}
+                                                {% else %}
+                                                    <span class="text-muted">{% trans "غير محدد" %}</span>
+                                                {% endif %}
+                                            {% endwith %}
+                                        </td>
                                     {% endfor %}
                                 </tr>
+                                {% endif %}
                             {% endfor %}
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+            
+            <!-- Compare Actions Bar -->
+            <div class="compare-actions-bar mt-4">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="compare-stats">
+                            <h6 class="mb-2">
+                                <i class="fas fa-chart-bar me-2"></i>
+                                {% trans "إحصائيات المقارنة" %}
+                            </h6>
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <span class="stat-label">{% trans "عدد الإعلانات" %}:</span>
+                                    <span class="stat-value">{{ ads_to_compare|length }}</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">{% trans "متوسط السعر" %}:</span>
+                                    <span class="stat-value">
+                                        {% with total_price=0 count=0 %}
+                                            {% for ad in ads_to_compare %}
+                                                {% if ad.price %}
+                                                    {% add total_price ad.price as total_price %}
+                                                    {% add count 1 as count %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            {% if count > 0 %}
+                                                {{ total_price|div:count|floatformat:0 }} {{ ads_to_compare.0.currency|default:"جنيه" }}
+                                            {% else %}
+                                                {% trans "غير متاح" %}
+                                            {% endif %}
+                                        {% endwith %}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="compare-actions">
+                            <h6 class="mb-3">
+                                <i class="fas fa-tools me-2"></i>
+                                {% trans "إجراءات" %}
+                            </h6>
+                            <div class="action-buttons">
+                                <button class="btn btn-outline-primary btn-sm me-2" onclick="window.print()">
+                                    <i class="fas fa-print me-1"></i>
+                                    {% trans "طباعة" %}
+                                </button>
+                                <button class="btn btn-outline-success btn-sm me-2" onclick="shareComparison()">
+                                    <i class="fas fa-share-alt me-1"></i>
+                                    {% trans "مشاركة" %}
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm" onclick="clearAllComparison()">
+                                    <i class="fas fa-trash me-1"></i>
+                                    {% trans "مسح الكل" %}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         {% else %}
             <div class="empty-compare card card-body">
+                <div class="empty-icon mb-3">
+                    <i class="fas fa-exchange-alt"></i>
+                </div>
                 <h3>{% trans "لم تختر أي إعلانات للمقارنة" %}</h3>
-                <p>{% trans "أضف إعلانات إلى قائمة المقارنة لعرضها هنا." %}</p>
-                <a href="{% url 'main:categories' %}" class="btn btn-primary">{% trans "تصفح الإعلانات" %}</a>
+                <p class="text-muted mb-4">{% trans "أضف إعلانات إلى قائمة المقارنة لعرضها هنا. يمكنك مقارنة حتى 4 إعلانات في نفس الوقت." %}</p>
+                <div class="empty-actions">
+                    <a href="{% url 'main:categories' %}" class="btn btn-primary me-2">
+                        <i class="fas fa-search me-1"></i>
+                        {% trans "تصفح الإعلانات" %}
+                    </a>
+                    <a href="{% url 'main:home' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-home me-1"></i>
+                        {% trans "العودة للرئيسية" %}
+                    </a>
+                </div>
             </div>
         {% endif %}
     </div>
 </section>
+
+<script>
+// Share comparison functionality
+function shareComparison() {
+    const currentUrl = window.location.href;
+    const title = '{% trans "مقارنة الإعلانات" %} - {% trans "إدريسي مارت" %}';
+    const text = '{% trans "شاهد هذه المقارنة المفيدة بين الإعلانات" %}';
+    
+    if (navigator.share) {
+        navigator.share({
+            title: title,
+            text: text,
+            url: currentUrl
+        }).catch(err => console.log('Share failed:', err));
+    } else {
+        // Fallback: copy to clipboard
+        navigator.clipboard.writeText(currentUrl).then(() => {
+            showNotification('{% trans "تم نسخ رابط المقارنة" %}', 'success');
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            showNotification('{% trans "فشل نسخ الرابط" %}', 'error');
+        });
+    }
+}
+
+// Clear all comparison
+function clearAllComparison() {
+    if (confirm('{% trans "هل أنت متأكد من مسح جميع الإعلانات من المقارنة؟" %}')) {
+        localStorage.removeItem('compareList');
+        showNotification('{% trans "تم مسح جميع الإعلانات من المقارنة" %}', 'success');
+        
+        // Redirect to categories page after a short delay
+        setTimeout(() => {
+            window.location.href = '{% url "main:categories" %}';
+        }, 1500);
+    }
+}
+
+// Show notification function (if not already available)
+function showNotification(message, type = 'success') {
+    const colors = {
+        success: 'linear-gradient(135deg, #4B315E 0%, #6B4C7A 100%)',
+        error: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
+        info: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)'
+    };
+
+    const icons = {
+        success: '✓',
+        error: '✗',
+        info: 'ℹ'
+    };
+
+    const notification = document.createElement('div');
+    notification.className = 'custom-notification';
+    notification.style.cssText = `
+        position: fixed;
+        top: 100px;
+        right: 20px;
+        background: ${colors[type]};
+        color: white;
+        padding: 15px 25px;
+        border-radius: 10px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        z-index: 9999;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        max-width: 350px;
+        animation: slideInRight 0.3s ease;
+    `;
+
+    notification.innerHTML = `<span style="font-size: 1.2rem;">${icons[type]}</span> ${message}`;
+    document.body.appendChild(notification);
+
+    // Remove notification after 3 seconds
+    setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// Add CSS animations for notifications
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideInRight {
+        from {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOutRight {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+    }
+    
+    /* Print styles */
+    @media print {
+        .compare-actions-bar,
+        .btn,
+        .navbar,
+        .footer {
+            display: none !important;
+        }
+        
+        .compare-section {
+            background: white !important;
+            min-height: auto !important;
+        }
+        
+        .compare-table-wrapper {
+            box-shadow: none !important;
+            border: 1px solid #000 !important;
+        }
+        
+        .compare-table th {
+            background: #f8f9fa !important;
+            color: #000 !important;
+        }
+        
+        .ad-image-compare {
+            max-width: 100px !important;
+            max-height: 100px !important;
+        }
+    }
+`;
+document.head.appendChild(style);
+</script>
 {% endblock %}

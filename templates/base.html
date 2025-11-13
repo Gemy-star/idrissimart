@@ -268,7 +268,58 @@
 
                 // Initial update
                 updateCompareWidget();
+                
+                // Attach event listeners to compare buttons
+                attachCompareListeners();
             }
+            
+            // Function to attach compare button event listeners
+            function attachCompareListeners() {
+                document.querySelectorAll('.compare-btn').forEach(btn => {
+                    // Remove existing listeners to avoid duplicates
+                    btn.removeEventListener('click', handleCompareClick);
+                    // Add new listener
+                    btn.addEventListener('click', handleCompareClick);
+                });
+            }
+            
+            // Compare button click handler
+            function handleCompareClick(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const adId = this.dataset.adId;
+                const adTitle = this.dataset.adTitle;
+                const adImage = this.dataset.adImage;
+                
+                if (adId && adTitle && adImage) {
+                    toggleCompare(adId, this);
+                } else {
+                    console.error('Missing data attributes for compare button:', this);
+                }
+            }
+            
+            // Re-attach listeners when new content is loaded (for dynamic content)
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                        // Check if any added nodes contain compare buttons
+                        mutation.addedNodes.forEach(node => {
+                            if (node.nodeType === 1) { // Element node
+                                if (node.classList && node.classList.contains('compare-btn')) {
+                                    attachCompareListeners();
+                                } else if (node.querySelector && node.querySelector('.compare-btn')) {
+                                    attachCompareListeners();
+                                }
+                            }
+                        });
+                    }
+                });
+            });
+            
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
 
             // Back to Top Functionality
             function initializeBackToTop() {
