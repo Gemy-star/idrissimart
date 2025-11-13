@@ -389,6 +389,175 @@
                     }
                 }
             }
+
+            // Global wishlist functionality for ad cards
+            window.toggleWishlistCard = function(adId, button) {
+                const adTitle = button.dataset.adTitle;
+                const adImage = button.dataset.adImage;
+                const isActive = button.classList.contains('active');
+                
+                // Check if user is authenticated
+                const isAuthenticated = {{ user.is_authenticated|yesno:"true,false" }};
+                
+                if (isAuthenticated) {
+                    // Handle authenticated user with server request
+                    toggleWishlistServerGlobal(adId, adTitle, adImage, button, isActive);
+                } else {
+                    // Handle guest user with localStorage
+                    toggleWishlistGuestGlobal(adId, adTitle, adImage, button, isActive);
+                }
+            };
+
+            // Server-side wishlist toggle for authenticated users (global)
+            async function toggleWishlistServerGlobal(adId, adTitle, adImage, button, isActive) {
+                try {
+                    const action = isActive ? 'remove' : 'add';
+                    const response = await fetch(`/api/wishlist/${action}/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: `item_id=${adId}`
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        updateWishlistButtonGlobal(button, !isActive);
+                        const message = isActive ? 
+                            `تم إزالة ${adTitle} من المفضلة` : 
+                            `تم إضافة ${adTitle} إلى المفضلة`;
+                        showWishlistNotificationGlobal(message, 'success');
+                    } else {
+                        showWishlistNotificationGlobal(data.message || 'حدث خطأ', 'error');
+                    }
+                } catch (error) {
+                    console.error('Wishlist error:', error);
+                    showWishlistNotificationGlobal('حدث خطأ في الاتصال', 'error');
+                }
+            }
+
+            // Client-side wishlist toggle for guest users (global)
+            function toggleWishlistGuestGlobal(adId, adTitle, adImage, button, isActive) {
+                let guestWishlist = JSON.parse(localStorage.getItem('guestWishlist') || '[]');
+                
+                if (isActive) {
+                    // Remove from wishlist
+                    guestWishlist = guestWishlist.filter(item => item.id != adId);
+                    updateWishlistButtonGlobal(button, false);
+                    showWishlistNotificationGlobal(`تم إزالة ${adTitle} من المفضلة`, 'success');
+                } else {
+                    // Add to wishlist
+                    if (!guestWishlist.some(item => item.id == adId)) {
+                        guestWishlist.push({
+                            id: adId,
+                            title: adTitle,
+                            image: adImage,
+                            addedAt: new Date().toISOString()
+                        });
+                    }
+                    updateWishlistButtonGlobal(button, true);
+                    showWishlistNotificationGlobal(`تم إضافة ${adTitle} إلى المفضلة`, 'success');
+                }
+                
+                localStorage.setItem('guestWishlist', JSON.stringify(guestWishlist));
+            }
+
+            // Update wishlist button appearance (global)
+            function updateWishlistButtonGlobal(button, isActive) {
+                const icon = button.querySelector('i');
+                
+                if (isActive) {
+                    button.classList.add('active');
+                    icon.classList.remove('far');
+                    icon.classList.add('fas');
+                    button.title = 'في المفضلة';
+                } else {
+                    button.classList.remove('active');
+                    icon.classList.remove('fas');
+                    icon.classList.add('far');
+                    button.title = 'إضافة للمفضلة';
+                }
+            }
+
+            // Show wishlist notification (global)
+            function showWishlistNotificationGlobal(message, type = 'success') {
+                const colors = {
+                    success: 'linear-gradient(135deg, #dc3545, #c82333)',
+                    error: 'linear-gradient(135deg, #e74c3c, #c0392b)'
+                };
+                
+                const icons = {
+                    success: '❤️',
+                    error: '✗'
+                };
+                
+                const notification = document.createElement('div');
+                notification.className = 'wishlist-notification-global';
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 100px;
+                    right: 20px;
+                    background: ${colors[type]};
+                    color: white;
+                    padding: 15px 25px;
+                    border-radius: 10px;
+                    box-shadow: 0 8px 25px rgba(220, 53, 69, 0.3);
+                    z-index: 9999;
+                    font-weight: 600;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    max-width: 350px;
+                    animation: slideInRight 0.3s ease;
+                `;
+                notification.innerHTML = `<span>${icons[type]}</span> ${message}`;
+                
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.style.animation = 'slideOutRight 0.3s ease';
+                    setTimeout(() => notification.remove(), 300);
+                }, 3000);
+            }
+
+            // Initialize global wishlist buttons
+            function initializeGlobalWishlistButtons() {
+                const isAuthenticated = {{ user.is_authenticated|yesno:"true,false" }};
+                
+                if (!isAuthenticated) {
+                    // For guest users, check localStorage and update button states
+                    const guestWishlist = JSON.parse(localStorage.getItem('guestWishlist') || '[]');
+                    
+                    document.querySelectorAll('.wishlist-btn-card').forEach(button => {
+                        const adId = button.dataset.adId;
+                        const isInWishlist = guestWishlist.some(item => item.id == adId);
+                        updateWishlistButtonGlobal(button, isInWishlist);
+                    });
+                }
+            }
+
+            // Get CSRF token
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+
+            // Initialize global wishlist on page load
+            document.addEventListener('DOMContentLoaded', function() {
+                initializeGlobalWishlistButtons();
+            });
         </script>
 
         {% block extra_js %}
