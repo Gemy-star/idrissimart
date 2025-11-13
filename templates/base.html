@@ -63,6 +63,41 @@
         </main>
         {% include "partials/_footer.html" %}
         
+        <!-- Compare Widget -->
+        <div class="compare-widget" id="compareWidget">
+            <div class="compare-toggle" id="compareToggle">
+                <i class="fas fa-balance-scale"></i>
+                <span class="compare-badge" id="compareBadge">0</span>
+            </div>
+            
+            <div class="compare-panel" id="comparePanel">
+                <div class="compare-panel-header">
+                    <h6><i class="fas fa-balance-scale me-2"></i>{% trans "المقارنة" %}</h6>
+                    <button class="compare-panel-close" id="comparePanelClose">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="compare-items-list" id="compareItemsList">
+                    <!-- Compare items will be populated here -->
+                </div>
+                
+                <div class="compare-panel-actions">
+                    <button class="btn btn-primary btn-sm" id="compareViewBtn" disabled>
+                        <i class="fas fa-eye me-1"></i>{% trans "عرض المقارنة" %}
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" id="compareClearBtn">
+                        <i class="fas fa-trash me-1"></i>{% trans "مسح الكل" %}
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Back to Top Button -->
+        <button class="back-to-top" id="backToTop" aria-label="Back to top">
+            <i class="fas fa-arrow-up"></i>
+        </button>
+        
         <!-- Chatbot Widget -->
         {% include "chatbot/chatbot_widget.html" %}
 
@@ -97,6 +132,209 @@
                 bootstrapLink.href = "{% static 'bootstrap/css/bootstrap.rtl.min.css' %}";
             } else {
                 bootstrapLink.href = "{% static 'bootstrap/css/bootstrap.min.css' %}";
+            }
+            
+            // Initialize widgets when DOM is loaded
+            document.addEventListener('DOMContentLoaded', function() {
+                initializeCompareWidget();
+                initializeBackToTop();
+            });
+            
+            // Compare Widget Functionality
+            function initializeCompareWidget() {
+                const compareToggle = document.getElementById('compareToggle');
+                const comparePanel = document.getElementById('comparePanel');
+                const comparePanelClose = document.getElementById('comparePanelClose');
+                const compareBadge = document.getElementById('compareBadge');
+                const compareItemsList = document.getElementById('compareItemsList');
+                const compareViewBtn = document.getElementById('compareViewBtn');
+                const compareClearBtn = document.getElementById('compareClearBtn');
+                
+                let compareList = JSON.parse(localStorage.getItem('compareList')) || [];
+                let isPanelOpen = false;
+                
+                // Update widget UI
+                function updateCompareWidget() {
+                    const count = compareList.length;
+                    
+                    // Update badge
+                    compareBadge.textContent = count;
+                    if (count > 0) {
+                        compareBadge.classList.add('show');
+                    } else {
+                        compareBadge.classList.remove('show');
+                    }
+                    
+                    // Update view button
+                    compareViewBtn.disabled = count < 2;
+                    
+                    // Update items list
+                    compareItemsList.innerHTML = '';
+                    
+                    if (count === 0) {
+                        compareItemsList.innerHTML = `
+                            <div class="compare-empty">
+                                <i class="fas fa-balance-scale"></i>
+                                <p>لا توجد عناصر للمقارنة</p>
+                            </div>
+                        `;
+                    } else {
+                        compareList.forEach(item => {
+                            const itemEl = document.createElement('div');
+                            itemEl.className = 'compare-item';
+                            itemEl.innerHTML = `
+                                <img src="${item.image}" alt="${item.title}">
+                                <div class="compare-item-info">
+                                    <p class="compare-item-title">${item.title}</p>
+                                </div>
+                                <button class="compare-item-remove" data-ad-id="${item.id}">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            `;
+                            compareItemsList.appendChild(itemEl);
+                        });
+                    }
+                    
+                    // Update all compare buttons on page
+                    document.querySelectorAll('.compare-btn').forEach(btn => {
+                        const adId = btn.dataset.adId;
+                        if (compareList.some(item => item.id == adId)) {
+                            btn.classList.add('active');
+                        } else {
+                            btn.classList.remove('active');
+                        }
+                    });
+                }
+                
+                // Toggle panel
+                compareToggle.addEventListener('click', function() {
+                    isPanelOpen = !isPanelOpen;
+                    if (isPanelOpen) {
+                        comparePanel.classList.add('show');
+                    } else {
+                        comparePanel.classList.remove('show');
+                    }
+                });
+                
+                // Close panel
+                comparePanelClose.addEventListener('click', function() {
+                    isPanelOpen = false;
+                    comparePanel.classList.remove('show');
+                });
+                
+                // View comparison
+                compareViewBtn.addEventListener('click', function() {
+                    if (compareList.length > 1) {
+                        const ids = compareList.map(item => item.id).join(',');
+                        window.location.href = `{% url 'main:compare_ads' %}?ids=${ids}`;
+                    }
+                });
+                
+                // Clear all
+                compareClearBtn.addEventListener('click', function() {
+                    compareList = [];
+                    localStorage.removeItem('compareList');
+                    updateCompareWidget();
+                });
+                
+                // Remove item
+                compareItemsList.addEventListener('click', function(e) {
+                    if (e.target.closest('.compare-item-remove')) {
+                        const adId = e.target.closest('.compare-item-remove').dataset.adId;
+                        compareList = compareList.filter(item => item.id != adId);
+                        localStorage.setItem('compareList', JSON.stringify(compareList));
+                        updateCompareWidget();
+                    }
+                });
+                
+                // Global toggle compare function
+                window.toggleCompare = function(adId, button) {
+                    const adTitle = button.dataset.adTitle;
+                    const adImage = button.dataset.adImage;
+                    const existingIndex = compareList.findIndex(item => item.id == adId);
+
+                    if (existingIndex > -1) {
+                        compareList.splice(existingIndex, 1);
+                    } else {
+                        if (compareList.length >= 4) {
+                            alert('يمكنك مقارنة 4 عناصر كحد أقصى');
+                            return;
+                        }
+                        compareList.push({ id: adId, title: adTitle, image: adImage });
+                    }
+                    localStorage.setItem('compareList', JSON.stringify(compareList));
+                    updateCompareWidget();
+                };
+                
+                // Initial update
+                updateCompareWidget();
+            }
+            
+            // Back to Top Functionality
+            function initializeBackToTop() {
+                const backToTopBtn = document.getElementById('backToTop');
+                
+                if (backToTopBtn) {
+                    // Function to calculate 25% of page height
+                    function getScrollThreshold() {
+                        const documentHeight = Math.max(
+                            document.body.scrollHeight,
+                            document.body.offsetHeight,
+                            document.documentElement.clientHeight,
+                            document.documentElement.scrollHeight,
+                            document.documentElement.offsetHeight
+                        );
+                        const windowHeight = window.innerHeight;
+                        const scrollableHeight = documentHeight - windowHeight;
+                        return scrollableHeight * 0.25;
+                    }
+                    
+                    // Simple scroll handler
+                    window.addEventListener('scroll', function() {
+                        const scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
+                        const threshold = getScrollThreshold();
+                        
+                        if (scrollTop > threshold) {
+                            backToTopBtn.classList.add('show');
+                        } else {
+                            backToTopBtn.classList.remove('show');
+                        }
+                    });
+                    
+                    // Recalculate threshold on window resize
+                    window.addEventListener('resize', function() {
+                        const scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
+                        const threshold = getScrollThreshold();
+                        
+                        if (scrollTop > threshold) {
+                            backToTopBtn.classList.add('show');
+                        } else {
+                            backToTopBtn.classList.remove('show');
+                        }
+                    });
+                    
+                    // Smooth scroll to top when clicked
+                    backToTopBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        
+                        if (window.scrollTo) {
+                            window.scrollTo({
+                                top: 0,
+                                behavior: 'smooth'
+                            });
+                        } else {
+                            document.documentElement.scrollTop = 0;
+                            document.body.scrollTop = 0;
+                        }
+                    });
+                    
+                    // Initial check
+                    const initialScroll = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
+                    const initialThreshold = getScrollThreshold();
+                    if (initialScroll > initialThreshold) {
+                        backToTopBtn.classList.add('show');
+                    }
+                }
             }
         </script>
 
