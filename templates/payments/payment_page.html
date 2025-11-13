@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+{% load static i18n %}
+
+{% block title %}
+    {% trans "الدفع" %} - {% trans "إدريسي مارت" %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .payment-container {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+    
+    .payment-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        overflow: hidden;
+    }
+    
+    .payment-header {
+        background: linear-gradient(135deg, #4CAF50, #45a049);
+        color: white;
+        padding: 2rem;
+        text-align: center;
+    }
+    
+    .payment-provider {
+        border: 2px solid #e9ecef;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: #f8f9fa;
+    }
+    
+    .payment-provider:hover {
+        border-color: #4CAF50;
+        background: #f0f8f0;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(76, 175, 80, 0.2);
+    }
+    
+    .payment-provider.selected {
+        border-color: #4CAF50;
+        background: #e8f5e8;
+        box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+    }
+    
+    .provider-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        color: #4CAF50;
+    }
+    
+    .package-summary {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        border-left: 4px solid #4CAF50;
+    }
+    
+    .btn-pay {
+        background: linear-gradient(135deg, #4CAF50, #45a049);
+        border: none;
+        border-radius: 10px;
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: white;
+        transition: all 0.3s ease;
+        width: 100%;
+    }
+    
+    .btn-pay:hover {
+        background: linear-gradient(135deg, #45a049, #3d8b40);
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        color: white;
+    }
+    
+    .btn-pay:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+    
+    .loading-spinner {
+        display: none;
+    }
+    
+    .currency-badge {
+        background: #4CAF50;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 5px;
+        font-size: 0.8rem;
+        margin-left: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="payment-container">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="payment-card">
+                    <div class="payment-header">
+                        <h2 class="mb-0">
+                            <i class="fas fa-credit-card me-2"></i>
+                            {% trans "اختر طريقة الدفع" %}
+                        </h2>
+                        {% if package %}
+                            <p class="mb-0 mt-2">{% trans "شراء باقة" %}: {{ package.name }}</p>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="card-body p-4">
+                        {% if package %}
+                            <!-- Package Summary -->
+                            <div class="package-summary">
+                                <h5 class="mb-3">
+                                    <i class="fas fa-box me-2"></i>
+                                    {% trans "تفاصيل الباقة" %}
+                                </h5>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p><strong>{% trans "اسم الباقة" %}:</strong> {{ package.name }}</p>
+                                        <p><strong>{% trans "عدد الإعلانات" %}:</strong> {{ package.max_ads }}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>{% trans "مدة الصلاحية" %}:</strong> {{ package.duration_days }} {% trans "يوم" %}</p>
+                                        <p><strong>{% trans "السعر" %}:</strong> 
+                                            <span class="h5 text-success">{{ package.price }} {% trans "ريال" %}</span>
+                                        </p>
+                                    </div>
+                                </div>
+                                {% if package.features %}
+                                    <div class="mt-3">
+                                        <strong>{% trans "المميزات" %}:</strong>
+                                        <ul class="list-unstyled mt-2">
+                                            {% for feature in package.get_features_list %}
+                                                <li><i class="fas fa-check text-success me-2"></i>{{ feature }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                        
+                        <!-- Payment Providers -->
+                        <h5 class="mb-4">
+                            <i class="fas fa-wallet me-2"></i>
+                            {% trans "اختر طريقة الدفع" %}
+                        </h5>
+                        
+                        <form id="payment-form">
+                            {% csrf_token %}
+                            {% if package %}
+                                <input type="hidden" name="package_id" value="{{ package.id }}">
+                                <input type="hidden" name="amount" value="{{ package.price }}">
+                            {% endif %}
+                            
+                            <div class="payment-providers">
+                                {% for provider in supported_providers %}
+                                    <div class="payment-provider" data-provider="{{ provider.id }}">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <div class="provider-icon">
+                                                    <i class="{{ provider.icon }}"></i>
+                                                </div>
+                                            </div>
+                                            <div class="col">
+                                                <h6 class="mb-1">{{ provider.name }}</h6>
+                                                <p class="text-muted mb-0">
+                                                    {% trans "العملات المدعومة" %}:
+                                                    {% for currency in provider.currencies %}
+                                                        <span class="currency-badge">{{ currency }}</span>
+                                                    {% endfor %}
+                                                </p>
+                                            </div>
+                                            <div class="col-auto">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="provider" 
+                                                           value="{{ provider.id }}" id="provider_{{ provider.id }}">
+                                                    <label class="form-check-label" for="provider_{{ provider.id }}"></label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% empty %}
+                                    <div class="alert alert-warning" role="alert">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        {% trans "لا توجد طرق دفع متاحة حالياً" %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            
+                            {% if not package %}
+                                <!-- Custom Amount for General Payments -->
+                                <div class="mb-3">
+                                    <label for="custom_amount" class="form-label">{% trans "المبلغ" %}</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="custom_amount" name="amount" 
+                                               min="1" step="0.01" required>
+                                        <span class="input-group-text">{% trans "ريال" %}</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="currency" class="form-label">{% trans "العملة" %}</label>
+                                    <select class="form-select" id="currency" name="currency">
+                                        <option value="SAR">{% trans "ريال سعودي" %} (SAR)</option>
+                                        <option value="USD">{% trans "دولار أمريكي" %} (USD)</option>
+                                        <option value="EGP">{% trans "جنيه مصري" %} (EGP)</option>
+                                    </select>
+                                </div>
+                            {% else %}
+                                <input type="hidden" name="currency" value="SAR">
+                            {% endif %}
+                            
+                            <div class="d-grid mt-4">
+                                <button type="submit" class="btn btn-pay" id="pay-button" disabled>
+                                    <span class="button-text">
+                                        <i class="fas fa-lock me-2"></i>
+                                        {% trans "ادفع الآن" %}
+                                        {% if package %}
+                                            - {{ package.price }} {% trans "ريال" %}
+                                        {% endif %}
+                                    </span>
+                                    <span class="loading-spinner">
+                                        <i class="fas fa-spinner fa-spin me-2"></i>
+                                        {% trans "جاري المعالجة..." %}
+                                    </span>
+                                </button>
+                            </div>
+                        </form>
+                        
+                        <div class="text-center mt-4">
+                            <small class="text-muted">
+                                <i class="fas fa-shield-alt me-1"></i>
+                                {% trans "جميع المعاملات آمنة ومحمية" %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('payment-form');
+    const payButton = document.getElementById('pay-button');
+    const providers = document.querySelectorAll('.payment-provider');
+    const providerRadios = document.querySelectorAll('input[name="provider"]');
+    
+    // Handle provider selection
+    providers.forEach(provider => {
+        provider.addEventListener('click', function() {
+            const providerId = this.dataset.provider;
+            const radio = document.getElementById(`provider_${providerId}`);
+            
+            // Clear previous selections
+            providers.forEach(p => p.classList.remove('selected'));
+            
+            // Select current provider
+            this.classList.add('selected');
+            radio.checked = true;
+            
+            // Enable pay button
+            payButton.disabled = false;
+        });
+    });
+    
+    // Handle form submission
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(form);
+        const selectedProvider = formData.get('provider');
+        
+        if (!selectedProvider) {
+            alert('{% trans "يرجى اختيار طريقة الدفع" %}');
+            return;
+        }
+        
+        // Show loading state
+        payButton.disabled = true;
+        payButton.querySelector('.button-text').style.display = 'none';
+        payButton.querySelector('.loading-spinner').style.display = 'inline';
+        
+        // Submit payment request
+        fetch('{% url "main:create_payment" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Redirect to payment provider
+                if (data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert('{% trans "حدث خطأ في إعداد الدفع" %}');
+                    resetButton();
+                }
+            } else {
+                alert(data.message || '{% trans "حدث خطأ في إنشاء عملية الدفع" %}');
+                resetButton();
+            }
+        })
+        .catch(error => {
+            console.error('Payment error:', error);
+            alert('{% trans "حدث خطأ في الاتصال" %}');
+            resetButton();
+        });
+    });
+    
+    function resetButton() {
+        payButton.disabled = false;
+        payButton.querySelector('.button-text').style.display = 'inline';
+        payButton.querySelector('.loading-spinner').style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

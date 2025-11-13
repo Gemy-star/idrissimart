@@ -227,6 +227,7 @@ def reservation_management(request):
         "cancelled_reservations": cancelled_reservations,
         "is_paginated": page_obj.has_other_pages(),
         "page_obj": page_obj,
+        "active_nav": "reservations",
     }
 
     return render(request, "classifieds/reservation_management.html", context)

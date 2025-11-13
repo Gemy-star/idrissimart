@@ -1,6 +1,8 @@
 from django.urls import path
 
-from . import auth_views, classifieds_views, views
+from . import views
+from . import classifieds_views
+from . import payment_views, views
 from . import enhanced_views
 from . import cart_wishlist_views
 from django.contrib.auth import views as dj_auth_views
@@ -15,10 +17,10 @@ urlpatterns = [
     path("social/", views.SocialMediaView.as_view(), name="social"),
     path("privacy/", views.PrivacyPolicyView.as_view(), name="privacy"),
     path("terms/", views.TermsConditionsView.as_view(), name="terms"),
-    path("login/", auth_views.CustomLoginView.as_view(), name="login"),
-    path("register/", auth_views.RegisterView.as_view(), name="register"),
-    path("logout/", auth_views.logout_view, name="logout"),
-    path("password_reset/", auth_views.password_reset_request, name="password_reset"),
+    path("login/", dj_auth_views.LoginView.as_view(template_name='registration/login.html'), name="login"),
+    # path("register/", views.register_view, name="register"),  # TODO: Implement register view
+    path("logout/", dj_auth_views.LogoutView.as_view(), name="logout"),
+    path("password_reset/", dj_auth_views.PasswordResetView.as_view(), name="password_reset"),
     path(
         "password_reset/done/",
         dj_auth_views.PasswordResetDoneView.as_view(),
@@ -317,10 +319,67 @@ urlpatterns = [
         views.dashboard_get_ad_details,
         name="dashboard_ad_details",
     ),
+    # Mobile Verification URLs
+    path(
+        "ajax/send-mobile-verification/",
+        views.send_mobile_verification,
+        name="send_mobile_verification",
+    ),
+    path(
+        "ajax/verify-mobile-otp/",
+        views.verify_mobile_otp,
+        name="verify_mobile_otp",
+    ),
+    # Payment URLs
+    path(
+        "payment/",
+        payment_views.payment_page,
+        name="payment_page",
+    ),
+    path(
+        "payment/<int:package_id>/",
+        payment_views.payment_page,
+        name="payment_page_package",
+    ),
+    path(
+        "payment/create/",
+        payment_views.create_payment,
+        name="create_payment",
+    ),
+    path(
+        "payment/paypal/success/",
+        payment_views.paypal_success,
+        name="paypal_success",
+    ),
+    path(
+        "payment/paypal/cancel/",
+        payment_views.paypal_cancel,
+        name="paypal_cancel",
+    ),
+    path(
+        "payment/paymob/callback/",
+        payment_views.paymob_callback,
+        name="paymob_callback",
+    ),
+    path(
+        "payment/success/<int:payment_id>/",
+        payment_views.payment_success,
+        name="payment_success",
+    ),
+    path(
+        "payment/failed/",
+        payment_views.payment_failed,
+        name="payment_failed",
+    ),
+    path(
+        "payment/history/",
+        payment_views.payment_history,
+        name="payment_history",
+    ),
     # Admin Dashboard URLs
     path(
         "admin/dashboard/",  # This will be the main admin dashboard
-        classifieds_views.AdminDashboardView.as_view(),
+        views.AdminDashboardView.as_view(),
         name="admin_dashboard",
     ),
     path(
@@ -383,6 +442,17 @@ urlpatterns = [
         "admin/settings/notifications/",
         views.admin_settings_notifications,
         name="admin_settings_notifications",
+    ),
+    # Admin Settings - Constance
+    path(
+        "admin/settings/constance/get/",
+        views.admin_settings_constance_get,
+        name="admin_settings_constance_get",
+    ),
+    path(
+        "admin/settings/constance/save/",
+        views.admin_settings_constance_save,
+        name="admin_settings_constance_save",
     ),
     # Cart URLs
     path("api/cart/add/", cart_wishlist_views.add_to_cart, name="cart_add"),

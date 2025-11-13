@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% load static i18n %}
+
+{% block title %}
+    {% trans "نجح الدفع" %} - {% trans "إدريسي مارت" %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .success-container {
+        background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        padding: 2rem 0;
+    }
+    
+    .success-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        overflow: hidden;
+        text-align: center;
+    }
+    
+    .success-icon {
+        background: linear-gradient(135deg, #4CAF50, #45a049);
+        color: white;
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 2rem;
+        font-size: 3rem;
+        animation: successPulse 2s infinite;
+    }
+    
+    @keyframes successPulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+    
+    .payment-details {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 2rem 0;
+        text-align: left;
+    }
+    
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .detail-row:last-child {
+        border-bottom: none;
+    }
+    
+    .btn-success-action {
+        background: linear-gradient(135deg, #4CAF50, #45a049);
+        border: none;
+        border-radius: 10px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        color: white;
+        text-decoration: none;
+        display: inline-block;
+        margin: 0.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-success-action:hover {
+        background: linear-gradient(135deg, #45a049, #3d8b40);
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-outline-success {
+        border: 2px solid #4CAF50;
+        color: #4CAF50;
+        background: transparent;
+        border-radius: 10px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-block;
+        margin: 0.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-outline-success:hover {
+        background: #4CAF50;
+        color: white;
+        text-decoration: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="success-container">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-6">
+                <div class="success-card p-5">
+                    <div class="success-icon">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    
+                    <h2 class="text-success mb-3">
+                        {% trans "تم الدفع بنجاح!" %}
+                    </h2>
+                    
+                    <p class="lead text-muted mb-4">
+                        {% trans "شكراً لك، تمت عملية الدفع بنجاح وتم تأكيد طلبك." %}
+                    </p>
+                    
+                    <!-- Payment Details -->
+                    <div class="payment-details">
+                        <h5 class="mb-3">
+                            <i class="fas fa-receipt me-2"></i>
+                            {% trans "تفاصيل العملية" %}
+                        </h5>
+                        
+                        <div class="detail-row">
+                            <span><strong>{% trans "رقم العملية" %}:</strong></span>
+                            <span class="text-muted">#{{ payment.id }}</span>
+                        </div>
+                        
+                        <div class="detail-row">
+                            <span><strong>{% trans "المبلغ" %}:</strong></span>
+                            <span class="text-success fw-bold">{{ payment.amount }} {{ payment.currency }}</span>
+                        </div>
+                        
+                        <div class="detail-row">
+                            <span><strong>{% trans "طريقة الدفع" %}:</strong></span>
+                            <span class="text-muted">{{ payment.get_provider_display }}</span>
+                        </div>
+                        
+                        <div class="detail-row">
+                            <span><strong>{% trans "التاريخ" %}:</strong></span>
+                            <span class="text-muted">{{ payment.completed_at|date:"d/m/Y H:i" }}</span>
+                        </div>
+                        
+                        {% if payment.provider_transaction_id %}
+                        <div class="detail-row">
+                            <span><strong>{% trans "معرف المعاملة" %}:</strong></span>
+                            <span class="text-muted">{{ payment.provider_transaction_id }}</span>
+                        </div>
+                        {% endif %}
+                        
+                        {% if package %}
+                        <div class="detail-row">
+                            <span><strong>{% trans "الباقة المشتراة" %}:</strong></span>
+                            <span class="text-primary fw-bold">{{ package.name }}</span>
+                        </div>
+                        
+                        <div class="detail-row">
+                            <span><strong>{% trans "عدد الإعلانات" %}:</strong></span>
+                            <span class="text-muted">{{ package.max_ads }} {% trans "إعلان" %}</span>
+                        </div>
+                        
+                        <div class="detail-row">
+                            <span><strong>{% trans "صالحة لمدة" %}:</strong></span>
+                            <span class="text-muted">{{ package.duration_days }} {% trans "يوم" %}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="mt-4">
+                        {% if package %}
+                            <a href="{% url 'main:ad_create' %}" class="btn-success-action">
+                                <i class="fas fa-plus me-2"></i>
+                                {% trans "إنشاء إعلان جديد" %}
+                            </a>
+                        {% endif %}
+                        
+                        <a href="{% url 'main:payment_history' %}" class="btn-outline-success">
+                            <i class="fas fa-history me-2"></i>
+                            {% trans "سجل المدفوعات" %}
+                        </a>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a href="{% url 'main:dashboard' %}" class="btn-outline-success">
+                            <i class="fas fa-home me-2"></i>
+                            {% trans "العودة للرئيسية" %}
+                        </a>
+                    </div>
+                    
+                    <div class="mt-4 pt-4 border-top">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            {% trans "سيتم إرسال إيصال الدفع إلى بريدك الإلكتروني" %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

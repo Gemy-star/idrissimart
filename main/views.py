@@ -1,14 +1,25 @@
 import json
+from django.utils.translation import gettext_lazy as _
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods, require_POST
+from django.views.generic import ListView, TemplateView
+from django.db.models import Q, Count, Sum
+from django.contrib import messages
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.paginator import Paginator
+from django.utils import timezone
+from datetime import datetime, timedelta
+from .decorators import SuperadminRequiredMixin, superadmin_required
+from .services import MobileVerificationService
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import models, transaction
-from django.http import JsonResponse, Http404, HttpResponseForbidden
-from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
+from django.http import HttpResponseForbidden
 from django.utils.translation import gettext as _
-from django.views.decorators.http import require_POST
-from django.views.decorators.csrf import csrf_exempt
 from django.views import View
 from django.views.generic import (
     CreateView,
@@ -1616,33 +1627,91 @@ def check_ad_allowance(request):
     if not request.user.is_authenticated:
         return JsonResponse({"allowed": False, "reason": _("غير مصادق عليه")})
 
-    if not request.user.is_email_verified:
-        return JsonResponse({"allowed": False, "reason": _("البريد الإلكتروني لم يتم التحقق منه")})
+    # TODO: Implement email verification when needed
+    # if not request.user.is_email_verified:
+    #     return JsonResponse({"allowed": False, "reason": _("البريد الإلكتروني لم يتم التحقق منه")})
 
     # Check package limits
-    user_settings = getattr(request.user, "cart_settings", None)
-    if user_settings and user_settings.current_package:
-        package = user_settings.current_package
-        if user_settings.used_ads >= package.max_ads:
-            return JsonResponse(
-                {
-                    "allowed": False, "reason": _("تم الوصول إلى حد الباقة"),
-                    "used_ads": user_settings.used_ads,
-                    "max_ads": package.max_ads,
-                }
-            )
+    # TODO: Implement user package system when needed
+    # user_settings = getattr(request.user, "cart_settings", None)
+    # if user_settings and user_settings.current_package:
+    #     package = user_settings.current_package
+    #     if user_settings.used_ads >= package.max_ads:
+    #         return JsonResponse({
+    #             "allowed": False, 
+    #             "reason": _("تم الوصول إلى حد الباقة"),
+    #             "used_ads": user_settings.used_ads,
+    #             "max_ads": package.max_ads,
+    #         })
 
     return JsonResponse(
         {
             "allowed": True,
-            "used_ads": user_settings.used_ads if user_settings else 0,
-            "max_ads": (
-                user_settings.current_package.max_ads
-                if user_settings and user_settings.current_package
-                else 3
-            ),
+            "used_ads": 0,  # TODO: Get from user package system
+            "max_ads": 3,   # TODO: Get from user package system
         }
     )
+
+
+@login_required
+@require_POST
+def send_mobile_verification(request):
+    """Send OTP verification code to mobile number"""
+    mobile_number = request.POST.get('mobile_number', '').strip()
+    
+    if not mobile_number:
+        return JsonResponse({
+            'success': False,
+            'message': _('رقم الجوال مطلوب')
+        })
+    
+    verification_service = MobileVerificationService()
+    
+    # Check if verification is required
+    required, message = verification_service.check_mobile_verification_required(
+        request.user, mobile_number
+    )
+    
+    if not required:
+        return JsonResponse({
+            'success': True,
+            'verified': True,
+            'message': message
+        })
+    
+    # Send verification code
+    success, message = verification_service.initiate_verification(
+        request.user, mobile_number
+    )
+    
+    return JsonResponse({
+        'success': success,
+        'verified': False,
+        'message': message
+    })
+
+
+@login_required
+@require_POST
+def verify_mobile_otp(request):
+    """Verify the OTP code for mobile number"""
+    verification_code = request.POST.get('verification_code', '').strip()
+    
+    if not verification_code:
+        return JsonResponse({
+            'success': False,
+            'message': _('رمز التحقق مطلوب')
+        })
+    
+    verification_service = MobileVerificationService()
+    success, message = verification_service.verify_mobile_for_ad(
+        request.user, verification_code
+    )
+    
+    return JsonResponse({
+        'success': success,
+        'message': message
+    })
 
 
 @csrf_exempt
@@ -1963,6 +2032,9 @@ class PublisherDashboardView(PublisherRequiredMixin, ListView):
 
         # Page title
         context["page_title"] = _("لوحة التحكم - إعلاناتي")
+        
+        # Active navigation for publisher dashboard
+        context["active_nav"] = "dashboard"
 
         return context
 
@@ -2129,6 +2201,9 @@ class AdminDashboardView(SuperadminRequiredMixin, TemplateView):
 
         # System Metrics
         context["system_metrics"] = self.get_system_metrics()
+        
+        # Chart Data
+        context["chart_data"] = self.get_chart_data()
         context["active_nav"] = "dashboard"
 
         return context
@@ -2147,15 +2222,16 @@ class AdminDashboardView(SuperadminRequiredMixin, TemplateView):
             "expired_ads": ClassifiedAd.objects.filter(status="expired").count(),
             "hidden_ads": ClassifiedAd.objects.filter(status="draft").count(),
             "cart_ads": ClassifiedAd.objects.filter(
-                Q(is_in_cart=True) | Q(cart_settings__isnull=False)
+                Q(is_cart_enabled=True) | Q(allow_cart=True)
             ).count(),
             # User Statistics
             "total_users": User.objects.count(),
             "new_users_week": User.objects.filter(date_joined__gte=week_ago).count(),
-            "verified_users": User.objects.filter(
-                Q(userprofile__is_person_verified=True)
-                | Q(userprofile__is_company_verified=True)
-            ).count(),
+            "verified_users": 0,  # TODO: Implement when userprofile model exists
+            # User.objects.filter(
+            #     Q(userprofile__is_person_verified=True)
+            #     | Q(userprofile__is_company_verified=True)
+            # ).count(),
             # Category Statistics
             "total_categories": Category.objects.filter(parent__isnull=True).count(),
             "total_subcategories": Category.objects.filter(
@@ -2191,7 +2267,8 @@ class AdminDashboardView(SuperadminRequiredMixin, TemplateView):
 
     def get_recent_users(self):
         """Get recently registered users"""
-        return User.objects.select_related("userprofile").order_by("-date_joined")[:10]
+        # TODO: Add select_related("userprofile") when userprofile model exists
+        return User.objects.order_by("-date_joined")[:10]
 
     def get_system_metrics(self):
         """Get system performance metrics"""
@@ -2203,6 +2280,40 @@ class AdminDashboardView(SuperadminRequiredMixin, TemplateView):
             .first(),
             "countries_count": Country.objects.count(),
             "features_count": AdFeature.objects.count(),
+        }
+
+    def get_chart_data(self):
+        """Get data for dashboard charts"""
+        today = timezone.now().date()
+        
+        # Last 7 days ads data
+        ads_last_7_days = []
+        for i in range(6, -1, -1):
+            date = today - timedelta(days=i)
+            count = ClassifiedAd.objects.filter(created_at__date=date).count()
+            ads_last_7_days.append(count)
+        
+        # Last 30 days users data (weekly)
+        users_last_4_weeks = []
+        for i in range(3, -1, -1):
+            week_start = today - timedelta(days=(i+1)*7)
+            week_end = today - timedelta(days=i*7)
+            count = User.objects.filter(date_joined__date__range=[week_start, week_end]).count()
+            users_last_4_weeks.append(count)
+        
+        # Top categories by ad count
+        top_categories = Category.objects.annotate(
+            ad_count=Count('ads')
+        ).order_by('-ad_count')[:5]
+        
+        category_names = [cat.name_ar or cat.name for cat in top_categories]
+        category_counts = [cat.ad_count for cat in top_categories]
+        
+        return {
+            'ads_last_7_days': ads_last_7_days,
+            'users_last_4_weeks': users_last_4_weeks,
+            'category_names': category_names,
+            'category_counts': category_counts,
         }
 
     def calculate_growth_percentage(self, current, previous):
@@ -2506,9 +2617,8 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
         pending_payments = 0  # TODO: Count pending payments
 
         # Premium members statistics
-        total_premium_members = User.objects.filter(
-            # userprofile__is_premium=True  # Uncomment when userprofile exists
-        ).count()
+        # TODO: Implement when userprofile model exists
+        total_premium_members = 0  # User.objects.filter(userprofile__is_premium=True).count()
         active_premium_members = (
             total_premium_members  # TODO: Filter active memberships
         )
@@ -2563,13 +2673,8 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
         ]
 
         # Premium members
-        context["premium_members"] = User.objects.select_related(
-            # 'userprofile'  # Uncomment when userprofile exists
-        ).filter(
-            # userprofile__is_premium=True  # Uncomment when userprofile exists
-        )[
-            :20
-        ]
+        # TODO: Implement when userprofile model exists
+        context["premium_members"] = User.objects.order_by('-date_joined')[:20]
         context["active_nav"] = "payments"
 
         return context
@@ -2732,7 +2837,7 @@ def admin_get_ads_by_tab(request, tab):
             ads = ClassifiedAd.objects.filter(status="draft")
         elif tab == "cart":
             ads = ClassifiedAd.objects.filter(
-                Q(is_in_cart=True) | Q(cart_settings__isnull=False)
+                Q(is_cart_enabled=True) | Q(allow_cart=True)
             )
         else:
             ads = ClassifiedAd.objects.none()
@@ -2760,6 +2865,90 @@ def admin_get_ads_by_tab(request, tab):
 
     except Exception as e:
         return JsonResponse({"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))})
+
+
+@superadmin_required
+@require_POST
+def admin_settings_constance_get(request):
+    """Return all django-constance config keys with values and inferred types."""
+    try:
+        from constance import config as constance_config
+        from django.conf import settings as dj_settings
+
+        result = []
+        const_cfg = getattr(dj_settings, "CONSTANCE_CONFIG", {})
+        for key, meta in const_cfg.items():
+            default = None
+            help_text = ""
+            field_type = None
+            try:
+                # CONSTANCE_CONFIG can be (default,) or (default, help) or (default, help, type)
+                if isinstance(meta, (list, tuple)):
+                    if len(meta) > 0:
+                        default = meta[0]
+                    if len(meta) > 1:
+                        help_text = meta[1] or ""
+                    if len(meta) > 2:
+                        field_type = meta[2]
+            except Exception:
+                pass
+
+            value = getattr(constance_config, key, default)
+            # Infer simple type if not provided
+            py_type = type(value).__name__
+            result.append({
+                "key": key,
+                "value": value,
+                "default": default,
+                "help": help_text,
+                "type": field_type.__name__ if hasattr(field_type, "__name__") else py_type,
+            })
+
+        return JsonResponse({"success": True, "config": result})
+    except Exception as e:
+        return JsonResponse({"success": False, "message": str(e)}, status=500)
+
+
+@superadmin_required
+@require_POST
+def admin_settings_constance_save(request):
+    """Save posted django-constance key/value pairs."""
+    try:
+        from constance import config as constance_config
+        from django.conf import settings as dj_settings
+
+        data = json.loads(request.body or '{}')
+        updates = data.get("updates", {})
+
+        const_cfg = getattr(dj_settings, "CONSTANCE_CONFIG", {})
+
+        def cast_value(key, val):
+            meta = const_cfg.get(key)
+            if isinstance(meta, (list, tuple)) and len(meta) > 2 and meta[2] is not None:
+                target = meta[2]
+                try:
+                    # Handle booleans explicitly as JSON may send true/false or strings
+                    if target is bool:
+                        if isinstance(val, bool):
+                            return val
+                        if isinstance(val, str):
+                            return val.lower() in ("1", "true", "yes", "on")
+                        return bool(val)
+                    return target(val)
+                except Exception:
+                    return val
+            return val
+
+        for key, val in updates.items():
+            try:
+                setattr(constance_config, key, cast_value(key, val))
+            except Exception:
+                # continue best-effort updates
+                continue
+
+        return JsonResponse({"success": True, "message": _("تم حفظ إعدادات النظام" )})
+    except Exception as e:
+        return JsonResponse({"success": False, "message": str(e)}, status=500)
 
 
 # Settings AJAX Endpoints

@@ -96,6 +96,65 @@ CONSTANCE_CONFIG = {
         "noreply@idrissimart.com",
         _('Ad Approval "From" Email Address'),
     ),
+    
+    # Payment Settings - PayPal
+    "PAYPAL_CLIENT_ID": (
+        "AQnjmPBtvIVbTH0Ims4qnmEMVXZ-NcI3aNugVKmEkHIKi7tbJQYIfl4OSPrhd6_w9tfNIn_LDjWD1foq",
+        _("PayPal Client ID"),
+    ),
+    "PAYPAL_CLIENT_SECRET": (
+        "EJmH3ZcwaNpD-Mesof6fcMQws8JRDRJwdiVrb85NY_uxqyjUNaJYaPuZrIi46wnybdb38tWH_1UWwYYr",
+        _("PayPal Client Secret"),
+    ),
+    "PAYPAL_MODE": (
+        "sandbox",
+        _("PayPal Mode (sandbox or live)"),
+    ),
+    
+    # Payment Settings - Paymob
+    "PAYMOB_API_KEY": (
+        "",
+        _("Paymob API Key"),
+    ),
+    "PAYMOB_INTEGRATION_ID": (
+        "",
+        _("Paymob Integration ID"),
+    ),
+    "PAYMOB_IFRAME_ID": (
+        "",
+        _("Paymob iFrame ID"),
+    ),
+    
+    # SMS Settings - Twilio
+    "TWILIO_ACCOUNT_SID": (
+        "ACbda2c87d81ac899a614f26b69c25c8af",
+        _("Twilio Account SID"),
+    ),
+    "TWILIO_AUTH_TOKEN": (
+        "f8cad167753ac2bacca2c70db8a4f541",
+        _("Twilio Auth Token"),
+    ),
+    "TWILIO_PHONE_NUMBER": (
+        "+1234567890",
+        _("Twilio Phone Number"),
+    ),
+    
+    # Security Settings
+    "ENABLE_MOBILE_VERIFICATION": (
+        True,
+        _("Enable Mobile Number Verification"),
+        bool,
+    ),
+    "OTP_EXPIRY_MINUTES": (
+        10,
+        _("OTP Expiry Time (minutes)"),
+        int,
+    ),
+    "MAX_OTP_ATTEMPTS": (
+        3,
+        _("Maximum OTP Attempts"),
+        int,
+    ),
 }
 
 CONSTANCE_CONFIG_FIELDSETS = {
@@ -130,5 +189,25 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "ENABLE_SAVED_SEARCH_NOTIFICATIONS",
         "AD_APPROVAL_EMAIL_SUBJECT",
         "AD_APPROVAL_FROM_EMAIL",
+    ),
+    "Payment Settings - PayPal": (
+        "PAYPAL_CLIENT_ID",
+        "PAYPAL_CLIENT_SECRET",
+        "PAYPAL_MODE",
+    ),
+    "Payment Settings - Paymob": (
+        "PAYMOB_API_KEY",
+        "PAYMOB_INTEGRATION_ID",
+        "PAYMOB_IFRAME_ID",
+    ),
+    "SMS Settings - Twilio": (
+        "TWILIO_ACCOUNT_SID",
+        "TWILIO_AUTH_TOKEN",
+        "TWILIO_PHONE_NUMBER",
+    ),
+    "Security Settings": (
+        "ENABLE_MOBILE_VERIFICATION",
+        "OTP_EXPIRY_MINUTES",
+        "MAX_OTP_ATTEMPTS",
     ),
 }

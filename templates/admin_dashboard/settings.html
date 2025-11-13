@@ -3,9 +3,7 @@
 
 {% block title %}
     {% trans "إعدادات النظام - لوحة تحكم المدير" %}
-{% endblock %}
-
-{% block admin_extra_css %}{% endblock %}
+{% endblock title %}
 
 {% block admin_content %}
     <!-- Header -->
@@ -18,36 +16,57 @@
     </div>
     <!-- Settings Tabs -->
     <div class="admin-content-card mb-4">
-                    <div class="card-body p-0">
-                        <nav>
-                            <div class="nav nav-tabs admin-tabs" id="settings-nav-tab" role="tablist">
-                                <button class="nav-link active" id="publishing-tab" data-bs-toggle="tab" data-bs-target="#publishing" type="button" role="tab">
-                                    <i class="fas fa-eye me-2"></i>
-                                    {% trans "إعدادات النشر" %}
-                                </button>
-                                <button class="nav-link" id="delivery-tab" data-bs-toggle="tab" data-bs-target="#delivery" type="button" role="tab">
-                                    <i class="fas fa-truck me-2"></i>
-                                    {% trans "التوصيل والتحصيل" %}
-                                </button>
-                                <button class="nav-link" id="cart-tab" data-bs-toggle="tab" data-bs-target="#cart" type="button" role="tab">
-                                    <i class="fas fa-shopping-cart me-2"></i>
-                                    {% trans "إعدادات السلة" %}
-                                </button>
-                                <button class="nav-link" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications" type="button" role="tab">
-                                    <i class="fas fa-bell me-2"></i>
-                                    {% trans "الإشعارات" %}
-                                </button>
-                            </div>
-                        </nav>
-                    </div>
+        <div class="card-body p-0">
+            <nav>
+                <div class="nav nav-tabs admin-tabs" id="settings-nav-tab" role="tablist">
+                    <button class="nav-link active" id="publishing-tab" data-bs-toggle="tab" data-bs-target="#publishing" type="button" role="tab">
+                        <i class="fas fa-eye me-2"></i>
+                        {% trans "إعدادات النشر" %}
+                    </button>
+                    <button class="nav-link" id="delivery-tab" data-bs-toggle="tab" data-bs-target="#delivery" type="button" role="tab">
+                        <i class="fas fa-truck me-2"></i>
+                        {% trans "التوصيل والتحصيل" %}
+                    </button>
+                    <button class="nav-link" id="cart-tab" data-bs-toggle="tab" data-bs-target="#cart" type="button" role="tab">
+                        <i class="fas fa-shopping-cart me-2"></i>
+                        {% trans "إعدادات السلة" %}
+                    </button>
+                    <button class="nav-link" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications" type="button" role="tab">
+                        <i class="fas fa-bell me-2"></i>
+                        {% trans "الإشعارات" %}
+                    </button>
+                    <button class="nav-link" id="constance-tab" data-bs-toggle="tab" data-bs-target="#constance" type="button" role="tab">
+                        <i class="fas fa-sliders-h me-2"></i>
+                        {% trans "إعدادات النظام (Constance)" %}
+                    </button>
                 </div>
+            </nav>
+        </div>
+    </div>
     <!-- Settings Content -->
     <div class="tab-content" id="settings-nav-tabContent">
-                    <!-- Publishing Settings -->
-                    <div class="tab-pane fade show active" id="publishing" role="tabpanel">
-                        <div class="admin-content-card">
-                            <div class="card-header">
-                                <h5 class="mb-0">
+        <!-- Publishing Settings -->
+        <div class="tab-pane fade show active" id="publishing" role="tabpanel">
+            <div class="admin-content-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-eye me-2"></i>
+                        {% trans "إعدادات النشر والعرض" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="publishingSettingsForm">
+                        <!-- Publishing Mode -->
+                        <div class="settings-group">
+                            <h6 class="settings-group-title">{% trans "وضع النشر" %}</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input type="radio" name="publishing_mode" value="direct" class="form-check-input" id="directPublish" checked>
+                                        <label class="form-check-label" for="directPublish">
+                                            <strong>{% trans "النشر المباشر" %}</strong>
+                                            <small class="d-block text-muted">{% trans "الإعلانات تظهر فوراً بدون مراجعة" %}</small>
+                                        </label>
                                     <i class="fas fa-eye me-2"></i>
                                     {% trans "إعدادات النشر والعرض" %}
                                 </h5>
@@ -430,11 +449,102 @@
                             </div>
                         </div>
                     </div>
+                    <!-- Constance Settings -->
+                    <div class="tab-pane fade" id="constance" role="tabpanel">
+                        <div class="admin-content-card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-sliders-h me-2"></i>
+                                    {% trans "إعدادات django-constance" %}
+                                </h5>
+                                <button id="saveConstanceBtn" type="button" class="btn btn-primary btn-sm" onclick="saveConstanceSettings()">
+                                    <i class="fas fa-save me-1"></i>
+                                    {% trans "حفظ الإعدادات" %}
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div id="constanceSettingsList" class="row g-3">
+                                    <!-- populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 {% endblock %}
 
 {% block admin_extra_js %}
     <script>
+// Constance settings
+function loadConstanceSettings() {
+    fetch('{% url "main:admin_settings_constance_get" %}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) return;
+        const container = document.getElementById('constanceSettingsList');
+        if (!container) return;
+        container.innerHTML = '';
+        data.config.forEach(item => {
+            const id = `const_${item.key}`;
+            const type = (item.type || '').toLowerCase();
+            let control = '';
+            if (type === 'bool' || type === 'boolean') {
+                control = `<div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="${id}" data-key="${item.key}" ${item.value ? 'checked' : ''}>
+                    <label class="form-check-label" for="${id}"><strong>${item.key}</strong><br><small class="text-muted">${item.help || ''}</small></label>
+                </div>`;
+            } else if (type === 'int' || type === 'float' || type === 'decimal') {
+                const step = (type === 'int') ? '1' : '0.01';
+                control = `<label class="form-label" for="${id}"><strong>${item.key}</strong></label>
+                    <input class="form-control" type="number" step="${step}" id="${id}" data-key="${item.key}" value="${item.value}">
+                    <small class="text-muted">${item.help || ''}</small>`;
+            } else if (type === 'text' || type === 'str' || type === 'string') {
+                control = `<label class="form-label" for="${id}"><strong>${item.key}</strong></label>
+                    <input class="form-control" type="text" id="${id}" data-key="${item.key}" value="${item.value ?? ''}">
+                    <small class="text-muted">${item.help || ''}</small>`;
+            } else {
+                const safeVal = (typeof item.value === 'object') ? JSON.stringify(item.value) : (item.value ?? '');
+                control = `<label class="form-label" for="${id}"><strong>${item.key}</strong></label>
+                    <textarea class="form-control" rows="2" id="${id}" data-key="${item.key}">${safeVal}</textarea>
+                    <small class="text-muted">${item.help || ''}</small>`;
+            }
+            const col = document.createElement('div');
+            col.className = 'col-md-6';
+            col.innerHTML = `<div class="constance-item">${control}</div>`;
+            container.appendChild(col);
+        });
+    })
+}
+
+function saveConstanceSettings() {
+    const container = document.getElementById('constanceSettingsList');
+    if (!container) return;
+    const inputs = container.querySelectorAll('[data-key]');
+    const updates = {};
+    inputs.forEach(el => {
+        const key = el.getAttribute('data-key');
+        updates[key] = (el.type === 'checkbox') ? el.checked : el.value;
+    });
+
+    fetch('{% url "main:admin_settings_constance_save" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ updates })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess('{% trans "تم حفظ إعدادات النظام" %}');
+        } else {
+            showError(data.message || '{% trans "حدث خطأ أثناء الحفظ" %}');
+        }
+    })
+}
 // Settings Management
 document.addEventListener('DOMContentLoaded', function() {
     // Load current settings
@@ -445,17 +555,32 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('deliverySettingsForm').addEventListener('submit', saveDeliverySettings);
     document.getElementById('cartSettingsForm').addEventListener('submit', saveCartSettings);
     document.getElementById('notificationsSettingsForm').addEventListener('submit', saveNotificationSettings);
+
+    // Load Constance when tab is clicked the first time
+    const constanceTab = document.getElementById('constance-tab');
+    let constanceLoaded = false;
+    constanceTab.addEventListener('shown.bs.tab', function () {
+        if (!constanceLoaded) {
+            loadConstanceSettings();
+            constanceLoaded = true;
+        }
+    });
 });
 
 function loadSystemSettings() {
-    fetch('/admin/settings/get/')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                populateSettingsForms(data.settings);
-            }
-        })
-        .catch(error => console.error('Error loading settings:', error));
+    fetch('{% url "main:admin_settings_get" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            populateSettingsForms(data.settings);
+        }
+    })
+    .catch(error => console.error('Error loading settings:', error));
 }
 
 function populateSettingsForms(settings) {
@@ -632,5 +757,5 @@ function showError(message) {
     console.log('Error:', message);
     // Implement toast notification
 }
-    </script>
-{% endblock %}
+        </script>
+{% endblock admin_extra_js %}

@@ -55,6 +55,11 @@ class MyClassifiedAdsView(LoginRequiredMixin, ListView):
         return ClassifiedAd.objects.filter(user=self.request.user).order_by(
             "-created_at"
         )
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['active_nav'] = 'my_ads'
+        return context
 
 
 class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
@@ -92,6 +97,12 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
 
         return super().dispatch(request, *args, **kwargs)
 
+    def get_form_kwargs(self):
+        """Pass user to form for mobile verification"""
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         if self.request.POST:
@@ -108,6 +119,7 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         context["ad_categories"] = Category.objects.filter(
             section_type=Category.SectionType.CLASSIFIED, is_active=True
         )
+        context['active_nav'] = 'create_ad'
         return context
 
     def form_valid(self, form):
@@ -301,6 +313,11 @@ class UserSavedSearchesView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         return SavedSearch.objects.filter(user=self.request.user)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['active_nav'] = 'saved_searches'
+        return context
 
     def post(self, request, *args, **kwargs):
         search_id = request.POST.get("search_id")

@@ -224,6 +224,66 @@
                     </div>
                 </div>
 
+    <!-- Charts Section -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="admin-content-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        {% trans "إحصائيات الإعلانات - آخر 7 أيام" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="adsChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="admin-content-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        {% trans "توزيع الإعلانات" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="adsStatusChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users Chart -->
+    <div class="row mb-4">
+        <div class="col-lg-6">
+            <div class="admin-content-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users me-2"></i>
+                        {% trans "نمو المستخدمين - آخر 30 يوم" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="usersChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="admin-content-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        {% trans "الأقسام الأكثر نشاطاً" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="categoriesChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- System Metrics -->
     <div class="row">
                     <div class="col-12">
@@ -306,6 +366,8 @@
 {% endblock %}
 
 {% block admin_extra_js %}
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         // Admin Dashboard JavaScript
         document.addEventListener('DOMContentLoaded', function () {
@@ -336,10 +398,156 @@
         delay: 0.3
     });
 
+            // Initialize Charts
+            initializeAdminCharts();
+
             // Auto-refresh dashboard every 5 minutes
             setInterval(function () {
                 location.reload();
             }, 300000); // 5 minutes
         });
+
+        function initializeAdminCharts() {
+            // Ads Chart (Line Chart)
+            const adsCtx = document.getElementById('adsChart').getContext('2d');
+            new Chart(adsCtx, {
+                type: 'line',
+                data: {
+                    labels: ['{% trans "6 أيام" %}', '{% trans "5 أيام" %}', '{% trans "4 أيام" %}', '{% trans "3 أيام" %}', '{% trans "يومين" %}', '{% trans "أمس" %}', '{% trans "اليوم" %}'],
+                    datasets: [{
+                        label: '{% trans "إعلانات جديدة" %}',
+                        data: {{ chart_data.ads_last_7_days|safe }},
+                        borderColor: '#4b315e',
+                        backgroundColor: 'rgba(75, 49, 94, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Ads Status Chart (Doughnut Chart)
+            const statusCtx = document.getElementById('adsStatusChart').getContext('2d');
+            new Chart(statusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['{% trans "نشط" %}', '{% trans "قيد المراجعة" %}', '{% trans "منتهي" %}', '{% trans "مخفي" %}'],
+                    datasets: [{
+                        data: [{{ dashboard_stats.active_ads }}, {{ dashboard_stats.pending_ads }}, {{ dashboard_stats.expired_ads }}, {{ dashboard_stats.hidden_ads }}],
+                        backgroundColor: ['#28a745', '#ffc107', '#dc3545', '#6c757d'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Users Chart (Bar Chart)
+            const usersCtx = document.getElementById('usersChart').getContext('2d');
+            new Chart(usersCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['{% trans "الأسبوع 1" %}', '{% trans "الأسبوع 2" %}', '{% trans "الأسبوع 3" %}', '{% trans "الأسبوع 4" %}'],
+                    datasets: [{
+                        label: '{% trans "مستخدمين جدد" %}',
+                        data: {{ chart_data.users_last_4_weeks|safe }},
+                        backgroundColor: '#17a2b8',
+                        borderRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Categories Chart (Horizontal Bar Chart)
+            const categoriesCtx = document.getElementById('categoriesChart').getContext('2d');
+            new Chart(categoriesCtx, {
+                type: 'bar',
+                data: {
+                    labels: {{ chart_data.category_names|safe }},
+                    datasets: [{
+                        label: '{% trans "عدد الإعلانات" %}',
+                        data: {{ chart_data.category_counts|safe }},
+                        backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff'],
+                        borderRadius: 5
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)'
+                            }
+                        },
+                        y: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
     </script>
 {% endblock %}

@@ -377,7 +377,7 @@
                 <i class="fas fa-folder"></i>
                 {% trans "إدارة الأقسام" %}
             </h1>
-            <button onclick="openModal('add')" class="btn-primary">
+            <button onclick="openModal('add', null, this)" class="btn-primary">
                 <i class="fas fa-plus"></i>
                 {% trans "إضافة قسم جديد" %}
             </button>
@@ -422,7 +422,7 @@
                         </div>
 
                         <div class="category-actions">
-                            <button onclick="editCategory({{ node.id }})" class="btn-action btn-edit">
+                            <button onclick="editCategory({{ node.id }}, this)" class="btn-action btn-edit">
                                 <i class="fas fa-edit"></i> {% trans "تعديل" %}
                             </button>
                             <button onclick="deleteCategory({{ node.id }}, '{{ node.name|escapejs }}')"
@@ -537,7 +537,7 @@
 
 {% block extra_js %}
 <script>
-function openModal(mode, categoryId = null) {
+function openModal(mode, categoryId = null, triggerEl = null) {
     const modal = document.getElementById('categoryModal');
     const form = document.getElementById('categoryForm');
     const title = document.getElementById('modalTitle');
@@ -552,7 +552,43 @@ function openModal(mode, categoryId = null) {
         loadCategoryData(categoryId);
     }
 
+    // Show modal first to measure content size
     modal.classList.add('active');
+
+    // If a trigger element is provided, position the modal near it
+    const content = modal.querySelector('.modal-content');
+    if (triggerEl && content) {
+        // Ensure content has fixed positioning for anchoring near trigger
+        content.style.position = 'fixed';
+
+        const rect = triggerEl.getBoundingClientRect();
+        const margin = 8; // space between trigger and modal
+
+        let top = rect.bottom + margin;
+        let left = rect.left;
+
+        // Prevent overflow on the right
+        if (left + content.offsetWidth > window.innerWidth - margin) {
+            left = Math.max(margin, window.innerWidth - content.offsetWidth - margin);
+        }
+
+        // If bottom overflows, try opening above the trigger
+        if (top + content.offsetHeight > window.innerHeight - margin) {
+            top = rect.top - content.offsetHeight - margin;
+        }
+
+        // Clamp to viewport
+        if (top < margin) top = margin;
+        if (left < margin) left = margin;
+
+        content.style.top = `${top}px`;
+        content.style.left = `${left}px`;
+    } else if (content) {
+        // Fallback to centered modal behavior
+        content.style.position = 'static';
+        content.style.top = '';
+        content.style.left = '';
+    }
 }
 
 function closeModal() {
@@ -560,8 +596,8 @@ function closeModal() {
     modal.classList.remove('active');
 }
 
-function editCategory(categoryId) {
-    openModal('edit', categoryId);
+function editCategory(categoryId, el) {
+    openModal('edit', categoryId, el);
 }
 
 function loadCategoryData(categoryId) {

@@ -86,6 +86,19 @@ class ClassifiedAdForm(forms.ModelForm):
         ],
         widget=forms.Select(attrs={"class": "form-select"}),
     )
+    
+    # Mobile number field for contact
+    mobile_number = forms.CharField(
+        max_length=20,
+        required=True,
+        label=_("رقم الجوال"),
+        help_text=_("رقم الجوال للتواصل (يجب التحقق منه)"),
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": _("مثال: 0501234567"),
+            "id": "mobile_number"
+        })
+    )
     # The 'brand' field is also better handled dynamically.
 
     class Meta:
@@ -113,7 +126,13 @@ class ClassifiedAdForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+        
+        # Initialize mobile number from user's profile
+        if self.user and self.user.mobile:
+            self.fields['mobile_number'].initial = self.user.mobile
+        
         category = None
         if "category" in self.data:
             try:
@@ -230,6 +249,39 @@ class ClassifiedAdForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+    
+    def clean_mobile_number(self):
+        """Validate mobile number format"""
+        mobile_number = self.cleaned_data.get('mobile_number')
+        if mobile_number:
+            # Remove spaces and special characters
+            mobile_number = ''.join(filter(str.isdigit, mobile_number))
+            
+            # Check if it's a valid Saudi mobile number
+            if not mobile_number.startswith('05') or len(mobile_number) != 10:
+                raise forms.ValidationError(_('رقم الجوال يجب أن يبدأ بـ 05 ويتكون من 10 أرقام'))
+        
+        return mobile_number
+    
+    def clean(self):
+        """Validate that mobile number is verified for new ads"""
+        cleaned_data = super().clean()
+        mobile_number = cleaned_data.get('mobile_number')
+        
+        if mobile_number and self.user:
+            # Check if this is a new ad (not editing existing one)
+            if not self.instance.pk:
+                # Check if mobile verification is required
+                from .services import MobileVerificationService
+                verification_service = MobileVerificationService()
+                required, message = verification_service.check_mobile_verification_required(
+                    self.user, mobile_number
+                )
+                
+                if required:
+                    raise forms.ValidationError(_('يجب التحقق من رقم الجوال قبل نشر الإعلان'))
+        
+        return cleaned_data
 
 
 AdImageFormSet = inlineformset_factory(

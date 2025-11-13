@@ -173,6 +173,22 @@ class User(AbstractUser):  # This model is correct, no changes needed here.
         blank=True,
         verbose_name=_("الجوال - Mobile"),
     )
+    
+    # Mobile verification fields
+    is_mobile_verified = models.BooleanField(
+        default=False,
+        verbose_name=_("الجوال موثق - Mobile Verified"),
+    )
+    mobile_verification_code = models.CharField(
+        max_length=6,
+        blank=True,
+        verbose_name=_("رمز التحقق - Verification Code"),
+    )
+    mobile_verification_expires = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_("انتهاء رمز التحقق - Code Expires"),
+    )
     whatsapp = models.CharField(
         max_length=20,
         blank=True,
@@ -1685,10 +1701,102 @@ class AdPackage(models.Model):
         return []
 
 
+class Payment(models.Model):
+    """Model to track payment transactions"""
+    
+    class PaymentStatus(models.TextChoices):
+        PENDING = "pending", _("قيد الانتظار - Pending")
+        COMPLETED = "completed", _("مكتمل - Completed")
+        FAILED = "failed", _("فاشل - Failed")
+        CANCELLED = "cancelled", _("ملغي - Cancelled")
+        REFUNDED = "refunded", _("مسترد - Refunded")
+    
+    class PaymentProvider(models.TextChoices):
+        PAYPAL = "paypal", _("PayPal")
+        PAYMOB = "paymob", _("Paymob")
+        BANK_TRANSFER = "bank_transfer", _("تحويل بنكي - Bank Transfer")
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="payments")
+    provider = models.CharField(
+        max_length=20,
+        choices=PaymentProvider.choices,
+        verbose_name=_("مزود الدفع - Payment Provider")
+    )
+    provider_transaction_id = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name=_("معرف المعاملة - Transaction ID")
+    )
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name=_("المبلغ - Amount")
+    )
+    currency = models.CharField(
+        max_length=3,
+        default='SAR',
+        verbose_name=_("العملة - Currency")
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.PENDING,
+        verbose_name=_("حالة الدفع - Payment Status")
+    )
+    description = models.TextField(
+        blank=True,
+        verbose_name=_("الوصف - Description")
+    )
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name=_("بيانات إضافية - Metadata")
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_("تاريخ الإكمال - Completion Date")
+    )
+    
+    class Meta:
+        db_table = "payments"
+        verbose_name = _("Payment")
+        verbose_name_plural = _("Payments")
+        ordering = ["-created_at"]
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.amount} {self.currency} - {self.get_status_display()}"
+    
+    def mark_completed(self, transaction_id=None):
+        """Mark payment as completed"""
+        self.status = self.PaymentStatus.COMPLETED
+        self.completed_at = timezone.now()
+        if transaction_id:
+            self.provider_transaction_id = transaction_id
+        self.save(update_fields=['status', 'completed_at', 'provider_transaction_id'])
+    
+    def mark_failed(self, reason=None):
+        """Mark payment as failed"""
+        self.status = self.PaymentStatus.FAILED
+        if reason:
+            self.metadata['failure_reason'] = reason
+        self.save(update_fields=['status', 'metadata'])
+
+
 class UserPackage(models.Model):  # This model is correct, no changes needed here.
     """Model to track user's purchased packages"""
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="ad_packages")
+    payment = models.ForeignKey(
+        Payment,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="packages",
+        verbose_name=_("الدفعة - Payment")
+    )
     package = models.ForeignKey(AdPackage, on_delete=models.PROTECT)
     purchase_date = models.DateTimeField(auto_now_add=True)
     expiry_date = models.DateTimeField()
