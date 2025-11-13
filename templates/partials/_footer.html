@@ -181,12 +181,21 @@
 
     <!-- Compare Bar -->
     <div class="compare-bar" id="compareBar">
+        <div class="compare-header">
+            <h6 class="mb-0">
+                <i class="fas fa-balance-scale me-2"></i>
+                {% trans "المقارنة" %}
+            </h6>
+            <button class="compare-close-btn" id="compareCloseBtn" aria-label="Close compare">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
         <div class="compare-items" id="compareItems">
             <!-- Items will be added here -->
         </div>
         <div class="compare-actions">
-            <button class="btn btn-light" id="compareBtn" disabled>{% trans "Compare" %} (<span>0</span>)</button>
-            <button class="btn btn-outline-light" id="clearCompareBtn">{% trans "Clear" %}</button>
+            <button class="btn btn-light" id="compareBtn" disabled>{% trans "مقارنة" %} (<span>0</span>)</button>
+            <button class="btn btn-outline-light" id="clearCompareBtn">{% trans "تفريغ" %}</button>
         </div>
     </div>
 </footer>
@@ -198,6 +207,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const compareBtn = document.getElementById('compareBtn');
     const compareCountSpan = compareBtn.querySelector('span');
     const clearCompareBtn = document.getElementById('clearCompareBtn');
+    const compareCloseBtn = document.getElementById('compareCloseBtn');
     const maxCompareItems = 4;
     let compareList = JSON.parse(localStorage.getItem('compareList')) || [];
 
@@ -267,6 +277,121 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Close button functionality
+    compareCloseBtn.addEventListener('click', () => {
+        compareBar.classList.remove('show');
+    });
+
     updateCompareUI(); // Initial UI setup
+    
+    // Add event listeners for compare buttons
+    function attachCompareListeners() {
+        document.querySelectorAll('.compare-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const adId = this.dataset.adId;
+                toggleCompare(adId, this);
+            });
+        });
+        
+        // Add event listeners for remove compare item buttons
+        document.querySelectorAll('.remove-compare-item').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const adId = this.dataset.adId;
+                const existingIndex = compareList.findIndex(item => item.id == adId);
+                if (existingIndex > -1) {
+                    compareList.splice(existingIndex, 1);
+                    localStorage.setItem('compareList', JSON.stringify(compareList));
+                    updateCompareUI();
+                }
+            });
+        });
+    }
+    
+    // Initial attachment
+    attachCompareListeners();
+    
+    // Re-attach listeners when new content is loaded (for dynamic content)
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                attachCompareListeners();
+            }
+        });
+    });
+    
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+    
+    // Back to Top Button functionality
+    const backToTopBtn = document.getElementById('backToTop');
+    
+    if (backToTopBtn) {
+        // Function to calculate 25% of page height
+        function getScrollThreshold() {
+            const documentHeight = Math.max(
+                document.body.scrollHeight,
+                document.body.offsetHeight,
+                document.documentElement.clientHeight,
+                document.documentElement.scrollHeight,
+                document.documentElement.offsetHeight
+            );
+            const windowHeight = window.innerHeight;
+            const scrollableHeight = documentHeight - windowHeight;
+            return scrollableHeight * 0.25; // 25% of scrollable height
+        }
+        
+        // Simple scroll handler
+        window.addEventListener('scroll', function() {
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
+            const threshold = getScrollThreshold();
+            
+            if (scrollTop > threshold) {
+                backToTopBtn.classList.add('show');
+            } else {
+                backToTopBtn.classList.remove('show');
+            }
+        });
+        
+        // Recalculate threshold on window resize
+        window.addEventListener('resize', function() {
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
+            const threshold = getScrollThreshold();
+            
+            if (scrollTop > threshold) {
+                backToTopBtn.classList.add('show');
+            } else {
+                backToTopBtn.classList.remove('show');
+            }
+        });
+        
+        // Smooth scroll to top when clicked
+        backToTopBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Multiple fallback methods for scrolling to top
+            if (window.scrollTo) {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            } else {
+                document.documentElement.scrollTop = 0;
+                document.body.scrollTop = 0;
+            }
+        });
+        
+        // Initial check
+        const initialScroll = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
+        const initialThreshold = getScrollThreshold();
+        if (initialScroll > initialThreshold) {
+            backToTopBtn.classList.add('show');
+        }
+    }
 });
 </script>

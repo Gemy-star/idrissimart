@@ -3,6 +3,9 @@ from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext_lazy as _
 from mptt.admin import MPTTModelAdmin
 
+# Import chatbot admin configurations
+from .chatbot_admin import *
+
 from .models import (
     AboutPage,
     AdFeature,

@@ -2,7 +2,8 @@ from django.urls import path
 
 from . import views
 from . import classifieds_views
-from . import payment_views, views
+from . import payment_views
+from . import chatbot_views
 from . import enhanced_views
 from . import cart_wishlist_views
 from django.contrib.auth import views as dj_auth_views
@@ -375,6 +376,47 @@ urlpatterns = [
         "payment/history/",
         payment_views.payment_history,
         name="payment_history",
+    ),
+    # Chatbot URLs
+    path(
+        "chatbot/",
+        chatbot_views.ChatbotView.as_view(),
+        name="chatbot",
+    ),
+    path(
+        "chatbot/message/",
+        chatbot_views.chatbot_message,
+        name="chatbot_message",
+    ),
+    path(
+        "chatbot/rate/",
+        chatbot_views.chatbot_rate,
+        name="chatbot_rate",
+    ),
+    path(
+        "chatbot/history/",
+        chatbot_views.chatbot_history,
+        name="chatbot_history",
+    ),
+    path(
+        "chatbot/widget-data/",
+        chatbot_views.chatbot_widget_data,
+        name="chatbot_widget_data",
+    ),
+    path(
+        "chatbot/admin/",
+        chatbot_views.ChatbotAdminView.as_view(),
+        name="chatbot_admin",
+    ),
+    path(
+        "chatbot/manage/knowledge/",
+        chatbot_views.manage_knowledge,
+        name="manage_knowledge",
+    ),
+    path(
+        "chatbot/manage/actions/",
+        chatbot_views.manage_actions,
+        name="manage_actions",
     ),
     # Admin Dashboard URLs
     path(

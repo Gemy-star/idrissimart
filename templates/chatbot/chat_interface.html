@@ -1,0 +1,690 @@
+{% extends "base.html" %}
+{% load static i18n %}
+
+{% block title %}
+    {{ page_title }} - {% trans "إدريسي مارت" %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chatbot-container {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+    
+    .chat-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        overflow: hidden;
+        height: 80vh;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .chat-header {
+        background: linear-gradient(135deg, var(--accent-purple), var(--accent-orange));
+        color: white;
+        padding: 1.5rem;
+        text-align: center;
+    }
+    
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+        background: var(--bg-primary);
+    }
+    
+    .message {
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    
+    .message.user {
+        flex-direction: row-reverse;
+    }
+    
+    .message-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+    }
+    
+    .message.bot .message-avatar {
+        background: linear-gradient(135deg, var(--accent-purple), var(--accent-orange));
+        color: white;
+    }
+    
+    .message.user .message-avatar {
+        background: linear-gradient(135deg, #2196F3, #1976D2);
+        color: white;
+    }
+    
+    .message-content {
+        max-width: 70%;
+        padding: 1rem;
+        border-radius: 15px;
+        position: relative;
+        white-space: pre-wrap;
+        line-height: 1.5;
+    }
+    
+    .message.bot .message-content {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        color: var(--text-primary);
+    }
+    
+    .message.user .message-content {
+        background: linear-gradient(135deg, var(--accent-purple), var(--accent-orange));
+        color: white;
+    }
+    
+    .message-time {
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-top: 0.5rem;
+    }
+    
+    .message.user .message-time {
+        color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .quick-actions {
+        padding: 0.5rem;
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: 0.5rem;
+    }
+    
+    /* Suggestions Styling */
+    .chat-suggestions {
+        margin: 1rem 0;
+        padding: 1.5rem;
+        background: var(--bg-tertiary);
+        border-radius: 20px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .chat-suggestions .suggestions-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--accent-purple);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .chat-suggestions .suggestions-title i {
+        color: var(--accent-orange);
+        font-size: 1.1rem;
+    }
+    
+    .chat-suggestions .suggestions-buttons {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 0.75rem;
+    }
+    
+    .chat-suggestions .suggestion-btn {
+        background: var(--bg-secondary);
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1rem;
+        font-size: 0.9rem;
+        color: var(--text-primary);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: right;
+        direction: rtl;
+        font-weight: 500;
+    }
+    
+    .chat-suggestions .suggestion-btn:hover {
+        background: linear-gradient(135deg, var(--accent-purple), var(--accent-orange));
+        color: white;
+        border-color: var(--accent-purple);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(107, 76, 122, 0.3);
+    }
+    
+    .chat-suggestions .suggestion-btn:active {
+        transform: translateY(-1px);
+    }
+    
+    .quick-action-btn {
+        background: #e3f2fd;
+        border: 1px solid #2196F3;
+        color: #1976D2;
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .quick-action-btn:hover {
+        background: #2196F3;
+        color: white;
+        transform: translateY(-1px);
+    }
+    
+    .chat-input-area {
+        padding: 1rem;
+        background: white;
+        border-top: 1px solid #e9ecef;
+    }
+    
+    .chat-input-group {
+        display: flex;
+        gap: 0.5rem;
+        align-items: flex-end;
+    }
+    
+    .chat-input {
+        flex: 1;
+        border: 2px solid #e9ecef;
+        border-radius: 25px;
+        padding: 0.75rem 1rem;
+        resize: none;
+        max-height: 100px;
+        min-height: 45px;
+        font-family: inherit;
+    }
+    
+    .chat-input:focus {
+        outline: none;
+        border-color: var(--accent-purple);
+        box-shadow: 0 0 0 3px rgba(107, 76, 122, 0.1);
+    }
+    
+    .send-btn {
+        background: linear-gradient(135deg, var(--accent-purple), var(--accent-orange));
+        border: none;
+        color: white;
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .send-btn:hover:not(:disabled) {
+        transform: scale(1.1);
+        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+    }
+    
+    .send-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    .typing-indicator {
+        display: none;
+        padding: 1rem;
+        color: #6c757d;
+        font-style: italic;
+    }
+    
+    .typing-dots {
+        display: inline-block;
+    }
+    
+    .typing-dots::after {
+        content: '';
+        animation: dots 1.5s infinite;
+    }
+    
+    @keyframes dots {
+        0%, 20% { content: '.'; }
+        40% { content: '..'; }
+        60%, 100% { content: '...'; }
+    }
+    
+    .rating-buttons {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+        justify-content: flex-end;
+    }
+    
+    .rating-btn {
+        background: none;
+        border: 1px solid #dee2e6;
+        color: #6c757d;
+        padding: 0.25rem 0.5rem;
+        border-radius: 15px;
+        font-size: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .rating-btn:hover {
+        background: #f8f9fa;
+    }
+    
+    .rating-btn.helpful {
+        border-color: #4CAF50;
+        color: #4CAF50;
+    }
+    
+    .rating-btn.not-helpful {
+        border-color: #f44336;
+        color: #f44336;
+    }
+    
+    .welcome-message {
+        text-align: center;
+        padding: 2rem;
+        color: #6c757d;
+    }
+    
+    .welcome-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .welcome-action {
+        background: white;
+        border: 2px solid #e9ecef;
+        border-radius: 15px;
+        padding: 1rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .welcome-action:hover {
+        border-color: #4CAF50;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.2);
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .welcome-action i {
+        font-size: 2rem;
+        color: #4CAF50;
+        margin-bottom: 0.5rem;
+    }
+    
+    @media (max-width: 768px) {
+        .chatbot-container {
+            padding: 1rem;
+        }
+        
+        .chat-card {
+            height: 90vh;
+        }
+        
+        .message-content {
+            max-width: 85%;
+        }
+        
+        .welcome-actions {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chatbot-container">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="chat-card">
+                    <div class="chat-header">
+                        <h3 class="mb-0">
+                            <i class="fas fa-robot me-2"></i>
+                            {{ page_title }}
+                        </h3>
+                        <p class="mb-0 mt-2">{% trans "مساعدك الذكي للإجابة على جميع استفساراتك" %}</p>
+                    </div>
+                    
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="welcome-message">
+                            <div class="message bot">
+                                <div class="message-avatar">
+                                    <i class="fas fa-robot"></i>
+                                </div>
+                                <div class="message-content">
+                                    مرحباً بك في إدريسي مارت! 👋
+                                    
+                                    أنا مساعدك الذكي، يمكنني مساعدتك في:
+                                    
+                                    • معلومات عن المنصة وخدماتها
+                                    • كيفية نشر الإعلانات المبوبة  
+                                    • طرق الدفع والحساب
+                                    • الدعم الفني والمساعدة
+                                    
+                                    كيف يمكنني مساعدتك اليوم؟
+                                </div>
+                            </div>
+                            
+                            {% if quick_actions %}
+                            <div class="welcome-actions">
+                                {% for action in quick_actions %}
+                                <div class="welcome-action" onclick="sendQuickAction('{{ action.action_value }}')">
+                                    <i class="{{ action.icon }}"></i>
+                                    <h6>{{ action.title }}</h6>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="typing-indicator" id="typingIndicator">
+                        <i class="fas fa-robot me-2"></i>
+                        <span class="typing-dots">يكتب</span>
+                    </div>
+                    
+                    <div class="chat-input-area">
+                        <div class="chat-input-group">
+                            <textarea 
+                                class="chat-input" 
+                                id="chatInput" 
+                                placeholder="اكتب رسالتك هنا..."
+                                rows="1"></textarea>
+                            <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let sessionId = null;
+let isTyping = false;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendBtn');
+    
+    // Auto-resize textarea
+    chatInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+        
+        // Enable/disable send button
+        sendBtn.disabled = !this.value.trim();
+    });
+    
+    // Send message on Enter (but allow Shift+Enter for new line)
+    chatInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    
+    // Generate session ID
+    sessionId = generateSessionId();
+});
+
+function generateSessionId() {
+    return 'chat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
+function sendMessage() {
+    const input = document.getElementById('chatInput');
+    const message = input.value.trim();
+    
+    if (!message || isTyping) return;
+    
+    // Add user message to chat
+    addMessage(message, 'user');
+    
+    // Clear input
+    input.value = '';
+    input.style.height = 'auto';
+    document.getElementById('sendBtn').disabled = true;
+    
+    // Show typing indicator
+    showTyping();
+    
+    // Send to backend
+    fetch('{% url "main:chatbot_message" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            message: message,
+            session_id: sessionId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideTyping();
+        
+        if (data.success) {
+            sessionId = data.session_id;
+            addMessage(data.response, 'bot', data.conversation_id, data.quick_actions);
+            
+            // Add suggestions if available
+            if (data.suggestions && data.suggestions.length > 0) {
+                addSuggestions(data.suggestions);
+            }
+        } else {
+            addMessage('عذراً، حدث خطأ. يرجى المحاولة مرة أخرى.', 'bot');
+        }
+    })
+    .catch(error => {
+        hideTyping();
+        console.error('Error:', error);
+        addMessage('عذراً، حدث خطأ في الاتصال.', 'bot');
+    });
+}
+
+function sendQuickAction(message) {
+    const input = document.getElementById('chatInput');
+    input.value = message;
+    sendMessage();
+}
+
+function addSuggestions(suggestions) {
+    const messagesContainer = document.getElementById('chatMessages');
+    
+    // Create suggestions container
+    const suggestionsDiv = document.createElement('div');
+    suggestionsDiv.className = 'chat-suggestions';
+    
+    // Add title
+    const titleDiv = document.createElement('div');
+    titleDiv.className = 'suggestions-title';
+    titleDiv.innerHTML = '<i class="fas fa-lightbulb"></i> اقتراحات قد تهمك:';
+    suggestionsDiv.appendChild(titleDiv);
+    
+    // Add suggestion buttons
+    const buttonsContainer = document.createElement('div');
+    buttonsContainer.className = 'suggestions-buttons';
+    
+    suggestions.forEach(suggestion => {
+        const button = document.createElement('button');
+        button.className = 'suggestion-btn';
+        button.textContent = suggestion;
+        button.onclick = () => {
+            document.getElementById('chatInput').value = suggestion;
+            sendMessage();
+            // Remove suggestions after selection
+            suggestionsDiv.remove();
+        };
+        buttonsContainer.appendChild(button);
+    });
+    
+    suggestionsDiv.appendChild(buttonsContainer);
+    messagesContainer.appendChild(suggestionsDiv);
+    
+    // Scroll to bottom
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function addMessage(content, sender, conversationId = null, quickActions = null) {
+    const messagesContainer = document.getElementById('chatMessages');
+    const welcomeMessage = messagesContainer.querySelector('.welcome-message');
+    
+    // Remove welcome message after first interaction
+    if (welcomeMessage && sender === 'user') {
+        welcomeMessage.remove();
+    }
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${sender}`;
+    
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    avatar.innerHTML = sender === 'bot' ? '<i class="fas fa-robot"></i>' : '<i class="fas fa-user"></i>';
+    
+    const messageContent = document.createElement('div');
+    messageContent.className = 'message-content';
+    messageContent.textContent = content;
+    
+    const messageTime = document.createElement('div');
+    messageTime.className = 'message-time';
+    messageTime.textContent = new Date().toLocaleTimeString('ar-SA', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    
+    messageContent.appendChild(messageTime);
+    
+    // Add rating buttons for bot messages
+    if (sender === 'bot' && conversationId) {
+        const ratingDiv = document.createElement('div');
+        ratingDiv.className = 'rating-buttons';
+        
+        const helpfulBtn = document.createElement('button');
+        helpfulBtn.className = 'rating-btn';
+        helpfulBtn.innerHTML = '<i class="fas fa-thumbs-up me-1"></i>مفيد';
+        helpfulBtn.onclick = () => rateResponse(conversationId, true, helpfulBtn);
+        
+        const notHelpfulBtn = document.createElement('button');
+        notHelpfulBtn.className = 'rating-btn';
+        notHelpfulBtn.innerHTML = '<i class="fas fa-thumbs-down me-1"></i>غير مفيد';
+        notHelpfulBtn.onclick = () => rateResponse(conversationId, false, notHelpfulBtn);
+        
+        ratingDiv.appendChild(helpfulBtn);
+        ratingDiv.appendChild(notHelpfulBtn);
+        messageContent.appendChild(ratingDiv);
+    }
+    
+    // Add quick actions for bot messages
+    if (sender === 'bot' && quickActions && quickActions.length > 0) {
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'quick-actions';
+        
+        quickActions.forEach(action => {
+            const actionBtn = document.createElement('button');
+            actionBtn.className = 'quick-action-btn';
+            actionBtn.innerHTML = `<i class="${action.icon} me-1"></i>${action.title}`;
+            actionBtn.onclick = () => sendQuickAction(action.action_value);
+            actionsDiv.appendChild(actionBtn);
+        });
+        
+        messageContent.appendChild(actionsDiv);
+    }
+    
+    messageDiv.appendChild(avatar);
+    messageDiv.appendChild(messageContent);
+    
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function rateResponse(conversationId, isHelpful, button) {
+    fetch('{% url "main:chatbot_rate" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            conversation_id: conversationId,
+            is_helpful: isHelpful
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update button appearance
+            button.classList.add(isHelpful ? 'helpful' : 'not-helpful');
+            button.disabled = true;
+            
+            // Disable the other button
+            const ratingButtons = button.parentElement;
+            Array.from(ratingButtons.children).forEach(btn => {
+                if (btn !== button) btn.disabled = true;
+            });
+            
+            // Show thank you message
+            const thankYou = document.createElement('small');
+            thankYou.textContent = 'شكراً لتقييمك!';
+            thankYou.style.color = '#28a745';
+            thankYou.style.marginTop = '0.5rem';
+            thankYou.style.display = 'block';
+            ratingButtons.appendChild(thankYou);
+        }
+    })
+    .catch(error => {
+        console.error('Rating error:', error);
+    });
+}
+
+function showTyping() {
+    isTyping = true;
+    document.getElementById('typingIndicator').style.display = 'block';
+    document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+}
+
+function hideTyping() {
+    isTyping = false;
+    document.getElementById('typingIndicator').style.display = 'none';
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}
