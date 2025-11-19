@@ -15,7 +15,7 @@
                 <p class="text-muted mb-0">{% trans "عرض وتعديل جميع الحقول المخصصة المرتبطة بالأقسام" %}</p>
             </div>
             <div class="col-auto">
-                <button type="button" data-bs-toggle="modal" data-bs-target="#addFieldModal" class="btn btn-primary">
+                <button type="button" onclick="openSidePanel('addFieldPanel')" class="btn btn-primary">
                     <i class="fas fa-plus-circle me-2"></i>
                     {% trans "إضافة حقل جديد" %}
                 </button>
@@ -81,7 +81,7 @@
                                             {% endif %}
                                         </td>
                                         <td>
-                                            <button type="button" onclick="editCustomField({{ field.id }})" class="btn btn-sm btn-outline-primary" title="{% trans 'تعديل' %}" data-bs-toggle="modal" data-bs-target="#editFieldModal">
+                                            <button type="button" onclick="editCustomField({{ field.id }}); openSidePanel('editFieldPanel');" class="btn btn-sm btn-outline-primary" title="{% trans 'تعديل' %}">
                                                 <i class="fas fa-edit"></i>
                                             </button>
                                         </td>
@@ -101,15 +101,21 @@
         {% endif %}
     </div>
 
-    <!-- Add Custom Field Modal -->
-    <div class="modal fade" id="addFieldModal" tabindex="-1" aria-labelledby="addFieldModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="addFieldModalLabel">{% trans "إضافة حقل مخصص جديد" %}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
+    <!-- Add Custom Field Slide Panel -->
+    <!-- Add Field Slide Panel -->
+    <div class="slide-panel" id="addFieldPanel">
+        <div class="slide-panel-overlay" onclick="closeSidePanel('addFieldPanel')"></div>
+        <div class="slide-panel-content">
+            <div class="slide-panel-header">
+                <h5 class="slide-panel-title">
+                    <i class="fas fa-plus-circle me-2"></i>
+                    {% trans "إضافة حقل مخصص جديد" %}
+                </h5>
+                <button type="button" class="slide-panel-close" onclick="closeSidePanel('addFieldPanel')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="slide-panel-body">
                     <form id="addFieldForm">
                         <div class="mb-3">
                             <label for="addCategory" class="form-label">{% trans "القسم التابع له" %} *</label>
@@ -174,23 +180,28 @@
                         </div>
                     </form>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إغلاق" %}</button>
+                <div class="slide-panel-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeSidePanel('addFieldPanel')">{% trans "إغلاق" %}</button>
                     <button type="button" class="btn btn-primary" onclick="addNewCustomField()">{% trans "إضافة الحقل" %}</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Edit Custom Field Modal -->
-    <div class="modal fade" id="editFieldModal" tabindex="-1" aria-labelledby="editFieldModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="editFieldModalLabel">{% trans "تعديل الحقل المخصص" %}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
+    <!-- Edit Custom Field Slide Panel -->
+    <div class="slide-panel" id="editFieldPanel">
+        <div class="slide-panel-overlay" onclick="closeSidePanel('editFieldPanel')"></div>
+        <div class="slide-panel-content">
+            <div class="slide-panel-header">
+                <h5 class="slide-panel-title">
+                    <i class="fas fa-edit me-2"></i>
+                    {% trans "تعديل الحقل المخصص" %}
+                </h5>
+                <button type="button" class="slide-panel-close" onclick="closeSidePanel('editFieldPanel')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="slide-panel-body">
                     <form id="editFieldForm">
                         <input type="hidden" id="editFieldId" name="field_id">
                         <div class="row">
@@ -242,8 +253,8 @@
                         </div>
                     </form>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إغلاق" %}</button>
+                <div class="slide-panel-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeSidePanel('editFieldPanel')">{% trans "إغلاق" %}</button>
                     <button type="button" class="btn btn-primary" onclick="saveCustomField()">{% trans "حفظ التغييرات" %}</button>
                 </div>
             </div>
@@ -253,16 +264,12 @@
 
 {% block admin_extra_css %}
 <style>
-    /* Modal z-index - Uses same z-index as global modals (10600) from admin-dashboard.css */
-    /* Bootstrap modals automatically use global values - no override needed */
+    /* Slide panels use z-index values from admin-dashboard.css (10050-10700) */
 </style>
 {% endblock %}
 
 {% block admin_extra_js %}
 <script>
-    const addFieldModal = new bootstrap.Modal(document.getElementById('addFieldModal'));
-    const editFieldModal = new bootstrap.Modal(document.getElementById('editFieldModal'));
-
     function editCustomField(fieldId) {
         fetch(`/admin/custom-fields/${fieldId}/get/`)
             .then(response => response.json())
@@ -279,7 +286,7 @@
                     document.getElementById('editFieldIsRequired').checked = field.is_required || false;
                     document.getElementById('editFieldIsActive').checked = field.is_active || false;
 
-                    // The modal is shown via data-bs-toggle attributes
+                    // The slide panel is opened via onclick handlers
                 } else {
                     alert(data.message || '{% trans "Failed to load field data." %}');
                 }
@@ -313,7 +320,7 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                addFieldModal.hide();
+                closeSidePanel('addFieldPanel');
                 location.reload();
             } else {
                 alert(data.message || '{% trans "Failed to add field." %}');
@@ -344,7 +351,7 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                editFieldModal.hide();
+                closeSidePanel('editFieldPanel');
                 alert(data.message);
                 location.reload();
             } else {

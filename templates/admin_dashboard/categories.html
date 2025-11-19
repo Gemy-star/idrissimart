@@ -25,7 +25,7 @@
                 <p class="text-muted mb-0">{% trans "إنشاء وتعديل الأقسام الرئيسية والفرعية والحقول المخصصة" %}</p>
             </div>
             <div class="col-auto">
-                <button class="btn btn-primary" onclick="showAddCategoryModal()">
+                <button class="btn btn-primary" onclick="showAddCategoryPanel()">
                     <i class="fas fa-plus-circle me-2"></i>
                     {% trans "إضافة قسم جديد" %}
                 </button>
@@ -141,18 +141,21 @@
                     </div>
                 {% endfor %}
     </div>
-<!-- Add/Edit Category Modal -->
-<div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="categoryModalTitle">
-                    <i class="fas fa-plus-circle me-2"></i>
-                    {% trans "إضافة قسم جديد" %}
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
+<!-- Add/Edit Category Slide Panel -->
+<!-- Category Slide Panel -->
+<div class="slide-panel" id="categoryPanel">
+    <div class="slide-panel-overlay" onclick="closeSidePanel('categoryPanel')"></div>
+    <div class="slide-panel-content">
+        <div class="slide-panel-header">
+            <h5 class="slide-panel-title" id="categoryPanelTitle">
+                <i class="fas fa-plus-circle me-2"></i>
+                {% trans "إضافة قسم جديد" %}
+            </h5>
+            <button type="button" class="slide-panel-close" onclick="closeSidePanel('categoryPanel')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="slide-panel-body">
                 <form id="categoryForm">
                     <input type="hidden" id="categoryId" name="category_id">
                     <input type="hidden" id="parentCategoryId" name="parent_id">
@@ -232,8 +235,8 @@
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <div class="slide-panel-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeSidePanel('categoryPanel')">
                     {% trans "إلغاء" %}
                 </button>
                 <button type="button" class="btn btn-primary" onclick="saveCategory()">
@@ -245,43 +248,40 @@
     </div>
 </div>
 
-<!-- Custom Fields Modal -->
-<div class="modal fade" id="customFieldsModal" tabindex="-1" aria-labelledby="customFieldsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
-        <!-- ... modal content ... -->
-    </div>
-</div>
-{% endblock %}
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-list me-2"></i>
-                    {% trans "إدارة الحقول المخصصة" %}
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<!-- Custom Fields Slide Panel -->
+<div class="slide-panel" id="customFieldsPanel">
+    <div class="slide-panel-overlay" onclick="closeSidePanel('customFieldsPanel')"></div>
+    <div class="slide-panel-content" style="max-width: 800px;">
+        <div class="slide-panel-header">
+            <h5 class="slide-panel-title">
+                <i class="fas fa-list me-2"></i>
+                {% trans "إدارة الحقول المخصصة" %}
+            </h5>
+            <button type="button" class="slide-panel-close" onclick="closeSidePanel('customFieldsPanel')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="slide-panel-body">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h6 id="customFieldsCategoryName">{% trans "الحقول المخصصة للقسم" %}</h6>
+                <button class="btn btn-primary btn-sm" onclick="addCustomField()">
+                    <i class="fas fa-plus me-1"></i>
+                    {% trans "إضافة حقل جديد" %}
+                </button>
             </div>
-            <div class="modal-body">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h6 id="customFieldsCategoryName">{% trans "الحقول المخصصة للقسم" %}</h6>
-                    <button class="btn btn-primary btn-sm" onclick="addCustomField()">
-                        <i class="fas fa-plus me-1"></i>
-                        {% trans "إضافة حقل جديد" %}
-                    </button>
-                </div>
 
-                <div id="customFieldsList">
-                    <!-- Custom fields will be loaded here -->
-                </div>
+            <div id="customFieldsList">
+                <!-- Custom fields will be loaded here -->
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    {% trans "إغلاق" %}
-                </button>
-                <button type="button" class="btn btn-primary" onclick="saveCustomFields()">
-                    <i class="fas fa-save me-2"></i>
-                    {% trans "حفظ التغييرات" %}
-                </button>
-            </div>
+        </div>
+        <div class="slide-panel-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeSidePanel('customFieldsPanel')">
+                {% trans "إغلاق" %}
+            </button>
+            <button type="button" class="btn btn-primary" onclick="saveCustomFields()">
+                <i class="fas fa-save me-2"></i>
+                {% trans "حفظ التغييرات" %}
+            </button>
         </div>
     </div>
 </div>
@@ -289,6 +289,7 @@
 <!-- Toast container -->
 <div class="admin-toast-container" id="adminToastContainer" aria-live="polite" aria-atomic="true"></div>
 
+{% endblock %}
 
 {% block admin_extra_js %}
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
@@ -309,34 +310,33 @@ function toggleAllowCartField() {
 }
 
 // Category Management
-function showAddCategoryModal() {
-    document.getElementById('categoryModalTitle').innerHTML = '<i class="fas fa-plus-circle me-2"></i>إضافة قسم جديد';
+function showAddCategoryPanel() {
+    document.getElementById('categoryPanelTitle').innerHTML = '<i class="fas fa-plus-circle me-2"></i>إضافة قسم جديد';
     document.getElementById('categoryForm').reset();
     document.getElementById('categoryId').value = '';
     document.getElementById('parentCategoryId').value = '';
 
-    const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
-    modal.show();
+    openSidePanel('categoryPanel');
 
-    // Toggle السماح بالسلة visibility after modal is shown
+    // Toggle السماح بالسلة visibility after panel is shown
     setTimeout(() => toggleAllowCartField(), 100);
 }
 
 function addCategoryToSection(sectionCode) {
-    showAddCategoryModal();
+    showAddCategoryPanel();
     document.querySelector('[name="section_type"]').value = sectionCode;
     toggleAllowCartField();
 }
 
 function addSubcategory(parentId) {
-    showAddCategoryModal();
+    showAddCategoryPanel();
     document.getElementById('parentCategoryId').value = parentId;
-    document.getElementById('categoryModalTitle').innerHTML = '<i class="fas fa-plus-circle me-2"></i>إضافة قسم فرعي';
+    document.getElementById('categoryPanelTitle').innerHTML = '<i class="fas fa-plus-circle me-2"></i>إضافة قسم فرعي';
     toggleAllowCartField();
 }
 
 function editCategory(categoryId) {
-    document.getElementById('categoryModalTitle').innerHTML = '<i class="fas fa-edit me-2"></i>تعديل القسم';
+    document.getElementById('categoryPanelTitle').innerHTML = '<i class="fas fa-edit me-2"></i>تعديل القسم';
 
     // Load category data via AJAX
     fetch(`/admin/categories/${categoryId}/`)
@@ -369,8 +369,7 @@ function editCategory(categoryId) {
             // Toggle السماح بالسلة visibility
             toggleAllowCartField();
 
-            const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
-            modal.show();
+            openSidePanel('categoryPanel');
         });
 }
 
@@ -423,7 +422,7 @@ function saveCategory() {
     .then(data => {
         if (data.success) {
             showSuccess(data.message || 'تم الحفظ بنجاح');
-            bootstrap.Modal.getInstance(document.getElementById('categoryModal')).hide();
+            closeSidePanel('categoryPanel');
             location.reload();
         } else {
             showError(data.message || 'تعذر حفظ البيانات');
@@ -444,8 +443,7 @@ function manageCustomFields(categoryId) {
                     `الحقول المخصصة للقسم: ${data.category_name}`;
                 displayCustomFields(data.fields);
 
-                const modal = new bootstrap.Modal(document.getElementById('customFieldsModal'));
-                modal.show();
+                openSidePanel('customFieldsPanel');
             }
         });
 }
@@ -582,7 +580,7 @@ function saveCustomFields() {
     .then(data => {
         if (data.success) {
             showSuccess(data.message || 'تم حفظ الحقول بنجاح');
-            bootstrap.Modal.getInstance(document.getElementById('customFieldsModal')).hide();
+            closeSidePanel('customFieldsPanel');
         } else {
             showError(data.message || 'تعذر حفظ الحقول');
         }
