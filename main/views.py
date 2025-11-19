@@ -3105,6 +3105,23 @@ def admin_settings_get(request):
             "delivery_service_enabled": True,
             "delivery_requires_approval": True,
             "cart_system_enabled": True,
+            "cart_by_main_category": False,
+            "cart_by_subcategory": True,
+            "cart_per_ad": True,
+            "default_reservation_percentage": 20,
+            "min_reservation_amount": 50,
+            "max_reservation_amount": 5000,
+            "delivery_fee_percentage": 5,
+            "delivery_fee_min": 10,
+            "delivery_fee_max": 500,
+            "notify_admin_new_ads": True,
+            "notify_admin_pending_review": True,
+            "notify_admin_new_users": True,
+            "notify_admin_payments": True,
+            "admin_notification_email": request.user.email if request.user.is_authenticated else "",
+            "site_name_in_emails": "إدريسي مارت",
+            "ads_notification_frequency": "hourly",
+            "stats_report_frequency": "daily",
         }
 
         return JsonResponse({"success": True, "settings": settings})
