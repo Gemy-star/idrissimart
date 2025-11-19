@@ -11,143 +11,133 @@
         <link rel="stylesheet" href="{% static 'css/publisher-dashboard.css' %}">
     {% endcompress %}
     <style>
-        /* Publisher Navigation Styles */
-        .publisher-nav {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(15px);
-            border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            padding: 1.5rem;
-            margin-top: 2rem;
-            margin-bottom: 2rem;
-            position: sticky;
-            top: 20px;
-            z-index: 100;
+        /* Slide Panel Styles - Modern Alternative to Modals */
+        .slide-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 10050;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
-        
-        [data-theme='dark'] .publisher-nav {
-            background: rgba(30, 30, 46, 0.95);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-        }
-        
-        .publisher-nav-links {
+
+        .slide-panel.active {
             display: flex;
-            gap: 0.5rem;
-            flex-wrap: nowrap;
-            justify-content: flex-start;
-            overflow-x: auto;
-            white-space: nowrap;
-            padding-bottom: 2px;
-            scrollbar-width: none; /* Firefox */
-            -ms-overflow-style: none; /* IE and Edge */
+            opacity: 1;
         }
-        
-        .publisher-nav-links::-webkit-scrollbar {
-            display: none; /* Chrome, Safari, Opera */
-        }
-        
-        .publisher-nav-item {
-            padding: 0.75rem 1.2rem;
-            border-radius: 12px;
-            text-decoration: none;
-            font-weight: 600;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.9rem;
-            line-height: 1.2rem;
-            min-width: fit-content;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .publisher-nav-item i {
-            font-size: 1rem;
-            width: 18px;
-            text-align: center;
-        }
-        
-        .publisher-nav-item span {
-            white-space: nowrap;
-        }
-        
-        .publisher-nav-item.active {
-            background: linear-gradient(135deg, #28a745, #20c997);
-            color: white;
-            box-shadow: 0 4px 20px rgba(40, 167, 69, 0.4);
-            transform: translateY(-1px);
-        }
-        
-        .publisher-nav-item.active::before {
-            content: '';
+
+        .slide-panel-overlay {
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
-            pointer-events: none;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            cursor: pointer;
         }
-        
-        .publisher-nav-item:not(.active) {
-            background: #f8f9fa;
-            color: #495057;
-            border: 1px solid rgba(0,0,0,0.05);
+
+        .slide-panel-content {
+            position: absolute;
+            top: 0;
+            right: -500px;
+            bottom: 0;
+            width: 90%;
+            max-width: 500px;
+            background: white;
+            box-shadow: -5px 0 25px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            transition: right 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 10051;
         }
-        
-        [data-theme='dark'] .publisher-nav-item:not(.active) {
-            background: rgba(255, 255, 255, 0.08);
+
+        .slide-panel.active .slide-panel-content {
+            right: 0;
+        }
+
+        [data-theme='dark'] .slide-panel-content {
+            background: #1e1e2e;
+            box-shadow: -5px 0 25px rgba(0, 0, 0, 0.8);
+        }
+
+        .slide-panel-header {
+            padding: 1.5rem;
+            border-bottom: 2px solid #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        }
+
+        [data-theme='dark'] .slide-panel-header {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.05));
+            border-bottom-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .slide-panel-title {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+        }
+
+        [data-theme='dark'] .slide-panel-title {
             color: #e9ecef;
-            border: 1px solid rgba(255,255,255,0.1);
         }
-        
-        .publisher-nav-item:not(.active):hover {
-            background: #e9ecef;
-            color: #28a745;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-            border-color: rgba(40, 167, 69, 0.2);
+
+        .slide-panel-close {
+            background: transparent;
+            border: none;
+            font-size: 1.5rem;
+            color: #6c757d;
+            cursor: pointer;
+            padding: 0.5rem;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
         }
-        
-        [data-theme='dark'] .publisher-nav-item:not(.active):hover {
-            background: rgba(255, 255, 255, 0.15);
-            color: #20c997;
-            border-color: rgba(32, 201, 151, 0.3);
+
+        .slide-panel-close:hover {
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+            transform: rotate(90deg);
         }
-        
-        /* Responsive adjustments */
+
+        .slide-panel-body {
+            flex: 1;
+            padding: 2rem 1.5rem;
+            overflow-y: auto;
+        }
+
+        .slide-panel-footer {
+            padding: 1.5rem;
+            border-top: 2px solid #e9ecef;
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            background: #f8f9fa;
+        }
+
+        [data-theme='dark'] .slide-panel-footer {
+            background: rgba(255, 255, 255, 0.03);
+            border-top-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Responsive */
         @media (max-width: 768px) {
-            .publisher-nav {
-                padding: 1rem;
-                margin-top: 1rem;
-                margin-bottom: 1rem;
-                border-radius: 15px;
-            }
-            
-            .publisher-nav-item {
-                padding: 0.6rem 1rem;
-                font-size: 0.85rem;
-            }
-            
-            .publisher-nav-item span {
-                display: none;
-            }
-            
-            .publisher-nav-item i {
-                font-size: 1.1rem;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            .publisher-nav-links {
-                gap: 0.25rem;
-            }
-            
-            .publisher-nav-item {
-                padding: 0.5rem 0.8rem;
+            .slide-panel-content {
+                width: 100%;
+                max-width: 100%;
             }
         }
     </style>
@@ -178,18 +168,18 @@
                 // Auto-scroll to active item on page load
                 const activeItem = navLinks.querySelector('.publisher-nav-item.active');
                 if (activeItem) {
-                    activeItem.scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'nearest', 
-                        inline: 'center' 
+                    activeItem.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'nearest',
+                        inline: 'center'
                     });
                 }
-                
+
                 // Add keyboard navigation
                 navLinks.addEventListener('keydown', function(e) {
                     const items = Array.from(navLinks.querySelectorAll('.publisher-nav-item'));
                     const currentIndex = items.findIndex(item => item === document.activeElement);
-                    
+
                     if (e.key === 'ArrowRight' && currentIndex < items.length - 1) {
                         e.preventDefault();
                         items[currentIndex + 1].focus();
@@ -198,16 +188,16 @@
                         items[currentIndex - 1].focus();
                     }
                 });
-                
+
                 // Add touch/swipe support for mobile
                 let startX = 0;
                 let scrollLeft = 0;
-                
+
                 navLinks.addEventListener('touchstart', function(e) {
                     startX = e.touches[0].pageX - navLinks.offsetLeft;
                     scrollLeft = navLinks.scrollLeft;
                 });
-                
+
                 navLinks.addEventListener('touchmove', function(e) {
                     if (!startX) return;
                     e.preventDefault();
@@ -215,12 +205,12 @@
                     const walk = (x - startX) * 2;
                     navLinks.scrollLeft = scrollLeft - walk;
                 });
-                
+
                 navLinks.addEventListener('touchend', function() {
                     startX = 0;
                 });
             }
-            
+
             // Add loading states for navigation links
             const navItems = document.querySelectorAll('.publisher-nav-item:not(.active)');
             navItems.forEach(item => {
@@ -229,13 +219,50 @@
                     const icon = this.querySelector('i');
                     const originalClass = icon.className;
                     icon.className = 'fas fa-spinner fa-spin';
-                    
+
                     // Reset after a short delay (in case navigation is instant)
                     setTimeout(() => {
                         icon.className = originalClass;
                     }, 1000);
                 });
             });
+        });
+
+        // Slide Panel Utility Functions
+        function openSidePanel(panelId) {
+            const panel = document.getElementById(panelId);
+            if (panel) {
+                panel.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeSidePanel(panelId) {
+            const panel = document.getElementById(panelId);
+            if (panel) {
+                panel.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        }
+
+        // Close panel when clicking overlay
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('slide-panel-overlay')) {
+                const panel = e.target.closest('.slide-panel');
+                if (panel && panel.id) {
+                    closeSidePanel(panel.id);
+                }
+            }
+        });
+
+        // Close panel with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const activePanel = document.querySelector('.slide-panel.active');
+                if (activePanel && activePanel.id) {
+                    closeSidePanel(activePanel.id);
+                }
+            }
         });
     </script>
     {% block publisher_extra_js %}{% endblock %}

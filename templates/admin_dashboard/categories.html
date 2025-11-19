@@ -5,18 +5,26 @@
     {% trans "إدارة الأقسام - لوحة تحكم المدير" %}
 {% endblock %}
 
+{% block admin_extra_css %}
+<style>
+    /* Modal z-index - Uses global values from admin-dashboard.css
+       Modal backdrop: 10500, Modal: 10600, Modal dialog: 10700 */
+    /* Bootstrap modals automatically inherit these values */
+</style>
+{% endblock %}
+
 {% block admin_content %}
     <!-- Header -->
     <div class="admin-dashboard-header">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
+        <div class="row align-items-center">
+            <div class="col">
                 <h1 class="display-6 mb-1">
                     <i class="fas fa-tags me-3"></i>
                     {% trans "إدارة الأقسام والحقول المخصصة" %}
                 </h1>
                 <p class="text-muted mb-0">{% trans "إنشاء وتعديل الأقسام الرئيسية والفرعية والحقول المخصصة" %}</p>
             </div>
-            <div>
+            <div class="col-auto">
                 <button class="btn btn-primary" onclick="showAddCategoryModal()">
                     <i class="fas fa-plus-circle me-2"></i>
                     {% trans "إضافة قسم جديد" %}
@@ -215,6 +223,13 @@
                             {% trans "نشط" %}
                         </label>
                     </div>
+
+                    <div class="form-check mb-3" id="allowCartGroup">
+                        <input type="checkbox" name="allow_cart" class="form-check-input" id="allowCart">
+                        <label class="form-check-label" for="allowCart">
+                            {% trans "السماح بالسلة" %}
+                        </label>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -280,6 +295,19 @@
     <script>
         let currentCategoryId = null;
 
+// Show/Hide "السماح بالسلة" based on section_type
+function toggleAllowCartField() {
+    const sectionType = document.querySelector('[name="section_type"]').value;
+    const allowCartGroup = document.getElementById('allowCartGroup');
+
+    if (sectionType === 'classified') {
+        allowCartGroup.style.display = 'block';
+    } else {
+        allowCartGroup.style.display = 'none';
+        document.getElementById('allowCart').checked = false;
+    }
+}
+
 // Category Management
 function showAddCategoryModal() {
     document.getElementById('categoryModalTitle').innerHTML = '<i class="fas fa-plus-circle me-2"></i>إضافة قسم جديد';
@@ -289,17 +317,22 @@ function showAddCategoryModal() {
 
     const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
     modal.show();
+
+    // Toggle السماح بالسلة visibility after modal is shown
+    setTimeout(() => toggleAllowCartField(), 100);
 }
 
 function addCategoryToSection(sectionCode) {
     showAddCategoryModal();
     document.querySelector('[name="section_type"]').value = sectionCode;
+    toggleAllowCartField();
 }
 
 function addSubcategory(parentId) {
     showAddCategoryModal();
     document.getElementById('parentCategoryId').value = parentId;
     document.getElementById('categoryModalTitle').innerHTML = '<i class="fas fa-plus-circle me-2"></i>إضافة قسم فرعي';
+    toggleAllowCartField();
 }
 
 function editCategory(categoryId) {
@@ -327,6 +360,14 @@ function editCategory(categoryId) {
                 document.querySelector('[name="order"]').value = category.order || 0;
             }
             document.querySelector('[name="is_active"]').checked = !!category.is_active;
+
+            // Load allow_cart if available
+            if (document.getElementById('allowCart')) {
+                document.getElementById('allowCart').checked = !!category.allow_cart;
+            }
+
+            // Toggle السماح بالسلة visibility
+            toggleAllowCartField();
 
             const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
             modal.show();
@@ -623,6 +664,14 @@ function confirmDelete(message, onConfirm) {
     box.appendChild(actions)
     document.body.appendChild(box)
 }
+
+// Add event listener for section_type changes
+document.addEventListener('DOMContentLoaded', function() {
+    const sectionTypeSelect = document.querySelector('[name="section_type"]');
+    if (sectionTypeSelect) {
+        sectionTypeSelect.addEventListener('change', toggleAllowCartField);
+    }
+});
 </script>
 
     <script>

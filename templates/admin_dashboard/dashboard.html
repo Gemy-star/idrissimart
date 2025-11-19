@@ -146,27 +146,44 @@
                             </div>
                             <div class="card-body">
                                 {% for ad in recent_ads %}
-                                    <div class="recent-item">
+                                    <a href="{% url 'main:ad_detail' ad.id %}" class="recent-item" title="{% trans 'عرض تفاصيل الإعلان' %}">
                                         <div class="item-avatar">
                                             {% if ad.images.first %}
-                                                <img src="{{ ad.images.first.image.url }}" alt="{{ ad.title }}">
+                                                <img src="{{ ad.images.first.image.url }}"
+                                                     alt="{{ ad.title }}"
+                                                     loading="lazy">
                                             {% else %}
-                                                <i class="fas fa-image"></i>
+                                                <i class="fas fa-image" aria-hidden="true"></i>
                                             {% endif %}
                                         </div>
                                         <div class="item-content">
-                                            <h6 class="mb-1">{{ ad.title|truncatechars:40 }}</h6>
+                                            <h6 class="mb-1" title="{{ ad.title }}">{{ ad.title|truncatechars:40 }}</h6>
                                             <p class="text-muted mb-1">
-                                                {{ ad.user.username }} - {{ ad.category.name }}
+                                                <i class="fas fa-user fa-sm me-1" aria-hidden="true"></i>
+                                                {{ ad.user.username }}
+                                                <span class="mx-1">•</span>
+                                                <i class="fas fa-tag fa-sm me-1" aria-hidden="true"></i>
+                                                {{ ad.category.name }}
                                             </p>
-                                            <small class="text-muted">{{ ad.created_at|timesince }}</small>
+                                            <small class="text-muted">
+                                                <i class="fas fa-clock fa-sm me-1" aria-hidden="true"></i>
+                                                {{ ad.created_at|timesince }}
+                                            </small>
                                         </div>
                                         <div class="item-actions">
-                                            <span class="badge bg-{{ ad.status|default:'secondary' }}">
+                                            <span class="badge bg-{{ ad.status|default:'secondary' }}"
+                                                  title="{{ ad.get_status_display }}">
+                                                {% if ad.status == 'active' %}
+                                                    <i class="fas fa-check-circle" aria-hidden="true"></i>
+                                                {% elif ad.status == 'pending' %}
+                                                    <i class="fas fa-clock" aria-hidden="true"></i>
+                                                {% elif ad.status == 'expired' %}
+                                                    <i class="fas fa-times-circle" aria-hidden="true"></i>
+                                                {% endif %}
                                                 {{ ad.get_status_display }}
                                             </span>
                                         </div>
-                                    </div>
+                                    </a>
                                 {% empty %}
                                     <p class="text-muted text-center">{% trans "لا توجد إعلانات حديثة" %}</p>
                                 {% endfor %}
@@ -190,27 +207,43 @@
                             </div>
                             <div class="card-body">
                                 {% for user in recent_users %}
-                                    <div class="recent-item">
+                                    <a href="/admin/auth/user/{{ user.id }}/change/" class="recent-item" title="{% trans 'عرض تفاصيل المستخدم' %}">
                                         <div class="item-avatar">
                                             {% if user.userprofile.profile_image %}
-                                                <img src="{{ user.userprofile.profile_image.url }}" alt="{{ user.username }}">
+                                                <img src="{{ user.userprofile.profile_image.url }}"
+                                                     alt="{{ user.username }}"
+                                                     loading="lazy">
                                             {% else %}
-                                                <i class="fas fa-user"></i>
+                                                <i class="fas fa-user" aria-hidden="true"></i>
                                             {% endif %}
                                         </div>
                                         <div class="item-content">
-                                            <h6 class="mb-1">{{ user.get_full_name|default:user.username }}</h6>
-                                            <p class="text-muted mb-1">{{ user.email }}</p>
-                                            <small class="text-muted">{{ user.date_joined|timesince }}</small>
+                                            <h6 class="mb-1" title="{{ user.get_full_name|default:user.username }}">
+                                                {{ user.get_full_name|default:user.username }}
+                                            </h6>
+                                            <p class="text-muted mb-1">
+                                                <i class="fas fa-envelope fa-sm me-1" aria-hidden="true"></i>
+                                                {{ user.email|truncatechars:30 }}
+                                            </p>
+                                            <small class="text-muted">
+                                                <i class="fas fa-user-plus fa-sm me-1" aria-hidden="true"></i>
+                                                {% trans "انضم منذ" %} {{ user.date_joined|timesince }}
+                                            </small>
                                         </div>
                                         <div class="item-actions">
                                             {% if user.userprofile.is_person_verified or user.userprofile.is_company_verified %}
-                                                <span class="badge bg-success">
-                                                    <i class="fas fa-check-circle"></i> {% trans "موثق" %}
+                                                <span class="badge bg-success" title="{% trans 'مستخدم موثق' %}">
+                                                    <i class="fas fa-check-circle" aria-hidden="true"></i>
+                                                    {% trans "موثق" %}
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-secondary" title="{% trans 'غير موثق' %}">
+                                                    <i class="fas fa-user" aria-hidden="true"></i>
+                                                    {% trans "عادي" %}
                                                 </span>
                                             {% endif %}
                                         </div>
-                                    </div>
+                                    </a>
                                 {% empty %}
                                     <p class="text-muted text-center">{% trans "لا توجد مستخدمين جدد" %}</p>
                                 {% endfor %}

@@ -293,51 +293,61 @@
     </div>
 </div>
 
-<!-- Ad Details Modal -->
-<div class="modal fade" id="adDetailsModal" tabindex="-1" aria-labelledby="adDetailsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="adDetailsModalLabel">
-                    <i class="fas fa-info-circle me-2"></i>
-                    {% trans "تفاصيل الإعلان" %}
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body" id="adDetailsContent">
-                <!-- Content will be loaded via AJAX -->
-                <div class="text-center py-4">
-                    <div class="spinner-border" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
+<!-- Ad Details Panel -->
+<div class="slide-panel" id="adDetailsPanel">
+    <div class="slide-panel-overlay"></div>
+    <div class="slide-panel-content" style="max-width: 700px;">
+        <div class="slide-panel-header">
+            <h5 class="slide-panel-title">
+                <i class="fas fa-info-circle me-2"></i>
+                {% trans "تفاصيل الإعلان" %}
+            </h5>
+            <button type="button" class="slide-panel-close" onclick="closeSidePanel('adDetailsPanel')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="slide-panel-body" id="adDetailsContent">
+            <!-- Content will be loaded via AJAX -->
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Confirm Delete Modal -->
-<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="confirmDeleteModalLabel">
-                    <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
-                    {% trans "تأكيد الحذف" %}
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<!-- Confirm Delete Panel -->
+<div class="slide-panel" id="confirmDeletePanel">
+    <div class="slide-panel-overlay"></div>
+    <div class="slide-panel-content">
+        <div class="slide-panel-header">
+            <h5 class="slide-panel-title">
+                <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                {% trans "تأكيد الحذف" %}
+            </h5>
+            <button type="button" class="slide-panel-close" onclick="closeSidePanel('confirmDeletePanel')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="slide-panel-body">
+            <div class="alert alert-warning">
+                <i class="fas fa-info-circle me-2"></i>
+                {% trans "هل أنت متأكد من حذف الإعلان" %} "<span id="deleteAdTitle"></span>"؟
             </div>
-            <div class="modal-body">
-                <p>{% trans "هل أنت متأكد من حذف الإعلان" %} "<span id="deleteAdTitle"></span>"؟</p>
-                <p class="text-muted">{% trans "هذا الإجراء لا يمكن التراجع عنه." %}</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    {% trans "إلغاء" %}
-                </button>
-                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
-                    <i class="fas fa-trash me-2"></i>
-                    {% trans "حذف نهائياً" %}
+            <p class="text-muted fw-bold">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                {% trans "هذا الإجراء لا يمكن التراجع عنه." %}
+            </p>
+        </div>
+        <div class="slide-panel-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeSidePanel('confirmDeletePanel')">
+                <i class="fas fa-times me-2"></i>
+                {% trans "إلغاء" %}
+            </button>
+            <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                <i class="fas fa-trash me-2"></i>
+                {% trans "حذف نهائياً" %}
                 </button>
             </div>
         </div>
@@ -393,8 +403,7 @@ document.addEventListener('DOMContentLoaded', function() {
 let currentAdId = null;
 
 function viewAdDetails(adId) {
-    const modal = new bootstrap.Modal(document.getElementById('adDetailsModal'));
-    modal.show();
+    openSidePanel('adDetailsPanel');
 
     // Load ad details via AJAX
     fetch(`/dashboard/ad/${adId}/details/`)
@@ -487,8 +496,7 @@ function toggleAdStatus(adId) {
 function deleteAd(adId, adTitle) {
     currentAdId = adId;
     document.getElementById('deleteAdTitle').textContent = adTitle;
-    const modal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
-    modal.show();
+    openSidePanel('confirmDeletePanel');
 }
 
 document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
@@ -517,7 +525,7 @@ document.getElementById('confirmDeleteBtn').addEventListener('click', function()
                         }
                     });
                 }
-                bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal')).hide();
+                closeSidePanel('confirmDeletePanel');
             } else {
                 showError(data.message);
             }

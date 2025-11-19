@@ -20,7 +20,7 @@
         <!-- Favicon -->
         <link rel="icon"
               type="image/png"
-              href="{% static 'images/mini-logo-white-theme.png' %}">
+              href="{% static 'images/logos/mini-logo-white-theme.png' %}">
         <title>
             {% trans "إدريسي مارت" %} -
 
@@ -144,6 +144,7 @@
 
             // Compare Widget Functionality
             function initializeCompareWidget() {
+                const compareWidget = document.getElementById('compareWidget');
                 const compareToggle = document.getElementById('compareToggle');
                 const comparePanel = document.getElementById('comparePanel');
                 const comparePanelClose = document.getElementById('comparePanelClose');
@@ -158,6 +159,15 @@
                 // Update widget UI
                 function updateCompareWidget() {
                     const count = compareList.length;
+
+                    // Show/hide whole widget based on count
+                    if (compareWidget) {
+                        if (count > 0) {
+                            compareWidget.style.display = 'block';
+                        } else {
+                            compareWidget.style.display = 'none';
+                        }
+                    }
 
                     // Update badge
                     compareBadge.textContent = count;
@@ -270,11 +280,11 @@
 
                 // Initial update
                 updateCompareWidget();
-                
+
                 // Attach event listeners to compare buttons
                 attachCompareListeners();
             }
-            
+
             // Function to attach compare button event listeners
             function attachCompareListeners() {
                 document.querySelectorAll('.compare-btn').forEach(btn => {
@@ -284,7 +294,7 @@
                     btn.addEventListener('click', handleCompareClick);
                 });
             }
-            
+
             // Compare button click handler
             function handleCompareClick(e) {
                 e.preventDefault();
@@ -292,14 +302,14 @@
                 const adId = this.dataset.adId;
                 const adTitle = this.dataset.adTitle;
                 const adImage = this.dataset.adImage;
-                
+
                 if (adId && adTitle && adImage) {
                     toggleCompare(adId, this);
                 } else {
                     console.error('Missing data attributes for compare button:', this);
                 }
             }
-            
+
             // Re-attach listeners when new content is loaded (for dynamic content)
             const observer = new MutationObserver(function(mutations) {
                 mutations.forEach(function(mutation) {
@@ -317,7 +327,7 @@
                     }
                 });
             });
-            
+
             observer.observe(document.body, {
                 childList: true,
                 subtree: true
@@ -395,10 +405,10 @@
                 const adTitle = button.dataset.adTitle;
                 const adImage = button.dataset.adImage;
                 const isActive = button.classList.contains('active');
-                
+
                 // Check if user is authenticated
                 const isAuthenticated = {{ user.is_authenticated|yesno:"true,false" }};
-                
+
                 if (isAuthenticated) {
                     // Handle authenticated user with server request
                     toggleWishlistServerGlobal(adId, adTitle, adImage, button, isActive);
@@ -420,13 +430,13 @@
                         },
                         body: `item_id=${adId}`
                     });
-                    
+
                     const data = await response.json();
-                    
+
                     if (data.success) {
                         updateWishlistButtonGlobal(button, !isActive);
-                        const message = isActive ? 
-                            `تم إزالة ${adTitle} من المفضلة` : 
+                        const message = isActive ?
+                            `تم إزالة ${adTitle} من المفضلة` :
                             `تم إضافة ${adTitle} إلى المفضلة`;
                         showWishlistNotificationGlobal(message, 'success');
                     } else {
@@ -441,7 +451,7 @@
             // Client-side wishlist toggle for guest users (global)
             function toggleWishlistGuestGlobal(adId, adTitle, adImage, button, isActive) {
                 let guestWishlist = JSON.parse(localStorage.getItem('guestWishlist') || '[]');
-                
+
                 if (isActive) {
                     // Remove from wishlist
                     guestWishlist = guestWishlist.filter(item => item.id != adId);
@@ -460,14 +470,17 @@
                     updateWishlistButtonGlobal(button, true);
                     showWishlistNotificationGlobal(`تم إضافة ${adTitle} إلى المفضلة`, 'success');
                 }
-                
+
                 localStorage.setItem('guestWishlist', JSON.stringify(guestWishlist));
+
+                // Update header wishlist count
+                updateHeaderWishlistCount(guestWishlist.length);
             }
 
             // Update wishlist button appearance (global)
             function updateWishlistButtonGlobal(button, isActive) {
                 const icon = button.querySelector('i');
-                
+
                 if (isActive) {
                     button.classList.add('active');
                     icon.classList.remove('far');
@@ -487,12 +500,12 @@
                     success: 'linear-gradient(135deg, #dc3545, #c82333)',
                     error: 'linear-gradient(135deg, #e74c3c, #c0392b)'
                 };
-                
+
                 const icons = {
                     success: '❤️',
                     error: '✗'
                 };
-                
+
                 const notification = document.createElement('div');
                 notification.className = 'wishlist-notification-global';
                 notification.style.cssText = `
@@ -513,9 +526,9 @@
                     animation: slideInRight 0.3s ease;
                 `;
                 notification.innerHTML = `<span>${icons[type]}</span> ${message}`;
-                
+
                 document.body.appendChild(notification);
-                
+
                 setTimeout(() => {
                     notification.style.animation = 'slideOutRight 0.3s ease';
                     setTimeout(() => notification.remove(), 300);
@@ -525,17 +538,47 @@
             // Initialize global wishlist buttons
             function initializeGlobalWishlistButtons() {
                 const isAuthenticated = {{ user.is_authenticated|yesno:"true,false" }};
-                
+
                 if (!isAuthenticated) {
                     // For guest users, check localStorage and update button states
                     const guestWishlist = JSON.parse(localStorage.getItem('guestWishlist') || '[]');
-                    
+
+                    // Update wishlist button states
                     document.querySelectorAll('.wishlist-btn-card').forEach(button => {
                         const adId = button.dataset.adId;
                         const isInWishlist = guestWishlist.some(item => item.id == adId);
                         updateWishlistButtonGlobal(button, isInWishlist);
                     });
+
+                    // Update header wishlist count
+                    updateHeaderWishlistCount(guestWishlist.length);
                 }
+            }
+
+            // Update header wishlist count for guest users
+            function updateHeaderWishlistCount(count) {
+                document.querySelectorAll('.guest-wishlist-count').forEach(element => {
+                    element.textContent = count;
+                    // Show/hide badge based on count
+                    if (count > 0) {
+                        element.style.display = 'inline-block';
+                    } else {
+                        element.style.display = 'none';
+                    }
+                });
+            }
+
+            // Update header cart count for guest users (placeholder for future cart functionality)
+            function updateHeaderCartCount(count) {
+                document.querySelectorAll('.guest-cart-count').forEach(element => {
+                    element.textContent = count;
+                    // Show/hide badge based on count
+                    if (count > 0) {
+                        element.style.display = 'inline-block';
+                    } else {
+                        element.style.display = 'none';
+                    }
+                });
             }
 
             // Get CSRF token

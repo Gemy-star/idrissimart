@@ -4,7 +4,11 @@
 {% block title %}{% trans "إدارة الإعلانات" %}{% endblock %}
 
 {% block admin_extra_css %}
-    <!-- Styles have been moved to admin-dashboard.css -->
+<style>
+    /* Modal z-index - Uses global values from admin-dashboard.css
+       Modal backdrop: 10500, Modal: 10600, Modal dialog: 10700 */
+    /* Bootstrap modals automatically inherit these values */
+</style>
 {% endblock %}
 
 {% block admin_content %}
@@ -41,19 +45,19 @@
                 <div class="card-body">
                     <!-- Tabs -->
                     <div class="nav nav-tabs admin-tabs mb-4" role="tablist">
-                        <a class="nav-link {% if current_tab == 'active' %}active{% endif %}" href="?tab=active">
+                        <a class="nav-link nav-link-theme {% if current_tab == 'active' %}active{% endif %}" href="?tab=active">
                             {% trans "نشط" %} <span class="badge bg-success ms-1">{{ tab_counts.active|default:0 }}</span>
                         </a>
-                        <a class="nav-link {% if current_tab == 'pending' %}active{% endif %}" href="?tab=pending">
+                        <a class="nav-link nav-link-theme {% if current_tab == 'pending' %}active{% endif %}" href="?tab=pending">
                             {% trans "قيد المراجعة" %} <span class="badge bg-warning ms-1">{{ tab_counts.pending|default:0 }}</span>
                         </a>
-                        <a class="nav-link {% if current_tab == 'expired' %}active{% endif %}" href="?tab=expired">
+                        <a class="nav-link nav-link-theme {% if current_tab == 'expired' %}active{% endif %}" href="?tab=expired">
                             {% trans "منتهي" %} <span class="badge bg-danger ms-1">{{ tab_counts.expired|default:0 }}</span>
                         </a>
-                        <a class="nav-link {% if current_tab == 'hidden' %}active{% endif %}" href="?tab=hidden">
+                        <a class="nav-link nav-link-theme {% if current_tab == 'hidden' %}active{% endif %}" href="?tab=hidden">
                             {% trans "مخفي" %} <span class="badge bg-secondary ms-1">{{ tab_counts.hidden|default:0 }}</span>
                         </a>
-                        <a class="nav-link {% if current_tab == 'cart' %}active{% endif %}" href="?tab=cart">
+                        <a class="nav-link nav-link-theme {% if current_tab == 'cart' %}active{% endif %}" href="?tab=cart">
                             {% trans "متاح للسلة" %} <span class="badge bg-info ms-1">{{ tab_counts.cart|default:0 }}</span>
                         </a>
                     </div>
@@ -191,22 +195,38 @@
         </div>
     </div>
 
-<!-- Confirm Delete Modal -->
-<div class="modal fade" id="confirmDeleteModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">{% trans "تأكيد الحذف" %}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<!-- Confirm Delete Panel -->
+<div class="slide-panel" id="confirmDeletePanel">
+    <div class="slide-panel-overlay"></div>
+    <div class="slide-panel-content">
+        <div class="slide-panel-header">
+            <h5 class="slide-panel-title">
+                <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                {% trans "تأكيد الحذف" %}
+            </h5>
+            <button type="button" class="slide-panel-close" onclick="closeSidePanel('confirmDeletePanel')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="slide-panel-body">
+            <div class="alert alert-warning">
+                <i class="fas fa-info-circle me-2"></i>
+                {% trans "هل أنت متأكد من حذف الإعلان" %} "<span id="deleteAdTitle"></span>"؟
             </div>
-            <div class="modal-body">
-                <p>{% trans "هل أنت متأكد من حذف الإعلان" %} "<span id="deleteAdTitle"></span>"؟</p>
-                <p class="text-danger">{% trans "لا يمكن التراجع عن هذا الإجراء." %}</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
-                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">{% trans "حذف" %}</button>
-            </div>
+            <p class="text-danger fw-bold">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                {% trans "لا يمكن التراجع عن هذا الإجراء." %}
+            </p>
+        </div>
+        <div class="slide-panel-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeSidePanel('confirmDeletePanel')">
+                <i class="fas fa-times me-2"></i>
+                {% trans "إلغاء" %}
+            </button>
+            <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                <i class="fas fa-trash me-2"></i>
+                {% trans "حذف" %}
+            </button>
         </div>
     </div>
 </div>
@@ -214,67 +234,138 @@
 {% block admin_extra_js %}
     <script>
         let adToDeleteId = null;
-        const confirmDeleteModal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
 
-    function deleteAd(adId, adTitle) {
-        adToDeleteId = adId;
-        document.getElementById('deleteAdTitle').textContent = adTitle;
-        confirmDeleteModal.show();
-    }
-
-        document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
-        if (!adToDeleteId) return;
-
-        fetch(`/admin/ads/${adToDeleteId}/delete/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
-                'Content-Type': 'application/json'
+        // Slide Panel Functions
+        function openSidePanel(panelId) {
+            const panel = document.getElementById(panelId);
+            if (panel) {
+                panel.classList.add('active');
+                document.body.style.overflow = 'hidden';
             }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showSuccess(data.message || '{% trans "تم حذف الإعلان بنجاح." %}');
-                document.querySelector(`.ad-item-row[data-ad-id="${adToDeleteId}"]`).remove();
-                location.reload(); // Easiest way to update counts and pagination
-            } else {
-                showError(data.message || '{% trans "حدث خطأ أثناء الحذف." %}');
+        }
+
+        function closeSidePanel(panelId) {
+            const panel = document.getElementById(panelId);
+            if (panel) {
+                panel.classList.remove('active');
+                document.body.style.overflow = '';
+                // Reset delete state
+                if (panelId === 'confirmDeletePanel') {
+                    adToDeleteId = null;
+                }
             }
-        })
-        .catch(error => {
-            showError('{% trans "خطأ في الاتصال بالخادم." %}');
-        })
-        .finally(() => {
-            confirmDeleteModal.hide();
-            adToDeleteId = null;
+        }
+
+        // Close panel when clicking overlay
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('slide-panel-overlay')) {
+                const panel = e.target.closest('.slide-panel');
+                if (panel) {
+                    closeSidePanel(panel.id);
+                }
+            }
         });
-    });
 
-        // Admin Ads Management JavaScript
+        function deleteAd(adId, adTitle) {
+            adToDeleteId = adId;
+            document.getElementById('deleteAdTitle').textContent = adTitle;
+            openSidePanel('confirmDeletePanel');
+        }
+
+        // Notification Functions
+        function showSuccess(message) {
+            showNotification(message, 'success');
+        }
+
+        function showError(message) {
+            showNotification(message, 'error');
+        }
+
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} position-fixed top-0 start-50 translate-middle-x mt-3`;
+            notification.style.zIndex = '10800';
+            notification.style.minWidth = '300px';
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
-            // Animate content cards
-            gsap.fromTo('.admin-content-card', {
-                opacity: 0,
-                y: 20
-            }, {
-                opacity: 1,
-                y: 0,
-                duration: 0.6,
-                stagger: 0.15,
-                ease: 'power2.out',
-                delay: 0.3
+            // Confirm Delete Handler
+            document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+                if (!adToDeleteId) return;
+
+                fetch(`/admin/ads/${adToDeleteId}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showSuccess(data.message || '{% trans "تم حذف الإعلان بنجاح." %}');
+                        closeSidePanel('confirmDeletePanel');
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1000);
+                    } else {
+                        showError(data.message || '{% trans "حدث خطأ أثناء الحذف." %}');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showError('{% trans "خطأ في الاتصال بالخادم." %}');
+                })
+                .finally(() => {
+                    adToDeleteId = null;
+                });
             });
 
-            // Add animation to pagination on load
-            gsap.from(".pagination .page-item", {
-                duration: 0.5,
-                scale: 0.5,
-                opacity: 0,
-                delay: 0.2,
-                stagger: 0.05,
-                ease: "elastic.out(1, 0.5)",
-            });
+            // Animate content cards if GSAP is available
+            if (typeof gsap !== 'undefined') {
+                gsap.fromTo('.admin-content-card', {
+                    opacity: 0,
+                    y: 20
+                }, {
+                    opacity: 1,
+                    y: 0,
+                    duration: 0.6,
+                    stagger: 0.15,
+                    ease: 'power2.out',
+                    delay: 0.3
+                });
+
+                // Add animation to pagination on load
+                gsap.from(".pagination .page-item", {
+                    duration: 0.5,
+                    scale: 0.5,
+                    opacity: 0,
+                    delay: 0.2,
+                    stagger: 0.05,
+                    ease: "elastic.out(1, 0.5)",
+                });
+            }
         });
     </script>
 {% endblock %}

@@ -44,6 +44,7 @@ from main.models import (
     CartSettings,
     User,
     CustomField,
+    Payment,
 )
 from main.templatetags.idrissimart_tags import phone_format
 from main.utils import get_selected_country_from_request
@@ -1156,7 +1157,9 @@ def add_to_cart(request):
             }
         )
 
-    return JsonResponse({"success": False, "message": _("العنصر موجود بالفعل في السلة")})
+    return JsonResponse(
+        {"success": False, "message": _("العنصر موجود بالفعل في السلة")}
+    )
 
 
 @login_required
@@ -1185,7 +1188,9 @@ def add_to_wishlist(request):
             }
         )
 
-    return JsonResponse({"success": False, "message": _("العنصر موجود بالفعل في قائمة الرغبات")})
+    return JsonResponse(
+        {"success": False, "message": _("العنصر موجود بالفعل في قائمة الرغبات")}
+    )
 
 
 @login_required
@@ -1230,7 +1235,9 @@ def remove_from_wishlist(request):
             }
         )
 
-    return JsonResponse({"success": False, "message": _("العنصر غير موجود في قائمة الرغبات")})
+    return JsonResponse(
+        {"success": False, "message": _("العنصر غير موجود في قائمة الرغبات")}
+    )
 
 
 class AdDetailView(DetailView):
@@ -1287,7 +1294,7 @@ class AdDetailView(DetailView):
         )
 
         category_name = ad.category.name
-        if self.request.LANGUAGE_CODE == 'ar' and ad.category.name_ar:
+        if self.request.LANGUAGE_CODE == "ar" and ad.category.name_ar:
             category_name = ad.category.name_ar
 
         context["page_title"] = f"{ad.title} - {category_name}"
@@ -1638,7 +1645,7 @@ def check_ad_allowance(request):
     #     package = user_settings.current_package
     #     if user_settings.used_ads >= package.max_ads:
     #         return JsonResponse({
-    #             "allowed": False, 
+    #             "allowed": False,
     #             "reason": _("تم الوصول إلى حد الباقة"),
     #             "used_ads": user_settings.used_ads,
     #             "max_ads": package.max_ads,
@@ -1648,7 +1655,7 @@ def check_ad_allowance(request):
         {
             "allowed": True,
             "used_ads": 0,  # TODO: Get from user package system
-            "max_ads": 3,   # TODO: Get from user package system
+            "max_ads": 3,  # TODO: Get from user package system
         }
     )
 
@@ -1657,61 +1664,44 @@ def check_ad_allowance(request):
 @require_POST
 def send_mobile_verification(request):
     """Send OTP verification code to mobile number"""
-    mobile_number = request.POST.get('mobile_number', '').strip()
-    
+    mobile_number = request.POST.get("mobile_number", "").strip()
+
     if not mobile_number:
-        return JsonResponse({
-            'success': False,
-            'message': _('رقم الجوال مطلوب')
-        })
-    
+        return JsonResponse({"success": False, "message": _("رقم الجوال مطلوب")})
+
     verification_service = MobileVerificationService()
-    
+
     # Check if verification is required
     required, message = verification_service.check_mobile_verification_required(
         request.user, mobile_number
     )
-    
+
     if not required:
-        return JsonResponse({
-            'success': True,
-            'verified': True,
-            'message': message
-        })
-    
+        return JsonResponse({"success": True, "verified": True, "message": message})
+
     # Send verification code
     success, message = verification_service.initiate_verification(
         request.user, mobile_number
     )
-    
-    return JsonResponse({
-        'success': success,
-        'verified': False,
-        'message': message
-    })
+
+    return JsonResponse({"success": success, "verified": False, "message": message})
 
 
 @login_required
 @require_POST
 def verify_mobile_otp(request):
     """Verify the OTP code for mobile number"""
-    verification_code = request.POST.get('verification_code', '').strip()
-    
+    verification_code = request.POST.get("verification_code", "").strip()
+
     if not verification_code:
-        return JsonResponse({
-            'success': False,
-            'message': _('رمز التحقق مطلوب')
-        })
-    
+        return JsonResponse({"success": False, "message": _("رمز التحقق مطلوب")})
+
     verification_service = MobileVerificationService()
     success, message = verification_service.verify_mobile_for_ad(
         request.user, verification_code
     )
-    
-    return JsonResponse({
-        'success': success,
-        'message': message
-    })
+
+    return JsonResponse({"success": success, "message": message})
 
 
 @csrf_exempt
@@ -1925,18 +1915,26 @@ class ComparisonView(TemplateView):
             ads = list(ClassifiedAd.objects.filter(pk__in=ad_ids))
             ads.sort(key=lambda ad: ad_ids.index(ad.pk))
             context["ads_to_compare"] = ads
-            
+
+            # Compute the minimum price among the compared ads (for "أقل سعر")
+            # Ignore ads with null/zero prices in the min calculation
+            prices = [ad.price for ad in ads if getattr(ad, "price", None)]
+            if prices:
+                context["min_compare_price"] = min(prices)
+
             # Increment view count for each ad being compared
             # Use F() expression to avoid race conditions
             from django.db.models import F
+
             ClassifiedAd.objects.filter(pk__in=ad_ids).update(
-                views_count=F('views_count') + 1
+                views_count=F("views_count") + 1
             )
         else:
             context["ads_to_compare"] = []
 
         context["page_title"] = _("مقارنة الإعلانات")
         return context
+
 
 # ==============================================
 # PUBLISHER DASHBOARD VIEWS
@@ -2039,7 +2037,7 @@ class PublisherDashboardView(PublisherRequiredMixin, ListView):
 
         # Page title
         context["page_title"] = _("لوحة التحكم - إعلاناتي")
-        
+
         # Active navigation for publisher dashboard
         context["active_nav"] = "dashboard"
 
@@ -2057,12 +2055,12 @@ def dashboard_ad_toggle_status(request, ad_id):
             # Toggle between active and draft (using draft as hidden)
             if ad.status == ClassifiedAd.AdStatus.ACTIVE:
                 ad.status = ClassifiedAd.AdStatus.DRAFT
-                status_text = _("مخفي") # Hidden
-                action = "hidden" # For JS
+                status_text = _("مخفي")  # Hidden
+                action = "hidden"  # For JS
             elif ad.status == ClassifiedAd.AdStatus.DRAFT:
                 ad.status = ClassifiedAd.AdStatus.ACTIVE
-                status_text = _("نشط") # Active
-                action = "shown" # For JS
+                status_text = _("نشط")  # Active
+                action = "shown"  # For JS
             else:
                 return JsonResponse(
                     {"success": False, "message": _("لا يمكن تغيير حالة هذا الإعلان")}
@@ -2104,7 +2102,9 @@ def dashboard_ad_delete(request, ad_id):
             return JsonResponse(
                 {
                     "success": True,
-                    "message": _("تم حذف الإعلان '{ad_title}' بنجاح.").format(ad_title=ad_title),
+                    "message": _("تم حذف الإعلان '{ad_title}' بنجاح.").format(
+                        ad_title=ad_title
+                    ),
                 }
             )
 
@@ -2180,7 +2180,6 @@ def dashboard_get_ad_details(request, ad_id):
 # ============================================================================
 
 from django.contrib.admin.views.decorators import staff_member_required
-from django.contrib.auth.models import User as DjangoUser
 from django.utils.decorators import method_decorator
 from django.db.models import Count, Sum, Q, Avg
 from datetime import datetime, timedelta
@@ -2208,7 +2207,7 @@ class AdminDashboardView(SuperadminRequiredMixin, TemplateView):
 
         # System Metrics
         context["system_metrics"] = self.get_system_metrics()
-        
+
         # Chart Data
         context["chart_data"] = self.get_chart_data()
         context["active_nav"] = "dashboard"
@@ -2245,10 +2244,7 @@ class AdminDashboardView(SuperadminRequiredMixin, TemplateView):
                 parent__isnull=False
             ).count(),
             # Revenue Statistics (if payment system exists)
-            "premium_members": User.objects.filter(
-                # Assuming premium membership field exists
-                # userprofile__is_premium=True
-            ).count(),
+            "premium_members": User.objects.filter(is_premium=True).count(),
             # Today's Statistics
             "today_ads": ClassifiedAd.objects.filter(created_at__date=today).count(),
             "today_users": User.objects.filter(date_joined__date=today).count(),
@@ -2282,7 +2278,9 @@ class AdminDashboardView(SuperadminRequiredMixin, TemplateView):
         return {
             "avg_ads_per_user": ClassifiedAd.objects.count()
             / max(User.objects.count(), 1),
-            "most_popular_category": Category.objects.annotate(ad_count=Count("ads"))
+            "most_popular_category": Category.objects.annotate(
+                ad_count=Count("classified_ads")
+            )
             .order_by("-ad_count")
             .first(),
             "countries_count": Country.objects.count(),
@@ -2292,35 +2290,37 @@ class AdminDashboardView(SuperadminRequiredMixin, TemplateView):
     def get_chart_data(self):
         """Get data for dashboard charts"""
         today = timezone.now().date()
-        
+
         # Last 7 days ads data
         ads_last_7_days = []
         for i in range(6, -1, -1):
             date = today - timedelta(days=i)
             count = ClassifiedAd.objects.filter(created_at__date=date).count()
             ads_last_7_days.append(count)
-        
+
         # Last 30 days users data (weekly)
         users_last_4_weeks = []
         for i in range(3, -1, -1):
-            week_start = today - timedelta(days=(i+1)*7)
-            week_end = today - timedelta(days=i*7)
-            count = User.objects.filter(date_joined__date__range=[week_start, week_end]).count()
+            week_start = today - timedelta(days=(i + 1) * 7)
+            week_end = today - timedelta(days=i * 7)
+            count = User.objects.filter(
+                date_joined__date__range=[week_start, week_end]
+            ).count()
             users_last_4_weeks.append(count)
-        
+
         # Top categories by ad count
         top_categories = Category.objects.annotate(
-            ad_count=Count('ads')
-        ).order_by('-ad_count')[:5]
-        
+            ad_count=Count("classified_ads")
+        ).order_by("-ad_count")[:5]
+
         category_names = [cat.name_ar or cat.name for cat in top_categories]
         category_counts = [cat.ad_count for cat in top_categories]
-        
+
         return {
-            'ads_last_7_days': ads_last_7_days,
-            'users_last_4_weeks': users_last_4_weeks,
-            'category_names': category_names,
-            'category_counts': category_counts,
+            "ads_last_7_days": ads_last_7_days,
+            "users_last_4_weeks": users_last_4_weeks,
+            "category_names": category_names,
+            "category_counts": category_counts,
         }
 
     def calculate_growth_percentage(self, current, previous):
@@ -2389,11 +2389,14 @@ class AdminAdsManagementView(SuperadminRequiredMixin, ListView):
         elif status == "hidden":
             queryset = queryset.filter(is_hidden=True)
         elif status == "cart":
-            queryset = queryset.filter(Q(allow_cart=True) & Q(cart_enabled_by_admin=True))
+            queryset = queryset.filter(
+                Q(allow_cart=True) & Q(cart_enabled_by_admin=True)
+            )
 
         if search_query:
             queryset = queryset.filter(
-                Q(title__icontains=search_query) | Q(user__username__icontains=search_query)
+                Q(title__icontains=search_query)
+                | Q(user__username__icontains=search_query)
             )
 
         return queryset.order_by("-created_at")
@@ -2407,7 +2410,9 @@ class AdminAdsManagementView(SuperadminRequiredMixin, ListView):
             "pending": ClassifiedAd.objects.filter(status="pending").count(),
             "expired": ClassifiedAd.objects.filter(status="expired").count(),
             "hidden": ClassifiedAd.objects.filter(is_hidden=True).count(),
-            "cart": ClassifiedAd.objects.filter(Q(allow_cart=True) & Q(cart_enabled_by_admin=True)).count(),
+            "cart": ClassifiedAd.objects.filter(
+                Q(allow_cart=True) & Q(cart_enabled_by_admin=True)
+            ).count(),
         }
         context["current_tab"] = self.request.GET.get("tab", "active")
         context["search_query"] = self.request.GET.get("search", "")
@@ -2420,89 +2425,99 @@ class AdminCustomFieldsView(SuperadminRequiredMixin, ListView):
     Admin interface for managing custom fields.
     Restricted to superusers only.
     """
+
     template_name = "admin_dashboard/custom_fields.html"
     model = CustomField
     context_object_name = "fields"
 
     def get_queryset(self):
-        queryset = CustomField.objects.select_related('category').order_by('category__name', 'order')
+        queryset = CustomField.objects.select_related("category").order_by(
+            "category__name", "order"
+        )
         search_query = self.request.GET.get("search", "")
 
         if search_query:
             queryset = queryset.filter(
-                Q(name__icontains=search_query) |
-                Q(label_ar__icontains=search_query) |
-                Q(category__name__icontains=search_query)
+                Q(name__icontains=search_query)
+                | Q(label_ar__icontains=search_query)
+                | Q(category__name__icontains=search_query)
             )
         return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["active_nav"] = "custom_fields"
-        context['search_query'] = self.request.GET.get("search", "")
+        context["search_query"] = self.request.GET.get("search", "")
         # Group fields by category for the template
-        context['fields_by_category'] = {}
-        for field in context['fields']:
-            context['fields_by_category'].setdefault(field.category, []).append(field)
+        context["fields_by_category"] = {}
+        for field in context["fields"]:
+            context["fields_by_category"].setdefault(field.category, []).append(field)
         return context
 
 
 class AdminCustomFieldGetView(SuperadminRequiredMixin, View):
     """AJAX view to get data for a single custom field."""
+
     def get(self, request, field_id):
         try:
             field = get_object_or_404(CustomField, pk=field_id)
             data = {
-                'id': field.id,
-                'name': field.name,
-                'label_ar': field.label_ar,
-                'label_en': field.label_en,
-                'field_type': field.field_type,
-                'is_required': field.is_required,
-                'help_text': field.help_text,
-                'placeholder': field.placeholder,
-                'default_value': field.default_value,
-                'options': field.options,
-                'order': field.order,
-                'is_active': field.is_active,
-                'category_id': field.category_id,
+                "id": field.id,
+                "name": field.name,
+                "label_ar": field.label_ar,
+                "label_en": field.label_en,
+                "field_type": field.field_type,
+                "is_required": field.is_required,
+                "help_text": field.help_text,
+                "placeholder": field.placeholder,
+                "default_value": field.default_value,
+                "options": field.options,
+                "order": field.order,
+                "is_active": field.is_active,
+                "category_id": field.category_id,
             }
-            return JsonResponse({'success': True, 'field': data})
+            return JsonResponse({"success": True, "field": data})
         except Http404:
-            return JsonResponse({'success': False, 'message': _('Field not found.')}, status=404)
+            return JsonResponse(
+                {"success": False, "message": _("Field not found.")}, status=404
+            )
 
 
 class AdminCustomFieldSaveView(SuperadminRequiredMixin, View):
     """AJAX view to save/update a single custom field."""
+
     def post(self, request):
         try:
-            field_id = request.POST.get('field_id')
+            field_id = request.POST.get("field_id")
             if field_id:
                 field = get_object_or_404(CustomField, pk=field_id)
-                message = _('تم تحديث الحقل بنجاح.')
+                message = _("تم تحديث الحقل بنجاح.")
             else:
                 field = CustomField()
-                message = _('تم إنشاء الحقل بنجاح.')
+                message = _("تم إنشاء الحقل بنجاح.")
 
             # Update fields from POST data
-            category_id = request.POST.get('category')
+            category_id = request.POST.get("category")
             if not category_id:
-                return JsonResponse({'success': False, 'message': _('Category is required.')}, status=400)
-            
+                return JsonResponse(
+                    {"success": False, "message": _("Category is required.")},
+                    status=400,
+                )
+
             field.category = get_object_or_404(Category, pk=category_id)
-            field.name = request.POST.get('name', field.name)
-            field.label_ar = request.POST.get('label_ar', field.label_ar)
-            field.label_en = request.POST.get('label_en', field.label_en)
-            field.field_type = request.POST.get('field_type', field.field_type)
-            field.is_required = request.POST.get('is_required') == 'on'
-            field.is_active = request.POST.get('is_active') == 'on'
-            field.order = request.POST.get('order', field.order)
-            field.options = request.POST.get('options', field.options)
+            field.name = request.POST.get("name", field.name)
+            field.label_ar = request.POST.get("label_ar", field.label_ar)
+            field.label_en = request.POST.get("label_en", field.label_en)
+            field.field_type = request.POST.get("field_type", field.field_type)
+            field.is_required = request.POST.get("is_required") == "on"
+            field.is_active = request.POST.get("is_active") == "on"
+            field.order = request.POST.get("order", field.order)
+            field.options = request.POST.get("options", field.options)
             field.save()
 
-            return JsonResponse({'success': True, 'message': message})
+            return JsonResponse({"success": True, "message": message})
         except Exception as e:
-            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+            return JsonResponse({"success": False, "message": str(e)}, status=500)
 
 
 class AdminUsersManagementView(SuperadminRequiredMixin, ListView):
@@ -2510,6 +2525,7 @@ class AdminUsersManagementView(SuperadminRequiredMixin, ListView):
     Admin interface for comprehensive user management.
     Restricted to superusers only.
     """
+
     template_name = "admin_dashboard/users_management.html"
     model = User
     context_object_name = "users"
@@ -2517,16 +2533,16 @@ class AdminUsersManagementView(SuperadminRequiredMixin, ListView):
 
     def get_queryset(self):
         """Get users with filtering and searching."""
-        queryset = User.objects.order_by('-date_joined')
+        queryset = User.objects.order_by("-date_joined")
         search_query = self.request.GET.get("search", "")
         role_filter = self.request.GET.get("role", "")
 
         if search_query:
             queryset = queryset.filter(
-                Q(username__icontains=search_query) |
-                Q(email__icontains=search_query) |
-                Q(first_name__icontains=search_query) |
-                Q(last_name__icontains=search_query)
+                Q(username__icontains=search_query)
+                | Q(email__icontains=search_query)
+                | Q(first_name__icontains=search_query)
+                | Q(last_name__icontains=search_query)
             )
 
         if role_filter:
@@ -2536,13 +2552,15 @@ class AdminUsersManagementView(SuperadminRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['search_query'] = self.request.GET.get("search", "")
-        context['role_filter'] = self.request.GET.get("role", "")
-        context['profile_type_choices'] = User.ProfileType.choices
-        context['total_users'] = User.objects.count()
-        context['verified_users'] = User.objects.filter(verification_status=User.VerificationStatus.VERIFIED).count()
-        context['publisher_users'] = User.objects.filter(
-            profile_type__in=['publisher', 'merchant', 'service', 'educational']
+        context["search_query"] = self.request.GET.get("search", "")
+        context["role_filter"] = self.request.GET.get("role", "")
+        context["profile_type_choices"] = User.ProfileType.choices
+        context["total_users"] = User.objects.count()
+        context["verified_users"] = User.objects.filter(
+            verification_status=User.VerificationStatus.VERIFIED
+        ).count()
+        context["publisher_users"] = User.objects.filter(
+            profile_type__in=["publisher", "merchant", "service", "educational"]
         ).count()
         context["active_nav"] = "users"
 
@@ -2609,7 +2627,6 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
     """
 
     template_name = "admin_dashboard/payments.html"
-    template_name = "admin_dashboard/payments.html"
 
     def get_context_data(self, **kwargs):
         from django.db.models import Sum, Count, Q
@@ -2619,41 +2636,102 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
 
         # Payment statistics
-        total_payments = 0  # TODO: Get from payment model
-        monthly_revenue = 0  # TODO: Calculate monthly revenue
-        pending_payments = 0  # TODO: Count pending payments
+        completed_payments = Payment.objects.filter(
+            status=Payment.PaymentStatus.COMPLETED
+        )
+        total_payments = Payment.objects.count()
+        total_revenue = completed_payments.aggregate(total=Sum("amount"))["total"] or 0
+        pending_payments = Payment.objects.filter(
+            status=Payment.PaymentStatus.PENDING
+        ).count()
+
+        # Debug: Print payment counts
+        print(f"DEBUG - Total payments: {total_payments}")
+        print(f"DEBUG - Completed payments: {completed_payments.count()}")
+        print(f"DEBUG - Total revenue: {total_revenue}")
+        print(f"DEBUG - Pending payments: {pending_payments}")
+
+        # Calculate monthly revenue (current month)
+        current_month_start = timezone.now().replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
+        monthly_revenue = (
+            completed_payments.filter(completed_at__gte=current_month_start).aggregate(
+                total=Sum("amount")
+            )["total"]
+            or 0
+        )
 
         # Premium members statistics
-        # TODO: Implement when userprofile model exists
-        total_premium_members = 0  # User.objects.filter(userprofile__is_premium=True).count()
-        active_premium_members = (
-            total_premium_members  # TODO: Filter active memberships
-        )
+        total_premium_members = User.objects.filter(is_premium=True).count()
+        today = timezone.now().date()
+        active_premium_members = User.objects.filter(
+            is_premium=True, subscription_end__gte=today
+        ).count()
 
         context["payment_stats"] = {
             "total_transactions": total_payments,
-            "total_revenue": monthly_revenue,
+            "total_revenue": total_revenue,
             "premium_members": total_premium_members,
             "pending_payments": pending_payments,
             "active_premium_members": active_premium_members,
         }
 
-        # Recent transactions (mock data for now)
-        context["recent_transactions"] = []  # TODO: Get from payment model
+        # Recent transactions
+        context["recent_transactions"] = Payment.objects.select_related(
+            "user"
+        ).order_by("-created_at")[:10]
 
-        # Monthly revenue chart data
+        # Monthly revenue chart data (last 6 months)
         monthly_data = []
-        for i in range(6):
-            month = timezone.now() - timedelta(days=30 * i)
+        for i in range(5, -1, -1):  # Reversed to show oldest to newest
+            month_date = timezone.now() - timedelta(days=30 * i)
+            month_start = month_date.replace(
+                day=1, hour=0, minute=0, second=0, microsecond=0
+            )
+
+            # Calculate next month start
+            if month_start.month == 12:
+                next_month_start = month_start.replace(
+                    year=month_start.year + 1, month=1
+                )
+            else:
+                next_month_start = month_start.replace(month=month_start.month + 1)
+
+            # Get revenue for this month
+            month_revenue = (
+                completed_payments.filter(
+                    completed_at__gte=month_start, completed_at__lt=next_month_start
+                ).aggregate(total=Sum("amount"))["total"]
+                or 0
+            )
+
             monthly_data.append(
                 {
-                    "month": month.strftime("%Y-%m"),
-                    "revenue": 0,  # TODO: Calculate actual revenue
+                    "month": month_start.strftime("%Y-%m"),
+                    "revenue": float(month_revenue),
                 }
             )
-        context["monthly_data"] = monthly_data
 
-        # Premium membership packages
+        import json
+
+        context["monthly_data"] = json.dumps(monthly_data)
+
+        # Premium membership packages - Get actual package counts
+        gold_subscribers = (
+            completed_payments.filter(description__icontains="الباقة الذهبية")
+            .values("user")
+            .distinct()
+            .count()
+        )
+
+        platinum_subscribers = (
+            completed_payments.filter(description__icontains="الباقة البلاتينية")
+            .values("user")
+            .distinct()
+            .count()
+        )
+
         context["membership_packages"] = [
             {
                 "id": 1,
@@ -2661,7 +2739,7 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
                 "price": 99,
                 "duration": 30,
                 "features": ["إعلانات مميزة", "دعم فوري", "إحصائيات متقدمة"],
-                "subscribers": 0,
+                "subscribers": gold_subscribers,
                 "is_active": True,
             },
             {
@@ -2674,14 +2752,15 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
                     "إعلانات غير محدودة",
                     "مدير حساب مخصص",
                 ],
-                "subscribers": 0,
+                "subscribers": platinum_subscribers,
                 "is_active": True,
             },
         ]
 
-        # Premium members
-        # TODO: Implement when userprofile model exists
-        context["premium_members"] = User.objects.order_by('-date_joined')[:20]
+        # Premium members - Get actual premium members with active subscriptions
+        context["premium_members"] = User.objects.filter(is_premium=True).order_by(
+            "-date_joined"
+        )[:20]
         context["active_nav"] = "payments"
 
         return context
@@ -2734,24 +2813,43 @@ def admin_category_delete(request, category_id):
         # Prevent deletion if category has children or associated ads
         if category.get_children().exists():
             return JsonResponse(
-                {"success": False, "message": _("Cannot delete category because it has subcategories.")},
-                status=400
+                {
+                    "success": False,
+                    "message": _(
+                        "Cannot delete category because it has subcategories."
+                    ),
+                },
+                status=400,
             )
         if category.classified_ads.exists():
             return JsonResponse(
-                {"success": False, "message": _("Cannot delete category because it contains ads.")},
-                status=400
+                {
+                    "success": False,
+                    "message": _("Cannot delete category because it contains ads."),
+                },
+                status=400,
             )
 
         category_name = category.name
         category.delete()
 
         return JsonResponse(
-            {"success": True, "message": _("Category '{}' was deleted successfully.").format(category_name)}
+            {
+                "success": True,
+                "message": _("Category '{}' was deleted successfully.").format(
+                    category_name
+                ),
+            }
         )
     except Exception as e:
         # It's good practice to log the error 'e' here
-        return JsonResponse({"success": False, "message": _("An error occurred while deleting the category.")}, status=500)
+        return JsonResponse(
+            {
+                "success": False,
+                "message": _("An error occurred while deleting the category."),
+            },
+            status=500,
+        )
 
 
 @superadmin_required
@@ -2769,7 +2867,10 @@ def admin_category_reorder(request):
                 Category.objects.filter(pk=category_id).update(order=index)
 
         return JsonResponse(
-            {"success": True, "message": _("Category order has been updated successfully.")}
+            {
+                "success": True,
+                "message": _("Category order has been updated successfully."),
+            }
         )
     except Exception as e:
         return JsonResponse({"success": False, "message": str(e)}, status=500)
@@ -2788,26 +2889,33 @@ def admin_user_action(request, user_id):
 
         if action == "suspend":
             user_to_act_on.is_suspended = True
-            user_to_act_on.save(update_fields=['is_suspended'])
+            user_to_act_on.save(update_fields=["is_suspended"])
             message = _("تم تعليق المستخدم '{}'.").format(user_to_act_on.username)
         elif action == "unsuspend":
             user_to_act_on.is_suspended = False
-            user_to_act_on.save(update_fields=['is_suspended'])
+            user_to_act_on.save(update_fields=["is_suspended"])
             message = _("تم إلغاء تعليق المستخدم '{}'.").format(user_to_act_on.username)
         elif action == "verify":
             user_to_act_on.verification_status = User.VerificationStatus.VERIFIED
             user_to_act_on.verified_at = timezone.now()
-            user_to_act_on.save(update_fields=['verification_status', 'verified_at'])
+            user_to_act_on.save(update_fields=["verification_status", "verified_at"])
             message = _("تم توثيق المستخدم '{}'.").format(user_to_act_on.username)
         else:
-            return JsonResponse({"success": False, "message": _("إجراء غير صالح.")}, status=400)
+            return JsonResponse(
+                {"success": False, "message": _("إجراء غير صالح.")}, status=400
+            )
 
         return JsonResponse({"success": True, "message": message})
 
     except User.DoesNotExist:
-        return JsonResponse({"success": False, "message": _("المستخدم غير موجود.")}, status=404)
+        return JsonResponse(
+            {"success": False, "message": _("المستخدم غير موجود.")}, status=404
+        )
     except Exception as e:
-        return JsonResponse({"success": False, "message": str(e)}, status=500) # Developer-facing
+        return JsonResponse(
+            {"success": False, "message": str(e)}, status=500
+        )  # Developer-facing
+
 
 @superadmin_required
 @require_POST
@@ -2819,12 +2927,20 @@ def admin_ad_delete(request, ad_id):
         ad.delete()
 
         return JsonResponse(
-            {"success": True, "message": _("تم حذف الإعلان '{ad_title}' بنجاح.").format(ad_title=ad_title)},
+            {
+                "success": True,
+                "message": _("تم حذف الإعلان '{ad_title}' بنجاح.").format(
+                    ad_title=ad_title
+                ),
+            },
         )
 
     except Exception as e:
         return JsonResponse(
-            {"success": False, "message": _("حدث خطأ أثناء حذف الإعلان: {error}").format(error=str(e))}
+            {
+                "success": False,
+                "message": _("حدث خطأ أثناء حذف الإعلان: {error}").format(error=str(e)),
+            }
         )
 
 
@@ -2871,7 +2987,9 @@ def admin_get_ads_by_tab(request, tab):
         return JsonResponse({"success": True, "ads": ads_data, "count": ads.count()})
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))})
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))}
+        )
 
 
 @superadmin_required
@@ -2903,13 +3021,19 @@ def admin_settings_constance_get(request):
             value = getattr(constance_config, key, default)
             # Infer simple type if not provided
             py_type = type(value).__name__
-            result.append({
-                "key": key,
-                "value": value,
-                "default": default,
-                "help": help_text,
-                "type": field_type.__name__ if hasattr(field_type, "__name__") else py_type,
-            })
+            result.append(
+                {
+                    "key": key,
+                    "value": value,
+                    "default": default,
+                    "help": help_text,
+                    "type": (
+                        field_type.__name__
+                        if hasattr(field_type, "__name__")
+                        else py_type
+                    ),
+                }
+            )
 
         return JsonResponse({"success": True, "config": result})
     except Exception as e:
@@ -2924,14 +3048,18 @@ def admin_settings_constance_save(request):
         from constance import config as constance_config
         from django.conf import settings as dj_settings
 
-        data = json.loads(request.body or '{}')
+        data = json.loads(request.body or "{}")
         updates = data.get("updates", {})
 
         const_cfg = getattr(dj_settings, "CONSTANCE_CONFIG", {})
 
         def cast_value(key, val):
             meta = const_cfg.get(key)
-            if isinstance(meta, (list, tuple)) and len(meta) > 2 and meta[2] is not None:
+            if (
+                isinstance(meta, (list, tuple))
+                and len(meta) > 2
+                and meta[2] is not None
+            ):
                 target = meta[2]
                 try:
                     # Handle booleans explicitly as JSON may send true/false or strings
@@ -2953,7 +3081,7 @@ def admin_settings_constance_save(request):
                 # continue best-effort updates
                 continue
 
-        return JsonResponse({"success": True, "message": _("تم حفظ إعدادات النظام" )})
+        return JsonResponse({"success": True, "message": _("تم حفظ إعدادات النظام")})
     except Exception as e:
         return JsonResponse({"success": False, "message": str(e)}, status=500)
 
@@ -2982,7 +3110,9 @@ def admin_settings_get(request):
         return JsonResponse({"success": True, "settings": settings})
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))})
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))}
+        )
 
 
 @superadmin_required
@@ -3000,10 +3130,14 @@ def admin_settings_publishing(request):
 
         # Here you would save to database/settings
 
-        return JsonResponse({"success": True, "message": _("تم حفظ إعدادات النشر بنجاح.")})
+        return JsonResponse(
+            {"success": True, "message": _("تم حفظ إعدادات النشر بنجاح.")}
+        )
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))})
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))}
+        )
 
 
 @superadmin_required
@@ -3029,7 +3163,9 @@ def admin_settings_delivery(request):
         )
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))})
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))}
+        )
 
 
 @superadmin_required
@@ -3050,10 +3186,14 @@ def admin_settings_cart(request):
 
         # Here you would save to database/settings
 
-        return JsonResponse({"success": True, "message": _("تم حفظ إعدادات السلة بنجاح.")})
+        return JsonResponse(
+            {"success": True, "message": _("تم حفظ إعدادات السلة بنجاح.")}
+        )
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))})
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))}
+        )
 
 
 @superadmin_required
@@ -3080,7 +3220,9 @@ def admin_settings_notifications(request):
         )
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))})
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))}
+        )
 
 
 @superadmin_required
@@ -3106,11 +3248,11 @@ def ad_publisher_detail(request, ad_id):
 
     # Get user's ad status counts for the chart
     user_ad_stats = ad.user.classified_ads.aggregate(
-        active=Count('pk', filter=Q(status=ClassifiedAd.AdStatus.ACTIVE)),
-        pending=Count('pk', filter=Q(status=ClassifiedAd.AdStatus.PENDING)),
-        expired=Count('pk', filter=Q(status=ClassifiedAd.AdStatus.EXPIRED)),
-        rejected=Count('pk', filter=Q(status=ClassifiedAd.AdStatus.REJECTED)),
-        draft=Count('pk', filter=Q(status=ClassifiedAd.AdStatus.DRAFT)),
+        active=Count("pk", filter=Q(status=ClassifiedAd.AdStatus.ACTIVE)),
+        pending=Count("pk", filter=Q(status=ClassifiedAd.AdStatus.PENDING)),
+        expired=Count("pk", filter=Q(status=ClassifiedAd.AdStatus.EXPIRED)),
+        rejected=Count("pk", filter=Q(status=ClassifiedAd.AdStatus.REJECTED)),
+        draft=Count("pk", filter=Q(status=ClassifiedAd.AdStatus.DRAFT)),
     )
 
     context = {

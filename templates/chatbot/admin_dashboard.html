@@ -3,503 +3,784 @@
 
 {% block title %}{% trans "إدارة الشات بوت" %}{% endblock %}
 
-{% block extra_css %}
+{% block admin_extra_css %}
 <style>
+    /* Admin Dashboard Header */
+    .admin-dashboard-header {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        margin-bottom: 2rem;
+    }
+
+    [data-theme='dark'] .admin-dashboard-header {
+        background: #2d2d2d;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .admin-dashboard-header h1 {
+        color: #1a202c;
+        font-weight: 700;
+    }
+
+    [data-theme='dark'] .admin-dashboard-header h1 {
+        color: #e9ecef;
+    }
+
+    .admin-dashboard-header .text-muted {
+        color: #6c757d !important;
+    }
+
+    [data-theme='dark'] .admin-dashboard-header .text-muted {
+        color: #b8b9be !important;
+    }
+
+    /* Chatbot Stats Grid */
     .chatbot-stats {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
         gap: 1.5rem;
         margin-bottom: 2rem;
     }
-    
-    .stat-card {
-        background: white;
-        border-radius: 15px;
+
+    .chatbot-stat-card {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
         padding: 1.5rem;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        border-left: 4px solid var(--primary-color);
-        transition: transform 0.2s ease;
+        background-color: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 12px;
+        transition: all 0.3s ease;
     }
-    
-    .stat-card:hover {
-        transform: translateY(-2px);
+
+    .chatbot-stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 18px rgba(0,0,0,0.08);
     }
-    
-    .stat-icon {
-        width: 50px;
-        height: 50px;
-        background: linear-gradient(135deg, var(--primary-color), var(--accent-purple));
-        border-radius: 50%;
+
+    [data-theme='dark'] .chatbot-stat-card {
+        background-color: rgba(255,255,255,0.06);
+        border-color: rgba(255,255,255,0.12);
+    }
+
+    .chatbot-stat-icon {
+        width: 56px;
+        height: 56px;
+        background: linear-gradient(135deg, #4b315e, #6b4c7a);
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
         font-size: 1.5rem;
-        margin-bottom: 1rem;
     }
-    
-    .stat-number {
-        font-size: 2rem;
-        font-weight: bold;
-        color: var(--primary-color);
-        margin-bottom: 0.5rem;
+
+    .chatbot-stat-icon.success {
+        background: linear-gradient(135deg, #28a745, #20c997);
     }
-    
-    .stat-label {
+
+    .chatbot-stat-icon.warning {
+        background: linear-gradient(135deg, #ffc107, #ff9800);
+    }
+
+    .chatbot-stat-icon.info {
+        background: linear-gradient(135deg, #17a2b8, #0dcaf0);
+    }
+
+    .chatbot-stat-content h3 {
+        margin: 0;
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: #2c3e50;
+    }
+
+    [data-theme='dark'] .chatbot-stat-content h3 {
+        color: #ecf0f1;
+    }
+
+    .chatbot-stat-content p {
+        margin: 0;
         color: #6c757d;
+        font-weight: 600;
         font-size: 0.9rem;
     }
-    
+
+    [data-theme='dark'] .chatbot-stat-content p {
+        color: #b8b9be;
+    }
+
+    /* Management Sections */
     .management-sections {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
         gap: 2rem;
         margin-bottom: 2rem;
     }
-    
-    .section-card {
-        background: white;
-        border-radius: 15px;
-        padding: 1.5rem;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+
+    @media (max-width: 991px) {
+        .management-sections {
+            grid-template-columns: 1fr;
+        }
     }
-    
-    .section-header {
+
+    .chatbot-section-card {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    [data-theme='dark'] .chatbot-section-card {
+        background: rgba(255,255,255,0.06);
+        border-color: rgba(255,255,255,0.12);
+    }
+
+    .chatbot-section-header {
         display: flex;
         align-items: center;
         gap: 1rem;
-        margin-bottom: 1.5rem;
-        padding-bottom: 1rem;
-        border-bottom: 2px solid #f8f9fa;
+        padding: 1.25rem;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
     }
-    
-    .section-icon {
+
+    [data-theme='dark'] .chatbot-section-header {
+        background: rgba(255,255,255,0.08);
+        border-bottom-color: rgba(255,255,255,0.12);
+    }
+
+    .chatbot-section-icon {
         width: 40px;
         height: 40px;
-        background: linear-gradient(135deg, var(--primary-color), var(--accent-purple));
-        border-radius: 50%;
+        background: linear-gradient(135deg, #4b315e, #6b4c7a);
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
     }
-    
+
+    .chatbot-section-header h5 {
+        margin: 0;
+        font-weight: 700;
+        color: #2c3e50;
+    }
+
+    [data-theme='dark'] .chatbot-section-header h5 {
+        color: #e9ecef;
+    }
+
+    .chatbot-section-body {
+        padding: 1.25rem;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    /* Knowledge, Action, Conversation Items */
     .knowledge-item, .action-item, .conversation-item {
         background: #f8f9fa;
         border-radius: 10px;
         padding: 1rem;
         margin-bottom: 1rem;
-        border-left: 3px solid var(--primary-color);
+        border-left: 3px solid #4b315e;
+        transition: all 0.2s ease;
     }
-    
+
+    .knowledge-item:hover, .action-item:hover, .conversation-item:hover {
+        background: #e9ecef;
+        transform: translateX(3px);
+    }
+
+    [data-theme='dark'] .knowledge-item,
+    [data-theme='dark'] .action-item,
+    [data-theme='dark'] .conversation-item {
+        background: rgba(255,255,255,0.05);
+        border-left-color: #a78bbd;
+    }
+
+    [data-theme='dark'] .knowledge-item:hover,
+    [data-theme='dark'] .action-item:hover,
+    [data-theme='dark'] .conversation-item:hover {
+        background: rgba(255,255,255,0.08);
+    }
+
     .item-title {
         font-weight: 600;
         margin-bottom: 0.5rem;
         color: #333;
     }
-    
+
+    [data-theme='dark'] .item-title {
+        color: #e9ecef;
+    }
+
     .item-meta {
-        font-size: 0.8rem;
+        font-size: 0.85rem;
         color: #6c757d;
         display: flex;
         gap: 1rem;
         align-items: center;
+        flex-wrap: wrap;
     }
-    
-    .badge {
-        padding: 0.25rem 0.5rem;
+
+    [data-theme='dark'] .item-meta {
+        color: #adb5bd;
+    }
+
+    .chatbot-badge {
+        padding: 0.35rem 0.65rem;
         border-radius: 12px;
-        font-size: 0.7rem;
-        font-weight: 500;
+        font-size: 0.75rem;
+        font-weight: 600;
     }
-    
-    .badge-success { background: #d4edda; color: #155724; }
-    .badge-warning { background: #fff3cd; color: #856404; }
-    .badge-danger { background: #f8d7da; color: #721c24; }
-    .badge-info { background: #d1ecf1; color: #0c5460; }
-    
-    .btn-group {
+
+    .chatbot-badge.badge-success {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .chatbot-badge.badge-warning {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .chatbot-badge.badge-danger {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .chatbot-badge.badge-info {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+
+    [data-theme='dark'] .chatbot-badge.badge-success {
+        background: rgba(40, 167, 69, 0.2);
+        color: #20c997;
+    }
+
+    [data-theme='dark'] .chatbot-badge.badge-warning {
+        background: rgba(255, 193, 7, 0.2);
+        color: #ffc107;
+    }
+
+    [data-theme='dark'] .chatbot-badge.badge-danger {
+        background: rgba(220, 53, 69, 0.2);
+        color: #dc3545;
+    }
+
+    [data-theme='dark'] .chatbot-badge.badge-info {
+        background: rgba(13, 202, 240, 0.2);
+        color: #0dcaf0;
+    }
+
+    /* Button Group */
+    .chatbot-btn-group {
         display: flex;
         gap: 0.5rem;
-        margin-top: 1rem;
+        padding: 1rem 1.25rem;
+        background: #f8f9fa;
+        border-top: 1px solid #e9ecef;
     }
-    
-    .btn-sm {
-        padding: 0.4rem 0.8rem;
-        font-size: 0.8rem;
+
+    [data-theme='dark'] .chatbot-btn-group {
+        background: rgba(255,255,255,0.03);
+        border-top-color: rgba(255,255,255,0.1);
+    }
+
+    .chatbot-btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
         border-radius: 8px;
         border: none;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.3s ease;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
     }
-    
-    .btn-primary {
-        background: var(--primary-color);
+
+    .chatbot-btn i {
+        font-size: 0.9rem;
+    }
+
+    .chatbot-btn-primary {
+        background: linear-gradient(135deg, #4b315e, #6b4c7a);
         color: white;
     }
-    
-    .btn-success {
-        background: #28a745;
+
+    .chatbot-btn-primary:hover {
+        background: linear-gradient(135deg, #6b4c7a, #4b315e);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(75, 49, 94, 0.3);
+    }
+
+    .chatbot-btn-success {
+        background: linear-gradient(135deg, #28a745, #20c997);
         color: white;
     }
-    
-    .btn-danger {
-        background: #dc3545;
+
+    .chatbot-btn-success:hover {
+        background: linear-gradient(135deg, #20c997, #28a745);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    }
+
+    .chatbot-btn-danger {
+        background: linear-gradient(135deg, #dc3545, #c82333);
         color: white;
     }
-    
-    .btn-outline {
+
+    .chatbot-btn-danger:hover {
+        background: linear-gradient(135deg, #c82333, #dc3545);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+    }
+
+    .chatbot-btn-outline {
         background: transparent;
-        border: 1px solid var(--primary-color);
-        color: var(--primary-color);
+        border: 2px solid #4b315e;
+        color: #4b315e;
     }
-    
-    .modal {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.5);
-        z-index: 9999;
+
+    .chatbot-btn-outline:hover {
+        background: #4b315e;
+        color: white;
     }
-    
-    .modal-content {
-        background: white;
-        margin: 5% auto;
-        padding: 2rem;
-        width: 90%;
-        max-width: 600px;
-        border-radius: 15px;
-        position: relative;
+
+    [data-theme='dark'] .chatbot-btn-outline {
+        border-color: #a78bbd;
+        color: #a78bbd;
     }
-    
-    .modal-close {
-        position: absolute;
-        top: 1rem;
-        right: 1rem;
-        background: none;
-        border: none;
-        font-size: 1.5rem;
-        cursor: pointer;
-        color: #6c757d;
+
+    [data-theme='dark'] .chatbot-btn-outline:hover {
+        background: #a78bbd;
+        color: #1e1e2e;
     }
-    
-    .form-group {
-        margin-bottom: 1rem;
+
+    /* Form Styling */
+    .chatbot-form-group {
+        margin-bottom: 1.25rem;
     }
-    
-    .form-label {
+
+    .chatbot-form-label {
         display: block;
         margin-bottom: 0.5rem;
         font-weight: 600;
-        color: #333;
+        color: #2c3e50;
     }
-    
-    .form-control {
+
+    [data-theme='dark'] .chatbot-form-label {
+        color: #e9ecef;
+    }
+
+    .chatbot-form-control {
         width: 100%;
         padding: 0.75rem;
-        border: 1px solid #ddd;
+        border: 2px solid #e9ecef;
         border-radius: 8px;
         font-size: 0.9rem;
-    }
-    
-    .form-control:focus {
-        outline: none;
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
-    }
-    
-    .recent-conversations {
+        transition: all 0.3s ease;
         background: white;
-        border-radius: 15px;
-        padding: 1.5rem;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        color: #2c3e50;
     }
-    
-    .conversation-item {
+
+    [data-theme='dark'] .chatbot-form-control {
+        background: rgba(255,255,255,0.05);
+        border-color: rgba(255,255,255,0.1);
+        color: #e9ecef;
+    }
+
+    .chatbot-form-control:focus {
+        outline: none;
+        border-color: #4b315e;
+        box-shadow: 0 0 0 3px rgba(75, 49, 94, 0.1);
+    }
+
+    [data-theme='dark'] .chatbot-form-control:focus {
+        border-color: #a78bbd;
+        box-shadow: 0 0 0 3px rgba(167, 139, 189, 0.2);
+    }
+
+    /* Conversation List */
+    .chatbot-conversation-list {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    [data-theme='dark'] .chatbot-conversation-list {
+        background: rgba(255,255,255,0.06);
+        border-color: rgba(255,255,255,0.12);
+    }
+
+    .chatbot-conversation-item {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        padding: 1rem;
+        padding: 1.25rem;
         border-bottom: 1px solid #f0f0f0;
+        transition: background 0.2s ease;
     }
-    
-    .conversation-content {
+
+    .chatbot-conversation-item:last-child {
+        border-bottom: none;
+    }
+
+    .chatbot-conversation-item:hover {
+        background: #f8f9fa;
+    }
+
+    [data-theme='dark'] .chatbot-conversation-item {
+        border-bottom-color: rgba(255,255,255,0.08);
+    }
+
+    [data-theme='dark'] .chatbot-conversation-item:hover {
+        background: rgba(255,255,255,0.05);
+    }
+
+    .chatbot-conversation-content {
         flex: 1;
     }
-    
-    .conversation-meta {
+
+    .chatbot-conversation-meta {
         text-align: right;
         min-width: 120px;
+        color: #6c757d;
+        font-size: 0.85rem;
     }
-    
+
+    [data-theme='dark'] .chatbot-conversation-meta {
+        color: #adb5bd;
+    }
+
+    /* Empty State */
+    .chatbot-empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #6c757d;
+    }
+
+    .chatbot-empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: #dee2e6;
+    }
+
+    [data-theme='dark'] .chatbot-empty-state {
+        color: #adb5bd;
+    }
+
+    [data-theme='dark'] .chatbot-empty-state i {
+        color: rgba(255,255,255,0.2);
+    }
+
+    /* Responsive */
     @media (max-width: 768px) {
-        .management-sections {
-            grid-template-columns: 1fr;
-        }
-        
         .chatbot-stats {
             grid-template-columns: repeat(2, 1fr);
+        }
+
+        .chatbot-stat-card {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .chatbot-conversation-item {
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .chatbot-conversation-meta {
+            text-align: left;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .chatbot-stats {
+            grid-template-columns: 1fr;
         }
     }
 </style>
 {% endblock %}
 
-{% block content %}
-<div class="admin-dashboard-header">
-    <div class="row align-items-center">
-        <div class="col">
-            <h1 class="display-6 mb-1">
-                <i class="fas fa-robot me-3"></i>
-                {% trans "إدارة الشات بوت" %}
-            </h1>
-            <p class="text-muted mb-0">{% trans "إدارة وتحليل أداء مساعد إدريسي مارت الذكي" %}</p>
-        </div>
-        <div class="col-auto">
-            <button class="btn btn-primary" onclick="openModal('knowledgeModal')">
-                <i class="fas fa-plus me-2"></i>
-                {% trans "إضافة معرفة جديدة" %}
-            </button>
+{% block admin_content %}
+    <!-- Header -->
+    <div class="admin-dashboard-header">
+        <div class="row align-items-center">
+            <div class="col">
+                <h1 class="display-6 mb-1">
+                    <i class="fas fa-robot me-3"></i>
+                    {% trans "إدارة الشات بوت" %}
+                </h1>
+                <p class="text-muted mb-0">{% trans "إدارة وتحليل أداء مساعد إدريسي مارت الذكي" %}</p>
+            </div>
+            <div class="col-auto">
+                <button class="chatbot-btn chatbot-btn-primary" onclick="openSidePanel('knowledgePanel')">
+                    <i class="fas fa-plus"></i>
+                    <span>{% trans "إضافة معرفة جديدة" %}</span>
+                </button>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Statistics Cards -->
-<div class="chatbot-stats">
-    <div class="stat-card">
-        <div class="stat-icon">
-            <i class="fas fa-comments"></i>
+    <!-- Statistics Cards -->
+    <div class="chatbot-stats">
+        <div class="chatbot-stat-card">
+            <div class="chatbot-stat-icon">
+                <i class="fas fa-comments"></i>
+            </div>
+            <div class="chatbot-stat-content">
+                <h3>{{ total_conversations }}</h3>
+                <p>{% trans "إجمالي المحادثات" %}</p>
+            </div>
         </div>
-        <div class="stat-number">{{ total_conversations }}</div>
-        <div class="stat-label">{% trans "إجمالي المحادثات" %}</div>
-    </div>
-    
-    <div class="stat-card">
-        <div class="stat-icon">
-            <i class="fas fa-thumbs-up"></i>
-        </div>
-        <div class="stat-number">{{ helpful_responses }}</div>
-        <div class="stat-label">{% trans "إجابات مفيدة" %}</div>
-    </div>
-    
-    <div class="stat-card">
-        <div class="stat-icon">
-            <i class="fas fa-percentage"></i>
-        </div>
-        <div class="stat-number">{{ success_rate }}%</div>
-        <div class="stat-label">{% trans "معدل النجاح" %}</div>
-    </div>
-    
-    <div class="stat-card">
-        <div class="stat-icon">
-            <i class="fas fa-brain"></i>
-        </div>
-        <div class="stat-number">{{ knowledge_count }}</div>
-        <div class="stat-label">{% trans "قاعدة المعرفة" %}</div>
-    </div>
-</div>
 
-<!-- Management Sections -->
-<div class="management-sections">
-    <!-- Knowledge Base Management -->
-    <div class="section-card">
-        <div class="section-header">
-            <div class="section-icon">
+        <div class="chatbot-stat-card">
+            <div class="chatbot-stat-icon success">
+                <i class="fas fa-thumbs-up"></i>
+            </div>
+            <div class="chatbot-stat-content">
+                <h3>{{ helpful_responses }}</h3>
+                <p>{% trans "إجابات مفيدة" %}</p>
+            </div>
+        </div>
+
+        <div class="chatbot-stat-card">
+            <div class="chatbot-stat-icon warning">
+                <i class="fas fa-percentage"></i>
+            </div>
+            <div class="chatbot-stat-content">
+                <h3>{{ success_rate }}%</h3>
+                <p>{% trans "معدل النجاح" %}</p>
+            </div>
+        </div>
+
+        <div class="chatbot-stat-card">
+            <div class="chatbot-stat-icon info">
                 <i class="fas fa-brain"></i>
             </div>
-            <h4>{% trans "قاعدة المعرفة" %}</h4>
-        </div>
-        
-        <div id="knowledgeList">
-            <!-- Knowledge items will be loaded here -->
-        </div>
-        
-        <div class="btn-group">
-            <button class="btn btn-primary btn-sm" onclick="loadKnowledge()">
-                <i class="fas fa-sync me-1"></i>
-                {% trans "تحديث" %}
-            </button>
-            <button class="btn btn-success btn-sm" onclick="openModal('knowledgeModal')">
-                <i class="fas fa-plus me-1"></i>
-                {% trans "إضافة جديد" %}
-            </button>
+            <div class="chatbot-stat-content">
+                <h3>{{ knowledge_count }}</h3>
+                <p>{% trans "قاعدة المعرفة" %}</p>
+            </div>
         </div>
     </div>
-    
-    <!-- Quick Actions Management -->
-    <div class="section-card">
-        <div class="section-header">
-            <div class="section-icon">
-                <i class="fas fa-bolt"></i>
+
+    <!-- Management Sections -->
+    <div class="management-sections">
+        <!-- Knowledge Base Management -->
+        <div class="chatbot-section-card">
+            <div class="chatbot-section-header">
+                <div class="chatbot-section-icon">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <h5>{% trans "قاعدة المعرفة" %}</h5>
             </div>
-            <h4>{% trans "الإجراءات السريعة" %}</h4>
+
+            <div class="chatbot-section-body" id="knowledgeList">
+                <!-- Knowledge items will be loaded here -->
+            </div>
+
+            <div class="chatbot-btn-group">
+                <button class="chatbot-btn chatbot-btn-primary" onclick="loadKnowledge()">
+                    <i class="fas fa-sync"></i>
+                    <span>{% trans "تحديث" %}</span>
+                </button>
+                <button class="chatbot-btn chatbot-btn-success" onclick="openSidePanel('knowledgePanel')">
+                    <i class="fas fa-plus"></i>
+                    <span>{% trans "إضافة جديد" %}</span>
+                </button>
+            </div>
         </div>
-        
-        <div id="actionsList">
-            <!-- Quick actions will be loaded here -->
+
+        <!-- Quick Actions Management -->
+        <div class="chatbot-section-card">
+            <div class="chatbot-section-header">
+                <div class="chatbot-section-icon">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <h5>{% trans "الإجراءات السريعة" %}</h5>
+            </div>
+
+            <div class="chatbot-section-body" id="actionsList">
+                <!-- Quick actions will be loaded here -->
+            </div>
+
+            <div class="chatbot-btn-group">
+                <button class="chatbot-btn chatbot-btn-primary btn-sm" onclick="loadActions()">
+                    <i class="fas fa-sync me-1"></i>
+                    <span>{% trans "تحديث" %}</span>
+                </button>
+                <button class="chatbot-btn chatbot-btn-success btn-sm" onclick="openSidePanel('actionPanel')">
+                    <i class="fas fa-plus me-1"></i>
+                    <span>{% trans "إضافة جديد" %}</span>
+                </button>
+            </div>
         </div>
-        
-        <div class="btn-group">
-            <button class="btn btn-primary btn-sm" onclick="loadActions()">
-                <i class="fas fa-sync me-1"></i>
-                {% trans "تحديث" %}
+
+        <!-- Recent Conversations -->
+        <div class="chatbot-section-card">
+            <div class="chatbot-section-header">
+                <div class="chatbot-section-icon">
+                    <i class="fas fa-history"></i>
+                </div>
+                <h5>{% trans "المحادثات الأخيرة" %}</h5>
+            </div>
+            <div class="chatbot-section-body">
+        {% for conversation in recent_conversations %}
+        <div class="conversation-item">
+            <div class="conversation-content">
+                <div class="item-title">
+                    {{ conversation.user_message|truncatechars:60 }}
+                </div>
+                <div class="item-meta">
+                    <span class="chatbot-badge chatbot-badge-info">
+                        {% if conversation.user %}{{ conversation.user.username }}{% else %}زائر{% endif %}
+                    </span>
+                    {% if conversation.is_helpful == True %}
+                        <span class="chatbot-badge chatbot-badge-success">مفيد</span>
+                    {% elif conversation.is_helpful == False %}
+                        <span class="chatbot-badge chatbot-badge-danger">غير مفيد</span>
+                    {% else %}
+                        <span class="chatbot-badge chatbot-badge-warning">غير مقيم</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="conversation-meta">
+                <small class="text-muted">
+                    {{ conversation.created_at|date:"Y-m-d H:i" }}
+                </small>
+            </div>
+        </div>
+        {% empty %}
+        <div class="text-center text-muted py-4">
+            <i class="fas fa-comments fa-3x mb-3"></i>
+            <p>{% trans "لا توجد محادثات حتى الآن" %}</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+    </div>
+
+    <!-- Knowledge Base Panel -->
+    <div id="knowledgePanel" class="slide-panel-overlay" onclick="if(event.target === this) closeSidePanel('knowledgePanel')">
+    <div class="slide-panel">
+        <div class="slide-panel-header">
+            <h3>{% trans "إضافة/تعديل معرفة" %}</h3>
+            <button class="slide-panel-close" onclick="closeSidePanel('knowledgePanel')">
+                <i class="fas fa-times"></i>
             </button>
-            <button class="btn btn-success btn-sm" onclick="openModal('actionModal')">
-                <i class="fas fa-plus me-1"></i>
-                {% trans "إضافة جديد" %}
-            </button>
+        </div>
+        <div class="slide-panel-body">
+            <form id="knowledgeForm">
+                <div class="form-group">
+                    <label class="form-label">{% trans "السؤال" %}</label>
+                    <textarea class="form-control" name="question" rows="2" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">{% trans "الإجابة" %}</label>
+                    <textarea class="form-control" name="answer" rows="4" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">{% trans "الفئة" %}</label>
+                    <select class="form-control" name="category" required>
+                        <option value="general">عام</option>
+                        <option value="about">حول الموقع</option>
+                        <option value="services">الخدمات</option>
+                        <option value="ads">الإعلانات</option>
+                        <option value="account">الحساب</option>
+                        <option value="payment">الدفع</option>
+                        <option value="support">الدعم الفني</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">{% trans "الكلمات المفتاحية" %}</label>
+                    <input type="text" class="form-control" name="keywords" placeholder="كلمات مفصولة بفواصل">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">{% trans "الأولوية" %}</label>
+                    <input type="number" class="form-control" name="priority" value="1" min="1" max="10">
+                </div>
+
+                <div class="chatbot-btn-group">
+                    <button type="submit" class="chatbot-btn chatbot-btn-primary">
+                        <i class="fas fa-save me-1"></i>
+                        {% trans "حفظ" %}
+                    </button>
+                    <button type="button" class="chatbot-btn chatbot-btn-outline" onclick="closeSidePanel('knowledgePanel')">
+                        {% trans "إلغاء" %}
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 
-<!-- Recent Conversations -->
-<div class="recent-conversations">
-    <div class="section-header">
-        <div class="section-icon">
-            <i class="fas fa-history"></i>
+<!-- Quick Action Panel -->
+<div id="actionPanel" class="slide-panel-overlay" onclick="if(event.target === this) closeSidePanel('actionPanel')">
+    <div class="slide-panel">
+        <div class="slide-panel-header">
+            <h3>{% trans "إضافة/تعديل إجراء سريع" %}</h3>
+            <button class="slide-panel-close" onclick="closeSidePanel('actionPanel')">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
-        <h4>{% trans "المحادثات الأخيرة" %}</h4>
-    </div>
-    
-    {% for conversation in recent_conversations %}
-    <div class="conversation-item">
-        <div class="conversation-content">
-            <div class="item-title">
-                {{ conversation.user_message|truncatechars:60 }}
-            </div>
-            <div class="item-meta">
-                <span class="badge badge-info">
-                    {% if conversation.user %}{{ conversation.user.username }}{% else %}زائر{% endif %}
-                </span>
-                {% if conversation.is_helpful == True %}
-                    <span class="badge badge-success">مفيد</span>
-                {% elif conversation.is_helpful == False %}
-                    <span class="badge badge-danger">غير مفيد</span>
-                {% else %}
-                    <span class="badge badge-warning">غير مقيم</span>
-                {% endif %}
-            </div>
-        </div>
-        <div class="conversation-meta">
-            <small class="text-muted">
-                {{ conversation.created_at|date:"Y-m-d H:i" }}
-            </small>
-        </div>
-    </div>
-    {% empty %}
-    <div class="text-center text-muted py-4">
-        <i class="fas fa-comments fa-3x mb-3"></i>
-        <p>{% trans "لا توجد محادثات حتى الآن" %}</p>
-    </div>
-    {% endfor %}
-</div>
+        <div class="slide-panel-body">
+            <form id="actionForm">
+                <div class="form-group">
+                    <label class="form-label">{% trans "العنوان" %}</label>
+                    <input type="text" class="form-control" name="title" required>
+                </div>
 
-<!-- Knowledge Base Modal -->
-<div id="knowledgeModal" class="modal">
-    <div class="modal-content">
-        <button class="modal-close" onclick="closeModal('knowledgeModal')">&times;</button>
-        <h3>{% trans "إضافة/تعديل معرفة" %}</h3>
-        
-        <form id="knowledgeForm">
-            <div class="form-group">
-                <label class="form-label">{% trans "السؤال" %}</label>
-                <textarea class="form-control" name="question" rows="2" required></textarea>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">{% trans "الإجابة" %}</label>
-                <textarea class="form-control" name="answer" rows="4" required></textarea>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">{% trans "الفئة" %}</label>
-                <select class="form-control" name="category" required>
-                    <option value="general">عام</option>
-                    <option value="about">حول الموقع</option>
-                    <option value="services">الخدمات</option>
-                    <option value="ads">الإعلانات</option>
-                    <option value="account">الحساب</option>
-                    <option value="payment">الدفع</option>
-                    <option value="support">الدعم الفني</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">{% trans "الكلمات المفتاحية" %}</label>
-                <input type="text" class="form-control" name="keywords" placeholder="كلمات مفصولة بفواصل">
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">{% trans "الأولوية" %}</label>
-                <input type="number" class="form-control" name="priority" value="1" min="1" max="10">
-            </div>
-            
-            <div class="btn-group">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save me-1"></i>
-                    {% trans "حفظ" %}
-                </button>
-                <button type="button" class="btn btn-outline" onclick="closeModal('knowledgeModal')">
-                    {% trans "إلغاء" %}
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
+                <div class="form-group">
+                    <label class="form-label">{% trans "الوصف" %}</label>
+                    <textarea class="form-control" name="description" rows="2"></textarea>
+                </div>
 
-<!-- Quick Action Modal -->
-<div id="actionModal" class="modal">
-    <div class="modal-content">
-        <button class="modal-close" onclick="closeModal('actionModal')">&times;</button>
-        <h3>{% trans "إضافة/تعديل إجراء سريع" %}</h3>
-        
-        <form id="actionForm">
-            <div class="form-group">
-                <label class="form-label">{% trans "العنوان" %}</label>
-                <input type="text" class="form-control" name="title" required>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">{% trans "الوصف" %}</label>
-                <textarea class="form-control" name="description" rows="2"></textarea>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">{% trans "نوع الإجراء" %}</label>
-                <select class="form-control" name="action_type" required>
-                    <option value="message">رسالة</option>
-                    <option value="url">رابط</option>
-                    <option value="search">بحث</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">{% trans "قيمة الإجراء" %}</label>
-                <textarea class="form-control" name="action_value" rows="2" required></textarea>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">{% trans "الأيقونة" %}</label>
-                <input type="text" class="form-control" name="icon" value="fas fa-question" required>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">{% trans "الترتيب" %}</label>
-                <input type="number" class="form-control" name="order" value="1" min="1">
-            </div>
-            
-            <div class="btn-group">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save me-1"></i>
-                    {% trans "حفظ" %}
-                </button>
-                <button type="button" class="btn btn-outline" onclick="closeModal('actionModal')">
-                    {% trans "إلغاء" %}
-                </button>
-            </div>
-        </form>
+                <div class="form-group">
+                    <label class="form-label">{% trans "نوع الإجراء" %}</label>
+                    <select class="form-control" name="action_type" required>
+                        <option value="message">رسالة</option>
+                        <option value="url">رابط</option>
+                        <option value="search">بحث</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">{% trans "قيمة الإجراء" %}</label>
+                    <textarea class="form-control" name="action_value" rows="2" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">{% trans "الأيقونة" %}</label>
+                    <input type="text" class="form-control" name="icon" value="fas fa-question" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">{% trans "الترتيب" %}</label>
+                    <input type="number" class="form-control" name="order" value="1" min="1">
+                </div>
+
+                <div class="chatbot-btn-group">
+                    <button type="submit" class="chatbot-btn chatbot-btn-primary">
+                        <i class="fas fa-save me-1"></i>
+                        {% trans "حفظ" %}
+                    </button>
+                    <button type="button" class="chatbot-btn chatbot-btn-outline" onclick="closeSidePanel('actionPanel')">
+                        {% trans "إلغاء" %}
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -511,44 +792,36 @@ document.addEventListener('DOMContentLoaded', function() {
     loadActions();
 });
 
-function openModal(modalId) {
-    document.getElementById(modalId).style.display = 'block';
-}
-
-function closeModal(modalId) {
-    document.getElementById(modalId).style.display = 'none';
-}
-
 function loadKnowledge() {
     const knowledgeList = document.getElementById('knowledgeList');
     knowledgeList.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
-    
+
     fetch('{% url "main:manage_knowledge" %}')
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 let html = '';
                 data.entries.forEach(entry => {
-                    const statusBadge = entry.is_active ? 
-                        '<span class="badge badge-success">نشط</span>' : 
-                        '<span class="badge badge-danger">غير نشط</span>';
-                    
+                    const statusBadge = entry.is_active ?
+                        '<span class="chatbot-badge chatbot-badge-success">نشط</span>' :
+                        '<span class="chatbot-badge chatbot-badge-danger">غير نشط</span>';
+
                     html += `
                         <div class="knowledge-item">
                             <div class="item-title">${entry.question}</div>
                             <div class="item-meta">
-                                <span class="badge badge-info">${entry.category}</span>
+                                <span class="chatbot-badge chatbot-badge-info">${entry.category}</span>
                                 ${statusBadge}
                                 <span>الأولوية: ${entry.priority}</span>
                             </div>
                         </div>
                     `;
                 });
-                
+
                 if (html === '') {
                     html = '<div class="text-center text-muted">لا توجد معرفة محفوظة</div>';
                 }
-                
+
                 knowledgeList.innerHTML = html;
             } else {
                 knowledgeList.innerHTML = '<div class="text-center text-danger">خطأ في تحميل البيانات</div>';
@@ -563,33 +836,33 @@ function loadKnowledge() {
 function loadActions() {
     const actionsList = document.getElementById('actionsList');
     actionsList.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
-    
+
     fetch('{% url "main:manage_actions" %}')
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 let html = '';
                 data.actions.forEach(action => {
-                    const statusBadge = action.is_active ? 
-                        '<span class="badge badge-success">نشط</span>' : 
-                        '<span class="badge badge-danger">غير نشط</span>';
-                    
+                    const statusBadge = action.is_active ?
+                        '<span class="chatbot-badge chatbot-badge-success">نشط</span>' :
+                        '<span class="chatbot-badge chatbot-badge-danger">غير نشط</span>';
+
                     html += `
                         <div class="action-item">
                             <div class="item-title">${action.title}</div>
                             <div class="item-meta">
-                                <span class="badge badge-info">${action.action_type}</span>
+                                <span class="chatbot-badge chatbot-badge-info">${action.action_type}</span>
                                 ${statusBadge}
                                 <span>الترتيب: ${action.order}</span>
                             </div>
                         </div>
                     `;
                 });
-                
+
                 if (html === '') {
                     html = '<div class="text-center text-muted">لا توجد إجراءات سريعة</div>';
                 }
-                
+
                 actionsList.innerHTML = html;
             } else {
                 actionsList.innerHTML = '<div class="text-center text-danger">خطأ في تحميل البيانات</div>';
@@ -604,7 +877,7 @@ function loadActions() {
 // Form submission handlers
 document.getElementById('knowledgeForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    
+
     const formData = new FormData(this);
     const data = {
         question: formData.get('question'),
@@ -613,7 +886,7 @@ document.getElementById('knowledgeForm').addEventListener('submit', function(e) 
         keywords: formData.get('keywords'),
         priority: formData.get('priority')
     };
-    
+
     fetch('{% url "main:manage_knowledge" %}', {
         method: 'POST',
         headers: {
@@ -626,7 +899,7 @@ document.getElementById('knowledgeForm').addEventListener('submit', function(e) 
     .then(data => {
         if (data.success) {
             alert('تم حفظ المعرفة بنجاح!');
-            closeModal('knowledgeModal');
+            closeSidePanel('knowledgePanel');
             this.reset();
             loadKnowledge();
         } else {
@@ -641,7 +914,7 @@ document.getElementById('knowledgeForm').addEventListener('submit', function(e) 
 
 document.getElementById('actionForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    
+
     const formData = new FormData(this);
     const data = {
         title: formData.get('title'),
@@ -651,7 +924,7 @@ document.getElementById('actionForm').addEventListener('submit', function(e) {
         icon: formData.get('icon'),
         order: formData.get('order')
     };
-    
+
     fetch('{% url "main:manage_actions" %}', {
         method: 'POST',
         headers: {
@@ -664,7 +937,7 @@ document.getElementById('actionForm').addEventListener('submit', function(e) {
     .then(data => {
         if (data.success) {
             alert('تم حفظ الإجراء السريع بنجاح!');
-            closeModal('actionModal');
+            closeSidePanel('actionPanel');
             this.reset();
             loadActions();
         } else {
@@ -691,12 +964,5 @@ function getCookie(name) {
     }
     return cookieValue;
 }
-
-// Close modals when clicking outside
-window.addEventListener('click', function(e) {
-    if (e.target.classList.contains('modal')) {
-        e.target.style.display = 'none';
-    }
-});
 </script>
 {% endblock %}

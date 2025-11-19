@@ -1,9 +1,9 @@
-{% extends "base.html" %}
+{% extends "admin_dashboard/base.html" %}
 {% load static i18n mptt_tags %}
 
 {% block title %}{% trans "إدارة الأقسام" %}{% endblock %}
 
-{% block extra_css %}
+{% block admin_extra_css %}
 <style>
     :root {
         --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
@@ -12,99 +12,18 @@
         --success-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
     }
 
-    body {
-        background: #f5f7fa;
-    }
-
-    .admin-container {
-        padding: 40px 0;
-    }
-
-    /* Navigation */
-    .admin-nav {
-        background: white;
-        border-radius: 16px;
-        box-shadow: var(--card-shadow);
-        padding: 20px;
-        margin-bottom: 30px;
-    }
-
-    .admin-nav-links {
-        display: flex;
-        gap: 15px;
-        flex-wrap: wrap;
-    }
-
-    .nav-link-item {
-        padding: 12px 24px;
-        border-radius: 10px;
-        text-decoration: none;
-        font-weight: 600;
-        transition: all 0.3s ease;
-    }
-
-    .nav-link-item.active {
-        background: var(--primary-gradient);
-        color: white;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-    }
-
-    .nav-link-item:not(.active) {
-        background: #f3f4f6;
-        color: #4b5563;
-    }
-
-    .nav-link-item:not(.active):hover {
-        background: #e5e7eb;
-        transform: translateY(-2px);
-    }
-
-    /* Page Header */
-    .page-header {
-        background: white;
-        border-radius: 16px;
-        box-shadow: var(--card-shadow);
-        padding: 30px;
-        margin-bottom: 30px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .page-header h1 {
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: #1a202c;
-        margin: 0;
-    }
-
-    .btn-primary {
-        background: var(--primary-gradient);
-        color: white;
-        padding: 12px 24px;
-        border-radius: 10px;
-        text-decoration: none;
-        font-weight: 600;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        transition: all 0.3s ease;
-        border: none;
-        cursor: pointer;
-    }
-
-    .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-        color: white;
-    }
-
-    /* Categories Tree */
+    /* Categories Card */
     .categories-card {
         background: white;
         border-radius: 16px;
         box-shadow: var(--card-shadow);
         overflow: hidden;
+        margin-bottom: 2rem;
+    }
+
+    [data-theme='dark'] .categories-card {
+        background: rgba(30, 30, 46, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .category-item {
@@ -113,8 +32,16 @@
         transition: background 0.2s ease;
     }
 
+    [data-theme='dark'] .category-item {
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+
     .category-item:hover {
         background: #f9fafb;
+    }
+
+    [data-theme='dark'] .category-item:hover {
+        background: rgba(255, 255, 255, 0.05);
     }
 
     .category-item:last-child {
@@ -125,10 +52,13 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
     }
 
     .category-info {
         flex: 1;
+        min-width: 300px;
     }
 
     .category-name {
@@ -136,6 +66,30 @@
         font-weight: 700;
         color: #1a202c;
         margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    [data-theme='dark'] .category-name {
+        color: #e5e7eb;
+    }
+
+    .category-level-indent {
+        color: #9ca3af;
+        font-weight: 400;
+        margin-right: 8px;
+    }
+
+    .category-name-ar {
+        color: #6b7280;
+        font-size: 0.95rem;
+        font-weight: 500;
+    }
+
+    [data-theme='dark'] .category-name-ar {
+        color: #9ca3af;
     }
 
     .category-meta {
@@ -144,6 +98,10 @@
         font-size: 0.875rem;
         color: #6b7280;
         flex-wrap: wrap;
+    }
+
+    [data-theme='dark'] .category-meta {
+        color: #9ca3af;
     }
 
     .category-meta span {
@@ -155,6 +113,7 @@
     .category-actions {
         display: flex;
         gap: 10px;
+        flex-wrap: wrap;
     }
 
     .btn-action {
@@ -208,30 +167,21 @@
         color: #374151;
     }
 
-    /* Subcategories */
-    .subcategories {
-        margin-top: 15px;
-        padding-left: 30px;
-        border-left: 3px solid #e5e7eb;
+    [data-theme='dark'] .badge-success {
+        background: rgba(16, 185, 129, 0.2);
+        color: #6ee7b7;
     }
 
-    .subcategory-item {
-        padding: 12px 0;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+    [data-theme='dark'] .badge-secondary {
+        background: rgba(255, 255, 255, 0.1);
+        color: #d1d5db;
     }
 
-    .subcategory-name {
-        font-weight: 600;
-        color: #4b5563;
-    }
-
-    /* Modal Styles */
+    /* Modal Styles - Uses same z-index as global modals */
     .modal {
         display: none;
         position: fixed;
-        z-index: 1000;
+        z-index: 10600;
         left: 0;
         top: 0;
         width: 100%;
@@ -239,6 +189,7 @@
         background: rgba(0, 0, 0, 0.5);
         align-items: center;
         justify-content: center;
+        backdrop-filter: blur(4px);
     }
 
     .modal.active {
@@ -253,6 +204,14 @@
         width: 90%;
         max-height: 90vh;
         overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        position: relative;
+        margin: auto;
+    }
+
+    [data-theme='dark'] .modal-content {
+        background: #1e1e2e;
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .modal-header {
@@ -260,6 +219,12 @@
         justify-content: space-between;
         align-items: center;
         margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #f3f4f6;
+    }
+
+    [data-theme='dark'] .modal-header {
+        border-bottom-color: rgba(255, 255, 255, 0.1);
     }
 
     .modal-header h2 {
@@ -267,6 +232,10 @@
         font-weight: 700;
         color: #1a202c;
         margin: 0;
+    }
+
+    [data-theme='dark'] .modal-header h2 {
+        color: #e5e7eb;
     }
 
     .btn-close {
@@ -290,6 +259,11 @@
         color: #1a202c;
     }
 
+    [data-theme='dark'] .btn-close:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #e5e7eb;
+    }
+
     .form-group {
         margin-bottom: 20px;
     }
@@ -302,6 +276,10 @@
         font-size: 0.875rem;
     }
 
+    [data-theme='dark'] .form-group label {
+        color: #d1d5db;
+    }
+
     .form-group input,
     .form-group select,
     .form-group textarea {
@@ -311,6 +289,32 @@
         border-radius: 10px;
         font-size: 0.875rem;
         transition: all 0.3s ease;
+        background: white;
+    }
+
+    [data-theme='dark'] .form-group input,
+    [data-theme='dark'] .form-group select,
+    [data-theme='dark'] .form-group textarea {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
+        color: #e5e7eb;
+    }
+
+    /* Dark theme for select dropdown options */
+    [data-theme='dark'] .form-group select option {
+        background: #1e1e2e;
+        color: #e5e7eb;
+    }
+
+    /* Placeholder text color */
+    .form-group input::placeholder,
+    .form-group textarea::placeholder {
+        color: #9ca3af;
+    }
+
+    [data-theme='dark'] .form-group input::placeholder,
+    [data-theme='dark'] .form-group textarea::placeholder {
+        color: #6b7280;
     }
 
     .form-group input:focus,
@@ -321,9 +325,34 @@
         box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
 
+    [data-theme='dark'] .form-group input:focus,
+    [data-theme='dark'] .form-group select:focus,
+    [data-theme='dark'] .form-group textarea:focus {
+        border-color: #764ba2;
+        box-shadow: 0 0 0 3px rgba(118, 75, 162, 0.2);
+    }
+
     .form-group textarea {
         min-height: 100px;
         resize: vertical;
+    }
+
+    /* Checkbox styling */
+    .form-group input[type="checkbox"] {
+        width: auto;
+        margin-right: 8px;
+        cursor: pointer;
+        accent-color: #667eea;
+    }
+
+    [data-theme='dark'] .form-group input[type="checkbox"] {
+        accent-color: #764ba2;
+    }
+
+    .form-group label:has(input[type="checkbox"]) {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
     }
 
     .form-actions {
@@ -331,71 +360,118 @@
         gap: 10px;
         justify-content: flex-end;
         margin-top: 30px;
+        padding-top: 20px;
+        border-top: 2px solid #f3f4f6;
+    }
+
+    [data-theme='dark'] .form-actions {
+        border-top-color: rgba(255, 255, 255, 0.1);
     }
 
     .btn-cancel {
         background: #f3f4f6;
         color: #4b5563;
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
     }
 
     .btn-cancel:hover {
         background: #e5e7eb;
     }
+
+    [data-theme='dark'] .btn-cancel {
+        background: rgba(255, 255, 255, 0.1);
+        color: #d1d5db;
+    }
+
+    [data-theme='dark'] .btn-cancel:hover {
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6b7280;
+    }
+
+    [data-theme='dark'] .empty-state {
+        color: #9ca3af;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 20px;
+        opacity: 0.3;
+    }
+
+    .empty-state h3 {
+        font-size: 1.25rem;
+        margin-bottom: 10px;
+        color: #374151;
+    }
+
+    [data-theme='dark'] .empty-state h3 {
+        color: #d1d5db;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .category-main {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .category-actions {
+            width: 100%;
+        }
+
+        .btn-action {
+            flex: 1;
+            justify-content: center;
+        }
+    }
 </style>
 {% endblock %}
 
-{% block content %}
-<div class="admin-container">
-    <div class="container">
-        <!-- Navigation Menu -->
-        <div class="admin-nav">
-            <div class="admin-nav-links">
-                <a href="{% url 'main:admin_dashboard' %}" class="nav-link-item">
-                    <i class="fas fa-th-large"></i> {% trans "لوحة التحكم" %}
-                </a>
-                <a href="{% url 'main:admin_categories' %}" class="nav-link-item active">
-                    <i class="fas fa-folder"></i> {% trans "الأقسام" %}
-                </a>
-                <a href="{% url 'main:admin_custom_fields' %}" class="nav-link-item">
-                    <i class="fas fa-cog"></i> {% trans "الحقول المخصصة" %}
-                </a>
-                <a href="{% url 'main:admin_users' %}" class="nav-link-item">
-                    <i class="fas fa-users"></i> {% trans "المستخدمين" %}
-                </a>
-                <a href="{% url 'main:admin_packages' %}" class="nav-link-item">
-                    <i class="fas fa-box"></i> {% trans "الباقات" %}
-                </a>
-                <a href="{% url 'main:admin_transactions' %}" class="nav-link-item">
-                    <i class="fas fa-dollar-sign"></i> {% trans "المعاملات" %}
-                </a>
+{% block admin_content %}
+    <!-- Header -->
+    <div class="admin-dashboard-header">
+        <div class="row align-items-center">
+            <div class="col">
+                <h1 class="display-6 mb-1">
+                    <i class="fas fa-folder me-3"></i>
+                    {% trans "إدارة الأقسام" %}
+                </h1>
+                <p class="text-muted mb-0">{% trans "إضافة، تعديل، وحذف أقسام الإعلانات" %}</p>
+            </div>
+            <div class="col-auto">
+                <button onclick="openModal('add', null, this)" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>
+                    {% trans "إضافة قسم جديد" %}
+                </button>
             </div>
         </div>
+    </div>
 
-        <!-- Page Header -->
-        <div class="page-header">
-            <h1>
-                <i class="fas fa-folder"></i>
-                {% trans "إدارة الأقسام" %}
-            </h1>
-            <button onclick="openModal('add', null, this)" class="btn-primary">
-                <i class="fas fa-plus"></i>
-                {% trans "إضافة قسم جديد" %}
-            </button>
-        </div>
-
-        <!-- Categories List -->
-        <div class="categories-card">
+    <!-- Categories List -->
+    <div class="categories-card">
+        {% if categories %}
             {% recursetree categories %}
                 <div class="category-item">
                     <div class="category-main">
                         <div class="category-info">
                             <div class="category-name">
                                 {% if node.level > 0 %}
-                                    <span style="margin-left: {{ node.level }}0px;">↳</span>
+                                    <span class="category-level-indent" style="margin-left: {{ node.level }}0px;">↳</span>
                                 {% endif %}
-                                {{ node.name }}
+                                <span>{{ node.name }}</span>
                                 {% if node.name_ar %}
-                                    <small style="color: #6b7280;">({{ node.name_ar }})</small>
+                                    <span class="category-name-ar">({{ node.name_ar }})</span>
                                 {% endif %}
                                 {% if node.is_active %}
                                     <span class="badge badge-success">{% trans "نشط" %}</span>
@@ -437,9 +513,14 @@
                     {% endif %}
                 </div>
             {% endrecursetree %}
-        </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-folder-open"></i>
+                <h3>{% trans "لا توجد أقسام" %}</h3>
+                <p>{% trans "لم يتم إضافة أي أقسام بعد. انقر على إضافة قسم جديد للبدء." %}</p>
+            </div>
+        {% endif %}
     </div>
-</div>
 
 <!-- Add/Edit Modal -->
 <div id="categoryModal" class="modal">
@@ -500,7 +581,7 @@
                 <textarea name="description" id="description"></textarea>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" id="allowCartGroup">
                 <label for="allow_cart">
                     <input type="checkbox" name="allow_cart" id="allow_cart">
                     {% trans "السماح بالسلة" %}
@@ -546,49 +627,22 @@ function openModal(mode, categoryId = null, triggerEl = null) {
         title.textContent = '{% trans "إضافة قسم جديد" %}';
         form.reset();
         document.getElementById('categoryId').value = '';
+        toggleAllowCart(); // Show/hide السماح بالسلة based on default section_type
     } else {
         title.textContent = '{% trans "تعديل القسم" %}';
         // Load category data via AJAX
         loadCategoryData(categoryId);
     }
 
-    // Show modal first to measure content size
-    modal.classList.add('active');
-
-    // If a trigger element is provided, position the modal near it
+    // Show modal centered (remove any inline positioning)
     const content = modal.querySelector('.modal-content');
-    if (triggerEl && content) {
-        // Ensure content has fixed positioning for anchoring near trigger
-        content.style.position = 'fixed';
-
-        const rect = triggerEl.getBoundingClientRect();
-        const margin = 8; // space between trigger and modal
-
-        let top = rect.bottom + margin;
-        let left = rect.left;
-
-        // Prevent overflow on the right
-        if (left + content.offsetWidth > window.innerWidth - margin) {
-            left = Math.max(margin, window.innerWidth - content.offsetWidth - margin);
-        }
-
-        // If bottom overflows, try opening above the trigger
-        if (top + content.offsetHeight > window.innerHeight - margin) {
-            top = rect.top - content.offsetHeight - margin;
-        }
-
-        // Clamp to viewport
-        if (top < margin) top = margin;
-        if (left < margin) left = margin;
-
-        content.style.top = `${top}px`;
-        content.style.left = `${left}px`;
-    } else if (content) {
-        // Fallback to centered modal behavior
-        content.style.position = 'static';
+    if (content) {
+        content.style.position = '';
         content.style.top = '';
         content.style.left = '';
     }
+
+    modal.classList.add('active');
 }
 
 function closeModal() {
@@ -615,6 +669,7 @@ function loadCategoryData(categoryId) {
             document.getElementById('allow_cart').checked = data.allow_cart || false;
             document.getElementById('require_admin_approval').checked = data.require_admin_approval !== false;
             document.getElementById('is_active').checked = data.is_active !== false;
+            toggleAllowCart(); // Show/hide السماح بالسلة based on loaded section_type
         })
         .catch(error => {
             if (window.showNotification) window.showNotification('{% trans "حدث خطأ أثناء تحميل بيانات القسم" %}', 'error');
@@ -648,7 +703,7 @@ function deleteCategory(categoryId, categoryName) {
 function confirmDelete(message, onConfirm) {
     const box = document.createElement('div');
     box.className = 'custom-notification';
-    box.style.cssText = 'position:fixed;top:90px;right:20px;z-index:9999;background:linear-gradient(135deg,#4B315E 0%,#6B4C7A 100%);color:#fff;padding:14px 16px;border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,0.2);display:flex;align-items:center;gap:12px;max-width:420px;';
+    box.style.cssText = 'position:fixed;top:90px;right:20px;z-index:10800;background:linear-gradient(135deg,#4B315E 0%,#6B4C7A 100%);color:#fff;padding:14px 16px;border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,0.2);display:flex;align-items:center;gap:12px;max-width:420px;';
 
     const text = document.createElement('span');
     text.textContent = message || '{% trans "تأكيد العملية" %}';
@@ -689,6 +744,27 @@ document.getElementById('name_ar').addEventListener('input', function() {
         .replace(/^-|-$/g, '');
     document.getElementById('slug_ar').value = slug;
 });
+
+// Show/Hide "السماح بالسلة" based on section_type
+function toggleAllowCart() {
+    const sectionType = document.getElementById('section_type').value;
+    const allowCartGroup = document.getElementById('allowCartGroup');
+
+    if (sectionType === 'classified') {
+        allowCartGroup.style.display = 'block';
+    } else {
+        allowCartGroup.style.display = 'none';
+        document.getElementById('allow_cart').checked = false;
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    toggleAllowCart();
+});
+
+// Listen for section_type changes
+document.getElementById('section_type').addEventListener('change', toggleAllowCart);
 
 // Close modal on outside click
 window.addEventListener('click', function(event) {

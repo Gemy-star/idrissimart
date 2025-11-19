@@ -11,145 +11,138 @@
         <link rel="stylesheet" href="{% static 'css/admin-dashboard.css' %}">
     {% endcompress %}
     <style>
-        /* Admin Navigation Styles */
-        .admin-nav {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(15px);
-            border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            padding: 1.5rem;
-            margin-top: 2rem;
-            margin-bottom: 2rem;
-            position: sticky;
-            top: 20px;
-            z-index: 100;
+        /* Slide Panel Styles - Modern Alternative to Modals */
+        .slide-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 10050;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
-        
-        [data-theme='dark'] .admin-nav {
-            background: rgba(30, 30, 46, 0.95);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-        }
-        
-        .admin-nav-links {
+
+        .slide-panel.active {
             display: flex;
-            gap: 0.5rem;
-            flex-wrap: nowrap;
-            justify-content: flex-start;
-            overflow-x: auto;
-            white-space: nowrap;
-            padding-bottom: 2px;
-            scrollbar-width: none; /* Firefox */
-            -ms-overflow-style: none; /* IE and Edge */
+            opacity: 1;
         }
-        
-        .admin-nav-links::-webkit-scrollbar {
-            display: none; /* Chrome, Safari, Opera */
-        }
-        
-        .nav-link-item {
-            padding: 0.75rem 1.2rem;
-            border-radius: 12px;
-            text-decoration: none;
-            font-weight: 600;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.9rem;
-            line-height: 1.2rem;
-            min-width: fit-content;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .nav-link-item i {
-            font-size: 1rem;
-            width: 18px;
-            text-align: center;
-        }
-        
-        .nav-link-item span {
-            white-space: nowrap;
-        }
-        
-        .nav-link-item.active {
-            background: linear-gradient(135deg, #4b315e, #6b4c7a);
-            color: white;
-            box-shadow: 0 4px 20px rgba(75, 49, 94, 0.4);
-            transform: translateY(-1px);
-        }
-        
-        .nav-link-item.active::before {
-            content: '';
+
+        .slide-panel-overlay {
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
-            pointer-events: none;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            cursor: pointer;
         }
-        
-        .nav-link-item:not(.active) {
-            background: #f8f9fa;
-            color: #495057;
-            border: 1px solid rgba(0,0,0,0.05);
+
+        .slide-panel-content {
+            position: absolute;
+            top: 0;
+            right: -500px;
+            bottom: 0;
+            width: 90%;
+            max-width: 500px;
+            background: white;
+            box-shadow: -5px 0 25px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            transition: right 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 10051;
         }
-        
-        [data-theme='dark'] .nav-link-item:not(.active) {
-            background: rgba(255, 255, 255, 0.08);
+
+        .slide-panel.active .slide-panel-content {
+            right: 0;
+        }
+
+        [data-theme='dark'] .slide-panel-content {
+            background: #1e1e2e;
+            box-shadow: -5px 0 25px rgba(0, 0, 0, 0.8);
+        }
+
+        .slide-panel-header {
+            padding: 1.5rem;
+            border-bottom: 2px solid #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        }
+
+        [data-theme='dark'] .slide-panel-header {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.05));
+            border-bottom-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .slide-panel-title {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+        }
+
+        [data-theme='dark'] .slide-panel-title {
             color: #e9ecef;
-            border: 1px solid rgba(255,255,255,0.1);
         }
-        
-        .nav-link-item:not(.active):hover {
-            background: #e9ecef;
-            color: #4b315e;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-            border-color: rgba(75, 49, 94, 0.2);
+
+        .slide-panel-close {
+            background: transparent;
+            border: none;
+            font-size: 1.5rem;
+            color: #6c757d;
+            cursor: pointer;
+            padding: 0.5rem;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
         }
-        
-        [data-theme='dark'] .nav-link-item:not(.active):hover {
-            background: rgba(255, 255, 255, 0.15);
-            color: #a78bbd;
-            border-color: rgba(167, 139, 189, 0.3);
+
+        .slide-panel-close:hover {
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+            transform: rotate(90deg);
         }
-        
-        /* Responsive adjustments */
+
+        .slide-panel-body {
+            flex: 1;
+            padding: 2rem 1.5rem;
+            overflow-y: auto;
+        }
+
+        .slide-panel-footer {
+            padding: 1.5rem;
+            border-top: 2px solid #e9ecef;
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            background: #f8f9fa;
+        }
+
+        [data-theme='dark'] .slide-panel-footer {
+            background: rgba(255, 255, 255, 0.03);
+            border-top-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Responsive */
         @media (max-width: 768px) {
-            .admin-nav {
-                padding: 1rem;
-                margin-top: 1rem;
-                margin-bottom: 1rem;
-                border-radius: 15px;
-            }
-            
-            .nav-link-item {
-                padding: 0.6rem 1rem;
-                font-size: 0.85rem;
-            }
-            
-            .nav-link-item span {
-                display: none;
-            }
-            
-            .nav-link-item i {
-                font-size: 1.1rem;
+            .slide-panel-content {
+                width: 100%;
+                max-width: 100%;
             }
         }
-        
-        @media (max-width: 480px) {
-            .admin-nav-links {
-                gap: 0.25rem;
-            }
-            
-            .nav-link-item {
-                padding: 0.5rem 0.8rem;
-            }
-        }
+
+        /* Modal z-index - Uses global values from admin-dashboard.css
+           Modal backdrop: 10500, Modal: 10600, Modal dialog: 10700 */
     </style>
     {% block admin_extra_css %}{% endblock %}
 {% endblock %}
@@ -170,73 +163,199 @@
 
 {% block extra_js %}
     <script>
+
         // Admin Navigation Enhancement
         document.addEventListener('DOMContentLoaded', function() {
             // Add smooth scrolling for horizontal navigation
             const navLinks = document.querySelector('.admin-nav-links');
+            const adminNav = document.querySelector('.admin-nav');
+
             if (navLinks) {
                 // Auto-scroll to active item on page load
                 const activeItem = navLinks.querySelector('.nav-link-item.active');
                 if (activeItem) {
-                    activeItem.scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'nearest', 
-                        inline: 'center' 
-                    });
+                    setTimeout(() => {
+                        activeItem.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'nearest',
+                            inline: 'center'
+                        });
+                    }, 100);
                 }
-                
+
+                // Update scroll fade indicators
+                function updateScrollIndicators() {
+                    if (!adminNav) return;
+
+                    const scrollLeft = navLinks.scrollLeft;
+                    const maxScroll = navLinks.scrollWidth - navLinks.clientWidth;
+
+                    // Add/remove classes based on scroll position
+                    if (scrollLeft > 10) {
+                        adminNav.classList.add('scrolled-left');
+                    } else {
+                        adminNav.classList.remove('scrolled-left');
+                    }
+
+                    if (scrollLeft < maxScroll - 10) {
+                        adminNav.classList.remove('scrolled-right');
+                    } else {
+                        adminNav.classList.add('scrolled-right');
+                    }
+                }
+
+                // Listen for scroll events
+                navLinks.addEventListener('scroll', updateScrollIndicators);
+
+                // Check on resize
+                window.addEventListener('resize', updateScrollIndicators);
+
+                // Initial check
+                setTimeout(updateScrollIndicators, 200);
+
                 // Add keyboard navigation
                 navLinks.addEventListener('keydown', function(e) {
                     const items = Array.from(navLinks.querySelectorAll('.nav-link-item'));
                     const currentIndex = items.findIndex(item => item === document.activeElement);
-                    
+
                     if (e.key === 'ArrowRight' && currentIndex < items.length - 1) {
                         e.preventDefault();
                         items[currentIndex + 1].focus();
+                        items[currentIndex + 1].scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'nearest',
+                            inline: 'center'
+                        });
                     } else if (e.key === 'ArrowLeft' && currentIndex > 0) {
                         e.preventDefault();
                         items[currentIndex - 1].focus();
+                        items[currentIndex - 1].scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'nearest',
+                            inline: 'center'
+                        });
                     }
                 });
-                
+
                 // Add touch/swipe support for mobile
                 let startX = 0;
                 let scrollLeft = 0;
-                
+                let isDragging = false;
+
                 navLinks.addEventListener('touchstart', function(e) {
+                    isDragging = true;
                     startX = e.touches[0].pageX - navLinks.offsetLeft;
                     scrollLeft = navLinks.scrollLeft;
-                });
-                
+                }, { passive: true });
+
                 navLinks.addEventListener('touchmove', function(e) {
-                    if (!startX) return;
-                    e.preventDefault();
+                    if (!isDragging) return;
                     const x = e.touches[0].pageX - navLinks.offsetLeft;
                     const walk = (x - startX) * 2;
                     navLinks.scrollLeft = scrollLeft - walk;
-                });
-                
+                }, { passive: true });
+
                 navLinks.addEventListener('touchend', function() {
+                    isDragging = false;
                     startX = 0;
                 });
+
+                // Mouse drag support for desktop
+                let mouseDown = false;
+                let startMouseX = 0;
+                let scrollLeftMouse = 0;
+
+                navLinks.addEventListener('mousedown', function(e) {
+                    mouseDown = true;
+                    startMouseX = e.pageX - navLinks.offsetLeft;
+                    scrollLeftMouse = navLinks.scrollLeft;
+                    navLinks.style.cursor = 'grabbing';
+                    navLinks.style.userSelect = 'none';
+                });
+
+                navLinks.addEventListener('mouseleave', function() {
+                    mouseDown = false;
+                    navLinks.style.cursor = 'grab';
+                });
+
+                navLinks.addEventListener('mouseup', function() {
+                    mouseDown = false;
+                    navLinks.style.cursor = 'grab';
+                });
+
+                navLinks.addEventListener('mousemove', function(e) {
+                    if (!mouseDown) return;
+                    e.preventDefault();
+                    const x = e.pageX - navLinks.offsetLeft;
+                    const walk = (x - startMouseX) * 2;
+                    navLinks.scrollLeft = scrollLeftMouse - walk;
+                });
+
+                // Set initial cursor
+                if (navLinks.scrollWidth > navLinks.clientWidth) {
+                    navLinks.style.cursor = 'grab';
+                }
             }
-            
+
             // Add loading states for navigation links
             const navItems = document.querySelectorAll('.nav-link-item:not(.active)');
             navItems.forEach(item => {
-                item.addEventListener('click', function() {
+                item.addEventListener('click', function(e) {
                     // Add loading state
                     const icon = this.querySelector('i');
-                    const originalClass = icon.className;
-                    icon.className = 'fas fa-spinner fa-spin';
-                    
-                    // Reset after a short delay (in case navigation is instant)
-                    setTimeout(() => {
-                        icon.className = originalClass;
-                    }, 1000);
+                    if (icon) {
+                        const originalClass = icon.className;
+                        icon.className = 'fas fa-spinner fa-spin';
+
+                        // Reset after a short delay (in case navigation is instant)
+                        setTimeout(() => {
+                            icon.className = originalClass;
+                        }, 1000);
+                    }
                 });
             });
         });
+
+        // Slide Panel Utility Functions
+        function openSidePanel(panelId) {
+            const panel = document.getElementById(panelId);
+            if (panel) {
+                panel.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeSidePanel(panelId) {
+            const panel = document.getElementById(panelId);
+            if (panel) {
+                panel.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        }
+
+        // Close panel when clicking overlay
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('slide-panel-overlay')) {
+                const panel = e.target.closest('.slide-panel');
+                if (panel && panel.id) {
+                    closeSidePanel(panel.id);
+                }
+            }
+        });
+
+        // Close panel with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const activePanel = document.querySelector('.slide-panel.active');
+                if (activePanel && activePanel.id) {
+                    closeSidePanel(activePanel.id);
+                }
+            }
+        });
+
+        // Define a dummy function to prevent errors on admin pages
+        // where this function is called but not defined.
+        function initializeWishlistButtons() {}
     </script>
     {% block admin_extra_js %}{% endblock %}
 {% endblock %}

@@ -55,7 +55,7 @@ class MyClassifiedAdsView(LoginRequiredMixin, ListView):
         return ClassifiedAd.objects.filter(user=self.request.user).order_by(
             "-created_at"
         )
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['active_nav'] = 'my_ads'
@@ -240,7 +240,8 @@ class ClassifiedAdDetailView(DetailView):
         Add related ads to the context.
         """
         context = super().get_context_data(**kwargs)
-        ad = self.get_object()
+        # Use the already-fetched object to avoid incrementing views_count twice
+        ad = context.get("ad") or getattr(self, "object", None)
 
         # Define a price range (e.g., +/- 25%)
         price_range_min = ad.price * Decimal("0.75")
@@ -313,7 +314,7 @@ class UserSavedSearchesView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         return SavedSearch.objects.filter(user=self.request.user)
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['active_nav'] = 'saved_searches'

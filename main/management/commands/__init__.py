@@ -1,1 +1,1 @@
-# Django management commands module
+# Django management commands

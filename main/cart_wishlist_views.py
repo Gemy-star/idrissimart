@@ -9,6 +9,8 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
+from django.template.loader import render_to_string
+import json
 
 from main.models import Cart, CartItem, ClassifiedAd, Wishlist, WishlistItem
 
@@ -382,17 +384,78 @@ def check_wishlist_status(request):
         )
 
 
-@login_required
 def wishlist_view(request):
-    """Display wishlist page"""
-    wishlist = get_or_create_wishlist(request.user)
-    wishlist_items = wishlist.items.select_related(
-        "ad", "ad__user", "ad__category", "ad__country"
-    ).all()
+    """Display wishlist page for both authenticated users and guests"""
+
+    if request.user.is_authenticated:
+        wishlist = get_or_create_wishlist(request.user)
+        wishlist_items = wishlist.items.select_related(
+            "ad", "ad__user", "ad__category", "ad__country"
+        ).all()
+    else:
+        wishlist = None
+        wishlist_items = []
 
     context = {
         "wishlist": wishlist,
         "wishlist_items": wishlist_items,
+        "is_guest": not request.user.is_authenticated,
     }
 
     return render(request, "wishlist/wishlist.html", context)
+
+
+def get_bulk_ads(request):
+    """
+    Fetch multiple ads by IDs for guest wishlist rendering
+    Returns ad data with rendered HTML cards
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Method not allowed'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        ad_ids = data.get('ad_ids', [])
+        
+        if not ad_ids or not isinstance(ad_ids, list):
+            return JsonResponse({'success': False, 'message': 'Invalid ad_ids'}, status=400)
+        
+        # Limit to 50 ads max to prevent abuse
+        ad_ids = ad_ids[:50]
+        
+        # Fetch ads
+        ads = ClassifiedAd.objects.filter(
+            id__in=ad_ids,
+            status=ClassifiedAd.AdStatus.ACTIVE
+        ).select_related(
+            'user', 'category', 'country'
+        ).prefetch_related('images')
+        
+        # Render each ad card
+        ads_data = []
+        for ad in ads:
+            try:
+                html = render_to_string('partials/_ad_card_component.html', {
+                    'ad': ad,
+                    'user': request.user,
+                    'LANGUAGE_CODE': request.LANGUAGE_CODE,
+                })
+                ads_data.append({
+                    'id': ad.id,
+                    'html': html,
+                })
+            except Exception as e:
+                # Skip ads that fail to render
+                print(f"Error rendering ad {ad.id}: {e}")
+                continue
+        
+        return JsonResponse({
+            'success': True,
+            'ads': ads_data,
+            'count': len(ads_data)
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'message': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)

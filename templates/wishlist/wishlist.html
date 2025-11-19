@@ -1,0 +1,711 @@
+{% extends "base.html" %}
+{% load static i18n %}
+
+{% block title %}{% trans "المفضلة" %} - {% trans "إدريسي مارت" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .wishlist-page {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        padding: 3rem 0;
+    }
+
+    .wishlist-header {
+        background: white;
+        border-radius: 20px;
+        padding: 2.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .wishlist-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+        background: linear-gradient(90deg, #ff4757, #e84118, #ff6b81);
+    }
+
+    .wishlist-header-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 70px;
+        height: 70px;
+        background: linear-gradient(135deg, #ff4757, #e84118);
+        border-radius: 50%;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 8px 20px rgba(255, 71, 87, 0.3);
+    }
+
+    .wishlist-header-icon i {
+        font-size: 2rem;
+        color: white;
+    }
+
+    .wishlist-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+    }
+
+    .wishlist-subtitle {
+        color: #7f8c8d;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .wishlist-count-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: linear-gradient(135deg, #ff4757, #e84118);
+        color: white;
+        padding: 0.4rem 1rem;
+        border-radius: 50px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        box-shadow: 0 4px 15px rgba(255, 71, 87, 0.3);
+    }
+
+    .wishlist-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .wishlist-empty {
+        background: white;
+        border-radius: 20px;
+        padding: 4rem 2rem;
+        text-align: center;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+    }
+
+    .wishlist-empty-icon {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 2rem;
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: float 3s ease-in-out infinite;
+    }
+
+    .wishlist-empty-icon i {
+        font-size: 3.5rem;
+        color: white;
+    }
+
+    @keyframes float {
+        0%, 100% {
+            transform: translateY(0px);
+        }
+        50% {
+            transform: translateY(-15px);
+        }
+    }
+
+    .wishlist-empty-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 1rem;
+    }
+
+    .wishlist-empty-text {
+        color: #7f8c8d;
+        font-size: 1rem;
+        margin-bottom: 2rem;
+        line-height: 1.6;
+    }
+
+    .wishlist-cta-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.875rem 2rem;
+        border-radius: 50px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .wishlist-cta-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 30px rgba(102, 126, 234, 0.5);
+        color: white;
+    }
+
+    .wishlist-filter-bar {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .wishlist-actions {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .wishlist-action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1.25rem;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.875rem;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+    }
+
+    .wishlist-action-btn.clear-all {
+        background: #fff5f5;
+        color: #e74c3c;
+        border-color: #ffe0e0;
+    }
+
+    .wishlist-action-btn.clear-all:hover {
+        background: #e74c3c;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+    }
+
+    .guest-notice {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+    }
+
+    .guest-notice i {
+        font-size: 1.5rem;
+    }
+
+    .guest-notice-text {
+        flex: 1;
+    }
+
+    .guest-notice-title {
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .guest-notice-desc {
+        font-size: 0.875rem;
+        opacity: 0.9;
+    }
+
+    /* Dark mode support */
+    [data-theme="dark"] .wishlist-page {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    }
+
+    [data-theme="dark"] .wishlist-header,
+    [data-theme="dark"] .wishlist-empty,
+    [data-theme="dark"] .wishlist-filter-bar {
+        background: #1e1e2e;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    [data-theme="dark"] .wishlist-title {
+        color: #ecf0f1;
+    }
+
+    [data-theme="dark"] .wishlist-subtitle,
+    [data-theme="dark"] .wishlist-empty-text {
+        color: #95a5a6;
+    }
+
+    [data-theme="dark"] .wishlist-empty-title {
+        color: #ecf0f1;
+    }
+
+    @media (max-width: 768px) {
+        .wishlist-header {
+            padding: 2rem 1.5rem;
+        }
+
+        .wishlist-title {
+            font-size: 1.5rem;
+        }
+
+        .wishlist-filter-bar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .wishlist-actions {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .wishlist-grid {
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="wishlist-page">
+    <div class="container">
+        <!-- Header -->
+        <div class="wishlist-header text-center">
+            <div class="wishlist-header-icon">
+                <i class="fas fa-heart"></i>
+            </div>
+            <h1 class="wishlist-title">
+                {% trans "قائمة المفضلة" %}
+            </h1>
+            <p class="wishlist-subtitle">
+                {% if is_guest %}
+                    <i class="fas fa-info-circle"></i>
+                    <span>{% trans "هذه المفضلة محفوظة محلياً في متصفحك (للزوار)" %}</span>
+                {% else %}
+                    <i class="fas fa-check-circle"></i>
+                    <span>{% trans "إعلاناتك المفضلة المحفوظة في حسابك" %}</span>
+                {% endif %}
+            </p>
+        </div>
+
+        {% if not is_guest %}
+            {% if wishlist_items %}
+                <!-- Filter Bar -->
+                <div class="wishlist-filter-bar">
+                    <div class="wishlist-count-badge">
+                        <i class="fas fa-heart"></i>
+                        <span>{{ wishlist_items|length }} {% trans "عنصر" %}</span>
+                    </div>
+                    <div class="wishlist-actions">
+                        <a href="{% url 'main:categories' %}" class="wishlist-action-btn btn">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>{% trans "إضافة المزيد" %}</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Wishlist Grid -->
+                <div class="wishlist-grid">
+                    {% for item in wishlist_items %}
+                        {% include "partials/_ad_card_component.html" with ad=item.ad %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <!-- Empty State -->
+                <div class="wishlist-empty">
+                    <div class="wishlist-empty-icon">
+                        <i class="fas fa-heart-broken"></i>
+                    </div>
+                    <h2 class="wishlist-empty-title">{% trans "المفضلة فارغة!" %}</h2>
+                    <p class="wishlist-empty-text">
+                        {% trans "لم تقم بإضافة أي إعلانات إلى المفضلة بعد." %}<br>
+                        {% trans "ابدأ بتصفح الإعلانات واضغط على أيقونة القلب لحفظ إعلاناتك المفضلة." %}
+                    </p>
+                    <a href="{% url 'main:categories' %}" class="wishlist-cta-btn">
+                        <i class="fas fa-search"></i>
+                        <span>{% trans "تصفح الإعلانات" %}</span>
+                    </a>
+                </div>
+            {% endif %}
+        {% else %}
+            <!-- Guest Notice -->
+            <div class="guest-notice">
+                <i class="fas fa-user-clock"></i>
+                <div class="guest-notice-text">
+                    <div class="guest-notice-title">{% trans "أنت تتصفح كزائر" %}</div>
+                    <div class="guest-notice-desc">{% trans "سجل دخولك للحصول على تجربة أفضل وحفظ المفضلة بشكل دائم" %}</div>
+                </div>
+            </div>
+
+            <div id="guest-wishlist-container">
+                <!-- Empty State for Guest -->
+                <div class="wishlist-empty" id="guest-wishlist-empty">
+                    <div class="wishlist-empty-icon">
+                        <i class="fas fa-heart-broken"></i>
+                    </div>
+                    <h2 class="wishlist-empty-title">{% trans "المفضلة فارغة!" %}</h2>
+                    <p class="wishlist-empty-text">
+                        {% trans "لا توجد إعلانات في مفضلتك كزائر حتى الآن." %}<br>
+                        {% trans "يمكنك إضافة الإعلانات إلى المفضلة من خلال رمز القلب في بطاقة الإعلان." %}
+                    </p>
+                    <a href="{% url 'main:categories' %}" class="wishlist-cta-btn">
+                        <i class="fas fa-search"></i>
+                        <span>{% trans "تصفح الإعلانات" %}</span>
+                    </a>
+                </div>
+
+                <!-- Guest Wishlist Grid -->
+                <div id="guest-wishlist-filter-bar" class="wishlist-filter-bar" style="display:none;">
+                    <div class="wishlist-count-badge">
+                        <i class="fas fa-heart"></i>
+                        <span id="guest-wishlist-count">0 {% trans "عنصر" %}</span>
+                    </div>
+                    <div class="wishlist-actions">
+                        <button onclick="clearGuestWishlist()" class="wishlist-action-btn clear-all btn">
+                            <i class="fas fa-trash-alt"></i>
+                            <span>{% trans "مسح الكل" %}</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="wishlist-grid" id="guest-wishlist-grid" style="display:none;"></div>
+            </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    // For authenticated users - handle wishlist changes
+    {% if not is_guest %}
+    document.addEventListener('DOMContentLoaded', function() {
+        setupAuthenticatedWishlistHandlers();
+    });
+
+    function setupAuthenticatedWishlistHandlers() {
+        // Listen for wishlist button clicks on this page
+        document.addEventListener('click', function(e) {
+            const wishlistBtn = e.target.closest('.wishlist-btn-card, .ad-wishlist-btn');
+            if (wishlistBtn && wishlistBtn.classList.contains('active')) {
+                // When an item is removed from wishlist, reload the page to update the list
+                setTimeout(() => {
+                    location.reload();
+                }, 500);
+            }
+        });
+    }
+    {% endif %}
+
+    // For guest users - handle localStorage wishlist
+    {% if is_guest %}
+    document.addEventListener('DOMContentLoaded', function() {
+        loadGuestWishlist();
+        setupGuestWishlistHandlers();
+    });
+
+    function setupGuestWishlistHandlers() {
+        // Listen for custom wishlist events
+        window.addEventListener('wishlistUpdated', function(e) {
+            loadGuestWishlist();
+        });
+
+        // Listen for clicks on wishlist buttons
+        document.addEventListener('click', function(e) {
+            const wishlistBtn = e.target.closest('.wishlist-btn-card, .ad-wishlist-btn');
+            if (wishlistBtn) {
+                // Delay reload to allow animation to complete
+                setTimeout(() => {
+                    loadGuestWishlist();
+                }, 500);
+            }
+        });
+    }
+
+    async function loadGuestWishlist() {
+        try {
+            const container = document.getElementById('guest-wishlist-grid');
+            const emptyState = document.getElementById('guest-wishlist-empty');
+            const filterBar = document.getElementById('guest-wishlist-filter-bar');
+            const countElement = document.getElementById('guest-wishlist-count');
+
+            if (!container || !emptyState) return;
+
+            const guestWishlist = JSON.parse(localStorage.getItem('guestWishlist') || '[]');
+
+            if (!guestWishlist.length) {
+                emptyState.style.display = 'block';
+                container.style.display = 'none';
+                if (filterBar) filterBar.style.display = 'none';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            container.style.display = 'grid';
+            if (filterBar) filterBar.style.display = 'flex';
+            if (countElement) {
+                countElement.innerHTML = `<i class="fas fa-heart"></i> ${guestWishlist.length} {% trans "عنصر" %}`;
+            }
+
+            container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin fa-2x" style="color: #ff4757;"></i></div>';
+
+            // Fetch ad data from server for each wishlist item
+            const adIds = guestWishlist.map(item => item.id);
+
+            if (adIds.length > 0) {
+                try {
+                    const response = await fetch('/api/ads/bulk/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({ ad_ids: adIds })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success && data.ads && data.ads.length > 0) {
+                            renderAdCards(data.ads);
+                        } else {
+                            // Fallback to basic rendering if no ads returned
+                            renderBasicCards(guestWishlist);
+                        }
+                    } else {
+                        // Fallback to basic rendering if API fails
+                        renderBasicCards(guestWishlist);
+                    }
+                } catch (error) {
+                    console.error('Error fetching ads:', error);
+                    // Fallback to basic rendering
+                    renderBasicCards(guestWishlist);
+                }
+            }
+        } catch (e) {
+            console.error('Error rendering guest wishlist:', e);
+        }
+    }
+
+    function renderAdCards(ads) {
+        const container = document.getElementById('guest-wishlist-grid');
+        container.innerHTML = '';
+
+        // Create a map of current wishlist items for quick lookup
+        const guestWishlist = JSON.parse(localStorage.getItem('guestWishlist') || '[]');
+        const wishlistIds = new Set(guestWishlist.map(item => item.id));
+
+        ads.forEach(ad => {
+            // Only render if the ad is still in the wishlist
+            if (wishlistIds.has(ad.id)) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = ad.html.trim();
+                const cardElement = tempDiv.firstChild;
+
+                // Ensure wishlist button is marked as active
+                const wishlistBtn = cardElement.querySelector('.ad-wishlist-btn');
+                if (wishlistBtn) {
+                    wishlistBtn.classList.add('active');
+                    const icon = wishlistBtn.querySelector('i');
+                    if (icon) {
+                        icon.classList.remove('far');
+                        icon.classList.add('fas');
+                    }
+                }
+
+                container.appendChild(cardElement);
+            }
+        });
+
+        // If no cards were rendered, show empty state
+        if (container.children.length === 0) {
+            const emptyState = document.getElementById('guest-wishlist-empty');
+            const filterBar = document.getElementById('guest-wishlist-filter-bar');
+            if (emptyState) emptyState.style.display = 'block';
+            if (filterBar) filterBar.style.display = 'none';
+            container.style.display = 'none';
+        }
+    }
+
+    function renderBasicCards(guestWishlist) {
+        const container = document.getElementById('guest-wishlist-grid');
+        container.innerHTML = '';
+
+        guestWishlist.forEach(function(item) {
+            const cardHTML = `
+                <article class="modern-ad-card">
+                    <div class="ad-image-container">
+                        <a href="/classifieds/${item.id}/" class="ad-image-link">
+                            <img src="${item.image || "{% static 'images/placeholder-ad.jpg' %}"}"
+                                 class="ad-image"
+                                 alt="${escapeHtml(item.title || '')}"
+                                 loading="lazy">
+                        </a>
+
+                        <div class="ad-info-overlay">
+                            <div class="ad-stats-container">
+                                <span class="ad-stat-item">
+                                    <i class="fas fa-eye"></i>
+                                    <span>-</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="ad-wishlist-btn-container">
+                            <button class="ad-wishlist-btn active wishlist-btn-card"
+                                    data-ad-id="${item.id}"
+                                    data-ad-title="${escapeHtml(item.title || '')}"
+                                    data-ad-image="${escapeHtml(item.image || '')}"
+                                    onclick="toggleWishlistCard(${item.id}, this)"
+                                    title="{% trans 'إزالة من المفضلة' %}">
+                                <i class="fas fa-heart"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="ad-content">
+                        <h3 class="ad-title">
+                            <a href="/classifieds/${item.id}/" title="${escapeHtml(item.title || '')}">
+                                ${truncateText(item.title || '', 50)}
+                            </a>
+                        </h3>
+
+                        <div class="ad-footer">
+                            <div class="ad-location">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <span>{% trans "غير محدد" %}</span>
+                            </div>
+
+                            <a href="/classifieds/${item.id}/" class="ad-view-btn">
+                                {% trans "عرض التفاصيل" %}
+                                <i class="fas fa-arrow-left"></i>
+                            </a>
+                        </div>
+                    </div>
+                </article>
+            `;
+
+            container.insertAdjacentHTML('beforeend', cardHTML);
+        });
+    }
+
+    function clearGuestWishlist() {
+        if (confirm('{% trans "هل أنت متأكد من حذف جميع العناصر من المفضلة؟" %}')) {
+            localStorage.removeItem('guestWishlist');
+            loadGuestWishlist();
+
+            // Update wishlist count in header
+            if (typeof updateHeaderWishlistCount === 'function') {
+                updateHeaderWishlistCount(0);
+            }
+
+            showNotification('{% trans "تم مسح المفضلة بنجاح" %}', 'success');
+        }
+    }
+
+    function truncateText(text, maxLength) {
+        if (text.length <= maxLength) return text;
+        return text.substr(0, maxLength) + '...';
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function showNotification(message, type = 'info') {
+        // Check if global function exists
+        if (typeof showWishlistNotificationGlobal === 'function') {
+            showWishlistNotificationGlobal(message, type);
+            return;
+        }
+
+        // Fallback notification
+        const notificationColors = {
+            success: '#27ae60',
+            error: '#e74c3c',
+            info: '#3498db'
+        };
+
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${notificationColors[type]};
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            z-index: 10000;
+            animation: slideIn 0.3s ease;
+        `;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    // Reload wishlist when items are added/removed from other pages
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'guestWishlist') {
+            loadGuestWishlist();
+        }
+    });
+    {% endif %}
+</script>
+
+<style>
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+</style>
+{% endblock %}

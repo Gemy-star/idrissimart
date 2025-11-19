@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% load static i18n %}
+
+{% block title %}
+    {% trans "الإعلانات المبوبة" %}
+
+{% endblock title %}
+
+{% block content %}
+    <section class="page-hero">
+        <div class="container">
+            <div class="hero-content-center">
+                <h1 class="page-title">{% trans "الإعلانات المبوبة" %}</h1>
+                <p class="page-subtitle">{% trans "تصفح أحدث الإعلانات في جميع الأقسام" %}</p>
+            </div>
+        </div>
+    </section>
+    <!-- Save Search Modal -->
+    <div class="modal fade"
+         id="saveSearchModal"
+         tabindex="-1"
+         aria-labelledby="saveSearchModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="saveSearchModalLabel">{% trans "حفظ البحث الحالي" %}</h5>
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="saveSearchForm">
+                        <div class="mb-3">
+                            <label for="searchNameInput" class="form-label">{% trans "أدخل اسمًا لهذا البحث:" %}</label>
+                            <input type="text" class="form-control" id="searchNameInput" required>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-custom btn-primary-custom">{% trans "حفظ" %}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+<section class="ad-listing-section py-5">
+    <div class="container">
+        <div class="row">
+            <!-- Filters Sidebar -->
+            <div class="col-lg-3">
+                <div class="filters-sidebar p-4 rounded shadow-sm" style="background-color: var(--bg-secondary)">
+                    <h4 class="mb-4">تصفية النتائج</h4>
+                    <form method="get">
+                        <!-- Search by Name -->
+                        <div class="mb-3">
+                            <label for="id_title" class="form-label"></label>
+
+                        </div>
+                        <!-- Filter by Category -->
+                        <div class="mb-3">
+                            <label for="id_category" class="form-label">القسم</label>
+                            <select name="category" id="id_category">
+  <option value="" selected="">---------</option>
+
+  <option value="1">Classified Ads</option>
+
+  <option value="2">Used</option>
+
+  <option value="3">Equipment Rental</option>
+
+  <option value="4">Maintenance and Calibration</option>
+
+  <option value="5">Books and Programs</option>
+
+</select>
+                        </div>
+                        <!-- Filter by City -->
+                        <div class="mb-3">
+                            <label for="id_city" class="form-label">المدينة</label>
+                            <input type="text" name="city" id="id_city">
+                        </div>
+                        <!-- Filter by Brand -->
+                        <div class="mb-3">
+                            <label for="id_brand" class="form-label">الماركة</label>
+                            <input type="text" name="brand" id="id_brand">
+                        </div>
+                        <!-- Filter by Condition -->
+                        <div class="mb-3">
+                            <label for="id_condition" class="form-label">الحالة</label>
+                            <select name="condition" id="id_condition">
+  <option value="" selected="">---------</option>
+
+  <option value="new">جديد</option>
+
+  <option value="used_excellent">مستعمل - ممتاز</option>
+
+  <option value="used_good">مستعمل - جيد</option>
+
+  <option value="used_fair">مستعمل - مقبول</option>
+
+</select>
+                        </div>
+                        <!-- Filter by Price -->
+                        <div class="mb-3">
+                            <label class="form-label"></label>
+                            <div class="d-flex gap-2">
+
+
+                            </div>
+                        </div>
+                        <!-- Sort By -->
+                        <div class="mb-3">
+                            <label for="id_order_by" class="form-label">ترتيب حسب</label>
+                            <select name="order_by" id="id_order_by">
+  <option value="" selected="">---------</option>
+
+  <option value="newest">Newest</option>
+
+  <option value="-newest">Newest (تنازلي)</option>
+
+  <option value="oldest">Oldest</option>
+
+  <option value="-oldest">Oldest (تنازلي)</option>
+
+  <option value="price_low">Price low</option>
+
+  <option value="-price_low">Price low (تنازلي)</option>
+
+  <option value="price_high">Price high</option>
+
+  <option value="-price_high">Price high (تنازلي)</option>
+
+  <option value="most_viewed">Most viewed</option>
+
+  <option value="-most_viewed">Most viewed (تنازلي)</option>
+
+  <option value="least_viewed">Least viewed</option>
+
+  <option value="-least_viewed">Least viewed (تنازلي)</option>
+
+  <option value="title_asc">Title asc</option>
+
+  <option value="-title_asc">Title asc (تنازلي)</option>
+
+  <option value="title_desc">Title desc</option>
+
+  <option value="-title_desc">Title desc (تنازلي)</option>
+
+  <option value="featured_first">Featured first</option>
+
+  <option value="-featured_first">Featured first (تنازلي)</option>
+
+</select>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-custom btn-primary-custom mb-2">تطبيق الفلتر</button>
+
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <!-- Ads Grid -->
+            <div class="col-lg-9">
+                <div class="row g-4">
+                    {% for ad in ads %}
+                        <div class="col-md-6 col-lg-4">
+                            {% include "partials/_ad_card_component.html" with ad=ad %}
+
+                        </div>
+                    {% empty %}
+                        <div class="col-12">
+                            <div class="alert alert-info text-center">{% trans "لا توجد إعلانات تطابق معايير البحث." %}</div>
+                        </div>
+                    {% endfor %}
+                </div>
+                <!-- Pagination -->
+                {% if is_paginated %}
+                    <nav aria-label="Page navigation" class="mt-5">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link"
+                                       href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode }}">{% trans "السابق" %}</a>
+                                </li>
+                            {% endif %}
+                            {% for num in paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}&{{ request.GET.urlencode }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link"
+                                       href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode }}">{% trans "التالي" %}</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock content %}
+
+{% block extra_js %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const saveSearchForm = document.getElementById('saveSearchForm');
+            if (saveSearchForm) {
+                saveSearchForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const searchNameInput = document.getElementById('searchNameInput');
+                    const searchName = searchNameInput.value.trim();
+
+                    if (!searchName) return;
+
+                    const queryParams = window.location.search.substring(1);
+                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+                    fetch("{% url 'main:save_search' %}", {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                                'X-CSRFToken': csrfToken
+                            },
+                            body: new URLSearchParams({
+                                'name': searchName,
+                                'query_params': queryParams
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            window.showNotification(data.message, data.success ? 'success' : 'error');
+                            if (data.success) {
+                                const modal = bootstrap.Modal.getInstance(document.getElementById('saveSearchModal'));
+                                if (modal) modal.hide();
+                                searchNameInput.value = '';
+                            }
+                        })
+                        .catch(error => console.error('Error:', error));
+                });
+            }
+        });
+    </script>
+
+{% endblock extra_js %}
