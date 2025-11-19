@@ -461,6 +461,103 @@
 
 {% block admin_extra_js %}
     <script>
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    initializeTabs();
+    populateFormValues();
+    loadConstanceSettings();
+});
+
+// Initialize Bootstrap Tabs
+function initializeTabs() {
+    const triggerTabList = document.querySelectorAll('#settings-nav-tab button[data-bs-toggle="tab"]');
+    triggerTabList.forEach(triggerEl => {
+        const tabTrigger = new bootstrap.Tab(triggerEl);
+
+        triggerEl.addEventListener('click', event => {
+            event.preventDefault();
+            tabTrigger.show();
+        });
+    });
+}
+
+// Populate form values from context
+function populateFormValues() {
+    const settings = {{ system_settings|safe }};
+
+    // Publishing mode
+    if (settings.publishing_mode === 'direct') {
+        document.getElementById('directPublish').checked = true;
+    } else {
+        document.getElementById('reviewPublish').checked = true;
+    }
+
+    // Checkboxes
+    const checkboxFields = {
+        'verified_auto_publish': 'verifiedAutoPublish',
+        'allow_guest_viewing': 'allowGuestViewing',
+        'allow_guest_contact': 'allowGuestContact',
+        'members_only_contact': 'membersOnlyContact',
+        'members_only_messaging': 'membersOnlyMessaging',
+        'delivery_service_enabled': 'deliveryServiceEnabled',
+        'delivery_requires_approval': 'deliveryRequiresApproval',
+        'cart_system_enabled': 'cartSystemEnabled',
+        'cart_by_main_category': 'cartByMainCategory',
+        'cart_by_subcategory': 'cartBySubcategory',
+        'cart_per_ad': 'cartPerAd',
+        'notify_admin_new_ads': 'notifyAdminNewAds',
+        'notify_admin_pending_review': 'notifyAdminPendingReview',
+        'notify_admin_new_users': 'notifyAdminNewUsers',
+        'notify_admin_payments': 'notifyAdminPayments'
+    };
+
+    for (const [key, elementId] of Object.entries(checkboxFields)) {
+        const element = document.getElementById(elementId);
+        if (element && settings[key] !== undefined) {
+            element.checked = settings[key];
+        }
+    }
+
+    // Number fields
+    const numberFields = {
+        'default_reservation_percentage': 'defaultReservationPercentage',
+        'min_reservation_amount': 'minReservationAmount',
+        'max_reservation_amount': 'maxReservationAmount',
+        'delivery_fee_percentage': 'deliveryFeePercentage',
+        'delivery_fee_min': 'deliveryFeeMin',
+        'delivery_fee_max': 'deliveryFeeMax'
+    };
+
+    for (const [key, elementId] of Object.entries(numberFields)) {
+        const element = document.getElementById(elementId);
+        if (element && settings[key] !== undefined) {
+            element.value = settings[key];
+        }
+    }
+
+    // Text fields
+    if (settings.admin_notification_email) {
+        const emailField = document.getElementById('adminNotificationEmail');
+        if (emailField) emailField.value = settings.admin_notification_email;
+    }
+
+    if (settings.site_name_in_emails) {
+        const siteNameField = document.getElementById('siteNameInEmails');
+        if (siteNameField) siteNameField.value = settings.site_name_in_emails;
+    }
+
+    // Select fields
+    if (settings.ads_notification_frequency) {
+        const freqField = document.getElementById('adsNotificationFrequency');
+        if (freqField) freqField.value = settings.ads_notification_frequency;
+    }
+
+    if (settings.stats_report_frequency) {
+        const statsField = document.getElementById('statsReportFrequency');
+        if (statsField) statsField.value = settings.stats_report_frequency;
+    }
+}
+
 // Constance settings
 function loadConstanceSettings() {
     fetch('{% url "main:admin_settings_constance_get" %}', {
