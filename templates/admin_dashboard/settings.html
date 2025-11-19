@@ -458,6 +458,7 @@
                     </div>
                 </div>
 
+
     <!-- Hidden JSON data for JavaScript -->
     {{ system_settings|json_script:"system-settings-data" }}
 {% endblock %}
@@ -466,42 +467,76 @@
     <script>
 // Initialize page
 document.addEventListener('DOMContentLoaded', function() {
-    initializeTabs();
-    populateFormValues();
-    loadConstanceSettings();
-});
-
-// Initialize Bootstrap Tabs
-function initializeTabs() {
+    // Initialize Bootstrap Tabs
     const triggerTabList = document.querySelectorAll('#settings-nav-tab button[data-bs-toggle="tab"]');
     triggerTabList.forEach(triggerEl => {
         const tabTrigger = new bootstrap.Tab(triggerEl);
-
         triggerEl.addEventListener('click', event => {
             event.preventDefault();
             tabTrigger.show();
         });
     });
+
+    // Load current settings
+    loadSystemSettings();
+
+    // Form submissions
+    const publishingForm = document.getElementById('publishingSettingsForm');
+    const deliveryForm = document.getElementById('deliverySettingsForm');
+    const cartForm = document.getElementById('cartSettingsForm');
+    const notificationsForm = document.getElementById('notificationsSettingsForm');
+
+    if (publishingForm) publishingForm.addEventListener('submit', savePublishingSettings);
+    if (deliveryForm) deliveryForm.addEventListener('submit', saveDeliverySettings);
+    if (cartForm) cartForm.addEventListener('submit', saveCartSettings);
+    if (notificationsForm) notificationsForm.addEventListener('submit', saveNotificationSettings);
+
+    // Load Constance when tab is clicked the first time
+    const constanceTab = document.getElementById('constance-tab');
+    let constanceLoaded = false;
+    if (constanceTab) {
+        constanceTab.addEventListener('shown.bs.tab', function () {
+            if (!constanceLoaded) {
+                loadConstanceSettings();
+                constanceLoaded = true;
+            }
+        });
+    }
+});
+
+function loadSystemSettings() {
+    fetch('{% url "main:admin_settings_get" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Settings data:', data);
+        if (data.success) {
+            populateSettingsForms(data.settings);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading settings:', error);
+    });
 }
 
-// Populate form values from context
-function populateFormValues() {
-    const settingsJson = document.getElementById('system-settings-data');
-    if (!settingsJson) {
-        console.error('System settings data not found');
-        return;
-    }
-    const settings = JSON.parse(settingsJson.textContent);
+function populateSettingsForms(settings) {
+    console.log('Populating forms with:', settings);
 
-    // Publishing mode
-    if (settings.publishing_mode === 'direct') {
-        document.getElementById('directPublish').checked = true;
-    } else {
-        document.getElementById('reviewPublish').checked = true;
+    // Publishing mode radio buttons
+    if (settings.publishing_mode) {
+        const radio = document.querySelector(`input[name="publishing_mode"][value="${settings.publishing_mode}"]`);
+        if (radio) {
+            radio.checked = true;
+            console.log('Set publishing mode to:', settings.publishing_mode);
+        }
     }
 
     // Checkboxes
-    const checkboxFields = {
+    const checkboxes = {
         'verified_auto_publish': 'verifiedAutoPublish',
         'allow_guest_viewing': 'allowGuestViewing',
         'allow_guest_contact': 'allowGuestContact',
@@ -519,10 +554,13 @@ function populateFormValues() {
         'notify_admin_payments': 'notifyAdminPayments'
     };
 
-    for (const [key, elementId] of Object.entries(checkboxFields)) {
-        const element = document.getElementById(elementId);
-        if (element && settings[key] !== undefined) {
-            element.checked = settings[key];
+    for (const [key, elementId] of Object.entries(checkboxes)) {
+        if (settings[key] !== undefined) {
+            const checkbox = document.getElementById(elementId);
+            if (checkbox) {
+                checkbox.checked = settings[key];
+                console.log(`Set ${elementId} to:`, settings[key]);
+            }
         }
     }
 
@@ -537,9 +575,11 @@ function populateFormValues() {
     };
 
     for (const [key, elementId] of Object.entries(numberFields)) {
-        const element = document.getElementById(elementId);
-        if (element && settings[key] !== undefined) {
-            element.value = settings[key];
+        if (settings[key] !== undefined) {
+            const field = document.getElementById(elementId);
+            if (field) {
+                field.value = settings[key];
+            }
         }
     }
 
@@ -560,10 +600,95 @@ function populateFormValues() {
         if (freqField) freqField.value = settings.ads_notification_frequency;
     }
 
-    if (settings.stats_report_frequency) {
-        const statsField = document.getElementById('statsReportFrequency');
-        if (statsField) statsField.value = settings.stats_report_frequency;
+    if (settings.payment_notification_frequency) {
+        const paymentFreqField = document.getElementById('paymentNotificationFrequency');
+        if (paymentFreqField) paymentFreqField.value = settings.payment_notification_frequency;
     }
+
+    console.log('Form population complete');
+}
+
+function savePublishingSettings(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+
+    fetch('/admin/settings/publishing/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess('تم حفظ إعدادات النشر بنجاح');
+        } else {
+            showError('فشل في حفظ الإعدادات');
+        }
+    });
+}
+
+function saveDeliverySettings(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+
+    fetch('/admin/settings/delivery/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')\n        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess('تم حفظ إعدادات التوصيل بنجاح');
+        } else {
+            showError('فشل في حفظ الإعدادات');
+        }
+    });
+}
+
+function saveCartSettings(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+
+    fetch('/admin/settings/cart/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess('تم حفظ إعدادات السلة بنجاح');
+        } else {
+            showError('فشل في حفظ الإعدادات');
+        }
+    });
+}
+
+function saveNotificationSettings(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+
+    fetch('/admin/settings/notifications/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess('تم حفظ إعدادات الإشعارات بنجاح');
+        } else {
+            showError('فشل في حفظ الإعدادات');
+        }
+    });
 }
 
 // Constance settings
@@ -637,193 +762,6 @@ function saveConstanceSettings() {
         }
     })
 }
-// Settings Management
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Settings page loaded');
-
-    // Load current settings
-    loadSystemSettings();
-
-    // Form submissions
-    const publishingForm = document.getElementById('publishingSettingsForm');
-    const deliveryForm = document.getElementById('deliverySettingsForm');
-    const cartForm = document.getElementById('cartSettingsForm');
-    const notificationsForm = document.getElementById('notificationsSettingsForm');
-
-    if (publishingForm) publishingForm.addEventListener('submit', savePublishingSettings);
-    if (deliveryForm) deliveryForm.addEventListener('submit', saveDeliverySettings);
-    if (cartForm) cartForm.addEventListener('submit', saveCartSettings);
-    if (notificationsForm) notificationsForm.addEventListener('submit', saveNotificationSettings);
-
-    // Load Constance when tab is clicked the first time
-    const constanceTab = document.getElementById('constance-tab');
-    let constanceLoaded = false;
-    if (constanceTab) {
-        constanceTab.addEventListener('shown.bs.tab', function () {
-            if (!constanceLoaded) {
-                loadConstanceSettings();
-                constanceLoaded = true;
-            }
-        });
-    }
-});
-
-function loadSystemSettings() {
-    console.log('Loading system settings...');
-    fetch('{% url "main:admin_settings_get" %}', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken')
-        }
-    })
-    .then(response => {
-        console.log('Response received:', response);
-        return response.json();
-    })
-    .then(data => {
-        console.log('Settings data:', data);
-        if (data.success) {
-            populateSettingsForms(data.settings);
-        } else {
-            console.error('Failed to load settings:', data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error loading settings:', error);
-    });
-}
-
-function populateSettingsForms(settings) {
-    console.log('Populating forms with settings:', settings);
-
-    // Publishing settings
-    if (settings.publishing_mode) {
-        const modeRadio = document.querySelector(`[name="publishing_mode"][value="${settings.publishing_mode}"]`);
-        if (modeRadio) modeRadio.checked = true;
-    }
-    if (settings.verified_auto_publish !== undefined) {
-        const verifiedAuto = document.getElementById('verifiedAutoPublish');
-        if (verifiedAuto) verifiedAuto.checked = settings.verified_auto_publish;
-    }
-    if (settings.allow_guest_viewing !== undefined) {
-        const guestViewing = document.getElementById('allowGuestViewing');
-        if (guestViewing) guestViewing.checked = settings.allow_guest_viewing;
-    }
-    if (settings.allow_guest_contact !== undefined) {
-        const guestContact = document.getElementById('allowGuestContact');
-        if (guestContact) guestContact.checked = settings.allow_guest_contact;
-    }
-    if (settings.members_only_contact !== undefined) {
-        const membersContact = document.getElementById('membersOnlyContact');
-        if (membersContact) membersContact.checked = settings.members_only_contact;
-    }
-    if (settings.members_only_messaging !== undefined) {
-        const membersMessaging = document.getElementById('membersOnlyMessaging');
-        if (membersMessaging) membersMessaging.checked = settings.members_only_messaging;
-    }
-
-    // Delivery settings
-    if (settings.delivery_service_enabled !== undefined) {
-        const deliveryEnabled = document.getElementById('deliveryServiceEnabled');
-        if (deliveryEnabled) deliveryEnabled.checked = settings.delivery_service_enabled;
-    }
-    if (settings.delivery_requires_approval !== undefined) {
-        const deliveryApproval = document.getElementById('deliveryRequiresApproval');
-        if (deliveryApproval) deliveryApproval.checked = settings.delivery_requires_approval;
-    }
-
-    // Cart settings
-    if (settings.cart_system_enabled !== undefined) {
-        const cartEnabled = document.getElementById('cartSystemEnabled');
-        if (cartEnabled) cartEnabled.checked = settings.cart_system_enabled;
-    }
-
-    console.log('Forms populated successfully');
-}
-
-function savePublishingSettings(e) {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-
-    fetch('/admin/settings/publishing/', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken')
-        },
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showSuccess('تم حفظ إعدادات النشر بنجاح');
-        } else {
-            showError('فشل في حفظ الإعدادات');
-        }
-    });
-}
-
-function saveDeliverySettings(e) {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-
-    fetch('/admin/settings/delivery/', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken')
-        },
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showSuccess('تم حفظ إعدادات التوصيل بنجاح');
-        } else {
-            showError('فشل في حفظ الإعدادات');
-        }
-    });
-}
-
-function saveCartSettings(e) {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-
-    fetch('/admin/settings/cart/', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken')
-        },
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showSuccess('تم حفظ إعدادات السلة بنجاح');
-        } else {
-            showError('فشل في حفظ الإعدادات');
-        }
-    });
-}
-
-function saveNotificationSettings(e) {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-
-    fetch('/admin/settings/notifications/', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken')
-        },
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showSuccess('تم حفظ إعدادات الإشعارات بنجاح');
-        } else {
-            showError('فشل في حفظ الإعدادات');
-        }
-    });
-}
 
 // Category settings for cart
 function addCategorySetting() {
@@ -835,7 +773,6 @@ function addCategorySetting() {
             <div class="col-md-4">
                 <select class="form-select" name="category_id[]">
                     <option value="">اختر قسم</option>
-                    <!-- Categories will be loaded here -->
                 </select>
             </div>
             <div class="col-md-2">
@@ -879,12 +816,12 @@ function getCookie(name) {
 
 function showSuccess(message) {
     console.log('Success:', message);
-    // Implement toast notification
+    // TODO: Implement toast notification
 }
 
 function showError(message) {
     console.log('Error:', message);
-    // Implement toast notification
+    // TODO: Implement toast notification
 }
-        </script>
+    </script>
 {% endblock admin_extra_js %}
