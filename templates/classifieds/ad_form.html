@@ -12,6 +12,327 @@
 
 {% endblock title %}
 
+{% block extra_css %}
+<style>
+    :root {
+        --step-active-color: var(--primary-color, #6b4c7a);
+        --step-complete-color: var(--primary-color, #4b315e);
+        --step-inactive-color: #e0e0e0;
+    }
+
+    /* Steps Progress Bar */
+    .steps-container {
+        margin-bottom: 40px;
+        padding: 30px 20px;
+        background: var(--bg-primary, #ffffff);
+        border-radius: 16px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme='dark'] .steps-container {
+        background: var(--card-bg, #2d3748);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    .steps-progress {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .steps-progress::before {
+        content: '';
+        position: absolute;
+        top: 25px;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: var(--step-inactive-color);
+        z-index: 0;
+    }
+
+    .steps-progress::after {
+        content: '';
+        position: absolute;
+        top: 25px;
+        left: 0;
+        height: 3px;
+        background: var(--step-complete-color);
+        z-index: 0;
+        transition: width 0.4s ease;
+        width: 0%;
+    }
+
+    .steps-progress[data-progress="1"]::after { width: 0%; }
+    .steps-progress[data-progress="2"]::after { width: 25%; }
+    .steps-progress[data-progress="3"]::after { width: 50%; }
+    .steps-progress[data-progress="4"]::after { width: 75%; }
+    .steps-progress[data-progress="5"]::after { width: 100%; }
+
+    .step-item {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+        flex: 1;
+    }
+
+    .step-circle {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: var(--step-inactive-color);
+        border: 3px solid var(--step-inactive-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 10px;
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: #ffffff;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .step-item.active .step-circle {
+        background: var(--step-active-color);
+        border-color: var(--step-active-color);
+        box-shadow: 0 0 0 4px rgba(107, 76, 122, 0.2);
+        transform: scale(1.1);
+    }
+
+    .step-item.completed .step-circle {
+        background: var(--step-complete-color);
+        border-color: var(--step-complete-color);
+    }
+
+    .step-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-muted, #6c757d);
+        transition: color 0.3s ease;
+    }
+
+    [data-theme='dark'] .step-label {
+        color: var(--text-muted, #cbd5e0);
+    }
+
+    .step-item.active .step-label {
+        color: var(--step-active-color);
+        font-weight: 700;
+    }
+
+    .step-item.completed .step-label {
+        color: var(--step-complete-color);
+    }
+
+    /* Form Steps */
+    .form-step {
+        display: none;
+        animation: fadeInUp 0.5s ease;
+    }
+
+    .form-step.active {
+        display: block;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Navigation Buttons */
+    .step-navigation {
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+        margin-top: 30px;
+        padding-top: 30px;
+        border-top: 2px solid var(--border-color, #e0e0e0);
+    }
+
+    [data-theme='dark'] .step-navigation {
+        border-top-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-step {
+        padding: 12px 30px;
+        font-weight: 600;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        min-width: 150px;
+    }
+
+    .btn-prev {
+        background: var(--bg-secondary, #f8f9fa);
+        color: var(--text-primary, #2d3748);
+        border: 2px solid var(--border-color, #e0e0e0);
+    }
+
+    [data-theme='dark'] .btn-prev {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-primary);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-prev:hover {
+        background: var(--bg-primary, #ffffff);
+        transform: translateX(5px);
+    }
+
+    [data-theme='dark'] .btn-prev:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-next {
+        background: var(--primary-gradient, linear-gradient(135deg, #6b4c7a 0%, #4b315e 100%));
+        color: #ffffff;
+        border: none;
+        box-shadow: 0 4px 15px rgba(107, 76, 122, 0.3);
+    }
+
+    .btn-next:hover {
+        transform: translateX(-5px);
+        box-shadow: 0 6px 20px rgba(107, 76, 122, 0.4);
+    }
+
+    /* Card Styling */
+    .ad-form-card {
+        background: var(--bg-primary, #ffffff);
+        border-radius: 20px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+    }
+
+    [data-theme='dark'] .ad-form-card {
+        background: var(--card-bg, #2d3748);
+        border-color: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .step-header {
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid var(--border-color, #e0e0e0);
+    }
+
+    [data-theme='dark'] .step-header {
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .step-title {
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: var(--text-primary, #2d3748);
+        margin-bottom: 8px;
+    }
+
+    [data-theme='dark'] .step-title {
+        color: var(--text-primary);
+    }
+
+    .step-description {
+        color: var(--text-muted, #6c757d);
+        font-size: 0.95rem;
+    }
+
+    /* Image Upload Preview */
+    .image-preview-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 15px;
+        margin-top: 15px;
+    }
+
+    .image-preview-item {
+        position: relative;
+        border: 2px dashed var(--border-color, #dee2e6);
+        border-radius: 12px;
+        padding: 10px;
+        text-align: center;
+        transition: all 0.3s ease;
+        background: var(--bg-secondary, #f8f9fa);
+    }
+
+    [data-theme='dark'] .image-preview-item {
+        background: rgba(255, 255, 255, 0.03);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .image-preview-item:hover {
+        border-color: var(--primary-color);
+        background: rgba(107, 76, 122, 0.05);
+    }
+
+    .image-preview-item img {
+        max-width: 100%;
+        height: 120px;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+
+    .remove-image-btn {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: #dc3545;
+        color: white;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .image-preview-item:hover .remove-image-btn {
+        opacity: 1;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .steps-progress {
+            flex-wrap: wrap;
+        }
+
+        .step-item {
+            flex-basis: 50%;
+            margin-bottom: 20px;
+        }
+
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            font-size: 0.95rem;
+        }
+
+        .step-label {
+            font-size: 0.8rem;
+        }
+
+        .step-navigation {
+            flex-direction: column;
+        }
+
+        .btn-step {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock extra_css %}
+
 {% block content %}
     <section class="page-hero">
         <div class="container">
@@ -23,137 +344,242 @@
                         {% trans "إنشاء إعلان جديد" %}
                     {% endif %}
                 </h1>
-                <p class="page-subtitle">{% trans "املأ التفاصيل أدناه لنشر إعلانك" %}</p>
+                <p class="page-subtitle">{% trans "املأ التفاصيل خطوة بخطوة لنشر إعلانك" %}</p>
             </div>
         </div>
     </section>
+
     <section class="ad-form-section py-5">
         <div class="container">
+            <!-- Steps Progress -->
+            <div class="steps-container">
+                <div class="steps-progress" data-progress="1">
+                    <div class="step-item active" data-step="1">
+                        <div class="step-circle">1</div>
+                        <div class="step-label">{% trans "التصنيف" %}</div>
+                    </div>
+                    <div class="step-item" data-step="2">
+                        <div class="step-circle">2</div>
+                        <div class="step-label">{% trans "التفاصيل" %}</div>
+                    </div>
+                    <div class="step-item" data-step="3">
+                        <div class="step-circle">3</div>
+                        <div class="step-label">{% trans "السعر" %}</div>
+                    </div>
+                    <div class="step-item" data-step="4">
+                        <div class="step-circle">4</div>
+                        <div class="step-label">{% trans "التواصل" %}</div>
+                    </div>
+                    <div class="step-item" data-step="5">
+                        <div class="step-circle">5</div>
+                        <div class="step-label">{% trans "الصور" %}</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="row justify-content-center">
-                <div class="col-lg-8">
-                    <div class="card shadow-sm">
+                <div class="col-lg-9">
+                    <div class="card ad-form-card shadow-sm">
                         <div class="card-body p-4 p-md-5">
-                            <form method="post" enctype="multipart/form-data">
+                            <form method="post" enctype="multipart/form-data" id="adForm">
                                 {% csrf_token %}
-                                <h4 class="mb-4">{% trans "تفاصيل الإعلان الأساسية" %}</h4>
-                                <div class="mb-3">
-                                    <label for="{{ form.title.id_for_label }}" class="form-label">{{ form.title.label }}</label>
-                                    {{ form.title }}
-                                </div>
-                                <div class="mb-3">
-                                    <label for="{{ form.category.id_for_label }}" class="form-label">{{ form.category.label }}</label>
-                                    <select name="{{ form.category.name }}"
-                                            id="{{ form.category.id_for_label }}"
-                                            class="form-select"
-                                            required>
-                                        <option value="">{% trans "اختر قسم..." %}</option>
-                                        {% for category in ad_categories %}
-                                            <option value="{{ category.pk }}"
-                                                    data-custom-fields='{{ category.custom_field_schema|json_script:"id_custom_fields_data" }}'
-                                                    {% if form.category.value == category.pk %}selected{% endif %}>{{ category.name }}</option>
-                                            {% for subcat in category.subcategories.all %}
-                                                <option value="{{ subcat.pk }}"
-                                                        data-custom-fields='{{ subcat.custom_field_schema|json_script:"id_custom_fields_data" }}'
-                                                        {% if form.category.value == subcat.pk %}selected{% endif %}>-- {{ subcat.name }}</option>
+
+                                <!-- Step 1: Category Selection -->
+                                <div class="form-step active" data-step="1">
+                                    <div class="step-header">
+                                        <h3 class="step-title">{% trans "اختر التصنيف" %}</h3>
+                                        <p class="step-description">{% trans "حدد القسم المناسب لإعلانك" %}</p>
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <label for="{{ form.category.id_for_label }}" class="form-label h5">
+                                            <i class="fas fa-folder-open me-2 text-primary"></i>
+                                            {{ form.category.label }}
+                                        </label>
+                                        <select name="{{ form.category.name }}"
+                                                id="{{ form.category.id_for_label }}"
+                                                class="form-select form-select-lg"
+                                                required>
+                                            <option value="">{% trans "اختر قسم..." %}</option>
+                                            {% for category in ad_categories %}
+                                                <option value="{{ category.pk }}"
+                                                        data-custom-fields='{{ category.custom_field_schema|json_script:"id_custom_fields_data" }}'
+                                                        {% if form.category.value == category.pk %}selected{% endif %}>
+                                                    {{ category.name }}
+                                                </option>
+                                                {% for subcat in category.subcategories.all %}
+                                                    <option value="{{ subcat.pk }}"
+                                                            data-custom-fields='{{ subcat.custom_field_schema|json_script:"id_custom_fields_data" }}'
+                                                            {% if form.category.value == subcat.pk %}selected{% endif %}>
+                                                        &nbsp;&nbsp;└─ {{ subcat.name }}
+                                                    </option>
+                                                {% endfor %}
                                             {% endfor %}
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
-                                    {{ form.description }}
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label for="{{ form.price.id_for_label }}" class="form-label">{{ form.price.label }}</label>
-                                        {{ form.price }}
-                                    </div>
-                                    <div class="col-md-6 mb-3 d-flex align-items-end">
-                                        <div class="form-check">
-                                            {{ form.is_negotiable }}
-                                            <label class="form-check-label" for="{{ form.is_negotiable.id_for_label }}">{{ form.is_negotiable.label }}</label>
-                                        </div>
+                                        </select>
                                     </div>
                                 </div>
-                                <!-- Dynamic Custom Fields will be injected here -->
-                                <div id="custom-fields-container" class="row"></div>
-                                
-                                <!-- Mobile Verification Section -->
-                                <hr class="my-4">
-                                <h4 class="mb-4">{% trans "معلومات التواصل" %}</h4>
-                                <div class="mb-3">
-                                    <label for="{{ form.mobile_number.id_for_label }}" class="form-label">
-                                        {{ form.mobile_number.label }}
-                                        <span class="text-danger">*</span>
-                                    </label>
-                                    {{ form.mobile_number }}
-                                    <div class="form-text">{{ form.mobile_number.help_text }}</div>
-                                    
-                                    <!-- Mobile Verification UI -->
-                                    <div id="mobile-verification-section" class="mt-3" style="display: none;">
-                                        <div class="alert alert-warning" role="alert">
-                                            <i class="fas fa-exclamation-triangle me-2"></i>
-                                            {% trans "يجب التحقق من رقم الجوال قبل نشر الإعلان" %}
+
+                                <!-- Step 2: Basic Details -->
+                                <div class="form-step" data-step="2">
+                                    <div class="step-header">
+                                        <h3 class="step-title">{% trans "التفاصيل الأساسية" %}</h3>
+                                        <p class="step-description">{% trans "أضف عنوان ووصف مفصل لإعلانك" %}</p>
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <label for="{{ form.title.id_for_label }}" class="form-label h6">
+                                            <i class="fas fa-heading me-2 text-primary"></i>
+                                            {{ form.title.label }}
+                                        </label>
+                                        {{ form.title }}
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <label for="{{ form.description.id_for_label }}" class="form-label h6">
+                                            <i class="fas fa-align-left me-2 text-primary"></i>
+                                            {{ form.description.label }}
+                                        </label>
+                                        {{ form.description }}
+                                        <div class="form-text">{% trans "اكتب وصفاً واضحاً ومفصلاً عن المنتج أو الخدمة" %}</div>
+                                    </div>
+
+                                    <!-- Dynamic Custom Fields -->
+                                    <div id="custom-fields-container" class="row"></div>
+                                </div>
+
+                                <!-- Step 3: Price -->
+                                <div class="form-step" data-step="3">
+                                    <div class="step-header">
+                                        <h3 class="step-title">{% trans "السعر والمفاوضة" %}</h3>
+                                        <p class="step-description">{% trans "حدد السعر وإمكانية المفاوضة" %}</p>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-8 mb-4">
+                                            <label for="{{ form.price.id_for_label }}" class="form-label h6">
+                                                <i class="fas fa-tag me-2 text-primary"></i>
+                                                {{ form.price.label }}
+                                            </label>
+                                            {{ form.price }}
+                                            <div class="form-text">{% trans "أدخل السعر بالجنيه المصري" %}</div>
                                         </div>
-                                        
-                                        <div class="row">
-                                            <div class="col-md-8">
-                                                <button type="button" id="send-otp-btn" class="btn btn-outline-primary">
-                                                    <i class="fas fa-sms me-2"></i>
-                                                    {% trans "إرسال رمز التحقق" %}
-                                                </button>
+                                        <div class="col-md-4 mb-4 d-flex align-items-center">
+                                            <div class="form-check form-switch">
+                                                {{ form.is_negotiable }}
+                                                <label class="form-check-label h6" for="{{ form.is_negotiable.id_for_label }}">
+                                                    <i class="fas fa-handshake me-2 text-primary"></i>
+                                                    {{ form.is_negotiable.label }}
+                                                </label>
                                             </div>
                                         </div>
-                                        
-                                        <div id="otp-input-section" class="mt-3" style="display: none;">
+                                    </div>
+                                </div>
+
+                                <!-- Step 4: Contact Information -->
+                                <div class="form-step" data-step="4">
+                                    <div class="step-header">
+                                        <h3 class="step-title">{% trans "معلومات التواصل" %}</h3>
+                                        <p class="step-description">{% trans "أضف رقم جوالك للتواصل مع المشترين" %}</p>
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <label for="{{ form.mobile_number.id_for_label }}" class="form-label h6">
+                                            <i class="fas fa-phone me-2 text-primary"></i>
+                                            {{ form.mobile_number.label }}
+                                            <span class="text-danger">*</span>
+                                        </label>
+                                        {{ form.mobile_number }}
+                                        <div class="form-text">{{ form.mobile_number.help_text }}</div>
+
+                                        <!-- Mobile Verification UI -->
+                                        <div id="mobile-verification-section" class="mt-3" style="display: none;">
+                                            <div class="alert alert-warning" role="alert">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                                {% trans "يجب التحقق من رقم الجوال قبل نشر الإعلان" %}
+                                            </div>
+
                                             <div class="row">
-                                                <div class="col-md-6">
-                                                    <label for="verification_code" class="form-label">{% trans "رمز التحقق" %}</label>
-                                                    <input type="text" id="verification_code" class="form-control" 
-                                                           placeholder="{% trans 'أدخل الرمز المرسل' %}" maxlength="6">
-                                                </div>
-                                                <div class="col-md-6 d-flex align-items-end">
-                                                    <button type="button" id="verify-otp-btn" class="btn btn-success">
-                                                        <i class="fas fa-check me-2"></i>
-                                                        {% trans "تحقق" %}
+                                                <div class="col-md-8">
+                                                    <button type="button" id="send-otp-btn" class="btn btn-outline-primary">
+                                                        <i class="fas fa-sms me-2"></i>
+                                                        {% trans "إرسال رمز التحقق" %}
                                                     </button>
                                                 </div>
                                             </div>
-                                            <div class="form-text">{% trans "سيتم إرسال رمز التحقق خلال دقائق قليلة" %}</div>
-                                        </div>
-                                        
-                                        <div id="verification-success" class="alert alert-success mt-3" style="display: none;">
-                                            <i class="fas fa-check-circle me-2"></i>
-                                            {% trans "تم التحقق من رقم الجوال بنجاح" %}
+
+                                            <div id="otp-input-section" class="mt-3" style="display: none;">
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <label for="verification_code" class="form-label">{% trans "رمز التحقق" %}</label>
+                                                        <input type="text" id="verification_code" class="form-control"
+                                                               placeholder="{% trans 'أدخل الرمز المرسل' %}" maxlength="6">
+                                                    </div>
+                                                    <div class="col-md-6 d-flex align-items-end">
+                                                        <button type="button" id="verify-otp-btn" class="btn btn-success">
+                                                            <i class="fas fa-check me-2"></i>
+                                                            {% trans "تحقق" %}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="form-text">{% trans "سيتم إرسال رمز التحقق خلال دقائق قليلة" %}</div>
+                                            </div>
+
+                                            <div id="verification-success" class="alert alert-success mt-3" style="display: none;">
+                                                <i class="fas fa-check-circle me-2"></i>
+                                                {% trans "تم التحقق من رقم الجوال بنجاح" %}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                                
-                                <hr class="my-4">
-                                <h4 class="mb-4">{% trans "صور الإعلان" %}</h4>
-                                <p class="text-muted">{% trans "يمكنك رفع حتى 3 صور. الصورة الأولى ستكون الصورة الرئيسية." %}</p>
-                                {{ image_formset.management_form }}
-                                {% for form in image_formset %}
-                                    <div class="mb-3 border p-3 rounded">
-                                        {% if form.instance.pk and form.instance.image %}
-                                            <div class="mb-2">
-                                                <img src="{{ form.instance.image.url }}"
-                                                     alt="{% trans 'Image' %}"
-                                                     class="img-thumbnail"
-                                                     width="150">
-                                            </div>
-                                            {{ form.image }}
-                                            <div class="form-check mt-2">
-                                                {{ form.DELETE }}
-                                                <label class="form-check-label" for="{{ form.DELETE.id_for_label }}">{% trans "حذف الصورة" %}</label>
-                                            </div>
-                                        {% else %}
-                                            {{ form.image }}
-                                        {% endif %}
+
+                                <!-- Step 5: Images Upload -->
+                                <div class="form-step" data-step="5">
+                                    <div class="step-header">
+                                        <h3 class="step-title">{% trans "صور الإعلان" %}</h3>
+                                        <p class="step-description">{% trans "أضف صوراً واضحة للمنتج (حتى 5 صور)" %}</p>
                                     </div>
-                                {% endfor %}
-                                <div class="d-grid mt-4">
-                                    <button type="submit" class="btn btn-custom btn-primary-custom btn-lg">
+
+                                    <div class="mb-4">
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            {% trans "الصورة الأولى ستكون الصورة الرئيسية للإعلان" %}
+                                        </div>
+                                    </div>
+
+                                    {{ image_formset.management_form }}
+                                    <div id="images-container">
+                                        {% for form in image_formset %}
+                                            <div class="image-formset-item mb-3">
+                                                {% if form.instance.pk and form.instance.image %}
+                                                    <div class="image-preview-item">
+                                                        <img src="{{ form.instance.image.url }}" alt="{% trans 'Image' %}">
+                                                        <button type="button" class="remove-image-btn">
+                                                            <i class="fas fa-times"></i>
+                                                        </button>
+                                                        {{ form.DELETE }}
+                                                    </div>
+                                                {% endif %}
+                                                {{ form.image }}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+
+                                    <div class="image-preview-container" id="image-preview-container"></div>
+                                </div>
+
+                                <!-- Navigation Buttons -->
+                                <div class="step-navigation">
+                                    <button type="button" class="btn btn-step btn-prev" id="prevBtn" style="display: none;">
+                                        <i class="fas fa-arrow-right me-2"></i>
+                                        {% trans "السابق" %}
+                                    </button>
+                                    <div style="flex: 1;"></div>
+                                    <button type="button" class="btn btn-step btn-next" id="nextBtn">
+                                        {% trans "التالي" %}
+                                        <i class="fas fa-arrow-left ms-2"></i>
+                                    </button>
+                                    <button type="submit" class="btn btn-step btn-next" id="submitBtn" style="display: none;">
+                                        <i class="fas fa-check me-2"></i>
                                         {% if object %}
                                             {% trans "حفظ التعديلات" %}
                                         {% else %}
@@ -174,11 +600,110 @@
 {% block extra_js %}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // ========== Multi-Step Form Logic ==========
+            let currentStep = 1;
+            const totalSteps = 5;
+            const formSteps = document.querySelectorAll('.form-step');
+            const stepItems = document.querySelectorAll('.step-item');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const submitBtn = document.getElementById('submitBtn');
+            const stepsProgress = document.querySelector('.steps-progress');
+            const adForm = document.getElementById('adForm');
+
+            function showStep(step) {
+                formSteps.forEach((formStep, index) => {
+                    formStep.classList.remove('active');
+                    if (index === step - 1) {
+                        formStep.classList.add('active');
+                    }
+                });
+
+                stepItems.forEach((stepItem, index) => {
+                    stepItem.classList.remove('active', 'completed');
+                    if (index === step - 1) {
+                        stepItem.classList.add('active');
+                    } else if (index < step - 1) {
+                        stepItem.classList.add('completed');
+                        stepItem.querySelector('.step-circle').innerHTML = '<i class="fas fa-check"></i>';
+                    } else {
+                        stepItem.querySelector('.step-circle').textContent = index + 1;
+                    }
+                });
+
+                stepsProgress.setAttribute('data-progress', step);
+                prevBtn.style.display = step === 1 ? 'none' : 'block';
+                nextBtn.style.display = step === totalSteps ? 'none' : 'block';
+                submitBtn.style.display = step === totalSteps ? 'block' : 'none';
+
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
+            function validateStep(step) {
+                const currentFormStep = formSteps[step - 1];
+                const requiredInputs = currentFormStep.querySelectorAll('[required]');
+                let isValid = true;
+
+                requiredInputs.forEach(input => {
+                    if (!input.value.trim()) {
+                        isValid = false;
+                        input.classList.add('is-invalid');
+                        input.addEventListener('input', function() {
+                            this.classList.remove('is-invalid');
+                        }, { once: true });
+                    }
+                });
+
+                if (!isValid) {
+                    showToast('{% trans "يرجى ملء جميع الحقول المطلوبة" %}', 'warning');
+                }
+
+                return isValid;
+            }
+
+            function showToast(message, type = 'info') {
+                const toast = document.createElement('div');
+                toast.className = `alert alert-${type} position-fixed top-0 start-50 translate-middle-x mt-3`;
+                toast.style.zIndex = '9999';
+                toast.innerHTML = `
+                    <i class="fas fa-${type === 'warning' ? 'exclamation-triangle' : type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>
+                    ${message}
+                `;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 3000);
+            }
+
+            nextBtn.addEventListener('click', function() {
+                if (validateStep(currentStep)) {
+                    if (currentStep < totalSteps) {
+                        currentStep++;
+                        showStep(currentStep);
+                    }
+                }
+            });
+
+            prevBtn.addEventListener('click', function() {
+                if (currentStep > 1) {
+                    currentStep--;
+                    showStep(currentStep);
+                }
+            });
+
+            stepItems.forEach((item, index) => {
+                item.addEventListener('click', function() {
+                    const stepNumber = index + 1;
+                    if (stepNumber < currentStep || stepNumber === 1) {
+                        currentStep = stepNumber;
+                        showStep(currentStep);
+                    }
+                });
+            });
+
+            showStep(currentStep);
+
+            // ========== Custom Fields Logic ==========
             const categorySelect = document.getElementById('{{ form.category.id_for_label }}');
             const customFieldsContainer = document.getElementById('custom-fields-container');
-            const form = categorySelect.closest('form');
-
-            // Store initial custom field values if editing an ad
             const initialCustomValues = JSON.parse('{{ form.instance.custom_fields|json_script:"id_initial_custom_values"|safe }}');
 
             function generateFieldHtml(fieldSchema) {
@@ -201,7 +726,6 @@
                     });
                     fieldHtml += `</select>`;
                 } else if (fieldType === 'checkbox') {
-                    // For checkboxes, wrap in a form-check for proper styling
                     const isChecked = initialValue === true || initialValue === 'true' ? ' checked' : '';
                     fieldHtml = `<div class="col-md-6 mb-3 d-flex align-items-center">
                         <div class="form-check">
@@ -209,7 +733,6 @@
                             <label for="id_${fieldName}" class="form-check-label">${fieldLabel}</label>
                         </div>
                     </div>`;
-                    // Return early as the structure is different
                     return fieldHtml;
                 } else if (fieldType === 'date') {
                     const minDate = validation.min_date ? `min="${validation.min_date}"` : '';
@@ -219,7 +742,7 @@
                     const minVal = validation.min_value !== undefined ? `min="${validation.min_value}"` : '';
                     const maxVal = validation.max_value !== undefined ? `max="${validation.max_value}"` : '';
                     fieldHtml += `<input type="number" name="${fieldName}" id="id_${fieldName}" class="form-control" value="${initialValue}" ${isRequired ? 'required' : ''} ${minVal} ${maxVal}>`;
-                } else { // Default to text
+                } else {
                     fieldHtml += `<input type="text" name="${fieldName}" id="id_${fieldName}" class="form-control" value="${initialValue}" ${isRequired ? 'required' : ''}>`;
                 }
 
@@ -228,15 +751,10 @@
             }
 
             function updateCustomFields() {
-                // Clear previous fields
                 customFieldsContainer.innerHTML = '';
-
                 const selectedOption = categorySelect.options[categorySelect.selectedIndex];
-                if (!selectedOption || !selectedOption.value) {
-                    return;
-                }
+                if (!selectedOption || !selectedOption.value) return;
 
-                // The custom fields data is stored in a script tag, we need to find it
                 const schemaDataElement = document.getElementById(selectedOption.dataset.customFields);
                 if (!schemaDataElement) return;
 
@@ -252,74 +770,43 @@
                 }
             }
 
-            // Event listener for category change
             categorySelect.addEventListener('change', updateCustomFields);
-
-            // Initial call to render fields for an existing ad on page load
             if (categorySelect.value) {
                 updateCustomFields();
             }
-            
-            // Mobile Verification Functionality
-            const mobileInput = document.getElementById('mobile_number');
+
+            // ========== Mobile Verification Logic ==========
+            const mobileInput = document.getElementById('{{ form.mobile_number.id_for_label }}');
             const verificationSection = document.getElementById('mobile-verification-section');
             const sendOtpBtn = document.getElementById('send-otp-btn');
             const otpInputSection = document.getElementById('otp-input-section');
             const verifyOtpBtn = document.getElementById('verify-otp-btn');
             const verificationCodeInput = document.getElementById('verification_code');
             const verificationSuccess = document.getElementById('verification-success');
-            const submitBtn = form.querySelector('button[type="submit"]');
-            
+
             let isVerified = false;
-            
-            // Check if mobile verification is needed when mobile number changes
+
             mobileInput.addEventListener('blur', function() {
                 const mobileNumber = this.value.trim();
                 if (mobileNumber) {
-                    checkMobileVerification(mobileNumber);
+                    verificationSection.style.display = 'block';
+                    isVerified = false;
                 } else {
-                    hideVerificationSection();
+                    verificationSection.style.display = 'none';
+                    isVerified = true;
                 }
             });
-            
-            function checkMobileVerification(mobileNumber) {
-                // For now, show verification section for any mobile number
-                // In production, this would check if the number is already verified
-                verificationSection.style.display = 'block';
-                isVerified = false;
-                updateSubmitButton();
-            }
-            
-            function hideVerificationSection() {
-                verificationSection.style.display = 'none';
-                otpInputSection.style.display = 'none';
-                verificationSuccess.style.display = 'none';
-                isVerified = true;
-                updateSubmitButton();
-            }
-            
-            function updateSubmitButton() {
-                const mobileNumber = mobileInput.value.trim();
-                if (mobileNumber && !isVerified) {
-                    submitBtn.disabled = true;
-                    submitBtn.innerHTML = '<i class="fas fa-lock me-2"></i>{% trans "يجب التحقق من الجوال أولاً" %}';
-                } else {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = '{% if object %}{% trans "حفظ التعديلات" %}{% else %}{% trans "نشر الإعلان" %}{% endif %}';
-                }
-            }
-            
-            // Send OTP
+
             sendOtpBtn.addEventListener('click', function() {
                 const mobileNumber = mobileInput.value.trim();
                 if (!mobileNumber) {
-                    alert('{% trans "يرجى إدخال رقم الجوال أولاً" %}');
+                    showToast('{% trans "يرجى إدخال رقم الجوال أولاً" %}', 'warning');
                     return;
                 }
-                
+
                 this.disabled = true;
                 this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري الإرسال..." %}';
-                
+
                 fetch('{% url "main:send_mobile_verification" %}', {
                     method: 'POST',
                     headers: {
@@ -332,41 +819,39 @@
                 .then(data => {
                     this.disabled = false;
                     this.innerHTML = '<i class="fas fa-sms me-2"></i>{% trans "إرسال رمز التحقق" %}';
-                    
+
                     if (data.success) {
                         if (data.verified) {
-                            // Already verified
                             verificationSuccess.style.display = 'block';
                             verificationSection.querySelector('.alert-warning').style.display = 'none';
                             isVerified = true;
-                            updateSubmitButton();
+                            showToast('{% trans "الرقم مُحقق مسبقاً" %}', 'success');
                         } else {
-                            // Show OTP input
                             otpInputSection.style.display = 'block';
                             verificationCodeInput.focus();
+                            showToast('{% trans "تم إرسال رمز التحقق" %}', 'success');
                         }
                     } else {
-                        alert(data.message || '{% trans "حدث خطأ في إرسال رمز التحقق" %}');
+                        showToast(data.message || '{% trans "حدث خطأ في إرسال رمز التحقق" %}', 'danger');
                     }
                 })
                 .catch(error => {
                     this.disabled = false;
                     this.innerHTML = '<i class="fas fa-sms me-2"></i>{% trans "إرسال رمز التحقق" %}';
-                    alert('{% trans "حدث خطأ في الاتصال" %}');
+                    showToast('{% trans "حدث خطأ في الاتصال" %}', 'danger');
                 });
             });
-            
-            // Verify OTP
+
             verifyOtpBtn.addEventListener('click', function() {
                 const verificationCode = verificationCodeInput.value.trim();
                 if (!verificationCode) {
-                    alert('{% trans "يرجى إدخال رمز التحقق" %}');
+                    showToast('{% trans "يرجى إدخال رمز التحقق" %}', 'warning');
                     return;
                 }
-                
+
                 this.disabled = true;
                 this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري التحقق..." %}';
-                
+
                 fetch('{% url "main:verify_mobile_otp" %}', {
                     method: 'POST',
                     headers: {
@@ -379,30 +864,60 @@
                 .then(data => {
                     this.disabled = false;
                     this.innerHTML = '<i class="fas fa-check me-2"></i>{% trans "تحقق" %}';
-                    
+
                     if (data.success) {
-                        // Verification successful
                         otpInputSection.style.display = 'none';
                         verificationSuccess.style.display = 'block';
                         verificationSection.querySelector('.alert-warning').style.display = 'none';
                         isVerified = true;
-                        updateSubmitButton();
+                        showToast('{% trans "تم التحقق بنجاح!" %}', 'success');
                     } else {
-                        alert(data.message || '{% trans "رمز التحقق غير صحيح" %}');
+                        showToast(data.message || '{% trans "رمز التحقق غير صحيح" %}', 'danger');
                     }
                 })
                 .catch(error => {
                     this.disabled = false;
                     this.innerHTML = '<i class="fas fa-check me-2"></i>{% trans "تحقق" %}';
-                    alert('{% trans "حدث خطأ في التحقق" %}');
+                    showToast('{% trans "حدث خطأ في التحقق" %}', 'danger');
                 });
             });
-            
-            // Initial check
-            const initialMobile = mobileInput.value.trim();
-            if (initialMobile) {
-                checkMobileVerification(initialMobile);
-            }
+
+            // ========== Image Preview Logic ==========
+            const imageInputs = document.querySelectorAll('input[type="file"][accept*="image"]');
+            const previewContainer = document.getElementById('image-preview-container');
+
+            imageInputs.forEach((input, index) => {
+                input.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (file && file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = function(event) {
+                            const previewItem = document.createElement('div');
+                            previewItem.className = 'image-preview-item';
+                            previewItem.innerHTML = `
+                                <img src="${event.target.result}" alt="Preview ${index + 1}">
+                                <button type="button" class="remove-image-btn" onclick="this.closest('.image-preview-item').remove(); document.getElementById('${input.id}').value = '';">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                <p class="mt-2 mb-0 small text-muted">${index === 0 ? '{% trans "صورة رئيسية" %}' : '{% trans "صورة" %} ' + (index + 1)}</p>
+                            `;
+                            previewContainer.appendChild(previewItem);
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            });
+
+            // Form validation before submit
+            adForm.addEventListener('submit', function(e) {
+                const mobileNumber = mobileInput.value.trim();
+                if (mobileNumber && !isVerified) {
+                    e.preventDefault();
+                    showToast('{% trans "يجب التحقق من رقم الجوال قبل نشر الإعلان" %}', 'warning');
+                    currentStep = 4;
+                    showStep(currentStep);
+                }
+            });
         });
     </script>
 

@@ -452,12 +452,12 @@ class PackagePurchaseView(LoginRequiredMixin, View):
             # Redirect to payment gateway
             # TODO: Integrate with payment gateway
             messages.info(request, _("سيتم تحويلك إلى بوابة الدفع لإتمام عملية الشراء"))
-            return redirect("main:package_list")
+            return redirect("main:packages_list")
 
     def get(self, request, package_id):
         # Show package purchase confirmation page
         package = get_object_or_404(AdPackage, id=package_id, is_active=True)
-        return redirect("main:package_list")
+        return redirect("main:packages_list")
 
 
 class AdminDashboardView(LoginRequiredMixin, ListView):
