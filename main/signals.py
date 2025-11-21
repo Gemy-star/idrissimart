@@ -100,30 +100,31 @@ def send_ad_approval_notification(sender, instance, **kwargs):
 @receiver(post_save, sender=User)
 def assign_default_package_to_new_user(sender, instance, created, **kwargs):
     """
-    إعطاء باقة مجانية افتراضية عند تسجيل مستخدم جديد
-    Assign default free package to newly registered users
+    منح كل مستخدم جديد إعلان واحد مجاني
+    Give each new user one free ad - they must buy a package after using it
     """
     if created:
-        # Get the default package
         try:
-            default_package = AdPackage.objects.filter(
-                is_default=True, is_active=True, price=0  # Must be free
-            ).first()
+            # Create a one-time free ad package for the new user
+            # This is not based on any AdPackage - it's a standalone gift
+            from datetime import timedelta
 
-            if default_package:
-                # Create user package
-                UserPackage.objects.create(user=instance, package=default_package)
+            UserPackage.objects.create(
+                user=instance,
+                package=None,  # No associated package - this is a free gift
+                ads_remaining=1,  # Only 1 free ad
+                expiry_date=timezone.now() + timedelta(days=365),  # Valid for 1 year
+            )
 
-                # Create welcome notification
-                Notification.objects.create(
-                    user=instance,
-                    title=_("مرحباً بك في إدريسي مارت!"),
-                    message=_('تم منحك باقة "{package_name}" المجانية. يمكنك الآن نشر {ad_count} إعلانات!').format(
-                        package_name=default_package.name,
-                        ad_count=default_package.ad_count,
-                    ),
-                    notification_type=Notification.NotificationType.GENERAL,
-                )
+            # Create welcome notification
+            Notification.objects.create(
+                user=instance,
+                title=_("مرحباً بك في إدريسي مارت!"),
+                message=_(
+                    "تم منحك إعلان واحد مجاني! بعد استخدامه، يمكنك شراء باقة لنشر المزيد من الإعلانات."
+                ),
+                notification_type=Notification.NotificationType.GENERAL,
+            )
         except Exception as e:
             # Log error but don't fail user registration
-            print(f"Error assigning default package to user {instance.username}: {e}")
+            print(f"Error assigning free ad to user {instance.username}: {e}")

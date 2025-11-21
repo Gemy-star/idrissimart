@@ -41,6 +41,7 @@ from main.models import (
     ClassifiedAd,
     ContactInfo,
     AdPackage,
+    UserPackage,
     CartSettings,
     User,
     CustomField,
@@ -1513,6 +1514,24 @@ def get_category_stats(request):
 @login_required
 def enhanced_ad_create_view(request):
     """Simple enhanced ad creation view"""
+
+    # Check if user has an active package with remaining ads
+    has_quota = (
+        UserPackage.objects.filter(
+            user=request.user,
+            expiry_date__gte=timezone.now(),
+            ads_remaining__gt=0,
+        )
+        .order_by("expiry_date")
+        .exists()
+    )
+
+    if not has_quota:
+        messages.error(
+            request,
+            _("لقد استنفدت إعلانك المجاني! يرجى شراء باقة للاستمرار في نشر الإعلانات."),
+        )
+        return redirect("main:packages_list")
 
     if request.method == "POST":
         # استخدام النموذج المبسط

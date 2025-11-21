@@ -92,7 +92,7 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             messages.error(
                 request,
                 _(
-                    "لقد استنفدت رصيدك من الإعلانات أو لا تملك باقة نشطة. يرجى اختيار باقة."
+                    "لقد استنفدت إعلانك المجاني! يرجى شراء باقة للاستمرار في نشر الإعلانات."
                 ),
             )
             return redirect("main:packages_list")
