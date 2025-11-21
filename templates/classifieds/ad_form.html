@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% load static i18n %}
+{% load static i18n idrissimart_tags %}
 
 {% block title %}
     {% if object %}
@@ -573,14 +573,14 @@
                                             {% for category in ad_categories %}
                                                 <option value="{{ category.pk }}"
                                                         data-has-subcats="{{ category.subcategories.all|length|default:0 }}"
-                                                        data-custom-fields="{{ category.custom_field_schema|safe }}">
+                                                        data-custom-fields="{{ category.custom_field_schema|to_json }}">
                                                     {% if LANGUAGE_CODE == 'ar' and category.name_ar %}{{ category.name_ar }}{% else %}{{ category.name }}{% endif %}
                                                 </option>
                                             {% endfor %}
                                         </select>
                                     </div>
 
-                                    <!-- Subcategory Selection (shown only if main category has subcategories) -->
+                                    <!-- Subcategory Selection (Level 2) -->
                                     <div class="mb-4" id="subcategoryContainer" style="display: none;">
                                         <label for="subcategorySelect" class="form-label h5">
                                             <i class="fas fa-folder me-2 text-primary"></i>
@@ -588,6 +588,17 @@
                                         </label>
                                         <select id="subcategorySelect" class="form-select form-select-lg">
                                             <option value="">{% trans "اختر قسم فرعي..." %}</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Sub-Subcategory Selection (Level 3) -->
+                                    <div class="mb-4" id="subSubcategoryContainer" style="display: none;">
+                                        <label for="subSubcategorySelect" class="form-label h5">
+                                            <i class="fas fa-folder me-2 text-primary"></i>
+                                            {% trans "القسم الفرعي الثاني" %}
+                                        </label>
+                                        <select id="subSubcategorySelect" class="form-select form-select-lg">
+                                            <option value="">{% trans "اختر قسم فرعي ثاني..." %}</option>
                                         </select>
                                     </div>
 
@@ -834,6 +845,8 @@
                     const mainCatValue = mainCategorySelect.value;
                     const subcatContainer = subcategoryContainer;
                     const subcatValue = subcategorySelect.value;
+                    const subSubcatContainer = subSubcategoryContainer;
+                    const subSubcatValue = subSubcategorySelect.value;
 
                     // Check if main category is selected
                     if (!mainCatValue) {
@@ -849,6 +862,13 @@
                         return false;
                     }
 
+                    // Check if sub-subcategory is required and selected
+                    if (subSubcatContainer.style.display !== 'none' && !subSubcatValue) {
+                        subSubcategorySelect.classList.add('is-invalid');
+                        showToast('{% trans "يرجى اختيار القسم الفرعي الثاني" %}', 'warning');
+                        return false;
+                    }
+
                     // Check if hidden category input has value
                     if (!hiddenCategoryInput.value) {
                         showToast('{% trans "يرجى اختيار القسم" %}', 'warning');
@@ -857,14 +877,15 @@
 
                     mainCategorySelect.classList.remove('is-invalid');
                     subcategorySelect.classList.remove('is-invalid');
+                    subSubcategorySelect.classList.remove('is-invalid');
                 }
 
                 const requiredInputs = currentFormStep.querySelectorAll('[required]');
                 let isValid = true;
 
                 requiredInputs.forEach(input => {
-                    // Skip the mainCategorySelect and subcategorySelect as they're handled above
-                    if (input.id === 'mainCategorySelect' || input.id === 'subcategorySelect') {
+                    // Skip the category selects as they're handled above
+                    if (input.id === 'mainCategorySelect' || input.id === 'subcategorySelect' || input.id === 'subSubcategorySelect') {
                         return;
                     }
 
@@ -947,13 +968,15 @@
 
             showStep(currentStep);
 
-            // ========== Category & Subcategory Logic ==========
+            // ========== Category & Subcategory Logic (Hierarchical) ==========
             const mainCategorySelect = document.getElementById('mainCategorySelect');
             const subcategorySelect = document.getElementById('subcategorySelect');
+            const subSubcategorySelect = document.getElementById('subSubcategorySelect');
             const subcategoryContainer = document.getElementById('subcategoryContainer');
+            const subSubcategoryContainer = document.getElementById('subSubcategoryContainer');
             const hiddenCategoryInput = document.getElementById('{{ form.category.id_for_label }}');
 
-            // Subcategories data structure
+            // Hierarchical categories data structure (level 1 → level 2 → level 3)
             const subcategoriesData = {
                 {% for category in ad_categories %}
                     {{ category.pk }}: [
@@ -961,7 +984,17 @@
                             {
                                 id: {{ subcat.pk }},
                                 name: "{% if LANGUAGE_CODE == 'ar' and subcat.name_ar %}{{ subcat.name_ar }}{% else %}{{ subcat.name }}{% endif %}",
-                                customFields: {{ subcat.custom_field_schema|safe }}
+                                customFields: {{ subcat.custom_field_schema|to_json }},
+                                hasSubcats: {{ subcat.subcategories.all|length|default:0 }},
+                                subcategories: [
+                                    {% for subsubcat in subcat.subcategories.all %}
+                                        {
+                                            id: {{ subsubcat.pk }},
+                                            name: "{% if LANGUAGE_CODE == 'ar' and subsubcat.name_ar %}{{ subsubcat.name_ar }}{% else %}{{ subsubcat.name }}{% endif %}",
+                                            customFields: {{ subsubcat.custom_field_schema|to_json }}
+                                        }{% if not forloop.last %},{% endif %}
+                                    {% endfor %}
+                                ]
                             }{% if not forloop.last %},{% endif %}
                         {% endfor %}
                     ]{% if not forloop.last %},{% endif %}
@@ -977,13 +1010,19 @@
                 this.classList.remove('is-invalid');
             });
 
-            // Handle main category change
+            subSubcategorySelect.addEventListener('change', function() {
+                this.classList.remove('is-invalid');
+            });
+
+            // Handle main category change (Level 1)
             mainCategorySelect.addEventListener('change', function() {
                 const selectedCategoryId = this.value;
                 const hasSubcats = this.options[this.selectedIndex]?.dataset.hasSubcats > 0;
 
-                // Clear subcategory select
+                // Clear subcategory and sub-subcategory selects
                 subcategorySelect.innerHTML = '<option value="">{% trans "اختر قسم فرعي..." %}</option>';
+                subSubcategorySelect.innerHTML = '<option value="">{% trans "اختر قسم فرعي ثاني..." %}</option>';
+                subSubcategoryContainer.style.display = 'none';
 
                 if (selectedCategoryId && hasSubcats && subcategoriesData[selectedCategoryId]) {
                     // Show subcategory container
@@ -995,6 +1034,7 @@
                         option.value = subcat.id;
                         option.textContent = subcat.name;
                         option.dataset.customFields = JSON.stringify(subcat.customFields);
+                        option.dataset.hasSubcats = subcat.hasSubcats;
                         subcategorySelect.appendChild(option);
                     });
 
@@ -1014,13 +1054,55 @@
                 }
             });
 
-            // Handle subcategory change
+            // Handle subcategory change (Level 2)
             subcategorySelect.addEventListener('change', function() {
                 const selectedSubcatId = this.value;
+                const mainCategoryId = mainCategorySelect.value;
 
-                if (selectedSubcatId) {
-                    // Set the hidden input to subcategory
-                    hiddenCategoryInput.value = selectedSubcatId;
+                // Clear sub-subcategory select
+                subSubcategorySelect.innerHTML = '<option value="">{% trans "اختر قسم فرعي ثاني..." %}</option>';
+
+                if (selectedSubcatId && mainCategoryId) {
+                    // Find the selected subcategory data
+                    const selectedSubcat = subcategoriesData[mainCategoryId]?.find(sc => sc.id == selectedSubcatId);
+
+                    if (selectedSubcat && selectedSubcat.hasSubcats > 0 && selectedSubcat.subcategories.length > 0) {
+                        // Show sub-subcategory container
+                        subSubcategoryContainer.style.display = 'block';
+
+                        // Populate sub-subcategories
+                        selectedSubcat.subcategories.forEach(subsubcat => {
+                            const option = document.createElement('option');
+                            option.value = subsubcat.id;
+                            option.textContent = subsubcat.name;
+                            option.dataset.customFields = JSON.stringify(subsubcat.customFields);
+                            subSubcategorySelect.appendChild(option);
+                        });
+
+                        // Don't set hidden input yet - wait for sub-subcategory selection
+                        hiddenCategoryInput.value = '';
+                        subSubcategorySelect.required = true;
+                    } else {
+                        // No sub-subcategories, use subcategory
+                        subSubcategoryContainer.style.display = 'none';
+                        hiddenCategoryInput.value = selectedSubcatId;
+                        subSubcategorySelect.required = false;
+                        updateCustomFields();
+                    }
+                } else {
+                    subSubcategoryContainer.style.display = 'none';
+                    hiddenCategoryInput.value = '';
+                    subSubcategorySelect.required = false;
+                }
+            });
+
+            // Handle sub-subcategory change (Level 3)
+            subSubcategorySelect.addEventListener('change', function() {
+                const selectedSubSubcatId = this.value;
+
+                if (selectedSubSubcatId) {
+                    // Set the hidden input to sub-subcategory
+                    hiddenCategoryInput.value = selectedSubSubcatId;
                     updateCustomFields();
                 } else {
                     hiddenCategoryInput.value = '';

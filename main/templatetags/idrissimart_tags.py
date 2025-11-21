@@ -3,11 +3,32 @@ Consolidated template tags for IdrissiMart
 """
 
 import re
+import json
 from django import template
 from django.utils.safestring import mark_safe
 from decimal import Decimal
 
 register = template.Library()
+
+
+# ======================
+# JSON TAGS
+# ======================
+
+
+@register.filter(name="to_json")
+def to_json(value):
+    """
+    Converts a Python object to JSON string with proper JavaScript syntax.
+    Handles None, True, False conversion to null, true, false.
+    """
+    if value is None:
+        return mark_safe("null")
+    try:
+        return mark_safe(json.dumps(value))
+    except (TypeError, ValueError):
+        return mark_safe("null")
+
 
 # ======================
 # USER TAGS
