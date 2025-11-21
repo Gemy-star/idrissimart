@@ -7,130 +7,388 @@
 
 {% block admin_extra_css %}
 <style>
-    /* Modal Fix - Ensure modals are visible above all elements */
-    #categoryModal,
-    #customFieldsModal {
-        z-index: 10600 !important;
-        display: none;
+    /* ============================================
+       CSS VARIABLES FOR THEME MANAGEMENT
+       ============================================ */
+    :root {
+        --categories-modal-bg: #ffffff;
+        --categories-modal-border: transparent;
+        --categories-text-primary: #1a202c;
+        --categories-text-secondary: #6c757d;
+        --categories-border-light: #f3f4f6;
+        --categories-border-color: #dee2e6;
+        --categories-bg-hover: #f8f9fa;
+        --categories-shadow-light: rgba(0, 0, 0, 0.1);
+        --categories-shadow-medium: rgba(0, 0, 0, 0.3);
+        --categories-accent: #4b315e;
+        --categories-accent-hover: #6b4c7a;
     }
 
-    #categoryModal.show,
-    #customFieldsModal.show {
-        display: block !important;
+    [data-theme='dark'] {
+        --categories-modal-bg: #2d3748;
+        --categories-modal-border: rgba(255, 255, 255, 0.1);
+        --categories-text-primary: #f7fafc;
+        --categories-text-secondary: #cbd5e0;
+        --categories-border-light: rgba(255, 255, 255, 0.1);
+        --categories-border-color: rgba(255, 255, 255, 0.1);
+        --categories-bg-hover: rgba(255, 255, 255, 0.05);
+        --categories-shadow-light: rgba(0, 0, 0, 0.4);
+        --categories-shadow-medium: rgba(0, 0, 0, 0.3);
+        --categories-accent: #a78bbd;
+        --categories-accent-hover: #b99dc9;
     }
 
-    #categoryModal .modal-dialog,
-    #customFieldsModal .modal-dialog {
-        z-index: 10700 !important;
-        margin: 1.75rem auto;
-    }
-
-    .modal-backdrop {
-        z-index: 10500 !important;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-    }
-
-    /* Ensure modal content is visible */
-    #categoryModal .modal-content,
-    #customFieldsModal .modal-content {
-        position: relative;
-        background: var(--bg-primary, #ffffff);
-        border-radius: 0.5rem;
-        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-    }
-
-    [data-theme='dark'] #categoryModal .modal-content,
-    [data-theme='dark'] #customFieldsModal .modal-content {
-        background: var(--card-bg, #2d3748);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    /* Dark Theme Support for Categories Page */
-
-    /* Fix Dropdown Overflow Issue */
+    /* ============================================
+       LAYOUT & STRUCTURE
+       ============================================ */
     .categories-grid {
-        overflow: visible !important;
-    }
-
-    .category-item {
-        background: var(--bg-primary, #ffffff);
-        border: 1px solid var(--border-color, #dee2e6);
-        border-radius: 12px;
-        padding: 20px;
-        transition: all 0.3s ease;
-        overflow: visible !important;
-        position: relative;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+        overflow: visible;
     }
 
     .card-body {
-        overflow: visible !important;
+        overflow: visible;
     }
 
     .admin-content-card .card-body {
-        overflow: visible !important;
+        overflow: visible;
     }
 
-    /* Category Actions - Horizontal Icons */
+    /* ============================================
+       MODAL SYSTEM
+       ============================================ */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 10600;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal.active {
+        display: flex;
+    }
+
+    .modal-content {
+        background: var(--categories-modal-bg);
+        border: 1px solid var(--categories-modal-border);
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 600px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px var(--categories-shadow-medium);
+        position: relative;
+        color: var(--categories-text-primary);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid var(--categories-border-light);
+    }
+
+    .modal-header h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--categories-accent);
+        margin: 0;
+    }
+
+    .modal-body {
+        margin-bottom: 0;
+    }
+
+    .btn-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: var(--categories-text-secondary);
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-close:hover {
+        background: var(--categories-bg-hover);
+        color: var(--categories-text-primary);
+    }
+
+    /* ============================================
+       FORM ELEMENTS
+       ============================================ */
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 2px solid var(--categories-border-light);
+    }
+
+    .btn-cancel {
+        background: var(--categories-bg-hover);
+        color: var(--categories-text-secondary);
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-cancel:hover {
+        background: var(--categories-border-light);
+        color: var(--categories-text-primary);
+    }
+
+    /* Modal Form Controls */
+    .modal-body .form-label,
+    .slide-panel-content .form-label {
+        color: var(--categories-text-primary);
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    .modal-body .form-control,
+    .modal-body .form-select,
+    .slide-panel-content .form-control,
+    .slide-panel-content .form-select {
+        background-color: var(--categories-bg-hover);
+        border: 1px solid var(--categories-border-color);
+        color: var(--categories-text-primary);
+        transition: all 0.3s ease;
+    }
+
+    .modal-body .form-control:focus,
+    .modal-body .form-select:focus,
+    .slide-panel-content .form-control:focus,
+    .slide-panel-content .form-select:focus {
+        background-color: var(--categories-modal-bg);
+        border-color: var(--categories-accent);
+        color: var(--categories-text-primary);
+        box-shadow: 0 0 0 0.25rem rgba(107, 76, 122, 0.25);
+    }
+
+    .modal-body .form-check-label {
+        color: var(--categories-text-primary);
+    }
+
+    .modal-body .form-check-input {
+        background-color: var(--categories-bg-hover);
+        border-color: var(--categories-border-color);
+    }
+
+    .modal-body .form-check-input:checked {
+        background-color: var(--categories-accent);
+        border-color: var(--categories-accent);
+    }
+
+    .modal-body .form-text {
+        color: var(--categories-text-secondary);
+    }
+
+    /* ============================================
+       CATEGORY ITEMS
+       ============================================ */
+    .category-item {
+        background: var(--categories-modal-bg);
+        border: 1px solid var(--categories-border-color);
+        border-radius: 12px;
+        padding: 20px;
+        transition: all 0.3s ease;
+        overflow: visible;
+        position: relative;
+    }
+
+    .category-item:hover {
+        box-shadow: 0 4px 12px var(--categories-shadow-light);
+        transform: translateY(-2px);
+    }
+
+    .category-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .category-info {
+        flex: 1;
+    }
+
+    .category-name {
+        color: var(--categories-text-primary);
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .category-meta {
+        color: var(--categories-text-secondary);
+        margin-bottom: 0;
+    }
+
     .category-actions {
         display: flex;
         gap: 0.35rem;
         align-items: center;
+        flex-wrap: wrap;
     }
 
     .category-actions .btn {
-        padding: 0.25rem 0.5rem;
+        padding: 0.375rem 0.625rem;
         font-size: 0.875rem;
-        border-radius: 0.25rem;
+        border-radius: 0.375rem;
         transition: all 0.2s ease;
     }
 
     .category-actions .btn:hover {
         transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 2px 4px var(--categories-shadow-light);
     }
 
-    [data-theme='dark'] .category-actions .btn:hover {
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    /* ============================================
+       SUBCATEGORIES
+       ============================================ */
+    .subcategories {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--categories-border-light);
     }
 
-    [data-theme='dark'] .category-item {
-        background: var(--card-bg, #2d3748);
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-
-    .category-item:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-
-    [data-theme='dark'] .category-item:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    }
-
-    /* Category Name & Meta */
-    .category-name {
-        color: var(--text-primary, #2d3748);
+    .subcategories-title {
+        color: var(--categories-text-primary);
+        font-size: 0.9rem;
         font-weight: 600;
+        margin-bottom: 1rem;
     }
 
-    [data-theme='dark'] .category-name {
-        color: var(--text-primary, #f7fafc);
+    .subcategories-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
     }
 
-    .category-meta {
-        color: var(--text-muted, #6c757d);
+    .subcategory-item {
+        background: var(--categories-bg-hover);
+        border: 1px solid var(--categories-border-color);
+        border-radius: 8px;
+        padding: 12px 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s ease;
     }
 
-    [data-theme='dark'] .category-meta {
-        color: var(--text-muted, #cbd5e0);
+    .subcategory-item:hover {
+        background: var(--categories-border-light);
+        transform: translateX(4px);
     }
 
-    /* Badges */
+    .subcategory-name {
+        color: var(--categories-text-primary);
+        font-weight: 500;
+        font-size: 0.95rem;
+    }
+
+    .subcategory-actions {
+        display: flex;
+        gap: 0.35rem;
+    }
+
+    .subcategory-actions .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    /* Small button styles */
+    .btn-xs {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8rem;
+        border-radius: 0.25rem;
+        transition: all 0.2s ease;
+    }
+
+    .btn-xs:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px var(--categories-shadow-light);
+    }
+
+    /* Button hover states for both themes */
+    .btn-outline-primary:hover {
+        background-color: var(--categories-accent);
+        border-color: var(--categories-accent);
+        color: #ffffff;
+    }
+
+    .btn-outline-success:hover {
+        background-color: #198754;
+        border-color: #198754;
+        color: #ffffff;
+    }
+
+    .btn-outline-danger:hover {
+        background-color: #dc3545;
+        border-color: #dc3545;
+        color: #ffffff;
+    }
+
+    [data-theme='dark'] .btn-outline-primary {
+        border-color: var(--categories-accent);
+        color: var(--categories-accent);
+    }
+
+    [data-theme='dark'] .btn-outline-success {
+        border-color: rgba(25, 135, 84, 0.5);
+        color: #75b798;
+    }
+
+    [data-theme='dark'] .btn-outline-danger {
+        border-color: rgba(220, 53, 69, 0.5);
+        color: #e57373;
+    }
+
+    [data-theme='dark'] .btn-outline-primary:hover {
+        background-color: var(--categories-accent);
+        border-color: var(--categories-accent);
+        color: #ffffff;
+    }
+
+    [data-theme='dark'] .btn-outline-success:hover {
+        background-color: rgba(25, 135, 84, 0.8);
+        border-color: rgba(25, 135, 84, 0.8);
+        color: #ffffff;
+    }
+
+    [data-theme='dark'] .btn-outline-danger:hover {
+        background-color: rgba(220, 53, 69, 0.8);
+        border-color: rgba(220, 53, 69, 0.8);
+        color: #ffffff;
+    }
+
+    /* ============================================
+       BADGES
+       ============================================ */
     .badge {
-        background-color: var(--primary-color, #4b315e);
+        font-weight: 500;
+        padding: 0.35em 0.65em;
+        border-radius: 0.375rem;
     }
 
     [data-theme='dark'] .badge.bg-info {
@@ -157,231 +415,140 @@
         border: 1px solid rgba(255, 193, 7, 0.3);
     }
 
-    /* Dropdown Menu */
+    /* ============================================
+       DROPDOWN MENU
+       ============================================ */
     .dropdown-menu {
-        background: var(--bg-primary, #ffffff);
-        border: 1px solid var(--border-color, #dee2e6);
-    }
-
-    [data-theme='dark'] .dropdown-menu {
-        background: var(--card-bg, #2d3748);
-        border-color: rgba(255, 255, 255, 0.1);
+        background: var(--categories-modal-bg);
+        border: 1px solid var(--categories-border-color);
+        box-shadow: 0 4px 12px var(--categories-shadow-light);
     }
 
     .dropdown-item {
-        color: var(--text-primary, #2d3748);
-    }
-
-    [data-theme='dark'] .dropdown-item {
-        color: var(--text-primary, #f7fafc);
+        color: var(--categories-text-primary);
+        transition: all 0.2s ease;
     }
 
     .dropdown-item:hover {
-        background-color: rgba(107, 76, 122, 0.1);
-    }
-
-    [data-theme='dark'] .dropdown-item:hover {
-        background-color: rgba(107, 76, 122, 0.2);
+        background-color: var(--categories-bg-hover);
+        color: var(--categories-accent);
     }
 
     .dropdown-divider {
-        border-top-color: var(--border-color, #dee2e6);
+        border-top-color: var(--categories-border-color);
     }
 
-    [data-theme='dark'] .dropdown-divider {
-        border-top-color: rgba(255, 255, 255, 0.1);
-    }
-
-    /* Subcategories */
-    .subcategories-title {
-        color: var(--text-primary, #2d3748);
-        font-size: 0.9rem;
-        font-weight: 600;
-    }
-
-    [data-theme='dark'] .subcategories-title {
-        color: var(--text-primary, #f7fafc);
-    }
-
-    .subcategory-item {
-        background: var(--bg-secondary, #f8f9fa);
-        border: 1px solid var(--border-color, #dee2e6);
-        border-radius: 8px;
-        padding: 10px 15px;
-        margin-bottom: 8px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    [data-theme='dark'] .subcategory-item {
-        background: rgba(255, 255, 255, 0.03);
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-
-    .subcategory-name {
-        color: var(--text-primary, #2d3748);
-        font-weight: 500;
-    }
-
-    [data-theme='dark'] .subcategory-name {
-        color: var(--text-primary, #f7fafc);
-    }
-
-    /* Empty State */
+    /* ============================================
+       EMPTY STATE
+       ============================================ */
     .empty-state {
-        background: var(--bg-secondary, #f8f9fa);
+        background: var(--categories-bg-hover);
         border-radius: 12px;
         padding: 40px 20px;
+        text-align: center;
     }
 
-    [data-theme='dark'] .empty-state {
-        background: rgba(255, 255, 255, 0.03);
+    .empty-state i {
+        color: var(--categories-text-secondary);
+        opacity: 0.5;
     }
 
     .empty-state .text-muted {
-        color: var(--text-muted, #6c757d) !important;
+        color: var(--categories-text-secondary) !important;
     }
 
-    [data-theme='dark'] .empty-state .text-muted {
-        color: var(--text-muted, #cbd5e0) !important;
-    }
-
-    /* Slide Panel */
+    /* ============================================
+       SLIDE PANEL
+       ============================================ */
     .slide-panel-content {
-        background: var(--bg-primary, #ffffff);
-        color: var(--text-primary, #2d3748);
-    }
-
-    [data-theme='dark'] .slide-panel-content {
-        background: var(--card-bg, #2d3748);
-        color: var(--text-primary, #f7fafc);
+        background: var(--categories-modal-bg);
+        color: var(--categories-text-primary);
     }
 
     .slide-panel-header {
-        border-bottom: 1px solid var(--border-color, #dee2e6);
-    }
-
-    [data-theme='dark'] .slide-panel-header {
-        border-bottom-color: rgba(255, 255, 255, 0.1);
+        border-bottom: 1px solid var(--categories-border-color);
     }
 
     .slide-panel-title {
-        color: var(--text-primary, #2d3748);
+        color: var(--categories-text-primary);
     }
 
-    [data-theme='dark'] .slide-panel-title {
-        color: var(--text-primary, #f7fafc);
-    }
-
-    /* Buttons */
+    /* ============================================
+       BUTTONS
+       ============================================ */
     .btn-outline-secondary {
-        color: var(--text-primary, #6c757d);
-        border-color: var(--border-color, #6c757d);
-    }
-
-    [data-theme='dark'] .btn-outline-secondary {
-        color: var(--text-primary, #cbd5e0);
-        border-color: rgba(255, 255, 255, 0.2);
+        color: var(--categories-text-secondary);
+        border-color: var(--categories-border-color);
     }
 
     .btn-outline-secondary:hover {
-        background-color: #6c757d;
-        color: #ffffff;
+        background-color: var(--categories-bg-hover);
+        color: var(--categories-text-primary);
+        border-color: var(--categories-border-color);
     }
 
-    [data-theme='dark'] .btn-outline-secondary:hover {
-        background-color: rgba(255, 255, 255, 0.1);
-        color: var(--text-primary, #f7fafc);
-    }
-
-    /* Form Elements in Slide Panel */
-    .slide-panel-content .form-label {
-        color: var(--text-primary, #2d3748);
-    }
-
-    [data-theme='dark'] .slide-panel-content .form-label {
-        color: var(--text-primary, #f7fafc);
-    }
-
-    .slide-panel-content .form-control,
-    .slide-panel-content .form-select {
-        background-color: var(--bg-primary, #ffffff);
-        border-color: var(--border-color, #dee2e6);
-        color: var(--text-primary, #2d3748);
-    }
-
-    [data-theme='dark'] .slide-panel-content .form-control,
-    [data-theme='dark'] .slide-panel-content .form-select {
-        background-color: rgba(255, 255, 255, 0.05);
-        border-color: rgba(255, 255, 255, 0.1);
-        color: var(--text-primary, #f7fafc);
-    }
-
-    .slide-panel-content .form-control:focus,
-    .slide-panel-content .form-select:focus {
-        background-color: var(--bg-primary, #ffffff);
-        border-color: var(--primary-color, #6b4c7a);
-        color: var(--text-primary, #2d3748);
-    }
-
-    [data-theme='dark'] .slide-panel-content .form-control:focus,
-    [data-theme='dark'] .slide-panel-content .form-select:focus {
-        background-color: rgba(255, 255, 255, 0.08);
-        border-color: var(--accent-purple, #a78bbd);
-        color: var(--text-primary, #f7fafc);
-    }
-
-    /* Custom Fields Modal Dark Theme */
-    [data-theme='dark'] .modal-content {
-        background-color: var(--card-bg, #2d3748);
-        border-color: rgba(255, 255, 255, 0.1);
-        color: var(--text-primary, #f7fafc);
-    }
-
-    [data-theme='dark'] .modal-header {
-        background-color: rgba(0, 0, 0, 0.2);
-        border-bottom-color: rgba(255, 255, 255, 0.1);
-    }
-
-    [data-theme='dark'] .modal-footer {
-        background-color: rgba(0, 0, 0, 0.1);
-        border-top-color: rgba(255, 255, 255, 0.1);
-    }
-
-    [data-theme='dark'] .modal-title {
-        color: var(--accent-purple, #a78bbd);
-    }
-
-    [data-theme='dark'] .btn-close {
-        filter: invert(1) grayscale(100%) brightness(200%);
-    }
-
-    /* Saving Indicator */
+    /* ============================================
+       UTILITY CLASSES
+       ============================================ */
     .saving-indicator {
-        color: var(--primary-color, #6b4c7a);
-        display: none; /* Hidden by default */
+        color: var(--categories-accent);
+        display: none;
     }
 
     .saving-indicator.show {
         display: inline-block;
     }
 
-    [data-theme='dark'] .saving-indicator {
-        color: var(--accent-purple, #a78bbd);
-    }
-
-    /* Alert Messages */
     .alert {
-        background-color: var(--bg-secondary, #f8f9fa);
-        border-color: var(--border-color, #dee2e6);
-        color: var(--text-primary, #2d3748);
+        background-color: var(--categories-bg-hover);
+        border-color: var(--categories-border-color);
+        color: var(--categories-text-primary);
     }
 
-    [data-theme='dark'] .alert {
-        background-color: rgba(255, 255, 255, 0.05);
-        border-color: rgba(255, 255, 255, 0.1);
-        color: var(--text-primary, #f7fafc);
+    /* ============================================
+       CUSTOM FIELDS LIST
+       ============================================ */
+    .custom-fields-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .custom-field-item {
+        background: var(--categories-bg-hover);
+        border: 1px solid var(--categories-border-color);
+        border-radius: 8px;
+        padding: 15px;
+        transition: all 0.2s ease;
+    }
+
+    .custom-field-item:hover {
+        box-shadow: 0 2px 8px var(--categories-shadow-light);
+    }
+
+    /* ============================================
+       RESPONSIVE DESIGN
+       ============================================ */
+    @media (max-width: 768px) {
+        .categories-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .category-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .category-actions {
+            width: 100%;
+            justify-content: flex-start;
+            margin-top: 0.75rem;
+        }
+
+        .modal-content {
+            width: 95%;
+            padding: 20px;
+        }
     }
 </style>
 {% endblock %}
@@ -460,11 +627,11 @@
                                                 </div>
                                             </div>
 
-                                            {% if category.children.all %}
+                                            {% if category.subcategories.all %}
                                                 <div class="subcategories mt-3">
                                                     <h6 class="subcategories-title">{% trans "الأقسام الفرعية" %}: <small class="text-muted">({% trans "يمكنك السحب والإفلات للترتيب" %})</small></h6>
                                                     <div class="subcategories-list">
-                                                        {% for subcategory in category.children.all %}
+                                                        {% for subcategory in category.subcategories.all %}
                                                             <div class="subcategory-item">
                                                                 <span class="subcategory-name">
                                                                     <i class="fas fa-folder-open me-1"></i>
@@ -507,18 +674,19 @@
                 {% endfor %}
     </div>
 <!-- Add/Edit Category Modal -->
-<div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="categoryModalLabel">
-                    <i class="fas fa-plus-circle me-2"></i>
-                    {% trans "إضافة قسم جديد" %}
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
+<div id="categoryModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="categoryModalLabel">
+                <i class="fas fa-plus-circle me-2"></i>
+                {% trans "إضافة قسم جديد" %}
+            </h2>
+            <button class="btn-close" onclick="event.stopPropagation(); closeModal('categoryModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
             <div class="modal-body">
-                <form id="categoryForm">
+                <form id="categoryForm" onsubmit="event.preventDefault(); return false;">
                     <input type="hidden" id="categoryId" name="category_id">
                     <input type="hidden" id="parentCategoryId" name="parent_id">
 
@@ -597,11 +765,11 @@
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <div class="form-actions">
+                <button type="button" class="btn-primary btn-cancel" onclick="event.stopPropagation(); closeModal('categoryModal')">
                     {% trans "إلغاء" %}
                 </button>
-                <button type="button" class="btn btn-primary" onclick="saveCategory()">
+                <button type="button" class="btn-primary" onclick="event.stopPropagation(); saveCategory()">
                     <i class="fas fa-save me-2"></i>
                     {% trans "حفظ" %}
                 </button>
@@ -611,16 +779,17 @@
 </div>
 
 <!-- Custom Fields Modal -->
-<div class="modal fade" id="customFieldsModal" tabindex="-1" aria-labelledby="customFieldsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="customFieldsModalLabel">
-                    <i class="fas fa-list me-2"></i>
-                    {% trans "إدارة الحقول المخصصة" %}
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
+<div id="customFieldsModal" class="modal">
+    <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">
+            <h2 id="customFieldsModalLabel">
+                <i class="fas fa-list me-2"></i>
+                {% trans "إدارة الحقول المخصصة" %}
+            </h2>
+            <button class="btn-close" onclick="event.stopPropagation(); closeModal('customFieldsModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
             <div class="modal-body">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h6 id="customFieldsCategoryName">{% trans "الحقول المخصصة للقسم" %}</h6>
@@ -634,11 +803,11 @@
                     <!-- Custom fields will be loaded here -->
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <div class="form-actions">
+                <button type="button" class="btn-primary btn-cancel" onclick="event.stopPropagation(); closeModal('customFieldsModal')">
                     {% trans "إغلاق" %}
                 </button>
-                <button type="button" class="btn btn-primary" onclick="saveCustomFields()">
+                <button type="button" class="btn-primary" onclick="event.stopPropagation(); saveCustomFields()">
                     <i class="fas fa-save me-2"></i>
                     {% trans "حفظ التغييرات" %}
                 </button>
@@ -670,6 +839,21 @@ function toggleAllowCartField() {
     }
 }
 
+// Modal Management Functions
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.add('active');
+    }
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
 // Category Management
 function showAddCategoryPanel() {
     document.getElementById('categoryModalLabel').innerHTML = '<i class="fas fa-plus-circle me-2"></i>إضافة قسم جديد';
@@ -677,12 +861,7 @@ function showAddCategoryPanel() {
     document.getElementById('categoryId').value = '';
     document.getElementById('parentCategoryId').value = '';
 
-    // Get or create modal instance
-    let modal = bootstrap.Modal.getInstance(document.getElementById('categoryModal'));
-    if (!modal) {
-        modal = new bootstrap.Modal(document.getElementById('categoryModal'));
-    }
-    modal.show();
+    openModal('categoryModal');
 
     // Toggle السماح بالسلة visibility after modal is shown
     setTimeout(() => toggleAllowCartField(), 100);
@@ -735,12 +914,8 @@ function editCategory(categoryId) {
             // Toggle السماح بالسلة visibility
             toggleAllowCartField();
 
-            // Get or create modal instance
-            let modal = bootstrap.Modal.getInstance(document.getElementById('categoryModal'));
-            if (!modal) {
-                modal = new bootstrap.Modal(document.getElementById('categoryModal'));
-            }
-            modal.show();
+            // Show modal
+            openModal('categoryModal');
         });
 }
 
@@ -793,8 +968,7 @@ function saveCategory() {
     .then(data => {
         if (data.success) {
             showSuccess(data.message || 'تم الحفظ بنجاح');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('categoryModal'));
-            if (modal) modal.hide();
+            closeModal('categoryModal');
             location.reload();
         } else {
             showError(data.message || 'تعذر حفظ البيانات');
@@ -820,12 +994,8 @@ function manageCustomFields(categoryId) {
                     `الحقول المخصصة للقسم: ${data.category_name}`;
                 displayCustomFields(data.fields);
 
-                // Get or create modal instance
-                let modal = bootstrap.Modal.getInstance(document.getElementById('customFieldsModal'));
-                if (!modal) {
-                    modal = new bootstrap.Modal(document.getElementById('customFieldsModal'));
-                }
-                modal.show();
+                // Show modal
+                openModal('customFieldsModal');
             } else {
                 showError(data.message || 'فشل تحميل الحقول المخصصة');
             }
@@ -968,8 +1138,7 @@ function saveCustomFields() {
     .then(data => {
         if (data.success) {
             showSuccess(data.message || 'تم حفظ الحقول بنجاح');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('customFieldsModal'));
-            modal.hide();
+            closeModal('customFieldsModal');
         } else {
             showError(data.message || 'تعذر حفظ الحقول');
         }
@@ -1058,6 +1227,16 @@ document.addEventListener('DOMContentLoaded', function() {
     if (sectionTypeSelect) {
         sectionTypeSelect.addEventListener('change', toggleAllowCartField);
     }
+
+    // Close modal on outside click
+    window.addEventListener('click', function(event) {
+        if (event.target.classList.contains('modal')) {
+            const modalId = event.target.id;
+            if (modalId) {
+                closeModal(modalId);
+            }
+        }
+    });
 });
 </script>
 

@@ -2377,6 +2377,7 @@ class AdminCategoriesView(SuperadminRequiredMixin, TemplateView):
 
         context["categories_by_section"] = categories_by_section
         context["countries"] = Country.objects.all()
+        context["section_choices"] = Category.SectionType.choices
         context["active_nav"] = "categories"
 
         return context
@@ -2883,6 +2884,92 @@ def admin_ad_status_change(request, ad_id):
 
     except Exception as e:
         return JsonResponse({"success": False, "message": f"حدث خطأ: {str(e)}"})
+
+
+@superadmin_required
+def admin_category_get(request, category_id):
+    """
+    Get category data for editing via AJAX.
+    """
+    try:
+        category = get_object_or_404(Category, pk=category_id)
+
+        return JsonResponse({
+            "success": True,
+            "id": category.id,
+            "name": category.name,
+            "name_ar": category.name_ar,
+            "slug": category.slug,
+            "section_type": category.section_type,
+            "description": category.description or "",
+            "icon": category.icon or "",
+            "color": category.color or "",
+            "order": category.order,
+            "is_active": category.is_active,
+            "allow_cart": category.allow_cart,
+            "parent_id": category.parent.id if category.parent else None,
+        })
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "message": f"حدث خطأ: {str(e)}"},
+            status=500
+        )
+
+
+@superadmin_required
+@require_POST
+def admin_category_save(request):
+    """
+    Create or update a category via AJAX.
+    """
+    try:
+        category_id = request.POST.get('category_id')
+
+        # Get or create category
+        if category_id:
+            category = get_object_or_404(Category, pk=category_id)
+        else:
+            category = Category()
+
+        # Update category fields
+        category.name = request.POST.get('name_en', '')
+        category.name_ar = request.POST.get('name_ar', '')
+        category.slug = request.POST.get('slug', '')
+        category.section_type = request.POST.get('section_type', 'classified')
+        category.description = request.POST.get('description', '')
+        category.icon = request.POST.get('icon', '')
+        category.color = request.POST.get('color', '')
+        category.order = int(request.POST.get('order', 0))
+        category.is_active = request.POST.get('is_active') == 'on'
+        category.allow_cart = request.POST.get('allow_cart') == 'on'
+
+        # Handle parent category
+        parent_id = request.POST.get('parent')
+        if parent_id:
+            category.parent = Category.objects.get(pk=parent_id)
+        else:
+            category.parent = None
+
+        # Handle country
+        country_code = request.POST.get('country')
+        if country_code:
+            category.country = Country.objects.get(code=country_code)
+        else:
+            category.country = None
+
+        category.save()
+
+        return JsonResponse({
+            "success": True,
+            "message": _("تم حفظ القسم بنجاح"),
+            "category_id": category.id
+        })
+
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "message": f"حدث خطأ: {str(e)}"},
+            status=500
+        )
 
 
 @superadmin_required
