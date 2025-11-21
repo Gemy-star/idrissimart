@@ -562,32 +562,37 @@
                                         <p class="step-description">{% trans "حدد القسم المناسب لإعلانك" %}</p>
                                     </div>
 
+                                    <!-- Main Category Selection -->
                                     <div class="mb-4">
-                                        <label for="{{ form.category.id_for_label }}" class="form-label h5">
+                                        <label for="mainCategorySelect" class="form-label h5">
                                             <i class="fas fa-folder-open me-2 text-primary"></i>
-                                            {{ form.category.label }}
+                                            {% trans "القسم الرئيسي" %}
                                         </label>
-                                        <select name="{{ form.category.name }}"
-                                                id="{{ form.category.id_for_label }}"
-                                                class="form-select form-select-lg"
-                                                required>
-                                            <option value="">{% trans "اختر قسم..." %}</option>
+                                        <select id="mainCategorySelect" class="form-select form-select-lg" required>
+                                            <option value="">{% trans "اختر قسم رئيسي..." %}</option>
                                             {% for category in ad_categories %}
                                                 <option value="{{ category.pk }}"
-                                                        data-custom-fields="{{ category.custom_field_schema|safe }}"
-                                                        {% if form.category.value == category.pk %}selected{% endif %}>
+                                                        data-has-subcats="{{ category.subcategories.all|length|default:0 }}"
+                                                        data-custom-fields="{{ category.custom_field_schema|safe }}">
                                                     {% if LANGUAGE_CODE == 'ar' and category.name_ar %}{{ category.name_ar }}{% else %}{{ category.name }}{% endif %}
                                                 </option>
-                                                {% for subcat in category.subcategories.all %}
-                                                    <option value="{{ subcat.pk }}"
-                                                            data-custom-fields="{{ subcat.custom_field_schema|safe }}"
-                                                            {% if form.category.value == subcat.pk %}selected{% endif %}>
-                                                        &nbsp;&nbsp;└─ {% if LANGUAGE_CODE == 'ar' and subcat.name_ar %}{{ subcat.name_ar }}{% else %}{{ subcat.name }}{% endif %}
-                                                    </option>
-                                                {% endfor %}
                                             {% endfor %}
                                         </select>
                                     </div>
+
+                                    <!-- Subcategory Selection (shown only if main category has subcategories) -->
+                                    <div class="mb-4" id="subcategoryContainer" style="display: none;">
+                                        <label for="subcategorySelect" class="form-label h5">
+                                            <i class="fas fa-folder me-2 text-primary"></i>
+                                            {% trans "القسم الفرعي" %}
+                                        </label>
+                                        <select id="subcategorySelect" class="form-select form-select-lg">
+                                            <option value="">{% trans "اختر قسم فرعي..." %}</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Hidden field for actual category value -->
+                                    <input type="hidden" name="{{ form.category.name }}" id="{{ form.category.id_for_label }}" value="{{ form.category.value|default:'' }}">
                                 </div>
 
                                 <!-- Step 2: Basic Details -->
@@ -824,10 +829,45 @@
                     return true;
                 }
 
+                // Special validation for step 1 (category selection)
+                if (step === 1) {
+                    const mainCatValue = mainCategorySelect.value;
+                    const subcatContainer = subcategoryContainer;
+                    const subcatValue = subcategorySelect.value;
+
+                    // Check if main category is selected
+                    if (!mainCatValue) {
+                        mainCategorySelect.classList.add('is-invalid');
+                        showToast('{% trans "يرجى اختيار القسم الرئيسي" %}', 'warning');
+                        return false;
+                    }
+
+                    // Check if subcategory is required and selected
+                    if (subcatContainer.style.display !== 'none' && !subcatValue) {
+                        subcategorySelect.classList.add('is-invalid');
+                        showToast('{% trans "يرجى اختيار القسم الفرعي" %}', 'warning');
+                        return false;
+                    }
+
+                    // Check if hidden category input has value
+                    if (!hiddenCategoryInput.value) {
+                        showToast('{% trans "يرجى اختيار القسم" %}', 'warning');
+                        return false;
+                    }
+
+                    mainCategorySelect.classList.remove('is-invalid');
+                    subcategorySelect.classList.remove('is-invalid');
+                }
+
                 const requiredInputs = currentFormStep.querySelectorAll('[required]');
                 let isValid = true;
 
                 requiredInputs.forEach(input => {
+                    // Skip the mainCategorySelect and subcategorySelect as they're handled above
+                    if (input.id === 'mainCategorySelect' || input.id === 'subcategorySelect') {
+                        return;
+                    }
+
                     // Check different input types
                     let isEmpty = false;
 
@@ -907,6 +947,123 @@
 
             showStep(currentStep);
 
+            // ========== Category & Subcategory Logic ==========
+            const mainCategorySelect = document.getElementById('mainCategorySelect');
+            const subcategorySelect = document.getElementById('subcategorySelect');
+            const subcategoryContainer = document.getElementById('subcategoryContainer');
+            const hiddenCategoryInput = document.getElementById('{{ form.category.id_for_label }}');
+
+            // Subcategories data structure
+            const subcategoriesData = {
+                {% for category in ad_categories %}
+                    {{ category.pk }}: [
+                        {% for subcat in category.subcategories.all %}
+                            {
+                                id: {{ subcat.pk }},
+                                name: "{% if LANGUAGE_CODE == 'ar' and subcat.name_ar %}{{ subcat.name_ar }}{% else %}{{ subcat.name }}{% endif %}",
+                                customFields: {{ subcat.custom_field_schema|safe }}
+                            }{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ]{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            };
+
+            // Remove invalid class on change
+            mainCategorySelect.addEventListener('change', function() {
+                this.classList.remove('is-invalid');
+            });
+
+            subcategorySelect.addEventListener('change', function() {
+                this.classList.remove('is-invalid');
+            });
+
+            // Handle main category change
+            mainCategorySelect.addEventListener('change', function() {
+                const selectedCategoryId = this.value;
+                const hasSubcats = this.options[this.selectedIndex]?.dataset.hasSubcats > 0;
+
+                // Clear subcategory select
+                subcategorySelect.innerHTML = '<option value="">{% trans "اختر قسم فرعي..." %}</option>';
+
+                if (selectedCategoryId && hasSubcats && subcategoriesData[selectedCategoryId]) {
+                    // Show subcategory container
+                    subcategoryContainer.style.display = 'block';
+
+                    // Populate subcategories
+                    subcategoriesData[selectedCategoryId].forEach(subcat => {
+                        const option = document.createElement('option');
+                        option.value = subcat.id;
+                        option.textContent = subcat.name;
+                        option.dataset.customFields = JSON.stringify(subcat.customFields);
+                        subcategorySelect.appendChild(option);
+                    });
+
+                    // Don't set hidden input yet - wait for subcategory selection
+                    hiddenCategoryInput.value = '';
+                    subcategorySelect.required = true;
+                } else {
+                    // No subcategories, hide container and use main category
+                    subcategoryContainer.style.display = 'none';
+                    hiddenCategoryInput.value = selectedCategoryId;
+                    subcategorySelect.required = false;
+
+                    // Update custom fields for main category
+                    if (selectedCategoryId) {
+                        updateCustomFields();
+                    }
+                }
+            });
+
+            // Handle subcategory change
+            subcategorySelect.addEventListener('change', function() {
+                const selectedSubcatId = this.value;
+
+                if (selectedSubcatId) {
+                    // Set the hidden input to subcategory
+                    hiddenCategoryInput.value = selectedSubcatId;
+                    updateCustomFields();
+                } else {
+                    hiddenCategoryInput.value = '';
+                }
+            });
+
+            // Initialize on page load (for edit mode)
+            {% if form.category.value %}
+                const initialCategoryId = {{ form.category.value }};
+
+                // Check if it's a subcategory
+                let isSubcategory = false;
+                let parentCategoryId = null;
+
+                for (const [catId, subcats] of Object.entries(subcategoriesData)) {
+                    const foundSubcat = subcats.find(s => s.id === initialCategoryId);
+                    if (foundSubcat) {
+                        isSubcategory = true;
+                        parentCategoryId = catId;
+                        break;
+                    }
+                }
+
+                if (isSubcategory && parentCategoryId) {
+                    // Set main category
+                    mainCategorySelect.value = parentCategoryId;
+
+                    // Trigger change to populate subcategories
+                    mainCategorySelect.dispatchEvent(new Event('change'));
+
+                    // Set subcategory after a brief delay
+                    setTimeout(() => {
+                        subcategorySelect.value = initialCategoryId;
+                        hiddenCategoryInput.value = initialCategoryId;
+                    }, 100);
+                } else {
+                    // It's a main category
+                    mainCategorySelect.value = initialCategoryId;
+                    hiddenCategoryInput.value = initialCategoryId;
+                    mainCategorySelect.dispatchEvent(new Event('change'));
+                }
+            {% endif %}
+
             // ========== Custom Fields Logic ==========
             const categorySelect = document.getElementById('{{ form.category.id_for_label }}');
             const customFieldsContainer = document.getElementById('custom-fields-container');
@@ -958,27 +1115,46 @@
 
             function updateCustomFields() {
                 customFieldsContainer.innerHTML = '';
-                const selectedOption = categorySelect.options[categorySelect.selectedIndex];
-                if (!selectedOption || !selectedOption.value) return;
 
-                const schemaDataElement = document.getElementById(selectedOption.dataset.customFields);
-                if (!schemaDataElement) return;
+                const categoryId = hiddenCategoryInput.value;
+                if (!categoryId) return;
 
-                try {
-                    const schema = JSON.parse(schemaDataElement.textContent);
-                    if (Array.isArray(schema)) {
-                        schema.forEach(fieldSchema => {
-                            customFieldsContainer.innerHTML += generateFieldHtml(fieldSchema);
-                        });
+                let customFieldsData = null;
+
+                // Check if it's from subcategory
+                if (subcategorySelect.value) {
+                    const selectedSubOption = subcategorySelect.options[subcategorySelect.selectedIndex];
+                    if (selectedSubOption && selectedSubOption.dataset.customFields) {
+                        try {
+                            customFieldsData = JSON.parse(selectedSubOption.dataset.customFields);
+                        } catch (e) {
+                            console.error("Error parsing subcategory custom fields:", e);
+                        }
                     }
-                } catch (e) {
-                    console.error("Error parsing custom fields schema:", e);
+                } else {
+                    // Get from main category
+                    const selectedMainOption = mainCategorySelect.options[mainCategorySelect.selectedIndex];
+                    if (selectedMainOption && selectedMainOption.dataset.customFields) {
+                        try {
+                            customFieldsData = JSON.parse(selectedMainOption.dataset.customFields);
+                        } catch (e) {
+                            console.error("Error parsing main category custom fields:", e);
+                        }
+                    }
+                }
+
+                // Render custom fields
+                if (customFieldsData && Array.isArray(customFieldsData)) {
+                    customFieldsData.forEach(fieldSchema => {
+                        customFieldsContainer.innerHTML += generateFieldHtml(fieldSchema);
+                    });
                 }
             }
 
-            categorySelect.addEventListener('change', updateCustomFields);
-            if (categorySelect.value) {
-                updateCustomFields();
+            // Remove old event listener
+            // categorySelect.addEventListener('change', updateCustomFields);
+            if (hiddenCategoryInput.value) {
+                setTimeout(() => updateCustomFields(), 200);
             }
 
             // ========== Mobile Verification Logic ==========

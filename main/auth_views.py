@@ -33,12 +33,27 @@ class CustomLoginView(LoginView):
 
     def get_success_url(self):
         """
-        Determine the redirect URL based on user role:
-        - Superusers/Staff -> Admin Dashboard
-        - Publisher profile -> Publisher Dashboard (My Ads)
-        - Users with ads -> Publisher Dashboard (My Ads)
-        - Others -> Home page
+        Determine the redirect URL based on:
+        1. 'next' parameter (highest priority)
+        2. User role:
+           - Superusers/Staff -> Admin Dashboard
+           - Publisher profile -> Publisher Dashboard (My Ads)
+           - Users with ads -> Publisher Dashboard (My Ads)
+           - Others -> Home page
         """
+        # First check if there's a 'next' parameter
+        next_url = self.request.POST.get("next") or self.request.GET.get("next")
+        if next_url:
+            # Validate the next URL to prevent open redirect vulnerabilities
+            from django.utils.http import url_has_allowed_host_and_scheme
+
+            if url_has_allowed_host_and_scheme(
+                url=next_url,
+                allowed_hosts={self.request.get_host()},
+                require_https=self.request.is_secure(),
+            ):
+                return next_url
+
         user = self.request.user
 
         # Admins
@@ -55,6 +70,7 @@ class CustomLoginView(LoginView):
 
         # Users who have created ads
         from .models import ClassifiedAd
+
         if ClassifiedAd.objects.filter(user=user).exists():
             return reverse_lazy("main:my_ads")
 

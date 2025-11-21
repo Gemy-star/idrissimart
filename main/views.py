@@ -521,10 +521,10 @@ def set_country(request):
         request.session["selected_country"] = country_code
         request.session["selected_country_name"] = country.name
 
-        # Optional: Store in user profile if authenticated
+        # Optional: Store in user model if authenticated
         if request.user.is_authenticated:
-            request.user.profile.country = country
-            request.user.profile.save()
+            request.user.country = country_code
+            request.user.save(update_fields=['country'])
 
         return JsonResponse(
             {

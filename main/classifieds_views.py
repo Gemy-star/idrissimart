@@ -75,6 +75,10 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         Allow access only if the user has an active package with remaining ads.
         If none, redirect to packages page to acquire a package (free or paid).
         """
+        # First check if user is authenticated (LoginRequiredMixin will handle redirect)
+        if not request.user.is_authenticated:
+            return super().dispatch(request, *args, **kwargs)
+
         user = request.user
 
         # Require an active user package with remaining ads
@@ -102,7 +106,9 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
     def get_form_kwargs(self):
         """Pass user to form for mobile verification"""
         kwargs = super().get_form_kwargs()
-        kwargs["user"] = self.request.user
+        # Only pass user if authenticated
+        if self.request.user.is_authenticated:
+            kwargs["user"] = self.request.user
         return kwargs
 
     def get_context_data(self, **kwargs):
@@ -119,8 +125,10 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             )
 
         context["ad_categories"] = Category.objects.filter(
-            section_type=Category.SectionType.CLASSIFIED, is_active=True
-        )
+            section_type=Category.SectionType.CLASSIFIED,
+            is_active=True,
+            parent__isnull=True,  # Only root categories
+        ).prefetch_related("subcategories")
         context["active_nav"] = "create_ad"
         return context
 
@@ -187,8 +195,10 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
                 instance=self.object, prefix="images", queryset=self.object.images.all()
             )
         context["ad_categories"] = Category.objects.filter(
-            section_type=Category.SectionType.CLASSIFIED, is_active=True
-        )
+            section_type=Category.SectionType.CLASSIFIED,
+            is_active=True,
+            parent__isnull=True,  # Only root categories
+        ).prefetch_related("subcategories")
         return context
 
     def form_valid(self, form):

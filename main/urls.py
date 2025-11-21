@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import views
+from . import auth_views
 from . import classifieds_views
 from . import payment_views
 from . import chatbot_views
@@ -20,11 +21,11 @@ urlpatterns = [
     path("terms/", views.TermsConditionsView.as_view(), name="terms"),
     path(
         "login/",
-        dj_auth_views.LoginView.as_view(template_name="pages/login.html"),
+        auth_views.CustomLoginView.as_view(),
         name="login",
     ),
     # path("register/", views.register_view, name="register"),  # TODO: Implement register view
-    path("logout/", dj_auth_views.LogoutView.as_view(), name="logout"),
+    path("logout/", auth_views.logout_view, name="logout"),
     path(
         "password_reset/",
         dj_auth_views.PasswordResetView.as_view(),
