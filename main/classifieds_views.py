@@ -58,7 +58,7 @@ class MyClassifiedAdsView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['active_nav'] = 'my_ads'
+        context["active_nav"] = "my_ads"
         return context
 
 
@@ -91,7 +91,9 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         if not has_quota:
             messages.error(
                 request,
-                _("لقد استنفدت رصيدك من الإعلانات أو لا تملك باقة نشطة. يرجى اختيار باقة."),
+                _(
+                    "لقد استنفدت رصيدك من الإعلانات أو لا تملك باقة نشطة. يرجى اختيار باقة."
+                ),
             )
             return redirect("main:packages_list")
 
@@ -100,7 +102,7 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
     def get_form_kwargs(self):
         """Pass user to form for mobile verification"""
         kwargs = super().get_form_kwargs()
-        kwargs['user'] = self.request.user
+        kwargs["user"] = self.request.user
         return kwargs
 
     def get_context_data(self, **kwargs):
@@ -119,7 +121,7 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         context["ad_categories"] = Category.objects.filter(
             section_type=Category.SectionType.CLASSIFIED, is_active=True
         )
-        context['active_nav'] = 'create_ad'
+        context["active_nav"] = "create_ad"
         return context
 
     def form_valid(self, form):
@@ -317,7 +319,7 @@ class UserSavedSearchesView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['active_nav'] = 'saved_searches'
+        context["active_nav"] = "saved_searches"
         return context
 
     def post(self, request, *args, **kwargs):
@@ -600,25 +602,40 @@ class DeleteAdView(LoginRequiredMixin, View):
     """AJAX view to delete an ad"""
 
     def post(self, request, ad_id):
-        if not request.user.is_superuser:
-            return JsonResponse(
-                {"success": False, "error": "Permission denied"}, status=403
+        try:
+            if not request.user.is_superuser:
+                return JsonResponse(
+                    {"success": False, "message": _("ليس لديك صلاحية لحذف الإعلانات")},
+                    status=403,
+                )
+
+            ad = get_object_or_404(ClassifiedAd, id=ad_id)
+            ad_title = ad.title
+            ad_user = ad.user
+
+            # Send notification before deleting
+            Notification.objects.create(
+                user=ad_user,
+                title=_("حذف إعلان"),
+                message=_("تم حذف إعلانك '{}' من قبل الإدارة").format(ad_title),
             )
 
-        ad = get_object_or_404(ClassifiedAd, id=ad_id)
-        ad_title = ad.title
-        ad_user = ad.user
+            ad.delete()
 
-        # Send notification before deleting
-        Notification.objects.create(
-            user=ad_user,
-            title=_("حذف إعلان"),
-            message=_("تم حذف إعلانك '{}' من قبل الإدارة").format(ad_title),
-        )
-
-        ad.delete()
-
-        return JsonResponse({"success": True})
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": _("تم حذف الإعلان '{}' بنجاح.").format(ad_title),
+                }
+            )
+        except Exception as e:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": _("حدث خطأ أثناء حذف الإعلان: {}").format(str(e)),
+                },
+                status=500,
+            )
 
 
 class AdminCategoriesView(LoginRequiredMixin, ListView):
@@ -648,7 +665,9 @@ class CategorySaveView(LoginRequiredMixin, View):
 
     def post(self, request):
         if not request.user.is_superuser:
-            return JsonResponse({"success": False, "message": "Permission denied"}, status=403)
+            return JsonResponse(
+                {"success": False, "message": "Permission denied"}, status=403
+            )
 
         category_id = request.POST.get("category_id")
         name = request.POST.get("name")
@@ -698,6 +717,7 @@ class CategorySaveView(LoginRequiredMixin, View):
             # Optional: country by code
             if country_code:
                 from content.models import Country
+
                 try:
                     category.country = Country.objects.get(code=country_code)
                 except Country.DoesNotExist:
@@ -727,7 +747,11 @@ class CategorySaveView(LoginRequiredMixin, View):
 
         except Exception as e:
             return JsonResponse(
-                {"success": False, "message": _("حدث خطأ أثناء حفظ القسم"), "error": str(e)},
+                {
+                    "success": False,
+                    "message": _("حدث خطأ أثناء حفظ القسم"),
+                    "error": str(e),
+                },
                 status=400,
             )
 
@@ -737,27 +761,33 @@ class CategoryGetView(LoginRequiredMixin, View):
 
     def get(self, request, category_id):
         if not request.user.is_superuser:
-            return JsonResponse({"success": False, "message": "Permission denied"}, status=403)
+            return JsonResponse(
+                {"success": False, "message": "Permission denied"}, status=403
+            )
 
         category = get_object_or_404(Category, id=category_id)
 
-        return JsonResponse({
-            "id": category.id,
-            "name": category.name,
-            "name_ar": category.name_ar,
-            "slug": category.slug,
-            "slug_ar": category.slug_ar,
-            "parent": category.parent_id if category.parent else None,
-            "section_type": category.section_type,
-            "description": category.description,
-            "allow_cart": getattr(category, "allow_cart", False),
-            "require_admin_approval": getattr(category, "require_admin_approval", True),
-            "is_active": category.is_active,
-            "order": getattr(category, "order", 0),
-            "icon": getattr(category, "icon", ""),
-            "color": getattr(category, "color", ""),
-            "country": getattr(category.country, "code", None),
-        })
+        return JsonResponse(
+            {
+                "id": category.id,
+                "name": category.name,
+                "name_ar": category.name_ar,
+                "slug": category.slug,
+                "slug_ar": category.slug_ar,
+                "parent": category.parent_id if category.parent else None,
+                "section_type": category.section_type,
+                "description": category.description,
+                "allow_cart": getattr(category, "allow_cart", False),
+                "require_admin_approval": getattr(
+                    category, "require_admin_approval", True
+                ),
+                "is_active": category.is_active,
+                "order": getattr(category, "order", 0),
+                "icon": getattr(category, "icon", ""),
+                "color": getattr(category, "color", ""),
+                "country": getattr(category.country, "code", None),
+            }
+        )
 
 
 class CategoryDeleteView(LoginRequiredMixin, View):

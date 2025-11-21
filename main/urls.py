@@ -193,6 +193,11 @@ urlpatterns = [
         name="admin_custom_field_save",
     ),
     path(
+        "admin/custom-fields/<int:field_id>/delete/",
+        views.AdminCustomFieldDeleteView.as_view(),
+        name="admin_custom_field_delete",
+    ),
+    path(
         "admin/users/",
         views.AdminUsersManagementView.as_view(),
         name="admin_users",

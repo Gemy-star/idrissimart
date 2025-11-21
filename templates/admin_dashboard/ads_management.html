@@ -8,6 +8,148 @@
     /* Modal z-index - Uses global values from admin-dashboard.css
        Modal backdrop: 10500, Modal: 10600, Modal dialog: 10700 */
     /* Bootstrap modals automatically inherit these values */
+
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 10600;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+    }
+
+    .modal.active {
+        display: flex;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        position: relative;
+        margin: auto;
+    }
+
+    [data-theme='dark'] .modal-content {
+        background: #1e1e2e;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #f3f4f6;
+    }
+
+    [data-theme='dark'] .modal-header {
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .modal-header h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin: 0;
+    }
+
+    [data-theme='dark'] .modal-header h2 {
+        color: #e5e7eb;
+    }
+
+    .btn-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: #6b7280;
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-close:hover {
+        background: #f3f4f6;
+        color: #1a202c;
+    }
+
+    [data-theme='dark'] .btn-close:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #e5e7eb;
+    }
+
+    .modal-body {
+        margin-bottom: 0;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 2px solid #f3f4f6;
+    }
+
+    [data-theme='dark'] .form-actions {
+        border-top-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-cancel {
+        background: #f3f4f6;
+        color: #4b5563;
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-cancel:hover {
+        background: #e5e7eb;
+    }
+
+    [data-theme='dark'] .btn-cancel {
+        background: rgba(255, 255, 255, 0.1);
+        color: #d1d5db;
+    }
+
+    [data-theme='dark'] .btn-cancel:hover {
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-danger {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-danger:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    }
 </style>
 {% endblock %}
 
@@ -195,20 +337,19 @@
         </div>
     </div>
 
-<!-- Confirm Delete Panel -->
-<div class="slide-panel" id="confirmDeletePanel">
-    <div class="slide-panel-overlay"></div>
-    <div class="slide-panel-content">
-        <div class="slide-panel-header">
-            <h5 class="slide-panel-title">
+<!-- Confirm Delete Modal -->
+<div id="confirmDeleteModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>
                 <i class="fas fa-exclamation-triangle text-danger me-2"></i>
                 {% trans "تأكيد الحذف" %}
-            </h5>
-            <button type="button" class="slide-panel-close" onclick="closeSidePanel('confirmDeletePanel')">
+            </h2>
+            <button class="btn-close" onclick="closeModal('confirmDeleteModal')">
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        <div class="slide-panel-body">
+        <div class="modal-body">
             <div class="alert alert-warning">
                 <i class="fas fa-info-circle me-2"></i>
                 {% trans "هل أنت متأكد من حذف الإعلان" %} "<span id="deleteAdTitle"></span>"؟
@@ -218,12 +359,12 @@
                 {% trans "لا يمكن التراجع عن هذا الإجراء." %}
             </p>
         </div>
-        <div class="slide-panel-footer">
-            <button type="button" class="btn btn-secondary" onclick="closeSidePanel('confirmDeletePanel')">
+        <div class="form-actions">
+            <button type="button" class="btn-primary btn-cancel" onclick="closeModal('confirmDeleteModal')">
                 <i class="fas fa-times me-2"></i>
                 {% trans "إلغاء" %}
             </button>
-            <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+            <button type="button" class="btn-danger" id="confirmDeleteBtn">
                 <i class="fas fa-trash me-2"></i>
                 {% trans "حذف" %}
             </button>
@@ -235,10 +376,24 @@
     <script>
         let adToDeleteId = null;
 
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.add('active');
+            }
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('active');
+            }
+        }
+
         function deleteAd(adId, adTitle) {
             adToDeleteId = adId;
             document.getElementById('deleteAdTitle').textContent = adTitle;
-            openSidePanel('confirmDeletePanel');
+            openModal('confirmDeleteModal');
         }
 
         // Notification Functions
@@ -283,18 +438,24 @@
             document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
                 if (!adToDeleteId) return;
 
-                fetch(`/admin/ads/${adToDeleteId}/delete/`, {
+                const deleteUrl = `{% url 'main:delete_ad' 0 %}`.replace('/0/', `/${adToDeleteId}/`);
+
+                fetch(deleteUrl, {
                     method: 'POST',
                     headers: {
-                        'X-CSRFToken': getCookie('csrftoken'),
-                        'Content-Type': 'application/json'
+                        'X-CSRFToken': getCookie('csrftoken')
                     }
                 })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.success) {
                         showSuccess(data.message || '{% trans "تم حذف الإعلان بنجاح." %}');
-                        closeSidePanel('confirmDeletePanel');
+                        closeModal('confirmDeleteModal');
                         setTimeout(() => {
                             location.reload();
                         }, 1000);
@@ -334,6 +495,16 @@
                     stagger: 0.05,
                     ease: "elastic.out(1, 0.5)",
                 });
+            }
+        });
+
+        // Close modal on outside click
+        window.addEventListener('click', function(event) {
+            if (event.target.classList.contains('modal')) {
+                const modalId = event.target.id;
+                if (modalId) {
+                    closeModal(modalId);
+                }
             }
         });
     </script>

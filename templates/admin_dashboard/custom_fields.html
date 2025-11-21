@@ -15,8 +15,8 @@
                 <p class="text-muted mb-0">{% trans "عرض وتعديل جميع الحقول المخصصة المرتبطة بالأقسام" %}</p>
             </div>
             <div class="col-auto">
-                <button type="button" onclick="openSidePanel('addFieldPanel')" class="btn btn-primary">
-                    <i class="fas fa-plus-circle me-2"></i>
+                <button onclick="openModal('addFieldModal')" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>
                     {% trans "إضافة حقل جديد" %}
                 </button>
             </div>
@@ -81,8 +81,11 @@
                                             {% endif %}
                                         </td>
                                         <td>
-                                            <button type="button" onclick="editCustomField({{ field.id }}); openSidePanel('editFieldPanel');" class="btn btn-sm btn-outline-primary" title="{% trans 'تعديل' %}">
+                                            <button type="button" onclick="editCustomField({{ field.id }})" class="btn btn-sm btn-outline-primary me-1" title="{% trans 'تعديل' %}">
                                                 <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button type="button" onclick="showDeleteConfirmation({{ field.id }}, '{{ field.label_ar|escapejs }}')" class="btn btn-sm btn-outline-danger" title="{% trans 'حذف' %}">
+                                                <i class="fas fa-trash"></i>
                                             </button>
                                         </td>
                                     </tr>
@@ -101,21 +104,19 @@
         {% endif %}
     </div>
 
-    <!-- Add Custom Field Slide Panel -->
-    <!-- Add Field Slide Panel -->
-    <div class="slide-panel" id="addFieldPanel">
-        <div class="slide-panel-overlay" onclick="closeSidePanel('addFieldPanel')"></div>
-        <div class="slide-panel-content">
-            <div class="slide-panel-header">
-                <h5 class="slide-panel-title">
+    <!-- Add Custom Field Modal -->
+    <div id="addFieldModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>
                     <i class="fas fa-plus-circle me-2"></i>
                     {% trans "إضافة حقل مخصص جديد" %}
-                </h5>
-                <button type="button" class="slide-panel-close" onclick="closeSidePanel('addFieldPanel')">
+                </h2>
+                <button class="btn-close" onclick="closeModal('addFieldModal')">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="slide-panel-body">
+            <div class="modal-body">
                     <form id="addFieldForm">
                         <div class="mb-3">
                             <label for="addCategory" class="form-label">{% trans "القسم التابع له" %} *</label>
@@ -179,29 +180,30 @@
                             </div>
                         </div>
                     </form>
-                </div>
-                <div class="slide-panel-footer">
-                    <button type="button" class="btn btn-secondary" onclick="closeSidePanel('addFieldPanel')">{% trans "إغلاق" %}</button>
-                    <button type="button" class="btn btn-primary" onclick="addNewCustomField()">{% trans "إضافة الحقل" %}</button>
+                <div class="form-actions">
+                    <button type="button" class="btn-primary btn-cancel" onclick="closeModal('addFieldModal')">{% trans "إلغاء" %}</button>
+                    <button type="button" class="btn-primary" onclick="addNewCustomField()">
+                        <i class="fas fa-save"></i>
+                        {% trans "إضافة الحقل" %}
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Edit Custom Field Slide Panel -->
-    <div class="slide-panel" id="editFieldPanel">
-        <div class="slide-panel-overlay" onclick="closeSidePanel('editFieldPanel')"></div>
-        <div class="slide-panel-content">
-            <div class="slide-panel-header">
-                <h5 class="slide-panel-title">
+    <!-- Edit Custom Field Modal -->
+    <div id="editFieldModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>
                     <i class="fas fa-edit me-2"></i>
                     {% trans "تعديل الحقل المخصص" %}
-                </h5>
-                <button type="button" class="slide-panel-close" onclick="closeSidePanel('editFieldPanel')">
+                </h2>
+                <button class="btn-close" onclick="closeModal('editFieldModal')">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="slide-panel-body">
+            <div class="modal-body">
                     <form id="editFieldForm">
                         <input type="hidden" id="editFieldId" name="field_id">
                         <div class="row">
@@ -252,11 +254,42 @@
                             </div>
                         </div>
                     </form>
+                <div class="form-actions">
+                    <button type="button" class="btn-primary btn-cancel" onclick="closeModal('editFieldModal')">{% trans "إلغاء" %}</button>
+                    <button type="button" class="btn-primary" onclick="saveCustomField()">
+                        <i class="fas fa-save"></i>
+                        {% trans "حفظ التغييرات" %}
+                    </button>
                 </div>
-                <div class="slide-panel-footer">
-                    <button type="button" class="btn btn-secondary" onclick="closeSidePanel('editFieldPanel')">{% trans "إغلاق" %}</button>
-                    <button type="button" class="btn btn-primary" onclick="saveCustomField()">{% trans "حفظ التغييرات" %}</button>
-                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteFieldModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>
+                    <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
+                    {% trans "تأكيد الحذف" %}
+                </h2>
+                <button class="btn-close" onclick="closeModal('deleteFieldModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="deleteFieldMessage">{% trans "هل أنت متأكد من حذف هذا الحقل؟" %}</p>
+                <p class="text-muted small mb-0">{% trans "لا يمكن التراجع عن هذا الإجراء." %}</p>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn-primary btn-cancel" onclick="closeModal('deleteFieldModal')">
+                    <i class="fas fa-times me-1"></i>
+                    {% trans "إلغاء" %}
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash me-1"></i>
+                    {% trans "حذف" %}
+                </button>
             </div>
         </div>
     </div>
@@ -264,12 +297,300 @@
 
 {% block admin_extra_css %}
 <style>
-    /* Slide panels use z-index values from admin-dashboard.css (10050-10700) */
+    /* Modal z-index - Uses global values from admin-dashboard.css
+       Modal backdrop: 10500, Modal: 10600, Modal dialog: 10700 */
+    /* Bootstrap modals automatically inherit these values */
+
+    /* Modal Styles - Copied from categories.html */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 10600;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+    }
+
+    .modal.active {
+        display: flex;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 600px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        position: relative;
+        margin: auto;
+    }
+
+    [data-theme='dark'] .modal-content {
+        background: #1e1e2e;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #f3f4f6;
+    }
+
+    [data-theme='dark'] .modal-header {
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .modal-header h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin: 0;
+    }
+
+    [data-theme='dark'] .modal-header h2 {
+        color: #e5e7eb;
+    }
+
+    .btn-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: #6b7280;
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-close:hover {
+        background: #f3f4f6;
+        color: #1a202c;
+    }
+
+    [data-theme='dark'] .btn-close:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #e5e7eb;
+    }
+
+    .modal-body {
+        margin-bottom: 0;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 8px;
+        font-size: 0.875rem;
+    }
+
+    [data-theme='dark'] .form-group label {
+        color: #d1d5db;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        font-size: 0.875rem;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    [data-theme='dark'] .form-group input,
+    [data-theme='dark'] .form-group select,
+    [data-theme='dark'] .form-group textarea {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
+        color: #e5e7eb;
+    }
+
+    [data-theme='dark'] .form-group select option {
+        background: #1e1e2e;
+        color: #e5e7eb;
+    }
+
+    .form-group input::placeholder,
+    .form-group textarea::placeholder {
+        color: #9ca3af;
+    }
+
+    [data-theme='dark'] .form-group input::placeholder,
+    [data-theme='dark'] .form-group textarea::placeholder {
+        color: #6b7280;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    [data-theme='dark'] .form-group input:focus,
+    [data-theme='dark'] .form-group select:focus,
+    [data-theme='dark'] .form-group textarea:focus {
+        border-color: #764ba2;
+        box-shadow: 0 0 0 3px rgba(118, 75, 162, 0.2);
+    }
+
+    .form-group input[type="checkbox"] {
+        width: auto;
+        margin-right: 8px;
+        cursor: pointer;
+        accent-color: #667eea;
+    }
+
+    [data-theme='dark'] .form-group input[type="checkbox"] {
+        accent-color: #764ba2;
+    }
+
+    .form-group label:has(input[type="checkbox"]) {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 2px solid #f3f4f6;
+    }
+
+    [data-theme='dark'] .form-actions {
+        border-top-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-cancel {
+        background: #f3f4f6;
+        color: #4b5563;
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-cancel:hover {
+        background: #e5e7eb;
+    }
+
+    [data-theme='dark'] .btn-cancel {
+        background: rgba(255, 255, 255, 0.1);
+        color: #d1d5db;
+    }
+
+    [data-theme='dark'] .btn-cancel:hover {
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-danger {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-danger:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    }
 </style>
 {% endblock %}
 
 {% block admin_extra_js %}
 <script>
+    let fieldToDelete = null;
+
+    function openModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.add('active');
+        }
+    }
+
+    function closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('active');
+        }
+    }
+
+    function showDeleteConfirmation(fieldId, fieldName) {
+        fieldToDelete = fieldId;
+        const message = `{% trans "هل أنت متأكد من حذف الحقل" %} "${fieldName}"؟`;
+        document.getElementById('deleteFieldMessage').textContent = message;
+        openModal('deleteFieldModal');
+    }
+
+    // Handle delete confirmation
+    document.addEventListener('DOMContentLoaded', function() {
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        if (confirmDeleteBtn) {
+            confirmDeleteBtn.addEventListener('click', function() {
+                if (fieldToDelete) {
+                    deleteCustomField(fieldToDelete);
+                }
+            });
+        }
+    });
+
+    function deleteCustomField(fieldId) {
+        fetch(`/admin/custom-fields/${fieldId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            closeModal('deleteFieldModal');
+
+            if (data.success) {
+                showSuccess(data.message || '{% trans "تم حذف الحقل بنجاح" %}');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showError(data.message || '{% trans "فشل حذف الحقل" %}');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showError('{% trans "حدث خطأ أثناء حذف الحقل" %}');
+        });
+    }
+
     function editCustomField(fieldId) {
         fetch(`/admin/custom-fields/${fieldId}/get/`)
             .then(response => response.json())
@@ -286,14 +607,14 @@
                     document.getElementById('editFieldIsRequired').checked = field.is_required || false;
                     document.getElementById('editFieldIsActive').checked = field.is_active || false;
 
-                    // The slide panel is opened via onclick handlers
+                    openModal('editFieldModal');
                 } else {
-                    alert(data.message || '{% trans "Failed to load field data." %}');
+                    showError(data.message || '{% trans "فشل تحميل بيانات الحقل" %}');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('{% trans "An error occurred while loading field data." %}');
+                showError('{% trans "حدث خطأ أثناء تحميل بيانات الحقل" %}');
             });
     }
 
@@ -308,7 +629,7 @@
 
         // Basic validation
         if (!formData.get('category') || !formData.get('name') || !formData.get('label_ar')) {
-            alert('{% trans "Please fill all required fields." %}');
+            showError('{% trans "يرجى ملء جميع الحقول المطلوبة" %}');
             return;
         }
 
@@ -320,15 +641,16 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                closeSidePanel('addFieldPanel');
-                location.reload();
+                closeModal('addFieldModal');
+                showSuccess(data.message || '{% trans "تم إضافة الحقل بنجاح" %}');
+                setTimeout(() => location.reload(), 1000);
             } else {
-                alert(data.message || '{% trans "Failed to add field." %}');
+                showError(data.message || '{% trans "فشل إضافة الحقل" %}');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('{% trans "An error occurred while adding the field." %}');
+            showError('{% trans "حدث خطأ أثناء إضافة الحقل" %}');
         });
     }
 
@@ -351,16 +673,16 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                closeSidePanel('editFieldPanel');
-                alert(data.message);
-                location.reload();
+                closeModal('editFieldModal');
+                showSuccess(data.message || '{% trans "تم حفظ التغييرات بنجاح" %}');
+                setTimeout(() => location.reload(), 1000);
             } else {
-                alert(data.message || '{% trans "Failed to save field." %}');
+                showError(data.message || '{% trans "فشل حفظ التغييرات" %}');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('{% trans "An error occurred while saving the field." %}');
+            showError('{% trans "حدث خطأ أثناء حفظ التغييرات" %}');
         });
     }
 
@@ -378,5 +700,33 @@
         }
         return cookieValue;
     }
+
+    function showSuccess(message) {
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(message || 'تمت العملية بنجاح', 'success');
+        } else {
+            // Fallback notification
+            alert(message);
+        }
+    }
+
+    function showError(message) {
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(message || 'حدث خطأ', 'error');
+        } else {
+            // Fallback notification
+            alert(message);
+        }
+    }
+
+    // Close modal on outside click
+    window.addEventListener('click', function(event) {
+        if (event.target.classList.contains('modal')) {
+            const modalId = event.target.id;
+            if (modalId) {
+                closeModal(modalId);
+            }
+        }
+    });
 </script>
 {% endblock %}

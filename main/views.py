@@ -2520,6 +2520,32 @@ class AdminCustomFieldSaveView(SuperadminRequiredMixin, View):
             return JsonResponse({"success": False, "message": str(e)}, status=500)
 
 
+class AdminCustomFieldDeleteView(SuperadminRequiredMixin, View):
+    """AJAX view to delete a custom field."""
+
+    def post(self, request, field_id):
+        try:
+            field = get_object_or_404(CustomField, pk=field_id)
+            field_name = field.label_ar or field.name
+            field.delete()
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": _("تم حذف الحقل '%(name)s' بنجاح.")
+                    % {"name": field_name},
+                }
+            )
+        except Exception as e:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": _("حدث خطأ أثناء حذف الحقل: %(error)s")
+                    % {"error": str(e)},
+                },
+                status=500,
+            )
+
+
 class AdminUsersManagementView(SuperadminRequiredMixin, ListView):
     """
     Admin interface for comprehensive user management.
@@ -3118,7 +3144,9 @@ def admin_settings_get(request):
             "notify_admin_pending_review": True,
             "notify_admin_new_users": True,
             "notify_admin_payments": True,
-            "admin_notification_email": request.user.email if request.user.is_authenticated else "",
+            "admin_notification_email": (
+                request.user.email if request.user.is_authenticated else ""
+            ),
             "site_name_in_emails": "إدريسي مارت",
             "ads_notification_frequency": "hourly",
             "stats_report_frequency": "daily",
