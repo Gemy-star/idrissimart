@@ -5,11 +5,7 @@
 
 {% block admin_extra_css %}
 <style>
-    /* Modal z-index - Uses global values from admin-dashboard.css
-       Modal backdrop: 10500, Modal: 10600, Modal dialog: 10700 */
-    /* Bootstrap modals automatically inherit these values */
-
-    /* Dark theme text color fixes */
+    /* Dark theme text color fixes for table */
     [data-theme='dark'] table tbody td {
         color: #e9ecef;
     }
@@ -21,6 +17,9 @@
     [data-theme='dark'] table tbody td a {
         color: #e9ecef;
     }
+
+    /* All modal styles are inherited from admin-dashboard.css */
+    /* Modal z-index hierarchy: backdrop (10500), modal (10600), dialog (10700) */
 </style>
 {% endblock %}
 
@@ -160,7 +159,7 @@
                                     <td>{{ user_obj.date_joined|date:"d M, Y" }}</td>
                                     <td class="text-nowrap">
                                         <div class="btn-group" role="group" aria-label="{% trans 'إجراءات المستخدم' %}">
-                                            <a href="#" onclick="event.preventDefault(); viewUserDetails({{ user_obj.id }})" class="btn btn-sm btn-outline-primary" title="{% trans 'عرض التفاصيل' %}" aria-label="{% trans 'عرض التفاصيل' %}">
+                                            <a href="{% url 'main:admin_user_detail' user_obj.id %}" class="btn btn-sm btn-outline-primary" title="{% trans 'عرض التفاصيل' %}" aria-label="{% trans 'عرض التفاصيل' %}">
                                                 <i class="fas fa-eye"></i>
                                             </a>
                                             <button type="button"
@@ -213,10 +212,60 @@
             </div>
         </div>
     </div>
+
+    <!-- User Action Confirmation Modal -->
+    <!-- Confirmation Modal -->
+    <div id="userActionModal" class="modal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>
+                        <i class="fas fa-user-shield text-warning me-2"></i>
+                        <span id="userActionTitle">{% trans "تأكيد الإجراء" %}</span>
+                    </h2>
+                    <button class="btn-close" onclick="closeModal('userActionModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <span id="userActionMessage"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeModal('userActionModal')">
+                        <i class="fas fa-times me-2"></i>
+                        {% trans "إلغاء" %}
+                    </button>
+                    <button type="button" id="confirmUserActionBtn" class="btn-warning">
+                        <i class="fas fa-check me-2"></i>
+                        <span id="userActionButtonText">{% trans "تأكيد" %}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 {% endblock %}
 
 {% block admin_extra_js %}
     <script>
+        // Suppress browser extension errors
+        window.addEventListener('error', function(e) {
+            if (e.message && e.message.includes('message channel closed')) {
+                e.preventDefault();
+                return true;
+            }
+        });
+
+        // Suppress unhandled promise rejections from extensions
+        window.addEventListener('unhandledrejection', function(e) {
+            if (e.reason && e.reason.message && e.reason.message.includes('message channel closed')) {
+                e.preventDefault();
+                return true;
+            }
+        });
+
         // Toast Notification System
         window.showNotification = function(message, type = 'success') {
             const notification = document.createElement('div');
@@ -286,8 +335,47 @@
             return cookieValue;
         };
 
+        // Modal helper functions
+        window.openModal = function(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.add('active');
+            }
+        };
+
+        window.closeModal = function(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('active');
+            }
+        };
+
+        // Close modal when clicking outside
+        window.addEventListener('click', function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.classList.remove('active');
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const activeModal = document.querySelector('.modal.active');
+                if (activeModal && activeModal.id) {
+                    closeModal(activeModal.id);
+                }
+            }
+        });
+
+        // User action state variables
+        let currentUserId = null;
+        let currentUserAction = null;
+
         window.handleUserAction = function(action, userId) {
             if (!action || !userId) return;
+
+            currentUserId = userId;
+            currentUserAction = action;
 
             const msgMap = {
                 suspend: '{% trans "هل أنت متأكد من تعليق هذا المستخدم؟" %}',
@@ -296,42 +384,58 @@
             };
             const confirmMsg = msgMap[action] || '{% trans "هل أنت متأكد؟" %}';
 
-            // Create custom confirmation modal instead of alert
-            const confirmed = confirm(confirmMsg);
-            if (!confirmed) return;
+            const buttonTextMap = {
+                suspend: '{% trans "تعليق" %}',
+                unsuspend: '{% trans "إلغاء التعليق" %}',
+                verify: '{% trans "توثيق" %}'
+            };
+            const buttonText = buttonTextMap[action] || '{% trans "تأكيد" %}';
 
-            const url = "{% url 'main:admin_user_action' 0 %}".replace('0', userId);
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken'),
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ action })
-            })
-            .then(r => {
-                if (!r.ok) throw new Error('Network response was not ok');
-                return r.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    showNotification(data.message || '{% trans "تمت العملية بنجاح." %}', 'success');
-                    setTimeout(() => location.reload(), 1000);
-                } else {
-                    showNotification(data.message || '{% trans "حدث خطأ أثناء تنفيذ العملية." %}', 'error');
-                }
-            })
-            .catch((error) => {
-                console.error('Error:', error);
-                showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error');
-            });
+            document.getElementById('userActionMessage').textContent = confirmMsg;
+            document.getElementById('userActionButtonText').textContent = buttonText;
+            openModal('userActionModal');
         };
 
-        window.viewUserDetails = function(userId) {
-            // Show notification for now
-            showNotification('{% trans "صفحة التفاصيل قيد التطوير" %}', 'info');
-            // Placeholder: navigate to a user details page if exists.
-            // window.location.href = `/admin/users/${userId}/`;
-        };
+        // Confirm user action handler
+        document.addEventListener('DOMContentLoaded', function() {
+            const confirmUserActionBtn = document.getElementById('confirmUserActionBtn');
+            if (confirmUserActionBtn) {
+                confirmUserActionBtn.addEventListener('click', function() {
+                    if (currentUserId === null || currentUserAction === null) return;
+
+                    const url = "{% url 'main:admin_user_action' 0 %}".replace('0', currentUserId);
+
+                    fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ action: currentUserAction })
+                    })
+                    .then(r => {
+                        if (!r.ok) throw new Error('Network response was not ok');
+                        return r.json();
+                    })
+                    .then(data => {
+                        closeModal('userActionModal');
+                        if (data.success) {
+                            showNotification(data.message || '{% trans "تمت العملية بنجاح." %}', 'success');
+                            setTimeout(() => location.reload(), 1000);
+                        } else {
+                            showNotification(data.message || '{% trans "حدث خطأ أثناء تنفيذ العملية." %}', 'error');
+                        }
+                    })
+                    .catch((error) => {
+                        closeModal('userActionModal');
+                        // Only show error if it's not from browser extension
+                        if (!error.message.includes('message channel')) {
+                            console.error('Error:', error);
+                            showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error');
+                        }
+                    });
+                });
+            }
+        });
     </script>
 {% endblock %}

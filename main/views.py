@@ -2903,6 +2903,44 @@ def admin_category_reorder(request):
 
 
 @superadmin_required
+def admin_user_detail(request, user_id):
+    """
+    Admin view to see detailed information about a specific user.
+    """
+    user_obj = get_object_or_404(
+        User.objects.prefetch_related("classified_ads", "classified_ads__images"),
+        pk=user_id,
+    )
+
+    # Get user's ad statistics
+    user_ads = user_obj.classified_ads.all()
+    user_ad_stats = {
+        "total": user_ads.count(),
+        "active": user_ads.filter(status=ClassifiedAd.AdStatus.ACTIVE).count(),
+        "pending": user_ads.filter(status=ClassifiedAd.AdStatus.PENDING).count(),
+        "expired": user_ads.filter(status=ClassifiedAd.AdStatus.EXPIRED).count(),
+        "rejected": user_ads.filter(status=ClassifiedAd.AdStatus.REJECTED).count(),
+        "draft": user_ads.filter(status=ClassifiedAd.AdStatus.DRAFT).count(),
+    }
+
+    # Get recent ads
+    recent_ads = (
+        user_ads.select_related("category", "country")
+        .prefetch_related("images")
+        .order_by("-created_at")[:10]
+    )
+
+    context = {
+        "user_obj": user_obj,
+        "user_ad_stats": user_ad_stats,
+        "recent_ads": recent_ads,
+        "page_title": _("تفاصيل المستخدم") + f" - {user_obj.username}",
+        "active_nav": "users",
+    }
+    return render(request, "admin_dashboard/user_detail.html", context)
+
+
+@superadmin_required
 @require_POST
 def admin_user_action(request, user_id):
     """

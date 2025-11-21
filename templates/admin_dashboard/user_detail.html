@@ -1,0 +1,609 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n idrissimart_tags %}
+
+{% block title %}{{ user_obj.username }} - {% trans "تفاصيل المستخدم" %}{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+    .user-detail-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 40px;
+        border-radius: 16px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+
+    [data-theme='dark'] .user-detail-header {
+        background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+    }
+
+    .user-avatar-large {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        font-weight: 700;
+        color: #667eea;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .user-info-card {
+        background: white;
+        border-radius: 16px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme='dark'] .user-info-card {
+        background: #1a1a1a;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 15px 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    [data-theme='dark'] .info-row {
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .info-row:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        color: #6b7280;
+        font-weight: 600;
+    }
+
+    [data-theme='dark'] .info-label {
+        color: #9ca3af;
+    }
+
+    .info-value {
+        color: #1a202c;
+        font-weight: 500;
+    }
+
+    [data-theme='dark'] .info-value {
+        color: #e9ecef;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s ease;
+    }
+
+    [data-theme='dark'] .stat-card {
+        background: #1a1a1a;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .stat-label {
+        color: #6b7280;
+        font-size: 0.9rem;
+        margin-top: 8px;
+    }
+
+    [data-theme='dark'] .stat-label {
+        color: #9ca3af;
+    }
+
+    .ad-card {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+        margin-bottom: 20px;
+    }
+
+    [data-theme='dark'] .ad-card {
+        background: #1a1a1a;
+    }
+
+    .ad-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .ad-image {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+    }
+
+    .ad-content {
+        padding: 15px;
+    }
+
+    .ad-title {
+        font-weight: 700;
+        color: #1a202c;
+        margin-bottom: 10px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    [data-theme='dark'] .ad-title {
+        color: #e9ecef;
+    }
+
+    .ad-price {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #3b82f6;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+    }
+
+    .btn-action {
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-suspend {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: white;
+    }
+
+    .btn-suspend:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+    }
+
+    .btn-verify {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+    }
+
+    .btn-verify:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    }
+
+    .btn-back {
+        background: #6b7280;
+        color: white;
+    }
+
+    .btn-back:hover {
+        background: #4b5563;
+        transform: translateY(-2px);
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 6px 14px;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .badge-verified {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+    }
+
+    .badge-suspended {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: white;
+    }
+
+    .badge-active {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+    <!-- User Header -->
+    <div class="user-detail-header">
+        <div class="row align-items-center">
+            <div class="col-auto">
+                <div class="user-avatar-large">
+                    {{ user_obj.username.0|upper }}
+                </div>
+            </div>
+            <div class="col">
+                <h1 class="mb-2">{{ user_obj.get_full_name|default:user_obj.username }}</h1>
+                <p class="mb-3 opacity-75">@{{ user_obj.username }}</p>
+                <div>
+                    {% if user_obj.is_suspended %}
+                        <span class="status-badge badge-suspended">{% trans "معلق" %}</span>
+                    {% elif user_obj.is_verified %}
+                        <span class="status-badge badge-verified">{% trans "موثق" %}</span>
+                    {% else %}
+                        <span class="status-badge badge-active">{% trans "نشط" %}</span>
+                    {% endif %}
+                    <span class="status-badge" style="background: rgba(255,255,255,0.2);">
+                        {{ user_obj.get_profile_type_display }}
+                    </span>
+                </div>
+            </div>
+            <div class="col-auto">
+                <a href="{% url 'main:admin_users' %}" class="btn-action btn-back">
+                    <i class="fas fa-arrow-right me-2"></i>
+                    {% trans "العودة" %}
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row mb-4">
+        <div class="col-lg-2 col-md-4 col-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ user_ad_stats.total }}</div>
+                <div class="stat-label">{% trans "إجمالي الإعلانات" %}</div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ user_ad_stats.active }}</div>
+                <div class="stat-label">{% trans "نشط" %}</div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ user_ad_stats.pending }}</div>
+                <div class="stat-label">{% trans "قيد المراجعة" %}</div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ user_ad_stats.expired }}</div>
+                <div class="stat-label">{% trans "منتهي" %}</div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ user_ad_stats.rejected }}</div>
+                <div class="stat-label">{% trans "مرفوض" %}</div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ user_ad_stats.draft }}</div>
+                <div class="stat-label">{% trans "مسودة" %}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- User Information -->
+        <div class="col-lg-4">
+            <div class="user-info-card">
+                <h5 class="mb-4">
+                    <i class="fas fa-user-circle me-2"></i>
+                    {% trans "معلومات المستخدم" %}
+                </h5>
+
+                <div class="info-row">
+                    <span class="info-label">{% trans "البريد الإلكتروني" %}:</span>
+                    <span class="info-value">{{ user_obj.email }}</span>
+                </div>
+
+                <div class="info-row">
+                    <span class="info-label">{% trans "الهاتف" %}:</span>
+                    <span class="info-value">{{ user_obj.phone|default:_("غير متوفر") }}</span>
+                </div>
+
+                <div class="info-row">
+                    <span class="info-label">{% trans "تاريخ التسجيل" %}:</span>
+                    <span class="info-value">{{ user_obj.date_joined|date:"d M, Y" }}</span>
+                </div>
+
+                <div class="info-row">
+                    <span class="info-label">{% trans "آخر دخول" %}:</span>
+                    <span class="info-value">
+                        {% if user_obj.last_login %}
+                            {{ user_obj.last_login|timesince }} {% trans "مضت" %}
+                        {% else %}
+                            {% trans "لم يسجل دخول بعد" %}
+                        {% endif %}
+                    </span>
+                </div>
+
+                <div class="info-row">
+                    <span class="info-label">{% trans "حالة التوثيق" %}:</span>
+                    <span class="info-value">{{ user_obj.get_verification_status_display }}</span>
+                </div>
+
+                {% if user_obj.verified_at %}
+                <div class="info-row">
+                    <span class="info-label">{% trans "تاريخ التوثيق" %}:</span>
+                    <span class="info-value">{{ user_obj.verified_at|date:"d M, Y" }}</span>
+                </div>
+                {% endif %}
+
+                <!-- Admin Actions -->
+                <div class="action-buttons mt-4 pt-4" style="border-top: 2px solid #e5e7eb;">
+                    <button class="btn-action btn-suspend flex-fill" onclick="handleUserAction('{{ user_obj.is_suspended|yesno:'unsuspend,suspend' }}', {{ user_obj.id }})">
+                        {% if user_obj.is_suspended %}
+                            <i class="fas fa-play-circle me-2"></i> {% trans "إلغاء التعليق" %}
+                        {% else %}
+                            <i class="fas fa-pause-circle me-2"></i> {% trans "تعليق" %}
+                        {% endif %}
+                    </button>
+                    {% if user_obj.verification_status != 'verified' %}
+                        <button class="btn-action btn-verify flex-fill" onclick="handleUserAction('verify', {{ user_obj.id }})">
+                            <i class="fas fa-user-check me-2"></i> {% trans "توثيق" %}
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Ads -->
+        <div class="col-lg-8">
+            <div class="user-info-card">
+                <h5 class="mb-4">
+                    <i class="fas fa-ad me-2"></i>
+                    {% trans "الإعلانات الأخيرة" %}
+                </h5>
+
+                {% if recent_ads %}
+                    <div class="row">
+                        {% for ad in recent_ads %}
+                        <div class="col-md-6 mb-3">
+                            <div class="ad-card">
+                                {% if ad.images.first %}
+                                    <img src="{{ ad.images.first.image.url }}" alt="{{ ad.title }}" class="ad-image" onerror="this.src='https://via.placeholder.com/400x200?text=No+Image'">
+                                {% else %}
+                                    <div class="ad-image" style="background: linear-gradient(135deg, #e5e7eb, #d1d5db); display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-image fa-3x" style="color: #9ca3af;"></i>
+                                    </div>
+                                {% endif %}
+                                <div class="ad-content">
+                                    <h6 class="ad-title">{{ ad.title }}</h6>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="ad-price">
+                                            {{ ad.price|floatformat:2 }}
+                                            {% if ad.country %}{{ ad.country.currency_symbol }}{% else %}EGP{% endif %}
+                                        </span>
+                                        <span class="badge bg-{{ ad.status }}">{{ ad.get_status_display }}</span>
+                                    </div>
+                                    <div class="mt-3">
+                                        <a href="{% url 'main:ad_publisher_detail' ad.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye me-1"></i> {% trans "عرض" %}
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">{% trans "لا توجد إعلانات لهذا المستخدم" %}</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- User Action Modal -->
+    <div id="userActionModal" class="modal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>
+                        <i class="fas fa-user-shield text-warning me-2"></i>
+                        <span id="userActionTitle">{% trans "تأكيد الإجراء" %}</span>
+                    </h2>
+                    <button class="btn-close" onclick="closeModal('userActionModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <span id="userActionMessage"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeModal('userActionModal')">
+                        <i class="fas fa-times me-2"></i>
+                        {% trans "إلغاء" %}
+                    </button>
+                    <button type="button" id="confirmUserActionBtn" class="btn-warning">
+                        <i class="fas fa-check me-2"></i>
+                        <span id="userActionButtonText">{% trans "تأكيد" %}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block admin_extra_js %}
+    <script>
+        // Toast Notification System
+        window.showNotification = function(message, type = 'success') {
+            const notification = document.createElement('div');
+            const typeClass = type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info';
+            const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle';
+            notification.className = `alert alert-${typeClass} position-fixed`;
+            notification.style.cssText = 'top: 20px; right: 20px; z-index: 10800; min-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+            notification.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-${icon} me-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        };
+
+        window.getCookie = function(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        };
+
+        window.openModal = function(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'flex';
+            }
+        };
+
+        window.closeModal = function(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        };
+
+        let currentUserId = null;
+        let currentUserAction = null;
+
+        window.handleUserAction = function(action, userId) {
+            if (!action || !userId) return;
+
+            currentUserId = userId;
+            currentUserAction = action;
+
+            const msgMap = {
+                suspend: '{% trans "هل أنت متأكد من تعليق هذا المستخدم؟" %}',
+                unsuspend: '{% trans "هل أنت متأكد من إلغاء تعليق هذا المستخدم؟" %}',
+                verify: '{% trans "هل أنت متأكد من توثيق هذا المستخدم؟" %}'
+            };
+            const confirmMsg = msgMap[action] || '{% trans "هل أنت متأكد؟" %}';
+
+            const buttonTextMap = {
+                suspend: '{% trans "تعليق" %}',
+                unsuspend: '{% trans "إلغاء التعليق" %}',
+                verify: '{% trans "توثيق" %}'
+            };
+            const buttonText = buttonTextMap[action] || '{% trans "تأكيد" %}';
+
+            document.getElementById('userActionMessage').textContent = confirmMsg;
+            document.getElementById('userActionButtonText').textContent = buttonText;
+            openModal('userActionModal');
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const confirmUserActionBtn = document.getElementById('confirmUserActionBtn');
+            if (confirmUserActionBtn) {
+                confirmUserActionBtn.addEventListener('click', function() {
+                    if (currentUserId === null || currentUserAction === null) return;
+
+                    const url = "{% url 'main:admin_user_action' 0 %}".replace('0', currentUserId);
+
+                    fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ action: currentUserAction })
+                    })
+                    .then(r => {
+                        if (!r.ok) throw new Error('Network response was not ok');
+                        return r.json();
+                    })
+                    .then(data => {
+                        closeModal('userActionModal');
+                        if (data.success) {
+                            showNotification(data.message || '{% trans "تمت العملية بنجاح." %}', 'success');
+                            setTimeout(() => location.reload(), 1000);
+                        } else {
+                            showNotification(data.message || '{% trans "حدث خطأ أثناء تنفيذ العملية." %}', 'error');
+                        }
+                    })
+                    .catch((error) => {
+                        closeModal('userActionModal');
+                        if (!error.message.includes('message channel')) {
+                            console.error('Error:', error);
+                            showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error');
+                        }
+                    });
+                });
+            }
+
+            // Close modal when clicking outside
+            window.addEventListener('click', function(event) {
+                if (event.target.id === 'userActionModal') {
+                    closeModal('userActionModal');
+                }
+            });
+
+            // Animate stat cards
+            if (typeof gsap !== 'undefined') {
+                gsap.fromTo('.stat-card', {
+                    opacity: 0,
+                    y: 20
+                }, {
+                    opacity: 1,
+                    y: 0,
+                    duration: 0.5,
+                    stagger: 0.1,
+                    ease: 'back.out(1.7)'
+                });
+
+                gsap.fromTo('.ad-card', {
+                    opacity: 0,
+                    y: 20
+                }, {
+                    opacity: 1,
+                    y: 0,
+                    duration: 0.5,
+                    stagger: 0.1,
+                    ease: 'power2.out',
+                    delay: 0.3
+                });
+            }
+        });
+    </script>
+{% endblock %}

@@ -18,10 +18,18 @@ urlpatterns = [
     path("social/", views.SocialMediaView.as_view(), name="social"),
     path("privacy/", views.PrivacyPolicyView.as_view(), name="privacy"),
     path("terms/", views.TermsConditionsView.as_view(), name="terms"),
-    path("login/", dj_auth_views.LoginView.as_view(template_name="pages/login.html"), name="login"),
+    path(
+        "login/",
+        dj_auth_views.LoginView.as_view(template_name="pages/login.html"),
+        name="login",
+    ),
     # path("register/", views.register_view, name="register"),  # TODO: Implement register view
     path("logout/", dj_auth_views.LogoutView.as_view(), name="logout"),
-    path("password_reset/", dj_auth_views.PasswordResetView.as_view(), name="password_reset"),
+    path(
+        "password_reset/",
+        dj_auth_views.PasswordResetView.as_view(),
+        name="password_reset",
+    ),
     path(
         "password_reset/done/",
         dj_auth_views.PasswordResetDoneView.as_view(),
@@ -201,6 +209,11 @@ urlpatterns = [
         "admin/users/",
         views.AdminUsersManagementView.as_view(),
         name="admin_users",
+    ),
+    path(
+        "admin/users/<int:user_id>/",
+        views.admin_user_detail,
+        name="admin_user_detail",
     ),
     path(
         "admin/packages/",
