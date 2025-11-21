@@ -574,15 +574,15 @@
                                             <option value="">{% trans "اختر قسم..." %}</option>
                                             {% for category in ad_categories %}
                                                 <option value="{{ category.pk }}"
-                                                        data-custom-fields='{{ category.custom_field_schema|json_script:"id_custom_fields_data" }}'
+                                                        data-custom-fields="{{ category.custom_field_schema|safe }}"
                                                         {% if form.category.value == category.pk %}selected{% endif %}>
-                                                    {{ category.name }}
+                                                    {% if LANGUAGE_CODE == 'ar' and category.name_ar %}{{ category.name_ar }}{% else %}{{ category.name }}{% endif %}
                                                 </option>
                                                 {% for subcat in category.subcategories.all %}
                                                     <option value="{{ subcat.pk }}"
-                                                            data-custom-fields='{{ subcat.custom_field_schema|json_script:"id_custom_fields_data" }}'
+                                                            data-custom-fields="{{ subcat.custom_field_schema|safe }}"
                                                             {% if form.category.value == subcat.pk %}selected{% endif %}>
-                                                        &nbsp;&nbsp;└─ {{ subcat.name }}
+                                                        &nbsp;&nbsp;└─ {% if LANGUAGE_CODE == 'ar' and subcat.name_ar %}{{ subcat.name_ar }}{% else %}{{ subcat.name }}{% endif %}
                                                     </option>
                                                 {% endfor %}
                                             {% endfor %}
@@ -770,6 +770,13 @@
 
 {% block extra_js %}
     <script>
+        // Define empty function to prevent errors
+        if (typeof initializeWishlistButtons !== 'function') {
+            function initializeWishlistButtons() {
+                // Empty placeholder function
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             // ========== Multi-Step Form Logic ==========
             let currentStep = 1;
@@ -811,17 +818,51 @@
             }
 
             function validateStep(step) {
+                console.log('Validating step:', step);
                 const currentFormStep = formSteps[step - 1];
+
+                if (!currentFormStep) {
+                    console.log('No form step found for index:', step - 1);
+                    return true;
+                }
+
+                console.log('Form step found:', currentFormStep);
                 const requiredInputs = currentFormStep.querySelectorAll('[required]');
+                console.log('Required inputs found:', requiredInputs.length);
+
                 let isValid = true;
 
                 requiredInputs.forEach(input => {
-                    if (!input.value.trim()) {
+                    // Check different input types
+                    let isEmpty = false;
+
+                    if (input.type === 'checkbox' || input.type === 'radio') {
+                        // For checkboxes/radios, check if at least one in the group is checked
+                        const name = input.name;
+                        const group = currentFormStep.querySelectorAll(`[name="${name}"]`);
+                        isEmpty = !Array.from(group).some(el => el.checked);
+                    } else if (input.tagName === 'SELECT') {
+                        isEmpty = !input.value || input.value === '';
+                    } else {
+                        isEmpty = !input.value || !input.value.trim();
+                    }
+
+                    console.log('Input:', input.name || input.id, 'isEmpty:', isEmpty, 'value:', input.value);
+
+                    if (isEmpty) {
                         isValid = false;
                         input.classList.add('is-invalid');
+
+                        // Remove invalid class on input
                         input.addEventListener('input', function() {
                             this.classList.remove('is-invalid');
                         }, { once: true });
+
+                        input.addEventListener('change', function() {
+                            this.classList.remove('is-invalid');
+                        }, { once: true });
+                    } else {
+                        input.classList.remove('is-invalid');
                     }
                 });
 
@@ -829,10 +870,9 @@
                     showToast('{% trans "يرجى ملء جميع الحقول المطلوبة" %}', 'warning');
                 }
 
+                console.log('Validation result:', isValid);
                 return isValid;
-            }
-
-            function showToast(message, type = 'info') {
+            }            function showToast(message, type = 'info') {
                 const toast = document.createElement('div');
                 toast.className = `alert alert-${type} position-fixed top-0 start-50 translate-middle-x mt-3`;
                 toast.style.zIndex = '9999';
@@ -844,12 +884,19 @@
                 setTimeout(() => toast.remove(), 3000);
             }
 
-            nextBtn.addEventListener('click', function() {
+            nextBtn.addEventListener('click', function(e) {
+                console.log('Next button clicked, current step:', currentStep);
+                console.log('Validating step...');
+
                 if (validateStep(currentStep)) {
+                    console.log('Validation passed');
                     if (currentStep < totalSteps) {
                         currentStep++;
+                        console.log('Moving to step:', currentStep);
                         showStep(currentStep);
                     }
+                } else {
+                    console.log('Validation failed');
                 }
             });
 
@@ -875,7 +922,7 @@
             // ========== Custom Fields Logic ==========
             const categorySelect = document.getElementById('{{ form.category.id_for_label }}');
             const customFieldsContainer = document.getElementById('custom-fields-container');
-            const initialCustomValues = JSON.parse('{{ form.instance.custom_fields|json_script:"id_initial_custom_values"|safe }}');
+            const initialCustomValues = {{ form.instance.custom_fields|default:"{}" |safe }};
 
             function generateFieldHtml(fieldSchema) {
                 const fieldName = fieldSchema.name;
@@ -955,16 +1002,44 @@
             const verificationCodeInput = document.getElementById('verification_code');
             const verificationSuccess = document.getElementById('verification-success');
 
-            let isVerified = false;
+            // Check if user's mobile is already verified
+            const userMobile = '{{ request.user.mobile|default:"" }}';
+            const isMobileVerified = {{ request.user.is_mobile_verified|yesno:"true,false" }};
+            let isVerified = (mobileInput.value.trim() === userMobile && isMobileVerified);
 
-            mobileInput.addEventListener('blur', function() {
-                const mobileNumber = this.value.trim();
-                if (mobileNumber) {
-                    verificationSection.style.display = 'block';
-                    isVerified = false;
-                } else {
+            // Show verification status on page load
+            function checkVerificationStatus() {
+                const mobileNumber = mobileInput.value.trim();
+                if (!mobileNumber) {
                     verificationSection.style.display = 'none';
                     isVerified = true;
+                    return;
+                }
+
+                if (mobileNumber === userMobile && isMobileVerified) {
+                    verificationSection.style.display = 'block';
+                    verificationSection.querySelector('.alert-warning').style.display = 'none';
+                    verificationSuccess.style.display = 'block';
+                    otpInputSection.style.display = 'none';
+                    isVerified = true;
+                } else {
+                    verificationSection.style.display = 'block';
+                    verificationSection.querySelector('.alert-warning').style.display = 'block';
+                    verificationSuccess.style.display = 'none';
+                    isVerified = false;
+                }
+            }
+
+            // Check on page load
+            checkVerificationStatus();
+
+            mobileInput.addEventListener('blur', checkVerificationStatus);
+            mobileInput.addEventListener('input', function() {
+                // Reset verification when number changes
+                if (this.value.trim() !== userMobile || !isMobileVerified) {
+                    isVerified = false;
+                    verificationSuccess.style.display = 'none';
+                    otpInputSection.style.display = 'none';
                 }
             });
 
