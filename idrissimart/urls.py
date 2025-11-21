@@ -12,7 +12,7 @@ urlpatterns = [
 
 urlpatterns += i18n_patterns(
     path("", include("main.urls", namespace="main")),  # Your main app
-    path("admin/", admin.site.urls),
+    path("super-admin/", admin.site.urls),
     path("content/", include("content.urls", namespace="content")),  # Your content app
 )
 

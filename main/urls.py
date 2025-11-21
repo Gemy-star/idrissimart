@@ -159,12 +159,7 @@ urlpatterns = [
         classifieds_views.PackagePurchaseView.as_view(),
         name="package_purchase",
     ),
-    # Admin Dashboard
-    path(
-        "admin/categories/",
-        classifieds_views.AdminCategoriesView.as_view(),
-        name="admin_categories",
-    ),
+    # Admin Categories Management (AJAX endpoints)
     path(
         "admin/categories/save/",
         classifieds_views.CategorySaveView.as_view(),
@@ -184,6 +179,11 @@ urlpatterns = [
         "admin/categories/reorder/",
         views.admin_category_reorder,
         name="admin_category_reorder",
+    ),
+    path(
+        "admin/categories/<int:category_id>/custom-fields/",
+        views.AdminCategoryCustomFieldsView.as_view(),
+        name="admin_category_custom_fields",
     ),
     path(
         "admin/custom-fields/",
@@ -215,16 +215,17 @@ urlpatterns = [
         views.admin_user_detail,
         name="admin_user_detail",
     ),
-    path(
-        "admin/packages/",
-        classifieds_views.AdminDashboardView.as_view(),  # TODO: Create AdminPackagesView
-        name="admin_packages",
-    ),
-    path(
-        "admin/transactions/",
-        classifieds_views.AdminDashboardView.as_view(),  # TODO: Create AdminTransactionsView
-        name="admin_transactions",
-    ),
+    # TODO: Implement AdminPackagesView and AdminTransactionsView
+    # path(
+    #     "admin/packages/",
+    #     views.AdminPackagesView.as_view(),
+    #     name="admin_packages",
+    # ),
+    # path(
+    #     "admin/transactions/",
+    #     views.AdminTransactionsView.as_view(),
+    #     name="admin_transactions",
+    # ),
     path(
         "admin/ads/<int:ad_id>/toggle-hide/",
         classifieds_views.ToggleAdHideView.as_view(),

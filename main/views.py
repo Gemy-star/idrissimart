@@ -2368,8 +2368,11 @@ class AdminCategoriesView(SuperadminRequiredMixin, TemplateView):
                 "categories": Category.objects.filter(
                     section_type=section_code, parent__isnull=True
                 )
-                .prefetch_related("children")
-                .annotate(ad_count=Count("ads"), subcategory_count=Count("children")),
+                .prefetch_related("subcategories")
+                .annotate(
+                    ad_count=Count("classified_ads"),
+                    subcategory_count=Count("subcategories"),
+                ),
             }
 
         context["categories_by_section"] = categories_by_section
@@ -2437,6 +2440,43 @@ class AdminAdsManagementView(SuperadminRequiredMixin, ListView):
         context["search_query"] = self.request.GET.get("search", "")
         context["active_nav"] = "ads"
         return context
+
+
+class AdminCategoryCustomFieldsView(SuperadminRequiredMixin, View):
+    """
+    API endpoint to get custom fields for a specific category.
+    """
+
+    def get(self, request, category_id):
+        try:
+            category = Category.objects.get(id=category_id)
+            fields = CustomField.objects.filter(category=category).order_by("order")
+
+            fields_data = [
+                {
+                    "id": field.id,
+                    "name": field.name,
+                    "label_ar": field.label_ar,
+                    "label_en": field.label_en,
+                    "field_type": field.field_type,
+                    "is_required": field.is_required,
+                    "options": field.options,
+                    "order": field.order,
+                }
+                for field in fields
+            ]
+
+            return JsonResponse(
+                {
+                    "success": True,
+                    "category_name": category.name,
+                    "fields": fields_data,
+                }
+            )
+        except Category.DoesNotExist:
+            return JsonResponse(
+                {"success": False, "message": "Category not found"}, status=404
+            )
 
 
 class AdminCustomFieldsView(SuperadminRequiredMixin, ListView):

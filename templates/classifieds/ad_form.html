@@ -818,18 +818,13 @@
             }
 
             function validateStep(step) {
-                console.log('Validating step:', step);
                 const currentFormStep = formSteps[step - 1];
 
                 if (!currentFormStep) {
-                    console.log('No form step found for index:', step - 1);
                     return true;
                 }
 
-                console.log('Form step found:', currentFormStep);
                 const requiredInputs = currentFormStep.querySelectorAll('[required]');
-                console.log('Required inputs found:', requiredInputs.length);
-
                 let isValid = true;
 
                 requiredInputs.forEach(input => {
@@ -846,8 +841,6 @@
                     } else {
                         isEmpty = !input.value || !input.value.trim();
                     }
-
-                    console.log('Input:', input.name || input.id, 'isEmpty:', isEmpty, 'value:', input.value);
 
                     if (isEmpty) {
                         isValid = false;
@@ -870,7 +863,6 @@
                     showToast('{% trans "يرجى ملء جميع الحقول المطلوبة" %}', 'warning');
                 }
 
-                console.log('Validation result:', isValid);
                 return isValid;
             }            function showToast(message, type = 'info') {
                 const toast = document.createElement('div');
@@ -885,18 +877,14 @@
             }
 
             nextBtn.addEventListener('click', function(e) {
-                console.log('Next button clicked, current step:', currentStep);
-                console.log('Validating step...');
+                e.preventDefault(); // Prevent any default behavior
+                e.stopPropagation(); // Stop event bubbling
 
                 if (validateStep(currentStep)) {
-                    console.log('Validation passed');
                     if (currentStep < totalSteps) {
                         currentStep++;
-                        console.log('Moving to step:', currentStep);
                         showStep(currentStep);
                     }
-                } else {
-                    console.log('Validation failed');
                 }
             });
 
@@ -1043,15 +1031,19 @@
                 }
             });
 
-            sendOtpBtn.addEventListener('click', function() {
+            sendOtpBtn.addEventListener('click', function(e) {
+                e.preventDefault(); // Prevent any default behavior
+                e.stopPropagation(); // Stop event bubbling
+
                 const mobileNumber = mobileInput.value.trim();
                 if (!mobileNumber) {
                     showToast('{% trans "يرجى إدخال رقم الجوال أولاً" %}', 'warning');
                     return;
                 }
 
-                this.disabled = true;
-                this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري الإرسال..." %}';
+                const button = this;
+                button.disabled = true;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري الإرسال..." %}';
 
                 fetch('{% url "main:send_mobile_verification" %}', {
                     method: 'POST',
@@ -1061,10 +1053,15 @@
                     },
                     body: 'mobile_number=' + encodeURIComponent(mobileNumber)
                 })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
                 .then(data => {
-                    this.disabled = false;
-                    this.innerHTML = '<i class="fas fa-sms me-2"></i>{% trans "إرسال رمز التحقق" %}';
+                    button.disabled = false;
+                    button.innerHTML = '<i class="fas fa-sms me-2"></i>{% trans "إرسال رمز التحقق" %}';
 
                     if (data.success) {
                         if (data.verified) {
@@ -1082,21 +1079,26 @@
                     }
                 })
                 .catch(error => {
-                    this.disabled = false;
-                    this.innerHTML = '<i class="fas fa-sms me-2"></i>{% trans "إرسال رمز التحقق" %}';
+                    console.error('OTP send error:', error);
+                    button.disabled = false;
+                    button.innerHTML = '<i class="fas fa-sms me-2"></i>{% trans "إرسال رمز التحقق" %}';
                     showToast('{% trans "حدث خطأ في الاتصال" %}', 'danger');
                 });
             });
 
-            verifyOtpBtn.addEventListener('click', function() {
+            verifyOtpBtn.addEventListener('click', function(e) {
+                e.preventDefault(); // Prevent any default behavior
+                e.stopPropagation(); // Stop event bubbling
+
                 const verificationCode = verificationCodeInput.value.trim();
                 if (!verificationCode) {
                     showToast('{% trans "يرجى إدخال رمز التحقق" %}', 'warning');
                     return;
                 }
 
-                this.disabled = true;
-                this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري التحقق..." %}';
+                const button = this;
+                button.disabled = true;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري التحقق..." %}';
 
                 fetch('{% url "main:verify_mobile_otp" %}', {
                     method: 'POST',
@@ -1106,10 +1108,15 @@
                     },
                     body: 'verification_code=' + encodeURIComponent(verificationCode)
                 })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
                 .then(data => {
-                    this.disabled = false;
-                    this.innerHTML = '<i class="fas fa-check me-2"></i>{% trans "تحقق" %}';
+                    button.disabled = false;
+                    button.innerHTML = '<i class="fas fa-check me-2"></i>{% trans "تحقق" %}';
 
                     if (data.success) {
                         otpInputSection.style.display = 'none';
@@ -1122,8 +1129,9 @@
                     }
                 })
                 .catch(error => {
-                    this.disabled = false;
-                    this.innerHTML = '<i class="fas fa-check me-2"></i>{% trans "تحقق" %}';
+                    console.error('OTP verification error:', error);
+                    button.disabled = false;
+                    button.innerHTML = '<i class="fas fa-check me-2"></i>{% trans "تحقق" %}';
                     showToast('{% trans "حدث خطأ في التحقق" %}', 'danger');
                 });
             });
