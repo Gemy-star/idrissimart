@@ -25,3 +25,7 @@ if settings.DEBUG:
         settings.MEDIA_URL,
         document_root=settings.MEDIA_ROOT,
     )
+
+# Custom error handlers
+handler404 = 'main.views.custom_404'
+handler500 = 'main.views.custom_500'

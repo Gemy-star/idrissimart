@@ -89,6 +89,17 @@ urlpatterns = [
         classifieds_views.ClassifiedAdDetailView.as_view(),
         name="ad_detail",
     ),
+    # Ad Upgrade URLs
+    path(
+        "classifieds/<int:pk>/upgrade/",
+        classifieds_views.AdUpgradeCheckoutView.as_view(),
+        name="ad_upgrade_checkout",
+    ),
+    path(
+        "classifieds/<int:pk>/upgrade/process/",
+        classifieds_views.AdUpgradeProcessView.as_view(),
+        name="ad_upgrade_process",
+    ),
     # Saved Searches URLs
     path(
         "classifieds/save-search/",
@@ -361,6 +372,11 @@ urlpatterns = [
         "payment/<int:package_id>/",
         payment_views.payment_page,
         name="payment_page_package",
+    ),
+    path(
+        "payment/upgrade/<int:payment_id>/",
+        payment_views.payment_page_upgrade,
+        name="payment_page_upgrade",
     ),
     path(
         "payment/create/",

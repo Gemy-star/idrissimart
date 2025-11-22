@@ -103,6 +103,49 @@
                             <p class="ad-description mb-0" style="line-height: 1.8; color: var(--text-primary);">{{ ad.description|linebreaksbr }}</p>
                         </div>
                     </div>
+
+                    <!-- Custom Fields Card -->
+                    {% if ad.custom_fields and ad.category.custom_field_schema %}
+                        <div class="modern-card card ad-content-card mb-4 border-0 shadow-sm rounded-3" style="background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary)); backdrop-filter: blur(10px);">
+                            <div class="card-header bg-transparent border-bottom-0 pb-2">
+                                <h4 class="card-title-main mb-0" style="color: var(--primary-color); font-weight: 700;">
+                                    <i class="fas fa-info-circle me-2"></i>{% trans "المواصفات" %}
+                                </h4>
+                            </div>
+                            <div class="card-body pt-3">
+                                <div class="row g-3">
+                                    {% for field_schema in ad.category.custom_field_schema %}
+                                        {% if field_schema.name in ad.custom_fields %}
+                                            <div class="col-md-6">
+                                                <div class="custom-field-item p-3 rounded-3" style="background: var(--bg-primary); border: 1px solid var(--border-color);">
+                                                    <label class="custom-field-label d-block mb-1" style="font-weight: 600; color: var(--text-muted); font-size: 0.85rem;">
+                                                        {{ field_schema.label|default:field_schema.name|translate_field_label }}
+                                                    </label>
+                                                    <div class="custom-field-value" style="color: var(--text-primary); font-weight: 500;">
+                                                        {% with value=ad.custom_fields|get_item:field_schema.name %}
+                                                            {% if field_schema.type == 'checkbox' %}
+                                                                {% if value == True or value == 'true' %}
+                                                                    <i class="fas fa-check-circle text-success me-1"></i>{% trans "نعم" %}
+                                                                {% else %}
+                                                                    <i class="fas fa-times-circle text-danger me-1"></i>{% trans "لا" %}
+                                                                {% endif %}
+                                                            {% elif field_schema.type == 'date' %}
+                                                                <i class="far fa-calendar me-1"></i>{{ value }}
+                                                            {% elif field_schema.type == 'number' %}
+                                                                <i class="fas fa-hashtag me-1"></i>{{ value }}
+                                                            {% else %}
+                                                                {{ value|translate_field_label }}
+                                                            {% endif %}
+                                                        {% endwith %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
                     <!-- Reviews Card -->
                     <div class="modern-card card ad-content-card border-0 shadow-sm rounded-3" style="background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary)); backdrop-filter: blur(10px);">
                         <div class="card-header bg-transparent border-bottom-0 pb-2">

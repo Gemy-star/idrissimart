@@ -835,3 +835,163 @@ class CategoryDeleteView(LoginRequiredMixin, View):
 
         except Exception as e:
             return JsonResponse({"success": False, "error": str(e)})
+
+
+class AdUpgradeCheckoutView(LoginRequiredMixin, DetailView):
+    """
+    Checkout page for ad upgrades (featured, pinned, urgent)
+    """
+
+    model = ClassifiedAd
+    template_name = "classifieds/ad_upgrade_checkout.html"
+    context_object_name = "ad"
+
+    def get_queryset(self):
+        # Only allow users to upgrade their own ads
+        return ClassifiedAd.objects.filter(user=self.request.user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from constance import config
+
+        # Get pricing from constance or use defaults
+        # 7 days pricing
+        context["featured_price"] = getattr(
+            config, "FEATURED_AD_PRICE_7DAYS", Decimal("50.00")
+        )
+        context["pinned_price"] = getattr(
+            config, "PINNED_AD_PRICE_7DAYS", Decimal("75.00")
+        )
+        context["urgent_price"] = getattr(
+            config, "URGENT_AD_PRICE_7DAYS", Decimal("30.00")
+        )
+
+        # 14 days pricing (usually ~80% of double)
+        context["featured_price_14"] = getattr(
+            config, "FEATURED_AD_PRICE_14DAYS", Decimal("80.00")
+        )
+        context["pinned_price_14"] = getattr(
+            config, "PINNED_AD_PRICE_14DAYS", Decimal("120.00")
+        )
+        context["urgent_price_14"] = getattr(
+            config, "URGENT_AD_PRICE_14DAYS", Decimal("48.00")
+        )
+
+        # 30 days pricing (best value - ~150% of 7 days)
+        context["featured_price_30"] = getattr(
+            config, "FEATURED_AD_PRICE_30DAYS", Decimal("100.00")
+        )
+        context["pinned_price_30"] = getattr(
+            config, "PINNED_AD_PRICE_30DAYS", Decimal("150.00")
+        )
+        context["urgent_price_30"] = getattr(
+            config, "URGENT_AD_PRICE_30DAYS", Decimal("60.00")
+        )
+
+        return context
+
+
+class AdUpgradeProcessView(LoginRequiredMixin, View):
+    """
+    Process ad upgrade selections and redirect to payment
+    """
+
+    def post(self, request, pk):
+        ad = get_object_or_404(ClassifiedAd, pk=pk, user=request.user)
+
+        # Get selected upgrades
+        upgrade_featured = request.POST.get("upgrade_featured") == "1"
+        upgrade_pinned = request.POST.get("upgrade_pinned") == "1"
+        upgrade_urgent = request.POST.get("upgrade_urgent") == "1"
+
+        # Get durations
+        featured_duration = int(request.POST.get("featured_duration", 0))
+        pinned_duration = int(request.POST.get("pinned_duration", 0))
+        urgent_duration = int(request.POST.get("urgent_duration", 0))
+
+        # Calculate total amount
+        total_amount = Decimal("0.00")
+        upgrades = []
+
+        from constance import config
+
+        if upgrade_featured and featured_duration > 0:
+            if featured_duration == 7:
+                price = getattr(config, "FEATURED_AD_PRICE_7DAYS", Decimal("50.00"))
+            elif featured_duration == 14:
+                price = getattr(config, "FEATURED_AD_PRICE_14DAYS", Decimal("80.00"))
+            else:  # 30
+                price = getattr(config, "FEATURED_AD_PRICE_30DAYS", Decimal("100.00"))
+
+            total_amount += price
+            upgrades.append(
+                {
+                    "type": "featured",
+                    "duration": featured_duration,
+                    "price": price,
+                    "name": _("إعلان مميز"),
+                }
+            )
+
+        if upgrade_pinned and pinned_duration > 0:
+            if pinned_duration == 7:
+                price = getattr(config, "PINNED_AD_PRICE_7DAYS", Decimal("75.00"))
+            elif pinned_duration == 14:
+                price = getattr(config, "PINNED_AD_PRICE_14DAYS", Decimal("120.00"))
+            else:  # 30
+                price = getattr(config, "PINNED_AD_PRICE_30DAYS", Decimal("150.00"))
+
+            total_amount += price
+            upgrades.append(
+                {
+                    "type": "pinned",
+                    "duration": pinned_duration,
+                    "price": price,
+                    "name": _("تثبيت في الأعلى"),
+                }
+            )
+
+        if upgrade_urgent and urgent_duration > 0:
+            if urgent_duration == 7:
+                price = getattr(config, "URGENT_AD_PRICE_7DAYS", Decimal("30.00"))
+            elif urgent_duration == 14:
+                price = getattr(config, "URGENT_AD_PRICE_14DAYS", Decimal("48.00"))
+            else:  # 30
+                price = getattr(config, "URGENT_AD_PRICE_30DAYS", Decimal("60.00"))
+
+            total_amount += price
+            upgrades.append(
+                {
+                    "type": "urgent",
+                    "duration": urgent_duration,
+                    "price": price,
+                    "name": _("إعلان عاجل"),
+                }
+            )
+
+        if not upgrades:
+            messages.warning(request, _("يرجى اختيار خيار ترقية واحد على الأقل"))
+            return redirect("main:ad_upgrade_checkout", pk=ad.pk)
+
+        # Store upgrade data in session for payment processing
+        request.session["ad_upgrade"] = {
+            "ad_id": ad.pk,
+            "upgrades": upgrades,
+            "total_amount": str(total_amount),
+        }
+
+        # Create payment record
+        from .models import Payment
+
+        payment = Payment.objects.create(
+            user=request.user,
+            provider="pending",  # Will be set when user selects payment method
+            amount=total_amount,
+            currency="SAR",
+            status=Payment.PaymentStatus.PENDING,
+            description=_("ترقية إعلان: {}").format(ad.title),
+            metadata={"ad_id": ad.pk, "upgrades": upgrades},
+        )
+
+        # Redirect to payment page with payment ID
+        return redirect("main:payment_page_upgrade", payment_id=payment.pk)

@@ -555,6 +555,37 @@
                             <form method="post" enctype="multipart/form-data" id="adForm">
                                 {% csrf_token %}
 
+                                <!-- Display Form Errors -->
+                                {% if form.errors or form.non_field_errors %}
+                                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                        <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>{% trans "يوجد أخطاء في النموذج" %}</h5>
+                                        {% if form.non_field_errors %}
+                                            {% for error in form.non_field_errors %}
+                                                <p class="mb-1">{{ error }}</p>
+                                            {% endfor %}
+                                        {% endif %}
+                                        {% for field in form %}
+                                            {% if field.errors %}
+                                                <p class="mb-1"><strong>{{ field.label }}:</strong> {{ field.errors|join:", " }}</p>
+                                            {% endif %}
+                                        {% endfor %}
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                    </div>
+                                {% endif %}
+
+                                <!-- Display Image Formset Errors -->
+                                {% if image_formset.errors %}
+                                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                        <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>{% trans "أخطاء في الصور" %}</h5>
+                                        {% for error in image_formset.errors %}
+                                            {% if error %}
+                                                <p class="mb-1">{{ error }}</p>
+                                            {% endif %}
+                                        {% endfor %}
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                    </div>
+                                {% endif %}
+
                                 <!-- Step 1: Category Selection -->
                                 <div class="form-step active" data-step="1">
                                     <div class="step-header">
@@ -716,6 +747,43 @@
                                                 {% trans "تم التحقق من رقم الجوال بنجاح" %}
                                             </div>
                                         </div>
+                                    </div>
+
+                                    <!-- Location Fields -->
+                                    <div class="row">
+                                        <div class="col-md-6 mb-4">
+                                            <label for="{{ form.country.id_for_label }}" class="form-label h6">
+                                                <i class="fas fa-flag me-2 text-primary"></i>
+                                                {% trans "الدولة" %}
+                                                <span class="text-danger">*</span>
+                                            </label>
+                                            <select name="{{ form.country.name }}" id="{{ form.country.id_for_label }}" class="form-select" required>
+                                                <option value="">{% trans "اختر الدولة..." %}</option>
+                                                {% for country in countries %}
+                                                    <option value="{{ country.id }}"
+                                                        {% if form.country.value == country.id or not form.country.value and country.code == 'SA' %}selected{% endif %}>
+                                                        {{ country.flag_emoji }} {{ country.name }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6 mb-4">
+                                            <label for="{{ form.city.id_for_label }}" class="form-label h6">
+                                                <i class="fas fa-city me-2 text-primary"></i>
+                                                {% trans "المدينة" %}
+                                                <span class="text-danger">*</span>
+                                            </label>
+                                            {{ form.city }}
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <label for="{{ form.address.id_for_label }}" class="form-label h6">
+                                            <i class="fas fa-map-marker-alt me-2 text-primary"></i>
+                                            {{ form.address.label }}
+                                        </label>
+                                        {{ form.address }}
+                                        <div class="form-text">{% trans "عنوان تفصيلي (اختياري)" %}</div>
                                     </div>
                                 </div>
 
@@ -1459,6 +1527,14 @@
                         verificationSection.querySelector('.alert-warning').style.display = 'none';
                         isVerified = true;
                         showToast('{% trans "تم التحقق بنجاح!" %}', 'success');
+
+                        // Auto-proceed to next step after successful verification
+                        setTimeout(() => {
+                            if (currentStep === 4) {
+                                currentStep++;
+                                showStep(currentStep);
+                            }
+                        }, 1500);
                     } else {
                         showToast(data.message || '{% trans "رمز التحقق غير صحيح" %}', 'danger');
                     }
@@ -1499,12 +1575,31 @@
 
             // Form validation before submit
             adForm.addEventListener('submit', function(e) {
-                const mobileNumber = mobileInput.value.trim();
-                if (mobileNumber && !isVerified) {
-                    e.preventDefault();
-                    showToast('{% trans "يجب التحقق من رقم الجوال قبل نشر الإعلان" %}', 'warning');
-                    currentStep = 4;
-                    showStep(currentStep);
+                console.log('Form submit triggered');
+
+                // Check if mobile verification is enabled
+                const verificationEnabled = {{ mobile_verification_enabled|yesno:"true,false" }};
+                console.log('Verification enabled:', verificationEnabled);
+                console.log('Is verified:', isVerified);
+
+                if (verificationEnabled) {
+                    const mobileNumber = mobileInput.value.trim();
+                    if (mobileNumber && !isVerified) {
+                        e.preventDefault();
+                        console.log('Preventing submit - mobile not verified');
+                        showToast('{% trans "يجب التحقق من رقم الجوال قبل نشر الإعلان" %}', 'warning');
+                        currentStep = 4;
+                        showStep(currentStep);
+                        return false;
+                    }
+                }
+
+                console.log('Form validation passed, submitting...');
+                // Show loading state
+                const submitButton = document.getElementById('submitBtn');
+                if (submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري النشر..." %}';
                 }
             });
         });

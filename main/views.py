@@ -1329,6 +1329,20 @@ class AdCreateView(LoginRequiredMixin, CreateView):
         else:
             context["image_formset"] = AdImageFormSet()
 
+        # Add mobile verification setting
+        from constance import config
+
+        context["mobile_verification_enabled"] = getattr(
+            config, "ENABLE_MOBILE_VERIFICATION", True
+        )
+
+        # Add countries list
+        from content.models import Country
+
+        context["countries"] = Country.objects.filter(is_active=True).order_by(
+            "order", "name"
+        )
+
         return context
 
     def get_form_kwargs(self):
@@ -1397,6 +1411,21 @@ class AdUpdateView(LoginRequiredMixin, UpdateView):
             )
         else:
             context["image_formset"] = AdImageFormSet(instance=self.object)
+
+        # Add mobile verification setting
+        from constance import config
+
+        context["mobile_verification_enabled"] = getattr(
+            config, "ENABLE_MOBILE_VERIFICATION", True
+        )
+
+        # Add countries list
+        from content.models import Country
+
+        context["countries"] = Country.objects.filter(is_active=True).order_by(
+            "order", "name"
+        )
+
         return context
 
     def form_valid(self, form):
@@ -3620,3 +3649,16 @@ def dashboard_redirect(request):
 
     # Default redirect for users without ads
     return redirect("main:home")
+
+
+# ========== Custom Error Handlers ==========
+
+
+def custom_404(request, exception=None):
+    """Custom 404 error page"""
+    return render(request, '404.html', status=404)
+
+
+def custom_500(request):
+    """Custom 500 error page"""
+    return render(request, '500.html', status=500)

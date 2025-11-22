@@ -248,6 +248,54 @@ CONSTANCE_CONFIG = {
         _("Maximum reservation amount"),
         int,
     ),
+    # Ad Upgrade Pricing (7 Days)
+    "FEATURED_AD_PRICE_7DAYS": (
+        50.00,
+        _("Featured ad price for 7 days (SAR)"),
+        float,
+    ),
+    "PINNED_AD_PRICE_7DAYS": (
+        75.00,
+        _("Pinned ad price for 7 days (SAR)"),
+        float,
+    ),
+    "URGENT_AD_PRICE_7DAYS": (
+        30.00,
+        _("Urgent ad price for 7 days (SAR)"),
+        float,
+    ),
+    # Ad Upgrade Pricing (14 Days)
+    "FEATURED_AD_PRICE_14DAYS": (
+        80.00,
+        _("Featured ad price for 14 days (SAR)"),
+        float,
+    ),
+    "PINNED_AD_PRICE_14DAYS": (
+        120.00,
+        _("Pinned ad price for 14 days (SAR)"),
+        float,
+    ),
+    "URGENT_AD_PRICE_14DAYS": (
+        48.00,
+        _("Urgent ad price for 14 days (SAR)"),
+        float,
+    ),
+    # Ad Upgrade Pricing (30 Days)
+    "FEATURED_AD_PRICE_30DAYS": (
+        100.00,
+        _("Featured ad price for 30 days (SAR)"),
+        float,
+    ),
+    "PINNED_AD_PRICE_30DAYS": (
+        150.00,
+        _("Pinned ad price for 30 days (SAR)"),
+        float,
+    ),
+    "URGENT_AD_PRICE_30DAYS": (
+        60.00,
+        _("Urgent ad price for 30 days (SAR)"),
+        float,
+    ),
     # Admin Notification Settings
     "NOTIFY_ADMIN_NEW_ADS": (
         True,
@@ -364,6 +412,15 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "DEFAULT_RESERVATION_PERCENTAGE",
         "MIN_RESERVATION_AMOUNT",
         "MAX_RESERVATION_AMOUNT",
+        "FEATURED_AD_PRICE_7DAYS",
+        "PINNED_AD_PRICE_7DAYS",
+        "URGENT_AD_PRICE_7DAYS",
+        "FEATURED_AD_PRICE_14DAYS",
+        "PINNED_AD_PRICE_14DAYS",
+        "URGENT_AD_PRICE_14DAYS",
+        "FEATURED_AD_PRICE_30DAYS",
+        "PINNED_AD_PRICE_30DAYS",
+        "URGENT_AD_PRICE_30DAYS",
     ),
     "Admin Notifications": (
         "NOTIFY_ADMIN_NEW_ADS",

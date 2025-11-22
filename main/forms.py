@@ -155,6 +155,8 @@ class ClassifiedAdForm(forms.ModelForm):
     def add_custom_fields(self, category):
         """
         Adds form fields based on the category's custom_field_schema, including validation.
+        Custom fields are rendered by JavaScript, so we set required=False here to avoid
+        server-side validation conflicts. Client-side validation is handled in the template.
         """
         schema = category.custom_field_schema or []
 
@@ -165,7 +167,8 @@ class ClassifiedAdForm(forms.ModelForm):
 
             field_label = field_schema.get("label", field_name)
             field_type = field_schema.get("type", "text")
-            required = field_schema.get("required", False)
+            # Custom fields are handled by JavaScript, so we don't enforce required on Django side
+            required = False
             options = field_schema.get("options", [])
             validation_rules = field_schema.get("validation", {})
 
@@ -237,32 +240,114 @@ class ClassifiedAdForm(forms.ModelForm):
         if not isinstance(instance.custom_fields, dict):
             instance.custom_fields = {}
 
-        # Gather custom field data
+        # Gather custom field data from POST data directly (since fields are rendered by JavaScript)
         if instance.category and instance.category.custom_field_schema:
             schema = instance.category.custom_field_schema or []
-            custom_field_keys = [
-                field.get("name") for field in schema if field.get("name")
-            ]
 
-            for key in custom_field_keys:
-                if key in self.cleaned_data:
-                    instance.custom_fields[key] = self.cleaned_data[key]
+            for field_schema in schema:
+                field_name = field_schema.get("name")
+                if not field_name:
+                    continue
+
+                # Get value from cleaned_data if available, otherwise from data dict
+                if field_name in self.cleaned_data:
+                    value = self.cleaned_data[field_name]
+                elif self.data and field_name in self.data:
+                    value = self.data.get(field_name)
+                    # Handle checkbox fields
+                    if field_schema.get("type") == "checkbox":
+                        value = value == "on" or value == "true" or value == True
+                else:
+                    continue
+
+                # Skip empty values for non-required fields
+                if not value and value != False and value != 0:
+                    continue
+
+                # Convert date objects to strings for JSON serialization
+                if hasattr(value, "isoformat"):
+                    value = value.isoformat()
+
+                instance.custom_fields[field_name] = value
 
         if commit:
             instance.save()
         return instance
 
     def clean_mobile_number(self):
-        """Validate mobile number format"""
+        """Validate mobile number format based on country"""
         mobile_number = self.cleaned_data.get("mobile_number")
-        if mobile_number:
-            # Remove spaces and special characters
-            mobile_number = "".join(filter(str.isdigit, mobile_number))
+        country = self.cleaned_data.get("country") or self.instance.country
 
-            # Check if it's a valid Saudi mobile number
-            if not mobile_number.startswith("05") or len(mobile_number) != 10:
+        if not mobile_number:
+            return mobile_number
+
+        # Remove spaces and special characters
+        mobile_number = "".join(filter(str.isdigit, mobile_number))
+
+        # Validation rules per country
+        validation_rules = {
+            "SA": {  # Saudi Arabia
+                "prefix": "05",
+                "length": 10,
+                "error": _("رقم الجوال السعودي يجب أن يبدأ بـ 05 ويتكون من 10 أرقام"),
+            },
+            "EG": {  # Egypt
+                "prefix": "01",
+                "length": 11,
+                "error": _("رقم الجوال المصري يجب أن يبدأ بـ 01 ويتكون من 11 رقم"),
+            },
+            "AE": {  # UAE
+                "prefix": "05",
+                "length": 10,
+                "error": _("رقم الجوال الإماراتي يجب أن يبدأ بـ 05 ويتكون من 10 أرقام"),
+            },
+            "KW": {  # Kuwait
+                "prefix": ("5", "6", "9"),
+                "length": 8,
+                "error": _("رقم الجوال الكويتي يجب أن يتكون من 8 أرقام"),
+            },
+            "QA": {  # Qatar
+                "prefix": ("3", "5", "6", "7"),
+                "length": 8,
+                "error": _("رقم الجوال القطري يجب أن يتكون من 8 أرقام"),
+            },
+            "BH": {  # Bahrain
+                "prefix": "3",
+                "length": 8,
+                "error": _("رقم الجوال البحريني يجب أن يبدأ بـ 3 ويتكون من 8 أرقام"),
+            },
+            "OM": {  # Oman
+                "prefix": ("9", "7"),
+                "length": 8,
+                "error": _("رقم الجوال العماني يجب أن يتكون من 8 أرقام"),
+            },
+        }
+
+        # Get country code
+        country_code = country.code if country else "SA"
+
+        # Get validation rule for country
+        rule = validation_rules.get(country_code)
+
+        if rule:
+            # Check length
+            if len(mobile_number) != rule["length"]:
+                raise forms.ValidationError(rule["error"])
+
+            # Check prefix
+            prefix = rule["prefix"]
+            if isinstance(prefix, tuple):
+                if not mobile_number.startswith(prefix):
+                    raise forms.ValidationError(rule["error"])
+            else:
+                if not mobile_number.startswith(prefix):
+                    raise forms.ValidationError(rule["error"])
+        else:
+            # Generic validation for other countries
+            if len(mobile_number) < 8 or len(mobile_number) > 15:
                 raise forms.ValidationError(
-                    _("رقم الجوال يجب أن يبدأ بـ 05 ويتكون من 10 أرقام")
+                    _("رقم الجوال يجب أن يتكون من 8 إلى 15 رقم")
                 )
 
         return mobile_number
@@ -300,13 +385,34 @@ class ClassifiedAdForm(forms.ModelForm):
         return cleaned_data
 
 
+class AdImageForm(forms.ModelForm):
+    """Form for individual ad images"""
+
+    class Meta:
+        model = AdImage
+        fields = ("image",)
+        widgets = {
+            "image": forms.FileInput(
+                attrs={"class": "form-control", "accept": "image/*"}
+            )
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Make image field optional
+        self.fields["image"].required = False
+
+
 AdImageFormSet = inlineformset_factory(
     ClassifiedAd,
     AdImage,
+    form=AdImageForm,
     fields=("image",),
     extra=5,  # Number of extra empty forms to display
     can_delete=True,
     max_num=5,  # Maximum number of images
+    validate_min=False,
+    validate_max=True,
 )
 
 

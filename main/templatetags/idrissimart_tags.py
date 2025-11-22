@@ -30,6 +30,74 @@ def to_json(value):
         return mark_safe("null")
 
 
+@register.filter(name="get_item")
+def get_item(dictionary, key):
+    """
+    Gets an item from a dictionary by key.
+    Usage: {{ my_dict|get_item:"key_name" }}
+    """
+    if dictionary is None:
+        return None
+    if isinstance(dictionary, dict):
+        return dictionary.get(key)
+    return None
+
+
+@register.filter(name="translate_field_label")
+def translate_field_label(label):
+    """
+    Translates custom field labels to Arabic.
+    Usage: {{ field.label|translate_field_label }}
+    """
+    from django.utils.translation import gettext as _
+
+    translations = {
+        "Brand": _("الماركة"),
+        "brand": _("الماركة"),
+        "Model": _("الموديل"),
+        "model": _("الموديل"),
+        "Model Year": _("سنة الصنع"),
+        "model_year": _("سنة الصنع"),
+        "Condition": _("الحالة"),
+        "condition": _("الحالة"),
+        "Warranty Included": _("يتضمن ضمان"),
+        "warranty_included": _("يتضمن ضمان"),
+        "Warranty": _("الضمان"),
+        "warranty": _("الضمان"),
+        "Purchase Date": _("تاريخ الشراء"),
+        "purchase_date": _("تاريخ الشراء"),
+        "Color": _("اللون"),
+        "color": _("اللون"),
+        "Size": _("المقاس"),
+        "size": _("المقاس"),
+        "Material": _("المادة"),
+        "material": _("المادة"),
+        "Mileage": _("المسافة المقطوعة"),
+        "mileage": _("المسافة المقطوعة"),
+        "Fuel Type": _("نوع الوقود"),
+        "fuel_type": _("نوع الوقود"),
+        "Transmission": _("ناقل الحركة"),
+        "transmission": _("ناقل الحركة"),
+        "Engine Capacity": _("سعة المحرك"),
+        "engine_capacity": _("سعة المحرك"),
+        "Year": _("السنة"),
+        "year": _("السنة"),
+        "Usage": _("الاستخدام"),
+        "usage": _("الاستخدام"),
+        "Age": _("العمر"),
+        "age": _("العمر"),
+        # Values
+        "New": _("جديد"),
+        "Used": _("مستعمل"),
+        "Like New": _("كالجديد"),
+        "Good": _("جيد"),
+        "Fair": _("متوسط"),
+        "Excellent": _("ممتاز"),
+    }
+
+    return translations.get(label, label)
+
+
 # ======================
 # USER TAGS
 # ======================
