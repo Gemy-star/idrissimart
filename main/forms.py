@@ -86,7 +86,7 @@ class ClassifiedAdForm(forms.ModelForm):
         ],
         widget=forms.Select(attrs={"class": "form-select"}),
     )
-    
+
     # Mobile number field for contact
     mobile_number = forms.CharField(
         max_length=20,
@@ -128,11 +128,11 @@ class ClassifiedAdForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        
+
         # Initialize mobile number from user's profile
         if self.user and self.user.mobile:
             self.fields['mobile_number'].initial = self.user.mobile
-        
+
         category = None
         if "category" in self.data:
             try:
@@ -249,25 +249,25 @@ class ClassifiedAdForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
-    
+
     def clean_mobile_number(self):
         """Validate mobile number format"""
         mobile_number = self.cleaned_data.get('mobile_number')
         if mobile_number:
             # Remove spaces and special characters
             mobile_number = ''.join(filter(str.isdigit, mobile_number))
-            
+
             # Check if it's a valid Saudi mobile number
             if not mobile_number.startswith('05') or len(mobile_number) != 10:
                 raise forms.ValidationError(_('رقم الجوال يجب أن يبدأ بـ 05 ويتكون من 10 أرقام'))
-        
+
         return mobile_number
-    
+
     def clean(self):
         """Validate that mobile number is verified for new ads"""
         cleaned_data = super().clean()
         mobile_number = cleaned_data.get('mobile_number')
-        
+
         if mobile_number and self.user:
             # Check if this is a new ad (not editing existing one)
             if not self.instance.pk:
@@ -277,10 +277,10 @@ class ClassifiedAdForm(forms.ModelForm):
                 required, message = verification_service.check_mobile_verification_required(
                     self.user, mobile_number
                 )
-                
+
                 if required:
                     raise forms.ValidationError(_('يجب التحقق من رقم الجوال قبل نشر الإعلان'))
-        
+
         return cleaned_data
 
 
@@ -369,20 +369,20 @@ class RegistrationForm(forms.Form):
     def clean_username(self):
         username = self.cleaned_data.get("username").lower()
         if User.objects.filter(username=username).exists():
-            raise ValidationError(_("اسم المستخدم موجود بالفعل"))
+            raise ValidationError(_("This username is already taken."))
         return username
 
     def clean_email(self):
         email = self.cleaned_data.get("email").lower()
         if User.objects.filter(email=email).exists():
-            raise ValidationError(_("البريد الإلكتروني مسجل بالفعل"))
+            raise ValidationError(_("This email address is already registered."))
         return email
 
     def clean_password2(self):
         password = self.cleaned_data.get("password")
         password2 = self.cleaned_data.get("password2")
         if password and password2 and password != password2:
-            raise ValidationError(_("كلمات المرور غير متطابقة"))
+            raise ValidationError(_("The two password fields didn’t match."))
         return password2
 
     def clean(self):
@@ -390,10 +390,10 @@ class RegistrationForm(forms.Form):
         profile_type = cleaned_data.get("profile_type")
 
         if profile_type == "service" and not cleaned_data.get("specialization"):
-            self.add_error("specialization", _("التخصص مطلوب لمقدمي الخدمات."))
+            self.add_error("specialization", _("Specialization is required for service providers."))
 
         if profile_type == "merchant" and not cleaned_data.get("company_name"):
-            self.add_error("company_name", _("اسم الشركة مطلوب للتجار."))
+            self.add_error("company_name", _("Company name is required for merchants."))
 
         return cleaned_data
 

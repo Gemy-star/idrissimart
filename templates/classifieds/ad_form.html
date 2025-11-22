@@ -1151,9 +1151,65 @@
             const customFieldsContainer = document.getElementById('custom-fields-container');
             const initialCustomValues = {{ form.instance.custom_fields|default:"{}" |safe }};
 
+            // Translation mapping for field labels
+            const fieldTranslations = {
+                'brand': '{% trans "الماركة" %}',
+                'Brand': '{% trans "الماركة" %}',
+                'model': '{% trans "الموديل" %}',
+                'Model': '{% trans "الموديل" %}',
+                'model_year': '{% trans "سنة الصنع" %}',
+                'Model Year': '{% trans "سنة الصنع" %}',
+                'condition': '{% trans "الحالة" %}',
+                'Condition': '{% trans "الحالة" %}',
+                'warranty_included': '{% trans "يتضمن ضمان" %}',
+                'Warranty Included': '{% trans "يتضمن ضمان" %}',
+                'warranty': '{% trans "الضمان" %}',
+                'Warranty': '{% trans "الضمان" %}',
+                'purchase_date': '{% trans "تاريخ الشراء" %}',
+                'Purchase Date': '{% trans "تاريخ الشراء" %}',
+                'color': '{% trans "اللون" %}',
+                'Color': '{% trans "اللون" %}',
+                'size': '{% trans "المقاس" %}',
+                'Size': '{% trans "المقاس" %}',
+                'material': '{% trans "المادة" %}',
+                'Material': '{% trans "المادة" %}',
+                'mileage': '{% trans "المسافة المقطوعة" %}',
+                'Mileage': '{% trans "المسافة المقطوعة" %}',
+                'fuel_type': '{% trans "نوع الوقود" %}',
+                'Fuel Type': '{% trans "نوع الوقود" %}',
+                'transmission': '{% trans "ناقل الحركة" %}',
+                'Transmission': '{% trans "ناقل الحركة" %}',
+                'engine_capacity': '{% trans "سعة المحرك" %}',
+                'Engine Capacity': '{% trans "سعة المحرك" %}',
+                'year': '{% trans "السنة" %}',
+                'Year': '{% trans "السنة" %}',
+                'usage': '{% trans "الاستخدام" %}',
+                'Usage': '{% trans "الاستخدام" %}',
+                'age': '{% trans "العمر" %}',
+                'Age': '{% trans "العمر" %}',
+                'New': '{% trans "جديد" %}',
+                'Used': '{% trans "مستعمل" %}',
+                'Like New': '{% trans "كالجديد" %}',
+                'Good': '{% trans "جيد" %}',
+                'Fair': '{% trans "متوسط" %}',
+                'Excellent': '{% trans "ممتاز" %}',
+                'Yes': '{% trans "نعم" %}',
+                'No': '{% trans "لا" %}',
+                '---------': '{% trans "---------" %}'
+            };
+
+            function translateLabel(label) {
+                // Check if translation exists
+                if (fieldTranslations[label]) {
+                    return fieldTranslations[label];
+                }
+                // Return original label if no translation found
+                return label;
+            }
+
             function generateFieldHtml(fieldSchema) {
                 const fieldName = fieldSchema.name;
-                const fieldLabel = fieldSchema.label || fieldName;
+                const fieldLabel = translateLabel(fieldSchema.label || fieldName);
                 const fieldType = fieldSchema.type || 'text';
                 const isRequired = fieldSchema.required || false;
                 const validation = fieldSchema.validation || {};
@@ -1164,10 +1220,11 @@
 
                 if (fieldType === 'select') {
                     fieldHtml += `<select name="${fieldName}" id="id_${fieldName}" class="form-select" ${isRequired ? 'required' : ''}>`;
-                    fieldHtml += `<option value="">---------</option>`;
+                    fieldHtml += `<option value="">${translateLabel('---------')}</option>`;
                     fieldSchema.options.forEach(opt => {
                         const selected = initialValue === opt ? ' selected' : '';
-                        fieldHtml += `<option value="${opt}"${selected}>${opt}</option>`;
+                        const translatedOpt = translateLabel(opt);
+                        fieldHtml += `<option value="${opt}"${selected}>${translatedOpt}</option>`;
                     });
                     fieldHtml += `</select>`;
                 } else if (fieldType === 'checkbox') {
@@ -1203,22 +1260,38 @@
 
                 let customFieldsData = null;
 
-                // Check if it's from subcategory
-                if (subcategorySelect.value) {
+                // Priority: sub-subcategory > subcategory > main category
+                // Check if it's from sub-subcategory (Level 3)
+                if (subSubcategorySelect.value) {
+                    const selectedSubSubOption = subSubcategorySelect.options[subSubcategorySelect.selectedIndex];
+                    if (selectedSubSubOption && selectedSubSubOption.dataset.customFields) {
+                        try {
+                            customFieldsData = JSON.parse(selectedSubSubOption.dataset.customFields);
+                            console.log("Using sub-subcategory custom fields");
+                        } catch (e) {
+                            console.error("Error parsing sub-subcategory custom fields:", e);
+                        }
+                    }
+                }
+                // Check if it's from subcategory (Level 2)
+                else if (subcategorySelect.value) {
                     const selectedSubOption = subcategorySelect.options[subcategorySelect.selectedIndex];
                     if (selectedSubOption && selectedSubOption.dataset.customFields) {
                         try {
                             customFieldsData = JSON.parse(selectedSubOption.dataset.customFields);
+                            console.log("Using subcategory custom fields");
                         } catch (e) {
                             console.error("Error parsing subcategory custom fields:", e);
                         }
                     }
-                } else {
-                    // Get from main category
+                }
+                // Get from main category (Level 1)
+                else {
                     const selectedMainOption = mainCategorySelect.options[mainCategorySelect.selectedIndex];
                     if (selectedMainOption && selectedMainOption.dataset.customFields) {
                         try {
                             customFieldsData = JSON.parse(selectedMainOption.dataset.customFields);
+                            console.log("Using main category custom fields");
                         } catch (e) {
                             console.error("Error parsing main category custom fields:", e);
                         }
@@ -1230,6 +1303,9 @@
                     customFieldsData.forEach(fieldSchema => {
                         customFieldsContainer.innerHTML += generateFieldHtml(fieldSchema);
                     });
+                    console.log(`Rendered ${customFieldsData.length} custom fields`);
+                } else {
+                    console.log("No custom fields to render");
                 }
             }
 

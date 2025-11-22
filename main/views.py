@@ -524,7 +524,7 @@ def set_country(request):
         # Optional: Store in user model if authenticated
         if request.user.is_authenticated:
             request.user.country = country_code
-            request.user.save(update_fields=['country'])
+            request.user.save(update_fields=["country"])
 
         return JsonResponse(
             {
@@ -2660,36 +2660,66 @@ class AdminSettingsView(SuperadminRequiredMixin, View):
     """
 
     def get(self, request):
-        # Get current system settings
+        from constance import config
+
+        # Get current system settings from Constance
         context = {
             "system_settings": {
-                "publishing_mode": "direct",  # or 'review' - from settings
-                "allow_guest_viewing": True,
-                "allow_guest_contact": False,
-                "delivery_service_enabled": True,
-                "cart_system_enabled": True,
-                "auto_approval_verified_users": True,
-                "verified_auto_publish": True,
-                "members_only_contact": True,
-                "members_only_messaging": True,
-                "delivery_requires_approval": True,
-                "cart_by_main_category": False,
-                "cart_by_subcategory": True,
-                "cart_per_ad": True,
-                "default_reservation_percentage": 20,
-                "min_reservation_amount": 50,
-                "max_reservation_amount": 5000,
-                "delivery_fee_percentage": 5,
-                "delivery_fee_min": 10,
-                "delivery_fee_max": 500,
-                "notify_admin_new_ads": True,
-                "notify_admin_pending_review": True,
-                "notify_admin_new_users": True,
-                "notify_admin_payments": True,
-                "admin_notification_email": request.user.email,
-                "site_name_in_emails": "إدريسي مارت",
-                "ads_notification_frequency": "hourly",
-                "stats_report_frequency": "daily",
+                "publishing_mode": getattr(config, "PUBLISHING_MODE", "direct"),
+                "allow_guest_viewing": getattr(config, "ALLOW_GUEST_VIEWING", True),
+                "allow_guest_contact": getattr(config, "ALLOW_GUEST_CONTACT", False),
+                "delivery_service_enabled": getattr(
+                    config, "DELIVERY_SERVICE_ENABLED", True
+                ),
+                "cart_system_enabled": getattr(config, "CART_SYSTEM_ENABLED", True),
+                "auto_approval_verified_users": getattr(
+                    config, "VERIFIED_AUTO_PUBLISH", True
+                ),
+                "verified_auto_publish": getattr(config, "VERIFIED_AUTO_PUBLISH", True),
+                "members_only_contact": getattr(config, "MEMBERS_ONLY_CONTACT", True),
+                "members_only_messaging": getattr(
+                    config, "MEMBERS_ONLY_MESSAGING", True
+                ),
+                "delivery_requires_approval": getattr(
+                    config, "DELIVERY_REQUIRES_APPROVAL", True
+                ),
+                "cart_by_main_category": getattr(
+                    config, "CART_BY_MAIN_CATEGORY", False
+                ),
+                "cart_by_subcategory": getattr(config, "CART_BY_SUBCATEGORY", True),
+                "cart_per_ad": getattr(config, "CART_PER_AD", True),
+                "default_reservation_percentage": getattr(
+                    config, "DEFAULT_RESERVATION_PERCENTAGE", 20
+                ),
+                "min_reservation_amount": getattr(config, "MIN_RESERVATION_AMOUNT", 50),
+                "max_reservation_amount": getattr(
+                    config, "MAX_RESERVATION_AMOUNT", 5000
+                ),
+                "delivery_fee_percentage": getattr(
+                    config, "DELIVERY_FEE_PERCENTAGE", 5
+                ),
+                "delivery_fee_min": getattr(config, "DELIVERY_FEE_MIN", 10),
+                "delivery_fee_max": getattr(config, "DELIVERY_FEE_MAX", 500),
+                "notify_admin_new_ads": getattr(config, "NOTIFY_ADMIN_NEW_ADS", True),
+                "notify_admin_pending_review": getattr(
+                    config, "NOTIFY_ADMIN_PENDING_REVIEW", True
+                ),
+                "notify_admin_new_users": getattr(
+                    config, "NOTIFY_ADMIN_NEW_USERS", True
+                ),
+                "notify_admin_payments": getattr(config, "NOTIFY_ADMIN_PAYMENTS", True),
+                "admin_notification_email": getattr(
+                    config, "ADMIN_NOTIFICATION_EMAIL", request.user.email
+                ),
+                "site_name_in_emails": getattr(
+                    config, "SITE_NAME_IN_EMAILS", "إدريسي مارت"
+                ),
+                "ads_notification_frequency": getattr(
+                    config, "ADS_NOTIFICATION_FREQUENCY", "hourly"
+                ),
+                "stats_report_frequency": getattr(
+                    config, "STATS_REPORT_FREQUENCY", "daily"
+                ),
             },
             "delivery_terms": {
                 "arabic": "شروط التوصيل والتحصيل باللغة العربية",
@@ -2894,25 +2924,26 @@ def admin_category_get(request, category_id):
     try:
         category = get_object_or_404(Category, pk=category_id)
 
-        return JsonResponse({
-            "success": True,
-            "id": category.id,
-            "name": category.name,
-            "name_ar": category.name_ar,
-            "slug": category.slug,
-            "section_type": category.section_type,
-            "description": category.description or "",
-            "icon": category.icon or "",
-            "color": category.color or "",
-            "order": category.order,
-            "is_active": category.is_active,
-            "allow_cart": category.allow_cart,
-            "parent_id": category.parent.id if category.parent else None,
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "id": category.id,
+                "name": category.name,
+                "name_ar": category.name_ar,
+                "slug": category.slug,
+                "section_type": category.section_type,
+                "description": category.description or "",
+                "icon": category.icon or "",
+                "color": category.color or "",
+                "order": category.order,
+                "is_active": category.is_active,
+                "allow_cart": category.allow_cart,
+                "parent_id": category.parent.id if category.parent else None,
+            }
+        )
     except Exception as e:
         return JsonResponse(
-            {"success": False, "message": f"حدث خطأ: {str(e)}"},
-            status=500
+            {"success": False, "message": f"حدث خطأ: {str(e)}"}, status=500
         )
 
 
@@ -2923,7 +2954,7 @@ def admin_category_save(request):
     Create or update a category via AJAX.
     """
     try:
-        category_id = request.POST.get('category_id')
+        category_id = request.POST.get("category_id")
 
         # Get or create category
         if category_id:
@@ -2932,26 +2963,26 @@ def admin_category_save(request):
             category = Category()
 
         # Update category fields
-        category.name = request.POST.get('name_en', '')
-        category.name_ar = request.POST.get('name_ar', '')
-        category.slug = request.POST.get('slug', '')
-        category.section_type = request.POST.get('section_type', 'classified')
-        category.description = request.POST.get('description', '')
-        category.icon = request.POST.get('icon', '')
-        category.color = request.POST.get('color', '')
-        category.order = int(request.POST.get('order', 0))
-        category.is_active = request.POST.get('is_active') == 'on'
-        category.allow_cart = request.POST.get('allow_cart') == 'on'
+        category.name = request.POST.get("name_en", "")
+        category.name_ar = request.POST.get("name_ar", "")
+        category.slug = request.POST.get("slug", "")
+        category.section_type = request.POST.get("section_type", "classified")
+        category.description = request.POST.get("description", "")
+        category.icon = request.POST.get("icon", "")
+        category.color = request.POST.get("color", "")
+        category.order = int(request.POST.get("order", 0))
+        category.is_active = request.POST.get("is_active") == "on"
+        category.allow_cart = request.POST.get("allow_cart") == "on"
 
         # Handle parent category
-        parent_id = request.POST.get('parent')
+        parent_id = request.POST.get("parent")
         if parent_id:
             category.parent = Category.objects.get(pk=parent_id)
         else:
             category.parent = None
 
         # Handle country
-        country_code = request.POST.get('country')
+        country_code = request.POST.get("country")
         if country_code:
             category.country = Country.objects.get(code=country_code)
         else:
@@ -2959,16 +2990,17 @@ def admin_category_save(request):
 
         category.save()
 
-        return JsonResponse({
-            "success": True,
-            "message": _("تم حفظ القسم بنجاح"),
-            "category_id": category.id
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "message": _("تم حفظ القسم بنجاح"),
+                "category_id": category.id,
+            }
+        )
 
     except Exception as e:
         return JsonResponse(
-            {"success": False, "message": f"حدث خطأ: {str(e)}"},
-            status=500
+            {"success": False, "message": f"حدث خطأ: {str(e)}"}, status=500
         )
 
 
@@ -3302,38 +3334,55 @@ def admin_settings_constance_save(request):
 @superadmin_required
 @require_POST
 def admin_settings_get(request):
-    """Get current system settings"""
+    """Get current system settings from Constance"""
     try:
-        # TODO: Get actual settings from database
+        from constance import config
+
         settings = {
-            "publishing_mode": "direct",
-            "verified_auto_publish": True,
-            "allow_guest_viewing": True,
-            "allow_guest_contact": False,
-            "members_only_contact": True,
-            "members_only_messaging": True,
-            "delivery_service_enabled": True,
-            "delivery_requires_approval": True,
-            "cart_system_enabled": True,
-            "cart_by_main_category": False,
-            "cart_by_subcategory": True,
-            "cart_per_ad": True,
-            "default_reservation_percentage": 20,
-            "min_reservation_amount": 50,
-            "max_reservation_amount": 5000,
-            "delivery_fee_percentage": 5,
-            "delivery_fee_min": 10,
-            "delivery_fee_max": 500,
-            "notify_admin_new_ads": True,
-            "notify_admin_pending_review": True,
-            "notify_admin_new_users": True,
-            "notify_admin_payments": True,
-            "admin_notification_email": (
-                request.user.email if request.user.is_authenticated else ""
+            "publishing_mode": getattr(config, "PUBLISHING_MODE", "direct"),
+            "verified_auto_publish": getattr(config, "VERIFIED_AUTO_PUBLISH", True),
+            "allow_guest_viewing": getattr(config, "ALLOW_GUEST_VIEWING", True),
+            "allow_guest_contact": getattr(config, "ALLOW_GUEST_CONTACT", False),
+            "members_only_contact": getattr(config, "MEMBERS_ONLY_CONTACT", True),
+            "members_only_messaging": getattr(config, "MEMBERS_ONLY_MESSAGING", True),
+            "delivery_service_enabled": getattr(
+                config, "DELIVERY_SERVICE_ENABLED", True
             ),
-            "site_name_in_emails": "إدريسي مارت",
-            "ads_notification_frequency": "hourly",
-            "stats_report_frequency": "daily",
+            "delivery_requires_approval": getattr(
+                config, "DELIVERY_REQUIRES_APPROVAL", True
+            ),
+            "cart_system_enabled": getattr(config, "CART_SYSTEM_ENABLED", True),
+            "cart_by_main_category": getattr(config, "CART_BY_MAIN_CATEGORY", False),
+            "cart_by_subcategory": getattr(config, "CART_BY_SUBCATEGORY", True),
+            "cart_per_ad": getattr(config, "CART_PER_AD", True),
+            "default_reservation_percentage": getattr(
+                config, "DEFAULT_RESERVATION_PERCENTAGE", 20
+            ),
+            "min_reservation_amount": getattr(config, "MIN_RESERVATION_AMOUNT", 50),
+            "max_reservation_amount": getattr(config, "MAX_RESERVATION_AMOUNT", 5000),
+            "delivery_fee_percentage": getattr(config, "DELIVERY_FEE_PERCENTAGE", 5),
+            "delivery_fee_min": getattr(config, "DELIVERY_FEE_MIN", 10),
+            "delivery_fee_max": getattr(config, "DELIVERY_FEE_MAX", 500),
+            "notify_admin_new_ads": getattr(config, "NOTIFY_ADMIN_NEW_ADS", True),
+            "notify_admin_pending_review": getattr(
+                config, "NOTIFY_ADMIN_PENDING_REVIEW", True
+            ),
+            "notify_admin_new_users": getattr(config, "NOTIFY_ADMIN_NEW_USERS", True),
+            "notify_admin_payments": getattr(config, "NOTIFY_ADMIN_PAYMENTS", True),
+            "admin_notification_email": getattr(
+                config,
+                "ADMIN_NOTIFICATION_EMAIL",
+                request.user.email if request.user.is_authenticated else "",
+            ),
+            "site_name_in_emails": getattr(
+                config, "SITE_NAME_IN_EMAILS", "إدريسي مارت"
+            ),
+            "ads_notification_frequency": getattr(
+                config, "ADS_NOTIFICATION_FREQUENCY", "hourly"
+            ),
+            "stats_report_frequency": getattr(
+                config, "STATS_REPORT_FREQUENCY", "daily"
+            ),
         }
 
         return JsonResponse({"success": True, "settings": settings})
@@ -3347,17 +3396,25 @@ def admin_settings_get(request):
 @superadmin_required
 @require_POST
 def admin_settings_publishing(request):
-    """Save publishing settings"""
+    """Save publishing settings to Constance"""
     try:
-        # TODO: Save actual settings to database
-        publishing_mode = request.POST.get("publishing_mode")
+        from constance import config
+
+        # Get values from POST
+        publishing_mode = request.POST.get("publishing_mode", "direct")
         verified_auto_publish = request.POST.get("verified_auto_publish") == "on"
         allow_guest_viewing = request.POST.get("allow_guest_viewing") == "on"
         allow_guest_contact = request.POST.get("allow_guest_contact") == "on"
         members_only_contact = request.POST.get("members_only_contact") == "on"
         members_only_messaging = request.POST.get("members_only_messaging") == "on"
 
-        # Here you would save to database/settings
+        # Save to Constance
+        config.PUBLISHING_MODE = publishing_mode
+        config.VERIFIED_AUTO_PUBLISH = verified_auto_publish
+        config.ALLOW_GUEST_VIEWING = allow_guest_viewing
+        config.ALLOW_GUEST_CONTACT = allow_guest_contact
+        config.MEMBERS_ONLY_CONTACT = members_only_contact
+        config.MEMBERS_ONLY_MESSAGING = members_only_messaging
 
         return JsonResponse(
             {"success": True, "message": _("تم حفظ إعدادات النشر بنجاح.")}
@@ -3372,20 +3429,27 @@ def admin_settings_publishing(request):
 @superadmin_required
 @require_POST
 def admin_settings_delivery(request):
-    """Save delivery settings"""
+    """Save delivery settings to Constance"""
     try:
-        # TODO: Save actual settings to database
+        from constance import config
+
+        # Get values from POST
         delivery_service_enabled = request.POST.get("delivery_service_enabled") == "on"
         delivery_requires_approval = (
             request.POST.get("delivery_requires_approval") == "on"
         )
-        delivery_terms_ar = request.POST.get("delivery_terms_ar")
-        delivery_terms_en = request.POST.get("delivery_terms_en")
-        delivery_fee_percentage = request.POST.get("delivery_fee_percentage")
-        delivery_fee_min = request.POST.get("delivery_fee_min")
-        delivery_fee_max = request.POST.get("delivery_fee_max")
+        delivery_terms_ar = request.POST.get("delivery_terms_ar", "")
+        delivery_terms_en = request.POST.get("delivery_terms_en", "")
+        delivery_fee_percentage = int(request.POST.get("delivery_fee_percentage", 5))
+        delivery_fee_min = int(request.POST.get("delivery_fee_min", 10))
+        delivery_fee_max = int(request.POST.get("delivery_fee_max", 500))
 
-        # Here you would save to database/settings
+        # Save to Constance
+        config.DELIVERY_SERVICE_ENABLED = delivery_service_enabled
+        config.DELIVERY_REQUIRES_APPROVAL = delivery_requires_approval
+        config.DELIVERY_FEE_PERCENTAGE = delivery_fee_percentage
+        config.DELIVERY_FEE_MIN = delivery_fee_min
+        config.DELIVERY_FEE_MAX = delivery_fee_max
 
         return JsonResponse(
             {"success": True, "message": _("تم حفظ إعدادات التوصيل بنجاح.")}
@@ -3400,20 +3464,29 @@ def admin_settings_delivery(request):
 @superadmin_required
 @require_POST
 def admin_settings_cart(request):
-    """Save cart settings"""
+    """Save cart settings to Constance"""
     try:
-        # TODO: Save actual settings to database
+        from constance import config
+
+        # Get values from POST
         cart_system_enabled = request.POST.get("cart_system_enabled") == "on"
         cart_by_main_category = request.POST.get("cart_by_main_category") == "on"
         cart_by_subcategory = request.POST.get("cart_by_subcategory") == "on"
         cart_per_ad = request.POST.get("cart_per_ad") == "on"
-        default_reservation_percentage = request.POST.get(
-            "default_reservation_percentage"
+        default_reservation_percentage = int(
+            request.POST.get("default_reservation_percentage", 20)
         )
-        min_reservation_amount = request.POST.get("min_reservation_amount")
-        max_reservation_amount = request.POST.get("max_reservation_amount")
+        min_reservation_amount = int(request.POST.get("min_reservation_amount", 50))
+        max_reservation_amount = int(request.POST.get("max_reservation_amount", 5000))
 
-        # Here you would save to database/settings
+        # Save to Constance
+        config.CART_SYSTEM_ENABLED = cart_system_enabled
+        config.CART_BY_MAIN_CATEGORY = cart_by_main_category
+        config.CART_BY_SUBCATEGORY = cart_by_subcategory
+        config.CART_PER_AD = cart_per_ad
+        config.DEFAULT_RESERVATION_PERCENTAGE = default_reservation_percentage
+        config.MIN_RESERVATION_AMOUNT = min_reservation_amount
+        config.MAX_RESERVATION_AMOUNT = max_reservation_amount
 
         return JsonResponse(
             {"success": True, "message": _("تم حفظ إعدادات السلة بنجاح.")}
@@ -3428,21 +3501,33 @@ def admin_settings_cart(request):
 @superadmin_required
 @require_POST
 def admin_settings_notifications(request):
-    """Save notification settings"""
+    """Save notification settings to Constance"""
     try:
-        # TODO: Save actual settings to database
+        from constance import config
+
+        # Get values from POST
         notify_admin_new_ads = request.POST.get("notify_admin_new_ads") == "on"
         notify_admin_pending_review = (
             request.POST.get("notify_admin_pending_review") == "on"
         )
         notify_admin_new_users = request.POST.get("notify_admin_new_users") == "on"
         notify_admin_payments = request.POST.get("notify_admin_payments") == "on"
-        admin_notification_email = request.POST.get("admin_notification_email")
-        site_name_in_emails = request.POST.get("site_name_in_emails")
-        ads_notification_frequency = request.POST.get("ads_notification_frequency")
-        stats_report_frequency = request.POST.get("stats_report_frequency")
+        admin_notification_email = request.POST.get("admin_notification_email", "")
+        site_name_in_emails = request.POST.get("site_name_in_emails", "")
+        ads_notification_frequency = request.POST.get(
+            "ads_notification_frequency", "hourly"
+        )
+        stats_report_frequency = request.POST.get("stats_report_frequency", "daily")
 
-        # Here you would save to database/settings
+        # Save to Constance
+        config.NOTIFY_ADMIN_NEW_ADS = notify_admin_new_ads
+        config.NOTIFY_ADMIN_PENDING_REVIEW = notify_admin_pending_review
+        config.NOTIFY_ADMIN_NEW_USERS = notify_admin_new_users
+        config.NOTIFY_ADMIN_PAYMENTS = notify_admin_payments
+        config.ADMIN_NOTIFICATION_EMAIL = admin_notification_email
+        config.SITE_NAME_IN_EMAILS = site_name_in_emails
+        config.ADS_NOTIFICATION_FREQUENCY = ads_notification_frequency
+        config.STATS_REPORT_FREQUENCY = stats_report_frequency
 
         return JsonResponse(
             {"success": True, "message": _("تم حفظ إعدادات الإشعارات بنجاح.")}

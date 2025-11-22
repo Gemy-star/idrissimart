@@ -96,7 +96,6 @@ CONSTANCE_CONFIG = {
         "noreply@idrissimart.com",
         _('Ad Approval "From" Email Address'),
     ),
-    
     # Payment Settings - PayPal
     "PAYPAL_CLIENT_ID": (
         "AQnjmPBtvIVbTH0Ims4qnmEMVXZ-NcI3aNugVKmEkHIKi7tbJQYIfl4OSPrhd6_w9tfNIn_LDjWD1foq",
@@ -110,7 +109,6 @@ CONSTANCE_CONFIG = {
         "sandbox",
         _("PayPal Mode (sandbox or live)"),
     ),
-    
     # Payment Settings - Paymob
     "PAYMOB_API_KEY": (
         "",
@@ -124,7 +122,6 @@ CONSTANCE_CONFIG = {
         "",
         _("Paymob iFrame ID"),
     ),
-    
     # SMS Settings - Twilio
     "TWILIO_ACCOUNT_SID": (
         "ACbda2c87d81ac899a614f26b69c25c8af",
@@ -135,10 +132,14 @@ CONSTANCE_CONFIG = {
         _("Twilio Auth Token"),
     ),
     "TWILIO_PHONE_NUMBER": (
-        "+1234567890",
+        "+12605822569",
         _("Twilio Phone Number"),
     ),
-    
+    "TWILIO_DEVELOPMENT_MODE": (
+        False,
+        _("تفعيل وضع التطوير (يطبع OTP في الكونسول بدلاً من إرساله)"),
+        bool,
+    ),
     # Security Settings
     "ENABLE_MOBILE_VERIFICATION": (
         True,
@@ -154,6 +155,135 @@ CONSTANCE_CONFIG = {
         3,
         _("Maximum OTP Attempts"),
         int,
+    ),
+    # Publishing Settings
+    "PUBLISHING_MODE": (
+        "direct",
+        _("Publishing Mode (direct or review)"),
+    ),
+    "VERIFIED_AUTO_PUBLISH": (
+        True,
+        _("Auto-publish ads from verified users"),
+        bool,
+    ),
+    "ALLOW_GUEST_VIEWING": (
+        True,
+        _("Allow guest users to view ads"),
+        bool,
+    ),
+    "ALLOW_GUEST_CONTACT": (
+        False,
+        _("Allow guest users to contact sellers"),
+        bool,
+    ),
+    "MEMBERS_ONLY_CONTACT": (
+        True,
+        _("Only members can contact sellers"),
+        bool,
+    ),
+    "MEMBERS_ONLY_MESSAGING": (
+        True,
+        _("Only members can use messaging"),
+        bool,
+    ),
+    # Delivery Settings
+    "DELIVERY_SERVICE_ENABLED": (
+        True,
+        _("Enable delivery service"),
+        bool,
+    ),
+    "DELIVERY_REQUIRES_APPROVAL": (
+        True,
+        _("Delivery requests require admin approval"),
+        bool,
+    ),
+    "DELIVERY_FEE_PERCENTAGE": (
+        5,
+        _("Delivery fee percentage"),
+        int,
+    ),
+    "DELIVERY_FEE_MIN": (
+        10,
+        _("Minimum delivery fee"),
+        int,
+    ),
+    "DELIVERY_FEE_MAX": (
+        500,
+        _("Maximum delivery fee"),
+        int,
+    ),
+    # Cart & Reservation Settings
+    "CART_SYSTEM_ENABLED": (
+        True,
+        _("Enable cart system"),
+        bool,
+    ),
+    "CART_BY_MAIN_CATEGORY": (
+        False,
+        _("Enable cart per main category"),
+        bool,
+    ),
+    "CART_BY_SUBCATEGORY": (
+        True,
+        _("Enable cart per subcategory"),
+        bool,
+    ),
+    "CART_PER_AD": (
+        True,
+        _("Enable cart per individual ad"),
+        bool,
+    ),
+    "DEFAULT_RESERVATION_PERCENTAGE": (
+        20,
+        _("Default reservation percentage"),
+        int,
+    ),
+    "MIN_RESERVATION_AMOUNT": (
+        50,
+        _("Minimum reservation amount"),
+        int,
+    ),
+    "MAX_RESERVATION_AMOUNT": (
+        5000,
+        _("Maximum reservation amount"),
+        int,
+    ),
+    # Admin Notification Settings
+    "NOTIFY_ADMIN_NEW_ADS": (
+        True,
+        _("Notify admin of new ads"),
+        bool,
+    ),
+    "NOTIFY_ADMIN_PENDING_REVIEW": (
+        True,
+        _("Notify admin of pending reviews"),
+        bool,
+    ),
+    "NOTIFY_ADMIN_NEW_USERS": (
+        True,
+        _("Notify admin of new user registrations"),
+        bool,
+    ),
+    "NOTIFY_ADMIN_PAYMENTS": (
+        True,
+        _("Notify admin of payments"),
+        bool,
+    ),
+    "ADMIN_NOTIFICATION_EMAIL": (
+        "admin@idrissimart.com",
+        _("Admin notification email address"),
+    ),
+    "SITE_NAME_IN_EMAILS": (
+        "إدريسي مارت",
+        _("Site name in email communications"),
+    ),
+    "ADS_NOTIFICATION_FREQUENCY": (
+        "hourly",
+        _("Ads notification frequency (hourly/daily/weekly)"),
+    ),
+    "STATS_REPORT_FREQUENCY": (
+        "daily",
+        _("Statistics report frequency (daily/weekly/monthly)"),
     ),
 }
 
@@ -204,10 +334,45 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "TWILIO_ACCOUNT_SID",
         "TWILIO_AUTH_TOKEN",
         "TWILIO_PHONE_NUMBER",
+        "TWILIO_DEVELOPMENT_MODE",
     ),
     "Security Settings": (
         "ENABLE_MOBILE_VERIFICATION",
         "OTP_EXPIRY_MINUTES",
         "MAX_OTP_ATTEMPTS",
+    ),
+    "Publishing Settings": (
+        "PUBLISHING_MODE",
+        "VERIFIED_AUTO_PUBLISH",
+        "ALLOW_GUEST_VIEWING",
+        "ALLOW_GUEST_CONTACT",
+        "MEMBERS_ONLY_CONTACT",
+        "MEMBERS_ONLY_MESSAGING",
+    ),
+    "Delivery Settings": (
+        "DELIVERY_SERVICE_ENABLED",
+        "DELIVERY_REQUIRES_APPROVAL",
+        "DELIVERY_FEE_PERCENTAGE",
+        "DELIVERY_FEE_MIN",
+        "DELIVERY_FEE_MAX",
+    ),
+    "Cart & Reservation Settings": (
+        "CART_SYSTEM_ENABLED",
+        "CART_BY_MAIN_CATEGORY",
+        "CART_BY_SUBCATEGORY",
+        "CART_PER_AD",
+        "DEFAULT_RESERVATION_PERCENTAGE",
+        "MIN_RESERVATION_AMOUNT",
+        "MAX_RESERVATION_AMOUNT",
+    ),
+    "Admin Notifications": (
+        "NOTIFY_ADMIN_NEW_ADS",
+        "NOTIFY_ADMIN_PENDING_REVIEW",
+        "NOTIFY_ADMIN_NEW_USERS",
+        "NOTIFY_ADMIN_PAYMENTS",
+        "ADMIN_NOTIFICATION_EMAIL",
+        "SITE_NAME_IN_EMAILS",
+        "ADS_NOTIFICATION_FREQUENCY",
+        "STATS_REPORT_FREQUENCY",
     ),
 }
