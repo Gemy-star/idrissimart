@@ -8,66 +8,92 @@
 {% block extra_css %}
 <style>
     .payment-container {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, var(--gradient-start, #667eea) 0%, var(--gradient-end, #764ba2) 100%);
         min-height: 100vh;
         padding: 2rem 0;
     }
-    
+
     .payment-card {
-        background: rgba(255, 255, 255, 0.95);
+        background: var(--card-bg);
         backdrop-filter: blur(10px);
         border-radius: 20px;
         box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        border: 1px solid var(--border-color);
         overflow: hidden;
     }
-    
+
     .payment-header {
-        background: linear-gradient(135deg, #4CAF50, #45a049);
+        background: linear-gradient(135deg, #4b315e, #3a2449);
         color: white;
         padding: 2rem;
         text-align: center;
     }
-    
+
     .payment-provider {
-        border: 2px solid #e9ecef;
+        border: 2px solid var(--border-color);
         border-radius: 15px;
         padding: 1.5rem;
         margin-bottom: 1rem;
         cursor: pointer;
         transition: all 0.3s ease;
-        background: #f8f9fa;
+        background: var(--hover-bg);
     }
-    
+
     .payment-provider:hover {
-        border-color: #4CAF50;
-        background: #f0f8f0;
+        border-color: #4b315e;
+        background: var(--provider-hover-bg);
         transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(76, 175, 80, 0.2);
+        box-shadow: 0 5px 15px rgba(75, 49, 94, 0.2);
     }
-    
+
     .payment-provider.selected {
-        border-color: #4CAF50;
-        background: #e8f5e8;
-        box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+        border-color: #4b315e;
+        background: var(--provider-selected-bg);
+        box-shadow: 0 0 0 3px rgba(75, 49, 94, 0.1);
     }
-    
+
     .provider-icon {
         font-size: 2rem;
         margin-bottom: 0.5rem;
-        color: #4CAF50;
+        color: #4b315e;
+        min-width: 60px;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
-    
+
+    .provider-icon i {
+        font-size: 2.5rem;
+    }
+
+    /* Specific icon colors for payment providers */
+    .provider-icon .fa-cc-mastercard {
+        color: #eb001b;
+    }
+
+    .provider-icon .fa-cc-visa {
+        color: #1a1f71;
+    }
+
+    .provider-icon .fa-paypal {
+        color: #0070ba;
+    }
+
+    .provider-icon .fa-credit-card {
+        color: #4b315e;
+    }
+
     .package-summary {
-        background: #f8f9fa;
+        background: var(--hover-bg);
         border-radius: 15px;
         padding: 1.5rem;
         margin-bottom: 2rem;
-        border-left: 4px solid #4CAF50;
+        border-left: 4px solid #4b315e;
     }
-    
+
     .btn-pay {
-        background: linear-gradient(135deg, #4CAF50, #45a049);
+        background: linear-gradient(135deg, #4b315e, #3a2449);
         border: none;
         border-radius: 10px;
         padding: 1rem 2rem;
@@ -77,32 +103,53 @@
         transition: all 0.3s ease;
         width: 100%;
     }
-    
+
     .btn-pay:hover {
-        background: linear-gradient(135deg, #45a049, #3d8b40);
+        background: linear-gradient(135deg, #3a2449, #2d1a38);
         transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        box-shadow: 0 5px 15px rgba(75, 49, 94, 0.3);
         color: white;
     }
-    
+
     .btn-pay:disabled {
         background: #6c757d;
         cursor: not-allowed;
         transform: none;
         box-shadow: none;
     }
-    
+
     .loading-spinner {
         display: none;
     }
-    
+
     .currency-badge {
-        background: #4CAF50;
+        background: #4b315e;
         color: white;
         padding: 0.25rem 0.5rem;
         border-radius: 5px;
         font-size: 0.8rem;
         margin-left: 0.5rem;
+    }
+
+    /* Theme-specific variables */
+    :root {
+        --gradient-start: #667eea;
+        --gradient-end: #764ba2;
+        --card-bg: rgba(255, 255, 255, 0.95);
+        --border-color: #e9ecef;
+        --hover-bg: #f8f9fa;
+        --provider-hover-bg: #f3f0f5;
+        --provider-selected-bg: #e8e3eb;
+    }
+
+    [data-theme="dark"] {
+        --gradient-start: #2d3561;
+        --gradient-end: #3d2456;
+        --card-bg: rgba(30, 30, 30, 0.95);
+        --border-color: #404040;
+        --hover-bg: #2a2a2a;
+        --provider-hover-bg: #2d1f33;
+        --provider-selected-bg: #3a2449;
     }
 </style>
 {% endblock %}
@@ -122,7 +169,7 @@
                             <p class="mb-0 mt-2">{% trans "شراء باقة" %}: {{ package.name }}</p>
                         {% endif %}
                     </div>
-                    
+
                     <div class="card-body p-4">
                         {% if package %}
                             <!-- Package Summary -->
@@ -138,7 +185,7 @@
                                     </div>
                                     <div class="col-md-6">
                                         <p><strong>{% trans "مدة الصلاحية" %}:</strong> {{ package.duration_days }} {% trans "يوم" %}</p>
-                                        <p><strong>{% trans "السعر" %}:</strong> 
+                                        <p><strong>{% trans "السعر" %}:</strong>
                                             <span class="h5 text-success">{{ package.price }} {% trans "ريال" %}</span>
                                         </p>
                                     </div>
@@ -155,32 +202,36 @@
                                 {% endif %}
                             </div>
                         {% endif %}
-                        
+
                         <!-- Payment Providers -->
                         <h5 class="mb-4">
                             <i class="fas fa-wallet me-2"></i>
                             {% trans "اختر طريقة الدفع" %}
                         </h5>
-                        
+
                         <form id="payment-form">
                             {% csrf_token %}
                             {% if package %}
                                 <input type="hidden" name="package_id" value="{{ package.id }}">
                                 <input type="hidden" name="amount" value="{{ package.price }}">
                             {% endif %}
-                            
+
                             <div class="payment-providers">
                                 {% for provider in supported_providers %}
                                     <div class="payment-provider" data-provider="{{ provider.id }}">
                                         <div class="row align-items-center">
                                             <div class="col-auto">
                                                 <div class="provider-icon">
-                                                    <i class="{{ provider.icon }}"></i>
+                                                    {% if provider.icon %}
+                                                        <i class="{{ provider.icon }}"></i>
+                                                    {% else %}
+                                                        <i class="fas fa-credit-card"></i>
+                                                    {% endif %}
                                                 </div>
                                             </div>
                                             <div class="col">
                                                 <h6 class="mb-1">{{ provider.name }}</h6>
-                                                <p class="text-muted mb-0">
+                                                <p class="text-muted mb-0 small">
                                                     {% trans "العملات المدعومة" %}:
                                                     {% for currency in provider.currencies %}
                                                         <span class="currency-badge">{{ currency }}</span>
@@ -189,7 +240,7 @@
                                             </div>
                                             <div class="col-auto">
                                                 <div class="form-check">
-                                                    <input class="form-check-input" type="radio" name="provider" 
+                                                    <input class="form-check-input" type="radio" name="provider"
                                                            value="{{ provider.id }}" id="provider_{{ provider.id }}">
                                                     <label class="form-check-label" for="provider_{{ provider.id }}"></label>
                                                 </div>
@@ -203,18 +254,18 @@
                                     </div>
                                 {% endfor %}
                             </div>
-                            
+
                             {% if not package %}
                                 <!-- Custom Amount for General Payments -->
                                 <div class="mb-3">
                                     <label for="custom_amount" class="form-label">{% trans "المبلغ" %}</label>
                                     <div class="input-group">
-                                        <input type="number" class="form-control" id="custom_amount" name="amount" 
+                                        <input type="number" class="form-control" id="custom_amount" name="amount"
                                                min="1" step="0.01" required>
-                                        <span class="input-group-text">{% trans "ريال" %}</span>
+                                        <span class="input-group-text" id="currency-symbol">{% trans "ريال" %}</span>
                                     </div>
                                 </div>
-                                
+
                                 <div class="mb-3">
                                     <label for="currency" class="form-label">{% trans "العملة" %}</label>
                                     <select class="form-select" id="currency" name="currency">
@@ -226,7 +277,7 @@
                             {% else %}
                                 <input type="hidden" name="currency" value="SAR">
                             {% endif %}
-                            
+
                             <div class="d-grid mt-4">
                                 <button type="submit" class="btn btn-pay" id="pay-button" disabled>
                                     <span class="button-text">
@@ -243,7 +294,7 @@
                                 </button>
                             </div>
                         </form>
-                        
+
                         <div class="text-center mt-4">
                             <small class="text-muted">
                                 <i class="fas fa-shield-alt me-1"></i>
@@ -265,42 +316,58 @@ document.addEventListener('DOMContentLoaded', function() {
     const payButton = document.getElementById('pay-button');
     const providers = document.querySelectorAll('.payment-provider');
     const providerRadios = document.querySelectorAll('input[name="provider"]');
-    
+    const currencySelect = document.getElementById('currency');
+    const currencySymbol = document.getElementById('currency-symbol');
+
+    // Currency symbol mapping
+    const currencySymbols = {
+        'SAR': '{% trans "ريال" %}',
+        'USD': '$',
+        'EGP': '{% trans "جنيه" %}'
+    };
+
+    // Handle currency change
+    if (currencySelect && currencySymbol) {
+        currencySelect.addEventListener('change', function() {
+            currencySymbol.textContent = currencySymbols[this.value] || this.value;
+        });
+    }
+
     // Handle provider selection
     providers.forEach(provider => {
         provider.addEventListener('click', function() {
             const providerId = this.dataset.provider;
             const radio = document.getElementById(`provider_${providerId}`);
-            
+
             // Clear previous selections
             providers.forEach(p => p.classList.remove('selected'));
-            
+
             // Select current provider
             this.classList.add('selected');
             radio.checked = true;
-            
+
             // Enable pay button
             payButton.disabled = false;
         });
     });
-    
+
     // Handle form submission
     form.addEventListener('submit', function(e) {
         e.preventDefault();
-        
+
         const formData = new FormData(form);
         const selectedProvider = formData.get('provider');
-        
+
         if (!selectedProvider) {
-            alert('{% trans "يرجى اختيار طريقة الدفع" %}');
+            showToast('{% trans "يرجى اختيار طريقة الدفع" %}', 'warning');
             return;
         }
-        
+
         // Show loading state
         payButton.disabled = true;
         payButton.querySelector('.button-text').style.display = 'none';
         payButton.querySelector('.loading-spinner').style.display = 'inline';
-        
+
         // Submit payment request
         fetch('{% url "main:create_payment" %}', {
             method: 'POST',
@@ -316,21 +383,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.redirect_url) {
                     window.location.href = data.redirect_url;
                 } else {
-                    alert('{% trans "حدث خطأ في إعداد الدفع" %}');
+                    showToast('{% trans "حدث خطأ في إعداد الدفع" %}', 'error');
                     resetButton();
                 }
             } else {
-                alert(data.message || '{% trans "حدث خطأ في إنشاء عملية الدفع" %}');
+                showToast(data.message || '{% trans "حدث خطأ في إنشاء عملية الدفع" %}', 'error');
                 resetButton();
             }
         })
         .catch(error => {
             console.error('Payment error:', error);
-            alert('{% trans "حدث خطأ في الاتصال" %}');
+            showToast('{% trans "حدث خطأ في الاتصال" %}', 'error');
             resetButton();
         });
     });
-    
+
     function resetButton() {
         payButton.disabled = false;
         payButton.querySelector('.button-text').style.display = 'inline';

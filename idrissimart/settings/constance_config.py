@@ -122,6 +122,14 @@ CONSTANCE_CONFIG = {
         "",
         _("Paymob iFrame ID"),
     ),
+    "PAYMOB_MASTERCARD_INTEGRATION_ID": (
+        "",
+        _("Paymob Mastercard Integration ID"),
+    ),
+    "PAYMOB_VISA_INTEGRATION_ID": (
+        "",
+        _("Paymob Visa Integration ID"),
+    ),
     # SMS Settings - Twilio
     "TWILIO_ACCOUNT_SID": (
         "ACbda2c87d81ac899a614f26b69c25c8af",
@@ -377,6 +385,8 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "PAYMOB_API_KEY",
         "PAYMOB_INTEGRATION_ID",
         "PAYMOB_IFRAME_ID",
+        "PAYMOB_MASTERCARD_INTEGRATION_ID",
+        "PAYMOB_VISA_INTEGRATION_ID",
     ),
     "SMS Settings - Twilio": (
         "TWILIO_ACCOUNT_SID",

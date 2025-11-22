@@ -904,10 +904,10 @@ class AdUpgradeProcessView(LoginRequiredMixin, View):
         upgrade_pinned = request.POST.get("upgrade_pinned") == "1"
         upgrade_urgent = request.POST.get("upgrade_urgent") == "1"
 
-        # Get durations
-        featured_duration = int(request.POST.get("featured_duration", 0))
-        pinned_duration = int(request.POST.get("pinned_duration", 0))
-        urgent_duration = int(request.POST.get("urgent_duration", 0))
+        # Get durations (handle empty strings)
+        featured_duration = int(request.POST.get("featured_duration") or 0)
+        pinned_duration = int(request.POST.get("pinned_duration") or 0)
+        urgent_duration = int(request.POST.get("urgent_duration") or 0)
 
         # Calculate total amount
         total_amount = Decimal("0.00")
@@ -917,54 +917,56 @@ class AdUpgradeProcessView(LoginRequiredMixin, View):
 
         if upgrade_featured and featured_duration > 0:
             if featured_duration == 7:
-                price = getattr(config, "FEATURED_AD_PRICE_7DAYS", Decimal("50.00"))
+                price = Decimal(str(getattr(config, "FEATURED_AD_PRICE_7DAYS", 50.00)))
             elif featured_duration == 14:
-                price = getattr(config, "FEATURED_AD_PRICE_14DAYS", Decimal("80.00"))
+                price = Decimal(str(getattr(config, "FEATURED_AD_PRICE_14DAYS", 80.00)))
             else:  # 30
-                price = getattr(config, "FEATURED_AD_PRICE_30DAYS", Decimal("100.00"))
+                price = Decimal(
+                    str(getattr(config, "FEATURED_AD_PRICE_30DAYS", 100.00))
+                )
 
             total_amount += price
             upgrades.append(
                 {
                     "type": "featured",
                     "duration": featured_duration,
-                    "price": price,
+                    "price": str(price),
                     "name": _("إعلان مميز"),
                 }
             )
 
         if upgrade_pinned and pinned_duration > 0:
             if pinned_duration == 7:
-                price = getattr(config, "PINNED_AD_PRICE_7DAYS", Decimal("75.00"))
+                price = Decimal(str(getattr(config, "PINNED_AD_PRICE_7DAYS", 75.00)))
             elif pinned_duration == 14:
-                price = getattr(config, "PINNED_AD_PRICE_14DAYS", Decimal("120.00"))
+                price = Decimal(str(getattr(config, "PINNED_AD_PRICE_14DAYS", 120.00)))
             else:  # 30
-                price = getattr(config, "PINNED_AD_PRICE_30DAYS", Decimal("150.00"))
+                price = Decimal(str(getattr(config, "PINNED_AD_PRICE_30DAYS", 150.00)))
 
             total_amount += price
             upgrades.append(
                 {
                     "type": "pinned",
                     "duration": pinned_duration,
-                    "price": price,
+                    "price": str(price),
                     "name": _("تثبيت في الأعلى"),
                 }
             )
 
         if upgrade_urgent and urgent_duration > 0:
             if urgent_duration == 7:
-                price = getattr(config, "URGENT_AD_PRICE_7DAYS", Decimal("30.00"))
+                price = Decimal(str(getattr(config, "URGENT_AD_PRICE_7DAYS", 30.00)))
             elif urgent_duration == 14:
-                price = getattr(config, "URGENT_AD_PRICE_14DAYS", Decimal("48.00"))
+                price = Decimal(str(getattr(config, "URGENT_AD_PRICE_14DAYS", 48.00)))
             else:  # 30
-                price = getattr(config, "URGENT_AD_PRICE_30DAYS", Decimal("60.00"))
+                price = Decimal(str(getattr(config, "URGENT_AD_PRICE_30DAYS", 60.00)))
 
             total_amount += price
             upgrades.append(
                 {
                     "type": "urgent",
                     "duration": urgent_duration,
-                    "price": price,
+                    "price": str(price),
                     "name": _("إعلان عاجل"),
                 }
             )
