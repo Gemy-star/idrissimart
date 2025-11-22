@@ -1,25 +1,43 @@
-{% extends "base.html" %}
+{% extends "dashboard/base.html" %}
 {% load static i18n %}
 
-{% block title %}
+{% block publisher_title %}
     {% trans "الدفع" %} - {% trans "إدريسي مارت" %}
 {% endblock %}
 
-{% block extra_css %}
+{% block dashboard_extra_css %}
 <style>
-    .payment-container {
-        background: linear-gradient(135deg, var(--gradient-start, #667eea) 0%, var(--gradient-end, #764ba2) 100%);
-        min-height: 100vh;
+    /* Theme-aware Payment Page Styles */
+    :root {
+        --card-bg: #ffffff;
+        --hover-bg: #f8f9fa;
+        --provider-hover-bg: #f3f4f6;
+        --provider-selected-bg: #e8e4ed;
+        --text-color: #1f2937;
+        --border-color: #e5e7eb;
+    }
+
+    [data-theme='dark'] {
+        --card-bg: #2a2a2a;
+        --hover-bg: #353535;
+        --provider-hover-bg: #3a3a3a;
+        --provider-selected-bg: #4a3a5e;
+        --text-color: #f3f4f6;
+        --border-color: #404040;
+    }
+
+    .payment-wrapper {
         padding: 2rem 0;
+        min-height: calc(100vh - 200px);
     }
 
     .payment-card {
-        background: var(--card-bg);
-        backdrop-filter: blur(10px);
+        background: var(--bg-primary);
         border-radius: 20px;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         border: 1px solid var(--border-color);
         overflow: hidden;
+        margin-bottom: 2rem;
     }
 
     .payment-header {
@@ -27,23 +45,49 @@
         color: white;
         padding: 2rem;
         text-align: center;
+        border-bottom: 3px solid #6b4c7a;
+    }
+
+    .payment-header h2 {
+        margin: 0;
+        font-size: 1.8rem;
+        font-weight: 700;
+    }
+
+    .payment-header p {
+        margin: 0.5rem 0 0;
+        opacity: 0.9;
+        font-size: 0.95rem;
+    }
+
+    .payment-body {
+        padding: 2rem;
+    }
+
+    .payment-providers {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 2rem;
     }
 
     .payment-provider {
         border: 2px solid var(--border-color);
         border-radius: 15px;
         padding: 1.5rem;
-        margin-bottom: 1rem;
         cursor: pointer;
         transition: all 0.3s ease;
-        background: var(--hover-bg);
+        background: var(--bg-secondary);
+        display: flex;
+        align-items: center;
+        position: relative;
     }
 
     .payment-provider:hover {
         border-color: #4b315e;
         background: var(--provider-hover-bg);
         transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(75, 49, 94, 0.2);
+        box-shadow: 0 5px 15px rgba(75, 49, 94, 0.15);
     }
 
     .payment-provider.selected {
@@ -52,9 +96,20 @@
         box-shadow: 0 0 0 3px rgba(75, 49, 94, 0.1);
     }
 
+    .payment-provider.selected::after {
+        content: '\f058';
+        font-family: 'Font Awesome 6 Free';
+        font-weight: 900;
+        position: absolute;
+        top: 1rem;
+        left: 1rem;
+        color: #10b981;
+        font-size: 1.5rem;
+    }
+
     .provider-icon {
         font-size: 2rem;
-        margin-bottom: 0.5rem;
+        margin-inline-end: 1rem;
         color: #4b315e;
         min-width: 60px;
         text-align: center;
@@ -84,12 +139,95 @@
         color: #4b315e;
     }
 
+    [data-theme='dark'] .provider-icon .fa-credit-card {
+        color: #9b7ab8;
+    }
+
+    .provider-details h6 {
+        margin: 0 0 0.5rem;
+        color: var(--text-primary);
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+
+    .provider-details p {
+        margin: 0;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+
+    .currency-badge {
+        display: inline-block;
+        background: rgba(75, 49, 94, 0.1);
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        margin-inline-end: 0.25rem;
+        font-weight: 600;
+        color: #4b315e;
+    }
+
+    [data-theme='dark'] .currency-badge {
+        background: rgba(155, 122, 184, 0.2);
+        color: #9b7ab8;
+    }
+
     .package-summary {
-        background: var(--hover-bg);
+        background: var(--bg-secondary-light);
         border-radius: 15px;
         padding: 1.5rem;
         margin-bottom: 2rem;
-        border-left: 4px solid #4b315e;
+        border-inline-start: 4px solid #4b315e;
+    }
+
+    .package-summary h5 {
+        color: var(--text-primary);
+        margin: 0 0 1rem;
+        font-weight: 700;
+    }
+
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .summary-row:last-child {
+        border-bottom: none;
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #4b315e;
+        padding-top: 1rem;
+    }
+
+    [data-theme='dark'] .summary-row:last-child {
+        color: #9b7ab8;
+    }
+
+    .currency-selector {
+        background: var(--bg-secondary);
+        border: 2px solid var(--border-color);
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .currency-selector label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .currency-selector select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        font-size: 1rem;
     }
 
     .btn-pay {
@@ -122,63 +260,73 @@
         display: none;
     }
 
-    .currency-badge {
-        background: #4b315e;
-        color: white;
-        padding: 0.25rem 0.5rem;
-        border-radius: 5px;
-        font-size: 0.8rem;
-        margin-left: 0.5rem;
-    }
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .payment-header h2 {
+            font-size: 1.5rem;
+        }
 
-    /* Theme-specific variables */
-    :root {
-        --gradient-start: #667eea;
-        --gradient-end: #764ba2;
-        --card-bg: rgba(255, 255, 255, 0.95);
-        --border-color: #e9ecef;
-        --hover-bg: #f8f9fa;
-        --provider-hover-bg: #f3f0f5;
-        --provider-selected-bg: #e8e3eb;
-    }
+        .payment-body {
+            padding: 1.5rem;
+        }
 
-    [data-theme="dark"] {
-        --gradient-start: #2d3561;
-        --gradient-end: #3d2456;
-        --card-bg: rgba(30, 30, 30, 0.95);
-        --border-color: #404040;
-        --hover-bg: #2a2a2a;
-        --provider-hover-bg: #2d1f33;
-        --provider-selected-bg: #3a2449;
+        .provider-icon {
+            min-width: 50px;
+        }
+
+        .provider-icon i {
+            font-size: 2rem;
+        }
+
+        .payment-provider {
+            padding: 1rem;
+        }
     }
 </style>
 {% endblock %}
 
-{% block content %}
-<div class="payment-container">
-    <div class="container">
+{% block dashboard_content %}
+<div class="payment-wrapper">
+    <div class="container-fluid">
         <div class="row justify-content-center">
-            <div class="col-lg-8">
+            <div class="col-lg-8 col-xl-7">
+                <!-- Page Header -->
+                <div class="d-flex align-items-center mb-4">
+                    <a href="javascript:history.back()" class="btn btn-outline-primary me-3">
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                    <div>
+                        <h4 class="mb-0">
+                            <i class="fas fa-credit-card me-2"></i>
+                            {% trans "إتمام عملية الدفع" %}
+                        </h4>
+                        <p class="text-muted mb-0 small">{% trans "اختر طريقة الدفع المناسبة لك" %}</p>
+                    </div>
+                </div>
+
                 <div class="payment-card">
                     <div class="payment-header">
-                        <h2 class="mb-0">
-                            <i class="fas fa-credit-card me-2"></i>
+                        <h2>
+                            <i class="fas fa-wallet me-2"></i>
                             {% trans "اختر طريقة الدفع" %}
                         </h2>
                         {% if package %}
-                            <p class="mb-0 mt-2">{% trans "شراء باقة" %}: {{ package.name }}</p>
+                            <p class="mb-0 mt-2">
+                                <i class="fas fa-box me-2"></i>
+                                {% trans "شراء باقة" %}: <strong>{{ package.name }}</strong>
+                            </p>
                         {% endif %}
                     </div>
 
-                    <div class="card-body p-4">
+                    <div class="payment-body">
                         {% if package %}
                             <!-- Package Summary -->
                             <div class="package-summary">
-                                <h5 class="mb-3">
-                                    <i class="fas fa-box me-2"></i>
+                                <h5>
+                                    <i class="fas fa-file-invoice me-2"></i>
                                     {% trans "تفاصيل الباقة" %}
                                 </h5>
-                                <div class="row">
+                                <div class="row g-3 mb-3">
                                     <div class="col-md-6">
                                         <p><strong>{% trans "اسم الباقة" %}:</strong> {{ package.name }}</p>
                                         <p><strong>{% trans "عدد الإعلانات" %}:</strong> {{ package.max_ads }}</p>
@@ -304,12 +452,14 @@
                     </div>
                 </div>
             </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 {% endblock %}
 
-{% block extra_js %}
+{% block dashboard_extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('payment-form');
