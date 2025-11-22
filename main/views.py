@@ -1354,9 +1354,19 @@ class AdCreateView(LoginRequiredMixin, CreateView):
             self.object = form.save()
             image_formset.instance = self.object
             image_formset.save()
-            messages.success(self.request, _("تم إرسال إعلانك للمراجعة!"))
+
+            # Show appropriate success message based on ad status
+            if self.object.status == ClassifiedAd.AdStatus.ACTIVE:
+                messages.success(self.request, _("تم نشر إعلانك بنجاح!"))
+            else:
+                messages.success(self.request, _("تم إرسال إعلانك للمراجعة!"))
+
             return super().form_valid(form)
         else:
+            # Add formset errors to messages
+            for error in image_formset.errors:
+                if error:
+                    messages.error(self.request, str(error))
             return self.form_invalid(form)
 
 

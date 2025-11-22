@@ -17,6 +17,11 @@ def notify_admin_new_ad(sender, instance, created, **kwargs):
     Send notification to admin when a new ad is created
     """
     if created:
+        # Check if admin notifications are enabled
+        notify_enabled = getattr(config, "NOTIFY_ADMIN_NEW_ADS", False)
+        if not notify_enabled:
+            return
+
         # Get all superusers
         superusers = User.objects.filter(is_superuser=True)
 
@@ -72,27 +77,43 @@ def send_ad_approval_notification(sender, instance, **kwargs):
                     link=instance.get_absolute_url(),
                 )
 
-                # 2. Send an email notification
-                current_site = Site.objects.get_current()
-                subject = config.AD_APPROVAL_EMAIL_SUBJECT.format(
-                    ad_title=instance.title, site_name=current_site.name
-                )
-                context = {
-                    "user": instance.user,
-                    "ad": instance,
-                    "site_url": f"https://{current_site.domain}",
-                }
-                html_message = render_to_string(
-                    "emails/ad_approval_notification.html", context
+                # 2. Send an email notification (async/in background to avoid blocking)
+                # Check if email notifications are enabled
+                email_notifications_enabled = getattr(
+                    config, "NOTIFY_ADMIN_PAYMENTS", True
                 )
 
-                send_mail(
-                    subject=subject,
-                    message="",
-                    from_email=config.AD_APPROVAL_FROM_EMAIL,
-                    recipient_list=[instance.user.email],
-                    html_message=html_message,
-                )
+                if email_notifications_enabled:
+                    try:
+                        current_site = Site.objects.get_current()
+                        subject = config.AD_APPROVAL_EMAIL_SUBJECT.format(
+                            ad_title=instance.title, site_name=current_site.name
+                        )
+                        context = {
+                            "user": instance.user,
+                            "ad": instance,
+                            "site_url": f"https://{current_site.domain}",
+                        }
+                        html_message = render_to_string(
+                            "emails/ad_approval_notification.html", context
+                        )
+
+                        # Send email with fail_silently=True to prevent blocking
+                        send_mail(
+                            subject=subject,
+                            message="",
+                            from_email=config.AD_APPROVAL_FROM_EMAIL,
+                            recipient_list=[instance.user.email],
+                            html_message=html_message,
+                            fail_silently=True,  # Don't block if email fails
+                        )
+                    except Exception as e:
+                        # Log error but don't block the save operation
+                        import logging
+
+                        logger = logging.getLogger(__name__)
+                        logger.error(f"Failed to send approval email: {str(e)}")
+
         except ClassifiedAd.DoesNotExist:
             pass  # This is a new ad, so no status change to handle
 

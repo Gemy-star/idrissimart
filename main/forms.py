@@ -93,11 +93,13 @@ class ClassifiedAdForm(forms.ModelForm):
         required=True,
         label=_("رقم الجوال"),
         help_text=_("رقم الجوال للتواصل (يجب التحقق منه)"),
-        widget=forms.TextInput(attrs={
-            "class": "form-control",
-            "placeholder": _("مثال: 0501234567"),
-            "id": "mobile_number"
-        })
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": _("مثال: 0501234567"),
+                "id": "mobile_number",
+            }
+        ),
     )
     # The 'brand' field is also better handled dynamically.
 
@@ -126,12 +128,12 @@ class ClassifiedAdForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user', None)
+        self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
 
         # Initialize mobile number from user's profile
         if self.user and self.user.mobile:
-            self.fields['mobile_number'].initial = self.user.mobile
+            self.fields["mobile_number"].initial = self.user.mobile
 
         category = None
         if "category" in self.data:
@@ -252,34 +254,48 @@ class ClassifiedAdForm(forms.ModelForm):
 
     def clean_mobile_number(self):
         """Validate mobile number format"""
-        mobile_number = self.cleaned_data.get('mobile_number')
+        mobile_number = self.cleaned_data.get("mobile_number")
         if mobile_number:
             # Remove spaces and special characters
-            mobile_number = ''.join(filter(str.isdigit, mobile_number))
+            mobile_number = "".join(filter(str.isdigit, mobile_number))
 
             # Check if it's a valid Saudi mobile number
-            if not mobile_number.startswith('05') or len(mobile_number) != 10:
-                raise forms.ValidationError(_('رقم الجوال يجب أن يبدأ بـ 05 ويتكون من 10 أرقام'))
+            if not mobile_number.startswith("05") or len(mobile_number) != 10:
+                raise forms.ValidationError(
+                    _("رقم الجوال يجب أن يبدأ بـ 05 ويتكون من 10 أرقام")
+                )
 
         return mobile_number
 
     def clean(self):
         """Validate that mobile number is verified for new ads"""
         cleaned_data = super().clean()
-        mobile_number = cleaned_data.get('mobile_number')
+        mobile_number = cleaned_data.get("mobile_number")
 
         if mobile_number and self.user:
             # Check if this is a new ad (not editing existing one)
             if not self.instance.pk:
                 # Check if mobile verification is required
                 from .services import MobileVerificationService
-                verification_service = MobileVerificationService()
-                required, message = verification_service.check_mobile_verification_required(
-                    self.user, mobile_number
+                from constance import config
+
+                # Only check verification if it's enabled in settings
+                verification_enabled = getattr(
+                    config, "ENABLE_MOBILE_VERIFICATION", True
                 )
 
-                if required:
-                    raise forms.ValidationError(_('يجب التحقق من رقم الجوال قبل نشر الإعلان'))
+                if verification_enabled:
+                    verification_service = MobileVerificationService()
+                    required, message = (
+                        verification_service.check_mobile_verification_required(
+                            self.user, mobile_number
+                        )
+                    )
+
+                    if required:
+                        raise forms.ValidationError(
+                            _("يجب التحقق من رقم الجوال قبل نشر الإعلان")
+                        )
 
         return cleaned_data
 
@@ -390,7 +406,9 @@ class RegistrationForm(forms.Form):
         profile_type = cleaned_data.get("profile_type")
 
         if profile_type == "service" and not cleaned_data.get("specialization"):
-            self.add_error("specialization", _("Specialization is required for service providers."))
+            self.add_error(
+                "specialization", _("Specialization is required for service providers.")
+            )
 
         if profile_type == "merchant" and not cleaned_data.get("company_name"):
             self.add_error("company_name", _("Company name is required for merchants."))
