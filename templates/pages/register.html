@@ -135,14 +135,69 @@
                 </div>
                 <!-- Phone -->
                 <div class="form-group">
-                    <label class="form-label">{% trans "رقم الجوال" %}</label>
+                    <label class="form-label">
+                        {% trans "رقم الجوال" %}
+                        <span class="required">*</span>
+                    </label>
                     <div class="form-control-wrapper">
+                        <select id="country_code"
+                                name="country_code"
+                                class="form-control mb-2"
+                                onchange="updatePhonePlaceholder()"
+                                required>
+                            {% for country in countries %}
+                            <option value="{{ country.code }}"
+                                    {% if country.code == 'SA' %}selected{% endif %}>
+                                {{ country.flag_emoji }} {{ country.name }} ({{ country.phone_code }})
+                            </option>
+                            {% endfor %}
+                        </select>
                         <input type="tel"
+                               id="phone"
                                name="phone"
                                class="form-control"
-                               placeholder="{% trans 'أدخل رقم جوالك' %}"
-                               value="{{ form_data.phone|default:'' }}" />
+                               placeholder="{% trans 'مثال: 0501234567' %}"
+                               value="{{ form_data.phone|default:'' }}"
+                               required />
                         <i class="fas fa-phone"></i>
+                    </div>
+                    <div class="d-flex gap-2 mt-2">
+                        <button type="button"
+                                id="sendCodeBtn"
+                                class="btn btn-outline-primary flex-shrink-0"
+                                onclick="sendVerificationCode()">
+                            <i class="fas fa-paper-plane me-1"></i>
+                            {% trans "إرسال رمز التحقق" %}
+                        </button>
+                        <span id="countdown" class="text-muted small align-self-center" style="display: none;"></span>
+                    </div>
+                </div>
+
+                <!-- Verification Code -->
+                <div class="form-group" id="verificationCodeGroup" style="display: none;">
+                    <label class="form-label">
+                        {% trans "رمز التحقق" %}
+                        <span class="required">*</span>
+                    </label>
+                    <div class="form-control-wrapper">
+                        <input type="text"
+                               id="verification_code"
+                               name="phone_verification_code"
+                               class="form-control"
+                               placeholder="{% trans 'أدخل رمز التحقق' %}"
+                               maxlength="6"
+                               pattern="[0-9]{6}" />
+                        <i class="fas fa-key"></i>
+                    </div>
+                    <div class="d-flex gap-2 mt-2">
+                        <button type="button"
+                                id="verifyCodeBtn"
+                                class="btn btn-success"
+                                onclick="verifyPhoneCode()">
+                            <i class="fas fa-check-circle me-1"></i>
+                            {% trans "تحقق" %}
+                        </button>
+                        <span id="verificationStatus" class="align-self-center"></span>
                     </div>
                 </div>
                 <!-- Extra fields for selected profile types -->
@@ -393,6 +448,190 @@
             }
             updateExtraFields()
         })
+
+        // Phone Verification Functions
+        let phoneVerified = false;
+        let countdownInterval = null;
+
+        function updatePhonePlaceholder() {
+            const countrySelect = document.getElementById('country_code');
+            const phoneInput = document.getElementById('phone');
+            const countryCode = countrySelect.value;
+
+            // Update placeholder based on selected country
+            const placeholders = {
+                'SA': '{% trans "مثال: 0501234567" %}',  // Saudi Arabia
+                'AE': '{% trans "مثال: 0501234567" %}',  // UAE
+                'EG': '{% trans "مثال: 01012345678" %}',  // Egypt
+                'KW': '{% trans "مثال: 12345678" %}',    // Kuwait
+                'QA': '{% trans "مثال: 12345678" %}',    // Qatar
+                'BH': '{% trans "مثال: 12345678" %}',    // Bahrain
+                'OM': '{% trans "مثال: 12345678" %}',    // Oman
+                'JO': '{% trans "مثال: 0791234567" %}',  // Jordan
+            };
+
+            phoneInput.placeholder = placeholders[countryCode] || placeholders['SA'];
+        }
+
+        function sendVerificationCode() {
+            const phoneInput = document.getElementById('phone');
+            const countrySelect = document.getElementById('country_code');
+            const phone = phoneInput.value.trim();
+            const countryCode = countrySelect.value;
+            const sendBtn = document.getElementById('sendCodeBtn');
+
+            if (!phone) {
+                showToast('{% trans "الرجاء إدخال رقم الجوال" %}', 'warning');
+                phoneInput.focus();
+                return;
+            }
+
+            // Disable button and show loading
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> {% trans "جاري الإرسال..." %}';
+
+            fetch('{% url "main:send_phone_code" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    phone: phone,
+                    country_code: countryCode
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    // Show verification code input
+                    document.getElementById('verificationCodeGroup').style.display = 'block';
+                    // Start countdown (10 minutes = 600 seconds)
+                    startCountdown(600);
+                } else {
+                    showToast(data.message, 'error');
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i> {% trans "إرسال رمز التحقق" %}';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('{% trans "حدث خطأ. الرجاء المحاولة لاحقاً" %}', 'error');
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i> {% trans "إرسال رمز التحقق" %}';
+            });
+        }
+
+        function verifyPhoneCode() {
+            const phoneInput = document.getElementById('phone');
+            const countrySelect = document.getElementById('country_code');
+            const codeInput = document.getElementById('verification_code');
+            const phone = phoneInput.value.trim();
+            const countryCode = countrySelect.value;
+            const code = codeInput.value.trim();
+            const verifyBtn = document.getElementById('verifyCodeBtn');
+            const statusSpan = document.getElementById('verificationStatus');
+
+            if (!code) {
+                showToast('{% trans "الرجاء إدخال رمز التحقق" %}', 'warning');
+                codeInput.focus();
+                return;
+            }
+
+            if (code.length !== 6) {
+                showToast('{% trans "رمز التحقق يجب أن يكون 6 أرقام" %}', 'warning');
+                return;
+            }
+
+            // Disable button and show loading
+            verifyBtn.disabled = true;
+            verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> {% trans "جاري التحقق..." %}';
+
+            fetch('{% url "main:verify_phone_code" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    phone: phone,
+                    code: code,
+                    country_code: countryCode
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    phoneVerified = true;
+                    showToast(data.message, 'success');
+                    // Show success status
+                    statusSpan.innerHTML = '<i class="fas fa-check-circle text-success"></i> <span class="text-success">{% trans "تم التحقق بنجاح" %}</span>';
+                    // Disable inputs
+                    phoneInput.disabled = true;
+                    countrySelect.disabled = true;
+                    codeInput.disabled = true;
+                    verifyBtn.disabled = true;
+                    document.getElementById('sendCodeBtn').disabled = true;
+                    // Stop countdown
+                    if (countdownInterval) {
+                        clearInterval(countdownInterval);
+                        document.getElementById('countdown').style.display = 'none';
+                    }
+                } else {
+                    showToast(data.message, 'error');
+                    verifyBtn.disabled = false;
+                    verifyBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> {% trans "تحقق" %}';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('{% trans "حدث خطأ. الرجاء المحاولة لاحقاً" %}', 'error');
+                verifyBtn.disabled = false;
+                verifyBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> {% trans "تحقق" %}';
+            });
+        }
+
+        function startCountdown(seconds) {
+            const countdownEl = document.getElementById('countdown');
+            const sendBtn = document.getElementById('sendCodeBtn');
+
+            countdownEl.style.display = 'inline';
+            let remaining = seconds;
+
+            const updateDisplay = () => {
+                const minutes = Math.floor(remaining / 60);
+                const secs = remaining % 60;
+                countdownEl.textContent = `{% trans "يمكن إعادة الإرسال بعد" %} ${minutes}:${secs.toString().padStart(2, '0')}`;
+            };
+
+            updateDisplay();
+
+            countdownInterval = setInterval(() => {
+                remaining--;
+
+                if (remaining <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownEl.style.display = 'none';
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i> {% trans "إعادة إرسال الرمز" %}';
+                } else {
+                    updateDisplay();
+                }
+            }, 1000);
+        }
+
+        // Modify form submission to check phone verification
+        const originalSubmitHandler = document.getElementById('registerForm').onsubmit;
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            if (!phoneVerified) {
+                e.preventDefault();
+                showToast('{% trans "يجب التحقق من رقم الجوال قبل إنشاء الحساب" %}', 'warning');
+                document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return false;
+            }
+        });
     </script>
 
 {% endblock %}
+

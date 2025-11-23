@@ -1,12 +1,16 @@
 """
 Utility functions for the main app
 """
+
 from django.utils.translation import gettext as _
 
 from django.utils import timezone
 from django.utils.timesince import timesince
 from decimal import Decimal
 import re
+import random
+import string
+from datetime import timedelta
 
 
 def get_selected_country_from_request(request, default="EG"):
@@ -101,6 +105,7 @@ def get_ad_time_display(created_at):
         return _("منذ {weeks} أسبوع").format(weeks=weeks)
     else:
         return created_at.strftime("%Y-%m-%d")
+
 
 def truncate_text_smart(text, max_length=120):
     """
@@ -248,3 +253,215 @@ def get_ad_contact_info(ad):
             contact_info["verified"] = user.verification_status == "verified"
 
     return contact_info
+
+
+def generate_verification_code(length=6):
+    """
+    Generate a random numeric verification code
+    """
+    return "".join(random.choices(string.digits, k=length))
+
+
+def send_sms_verification_code(phone_number, code):
+    """
+    Send SMS verification code to phone number.
+
+    In production, integrate with SMS gateway like:
+    - Twilio
+    - Nexmo/Vonage
+    - AWS SNS
+    - MSG91
+    - Uniform
+
+    For now, this is a placeholder that logs the code.
+    """
+    try:
+        # TODO: Integrate with actual SMS service
+        # Example for Twilio:
+        # from twilio.rest import Client
+        # client = Client(account_sid, auth_token)
+        # message = client.messages.create(
+        #     body=f"Your verification code is: {code}",
+        #     from_=twilio_number,
+        #     to=phone_number
+        # )
+
+        # For development/testing, just log it
+        print(f"[SMS] Verification code for {phone_number}: {code}")
+        print(f"[SMS] Code expires in 10 minutes")
+
+        return True
+    except Exception as e:
+        print(f"[SMS ERROR] Failed to send code to {phone_number}: {str(e)}")
+        return False
+
+
+def get_country_phone_patterns(country_code):
+    """
+    Get phone validation patterns for different countries
+    """
+    patterns = {
+        "SA": {  # Saudi Arabia
+            "phone_code": "+966",
+            "patterns": [
+                r"^05\d{8}$",  # 05xxxxxxxx
+                r"^9665\d{8}$",  # 9665xxxxxxxx
+                r"^\+9665\d{8}$",  # +9665xxxxxxxx
+                r"^5\d{8}$",  # 5xxxxxxxx
+            ],
+            "normalize": lambda p: (
+                "+966" + p[1:]
+                if p.startswith("05")
+                else (
+                    "+966" + p
+                    if p.startswith("5") and len(p) == 9
+                    else ("+" + p if p.startswith("966") else p)
+                )
+            ),
+        },
+        "AE": {  # UAE
+            "phone_code": "+971",
+            "patterns": [
+                r"^05\d{8}$",  # 05xxxxxxxx
+                r"^9715\d{8}$",  # 9715xxxxxxxx
+                r"^\+9715\d{8}$",  # +9715xxxxxxxx
+                r"^5\d{8}$",  # 5xxxxxxxx
+            ],
+            "normalize": lambda p: (
+                "+971" + p[1:]
+                if p.startswith("05")
+                else (
+                    "+971" + p
+                    if p.startswith("5") and len(p) == 9
+                    else ("+" + p if p.startswith("971") else p)
+                )
+            ),
+        },
+        "EG": {  # Egypt
+            "phone_code": "+20",
+            "patterns": [
+                r"^01\d{9}$",  # 01xxxxxxxxx
+                r"^201\d{9}$",  # 201xxxxxxxxx
+                r"^\+201\d{9}$",  # +201xxxxxxxxx
+                r"^1\d{9}$",  # 1xxxxxxxxx
+            ],
+            "normalize": lambda p: (
+                "+20" + p
+                if p.startswith("01")
+                else (
+                    "+20" + p
+                    if p.startswith("1") and len(p) == 10
+                    else ("+" + p if p.startswith("20") else p)
+                )
+            ),
+        },
+        "KW": {  # Kuwait
+            "phone_code": "+965",
+            "patterns": [
+                r"^\d{8}$",  # xxxxxxxx (8 digits)
+                r"^965\d{8}$",  # 965xxxxxxxx
+                r"^\+965\d{8}$",  # +965xxxxxxxx
+            ],
+            "normalize": lambda p: (
+                "+965" + p if len(p) == 8 else ("+" + p if p.startswith("965") else p)
+            ),
+        },
+        "QA": {  # Qatar
+            "phone_code": "+974",
+            "patterns": [
+                r"^\d{8}$",  # xxxxxxxx (8 digits)
+                r"^974\d{8}$",  # 974xxxxxxxx
+                r"^\+974\d{8}$",  # +974xxxxxxxx
+            ],
+            "normalize": lambda p: (
+                "+974" + p if len(p) == 8 else ("+" + p if p.startswith("974") else p)
+            ),
+        },
+        "BH": {  # Bahrain
+            "phone_code": "+973",
+            "patterns": [
+                r"^\d{8}$",  # xxxxxxxx (8 digits)
+                r"^973\d{8}$",  # 973xxxxxxxx
+                r"^\+973\d{8}$",  # +973xxxxxxxx
+            ],
+            "normalize": lambda p: (
+                "+973" + p if len(p) == 8 else ("+" + p if p.startswith("973") else p)
+            ),
+        },
+        "OM": {  # Oman
+            "phone_code": "+968",
+            "patterns": [
+                r"^\d{8}$",  # xxxxxxxx (8 digits)
+                r"^968\d{8}$",  # 968xxxxxxxx
+                r"^\+968\d{8}$",  # +968xxxxxxxx
+            ],
+            "normalize": lambda p: (
+                "+968" + p if len(p) == 8 else ("+" + p if p.startswith("968") else p)
+            ),
+        },
+        "JO": {  # Jordan
+            "phone_code": "+962",
+            "patterns": [
+                r"^07\d{8}$",  # 07xxxxxxxx
+                r"^9627\d{8}$",  # 9627xxxxxxxx
+                r"^\+9627\d{8}$",  # +9627xxxxxxxx
+                r"^7\d{8}$",  # 7xxxxxxxx
+            ],
+            "normalize": lambda p: (
+                "+962" + p[1:]
+                if p.startswith("07")
+                else (
+                    "+962" + p
+                    if p.startswith("7") and len(p) == 9
+                    else ("+" + p if p.startswith("962") else p)
+                )
+            ),
+        },
+    }
+
+    return patterns.get(country_code, patterns["SA"])  # Default to SA
+
+
+def validate_phone_number(phone, country_code="SA"):
+    """
+    Validate phone number format based on country
+    """
+    if not phone:
+        return False
+
+    # Remove spaces, dashes, and parentheses
+    phone = re.sub(r"[\s\-\(\)]", "", phone)
+
+    # Get country-specific patterns
+    country_config = get_country_phone_patterns(country_code)
+    patterns = country_config["patterns"]
+
+    return any(re.match(pattern, phone) for pattern in patterns)
+
+
+def normalize_phone_number(phone, country_code="SA"):
+    """
+    Normalize phone number to international format based on country
+    """
+    if not phone:
+        return None
+
+    # Remove spaces, dashes, and parentheses
+    phone = re.sub(r"[\s\-\(\)]", "", phone)
+
+    # Get country-specific configuration
+    country_config = get_country_phone_patterns(country_code)
+
+    # Apply country-specific normalization
+    try:
+        normalized = country_config["normalize"](phone)
+        # Ensure it starts with +
+        if not normalized.startswith("+"):
+            normalized = country_config["phone_code"] + normalized
+        return normalized
+    except:
+        # Fallback: if already has +, return as-is
+        if phone.startswith("+"):
+            return phone
+        # Otherwise, prepend country code
+        return country_config["phone_code"] + phone

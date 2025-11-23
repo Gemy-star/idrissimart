@@ -441,7 +441,17 @@ class RegistrationForm(forms.Form):
     )
     first_name = forms.CharField(label=_("الاسم الأول"), required=False)
     last_name = forms.CharField(label=_("الاسم الأخير"), required=False)
-    phone = forms.CharField(label=_("الهاتف"), required=False)
+    phone = forms.CharField(
+        label=_("رقم الجوال"),
+        required=True,
+        widget=forms.TextInput(attrs={"placeholder": _("مثال: 0501234567")}),
+    )
+    phone_verification_code = forms.CharField(
+        label=_("رمز التحقق"),
+        required=False,
+        max_length=6,
+        widget=forms.TextInput(attrs={"placeholder": _("أدخل رمز التحقق")}),
+    )
     profile_type = forms.ChoiceField(
         label=_("نوع الحساب"),
         choices=User.ProfileType.choices,
@@ -504,8 +514,30 @@ class RegistrationForm(forms.Form):
         password = self.cleaned_data.get("password")
         password2 = self.cleaned_data.get("password2")
         if password and password2 and password != password2:
-            raise ValidationError(_("The two password fields didn’t match."))
+            raise ValidationError(_("The two password fields didn't match."))
         return password2
+
+    def clean_phone(self):
+        from .utils import validate_phone_number, normalize_phone_number
+
+        phone = self.cleaned_data.get("phone")
+        country_code = self.data.get("country_code", "SA").upper()
+
+        if not phone:
+            raise ValidationError(_("رقم الجوال مطلوب"))
+
+        # Validate format for the selected country
+        if not validate_phone_number(phone, country_code):
+            raise ValidationError(_("رقم الجوال غير صحيح لهذه الدولة"))
+
+        # Normalize based on country
+        normalized = normalize_phone_number(phone, country_code)
+
+        # Check if already registered
+        if User.objects.filter(phone=normalized).exists():
+            raise ValidationError(_("رقم الجوال مسجل مسبقاً"))
+
+        return normalized
 
     def clean(self):
         cleaned_data = super().clean()

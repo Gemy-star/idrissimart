@@ -24,7 +24,21 @@ urlpatterns = [
         auth_views.CustomLoginView.as_view(),
         name="login",
     ),
-    # path("register/", views.register_view, name="register"),  # TODO: Implement register view
+    path(
+        "register/",
+        auth_views.RegisterView.as_view(),
+        name="register",
+    ),
+    path(
+        "send-phone-code/",
+        auth_views.send_phone_verification_code,
+        name="send_phone_code",
+    ),
+    path(
+        "verify-phone-code/",
+        auth_views.verify_phone_code,
+        name="verify_phone_code",
+    ),
     path("logout/", auth_views.logout_view, name="logout"),
     path(
         "password_reset/",

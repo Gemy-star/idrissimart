@@ -335,6 +335,32 @@
     [data-theme='dark'] .ad-placeholder i {
         color: #6b7280;
     }
+
+    /* Code styling */
+    code {
+        font-family: 'Courier New', monospace;
+        font-size: 0.9em;
+    }
+
+    [data-theme='dark'] code {
+        background: rgba(255, 255, 255, 0.1) !important;
+        color: #a3e635;
+    }
+
+    /* Icon colors for info rows */
+    .info-value i {
+        opacity: 0.7;
+    }
+
+    [data-theme='dark'] .info-value i {
+        opacity: 0.8;
+    }
+
+    /* Badge improvements */
+    .badge {
+        font-size: 0.85rem;
+        padding: 4px 10px;
+    }
 </style>
 {% endblock %}
 
@@ -364,11 +390,11 @@
                 </div>
             </div>
             <div class="col-auto">
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 flex-wrap">
                     {% if user_obj.profile_type == 'publisher' %}
-                    <button class="btn-action" style="background: linear-gradient(135deg, #10b981, #059669);" onclick="showToast('{% trans "نظام المحادثات قيد التطوير" %}', 'info')">
+                    <button class="btn-action" style="background: linear-gradient(135deg, #10b981, #059669); font-size: 1.1rem; padding: 14px 28px;" onclick="openChat({{ user_obj.id }})">
                         <i class="fas fa-comments me-2"></i>
-                        {% trans "محادثة" %}
+                        {% trans "فتح المحادثة" %}
                     </button>
                     {% endif %}
                     <button class="btn-action" style="background: linear-gradient(135deg, #3b82f6, #2563eb);" onclick="toggleEditMode()">
@@ -461,13 +487,41 @@
                     </div>
 
                     <div class="info-row">
+                        <span class="info-label">{% trans "الدولة" %}:</span>
+                        <span class="info-value">
+                            {% if user_obj.country %}
+                                <i class="fas fa-flag me-1"></i> {{ user_obj.country.name }}
+                            {% else %}
+                                {% trans "غير محدد" %}
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">{% trans "اللغة" %}:</span>
+                        <span class="info-value">
+                            {% if user_obj.language == 'ar' %}
+                                <i class="fas fa-language me-1"></i> {% trans "العربية" %}
+                            {% elif user_obj.language == 'en' %}
+                                <i class="fas fa-language me-1"></i> {% trans "الإنجليزية" %}
+                            {% else %}
+                                {% trans "غير محدد" %}
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <div class="info-row">
                         <span class="info-label">{% trans "تاريخ التسجيل" %}:</span>
-                        <span class="info-value">{{ user_obj.date_joined|date:"d M, Y" }}</span>
+                        <span class="info-value">
+                            <i class="fas fa-calendar-plus me-1"></i>
+                            {{ user_obj.date_joined|date:"d M, Y - H:i" }}
+                        </span>
                     </div>
 
                     <div class="info-row">
                         <span class="info-label">{% trans "آخر دخول" %}:</span>
                         <span class="info-value">
+                            <i class="fas fa-clock me-1"></i>
                             {% if user_obj.last_login %}
                                 {{ user_obj.last_login|timesince }} {% trans "مضت" %}
                             {% else %}
@@ -478,13 +532,54 @@
 
                     <div class="info-row">
                         <span class="info-label">{% trans "حالة التوثيق" %}:</span>
-                        <span class="info-value">{{ user_obj.get_verification_status_display }}</span>
+                        <span class="info-value">
+                            {% if user_obj.verification_status == 'verified' %}
+                                <i class="fas fa-check-circle text-success me-1"></i>
+                            {% elif user_obj.verification_status == 'pending' %}
+                                <i class="fas fa-hourglass-half text-warning me-1"></i>
+                            {% else %}
+                                <i class="fas fa-times-circle text-secondary me-1"></i>
+                            {% endif %}
+                            {{ user_obj.get_verification_status_display }}
+                        </span>
                     </div>
 
                     {% if user_obj.verified_at %}
                     <div class="info-row">
                         <span class="info-label">{% trans "تاريخ التوثيق" %}:</span>
-                        <span class="info-value">{{ user_obj.verified_at|date:"d M, Y" }}</span>
+                        <span class="info-value">
+                            <i class="fas fa-certificate me-1"></i>
+                            {{ user_obj.verified_at|date:"d M, Y" }}
+                        </span>
+                    </div>
+                    {% endif %}
+
+                    <div class="info-row">
+                        <span class="info-label">{% trans "معرف المستخدم" %}:</span>
+                        <span class="info-value">
+                            <code style="background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px;">#{{ user_obj.id }}</code>
+                        </span>
+                    </div>
+
+                    {% if user_obj.is_superuser %}
+                    <div class="info-row">
+                        <span class="info-label">{% trans "الصلاحيات" %}:</span>
+                        <span class="info-value">
+                            <span class="badge" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+                                <i class="fas fa-shield-alt me-1"></i> {% trans "مدير النظام" %}
+                            </span>
+                        </span>
+                    </div>
+                    {% endif %}
+
+                    {% if user_obj.is_staff %}
+                    <div class="info-row">
+                        <span class="info-label">{% trans "الموظفين" %}:</span>
+                        <span class="info-value">
+                            <span class="badge bg-info">
+                                <i class="fas fa-user-tie me-1"></i> {% trans "عضو الفريق" %}
+                            </span>
+                        </span>
                     </div>
                     {% endif %}
 
@@ -753,6 +848,13 @@
                 });
             }
         });
+
+        // Open chat with user
+        function openChat(userId) {
+            showToast('{% trans "نظام المحادثات قيد التطوير. سيتم تفعيله قريباً." %}', 'info');
+            // Future implementation:
+            // window.location.href = `/admin/chat/user/${userId}/`;
+        }
 
         // Toggle edit mode
         function toggleEditMode() {

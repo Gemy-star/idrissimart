@@ -7,7 +7,7 @@ from django.contrib.auth.views import LoginView
 from django.contrib.sites.shortcuts import get_current_site
 from django.core.mail import EmailMultiAlternatives
 from django.core.validators import validate_email
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy
@@ -15,10 +15,21 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.utils.translation import gettext_lazy as _
 from django.utils.html import strip_tags
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.views.generic.edit import CreateView
+from django.utils import timezone
+from datetime import timedelta
+import json
 
 from .forms import RegistrationForm
 from .models import User
+from .utils import (
+    generate_verification_code,
+    send_sms_verification_code,
+    validate_phone_number,
+    normalize_phone_number,
+)
 
 
 class CustomLoginView(LoginView):
@@ -168,17 +179,38 @@ class RegisterView(CreateView):
     def get(self, request, *args, **kwargs):
         if request.user.is_authenticated:
             return redirect("main:home")
+
+        from content.models import Country
+
         form = self.form_class()
-        return render(request, self.template_name, {"form": form})
+        countries = Country.objects.filter(is_active=True).order_by("order")
+
+        return render(
+            request, self.template_name, {"form": form, "countries": countries}
+        )
 
     def post(self, request, *args, **kwargs):
         if request.user.is_authenticated:
             return redirect("main:home")
 
+        from content.models import Country
+
+        countries = Country.objects.filter(is_active=True).order_by("order")
+
         form = self.form_class(request.POST)
         if form.is_valid():
             data = form.cleaned_data
             profile_type = data.get("profile_type")
+            phone = data.get("phone")
+            country_code = request.POST.get("country_code", "SA").upper()
+
+            # Check if phone was verified in session
+            normalized_phone = normalize_phone_number(phone, country_code)
+            if not request.session.get(f"phone_verified_{normalized_phone}"):
+                messages.error(request, _("يجب التحقق من رقم الجوال قبل إنشاء الحساب"))
+                return render(
+                    request, self.template_name, {"form": form, "countries": countries}
+                )
 
             if profile_type == "service":
                 user = User.objects.create_service_provider(
@@ -230,6 +262,14 @@ class RegisterView(CreateView):
                     profile_type=data.get("profile_type"),
                 )
 
+            # Mark phone as verified
+            user.is_mobile_verified = True
+            user.save(update_fields=["is_mobile_verified"])
+
+            # Clear phone verification from session
+            if f"phone_verified_{normalized_phone}" in request.session:
+                del request.session[f"phone_verified_{normalized_phone}"]
+
             # Auto login after registration
             login(request, user)
 
@@ -243,7 +283,9 @@ class RegisterView(CreateView):
                 for error in errors:
                     messages.error(request, f"{form.fields[field].label}: {error}")
             messages.error(request, _("يرجى تصحيح الأخطاء أدناه والمحاولة مرة أخرى."))
-            return render(request, self.template_name, {"form": form})
+            return render(
+                request, self.template_name, {"form": form, "countries": countries}
+            )
 
 
 @login_required
@@ -266,6 +308,166 @@ def get_client_ip(request):
     else:
         ip = request.META.get("REMOTE_ADDR")
     return ip
+
+
+@require_POST
+def send_phone_verification_code(request):
+    """
+    Send verification code to phone number via SMS
+    """
+    try:
+        data = json.loads(request.body)
+        phone = data.get("phone", "").strip()
+        country_code = data.get("country_code", "SA").upper()
+
+        if not phone:
+            return JsonResponse(
+                {"success": False, "message": _("رقم الجوال مطلوب")}, status=400
+            )
+
+        # Validate phone format for the selected country
+        if not validate_phone_number(phone, country_code):
+            return JsonResponse(
+                {"success": False, "message": _("رقم الجوال غير صحيح لهذه الدولة")},
+                status=400,
+            )
+
+        # Normalize phone number based on country
+        normalized_phone = normalize_phone_number(phone, country_code)
+
+        # Check if phone already registered
+        if User.objects.filter(phone=normalized_phone).exists():
+            return JsonResponse(
+                {"success": False, "message": _("رقم الجوال مسجل مسبقاً")}, status=400
+            )
+
+        # Generate verification code
+        code = generate_verification_code()
+
+        # Store code in session temporarily (valid for 10 minutes)
+        request.session[f"phone_verification_{normalized_phone}"] = {
+            "code": code,
+            "expires": (timezone.now() + timedelta(minutes=10)).isoformat(),
+            "attempts": 0,
+        }
+
+        # Send SMS
+        if send_sms_verification_code(normalized_phone, code):
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": _("تم إرسال رمز التحقق إلى رقم الجوال"),
+                    "phone": normalized_phone,
+                }
+            )
+        else:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": _("فشل إرسال رمز التحقق. الرجاء المحاولة لاحقاً"),
+                },
+                status=500,
+            )
+
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {"success": False, "message": _("بيانات غير صالحة")}, status=400
+        )
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ. الرجاء المحاولة لاحقاً")},
+            status=500,
+        )
+
+
+@require_POST
+def verify_phone_code(request):
+    """
+    Verify the phone verification code entered by user
+    """
+    try:
+        data = json.loads(request.body)
+        phone = data.get("phone", "").strip()
+        code = data.get("code", "").strip()
+        country_code = data.get("country_code", "SA").upper()
+
+        if not phone or not code:
+            return JsonResponse(
+                {"success": False, "message": _("الرجاء إدخال رقم الجوال ورمز التحقق")},
+                status=400,
+            )
+
+        # Normalize phone based on country
+        normalized_phone = normalize_phone_number(phone, country_code)
+
+        # Get stored verification data
+        session_key = f"phone_verification_{normalized_phone}"
+        verification_data = request.session.get(session_key)
+
+        if not verification_data:
+            return JsonResponse(
+                {"success": False, "message": _("لم يتم إرسال رمز تحقق لهذا الرقم")},
+                status=400,
+            )
+
+        # Check expiry
+        expires = timezone.datetime.fromisoformat(verification_data["expires"])
+        if timezone.now() > expires:
+            del request.session[session_key]
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": _("انتهت صلاحية رمز التحقق. الرجاء طلب رمز جديد"),
+                },
+                status=400,
+            )
+
+        # Check attempts (max 5)
+        if verification_data.get("attempts", 0) >= 5:
+            del request.session[session_key]
+            return JsonResponse(
+                {"success": False, "message": _("تم تجاوز عدد المحاولات المسموحة")},
+                status=400,
+            )
+
+        # Verify code
+        if code == verification_data["code"]:
+            # Mark as verified in session
+            request.session[f"phone_verified_{normalized_phone}"] = True
+            del request.session[session_key]
+
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": _("تم التحقق من رقم الجوال بنجاح"),
+                    "verified": True,
+                }
+            )
+        else:
+            # Increment attempts
+            verification_data["attempts"] = verification_data.get("attempts", 0) + 1
+            request.session[session_key] = verification_data
+
+            remaining = 5 - verification_data["attempts"]
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": _("رمز التحقق غير صحيح. المحاولات المتبقية: {}").format(
+                        remaining
+                    ),
+                },
+                status=400,
+            )
+
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {"success": False, "message": _("بيانات غير صالحة")}, status=400
+        )
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ. الرجاء المحاولة لاحقاً")},
+            status=500,
+        )
 
 
 def password_reset_request(request):
