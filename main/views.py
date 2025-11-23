@@ -3178,6 +3178,70 @@ def admin_user_action(request, user_id):
             message = _("تم إلغاء تعليق المستخدم '{}'.").format(user_to_act_on.username)
         elif action == "verify":
             user_to_act_on.verification_status = User.VerificationStatus.VERIFIED
+
+
+@superadmin_required
+@require_POST
+def admin_user_update(request, user_id):
+    """
+    Update user information from admin panel.
+    """
+    try:
+        user_to_update = get_object_or_404(User, pk=user_id)
+
+        # Get form data
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+        email = request.POST.get('email', '').strip()
+        phone = request.POST.get('phone', '').strip()
+
+        # Validate email uniqueness
+        if email and email != user_to_update.email:
+            if User.objects.filter(email=email).exclude(pk=user_id).exists():
+                return JsonResponse({
+                    'success': False,
+                    'message': _("البريد الإلكتروني مستخدم بالفعل.")
+                })
+
+        # Update user
+        user_to_update.first_name = first_name
+        user_to_update.last_name = last_name
+        user_to_update.email = email
+        user_to_update.phone = phone
+        user_to_update.save(update_fields=['first_name', 'last_name', 'email', 'phone'])
+
+        return JsonResponse({
+            'success': True,
+            'message': _("تم تحديث معلومات المستخدم بنجاح.")
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': _("حدث خطأ أثناء تحديث المعلومات: {}").format(str(e))
+        })
+
+
+@superadmin_required
+@require_POST
+def admin_user_action(request, user_id):
+    """
+    Handle admin actions on a user like suspend, unsuspend, or verify.
+    """
+    try:
+        user_to_act_on = get_object_or_404(User, pk=user_id)
+        data = json.loads(request.body)
+        action = data.get("action")
+
+        if action == "suspend":
+            user_to_act_on.is_suspended = True
+            user_to_act_on.save(update_fields=["is_suspended"])
+            message = _("تم تعليق المستخدم '{}'.").format(user_to_act_on.username)
+        elif action == "unsuspend":
+            user_to_act_on.is_suspended = False
+            user_to_act_on.save(update_fields=["is_suspended"])
+            message = _("تم إلغاء تعليق المستخدم '{}'.").format(user_to_act_on.username)
+        elif action == "verify":
+            user_to_act_on.verification_status = User.VerificationStatus.VERIFIED
             user_to_act_on.verified_at = timezone.now()
             user_to_act_on.save(update_fields=["verification_status", "verified_at"])
             message = _("تم توثيق المستخدم '{}'.").format(user_to_act_on.username)

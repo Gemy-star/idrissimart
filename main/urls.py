@@ -227,6 +227,11 @@ urlpatterns = [
         views.admin_user_detail,
         name="admin_user_detail",
     ),
+    path(
+        "admin/users/<int:user_id>/update/",
+        views.admin_user_update,
+        name="admin_user_update",
+    ),
     # TODO: Implement AdminPackagesView and AdminTransactionsView
     # path(
     #     "admin/packages/",
