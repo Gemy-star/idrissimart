@@ -7,6 +7,7 @@ from . import payment_views
 from . import chatbot_views
 from . import enhanced_views
 from . import cart_wishlist_views
+from . import chat_views
 from django.contrib.auth import views as dj_auth_views
 
 
@@ -584,7 +585,27 @@ urlpatterns = [
         name="wishlist_status",
     ),
     path("wishlist/", cart_wishlist_views.wishlist_view, name="wishlist_view"),
-    # Chat URLs (Django Channels WebSocket endpoints)
+    # Chat URLs - User to User Messaging
+    path("chat/", chat_views.chat_list, name="chat_list"),
+    path("chat/room/<int:room_id>/", chat_views.chat_room, name="chat_room"),
+    path("chat/room/", chat_views.chat_room, name="chat_room_new"),
+    path(
+        "chat/room/<int:room_id>/send/",
+        chat_views.send_message,
+        name="chat_send_message",
+    ),
+    path(
+        "chat/room/<int:room_id>/messages/",
+        chat_views.get_messages,
+        name="chat_get_messages",
+    ),
+    path(
+        "chat/room/<int:room_id>/mark-read/",
+        chat_views.mark_read,
+        name="chat_mark_read",
+    ),
+    path("chat/admin-panel/", chat_views.admin_chat_panel, name="admin_chat_panel"),
+    # Chat URLs (Django Channels WebSocket endpoints - Legacy)
     path(
         "publisher/chats/",
         views.PublisherChatsView.as_view(),

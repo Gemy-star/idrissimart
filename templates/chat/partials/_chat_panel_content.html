@@ -1,0 +1,285 @@
+{% load i18n static %}
+
+<div class="chat-panel-wrapper">
+    <style>
+        .chat-panel-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-height: 0;
+        }
+
+        .chat-panel-header-info {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .chat-panel-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin-right: 0.75rem;
+        }
+
+        .chat-panel-messages {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 1rem 0;
+            min-height: 0;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .chat-message {
+            display: flex;
+            margin-bottom: 1rem;
+        }
+
+        .chat-message.sent {
+            justify-content: flex-end;
+        }
+
+        .chat-message-bubble {
+            max-width: 75%;
+            padding: 0.5rem 0.75rem;
+            border-radius: 12px;
+        }
+
+        .chat-message.received .chat-message-bubble {
+            background: #f3f4f6;
+            color: #1f2937;
+        }
+
+        .chat-message.sent .chat-message-bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .chat-message-text {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        .chat-message-time {
+            font-size: 0.65rem;
+            opacity: 0.7;
+            margin-top: 0.25rem;
+        }
+
+        .chat-panel-input {
+            border-top: 1px solid #e5e7eb;
+            padding-top: 1rem;
+        }
+
+        .chat-panel-form {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .chat-panel-form input {
+            flex: 1;
+            border: 1px solid #d1d5db;
+            border-radius: 20px;
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+        }
+
+        .chat-panel-form input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .chat-panel-send-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .chat-panel-send-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .chat-empty {
+            text-align: center;
+            padding: 2rem;
+            color: #9ca3af;
+        }
+    </style>
+
+    <div class="chat-panel-header-info">
+        <div class="chat-panel-avatar">
+            {{ other_user.username|slice:":1"|upper }}
+        </div>
+        <div>
+            <strong>{{ other_user.get_full_name|default:other_user.username }}</strong>
+            <br>
+            <small class="text-muted">{{ other_user.email }}</small>
+        </div>
+    </div>
+
+    <div class="chat-panel-messages" id="adminChatMessages">
+        {% if messages %}
+            {% for message in messages %}
+            <div class="chat-message {% if message.sender == request.user %}sent{% else %}received{% endif %}" data-message-id="{{ message.id }}">
+                <div class="chat-message-bubble">
+                    <p class="chat-message-text">{{ message.message }}</p>
+                    <div class="chat-message-time">{{ message.created_at|date:"H:i" }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="chat-empty">
+                <i class="fas fa-comments fa-3x mb-2"></i>
+                <p>{% trans "لا توجد رسائل بعد" %}</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="chat-panel-input">
+        <form class="chat-panel-form" id="adminChatForm" data-room-id="{{ chat_room.id }}">
+            {% csrf_token %}
+            <input type="text"
+                   id="adminMessageInput"
+                   placeholder="{% trans 'اكتب رسالتك...' %}"
+                   autocomplete="off"
+                   required>
+            <button type="submit" class="chat-panel-send-btn">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const chatMessages = document.getElementById('adminChatMessages');
+        const chatForm = document.getElementById('adminChatForm');
+        const messageInput = document.getElementById('adminMessageInput');
+        const roomId = chatForm.dataset.roomId;
+        let lastMessageTime = null;
+        let pollingInterval = null;
+
+        function scrollToBottom() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function formatTime(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function addMessage(message, isSent = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${isSent ? 'sent' : 'received'}`;
+            messageDiv.dataset.messageId = message.id;
+
+            const escapedMessage = document.createElement('div');
+            escapedMessage.textContent = message.message;
+
+            messageDiv.innerHTML = `
+                <div class="chat-message-bubble">
+                    <p class="chat-message-text">${escapedMessage.innerHTML}</p>
+                    <div class="chat-message-time">${formatTime(message.created_at)}</div>
+                </div>
+            `;
+
+            chatMessages.appendChild(messageDiv);
+            scrollToBottom();
+            lastMessageTime = message.created_at;
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const message = messageInput.value.trim();
+            if (!message || !roomId) return;
+
+            // Disable form while sending
+            const submitBtn = chatForm.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            messageInput.disabled = true;
+
+            const formData = new FormData();
+            formData.append('message', message);
+            formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+            try {
+                const response = await fetch(`/chat/room/${roomId}/send/`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    addMessage(data.message, true);
+                    messageInput.value = '';
+                } else {
+                    console.error('Error sending message:', data.error || 'Unknown error');
+                    alert('{% trans "فشل إرسال الرسالة" %}');
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                alert('{% trans "حدث خطأ في إرسال الرسالة" %}');
+            } finally {
+                submitBtn.disabled = false;
+                messageInput.disabled = false;
+                messageInput.focus();
+            }
+        });
+
+        async function pollMessages() {
+            try {
+                const url = `/chat/room/${roomId}/messages/${lastMessageTime ? '?after=' + lastMessageTime : ''}`;
+                const response = await fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.messages && data.messages.length > 0) {
+                    data.messages.forEach(message => {
+                        if (!document.querySelector(`[data-message-id="${message.id}"]`)) {
+                            addMessage(message, message.sender_id === {{ request.user.id }});
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error polling messages:', error);
+            }
+        }
+
+        // Initialize
+        scrollToBottom();
+        pollingInterval = setInterval(pollMessages, 3000);
+
+        // Cleanup when panel closes
+        document.addEventListener('sidePanelClosed', function(e) {
+            if (e.detail === 'chatPanel' && pollingInterval) {
+                clearInterval(pollingInterval);
+            }
+        });
+    })();
+</script>

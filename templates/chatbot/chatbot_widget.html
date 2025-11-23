@@ -5,7 +5,7 @@
         <i class="fas fa-comments"></i>
         <span class="chat-badge" id="chatBadge">1</span>
     </div>
-    
+
     <!-- Chat Window -->
     <div class="chat-window" id="chatWindow">
         <div class="chat-window-header">
@@ -22,7 +22,7 @@
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        
+
         <div class="chat-window-messages" id="widgetMessages">
             <div class="widget-welcome-message">
                 <div class="message bot">
@@ -38,7 +38,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="chat-window-input">
             <div class="input-group">
                 <input type="text" class="form-control" id="widgetInput" placeholder="اكتب رسالتك...">
@@ -55,7 +55,7 @@
     position: fixed;
     bottom: 20px;
     right: 20px;
-    z-index: 9999;
+    z-index: 10100;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
@@ -417,12 +417,12 @@
         bottom: 15px;
         right: 15px;
     }
-    
+
     .chat-window {
         width: 300px;
         height: 450px;
     }
-    
+
     .chat-toggle {
         width: 55px;
         height: 55px;
@@ -447,13 +447,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const widgetInput = document.getElementById('widgetInput');
     const widgetSendBtn = document.getElementById('widgetSendBtn');
     const chatBadge = document.getElementById('chatBadge');
-    
+
     let widgetSessionId = null;
     let isWidgetOpen = false;
-    
+
     // Initialize widget
     initializeChatWidget();
-    
+
     // Toggle chat window
     chatToggle.addEventListener('click', function() {
         if (isWidgetOpen) {
@@ -462,28 +462,28 @@ document.addEventListener('DOMContentLoaded', function() {
             openChatWidget();
         }
     });
-    
+
     // Close chat window
     chatClose.addEventListener('click', closeChatWidget);
-    
+
     // Send message on Enter
     widgetInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             sendWidgetMessage();
         }
     });
-    
+
     // Send message on button click
     widgetSendBtn.addEventListener('click', sendWidgetMessage);
-    
+
     // Enable/disable send button based on input
     widgetInput.addEventListener('input', function() {
         widgetSendBtn.disabled = !this.value.trim();
     });
-    
+
     function initializeChatWidget() {
         widgetSessionId = 'widget_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        
+
         // Load quick actions
         fetch('{% url "main:chatbot_widget_data" %}')
             .then(response => response.json())
@@ -494,11 +494,11 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => console.error('Widget initialization error:', error));
     }
-    
+
     function loadQuickActions(actions) {
         const container = document.getElementById('widgetQuickActions');
         container.innerHTML = '';
-        
+
         actions.forEach(action => {
             const actionBtn = document.createElement('div');
             actionBtn.className = 'widget-quick-action';
@@ -507,34 +507,34 @@ document.addEventListener('DOMContentLoaded', function() {
             container.appendChild(actionBtn);
         });
     }
-    
+
     function openChatWidget() {
         chatWindow.classList.add('show');
         isWidgetOpen = true;
         chatBadge.style.display = 'none';
-        
+
         // Focus input
         setTimeout(() => {
             widgetInput.focus();
         }, 300);
     }
-    
+
     function closeChatWidget() {
         chatWindow.classList.remove('show');
         isWidgetOpen = false;
     }
-    
+
     function sendWidgetMessage() {
         const message = widgetInput.value.trim();
         if (!message) return;
-        
+
         // Add user message
         addWidgetMessage(message, 'user');
-        
+
         // Clear input
         widgetInput.value = '';
         widgetSendBtn.disabled = true;
-        
+
         // Send to backend
         fetch('{% url "main:chatbot_message" %}', {
             method: 'POST',
@@ -552,7 +552,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) {
                 widgetSessionId = data.session_id;
                 addWidgetMessage(data.response, 'bot');
-                
+
                 // Add suggestions if available
                 if (data.suggestions && data.suggestions.length > 0) {
                     addWidgetSuggestions(data.suggestions);
@@ -566,29 +566,29 @@ document.addEventListener('DOMContentLoaded', function() {
             addWidgetMessage('عذراً، حدث خطأ في الاتصال.', 'bot');
         });
     }
-    
+
     function sendWidgetQuickAction(message) {
         widgetInput.value = message;
         sendWidgetMessage();
     }
-    
+
     function addWidgetSuggestions(suggestions) {
         const messagesContainer = document.getElementById('widgetMessages');
-        
+
         // Create suggestions container
         const suggestionsDiv = document.createElement('div');
         suggestionsDiv.className = 'widget-suggestions';
-        
+
         // Add title
         const titleDiv = document.createElement('div');
         titleDiv.className = 'suggestions-title';
         titleDiv.innerHTML = '<i class="fas fa-lightbulb"></i> اقتراحات قد تهمك:';
         suggestionsDiv.appendChild(titleDiv);
-        
+
         // Add suggestion buttons
         const buttonsContainer = document.createElement('div');
         buttonsContainer.className = 'suggestions-buttons';
-        
+
         suggestions.forEach(suggestion => {
             const button = document.createElement('button');
             button.className = 'suggestion-btn';
@@ -601,46 +601,46 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             buttonsContainer.appendChild(button);
         });
-        
+
         suggestionsDiv.appendChild(buttonsContainer);
         messagesContainer.appendChild(suggestionsDiv);
-        
+
         // Scroll to bottom
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
-    
+
     function addWidgetMessage(content, sender) {
         const messagesContainer = document.getElementById('widgetMessages');
         const welcomeMessage = messagesContainer.querySelector('.widget-welcome-message');
-        
+
         // Remove welcome message after first user message
         if (welcomeMessage && sender === 'user') {
             welcomeMessage.remove();
         }
-        
+
         const messageDiv = document.createElement('div');
         messageDiv.className = `widget-message ${sender}`;
-        
+
         const avatar = document.createElement('div');
         avatar.className = 'message-avatar';
         avatar.innerHTML = sender === 'bot' ? '<i class="fas fa-robot"></i>' : '<i class="fas fa-user"></i>';
-        
+
         const messageContent = document.createElement('div');
         messageContent.className = 'message-content';
         messageContent.textContent = content;
-        
+
         messageDiv.appendChild(avatar);
         messageDiv.appendChild(messageContent);
-        
+
         messagesContainer.appendChild(messageDiv);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        
+
         // Show notification badge if widget is closed and it's a bot message
         if (!isWidgetOpen && sender === 'bot') {
             chatBadge.style.display = 'flex';
         }
     }
-    
+
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {

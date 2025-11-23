@@ -1,41 +1,400 @@
 {% extends 'base.html' %}
 {% load i18n static %}
 
-{% block title %}{% trans "محادثة مع الناشر" %} - {{ block.super }}{% endblock %}
+{% block title %}
+    {% if other_user %}
+        {% trans "محادثة مع" %} {{ other_user.get_full_name|default:other_user.username }}
+    {% else %}
+        {% trans "محادثة جديدة" %}
+    {% endif %}
+    - {{ block.super }}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-container {
+        max-width: 1000px;
+        margin: 2rem auto;
+        height: calc(100vh - 200px);
+        display: flex;
+        flex-direction: column;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .chat-header {
+        padding: 1.5rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .chat-header-left {
+        display: flex;
+        align-items: center;
+    }
+
+    .chat-header-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1.25rem;
+        margin-right: 1rem;
+    }
+
+    .chat-header-info h5 {
+        margin: 0;
+        font-size: 1.1rem;
+    }
+
+    .chat-header-info small {
+        opacity: 0.9;
+    }
+
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.5rem;
+        background: #f9fafb;
+    }
+
+    .message {
+        display: flex;
+        margin-bottom: 1rem;
+        animation: messageSlide 0.3s ease;
+    }
+
+    @keyframes messageSlide {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .message.sent {
+        justify-content: flex-end;
+    }
+
+    .message-bubble {
+        max-width: 70%;
+        padding: 0.75rem 1rem;
+        border-radius: 18px;
+        position: relative;
+    }
+
+    .message.received .message-bubble {
+        background: white;
+        color: #1f2937;
+        border: 1px solid #e5e7eb;
+        border-bottom-left-radius: 4px;
+    }
+
+    .message.sent .message-bubble {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-bottom-right-radius: 4px;
+    }
+
+    .message-text {
+        margin: 0;
+        word-wrap: break-word;
+    }
+
+    .message-time {
+        font-size: 0.7rem;
+        opacity: 0.7;
+        margin-top: 0.25rem;
+        text-align: right;
+    }
+
+    .chat-input-area {
+        padding: 1.25rem;
+        background: white;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .chat-input-form {
+        display: flex;
+        gap: 0.75rem;
+    }
+
+    .chat-input {
+        flex: 1;
+        border: 1px solid #d1d5db;
+        border-radius: 24px;
+        padding: 0.75rem 1.25rem;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+    }
+
+    .chat-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .chat-send-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .chat-send-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .chat-send-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .empty-chat {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: #9ca3af;
+    }
+
+    .empty-chat i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card shadow">
-                <div class="card-header bg-gradient-primary text-white">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-comment-dots fa-2x me-3"></i>
-                        <div>
-                            <h4 class="mb-0">{% trans "محادثة حول الإعلان" %}</h4>
-                            <small>{{ ad.title }}</small>
-                        </div>
-                    </div>
+<div class="container">
+    <div class="chat-container">
+        <!-- Chat Header -->
+        <div class="chat-header">
+            <div class="chat-header-left">
+                <a href="{% url 'main:chat_list' %}" class="text-white me-3">
+                    <i class="fas fa-arrow-right fa-lg"></i>
+                </a>
+                <div class="chat-header-avatar">
+                    {{ other_user.username|slice:":1"|upper }}
                 </div>
-                <div class="card-body">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        {% trans "نظام المحادثات المباشرة قيد التطوير. سيتم تفعيله قريباً." %}
-                    </div>
-
-                    <div class="text-center py-5">
-                        <i class="fas fa-comment-dots fa-5x text-muted mb-3"></i>
-                        <h4 class="text-muted">{% trans "ابدأ محادثة" %}</h4>
-                        <p class="text-muted">{% trans "تواصل مع الناشر مباشرة حول هذا الإعلان" %}</p>
-
-                        <a href="{% url 'main:ad_detail' ad.id %}" class="btn btn-primary mt-3">
-                            <i class="fas fa-arrow-right me-2"></i>
-                            {% trans "العودة للإعلان" %}
-                        </a>
-                    </div>
+                <div class="chat-header-info">
+                    <h5>{{ other_user.get_full_name|default:other_user.username }}</h5>
+                    {% if chat_room.room_type == 'publisher_admin' %}
+                        <small>{% trans "دعم فني" %}</small>
+                    {% elif chat_room.ad %}
+                        <small>
+                            <i class="fas fa-ad me-1"></i>
+                            {{ chat_room.ad.title|truncatechars:30 }}
+                        </small>
+                    {% endif %}
                 </div>
             </div>
         </div>
+
+        <!-- Messages Area -->
+        <div class="chat-messages" id="chatMessages">
+            {% if messages %}
+                {% for message in messages %}
+                <div class="message {% if message.sender == user %}sent{% else %}received{% endif %}" data-message-id="{{ message.id }}">
+                    <div class="message-bubble">
+                        <p class="message-text">{{ message.message }}</p>
+                        <div class="message-time">
+                            {{ message.created_at|date:"H:i" }}
+                            {% if message.sender == user %}
+                                <i class="fas fa-check{% if message.is_read %}-double{% endif %} ms-1"></i>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-chat">
+                    <i class="fas fa-comment-dots"></i>
+                    <p>{% trans "لا توجد رسائل بعد. ابدأ المحادثة!" %}</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Input Area -->
+        <div class="chat-input-area">
+            <form class="chat-input-form" id="chatForm">
+                {% csrf_token %}
+                <input type="text"
+                       class="chat-input"
+                       id="messageInput"
+                       placeholder="{% trans 'اكتب رسالتك...' %}"
+                       autocomplete="off"
+                       required>
+                <button type="submit" class="chat-send-btn" id="sendBtn">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </form>
+        </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const chatMessages = document.getElementById('chatMessages');
+    const chatForm = document.getElementById('chatForm');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const roomId = {{ chat_room.id|default:0 }};
+    let lastMessageTime = null;
+    let pollingInterval = null;
+
+    // Scroll to bottom
+    function scrollToBottom() {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Format time
+    function formatTime(isoString) {
+        const date = new Date(isoString);
+        return date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Add message to UI
+    function addMessage(message, isSent = false) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+        messageDiv.dataset.messageId = message.id;
+
+        messageDiv.innerHTML = `
+            <div class="message-bubble">
+                <p class="message-text">${escapeHtml(message.message)}</p>
+                <div class="message-time">
+                    ${formatTime(message.created_at)}
+                    ${isSent ? '<i class="fas fa-check ms-1"></i>' : ''}
+                </div>
+            </div>
+        `;
+
+        chatMessages.appendChild(messageDiv);
+        scrollToBottom();
+
+        // Update last message time
+        lastMessageTime = message.created_at;
+    }
+
+    // Escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Send message
+    chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const message = messageInput.value.trim();
+        if (!message || !roomId) return;
+
+        // Disable input
+        sendBtn.disabled = true;
+        messageInput.disabled = true;
+
+        try {
+            const formData = new FormData();
+            formData.append('message', message);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            const response = await fetch(`/chat/room/${roomId}/send/`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                addMessage(data.message, true);
+                messageInput.value = '';
+            } else {
+                alert('{% trans "فشل إرسال الرسالة" %}');
+            }
+        } catch (error) {
+            console.error('Error sending message:', error);
+            alert('{% trans "حدث خطأ في إرسال الرسالة" %}');
+        } finally {
+            sendBtn.disabled = false;
+            messageInput.disabled = false;
+            messageInput.focus();
+        }
+    });
+
+    // Poll for new messages
+    async function pollMessages() {
+        if (!roomId) return;
+
+        try {
+            const url = `/chat/room/${roomId}/messages/${lastMessageTime ? '?after=' + lastMessageTime : ''}`;
+            const response = await fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.messages && data.messages.length > 0) {
+                data.messages.forEach(message => {
+                    // Check if message already exists
+                    if (!document.querySelector(`[data-message-id="${message.id}"]`)) {
+                        addMessage(message, message.sender_id === {{ user.id }});
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error polling messages:', error);
+        }
+    }
+
+    // Initialize
+    if (roomId) {
+        scrollToBottom();
+        messageInput.focus();
+
+        // Start polling every 3 seconds
+        pollingInterval = setInterval(pollMessages, 3000);
+
+        // Mark messages as read
+        fetch(`/chat/room/${roomId}/mark-read/`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        });
+    }
+
+    // Clean up on page unload
+    window.addEventListener('beforeunload', () => {
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+        }
+    });
+</script>
 {% endblock %}

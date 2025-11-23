@@ -10,6 +10,28 @@
         <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
         <link rel="stylesheet" href="{% static 'css/admin-dashboard.css' %}">
     {% endcompress %}
+    <style>
+        /* Slide Panel Scrollable Styles */
+        .slide-panel-content {
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: 100vh;
+        }
+
+        .slide-panel-body {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            min-height: 0;
+            -webkit-overflow-scrolling: touch;
+            padding: 1.5rem;
+        }
+
+        .slide-panel-header {
+            flex-shrink: 0;
+        }
+    </style>
     {% block admin_extra_css %}{% endblock %}
 {% endblock %}
 
@@ -46,6 +68,10 @@
         </div>
     </div>
 </div>
+
+<!-- Hidden CSRF token for AJAX requests -->
+{% csrf_token %}
+
 {% endblock %}
 
 {% block extra_js %}
@@ -268,31 +294,14 @@
             openSidePanel('chatPanel');
 
             // Load chat content via AJAX
-            fetch(`/super-admin/main/chatroom/?user_id=${userId}`, {
+            fetch(`/chat/admin-panel/?user_id=${userId}`, {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
             .then(response => response.text())
             .then(html => {
-                // For now, show a message that chat is being developed
-                panelBody.innerHTML = `
-                    <div class="alert alert-info m-3">
-                        <i class="fas fa-info-circle me-2"></i>
-                        نظام المحادثات قيد التطوير. سيتم تفعيله قريباً.
-                    </div>
-                    <div class="text-center py-5">
-                        <i class="fas fa-comments fa-5x text-muted mb-3"></i>
-                        <h5 class="text-muted">محادثة مع ${userName || 'المستخدم'}</h5>
-                        <p class="text-muted">يمكنك إرسال رسالة مباشرة إلى المستخدم</p>
-                        <div class="mt-4">
-                            <a href="/super-admin/main/chatroom/?user_id=${userId}" class="btn btn-primary" target="_blank">
-                                <i class="fas fa-external-link-alt me-2"></i>
-                                فتح في صفحة جديدة
-                            </a>
-                        </div>
-                    </div>
-                `;
+                panelBody.innerHTML = html;
             })
             .catch(error => {
                 console.error('Error loading chat:', error);
