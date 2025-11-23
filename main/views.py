@@ -3159,29 +3159,6 @@ def admin_user_detail(request, user_id):
 
 @superadmin_required
 @require_POST
-def admin_user_action(request, user_id):
-    """
-    Handle admin actions on a user like suspend, unsuspend, or verify.
-    """
-    try:
-        user_to_act_on = get_object_or_404(User, pk=user_id)
-        data = json.loads(request.body)
-        action = data.get("action")
-
-        if action == "suspend":
-            user_to_act_on.is_suspended = True
-            user_to_act_on.save(update_fields=["is_suspended"])
-            message = _("تم تعليق المستخدم '{}'.").format(user_to_act_on.username)
-        elif action == "unsuspend":
-            user_to_act_on.is_suspended = False
-            user_to_act_on.save(update_fields=["is_suspended"])
-            message = _("تم إلغاء تعليق المستخدم '{}'.").format(user_to_act_on.username)
-        elif action == "verify":
-            user_to_act_on.verification_status = User.VerificationStatus.VERIFIED
-
-
-@superadmin_required
-@require_POST
 def admin_user_update(request, user_id):
     """
     Update user information from admin panel.
