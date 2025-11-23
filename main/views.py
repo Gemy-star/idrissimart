@@ -2116,7 +2116,9 @@ class PublisherNotificationView(PublisherRequiredMixin, ListView):
 
     def get_queryset(self):
         """Get notifications for the current publisher"""
-        return Notification.objects.filter(user=self.request.user).order_by("-created_at")
+        return Notification.objects.filter(user=self.request.user).order_by(
+            "-created_at"
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
