@@ -357,6 +357,11 @@ urlpatterns = [
     # Dashboard URLs
     path("dashboard/", views.dashboard_redirect, name="dashboard"),
     path(
+        "dashboard/notifications/",
+        views.PublisherNotificationView.as_view(),
+        name="publisher_notifications",
+    ),
+    path(
         "dashboard/ad/<int:ad_id>/toggle-status/",
         views.dashboard_ad_toggle_status,
         name="dashboard_ad_toggle_status",
@@ -499,6 +504,11 @@ urlpatterns = [
         "admin/payments/",
         views.AdminPaymentsView.as_view(),
         name="admin_payments",
+    ),
+    path(
+        "admin/notifications/",
+        views.AdminNotificationView.as_view(),
+        name="admin_notifications",
     ),
     path(
         "admin/translations/",

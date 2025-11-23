@@ -1,0 +1,280 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n idrissimart_tags %}
+
+{% block title %}{% trans "إدارة الإشعارات" %}{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+    /* Dark theme text color fixes */
+    [data-theme='dark'] .notification-item {
+        background-color: #2d3748;
+        border-color: #4a5568;
+    }
+
+    [data-theme='dark'] .notification-item:hover {
+        background-color: #374151;
+    }
+
+    [data-theme='dark'] .notification-item.unread {
+        background-color: #1e3a5f;
+    }
+
+    [data-theme='dark'] .notification-item .text-muted {
+        color: #b8b9be !important;
+    }
+
+    /* Notification styles */
+    .notification-item {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+
+    .notification-item:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transform: translateX(-2px);
+    }
+
+    .notification-item.unread {
+        background: #f0f9ff;
+        border-left: 4px solid #3b82f6;
+    }
+
+    .notification-icon {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        font-size: 1.1rem;
+    }
+
+    .notification-icon.info {
+        background: #dbeafe;
+        color: #3b82f6;
+    }
+
+    .notification-icon.success {
+        background: #dcfce7;
+        color: #22c55e;
+    }
+
+    .notification-icon.warning {
+        background: #fef3c7;
+        color: #f59e0b;
+    }
+
+    .notification-icon.error {
+        background: #fee2e2;
+        color: #ef4444;
+    }
+
+    .notification-content {
+        flex: 1;
+    }
+
+    .notification-user {
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        color: #d1d5db;
+        margin-bottom: 1.5rem;
+    }
+
+    .stats-row {
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-box {
+        background: white;
+        border-radius: 8px;
+        padding: 1.25rem;
+        border: 1px solid #e2e8f0;
+    }
+
+    [data-theme='dark'] .stat-box {
+        background: #2d3748;
+        border-color: #4a5568;
+    }
+
+    .stat-box .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .stat-box.total .stat-icon {
+        background: #dbeafe;
+        color: #3b82f6;
+    }
+
+    .stat-box.unread .stat-icon {
+        background: #fef3c7;
+        color: #f59e0b;
+    }
+
+    .stat-box.read .stat-icon {
+        background: #dcfce7;
+        color: #22c55e;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+    <!-- Header -->
+    <div class="admin-dashboard-header">
+        <div class="row align-items-center">
+            <div class="col">
+                <h1 class="display-6 mb-1">
+                    <i class="fas fa-bell me-3"></i>
+                    {% trans "إدارة الإشعارات" %}
+                </h1>
+                <p class="text-muted mb-0">{% trans "عرض ومتابعة جميع إشعارات النظام" %}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="stats-row">
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <div class="stat-box total">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon">
+                            <i class="fas fa-bell"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="text-muted small">{% trans "جميع الإشعارات" %}</div>
+                            <h4 class="mb-0">{{ paginator.count }}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="stat-box unread">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon">
+                            <i class="fas fa-envelope"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="text-muted small">{% trans "غير المقروءة" %}</div>
+                            <h4 class="mb-0">{{ notifications|length|default:0 }}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="stat-box read">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon">
+                            <i class="fas fa-envelope-open"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="text-muted small">{% trans "المقروءة" %}</div>
+                            <h4 class="mb-0">0</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifications List -->
+    <div class="admin-content-card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-list me-2"></i>
+                {% trans "قائمة الإشعارات" %}
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% if notifications %}
+                <div class="p-3">
+                    {% for notification in notifications %}
+                        <div class="notification-item {% if not notification.is_read %}unread{% endif %}"
+                             onclick="window.location.href='{{ notification.link|default:'#' }}'">
+                            <div class="d-flex align-items-start">
+                                <div class="notification-icon info me-3">
+                                    <i class="fas fa-bell"></i>
+                                </div>
+                                <div class="notification-content">
+                                    <div class="notification-user">
+                                        <i class="fas fa-user me-1"></i>
+                                        {{ notification.user.get_full_name|default:notification.user.username }}
+                                    </div>
+                                    <p class="mb-1 mt-1">{{ notification.message }}</p>
+                                    <small class="text-muted">
+                                        <i class="far fa-clock me-1"></i>
+                                        {{ notification.created_at|timesince }} {% trans "ago" %}
+                                    </small>
+                                </div>
+                                {% if not notification.is_read %}
+                                    <div class="ms-auto">
+                                        <span class="badge bg-primary">{% trans "جديد" %}</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Pagination -->
+                {% if is_paginated %}
+                    <div class="card-footer">
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination justify-content-center mb-0">
+                                {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                                            <i class="fas fa-chevron-right me-1"></i>
+                                            {% trans "السابق" %}
+                                        </a>
+                                    </li>
+                                {% endif %}
+
+                                <li class="page-item disabled">
+                                    <span class="page-link">
+                                        {% trans "صفحة" %} {{ page_obj.number }} {% trans "من" %} {{ paginator.num_pages }}
+                                    </span>
+                                </li>
+
+                                {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                                            {% trans "التالي" %}
+                                            <i class="fas fa-chevron-left ms-1"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-bell-slash"></i>
+                    <h4 class="mb-3">{% trans "لا توجد إشعارات" %}</h4>
+                    <p class="text-muted">{% trans "لا توجد إشعارات في النظام حالياً" %}</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+{% endblock %}

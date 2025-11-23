@@ -2102,6 +2102,33 @@ class PublisherDashboardView(PublisherRequiredMixin, ListView):
         return context
 
 
+class PublisherNotificationView(PublisherRequiredMixin, ListView):
+    """
+    Publisher notification view - Shows notifications for publisher users
+    Restricted to users with publisher profile
+    """
+
+    model = Notification
+    template_name = "dashboard/notifications.html"
+    context_object_name = "notifications"
+    paginate_by = 20
+
+    def get_queryset(self):
+        """Get notifications for the current publisher"""
+        return Notification.objects.filter(user=self.request.user).order_by("-created_at")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["active_nav"] = "notifications"
+        context["page_title"] = _("الإشعارات")
+        return context
+
+    def get(self, request, *args, **kwargs):
+        """Mark all publisher notifications as read when viewed"""
+        Notification.objects.filter(user=request.user).update(is_read=True)
+        return super().get(request, *args, **kwargs)
+
+
 @login_required
 @publisher_required
 def dashboard_ad_toggle_status(request, ad_id):
@@ -2919,6 +2946,32 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
         context["active_nav"] = "payments"
 
         return context
+
+
+class AdminNotificationView(SuperadminRequiredMixin, ListView):
+    """
+    Admin notification view - Shows all notifications for admin users
+    Restricted to superusers only
+    """
+
+    model = Notification
+    template_name = "admin_dashboard/notifications.html"
+    context_object_name = "notifications"
+    paginate_by = 20
+
+    def get_queryset(self):
+        """Get all notifications (admin sees all)"""
+        return Notification.objects.all().select_related("user").order_by("-created_at")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["active_nav"] = "notifications"
+        return context
+
+    def get(self, request, *args, **kwargs):
+        """Mark all admin notifications as read when viewed"""
+        Notification.objects.filter(user=request.user).update(is_read=True)
+        return super().get(request, *args, **kwargs)
 
 
 class AdminTranslationsView(SuperadminRequiredMixin, TemplateView):
