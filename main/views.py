@@ -46,6 +46,7 @@ from main.models import (
     User,
     CustomField,
     Payment,
+    Notification,
 )
 from main.templatetags.idrissimart_tags import phone_format
 from main.utils import get_selected_country_from_request
