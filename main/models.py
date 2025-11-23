@@ -2323,3 +2323,136 @@ class CartItem(models.Model):
     def get_total_price(self):
         """Calculate total price for this cart item"""
         return self.ad.price * self.quantity
+
+
+# ===========================
+# CHAT MODELS
+# ===========================
+
+
+class ChatRoom(models.Model):
+    """
+    Chat room for conversations between users
+    Supports: Publisher-Client and Publisher-Admin chats
+    """
+
+    ROOM_TYPES = [
+        ("publisher_client", _("Publisher-Client")),
+        ("publisher_admin", _("Publisher-Admin")),
+    ]
+
+    room_type = models.CharField(
+        max_length=20,
+        choices=ROOM_TYPES,
+        default="publisher_client",
+        verbose_name=_("نوع المحادثة"),
+    )
+
+    # Participants
+    publisher = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="publisher_chat_rooms",
+        verbose_name=_("الناشر"),
+    )
+    client = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="client_chat_rooms",
+        null=True,
+        blank=True,
+        verbose_name=_("العميل"),
+    )
+
+    # Related ad (for publisher-client chats)
+    ad = models.ForeignKey(
+        ClassifiedAd,
+        on_delete=models.CASCADE,
+        related_name="chat_rooms",
+        null=True,
+        blank=True,
+        verbose_name=_("الإعلان"),
+    )
+
+    # Metadata
+    created_at = models.DateTimeField(
+        auto_now_add=True, verbose_name=_("تاريخ الإنشاء")
+    )
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("آخر تحديث"))
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
+
+    class Meta:
+        db_table = "chat_rooms"
+        verbose_name = _("Chat Room")
+        verbose_name_plural = _("Chat Rooms")
+        ordering = ["-updated_at"]
+        indexes = [
+            models.Index(fields=["publisher", "client"]),
+            models.Index(fields=["room_type", "is_active"]),
+        ]
+
+    def __str__(self):
+        if self.room_type == "publisher_client":
+            return f"Chat: {self.publisher.username} <-> {self.client.username if self.client else 'Unknown'}"
+        return f"Support: {self.publisher.username} <-> Admin"
+
+    def get_unread_count(self, user):
+        """Get unread message count for a specific user"""
+        return self.messages.filter(is_read=False).exclude(sender=user).count()
+
+    def mark_as_read(self, user):
+        """Mark all messages as read for a specific user"""
+        self.messages.filter(is_read=False).exclude(sender=user).update(is_read=True)
+
+
+class ChatMessage(models.Model):
+    """
+    Individual chat messages within a room
+    """
+
+    room = models.ForeignKey(
+        ChatRoom,
+        on_delete=models.CASCADE,
+        related_name="messages",
+        verbose_name=_("غرفة المحادثة"),
+    )
+    sender = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="chat_messages",
+        verbose_name=_("المرسل"),
+    )
+    message = models.TextField(verbose_name=_("الرسالة"))
+
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("وقت الإرسال"))
+    is_read = models.BooleanField(default=False, verbose_name=_("مقروءة"))
+    read_at = models.DateTimeField(null=True, blank=True, verbose_name=_("وقت القراءة"))
+
+    # Optional: File attachments
+    attachment = models.FileField(
+        upload_to="chat_attachments/%Y/%m/",
+        null=True,
+        blank=True,
+        verbose_name=_("مرفق"),
+    )
+
+    class Meta:
+        db_table = "chat_messages"
+        verbose_name = _("Chat Message")
+        verbose_name_plural = _("Chat Messages")
+        ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=["room", "created_at"]),
+            models.Index(fields=["sender", "is_read"]),
+        ]
+
+    def __str__(self):
+        return f"{self.sender.username}: {self.message[:50]}"
+
+    def mark_as_read(self):
+        """Mark message as read"""
+        if not self.is_read:
+            self.is_read = True
+            self.read_at = timezone.now()
+            self.save(update_fields=["is_read", "read_at"])

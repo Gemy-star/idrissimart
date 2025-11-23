@@ -6,6 +6,9 @@ from mptt.admin import MPTTModelAdmin
 # Import chatbot admin configurations
 from .chatbot_admin import *
 
+# Import chat admin configurations
+from .chat_admin import *
+
 from .models import (
     AboutPage,
     AdFeature,

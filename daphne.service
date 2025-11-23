@@ -1,0 +1,32 @@
+[Unit]
+Description=Daphne ASGI Server for Idrissimart (WebSocket/Channels)
+After=network.target redis.service
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+WorkingDirectory=/path/to/idrissimart
+Environment="PATH=/path/to/idrissimart/venv/bin"
+Environment="DJANGO_SETTINGS_MODULE=idrissimart.settings"
+
+ExecStart=/path/to/idrissimart/venv/bin/daphne \
+    -u /run/daphne/daphne.sock \
+    -b 127.0.0.1 \
+    -p 8001 \
+    --proxy-headers \
+    --access-log - \
+    --verbosity 2 \
+    idrissimart.asgi:application
+
+# Restart policy
+Restart=on-failure
+RestartSec=5s
+StartLimitInterval=60s
+StartLimitBurst=3
+
+# Resource limits
+LimitNOFILE=100000
+
+[Install]
+WantedBy=multi-user.target

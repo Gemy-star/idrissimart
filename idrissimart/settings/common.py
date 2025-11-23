@@ -32,6 +32,7 @@ ALLOWED_HOSTS = []
 # Apps
 # =======================
 INSTALLED_APPS = [
+    "daphne",  # Must be first for Channels
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -40,6 +41,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.sites",
     # Third-party
+    "channels",
     "compressor",
     "crispy_forms",
     "crispy_bootstrap5",
@@ -242,4 +244,20 @@ Q_CLUSTER = {
     "cpu_affinity": 1,
     "label": "Django Q",
     "orm": "default",  # Use Django's ORM as the broker
+}
+
+# ===========================
+# Django Channels Settings
+# ===========================
+ASGI_APPLICATION = "idrissimart.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+            "capacity": 1500,
+            "expiry": 10,
+        },
+    },
 }
