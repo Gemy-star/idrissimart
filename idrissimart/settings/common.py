@@ -32,7 +32,6 @@ ALLOWED_HOSTS = []
 # Apps
 # =======================
 INSTALLED_APPS = [
-    "daphne",  # Must be first for Channels
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
