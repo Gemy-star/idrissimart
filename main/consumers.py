@@ -7,7 +7,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from .models import ChatMessage, ChatRoom, Ad
+from .models import ChatMessage, ChatRoom, ClassifiedAd
 
 User = get_user_model()
 
@@ -128,7 +128,7 @@ class PublisherClientChatConsumer(AsyncWebsocketConsumer):
         Get or create chat room for this ad and user
         """
         try:
-            ad = Ad.objects.select_related("user").get(id=self.ad_id)
+            ad = ClassifiedAd.objects.select_related("user").get(id=self.ad_id)
 
             # Determine publisher and client
             if self.user == ad.user:
@@ -149,7 +149,7 @@ class PublisherClientChatConsumer(AsyncWebsocketConsumer):
 
             return room
 
-        except Ad.DoesNotExist:
+        except ClassifiedAd.DoesNotExist:
             return None
 
     @database_sync_to_async
