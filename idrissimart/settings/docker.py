@@ -2,12 +2,10 @@ import tempfile
 
 from .common import *
 
-DEBUG = True
+DEBUG = False
 ALLOWED_HOSTS = [
     "idrissimart.com",
     "www.idrissimart.com",
-    "localhost",
-    "127.0.0.1",
     "72.61.88.27",
 ]
 
