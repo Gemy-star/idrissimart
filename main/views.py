@@ -3431,8 +3431,18 @@ def admin_translations_stats(request):
     """Get translation statistics from .po files"""
     try:
         import os
-        import polib
         from django.conf import settings
+
+        try:
+            import polib
+        except ImportError:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": "polib is not installed. Please install it with: pip install polib",
+                },
+                status=500,
+            )
 
         stats = {
             "languages": [],
@@ -3448,8 +3458,10 @@ def admin_translations_stats(request):
             return JsonResponse({"success": True, "stats": stats})
 
         language_stats = []
-        total_all = 0
-        translated_all = 0
+        # Use the first language to get the total count (all languages have same source strings)
+        base_total = 0
+        total_translated = 0
+        lang_count = 0
 
         # Iterate through language directories
         for lang_code in os.listdir(locale_path):
@@ -3479,23 +3491,36 @@ def admin_translations_stats(request):
                         }
                     )
 
-                    total_all += total
-                    translated_all += translated
+                    # Use the first language's total as the base (all have same source strings)
+                    if base_total == 0:
+                        base_total = total
+
+                    total_translated += translated
+                    lang_count += 1
 
                 except Exception as e:
                     print(f"Error reading {po_file}: {e}")
+                    import traceback
+
+                    print(traceback.format_exc())
                     continue
 
         stats["languages"] = language_stats
-        stats["total_strings"] = total_all
-        stats["translated_strings"] = translated_all
+        stats["total_strings"] = base_total  # Total unique strings (from one language)
+        stats["translated_strings"] = (
+            total_translated // lang_count if lang_count > 0 else 0
+        )  # Average across languages
         stats["completion_rate"] = round(
-            (translated_all / total_all * 100) if total_all > 0 else 0, 1
+            (stats["translated_strings"] / base_total * 100) if base_total > 0 else 0,
+            1,
         )
 
         return JsonResponse({"success": True, "stats": stats})
 
     except Exception as e:
+        import traceback
+
+        print(f"Translation stats error: {traceback.format_exc()}")
         return JsonResponse({"success": False, "message": str(e)}, status=500)
 
 
