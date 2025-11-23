@@ -3426,6 +3426,206 @@ def admin_settings_constance_save(request):
         return JsonResponse({"success": False, "message": str(e)}, status=500)
 
 
+@superadmin_required
+def admin_translations_stats(request):
+    """Get translation statistics from .po files"""
+    try:
+        import os
+        import polib
+        from django.conf import settings
+
+        stats = {
+            "languages": [],
+            "total_strings": 0,
+            "translated_strings": 0,
+            "completion_rate": 0,
+        }
+
+        # Get locale directory
+        locale_path = os.path.join(settings.BASE_DIR, "locale")
+
+        if not os.path.exists(locale_path):
+            return JsonResponse({"success": True, "stats": stats})
+
+        language_stats = []
+        total_all = 0
+        translated_all = 0
+
+        # Iterate through language directories
+        for lang_code in os.listdir(locale_path):
+            lang_dir = os.path.join(locale_path, lang_code)
+            if not os.path.isdir(lang_dir):
+                continue
+
+            po_file = os.path.join(lang_dir, "LC_MESSAGES", "django.po")
+
+            if os.path.exists(po_file):
+                try:
+                    po = polib.pofile(po_file)
+                    total = len(po)
+                    translated = len(po.translated_entries())
+                    untranslated = len(po.untranslated_entries())
+                    fuzzy = len(po.fuzzy_entries())
+                    percent = po.percent_translated()
+
+                    language_stats.append(
+                        {
+                            "code": lang_code,
+                            "total": total,
+                            "translated": translated,
+                            "untranslated": untranslated,
+                            "fuzzy": fuzzy,
+                            "percent": round(percent, 1),
+                        }
+                    )
+
+                    total_all += total
+                    translated_all += translated
+
+                except Exception as e:
+                    print(f"Error reading {po_file}: {e}")
+                    continue
+
+        stats["languages"] = language_stats
+        stats["total_strings"] = total_all
+        stats["translated_strings"] = translated_all
+        stats["completion_rate"] = round(
+            (translated_all / total_all * 100) if total_all > 0 else 0, 1
+        )
+
+        return JsonResponse({"success": True, "stats": stats})
+
+    except Exception as e:
+        return JsonResponse({"success": False, "message": str(e)}, status=500)
+
+
+@superadmin_required
+def admin_translations_get(request, lang):
+    """Get translations from .po file for editing"""
+    try:
+        import os
+        from django.conf import settings
+
+        try:
+            import polib
+        except ImportError:
+            return JsonResponse(
+                {"success": False, "message": "polib is not installed"}, status=500
+            )
+
+        locale_path = os.path.join(
+            settings.BASE_DIR, "locale", lang, "LC_MESSAGES", "django.po"
+        )
+
+        if not os.path.exists(locale_path):
+            return JsonResponse(
+                {"success": False, "message": f"Translation file for {lang} not found"},
+                status=404,
+            )
+
+        po = polib.pofile(locale_path)
+        translations = []
+
+        for entry in po:
+            if not entry.obsolete:  # Skip obsolete entries
+                translations.append(
+                    {
+                        "msgid": entry.msgid,
+                        "msgstr": entry.msgstr,
+                        "fuzzy": entry.fuzzy if hasattr(entry, "fuzzy") else False,
+                    }
+                )
+
+        return JsonResponse(
+            {"success": True, "translations": translations, "total": len(translations)}
+        )
+
+    except Exception as e:
+        import traceback
+
+        print(f"Translation get error: {traceback.format_exc()}")
+        return JsonResponse({"success": False, "message": str(e)}, status=500)
+
+
+@superadmin_required
+@require_POST
+def admin_translations_save(request, lang):
+    """Save translations to .po file"""
+    try:
+        import os
+        import json
+        from django.conf import settings
+
+        try:
+            import polib
+        except ImportError:
+            return JsonResponse(
+                {"success": False, "message": "polib is not installed"}, status=500
+            )
+
+        locale_path = os.path.join(
+            settings.BASE_DIR, "locale", lang, "LC_MESSAGES", "django.po"
+        )
+
+        if not os.path.exists(locale_path):
+            return JsonResponse(
+                {"success": False, "message": f"Translation file for {lang} not found"},
+                status=404,
+            )
+
+        data = json.loads(request.body)
+        updates = data.get("updates", [])
+
+        if not updates:
+            return JsonResponse(
+                {"success": False, "message": "No updates provided"}, status=400
+            )
+
+        # Load the .po file
+        po = polib.pofile(locale_path)
+        updated_count = 0
+
+        # Update translations
+        for update in updates:
+            msgid = update.get("msgid")
+            msgstr = update.get("msgstr")
+
+            if not msgid:
+                continue
+
+            # Find the entry in the .po file
+            entry = po.find(msgid)
+            if entry:
+                entry.msgstr = msgstr
+                # Remove fuzzy flag if translation is provided
+                if msgstr and "fuzzy" in entry.flags:
+                    entry.flags.remove("fuzzy")
+                updated_count += 1
+
+        # Save the .po file
+        po.save(locale_path)
+
+        # Compile to .mo file
+        mo_path = os.path.join(
+            settings.BASE_DIR, "locale", lang, "LC_MESSAGES", "django.mo"
+        )
+        po.save_as_mofile(mo_path)
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": f"Updated {updated_count} translations",
+                "updated_count": updated_count,
+            }
+        )
+
+    except Exception as e:
+        import traceback
+
+        print(f"Translation save error: {traceback.format_exc()}")
+        return JsonResponse({"success": False, "message": str(e)}, status=500)
+
+
 # Settings AJAX Endpoints
 
 

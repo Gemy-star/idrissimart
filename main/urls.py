@@ -557,6 +557,22 @@ urlpatterns = [
         views.admin_settings_constance_save,
         name="admin_settings_constance_save",
     ),
+    # Admin Translations
+    path(
+        "admin/translations/stats/",
+        views.admin_translations_stats,
+        name="admin_translations_stats",
+    ),
+    path(
+        "admin/translations/get/<str:lang>/",
+        views.admin_translations_get,
+        name="admin_translations_get",
+    ),
+    path(
+        "admin/translations/save/<str:lang>/",
+        views.admin_translations_save,
+        name="admin_translations_save",
+    ),
     # Cart URLs
     path("api/cart/add/", cart_wishlist_views.add_to_cart, name="cart_add"),
     path("api/cart/remove/", cart_wishlist_views.remove_from_cart, name="cart_remove"),
