@@ -3651,14 +3651,102 @@ def dashboard_redirect(request):
     return redirect("main:home")
 
 
+# ========== Chat Views (Django Channels) ==========
+
+
+class PublisherChatsView(LoginRequiredMixin, TemplateView):
+    """Publisher chat list view - shows all chats with clients"""
+
+    template_name = "chat/publisher_chats.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["active_nav"] = "chats"
+        # TODO: Add chat rooms queryset
+        # from .models import ChatRoom
+        # context['chat_rooms'] = ChatRoom.objects.filter(
+        #     publisher=self.request.user,
+        #     room_type='publisher_client'
+        # ).select_related('client', 'ad').order_by('-updated_at')
+        return context
+
+
+class PublisherSupportChatView(LoginRequiredMixin, TemplateView):
+    """Publisher support chat view - chat with admin"""
+
+    template_name = "chat/publisher_support.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["active_nav"] = "support"
+        # TODO: Add support chat room
+        # from .models import ChatRoom
+        # context['chat_room'], created = ChatRoom.objects.get_or_create(
+        #     publisher=self.request.user,
+        #     room_type='publisher_admin',
+        #     defaults={'client': None, 'ad': None}
+        # )
+        return context
+
+
+class AdminSupportChatsView(SuperadminRequiredMixin, TemplateView):
+    """Admin support chats view - shows all publisher support requests"""
+
+    template_name = "chat/admin_support_chats.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["active_nav"] = "support_chats"
+        # TODO: Add support chat rooms queryset
+        # from .models import ChatRoom
+        # context['chat_rooms'] = ChatRoom.objects.filter(
+        #     room_type='publisher_admin'
+        # ).select_related('publisher').order_by('-updated_at')
+        return context
+
+
+class ChatWithPublisherView(LoginRequiredMixin, TemplateView):
+    """Client chat with publisher view"""
+
+    template_name = "chat/chat_room.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        ad_id = self.kwargs.get("ad_id")
+
+        # Get the ad
+        ad = get_object_or_404(ClassifiedAd, id=ad_id)
+        context["ad"] = ad
+
+        # Prevent publisher from chatting with themselves
+        if self.request.user == ad.user:
+            messages.warning(
+                self.request, _("You cannot chat with yourself about your own ad.")
+            )
+            return redirect("main:ad_detail", pk=ad_id)
+
+        # TODO: Get or create chat room
+        # from .models import ChatRoom
+        # context['chat_room'], created = ChatRoom.objects.get_or_create(
+        #     ad=ad,
+        #     client=self.request.user,
+        #     defaults={
+        #         'publisher': ad.user,
+        #         'room_type': 'publisher_client'
+        #     }
+        # )
+
+        return context
+
+
 # ========== Custom Error Handlers ==========
 
 
 def custom_404(request, exception=None):
     """Custom 404 error page"""
-    return render(request, '404.html', status=404)
+    return render(request, "404.html", status=404)
 
 
 def custom_500(request):
     """Custom 500 error page"""
-    return render(request, '500.html', status=500)
+    return render(request, "500.html", status=500)

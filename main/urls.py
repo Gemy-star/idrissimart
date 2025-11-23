@@ -565,4 +565,25 @@ urlpatterns = [
         name="wishlist_status",
     ),
     path("wishlist/", cart_wishlist_views.wishlist_view, name="wishlist_view"),
+    # Chat URLs (Django Channels WebSocket endpoints)
+    path(
+        "publisher/chats/",
+        views.PublisherChatsView.as_view(),
+        name="publisher_chats",
+    ),
+    path(
+        "publisher/support/",
+        views.PublisherSupportChatView.as_view(),
+        name="publisher_support_chat",
+    ),
+    path(
+        "admin/support-chats/",
+        views.AdminSupportChatsView.as_view(),
+        name="admin_support_chats",
+    ),
+    path(
+        "chat/publisher/<int:ad_id>/",
+        views.ChatWithPublisherView.as_view(),
+        name="chat_with_publisher",
+    ),
 ]
