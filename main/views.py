@@ -2921,6 +2921,24 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
         return context
 
 
+class AdminTranslationsView(SuperadminRequiredMixin, TemplateView):
+    """
+    Admin interface for translation management using Django Rosetta
+    Restricted to superusers only
+    """
+
+    template_name = "admin_dashboard/translations.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["active_nav"] = "translations"
+
+        # You can add additional context here if needed
+        # For example, translation statistics, available languages, etc.
+
+        return context
+
+
 # AJAX Views for Admin Dashboard
 
 
@@ -3167,35 +3185,35 @@ def admin_user_update(request, user_id):
         user_to_update = get_object_or_404(User, pk=user_id)
 
         # Get form data
-        first_name = request.POST.get('first_name', '').strip()
-        last_name = request.POST.get('last_name', '').strip()
-        email = request.POST.get('email', '').strip()
-        phone = request.POST.get('phone', '').strip()
+        first_name = request.POST.get("first_name", "").strip()
+        last_name = request.POST.get("last_name", "").strip()
+        email = request.POST.get("email", "").strip()
+        phone = request.POST.get("phone", "").strip()
 
         # Validate email uniqueness
         if email and email != user_to_update.email:
             if User.objects.filter(email=email).exclude(pk=user_id).exists():
-                return JsonResponse({
-                    'success': False,
-                    'message': _("البريد الإلكتروني مستخدم بالفعل.")
-                })
+                return JsonResponse(
+                    {"success": False, "message": _("البريد الإلكتروني مستخدم بالفعل.")}
+                )
 
         # Update user
         user_to_update.first_name = first_name
         user_to_update.last_name = last_name
         user_to_update.email = email
         user_to_update.phone = phone
-        user_to_update.save(update_fields=['first_name', 'last_name', 'email', 'phone'])
+        user_to_update.save(update_fields=["first_name", "last_name", "email", "phone"])
 
-        return JsonResponse({
-            'success': True,
-            'message': _("تم تحديث معلومات المستخدم بنجاح.")
-        })
+        return JsonResponse(
+            {"success": True, "message": _("تم تحديث معلومات المستخدم بنجاح.")}
+        )
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': _("حدث خطأ أثناء تحديث المعلومات: {}").format(str(e))
-        })
+        return JsonResponse(
+            {
+                "success": False,
+                "message": _("حدث خطأ أثناء تحديث المعلومات: {}").format(str(e)),
+            }
+        )
 
 
 @superadmin_required

@@ -501,6 +501,11 @@ urlpatterns = [
         name="admin_payments",
     ),
     path(
+        "admin/translations/",
+        views.AdminTranslationsView.as_view(),
+        name="admin_translations",
+    ),
+    path(
         "admin/ads/tab/<str:tab>/",
         views.admin_get_ads_by_tab,
         name="admin_ads_by_tab",
