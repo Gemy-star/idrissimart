@@ -60,7 +60,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("Please fix the issues above."))
         self.stdout.write(self.style.SUCCESS("=" * 60))
 
-        return 0 if all_passed else 1
+        # Don't return anything - Django handles the exit code
 
     def _check_channels_installed(self, verbose):
         """Check if Django Channels is installed"""
