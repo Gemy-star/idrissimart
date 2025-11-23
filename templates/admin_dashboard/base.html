@@ -25,6 +25,27 @@
         </div>
     </div>
 </div>
+
+<!-- Chat Slide Panel -->
+<div id="chatPanel" class="slide-panel">
+    <div class="slide-panel-overlay" onclick="closeSidePanel('chatPanel')"></div>
+    <div class="slide-panel-content">
+        <div class="slide-panel-header">
+            <h5>
+                <i class="fas fa-comments me-2"></i>
+                <span id="chatPanelTitle">{% trans "محادثة" %}</span>
+            </h5>
+            <button type="button" class="btn-close" onclick="closeSidePanel('chatPanel')" aria-label="Close"></button>
+        </div>
+        <div class="slide-panel-body" id="chatPanelBody">
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">{% trans "جاري التحميل..." %}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -221,5 +242,69 @@
             }
         });
     </script>
+
+    <script>
+        // Chat Panel Functions
+        function openChatPanel(userId, userName) {
+            const panel = document.getElementById('chatPanel');
+            const panelTitle = document.getElementById('chatPanelTitle');
+            const panelBody = document.getElementById('chatPanelBody');
+
+            // Update title
+            if (userName) {
+                panelTitle.textContent = 'محادثة مع ' + userName;
+            }
+
+            // Show loading
+            panelBody.innerHTML = `
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">جاري التحميل...</span>
+                    </div>
+                </div>
+            `;
+
+            // Open panel
+            openSidePanel('chatPanel');
+
+            // Load chat content via AJAX
+            fetch(`/super-admin/main/chatroom/?user_id=${userId}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.text())
+            .then(html => {
+                // For now, show a message that chat is being developed
+                panelBody.innerHTML = `
+                    <div class="alert alert-info m-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        نظام المحادثات قيد التطوير. سيتم تفعيله قريباً.
+                    </div>
+                    <div class="text-center py-5">
+                        <i class="fas fa-comments fa-5x text-muted mb-3"></i>
+                        <h5 class="text-muted">محادثة مع ${userName || 'المستخدم'}</h5>
+                        <p class="text-muted">يمكنك إرسال رسالة مباشرة إلى المستخدم</p>
+                        <div class="mt-4">
+                            <a href="/super-admin/main/chatroom/?user_id=${userId}" class="btn btn-primary" target="_blank">
+                                <i class="fas fa-external-link-alt me-2"></i>
+                                فتح في صفحة جديدة
+                            </a>
+                        </div>
+                    </div>
+                `;
+            })
+            .catch(error => {
+                console.error('Error loading chat:', error);
+                panelBody.innerHTML = `
+                    <div class="alert alert-danger m-3">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        حدث خطأ في تحميل المحادثة
+                    </div>
+                `;
+            });
+        }
+    </script>
+
     {% block admin_extra_js %}{% endblock %}
 {% endblock %}

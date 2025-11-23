@@ -373,6 +373,7 @@ class CustomUserAdmin(UserAdmin):
         "profile_type",
         "verification_status",
         "is_active",
+        "chat_icon",
     )
     list_filter = ("profile_type", "verification_status", "is_active", "is_staff")
     search_fields = ("username", "email", "first_name", "last_name", "company_name")
@@ -401,6 +402,10 @@ class CustomUserAdmin(UserAdmin):
         ),
         ("Bio", {"fields": ("bio", "bio_ar")}),
         (
+            "Communication",
+            {"fields": ("chat_link",)},
+        ),
+        (
             "Permissions",
             {
                 "fields": (
@@ -414,6 +419,94 @@ class CustomUserAdmin(UserAdmin):
         ),
         ("Important dates", {"fields": ("last_login", "date_joined")}),
     )
+
+    readonly_fields = ("chat_link",)
+
+    def get_urls(self):
+        """Add custom URLs for chat functionality"""
+        from django.urls import path
+
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "start-chat/<int:user_id>/",
+                self.admin_site.admin_view(self.start_chat_view),
+                name="user_start_chat",
+            ),
+        ]
+        return custom_urls + urls
+
+    def start_chat_view(self, request, user_id):
+        """Create or get chat room and redirect to it"""
+        from django.shortcuts import redirect, get_object_or_404
+        from django.urls import reverse
+        from .models import ChatRoom
+
+        user = get_object_or_404(User, id=user_id)
+
+        # Get or create chat room
+        chat_room, created = ChatRoom.objects.get_or_create(
+            room_type="publisher_admin", publisher=user, defaults={"is_active": True}
+        )
+
+        # Redirect to chat room admin change page
+        return redirect(reverse("admin:main_chatroom_change", args=[chat_room.id]))
+
+    def chat_icon(self, obj):
+        """Display a chat icon that opens chat with this user"""
+        from django.utils.html import format_html
+        from django.urls import reverse
+
+        chat_url = reverse("admin:main_user_start_chat", args=[obj.id])
+
+        return format_html(
+            '<a href="{}" style="text-decoration: none; font-size: 18px;" '
+            'title="Chat with {}">'
+            '<i class="fas fa-comments" style="color: #4CAF50;"></i>'
+            "</a>",
+            chat_url,
+            obj.username,
+        )
+
+    chat_icon.short_description = "Chat"
+
+    def chat_link(self, obj):
+        """Display chat link in user detail page"""
+        from django.utils.html import format_html
+        from django.urls import reverse
+        from .models import ChatRoom
+
+        if not obj.id:
+            return "-"
+
+        try:
+            chat_room = ChatRoom.objects.filter(
+                room_type="publisher_admin", publisher=obj
+            ).first()
+
+            if chat_room:
+                chat_url = reverse("admin:main_chatroom_change", args=[chat_room.id])
+                button_text = "Open Existing Chat"
+                button_class = "default"
+            else:
+                chat_url = reverse("admin:main_user_start_chat", args=[obj.id])
+                button_text = "Start New Chat"
+                button_class = "success"
+
+            return format_html(
+                '<a href="{}" class="button {}" style="margin-left: 10px;">'
+                '<i class="fas fa-comments"></i> {}'
+                "</a>",
+                chat_url,
+                button_class,
+                button_text,
+            )
+        except Exception as e:
+            return format_html(
+                '<span style="color: red;">Chat unavailable: {}</span>', str(e)
+            )
+
+    chat_link.short_description = "Chat with User"
 
 
 @admin.register(AdFeaturePrice)
