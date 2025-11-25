@@ -1401,21 +1401,37 @@
         }
     });
 
-    // Admin actions - state variables
-    let currentAdId = null;
-    let currentIsHidden = null;
+    // Admin actions - state variables (define globally to be accessible everywhere)
+    window.currentAdId = null;
+    window.currentIsHidden = null;
 
-    // Admin actions
+    // Verify functions are properly defined
+    console.log('Defining global admin functions...'); // Debug log
+
+    // Admin actions - define immediately to ensure availability
     window.toggleAdVisibility = function(adId, isCurrentlyHidden) {
-        currentAdId = adId;
-        currentIsHidden = isCurrentlyHidden;
+        console.log('toggleAdVisibility called with:', adId, isCurrentlyHidden); // Debug log
+
+        window.currentAdId = adId;
+        window.currentIsHidden = isCurrentlyHidden;
 
         const actionText = isCurrentlyHidden ? '{% trans "إظهار" %}' : '{% trans "إخفاء" %}';
         const message = isCurrentlyHidden ? '{% trans "هل أنت متأكد من إظهار هذا الإعلان؟" %}' : '{% trans "هل أنت متأكد من إخفاء هذا الإعلان؟" %}';
 
-        document.getElementById('toggleHideMessage').textContent = message;
-        document.getElementById('toggleHideButtonText').textContent = actionText;
-        openModal('toggleHideModal');
+        const toggleHideMessage = document.getElementById('toggleHideMessage');
+        const toggleHideButtonText = document.getElementById('toggleHideButtonText');
+
+        console.log('Modal elements found:', {toggleHideMessage, toggleHideButtonText}); // Debug log
+
+        if (toggleHideMessage) toggleHideMessage.textContent = message;
+        if (toggleHideButtonText) toggleHideButtonText.textContent = actionText;
+
+        if (typeof window.openModal === 'function') {
+            console.log('Opening modal: toggleHideModal'); // Debug log
+            window.openModal('toggleHideModal');
+        } else {
+            console.error('openModal function not found');
+        }
     };
 
     // Confirm toggle hide handler
@@ -1423,16 +1439,16 @@
         const confirmToggleBtn = document.getElementById('confirmToggleHideBtn');
         if (confirmToggleBtn) {
             confirmToggleBtn.addEventListener('click', function() {
-                if (currentAdId === null) return;
+                if (window.currentAdId === null) return;
 
-                const url = "{% url 'main:toggle_ad_hide' 0 %}".replace('0', currentAdId);
+                const url = "{% url 'main:toggle_ad_hide' 0 %}".replace('0', window.currentAdId);
                 fetch(url, {
                     method: 'POST',
                     headers: {
-                        'X-CSRFToken': getCookie('csrftoken'),
+                        'X-CSRFToken': window.getCookie('csrftoken'),
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ hide: !currentIsHidden })
+                    body: JSON.stringify({ hide: !window.currentIsHidden })
                 })
                 .then(response => response.json())
                 .then(data => {
@@ -1453,9 +1469,20 @@
     });
 
     window.deleteAdvertisement = function(adId, adTitle) {
-        currentAdId = adId;
-        document.getElementById('deleteAdTitle').textContent = adTitle;
-        openModal('deleteAdModal');
+        console.log('deleteAdvertisement called with:', adId, adTitle); // Debug log
+
+        window.currentAdId = adId;
+        const deleteAdTitle = document.getElementById('deleteAdTitle');
+
+        console.log('Delete modal element found:', deleteAdTitle); // Debug log
+
+        if (deleteAdTitle) deleteAdTitle.textContent = adTitle;
+        if (typeof window.openModal === 'function') {
+            console.log('Opening modal: deleteAdModal'); // Debug log
+            window.openModal('deleteAdModal');
+        } else {
+            console.error('openModal function not found');
+        }
     };
 
     // Confirm delete handler
@@ -1463,11 +1490,12 @@
         const confirmDeleteBtn = document.getElementById('confirmDeleteAdBtn');
         if (confirmDeleteBtn) {
             confirmDeleteBtn.addEventListener('click', function() {
-                if (currentAdId === null) return;
+                if (window.currentAdId === null) return;
 
-                const adTitle = document.getElementById('deleteAdTitle').textContent;
+                const deleteAdTitle = document.getElementById('deleteAdTitle');
+                const adTitle = deleteAdTitle ? deleteAdTitle.textContent : '';
 
-                const url = "{% url 'main:delete_ad' 0 %}".replace('0', currentAdId);
+                const url = "{% url 'main:delete_ad' 0 %}".replace('0', window.currentAdId);
                 fetch(url, {
                     method: 'POST',
                     headers: {
@@ -1494,13 +1522,17 @@
     });
 
     window.enableAdCart = function(adId) {
+        console.log('enableAdCart called with:', adId); // Debug log
+
         if (!confirm('{% trans "هل أنت متأكد من تفعيل السلة لهذا الإعلان؟" %}')) return;
 
         const url = "{% url 'main:enable_ad_cart' 0 %}".replace('0', adId);
+        console.log('Making request to:', url); // Debug log
+
         fetch(url, {
             method: 'POST',
             headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
+                'X-CSRFToken': window.getCookie('csrftoken'),
                 'Content-Type': 'application/json'
             }
         })
@@ -1598,6 +1630,15 @@
     };
 
     // All functions are now assigned to window object above
+
+    // Verify all functions are properly defined (debug)
+    console.log('Function verification:', {
+        toggleAdVisibility: typeof window.toggleAdVisibility,
+        deleteAdvertisement: typeof window.deleteAdvertisement,
+        enableAdCart: typeof window.enableAdCart,
+        openModal: typeof window.openModal,
+        closeModal: typeof window.closeModal
+    });
 </script>
 {% endblock admin_extra_js %}
 
