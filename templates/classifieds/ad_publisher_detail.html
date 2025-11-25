@@ -834,10 +834,9 @@
 </style>
 {% endblock admin_extra_css %}
 
-<!-- Define critical functions immediately before content to ensure they're available for onclick handlers -->
+<!-- Admin action handlers will be set up via event delegation in admin_extra_js block -->
 <script>
-    // Version: 2024-11-25-v2 - Critical admin functions defined early for inline onclick handlers
-    console.log('=== Loading early admin functions v2 ===');
+    // Early setup for CSRF token helper
     window.getCookie = window.getCookie || function(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -853,95 +852,7 @@
         return cookieValue;
     };
 
-    window.currentAdId = window.currentAdId || null;
-    window.currentIsHidden = window.currentIsHidden || null;
-
-    window.toggleAdVisibility = window.toggleAdVisibility || function(adId, isCurrentlyHidden) {
-        console.log('toggleAdVisibility called early:', adId, isCurrentlyHidden);
-        window.currentAdId = adId;
-        window.currentIsHidden = isCurrentlyHidden;
-
-        // Wait for DOM to be ready
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function() {
-                window.toggleAdVisibility(adId, isCurrentlyHidden);
-            });
-            return;
-        }
-
-        const actionText = isCurrentlyHidden ? 'إظهار' : 'إخفاء';
-        const message = isCurrentlyHidden ? 'هل أنت متأكد من إظهار هذا الإعلان؟' : 'هل أنت متأكد من إخفاء هذا الإعلان؟';
-
-        const toggleHideMessage = document.getElementById('toggleHideMessage');
-        const toggleHideButtonText = document.getElementById('toggleHideButtonText');
-
-        if (toggleHideMessage) toggleHideMessage.textContent = message;
-        if (toggleHideButtonText) toggleHideButtonText.textContent = actionText;
-
-        if (typeof window.openModal === 'function') {
-            window.openModal('toggleHideModal');
-        } else {
-            // Fallback if modal function not loaded yet
-            const modal = document.getElementById('toggleHideModal');
-            if (modal) modal.classList.add('active');
-        }
-    };
-
-    window.deleteAdvertisement = window.deleteAdvertisement || function(adId, adTitle) {
-        console.log('deleteAdvertisement called early:', adId, adTitle);
-        window.currentAdId = adId;
-
-        // Wait for DOM to be ready
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function() {
-                window.deleteAdvertisement(adId, adTitle);
-            });
-            return;
-        }
-
-        const deleteAdTitle = document.getElementById('deleteAdTitle');
-        if (deleteAdTitle) deleteAdTitle.textContent = adTitle;
-
-        if (typeof window.openModal === 'function') {
-            window.openModal('deleteAdModal');
-        } else {
-            // Fallback if modal function not loaded yet
-            const modal = document.getElementById('deleteAdModal');
-            if (modal) modal.classList.add('active');
-        }
-    };
-
-    window.enableAdCart = window.enableAdCart || function(adId) {
-        console.log('enableAdCart called early:', adId);
-
-        if (!confirm('هل أنت متأكد من تفعيل السلة لهذا الإعلان؟')) return;
-
-        const url = '/ar/admin/ads/' + adId + '/enable-cart/';
-        console.log('Making request to:', url);
-
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': window.getCookie('csrftoken'),
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('تم تفعيل السلة بنجاح');
-                location.reload();
-            } else {
-                alert(data.error || 'حدث خطأ');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('خطأ في الاتصال بالخادم');
-        });
-    };
-
-    // Modal helper functions
+    // Modal helper functions defined early
     window.openModal = window.openModal || function(modalId) {
         const modal = document.getElementById(modalId);
         if (modal) {
@@ -955,14 +866,6 @@
             modal.classList.remove('active');
         }
     };
-
-    console.log('Early functions defined:', {
-        toggleAdVisibility: typeof window.toggleAdVisibility,
-        deleteAdvertisement: typeof window.deleteAdvertisement,
-        enableAdCart: typeof window.enableAdCart,
-        openModal: typeof window.openModal,
-        closeModal: typeof window.closeModal
-    });
 </script>
 
 {% block admin_content %}
@@ -976,18 +879,27 @@
                 <div class="admin-actions-card">
                     <h3>{% trans "إجراءات الإدارة" %}</h3>
                     <div class="d-flex flex-wrap gap-2">
-                        <button class="btn-action btn-toggle-hide" id="hideBtn" onclick="toggleAdVisibility({{ ad.id }}, {{ ad.is_hidden|yesno:'true,false' }})">
+                        <button class="btn-action btn-toggle-hide" id="hideBtn"
+                                data-action="toggle-hide"
+                                data-ad-id="{{ ad.id }}"
+                                data-is-hidden="{{ ad.is_hidden|yesno:'true,false' }}">
                             {% if ad.is_hidden %}
                                 <i class="fas fa-eye me-2"></i> {% trans "إظهار الإعلان" %}
                             {% else %}
                                 <i class="fas fa-eye-slash me-2"></i> {% trans "إخفاء الإعلان" %}
                             {% endif %}
                         </button>
-                        <button class="btn-action btn-delete" onclick="deleteAdvertisement({{ ad.id }}, '{{ ad.title|escapejs }}')">
+                        <button class="btn-action btn-delete"
+                                data-action="delete-ad"
+                                data-ad-id="{{ ad.id }}"
+                                data-ad-title="{{ ad.title|escapejs }}">
                             <i class="fas fa-trash-alt me-2"></i> {% trans "حذف الإعلان" %}
                         </button>
                         {% if ad.allow_cart %}
-                            <button class="btn-action btn-enable-cart" id="cartBtn" onclick="enableAdCart({{ ad.id }})" {% if ad.cart_enabled_by_admin %}disabled{% endif %}>
+                            <button class="btn-action btn-enable-cart" id="cartBtn"
+                                    data-action="enable-cart"
+                                    data-ad-id="{{ ad.id }}"
+                                    {% if ad.cart_enabled_by_admin %}disabled{% endif %}>
                                 <i class="fas fa-shopping-cart me-2"></i>
                                 {% if ad.cart_enabled_by_admin %}
                                     {% trans "تم تفعيل السلة" %}
@@ -1037,7 +949,7 @@
                 <div class="ad-details-card">
                     <div class="d-flex justify-content-between align-items-start">
                         <h1 class="ad-title" dir="auto">{{ ad.title }}</h1>
-                        <button class="btn btn-sm copy-link-btn" onclick="copyAdUrl(this)" title="{% trans 'Copy Link' %}" data-original-text="<i class='fas fa-link'></i> {% trans 'نسخ' %}">
+                        <button class="btn btn-sm copy-link-btn" data-action="copy-url" title="{% trans 'Copy Link' %}" data-original-text="<i class='fas fa-link'></i> {% trans 'نسخ' %}">
                             <i class="fas fa-link"></i> {% trans "نسخ" %}
                         </button>
                     </div>
@@ -1353,7 +1265,7 @@
                     <i class="fas fa-exclamation-triangle text-danger me-2"></i>
                     {% trans "تأكيد حذف الإعلان" %}
                 </h2>
-                <button class="btn-close" onclick="closeModal('deleteAdModal')">
+                <button class="btn-close" data-action="close-modal" data-modal-id="deleteAdModal">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -1368,7 +1280,7 @@
                 </p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-primary btn-cancel" onclick="closeModal('deleteAdModal')">
+                <button type="button" class="btn-primary btn-cancel" data-action="close-modal" data-modal-id="deleteAdModal">
                     <i class="fas fa-times me-2"></i>
                     {% trans "إلغاء" %}
                 </button>
@@ -1390,7 +1302,7 @@
                     <i class="fas fa-eye-slash text-warning me-2"></i>
                     <span id="toggleHideTitle">{% trans "تأكيد إخفاء الإعلان" %}</span>
                 </h2>
-                <button class="btn-close" onclick="closeModal('toggleHideModal')">
+                <button class="btn-close" data-action="close-modal" data-modal-id="toggleHideModal">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -1401,7 +1313,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-primary btn-cancel" onclick="closeModal('toggleHideModal')">
+                <button type="button" class="btn-primary btn-cancel" data-action="close-modal" data-modal-id="toggleHideModal">
                     <i class="fas fa-times me-2"></i>
                     {% trans "إلغاء" %}
                 </button>
@@ -1423,7 +1335,7 @@
                     <i class="fas fa-user-shield text-warning me-2"></i>
                     <span id="userActionTitle">{% trans "تأكيد الإجراء" %}</span>
                 </h2>
-                <button class="btn-close" onclick="closeModal('userActionModal')">
+                <button class="btn-close" data-action="close-modal" data-modal-id="userActionModal">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -1434,7 +1346,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-primary btn-cancel" onclick="closeModal('userActionModal')">
+                <button type="button" class="btn-primary btn-cancel" data-action="close-modal" data-modal-id="userActionModal">
                     <i class="fas fa-times me-2"></i>
                     {% trans "إلغاء" %}
                 </button>
@@ -1532,38 +1444,71 @@
         }
     });
 
-    // Admin actions - state variables (define globally to be accessible everywhere)
-    window.currentAdId = null;
-    window.currentIsHidden = null;
+    // Admin actions - state variables
+    let currentAdId = null;
+    let currentIsHidden = null;
+    let currentAdTitle = null;
 
-    // Verify functions are properly defined
-    console.log('Defining global admin functions...'); // Debug log
+    console.log('Setting up event delegation for admin actions...');
 
-    // Admin actions - define immediately to ensure availability
-    window.toggleAdVisibility = function(adId, isCurrentlyHidden) {
-        console.log('toggleAdVisibility called with:', adId, isCurrentlyHidden); // Debug log
+    // Event delegation for all admin action buttons
+    document.addEventListener('click', function(e) {
+        const target = e.target.closest('[data-action]');
+        if (!target) return;
 
-        window.currentAdId = adId;
-        window.currentIsHidden = isCurrentlyHidden;
+        const action = target.dataset.action;
+        console.log('Action clicked:', action, target.dataset);
 
-        const actionText = isCurrentlyHidden ? '{% trans "إظهار" %}' : '{% trans "إخفاء" %}';
-        const message = isCurrentlyHidden ? '{% trans "هل أنت متأكد من إظهار هذا الإعلان؟" %}' : '{% trans "هل أنت متأكد من إخفاء هذا الإعلان؟" %}';
+        // Handle different actions
+        switch(action) {
+            case 'toggle-hide':
+                const adId = parseInt(target.dataset.adId);
+                const isHidden = target.dataset.isHidden === 'true';
+                handleToggleVisibility(adId, isHidden);
+                break;
+
+            case 'delete-ad':
+                const deleteAdId = parseInt(target.dataset.adId);
+                const deleteAdTitle = target.dataset.adTitle;
+                handleDeleteAd(deleteAdId, deleteAdTitle);
+                break;
+
+            case 'enable-cart':
+                const cartAdId = parseInt(target.dataset.adId);
+                handleEnableCart(cartAdId, target);
+                break;
+
+            case 'prev-image':
+                previousImage();
+                break;
+
+            case 'next-image':
+                nextImage();
+                break;
+
+            case 'copy-url':
+                handleCopyUrl(target);
+                break;
+        }
+    });
+
+    // Handler functions
+    function handleToggleVisibility(adId, isHidden) {
+        console.log('handleToggleVisibility:', adId, isHidden);
+        currentAdId = adId;
+        currentIsHidden = isHidden;
+
+        const actionText = isHidden ? '{% trans "إظهار" %}' : '{% trans "إخفاء" %}';
+        const message = isHidden ? '{% trans "هل أنت متأكد من إظهار هذا الإعلان؟" %}' : '{% trans "هل أنت متأكد من إخفاء هذا الإعلان؟" %}';
 
         const toggleHideMessage = document.getElementById('toggleHideMessage');
         const toggleHideButtonText = document.getElementById('toggleHideButtonText');
 
-        console.log('Modal elements found:', {toggleHideMessage, toggleHideButtonText}); // Debug log
-
         if (toggleHideMessage) toggleHideMessage.textContent = message;
         if (toggleHideButtonText) toggleHideButtonText.textContent = actionText;
 
-        if (typeof window.openModal === 'function') {
-            console.log('Opening modal: toggleHideModal'); // Debug log
-            window.openModal('toggleHideModal');
-        } else {
-            console.error('openModal function not found');
-        }
-    };
+        window.openModal('toggleHideModal');
+    }
 
     // Confirm toggle hide handler
     document.addEventListener('DOMContentLoaded', function() {
@@ -1599,22 +1544,16 @@
         }
     });
 
-    window.deleteAdvertisement = function(adId, adTitle) {
-        console.log('deleteAdvertisement called with:', adId, adTitle); // Debug log
+    function handleDeleteAd(adId, adTitle) {
+        console.log('handleDeleteAd:', adId, adTitle);
+        currentAdId = adId;
+        currentAdTitle = adTitle;
 
-        window.currentAdId = adId;
         const deleteAdTitle = document.getElementById('deleteAdTitle');
-
-        console.log('Delete modal element found:', deleteAdTitle); // Debug log
-
         if (deleteAdTitle) deleteAdTitle.textContent = adTitle;
-        if (typeof window.openModal === 'function') {
-            console.log('Opening modal: deleteAdModal'); // Debug log
-            window.openModal('deleteAdModal');
-        } else {
-            console.error('openModal function not found');
-        }
-    };
+
+        window.openModal('deleteAdModal');
+    }
 
     // Confirm delete handler
     document.addEventListener('DOMContentLoaded', function() {
@@ -1652,18 +1591,17 @@
         }
     });
 
-    window.enableAdCart = function(adId) {
-        console.log('enableAdCart called with:', adId); // Debug log
+    function handleEnableCart(adId, button) {
+        console.log('handleEnableCart:', adId);
 
         if (!confirm('{% trans "هل أنت متأكد من تفعيل السلة لهذا الإعلان؟" %}')) return;
 
         const url = "{% url 'main:enable_ad_cart' 0 %}".replace('0', adId);
-        console.log('Making request to:', url); // Debug log
 
         fetch(url, {
             method: 'POST',
             headers: {
-                'X-CSRFToken': window.getCookie('csrftoken'),
+                'X-CSRFToken': getCookie('csrftoken'),
                 'Content-Type': 'application/json'
             }
         })
@@ -1671,10 +1609,9 @@
         .then(data => {
             if (data.success) {
                 window.showNotification('{% trans "تم تفعيل السلة بنجاح." %}', 'success');
-                const cartBtn = document.getElementById('cartBtn');
-                if(cartBtn) {
-                    cartBtn.disabled = true;
-                    cartBtn.innerHTML = '<i class="fas fa-shopping-cart me-2"></i> {% trans "تم تفعيل السلة" %}';
+                if (button) {
+                    button.disabled = true;
+                    button.innerHTML = '<i class="fas fa-shopping-cart me-2"></i> {% trans "تم تفعيل السلة" %}';
                 }
             } else {
                 window.showNotification(data.error || '{% trans "حدث خطأ." %}', 'error');
@@ -1744,9 +1681,10 @@
         }
     });
 
-    window.copyAdUrl = function(button) {
+    function handleCopyUrl(button) {
         const url = window.location.href;
         const originalText = button.dataset.originalText;
+
         navigator.clipboard.writeText(url).then(function() {
             button.innerHTML = '<i class="fas fa-check me-2"></i> {% trans "تم النسخ!" %}';
             button.classList.add('copied');
@@ -1758,18 +1696,9 @@
             console.error('Could not copy text: ', err);
             window.showNotification('{% trans "فشل نسخ الرابط." %}', 'error');
         });
-    };
+    }
 
-    // All functions are now assigned to window object above
-
-    // Verify all functions are properly defined (debug)
-    console.log('Function verification:', {
-        toggleAdVisibility: typeof window.toggleAdVisibility,
-        deleteAdvertisement: typeof window.deleteAdvertisement,
-        enableAdCart: typeof window.enableAdCart,
-        openModal: typeof window.openModal,
-        closeModal: typeof window.closeModal
-    });
+    console.log('Event delegation setup complete. All admin actions ready.');
 </script>
 {% endblock admin_extra_js %}
 
