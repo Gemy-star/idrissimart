@@ -21,7 +21,7 @@
             <button class="btn btn-outline-primary" onclick="exportReservations()">
                 <i class="fas fa-download me-1"></i>{% trans "تصدير" %}
             </button>
-            <button class="btn btn-primary" onclick="openModal('addReservationModal')">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addReservationModal">
                 <i class="fas fa-plus me-1"></i>{% trans "حجز جديد" %}
             </button>
         </div>
@@ -322,16 +322,14 @@
 </div>
 
 <!-- Add Reservation Modal -->
-<div class="modal" id="addReservationModal">
+<div class="modal fade" id="addReservationModal" tabindex="-1" aria-labelledby="addReservationLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>
+                <h5 class="modal-title" id="addReservationLabel">
                     <i class="fas fa-plus me-2"></i>{% trans "إضافة حجز جديد" %}
-                </h2>
-                <button type="button" class="btn-close" onclick="closeModal('addReservationModal')">
-                    <i class="fas fa-times"></i>
-                </button>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="addReservationForm">
                 {% csrf_token %}
@@ -383,11 +381,11 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-cancel" onclick="closeModal('addReservationModal')">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                         <i class="fas fa-times me-2"></i>
                         {% trans "إلغاء" %}
                     </button>
-                    <button type="submit" class="btn-primary">
+                    <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save me-1"></i>{% trans "حفظ الحجز" %}
                     </button>
                 </div>
@@ -397,16 +395,14 @@
 </div>
 
 <!-- View Reservation Modal -->
-<div class="modal" id="viewReservationModal">
+<div class="modal fade" id="viewReservationModal" tabindex="-1" aria-labelledby="viewReservationLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>
+                <h5 class="modal-title" id="viewReservationLabel">
                     <i class="fas fa-eye me-2"></i>{% trans "تفاصيل الحجز" %}
-                </h2>
-                <button type="button" class="btn-close" onclick="closeModal('viewReservationModal')">
-                    <i class="fas fa-times"></i>
-                </button>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div id="reservationDetails">
@@ -418,17 +414,15 @@
 </div>
 
 <!-- Confirmation Modal -->
-<div class="modal" id="confirmActionModal">
+<div class="modal fade" id="confirmActionModal" tabindex="-1" aria-labelledby="confirmActionLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>
+                <h5 class="modal-title" id="confirmActionLabel">
                     <i class="fas fa-exclamation-circle text-warning me-2"></i>
                     <span id="confirmActionTitle">{% trans "تأكيد الإجراء" %}</span>
-                </h2>
-                <button type="button" class="btn-close" onclick="closeModal('confirmActionModal')">
-                    <i class="fas fa-times"></i>
-                </button>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-info">
@@ -437,11 +431,11 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-cancel" onclick="closeModal('confirmActionModal')">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     <i class="fas fa-times me-2"></i>
                     {% trans "إلغاء" %}
                 </button>
-                <button type="button" class="btn-warning" id="confirmActionBtn">
+                <button type="button" class="btn btn-warning" id="confirmActionBtn">
                     <i class="fas fa-check me-2"></i>
                     <span id="confirmActionBtnText">{% trans "تأكيد" %}</span>
                 </button>
@@ -457,35 +451,34 @@
 let currentReservationId = null;
 let currentReservationAction = null;
 
-// Modal helper functions
+// Modal helper functions using Bootstrap Modal API
 function openModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.classList.add('active');
-        modal.style.display = 'flex';
+    const modalElement = document.getElementById(modalId);
+    if (modalElement) {
+        const modal = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+        modal.show();
     }
 }
 
 function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.classList.remove('active');
-        modal.style.display = 'none';
+    const modalElement = document.getElementById(modalId);
+    if (modalElement) {
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        if (modal) {
+            modal.hide();
+        }
 
         // Reset button class when closing
         if (modalId === 'confirmActionModal') {
-            document.getElementById('confirmActionBtn').className = 'btn-warning';
+            const confirmBtn = document.getElementById('confirmActionBtn');
+            if (confirmBtn) {
+                confirmBtn.className = 'btn-warning';
+            }
         }
     }
 }
 
-// Close modal when clicking outside
-window.addEventListener('click', function(event) {
-    if (event.target.classList.contains('modal')) {
-        event.target.classList.remove('active');
-        event.target.style.display = 'none';
-    }
-});
+// Bootstrap modals handle backdrop clicks automatically
 
 function viewReservation(reservationId) {
     document.getElementById('reservationDetails').innerHTML = `

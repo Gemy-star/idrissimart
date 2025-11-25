@@ -317,10 +317,10 @@
     </div>
 </div>
 
-<!-- Confirm Delete Panel -->
-<div class="slide-panel" id="confirmDeletePanel">
-    <div class="slide-panel-overlay"></div>
-    <div class="slide-panel-content">
+<!-- Confirm Delete Modal -->
+<div class="modal fade" id="confirmDeletePanel" tabindex="-1" aria-labelledby="confirmDeleteLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title text-danger" id="confirmDeleteLabel">
                     <i class="fas fa-exclamation-triangle me-2"></i>
@@ -329,23 +329,23 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-            <div class="alert alert-warning">
-                <i class="fas fa-info-circle me-2"></i>
-                {% trans "هل أنت متأكد من حذف الإعلان" %} "<span id="deleteAdTitle"></span>"؟
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle me-2"></i>
+                    {% trans "هل أنت متأكد من حذف الإعلان" %} "<span id="deleteAdTitle"></span>"؟
+                </div>
+                <p class="text-muted fw-bold">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    {% trans "هذا الإجراء لا يمكن التراجع عنه." %}
+                </p>
             </div>
-            <p class="text-muted fw-bold">
-                <i class="fas fa-exclamation-circle me-2"></i>
-                {% trans "هذا الإجراء لا يمكن التراجع عنه." %}
-            </p>
-        </div>
-        <div class="slide-panel-footer">
-            <button type="button" class="btn btn-secondary" data-action="close-side-panel" data-panel-id="confirmDeletePanel">
-                <i class="fas fa-times me-2"></i>
-                {% trans "إلغاء" %}
-            </button>
-            <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
-                <i class="fas fa-trash me-2"></i>
-                {% trans "حذف نهائياً" %}
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>
+                    {% trans "إلغاء" %}
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash me-2"></i>
+                    {% trans "حذف نهائياً" %}
                 </button>
             </div>
         </div>
@@ -423,16 +423,12 @@ document.addEventListener('click', function(e) {
             const adTitle = target.dataset.adTitle;
             if (deleteAdId) deleteAd(deleteAdId, adTitle);
             break;
-
-        case 'close-side-panel':
-            const panelId = target.dataset.panelId;
-            if (panelId) closeSidePanel(panelId);
-            break;
     }
 });
 
 function viewAdDetails(adId) {
-    const modal = new bootstrap.Modal(document.getElementById('adDetailsPanel'));
+    const modalElement = document.getElementById('adDetailsPanel');
+    const modal = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
     const content = document.getElementById('adDetailsContent');
 
     // Show loading
@@ -445,7 +441,6 @@ function viewAdDetails(adId) {
     `;
 
     modal.show();
-    openSidePanel('adDetailsPanel');
 
     // Load ad details via AJAX
     fetch(`/dashboard/ad/${adId}/details/`)
@@ -537,8 +532,13 @@ function toggleAdStatus(adId) {
 
 function deleteAd(adId, adTitle) {
     currentAdId = adId;
-    document.getElementById('deleteAdTitle').textContent = adTitle;
-    openSidePanel('confirmDeletePanel');
+    const titleElement = document.getElementById('deleteAdTitle');
+    if (titleElement) {
+        titleElement.textContent = adTitle;
+    }
+    const modalElement = document.getElementById('confirmDeletePanel');
+    const modal = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+    modal.show();
 }
 
 document.getElementById('confirmDeleteBtn').addEventListener('click', function() {

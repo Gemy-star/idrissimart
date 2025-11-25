@@ -370,22 +370,29 @@
         let adToDeleteId = null;
 
         function openModal(modalId) {
-            const modal = document.getElementById(modalId);
-            if (modal) {
-                modal.classList.add('active');
+            const modalElement = document.getElementById(modalId);
+            if (modalElement) {
+                const modal = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+                modal.show();
             }
         }
 
         function closeModal(modalId) {
-            const modal = document.getElementById(modalId);
-            if (modal) {
-                modal.classList.remove('active');
+            const modalElement = document.getElementById(modalId);
+            if (modalElement) {
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) {
+                    modal.hide();
+                }
             }
         }
 
         function deleteAd(adId, adTitle) {
             adToDeleteId = adId;
-            document.getElementById('deleteAdTitle').textContent = adTitle;
+            const titleElement = document.getElementById('deleteAdTitle');
+            if (titleElement) {
+                titleElement.textContent = adTitle;
+            }
             openModal('confirmDeleteModal');
         }
 
@@ -468,8 +475,12 @@
                 })
                 .then(data => {
                     if (data.success) {
+                        const modalElement = document.getElementById('confirmDeleteModal');
+                        const modal = bootstrap.Modal.getInstance(modalElement);
+                        if (modal) {
+                            modal.hide();
+                        }
                         showSuccess(data.message || '{% trans "تم حذف الإعلان بنجاح." %}');
-                        closeModal('confirmDeleteModal');
                         setTimeout(() => {
                             location.reload();
                         }, 1000);
@@ -512,14 +523,7 @@
             }
         });
 
-        // Close modal on outside click
-        window.addEventListener('click', function(event) {
-            if (event.target.classList.contains('modal')) {
-                const modalId = event.target.id;
-                if (modalId) {
-                    closeModal(modalId);
-                }
-            }
-        });
+        // Bootstrap modals handle backdrop clicks automatically
+        // No custom click handler needed
     </script>
 {% endblock %}
