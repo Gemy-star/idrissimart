@@ -42,6 +42,15 @@ class CustomLoginView(LoginView):
     template_name = "pages/login.html"
     redirect_authenticated_user = True
 
+    def get_context_data(self, **kwargs):
+        """Add next URL to context for template."""
+        context = super().get_context_data(**kwargs)
+        # Safely get the next parameter from GET or POST
+        context["next_url"] = self.request.GET.get("next") or self.request.POST.get(
+            "next"
+        )
+        return context
+
     def get_success_url(self):
         """
         Determine the redirect URL based on:
