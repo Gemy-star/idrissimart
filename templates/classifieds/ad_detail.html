@@ -60,6 +60,43 @@
                             {% render_ad_badges ad %}
                         </div>
                     </div>
+
+                    {% if ad_inactive %}
+                    <!-- Inactive Ad Warning -->
+                    <div class="alert alert-warning border-0 shadow-sm mb-4" style="border-radius: 15px; background: linear-gradient(135deg, #fff3cd, #ffeaa7); border-left: 4px solid #ffc107;">
+                        <div class="d-flex align-items-center">
+                            <div class="me-3">
+                                <i class="fas fa-exclamation-triangle fa-2x" style="color: #856404;"></i>
+                            </div>
+                            <div>
+                                <h5 class="alert-heading mb-1" style="color: #856404; font-weight: 600;">
+                                    {% if ad_status == 'EXPIRED' %}
+                                        {% trans "إعلان منتهي الصلاحية" %}
+                                    {% elif ad_status == 'DRAFT' %}
+                                        {% trans "إعلان في المسودة" %}
+                                    {% elif ad_status == 'UNDER_REVIEW' %}
+                                        {% trans "إعلان تحت المراجعة" %}
+                                    {% elif ad_status == 'REJECTED' %}
+                                        {% trans "إعلان مرفوض" %}
+                                    {% elif ad_status == 'SOLD' %}
+                                        {% trans "تم بيع هذا الإعلان" %}
+                                    {% else %}
+                                        {% trans "إعلان غير متاح" %}
+                                    {% endif %}
+                                </h5>
+                                <p class="mb-0" style="color: #856404;">
+                                    {% if ad_status == 'EXPIRED' %}
+                                        {% trans "انتهت صلاحية هذا الإعلان. لا يمكن التفاعل معه حاليًا." %}
+                                    {% elif ad_status == 'SOLD' %}
+                                        {% trans "تم بيع هذا المنتج. شكرًا لاهتمامكم." %}
+                                    {% else %}
+                                        {% trans "هذا الإعلان غير متاح للتفاعل حاليًا. يمكنك مشاهدة التفاصيل فقط." %}
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                     <!-- Image Gallery -->
                     <div class="modern-card ad-gallery-container mb-4 rounded-3 overflow-hidden shadow-sm" style="background: var(--bg-primary);">
                         <div class="swiper ad-gallery-swiper" style="border-radius: 20px;">
@@ -254,7 +291,23 @@
                                 {% endif %}
                             </div>
                             <div class="card-footer bg-transparent border-top-0 pt-0">
-                                {% if ad.cart_enabled_by_admin %}
+                                {% if ad_inactive %}
+                                    <!-- Disabled Actions for Inactive Ads -->
+                                    <div class="d-grid gap-2">
+                                        <div class="alert alert-info border-0" style="border-radius: 10px; background: rgba(107, 76, 122, 0.1); color: var(--text-primary);">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            {% trans "الإجراءات غير متاحة لهذا الإعلان" %}
+                                        </div>
+                                        <button class="btn btn-lg shadow-sm" disabled
+                                                style="background: #e9ecef; color: #6c757d; border-radius: 15px; font-weight: 600;">
+                                            <i class="fas fa-shopping-cart me-2"></i> {% trans "إضافة للسلة" %} - {% trans "غير متاح" %}
+                                        </button>
+                                        <button class="btn btn-outline-secondary btn-lg shadow-sm" disabled
+                                                style="border-radius: 15px; font-weight: 600;">
+                                            <i class="far fa-heart me-2"></i> {% trans "إضافة للمفضلة" %} - {% trans "غير متاح" %}
+                                        </button>
+                                    </div>
+                                {% elif ad.cart_enabled_by_admin %}
                                     <div class="d-grid gap-2">
                                         {% if request.user.is_authenticated %}
                                             <button class="btn btn-lg shadow-sm add-to-cart-btn" {# Changed #}
@@ -284,6 +337,30 @@
                                     </div>
                                 {% else %}
                                     <div class="d-grid gap-3">
+                                        {% if ad_inactive %}
+                                            <!-- Disabled Contact Actions for Inactive Ads -->
+                                            <div class="alert alert-info border-0" style="border-radius: 10px; background: rgba(107, 76, 122, 0.1); color: var(--text-primary);">
+                                                <i class="fas fa-info-circle me-2"></i>
+                                                {% trans "التواصل غير متاح لهذا الإعلان" %}
+                                            </div>
+                                            <button class="btn btn-outline-secondary btn-lg shadow-sm" disabled
+                                                    style="border-radius: 15px; font-weight: 600;">
+                                                <i class="far fa-heart me-2"></i> {% trans "إضافة للمفضلة" %} - {% trans "غير متاح" %}
+                                            </button>
+                                            <button class="btn btn-lg shadow-sm" disabled
+                                                    style="background: #e9ecef; color: #6c757d; border-radius: 15px; font-weight: 600;">
+                                                <i class="fas fa-comments me-2"></i> {% trans "محادثة البائع" %} - {% trans "غير متاح" %}
+                                            </button>
+                                            <button class="btn btn-lg shadow-sm" disabled
+                                                   style="background: #e9ecef; color: #6c757d; border-radius: 15px; font-weight: 600;">
+                                                <i class="fas fa-phone-alt me-2"></i> {% trans "اتصال" %} - {% trans "غير متاح" %}
+                                            </button>
+                                            <button class="btn btn-lg shadow-sm" disabled
+                                                   style="background: #e9ecef; color: #6c757d; border-radius: 15px; font-weight: 600;">
+                                                <i class="fab fa-whatsapp me-2"></i> {% trans "واتساب" %} - {% trans "غير متاح" %}
+                                            </button>
+                                        {% else %}
+                                            <!-- Normal Active Ad Actions -->
                                         {% if request.user.is_authenticated %} {# Changed #}
                                             <button class="btn btn-outline-danger btn-lg shadow-sm mb-2 wishlist-btn" {# Changed #}
                                                     data-type="wishlist" {# Added #}
@@ -310,6 +387,7 @@
                                            class="btn btn-lg shadow-sm" style="background: linear-gradient(135deg, #25d366, #128c7e); color: white; border-radius: 15px; font-weight: 600; text-decoration: none;">
                                             <i class="fab fa-whatsapp me-2"></i> {% trans "مراسلة واتساب" %}
                                         </a>
+                                        {% endif %}
                                     </div>
                                 {% endif %}
                             </div>

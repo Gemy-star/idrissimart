@@ -84,7 +84,8 @@ Q_CLUSTER = {
     "name": "idrissimart_q_prod",
     "workers": 2,  # Reduced for production stability
     "recycle": 500,
-    "timeout": 120,  # Increased timeout for production
+    "timeout": 120,  # Task timeout in seconds
+    "retry": 180,  # Retry timeout must be larger than timeout (120s)
     "compress": True,
     "save_limit": 100,  # Reduced to save database space
     "queue_limit": 200,

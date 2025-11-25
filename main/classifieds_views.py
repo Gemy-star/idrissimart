@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Case, F, IntegerField, Value, When
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
@@ -236,16 +236,88 @@ class ClassifiedAdDetailView(DetailView):
     template_name = "classifieds/ad_detail.html"
     context_object_name = "ad"
 
+    def dispatch(self, request, *args, **kwargs):
+        """Override dispatch to handle inactive ads gracefully."""
+        ad_id = self.kwargs.get(self.pk_url_kwarg)
+
+        try:
+            # First check if ad exists at all (including inactive ones)
+            from .models import ClassifiedAd
+
+            ad = ClassifiedAd.objects.select_related("user", "category").get(pk=ad_id)
+
+            # If ad is not active, show it with disabled actions
+            if ad.status != ClassifiedAd.AdStatus.ACTIVE:
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.info(
+                    f"ClassifiedAd {ad_id} is {ad.get_status_display()} - showing with disabled actions. IP: {request.META.get('REMOTE_ADDR', 'unknown')}"
+                )
+
+                # Set the object and render with inactive template
+                self.object = ad
+                context = self.get_context_data(object=ad)
+                context["ad_inactive"] = True
+                context["ad_status"] = ad.status
+                context["ad_status_display"] = ad.get_status_display()
+                return self.render_to_response(context)
+
+            # Ad is active, proceed normally
+            return super().dispatch(request, *args, **kwargs)
+
+        except ClassifiedAd.DoesNotExist:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.info(
+                f"ClassifiedAd {ad_id} does not exist in database. IP: {request.META.get('REMOTE_ADDR', 'unknown')}"
+            )
+            raise Http404(f"Classified ad with ID {ad_id} does not exist.")
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(
+                f"Error checking ClassifiedAd {ad_id}: {str(e)}", exc_info=True
+            )
+            raise Http404(f"Unable to access classified ad {ad_id}.")
+
     def get_queryset(self):
-        # Only show active ads to the public
-        return ClassifiedAd.objects.filter(status=ClassifiedAd.AdStatus.ACTIVE)
+        # We handle inactive ads in dispatch, so include all ads here
+        return ClassifiedAd.objects.all()
 
     def get_object(self, queryset=None):
-        obj = super().get_object(queryset)
-        # Increment view count without causing a race condition
-        ClassifiedAd.objects.filter(pk=obj.pk).update(views_count=F("views_count") + 1)
-        # obj.refresh_from_db() # The template will display the updated count
-        return obj
+        """Get the classified ad object with proper error handling and logging."""
+        try:
+            obj = super().get_object(queryset)
+            # Increment view count without causing a race condition
+            ClassifiedAd.objects.filter(pk=obj.pk).update(
+                views_count=F("views_count") + 1
+            )
+            # obj.refresh_from_db() # The template will display the updated count
+            return obj
+        except ClassifiedAd.DoesNotExist:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            ad_id = self.kwargs.get(self.pk_url_kwarg)
+            logger.info(
+                f"ClassifiedAd with ID {ad_id} does not exist or is not active. IP: {self.request.META.get('REMOTE_ADDR', 'unknown')}"
+            )
+            raise Http404(
+                f"ClassifiedAd with ID {ad_id} does not exist or is not active."
+            )
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            ad_id = self.kwargs.get(self.pk_url_kwarg)
+            logger.error(
+                f"Unexpected error accessing ClassifiedAd {ad_id}: {str(e)}",
+                exc_info=True,
+            )
+            raise
 
     def get_context_data(self, **kwargs):
         """

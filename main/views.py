@@ -4482,9 +4482,37 @@ def admin_subscription_toggle_auto_renew(request, subscription_id):
 
 def custom_404(request, exception=None):
     """Custom 404 error page"""
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    # Log the 404 error for debugging
+    path = request.get_full_path()
+    logger.info(f"404 error for path: {path}, exception: {exception}, IP: {request.META.get('REMOTE_ADDR', 'unknown')}")
+
+    # Check if this is an AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        from django.http import JsonResponse
+        return JsonResponse({'error': 'Page not found'}, status=404)
+
     return render(request, "404.html", status=404)
 
 
 def custom_500(request):
     """Custom 500 error page"""
+    import logging
+    import traceback
+
+    logger = logging.getLogger(__name__)
+
+    # Log the 500 error with full traceback
+    path = request.get_full_path() if hasattr(request, 'get_full_path') else 'unknown'
+    logger.error(f"500 error for path: {path}, IP: {request.META.get('REMOTE_ADDR', 'unknown') if hasattr(request, 'META') else 'unknown'}")
+    logger.error(f"500 error traceback: {traceback.format_exc()}")
+
+    # Check if this is an AJAX request
+    if hasattr(request, 'headers') and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        from django.http import JsonResponse
+        return JsonResponse({'error': 'Internal server error'}, status=500)
+
     return render(request, "500.html", status=500)
