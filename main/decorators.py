@@ -125,7 +125,9 @@ def api_profile_type_required(*allowed_types):
             if request.user.profile_type not in allowed_types:
                 error_response = {
                     "error": _("تم رفض الإذن"),
-                    "message": _("نوع ملفك الشخصي لا يملك صلاحية الوصول إلى هذا المورد"),
+                    "message": _(
+                        "نوع ملفك الشخصي لا يملك صلاحية الوصول إلى هذا المورد"
+                    ),
                     "required_types": list(allowed_types),
                     "your_type": request.user.profile_type,
                 }
@@ -205,11 +207,15 @@ class PublisherRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
     def handle_no_permission(self):
         """Redirect with appropriate message"""
         if not self.request.user.is_authenticated:
-            return redirect(self.login_url)
+            from django.contrib.auth.views import redirect_to_login
+
+            return redirect_to_login(self.request.get_full_path(), self.login_url)
 
         messages.warning(
             self.request,
-            _("لوحة الناشر متاحة فقط للمستخدمين الذين لديهم إعلانات. قم بإنشاء إعلانك الأول!"),
+            _(
+                "لوحة الناشر متاحة فقط للمستخدمين الذين لديهم إعلانات. قم بإنشاء إعلانك الأول!"
+            ),
         )
         return redirect("main:ad_create")
 
@@ -232,7 +238,9 @@ class SuperadminRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
     def handle_no_permission(self):
         """Redirect with error message"""
         if not self.request.user.is_authenticated:
-            return redirect(self.login_url)
+            from django.contrib.auth.views import redirect_to_login
+
+            return redirect_to_login(self.request.get_full_path(), self.login_url)
 
         messages.error(self.request, _("هذه الصفحة متاحة فقط لمسؤولي النظام."))
         return redirect("main:home")
@@ -259,7 +267,9 @@ class VerifiedPublisherMixin(PublisherRequiredMixin):
     def handle_no_permission(self):
         """Handle verification requirement"""
         if not self.request.user.is_authenticated:
-            return redirect(self.login_url)
+            from django.contrib.auth.views import redirect_to_login
+
+            return redirect_to_login(self.request.get_full_path(), self.login_url)
 
         user = self.request.user
 
