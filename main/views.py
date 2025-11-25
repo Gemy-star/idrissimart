@@ -356,11 +356,12 @@ class CategoriesView(FilterView):
 
         content_labels = context_names.get(content_type, context_names["classified"])
 
-        # Get all active categories for the category filter dropdown
+        # Get all active categories for the category filter dropdown (hierarchical)
         all_categories = Category.objects.filter(
             is_active=True,
             section_type=section_type_value or Category.SectionType.CLASSIFIED,
-        ).order_by("name")
+            parent__isnull=True,
+        ).prefetch_related('subcategories__subcategories').order_by("order", "name")
 
         context.update(
             {
@@ -1265,7 +1266,9 @@ class AdDetailView(DetailView):
                 wishlist, _ = Wishlist.objects.get_or_create(user=self.request.user)
 
                 ad.is_in_cart = CartItem.objects.filter(cart=cart, ad=ad).exists()
-                ad.is_in_wishlist = WishlistItem.objects.filter(wishlist=wishlist, ad=ad).exists()
+                ad.is_in_wishlist = WishlistItem.objects.filter(
+                    wishlist=wishlist, ad=ad
+                ).exists()
             except Exception:
                 ad.is_in_cart = False
                 ad.is_in_wishlist = False
@@ -1393,10 +1396,11 @@ class AdCreateView(LoginRequiredMixin, CreateView):
             elif self.request.user.is_verified:
                 # Check if user has an active package with remaining ads
                 from main.models import UserPackage
+
                 active_package = UserPackage.objects.filter(
                     user=self.request.user,
                     ads_remaining__gt=0,
-                    expiry_date__gte=timezone.now()
+                    expiry_date__gte=timezone.now(),
                 ).first()
 
                 if active_package:
@@ -1418,7 +1422,10 @@ class AdCreateView(LoginRequiredMixin, CreateView):
             if self.object.status == ClassifiedAd.AdStatus.ACTIVE:
                 messages.success(self.request, _("تم نشر إعلانك بنجاح!"))
             else:
-                messages.success(self.request, _("تم إرسال إعلانك للمراجعة! سيتم نشره بعد موافقة الإدارة."))
+                messages.success(
+                    self.request,
+                    _("تم إرسال إعلانك للمراجعة! سيتم نشره بعد موافقة الإدارة."),
+                )
 
             return super().form_valid(form)
         else:
@@ -1490,7 +1497,9 @@ class AdUpdateView(LoginRequiredMixin, UpdateView):
 
             if needs_approval:
                 form.instance.status = ClassifiedAd.AdStatus.PENDING
-                messages.info(self.request, _("سيتم مراجعة التعديلات من قبل الإدارة قبل نشرها."))
+                messages.info(
+                    self.request, _("سيتم مراجعة التعديلات من قبل الإدارة قبل نشرها.")
+                )
 
             self.object = form.save()
             image_formset.save()
@@ -2638,10 +2647,12 @@ class AdminCustomFieldsView(SuperadminRequiredMixin, ListView):
         context["search_query"] = self.request.GET.get("search", "")
 
         # Add field type choices for the modal
-        context["field_type_choices"] = CustomField.FIELD_TYPES
+        context["field_type_choices"] = CustomField.FieldType.choices
 
-        # Get all categories for the dropdown
-        context["all_categories"] = Category.objects.filter(parent__isnull=True).order_by('order', 'name_ar')
+        # Get all categories hierarchically (main -> sub -> sub-sub)
+        context["all_categories"] = Category.objects.filter(
+            parent__isnull=True
+        ).prefetch_related('subcategories__subcategories').order_by("order", "name_ar")
 
         # Group fields by category for the template
         context["fields_by_category"] = {}
@@ -3023,9 +3034,11 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
         # User Subscriptions - Get all user subscriptions
         from main.models import UserSubscription
 
-        context["user_subscriptions"] = UserSubscription.objects.select_related(
-            "user"
-        ).order_by("-created_at").all()
+        context["user_subscriptions"] = (
+            UserSubscription.objects.select_related("user")
+            .order_by("-created_at")
+            .all()
+        )
 
         context["active_nav"] = "payments"
 
@@ -4123,11 +4136,14 @@ class AdminSupportChatsView(SuperadminRequiredMixin, TemplateView):
         context["active_nav"] = "support_chats"
 
         # Get all support chat rooms (publisher-admin type)
-        chat_rooms = ChatRoom.objects.filter(
-            room_type='publisher_admin'
-        ).select_related('publisher').prefetch_related('messages').order_by('-updated_at')
+        chat_rooms = (
+            ChatRoom.objects.filter(room_type="publisher_admin")
+            .select_related("publisher")
+            .prefetch_related("messages")
+            .order_by("-updated_at")
+        )
 
-        context['chat_rooms'] = chat_rooms
+        context["chat_rooms"] = chat_rooms
 
         # Calculate statistics
         total_chats = chat_rooms.count()
@@ -4135,24 +4151,24 @@ class AdminSupportChatsView(SuperadminRequiredMixin, TemplateView):
 
         # Count unread messages (messages from publishers not read by admin)
         unread_messages = ChatMessage.objects.filter(
-            room__room_type='publisher_admin',
+            room__room_type="publisher_admin",
             is_read=False,
-            sender__is_staff=False  # Messages from publishers
+            sender__is_staff=False,  # Messages from publishers
         ).count()
 
         # Count resolved chats today
         from django.utils import timezone
+
         today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
         resolved_today = chat_rooms.filter(
-            is_active=False,
-            updated_at__gte=today_start
+            is_active=False, updated_at__gte=today_start
         ).count()
 
-        context['chat_stats'] = {
-            'total_chats': total_chats,
-            'active_chats': active_chats,
-            'unread_messages': unread_messages,
-            'resolved_today': resolved_today,
+        context["chat_stats"] = {
+            "total_chats": total_chats,
+            "active_chats": active_chats,
+            "unread_messages": unread_messages,
+            "resolved_today": resolved_today,
         }
 
         return context
@@ -4171,34 +4187,27 @@ def admin_chat_get_messages(request, room_id):
         from django.template.loader import render_to_string
 
         room = get_object_or_404(
-            ChatRoom.objects.select_related('publisher').prefetch_related('messages__sender'),
+            ChatRoom.objects.select_related("publisher").prefetch_related(
+                "messages__sender"
+            ),
             id=room_id,
-            room_type='publisher_admin'
+            room_type="publisher_admin",
         )
 
         # Mark messages as read
         room.messages.filter(is_read=False, sender__is_staff=False).update(
-            is_read=True,
-            read_at=timezone.now()
+            is_read=True, read_at=timezone.now()
         )
 
         # Render chat HTML
-        html = render_to_string('chat/partials/_chat_messages.html', {
-            'room': room,
-            'request': request
-        })
+        html = render_to_string(
+            "chat/partials/_chat_messages.html", {"room": room, "request": request}
+        )
 
-        return JsonResponse({
-            'success': True,
-            'html': html,
-            'room_id': room.id
-        })
+        return JsonResponse({"success": True, "html": html, "room_id": room.id})
 
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 
 @superadmin_required
@@ -4210,41 +4219,33 @@ def admin_chat_send_message(request, room_id):
         from main.models import ChatRoom, ChatMessage
 
         data = json.loads(request.body)
-        message_text = data.get('message', '').strip()
+        message_text = data.get("message", "").strip()
 
         if not message_text:
-            return JsonResponse({
-                'success': False,
-                'error': _('الرسالة فارغة')
-            }, status=400)
+            return JsonResponse(
+                {"success": False, "error": _("الرسالة فارغة")}, status=400
+            )
 
-        room = get_object_or_404(
-            ChatRoom,
-            id=room_id,
-            room_type='publisher_admin'
-        )
+        room = get_object_or_404(ChatRoom, id=room_id, room_type="publisher_admin")
 
         # Create message
         message = ChatMessage.objects.create(
-            room=room,
-            sender=request.user,
-            message=message_text
+            room=room, sender=request.user, message=message_text
         )
 
         # Update room timestamp
-        room.save(update_fields=['updated_at'])
+        room.save(update_fields=["updated_at"])
 
-        return JsonResponse({
-            'success': True,
-            'message': _('تم إرسال الرسالة'),
-            'message_id': message.id
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "message": _("تم إرسال الرسالة"),
+                "message_id": message.id,
+            }
+        )
 
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 
 @superadmin_required
@@ -4254,25 +4255,15 @@ def admin_chat_resolve(request, room_id):
     try:
         from main.models import ChatRoom
 
-        room = get_object_or_404(
-            ChatRoom,
-            id=room_id,
-            room_type='publisher_admin'
-        )
+        room = get_object_or_404(ChatRoom, id=room_id, room_type="publisher_admin")
 
         room.is_active = False
-        room.save(update_fields=['is_active', 'updated_at'])
+        room.save(update_fields=["is_active", "updated_at"])
 
-        return JsonResponse({
-            'success': True,
-            'message': _('تم وضع المحادثة كمحلولة')
-        })
+        return JsonResponse({"success": True, "message": _("تم وضع المحادثة كمحلولة")})
 
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 
 @superadmin_required
@@ -4282,25 +4273,15 @@ def admin_chat_reopen(request, room_id):
     try:
         from main.models import ChatRoom
 
-        room = get_object_or_404(
-            ChatRoom,
-            id=room_id,
-            room_type='publisher_admin'
-        )
+        room = get_object_or_404(ChatRoom, id=room_id, room_type="publisher_admin")
 
         room.is_active = True
-        room.save(update_fields=['is_active', 'updated_at'])
+        room.save(update_fields=["is_active", "updated_at"])
 
-        return JsonResponse({
-            'success': True,
-            'message': _('تم إعادة فتح المحادثة')
-        })
+        return JsonResponse({"success": True, "message": _("تم إعادة فتح المحادثة")})
 
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 
 class ChatWithPublisherView(LoginRequiredMixin, TemplateView):
@@ -4418,6 +4399,7 @@ def admin_subscription_extend(request, subscription_id):
 
         # Convert date to datetime for addition
         from datetime import datetime, date
+
         if isinstance(subscription.end_date, date):
             end_datetime = datetime.combine(subscription.end_date, datetime.min.time())
         else:
@@ -4495,12 +4477,15 @@ def custom_404(request, exception=None):
 
     # Log the 404 error for debugging
     path = request.get_full_path()
-    logger.info(f"404 error for path: {path}, exception: {exception}, IP: {request.META.get('REMOTE_ADDR', 'unknown')}")
+    logger.info(
+        f"404 error for path: {path}, exception: {exception}, IP: {request.META.get('REMOTE_ADDR', 'unknown')}"
+    )
 
     # Check if this is an AJAX request
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         from django.http import JsonResponse
-        return JsonResponse({'error': 'Page not found'}, status=404)
+
+        return JsonResponse({"error": "Page not found"}, status=404)
 
     return render(request, "404.html", status=404)
 
@@ -4513,13 +4498,19 @@ def custom_500(request):
     logger = logging.getLogger(__name__)
 
     # Log the 500 error with full traceback
-    path = request.get_full_path() if hasattr(request, 'get_full_path') else 'unknown'
-    logger.error(f"500 error for path: {path}, IP: {request.META.get('REMOTE_ADDR', 'unknown') if hasattr(request, 'META') else 'unknown'}")
+    path = request.get_full_path() if hasattr(request, "get_full_path") else "unknown"
+    logger.error(
+        f"500 error for path: {path}, IP: {request.META.get('REMOTE_ADDR', 'unknown') if hasattr(request, 'META') else 'unknown'}"
+    )
     logger.error(f"500 error traceback: {traceback.format_exc()}")
 
     # Check if this is an AJAX request
-    if hasattr(request, 'headers') and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+    if (
+        hasattr(request, "headers")
+        and request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    ):
         from django.http import JsonResponse
-        return JsonResponse({'error': 'Internal server error'}, status=500)
+
+        return JsonResponse({"error": "Internal server error"}, status=500)
 
     return render(request, "500.html", status=500)

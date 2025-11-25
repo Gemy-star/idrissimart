@@ -738,7 +738,7 @@ class AdminCategoriesView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["all_categories"] = Category.objects.filter(parent__isnull=True)
+        context["all_categories"] = Category.objects.filter(parent__isnull=True).prefetch_related('subcategories')
         return context
 
 
