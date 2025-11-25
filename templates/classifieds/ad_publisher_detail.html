@@ -1257,17 +1257,15 @@
 </div>
 
 <!-- Delete Ad Modal -->
-<div id="deleteAdModal" class="modal">
+<div class="modal fade" id="deleteAdModal" tabindex="-1" aria-labelledby="deleteAdModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>
+                <h5 class="modal-title" id="deleteAdModalLabel">
                     <i class="fas fa-exclamation-triangle text-danger me-2"></i>
                     {% trans "تأكيد حذف الإعلان" %}
-                </h2>
-                <button class="btn-close" data-action="close-modal" data-modal-id="deleteAdModal">
-                    <i class="fas fa-times"></i>
-                </button>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-warning">
@@ -1280,11 +1278,11 @@
                 </p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-primary btn-cancel" data-action="close-modal" data-modal-id="deleteAdModal">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     <i class="fas fa-times me-2"></i>
                     {% trans "إلغاء" %}
                 </button>
-                <button type="button" class="btn-danger" id="confirmDeleteAdBtn">
+                <button type="button" class="btn btn-danger" id="confirmDeleteAdBtn">
                     <i class="fas fa-trash me-2"></i>
                     {% trans "حذف" %}
                 </button>
@@ -1294,17 +1292,15 @@
 </div>
 
 <!-- Toggle Hide Ad Modal -->
-<div id="toggleHideModal" class="modal">
+<div class="modal fade" id="toggleHideModal" tabindex="-1" aria-labelledby="toggleHideModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>
+                <h5 class="modal-title" id="toggleHideModalLabel">
                     <i class="fas fa-eye-slash text-warning me-2"></i>
                     <span id="toggleHideTitle">{% trans "تأكيد إخفاء الإعلان" %}</span>
-                </h2>
-                <button class="btn-close" data-action="close-modal" data-modal-id="toggleHideModal">
-                    <i class="fas fa-times"></i>
-                </button>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-info">
@@ -1313,11 +1309,11 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-primary btn-cancel" data-action="close-modal" data-modal-id="toggleHideModal">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     <i class="fas fa-times me-2"></i>
                     {% trans "إلغاء" %}
                 </button>
-                <button type="button" class="btn-warning" id="confirmToggleHideBtn">
+                <button type="button" class="btn btn-warning" id="confirmToggleHideBtn">
                     <i class="fas fa-eye-slash me-2"></i>
                     <span id="toggleHideButtonText">{% trans "إخفاء" %}</span>
                 </button>
@@ -1327,17 +1323,15 @@
 </div>
 
 <!-- User Action Modal -->
-<div id="userActionModal" class="modal">
+<div class="modal fade" id="userActionModal" tabindex="-1" aria-labelledby="userActionModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>
+                <h5 class="modal-title" id="userActionModalLabel">
                     <i class="fas fa-user-shield text-warning me-2"></i>
                     <span id="userActionTitle">{% trans "تأكيد الإجراء" %}</span>
-                </h2>
-                <button class="btn-close" data-action="close-modal" data-modal-id="userActionModal">
-                    <i class="fas fa-times"></i>
-                </button>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-info">
@@ -1346,7 +1340,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-primary btn-cancel" data-action="close-modal" data-modal-id="userActionModal">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     <i class="fas fa-times me-2"></i>
                     {% trans "إلغاء" %}
                 </button>
@@ -1422,27 +1416,26 @@
         }
     };
 
-    // Modal helper functions - Define globally
+    // Modal helper functions using Bootstrap Modal API
     window.openModal = function(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.classList.add('active');
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+            modal.show();
         }
     };
 
     window.closeModal = function(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.classList.remove('active');
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            }
         }
     };
 
-    // Close modal when clicking outside
-    window.addEventListener('click', function(event) {
-        if (event.target.classList.contains('modal')) {
-            event.target.classList.remove('active');
-        }
-    });
+    // Bootstrap modals handle backdrop clicks automatically
 
     // Admin actions - state variables
     let currentAdId = null;
@@ -1495,11 +1488,6 @@
                 const userId = parseInt(target.dataset.userId);
                 handleUserAction(userAction, userId);
                 break;
-
-            case 'close-modal':
-                const modalId = target.dataset.modalId;
-                if (modalId) closeModal(modalId);
-                break;
         }
     });
 
@@ -1539,7 +1527,11 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    closeModal('toggleHideModal');
+                    const modalElement = document.getElementById('toggleHideModal');
+                    const modal = bootstrap.Modal.getInstance(modalElement);
+                    if (modal) {
+                        modal.hide();
+                    }
                     if (data.success) {
                         window.showNotification('{% trans "تم تحديث حالة الإعلان بنجاح." %}', 'success');
                         location.reload();
@@ -1548,7 +1540,11 @@
                     }
                 })
                 .catch(() => {
-                    closeModal('toggleHideModal');
+                    const modalElement = document.getElementById('toggleHideModal');
+                    const modal = bootstrap.Modal.getInstance(modalElement);
+                    if (modal) {
+                        modal.hide();
+                    }
                     window.showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error');
                 });
             });
@@ -1586,7 +1582,11 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    closeModal('deleteAdModal');
+                    const modalElement = document.getElementById('deleteAdModal');
+                    const modal = bootstrap.Modal.getInstance(modalElement);
+                    if (modal) {
+                        modal.hide();
+                    }
                     if (data.success) {
                         window.showNotification(`{% trans "تم حذف الإعلان" %} '${adTitle}' {% trans "بنجاح." %}`, 'success');
                         window.location.href = "{% url 'main:admin_ads' %}";
@@ -1595,7 +1595,11 @@
                     }
                 })
                 .catch(() => {
-                    closeModal('deleteAdModal');
+                    const modalElement = document.getElementById('deleteAdModal');
+                    const modal = bootstrap.Modal.getInstance(modalElement);
+                    if (modal) {
+                        modal.hide();
+                    }
                     window.showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error');
                 });
             });
@@ -1676,7 +1680,11 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    closeModal('userActionModal');
+                    const modalElement = document.getElementById('userActionModal');
+                    const modal = bootstrap.Modal.getInstance(modalElement);
+                    if (modal) {
+                        modal.hide();
+                    }
                     if (data.success) {
                         window.showNotification(data.message, 'success');
                         location.reload();
@@ -1685,7 +1693,11 @@
                     }
                 })
                 .catch(() => {
-                    closeModal('userActionModal');
+                    const modalElement = document.getElementById('userActionModal');
+                    const modal = bootstrap.Modal.getInstance(modalElement);
+                    if (modal) {
+                        modal.hide();
+                    }
                     window.showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error');
                 });
             });
