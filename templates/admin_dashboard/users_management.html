@@ -396,7 +396,11 @@
 
                 case 'close-modal':
                     const modalId = target.dataset.modalId;
-                    if (modalId) closeModal(modalId);
+                    if (modalId) {
+                        const modalEl = document.getElementById(modalId);
+                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                        if (modalInstance) modalInstance.hide();
+                    }
                     break;
             }
         });
@@ -423,7 +427,9 @@
 
             document.getElementById('userActionMessage').textContent = confirmMsg;
             document.getElementById('userActionButtonText').textContent = buttonText;
-            openModal('userActionModal');
+
+            const modal = new bootstrap.Modal(document.getElementById('userActionModal'));
+            modal.show();
         }
 
         // Confirm user action handler
@@ -448,7 +454,10 @@
                         return r.json();
                     })
                     .then(data => {
-                        closeModal('userActionModal');
+                        const modalEl = document.getElementById('userActionModal');
+                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                        if (modalInstance) modalInstance.hide();
+
                         if (data.success) {
                             showNotification(data.message || '{% trans "تمت العملية بنجاح." %}', 'success');
                             setTimeout(() => location.reload(), 1000);
@@ -457,7 +466,10 @@
                         }
                     })
                     .catch((error) => {
-                        closeModal('userActionModal');
+                        const modalEl = document.getElementById('userActionModal');
+                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                        if (modalInstance) modalInstance.hide();
+
                         // Only show error if it's not from browser extension
                         if (!error.message.includes('message channel')) {
                             console.error('Error:', error);
