@@ -606,7 +606,7 @@
                                                     <h6 class="subcategories-title">{% trans "الأقسام الفرعية" %}: <small class="text-muted">({% trans "يمكنك السحب والإفلات للترتيب" %})</small></h6>
                                                     <div class="subcategories-list">
                                                         {% for subcategory in category.subcategories.all %}
-                                                            <div class="subcategory-item">
+                                                            <div class="subcategory-item" data-category-id="{{ subcategory.id }}">
                                                                 <span class="subcategory-name">
                                                                     <i class="fas fa-folder-open me-1"></i>
                                                                     {% if LANGUAGE_CODE == 'ar' and subcategory.name_ar %}
@@ -1302,48 +1302,57 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Function to initialize SortableJS on a given element
             const initSortable = (element, options) => {
-        new Sortable(element, {
-            animation: 150,
-            ghostClass: 'sortable-ghost',
-            ...options,
-            onEnd: function (evt) {
-                const orderedIds = Array.from(evt.to.children).map(item => item.dataset.categoryId);
-                const indicator = evt.from.closest('.admin-content-card').querySelector('.saving-indicator');
+                new Sortable(element, {
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    handle: options.handle || null,
+                    draggable: options.draggable || null,
+                    ...options,
+                    onEnd: function (evt) {
+                        const orderedIds = Array.from(evt.to.children)
+                            .map(item => item.dataset.categoryId)
+                            .filter(id => id); // Filter out undefined values
 
-                if (indicator) indicator.classList.add('show');
+                        const indicator = evt.from.closest('.admin-content-card')?.querySelector('.saving-indicator');
 
-                fetch("{% url 'main:admin_category_reorder' %}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken')
-                    },
-                    body: JSON.stringify({ ordered_ids: orderedIds })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showSuccess('{% trans "تم تحديث الترتيب بنجاح." %}');
-                    } else {
-                        showError(data.message || '{% trans "حدث خطأ أثناء تحديث الترتيب." %}');
+                        if (indicator) indicator.classList.add('show');
+
+                        fetch("{% url 'main:admin_category_reorder' %}", {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': getCookie('csrftoken')
+                            },
+                            body: JSON.stringify({ ordered_ids: orderedIds })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showSuccess('{% trans "تم تحديث الترتيب بنجاح." %}');
+                            } else {
+                                showError(data.message || '{% trans "حدث خطأ أثناء تحديث الترتيب." %}');
+                            }
+                        })
+                        .catch(() => showError('{% trans "خطأ في الاتصال بالخادم." %}'))
+                        .finally(() => {
+                            if (indicator) indicator.classList.remove('show');
+                        });
                     }
-                })
-                .catch(() => showError('{% trans "خطأ في الاتصال بالخادم." %}'))
-                .finally(() => {
-                    if (indicator) indicator.classList.remove('show');
                 });
-            }
-        });
-    };
+            };
 
             // Initialize for main category grids
             document.querySelectorAll('.categories-grid').forEach(grid => {
-                initSortable(grid, {group: 'main-categories'});
+                initSortable(grid, {
+                    draggable: '.category-card'
+                });
             });
 
             // Initialize for subcategory lists
             document.querySelectorAll('.subcategories-list').forEach(list => {
-                initSortable(list, {group: 'sub-categories'});
+                initSortable(list, {
+                    draggable: '.subcategory-item'
+                });
             });
         });
     </script>

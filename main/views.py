@@ -2636,6 +2636,13 @@ class AdminCustomFieldsView(SuperadminRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context["active_nav"] = "custom_fields"
         context["search_query"] = self.request.GET.get("search", "")
+
+        # Add field type choices for the modal
+        context["field_type_choices"] = CustomField.FIELD_TYPES
+
+        # Get all categories for the dropdown
+        context["all_categories"] = Category.objects.filter(parent__isnull=True).order_by('order', 'name_ar')
+
         # Group fields by category for the template
         context["fields_by_category"] = {}
         for field in context["fields"]:
