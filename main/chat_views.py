@@ -38,7 +38,13 @@ def chat_list(request):
     # Get last message for each room
     for room in chat_rooms:
         room.last_message = room.messages.order_by("-created_at").first()
-        room.other_user = room.client if room.publisher == user else room.publisher
+        # Determine other user - handle admin chat rooms where client can be None
+        if room.room_type == 'publisher_admin':
+            # For admin chats, if current user is staff, other_user is the publisher
+            # If current user is the publisher, other_user represents admin/support
+            room.other_user = room.publisher if user.is_staff else None
+        else:
+            room.other_user = room.client if room.publisher == user else room.publisher
 
     context = {
         "chat_rooms": chat_rooms,
@@ -60,17 +66,27 @@ def chat_room(request, room_id=None):
         # Load existing chat room
         chat_room = get_object_or_404(ChatRoom, id=room_id, is_active=True)
 
-        # Check if user is participant
-        if user not in [chat_room.publisher, chat_room.client]:
-            return redirect("main:chat_list")
+        # Check if user is participant (handle admin chats where client can be None)
+        if chat_room.room_type == 'publisher_admin':
+            # Admin chats: allow publisher or staff
+            if user != chat_room.publisher and not user.is_staff:
+                return redirect("main:chat_list")
+        else:
+            # Regular chats: must be publisher or client
+            if user not in [chat_room.publisher, chat_room.client]:
+                return redirect("main:chat_list")
 
         # Mark messages as read
         chat_room.mark_as_read(user)
 
         # Determine other user
-        other_user = (
-            chat_room.client if chat_room.publisher == user else chat_room.publisher
-        )
+        if chat_room.room_type == 'publisher_admin':
+            # For admin chats, other_user is the publisher if viewing as staff, None otherwise
+            other_user = chat_room.publisher if user.is_staff else None
+        else:
+            other_user = (
+                chat_room.client if chat_room.publisher == user else chat_room.publisher
+            )
 
     else:
         # Create new chat room (from query params)
@@ -122,9 +138,13 @@ def send_message(request, room_id):
     """
     chat_room = get_object_or_404(ChatRoom, id=room_id, is_active=True)
 
-    # Check if user is participant
-    if request.user not in [chat_room.publisher, chat_room.client]:
-        return JsonResponse({"error": "Unauthorized"}, status=403)
+    # Check if user is participant (handle admin chats where client can be None)
+    if chat_room.room_type == 'publisher_admin':
+        if request.user != chat_room.publisher and not request.user.is_staff:
+            return JsonResponse({"error": "Unauthorized"}, status=403)
+    else:
+        if request.user not in [chat_room.publisher, chat_room.client]:
+            return JsonResponse({"error": "Unauthorized"}, status=403)
 
     message_text = request.POST.get("message", "").strip()
 
@@ -164,9 +184,13 @@ def get_messages(request, room_id):
     """
     chat_room = get_object_or_404(ChatRoom, id=room_id, is_active=True)
 
-    # Check if user is participant
-    if request.user not in [chat_room.publisher, chat_room.client]:
-        return JsonResponse({"error": "Unauthorized"}, status=403)
+    # Check if user is participant (handle admin chats where client can be None)
+    if chat_room.room_type == 'publisher_admin':
+        if request.user != chat_room.publisher and not request.user.is_staff:
+            return JsonResponse({"error": "Unauthorized"}, status=403)
+    else:
+        if request.user not in [chat_room.publisher, chat_room.client]:
+            return JsonResponse({"error": "Unauthorized"}, status=403)
 
     # Get messages after specific time (for polling)
     after_time = request.GET.get("after")
@@ -209,9 +233,13 @@ def mark_read(request, room_id):
     """
     chat_room = get_object_or_404(ChatRoom, id=room_id, is_active=True)
 
-    # Check if user is participant
-    if request.user not in [chat_room.publisher, chat_room.client]:
-        return JsonResponse({"error": "Unauthorized"}, status=403)
+    # Check if user is participant (handle admin chats where client can be None)
+    if chat_room.room_type == 'publisher_admin':
+        if request.user != chat_room.publisher and not request.user.is_staff:
+            return JsonResponse({"error": "Unauthorized"}, status=403)
+    else:
+        if request.user not in [chat_room.publisher, chat_room.client]:
+            return JsonResponse({"error": "Unauthorized"}, status=403)
 
     chat_room.mark_as_read(request.user)
 

@@ -345,6 +345,106 @@
 {% endblock content %}
 
 {% block extra_js %}
+    <script>
+        // Handle cart and wishlist actions
+        window.handleCartWishlistAction = async function(button, event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const itemId = button.getAttribute('data-item-id');
+            const itemName = button.getAttribute('data-item-name');
+            const action = button.getAttribute('data-action');
+            const type = button.getAttribute('data-type');
+
+            if (!itemId) {
+                console.error('No item ID found');
+                return;
+            }
+
+            // Disable button during request
+            button.disabled = true;
+
+            try {
+                let result;
+
+                if (type === 'cart') {
+                    if (action === 'add-to-cart') {
+                        result = await window.CartWishlist.addToCart(itemId, itemName);
+                        if (result && result.success) {
+                            button.setAttribute('data-action', 'remove-from-cart');
+                            const buttonText = button.querySelector('.button-text');
+                            if (buttonText) {
+                                buttonText.textContent = '{% trans "إزالة من السلة" %}';
+                            }
+                            // Ensure header counter is updated
+                            if (result.cart_count !== undefined && window.CartWishlist.updateCartCountInHeader) {
+                                window.CartWishlist.updateCartCountInHeader(result.cart_count);
+                            }
+                        }
+                    } else if (action === 'remove-from-cart') {
+                        result = await window.CartWishlist.removeFromCart(itemId, itemName);
+                        if (result && result.success) {
+                            button.setAttribute('data-action', 'add-to-cart');
+                            const buttonText = button.querySelector('.button-text');
+                            if (buttonText) {
+                                buttonText.textContent = '{% trans "إضافة للسلة" %}';
+                            }
+                            // Ensure header counter is updated
+                            if (result.cart_count !== undefined && window.CartWishlist.updateCartCountInHeader) {
+                                window.CartWishlist.updateCartCountInHeader(result.cart_count);
+                            }
+                        }
+                    }
+                } else if (type === 'wishlist') {
+                    if (action === 'add-to-wishlist') {
+                        result = await window.CartWishlist.addToWishlist(itemId, itemName);
+                        if (result && result.success) {
+                            button.setAttribute('data-action', 'remove-from-wishlist');
+                            const icon = button.querySelector('i');
+                            if (icon) {
+                                icon.classList.remove('far');
+                                icon.classList.add('fas');
+                            }
+                            const buttonText = button.querySelector('.button-text');
+                            if (buttonText) {
+                                buttonText.textContent = '{% trans "إزالة من المفضلة" %}';
+                            }
+                            // Ensure header counter is updated
+                            if (result.wishlist_count !== undefined && window.CartWishlist.updateWishlistCountInHeader) {
+                                window.CartWishlist.updateWishlistCountInHeader(result.wishlist_count);
+                            }
+                        }
+                    } else if (action === 'remove-from-wishlist') {
+                        result = await window.CartWishlist.removeFromWishlist(itemId, itemName);
+                        if (result && result.success) {
+                            button.setAttribute('data-action', 'add-to-wishlist');
+                            const icon = button.querySelector('i');
+                            if (icon) {
+                                icon.classList.remove('fas');
+                                icon.classList.add('far');
+                            }
+                            const buttonText = button.querySelector('.button-text');
+                            if (buttonText) {
+                                buttonText.textContent = '{% trans "إضافة للمفضلة" %}';
+                            }
+                            // Ensure header counter is updated
+                            if (result.wishlist_count !== undefined && window.CartWishlist.updateWishlistCountInHeader) {
+                                window.CartWishlist.updateWishlistCountInHeader(result.wishlist_count);
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error handling cart/wishlist action:', error);
+                if (window.CartWishlist && window.CartWishlist.showNotification) {
+                    window.CartWishlist.showNotification('{% trans "حدث خطأ، يرجى المحاولة مرة أخرى" %}', 'error');
+                }
+            } finally {
+                button.disabled = false;
+            }
+        };
+    </script>
+
     {% if ad.images.count > 1 %}
         <script>
             document.addEventListener('DOMContentLoaded', function() {

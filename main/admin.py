@@ -131,6 +131,41 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at", "views_count", "reviewed_at")
     inlines = [AdImageInline, AdFeatureInline]
     list_editable = ("status", "is_hidden")
+    actions = ["approve_ads", "reject_ads", "mark_as_pending"]
+
+    def approve_ads(self, request, queryset):
+        """Approve selected ads"""
+        from django.utils import timezone
+
+        updated = queryset.update(
+            status=ClassifiedAd.AdStatus.ACTIVE,
+            reviewed_by=request.user,
+            reviewed_at=timezone.now(),
+        )
+        self.message_user(request, _("{} إعلان تم قبوله بنجاح").format(updated))
+
+    approve_ads.short_description = _("قبول الإعلانات المحددة")
+
+    def reject_ads(self, request, queryset):
+        """Reject selected ads"""
+        from django.utils import timezone
+
+        updated = queryset.update(
+            status=ClassifiedAd.AdStatus.REJECTED,
+            reviewed_by=request.user,
+            reviewed_at=timezone.now(),
+        )
+        self.message_user(request, _("{} إعلان تم رفضه").format(updated))
+
+    reject_ads.short_description = _("رفض الإعلانات المحددة")
+
+    def mark_as_pending(self, request, queryset):
+        """Mark selected ads as pending review"""
+        updated = queryset.update(status=ClassifiedAd.AdStatus.PENDING)
+        self.message_user(request, _("{} إعلان في انتظار المراجعة").format(updated))
+
+    mark_as_pending.short_description = _("تعيين كـ قيد المراجعة")
+
     fieldsets = (
         ("Ad Information", {"fields": ("user", "category", "title", "description")}),
         ("Pricing", {"fields": ("price", "is_negotiable")}),

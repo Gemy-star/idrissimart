@@ -48,18 +48,18 @@
     </div>
 </div>
 
-<!-- Chat Slide Panel -->
-<div id="chatPanel" class="slide-panel">
-    <div class="slide-panel-overlay" onclick="closeSidePanel('chatPanel')"></div>
-    <div class="slide-panel-content">
-        <div class="slide-panel-header">
+<!-- Chat Custom Modal -->
+<div id="chatModal" class="chat-custom-modal">
+    <div class="chat-modal-backdrop" onclick="closeChatModal()"></div>
+    <div class="chat-modal-content" id="chatModalContent">
+        <div class="chat-modal-header">
             <h5>
                 <i class="fas fa-comments me-2"></i>
-                <span id="chatPanelTitle">{% trans "محادثة" %}</span>
+                <span id="chatModalTitle">{% trans "محادثة" %}</span>
             </h5>
-            <button type="button" class="btn-close" onclick="closeSidePanel('chatPanel')" aria-label="Close"></button>
+            <button type="button" class="btn-close" onclick="closeChatModal()" aria-label="Close"></button>
         </div>
-        <div class="slide-panel-body" id="chatPanelBody">
+        <div class="chat-modal-body" id="chatModalBody">
             <div class="text-center py-5">
                 <div class="spinner-border text-primary" role="status">
                     <span class="visually-hidden">{% trans "جاري التحميل..." %}</span>
@@ -270,19 +270,61 @@
     </script>
 
     <script>
-        // Chat Panel Functions
-        function openChatPanel(userId, userName) {
-            const panel = document.getElementById('chatPanel');
-            const panelTitle = document.getElementById('chatPanelTitle');
-            const panelBody = document.getElementById('chatPanelBody');
+        // Suppress browser extension errors globally
+        (function() {
+            // Suppress error events from extensions
+            window.addEventListener('error', function(e) {
+                if (e.message && (
+                    e.message.includes('message channel closed') ||
+                    e.message.includes('Extension context invalidated') ||
+                    e.message.includes('message port closed')
+                )) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    return true;
+                }
+            }, true);
+
+            // Suppress unhandled promise rejections from extensions
+            window.addEventListener('unhandledrejection', function(e) {
+                if (e.reason && e.reason.message && (
+                    e.reason.message.includes('message channel closed') ||
+                    e.reason.message.includes('Extension context invalidated') ||
+                    e.reason.message.includes('message port closed')
+                )) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    return true;
+                }
+            }, true);
+
+            // Override console.error to filter extension errors
+            const originalConsoleError = console.error;
+            console.error = function(...args) {
+                const message = args.join(' ');
+                if (message.includes('message channel closed') ||
+                    message.includes('Extension context invalidated') ||
+                    message.includes('message port closed')) {
+                    return; // Silently ignore extension errors
+                }
+                originalConsoleError.apply(console, args);
+            };
+        })();
+
+        // Chat Modal Functions
+        function openChatPanel(userId, userName, buttonElement) {
+            const modal = document.getElementById('chatModal');
+            const modalContent = document.getElementById('chatModalContent');
+            const modalTitle = document.getElementById('chatModalTitle');
+            const modalBody = document.getElementById('chatModalBody');
 
             // Update title
             if (userName) {
-                panelTitle.textContent = 'محادثة مع ' + userName;
+                modalTitle.textContent = 'محادثة مع ' + userName;
             }
 
             // Show loading
-            panelBody.innerHTML = `
+            modalBody.innerHTML = `
                 <div class="text-center py-5">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">جاري التحميل...</span>
@@ -290,8 +332,47 @@
                 </div>
             `;
 
-            // Open panel
-            openSidePanel('chatPanel');
+            // Position modal beside the clicked button
+            if (buttonElement && window.innerWidth > 768) {
+                const rect = buttonElement.getBoundingClientRect();
+                const modalWidth = 450;
+                const modalHeight = 500;
+                const padding = 20;
+
+                let left = rect.right + padding;
+                let top = rect.top;
+
+                // Check if modal would go off screen to the right
+                if (left + modalWidth > window.innerWidth - padding) {
+                    left = rect.left - modalWidth - padding;
+                }
+
+                // Check if modal would go off screen on the left
+                if (left < padding) {
+                    left = padding;
+                }
+
+                // Check if modal would go off screen at bottom
+                if (top + modalHeight > window.innerHeight - padding) {
+                    top = window.innerHeight - modalHeight - padding;
+                }
+
+                // Check if modal would go off screen at top
+                if (top < padding) {
+                    top = padding;
+                }
+
+                modalContent.style.left = left + 'px';
+                modalContent.style.top = top + 'px';
+            } else {
+                // Center on mobile or if no button element
+                modalContent.style.left = '50%';
+                modalContent.style.top = '50%';
+                modalContent.style.transform = 'translate(-50%, -50%) scale(0.9)';
+            }
+
+            // Open modal
+            modal.classList.add('active');
 
             // Load chat content via AJAX
             fetch(`/chat/admin-panel/?user_id=${userId}`, {
@@ -301,18 +382,39 @@
             })
             .then(response => response.text())
             .then(html => {
-                panelBody.innerHTML = html;
+                modalBody.innerHTML = html;
             })
             .catch(error => {
-                console.error('Error loading chat:', error);
-                panelBody.innerHTML = `
-                    <div class="alert alert-danger m-3">
-                        <i class="fas fa-exclamation-circle me-2"></i>
-                        حدث خطأ في تحميل المحادثة
-                    </div>
-                `;
+                // Only show error if it's not from browser extension
+                if (!error.message || (
+                    !error.message.includes('message channel') &&
+                    !error.message.includes('Extension context') &&
+                    !error.message.includes('message port')
+                )) {
+                    console.error('Error loading chat:', error);
+                    modalBody.innerHTML = `
+                        <div class="alert alert-danger m-3">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            حدث خطأ في تحميل المحادثة
+                        </div>
+                    `;
+                }
             });
         }
+
+        function closeChatModal() {
+            const modal = document.getElementById('chatModal');
+            if (modal) {
+                modal.classList.remove('active');
+            }
+        }
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeChatModal();
+            }
+        });
     </script>
 
     {% block admin_extra_js %}{% endblock %}

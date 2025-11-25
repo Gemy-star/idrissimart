@@ -3,31 +3,702 @@
 
 {% block title %}{% trans "محادثات الدعم" %} - {{ block.super }}{% endblock %}
 
-{% block content %}
-<div class="container-fluid py-4">
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header bg-gradient-danger text-white">
-                    <h3 class="mb-0">
-                        <i class="fas fa-comments me-2"></i>
-                        {% trans "محادثات الدعم الفني" %}
-                    </h3>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        {% trans "نظام إدارة محادثات الدعم قيد التطوير. سيتم تفعيله قريباً." %}
-                    </div>
+{% block admin_extra_css %}
+<style>
+    .chat-list-item {
+        border: 1px solid #e3e6f0;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: white;
+    }
+    .chat-list-item:hover {
+        transform: translateX(-5px);
+        box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+        border-color: #4e73df;
+    }
+    .chat-list-item.active {
+        background: #f8f9fc;
+        border-color: #4e73df;
+        border-width: 2px;
+    }
+    .chat-messages-container {
+        height: 500px;
+        overflow-y: auto;
+        background: #f8f9fc;
+        border-radius: 8px;
+        padding: 1.5rem;
+    }
+    .chat-message {
+        margin-bottom: 1rem;
+        display: flex;
+        gap: 0.75rem;
+    }
+    .chat-message.sent {
+        flex-direction: row-reverse;
+    }
+    .chat-message-bubble {
+        max-width: 70%;
+        padding: 0.75rem 1rem;
+        border-radius: 12px;
+        word-wrap: break-word;
+    }
+    .chat-message.received .chat-message-bubble {
+        background: white;
+        border: 1px solid #e3e6f0;
+    }
+    .chat-message.sent .chat-message-bubble {
+        background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+        color: white;
+    }
+    .chat-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #e3e6f0;
+        flex-shrink: 0;
+    }
+    .unread-badge {
+        background: #e74a3b;
+        color: white;
+        border-radius: 12px;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: bold;
+    }
+    .chat-status-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+    }
+    .chat-input-box {
+        border-top: 2px solid #e3e6f0;
+        padding-top: 1rem;
+        margin-top: 1rem;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #858796;
+    }
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
 
-                    <div class="text-center py-5">
-                        <i class="fas fa-comments fa-5x text-muted mb-3"></i>
-                        <h4 class="text-muted">{% trans "لا توجد طلبات دعم حالياً" %}</h4>
-                        <p class="text-muted">{% trans "ستظهر هنا جميع محادثات الدعم الفني من الناشرين" %}</p>
+    /* Tab navigation styling for light theme visibility */
+    .nav-tabs .nav-link {
+        color: #495057;
+        border-color: transparent;
+    }
+    .nav-tabs .nav-link:hover {
+        color: #495057;
+        border-color: #e9ecef #e9ecef #dee2e6;
+    }
+    .nav-tabs .nav-link.active {
+        color: #495057 !important;
+        background-color: #fff;
+        border-color: #dee2e6 #dee2e6 #fff;
+    }
+    .nav-tabs .nav-link.active i,
+    .nav-tabs .nav-link.active .badge {
+        color: inherit;
+    }
+
+    /* Admin tabs styling to match ads management */
+    .admin-tabs {
+        border-bottom: 2px solid #e9ecef;
+        margin-bottom: 1.5rem;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .nav-link-theme {
+        color: #495057;
+        text-decoration: none;
+        padding: 0.75rem 1.5rem;
+        border: 1px solid transparent;
+        border-radius: 0.375rem 0.375rem 0 0;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        margin-right: 0.5rem;
+    }
+
+    .nav-link-theme:hover {
+        color: #495057;
+        border-color: #e9ecef #e9ecef #dee2e6;
+        background-color: #f8f9fa;
+        text-decoration: none;
+    }
+
+    .nav-link-theme.active {
+        color: #495057 !important;
+        background-color: #fff;
+        border-color: #dee2e6 #dee2e6 #fff;
+    }
+
+    /* Tab content styling */
+    .tab-content-pane {
+        display: none;
+    }
+
+    .tab-content-pane.active {
+        display: block;
+    }
+        text-decoration: none;
+        padding: 0.75rem 1.5rem;
+        border: 1px solid transparent;
+        border-radius: 0.375rem 0.375rem 0 0;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+    }
+
+    .nav-link-theme:hover {
+        color: #495057;
+        border-color: #e9ecef #e9ecef #dee2e6;
+        background-color: #f8f9fa;
+    }
+
+    .nav-link-theme.active {
+        color: #495057;
+        background-color: #fff;
+        border-color: #dee2e6 #dee2e6 #fff;
+    }
+
+    /* Tab content styling */
+    .tab-content-pane {
+        display: none;
+    }
+
+    .tab-content-pane.active {
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+    <!-- Header -->
+    <div class="admin-dashboard-header">
+        <div class="row align-items-center">
+            <div class="col">
+                <h1 class="display-6 mb-1">
+                    <i class="fas fa-headset me-3"></i>
+                    {% trans "محادثات الدعم الفني" %}
+                </h1>
+                <p class="text-muted mb-0">{% trans "إدارة طلبات الدعم والمحادثات مع الناشرين" %}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="admin-stat-card stat-info">
+                <div class="stat-icon">
+                    <i class="fas fa-comments"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ chat_stats.total_chats }}</h3>
+                    <p>{% trans "إجمالي المحادثات" %}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="admin-stat-card stat-warning">
+                <div class="stat-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ chat_stats.active_chats }}</h3>
+                    <p>{% trans "محادثات نشطة" %}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="admin-stat-card stat-danger">
+                <div class="stat-icon">
+                    <i class="fas fa-envelope"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ chat_stats.unread_messages }}</h3>
+                    <p>{% trans "رسائل غير مقروءة" %}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="admin-stat-card stat-success">
+                <div class="stat-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ chat_stats.resolved_today }}</h3>
+                    <p>{% trans "محادثات محلولة اليوم" %}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Interface -->
+    <div class="admin-content-card">
+        <div class="card-header">
+            <h5 class="mb-3">
+                <i class="fas fa-comments me-2"></i>
+                {% trans "محادثات الدعم" %}
+            </h5>
+            <!-- Admin Tabs matching ads_management pattern -->
+            <div class="nav nav-tabs admin-tabs mb-4" role="tablist">
+                <a class="nav-link nav-link-theme active" href="#" onclick="showTab('all-chats')">
+                    <i class="fas fa-inbox me-2"></i>
+                    {% trans "جميع المحادثات" %}
+                    <span class="badge bg-primary ms-1">{{ chat_rooms|length }}</span>
+                </a>
+                <a class="nav-link nav-link-theme" href="#" onclick="showTab('active-chats')">
+                    <i class="fas fa-comment-dots me-2"></i>
+                    {% trans "نشطة" %}
+                    <span class="badge bg-warning ms-1">{{ chat_stats.active_chats }}</span>
+                </a>
+                <a class="nav-link nav-link-theme" href="#" onclick="showTab('unread-chats')">
+                    <i class="fas fa-envelope me-2"></i>
+                    {% trans "غير مقروءة" %}
+                    <span class="badge bg-danger ms-1">{{ chat_stats.unread_messages }}</span>
+                </a>
+                <a class="nav-link nav-link-theme" href="#" onclick="showTab('resolved-chats')">
+                    <i class="fas fa-check-circle me-2"></i>
+                    {% trans "محلولة" %}
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <!-- All Chats Tab -->
+            <div class="tab-content-pane active" id="all-chats">
+                <div class="row">
+                        <!-- Chat List -->
+                        <div class="col-lg-4">
+                            <div class="mb-3">
+                                <input type="text" class="form-control" id="chatSearch" placeholder="{% trans 'بحث في المحادثات...' %}">
+                            </div>
+                            <div id="chatList" class="chat-list">
+                                {% if chat_rooms %}
+                                    {% for room in chat_rooms %}
+                                    <div class="chat-list-item {% if forloop.first %}active{% endif %}"
+                                         data-room-id="{{ room.id }}"
+                                         data-status="{% if room.is_active %}active{% else %}resolved{% endif %}"
+                                         onclick="loadChat({{ room.id }})">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <div class="d-flex align-items-center mb-1">
+                                                    <i class="fas fa-user-circle fa-2x text-muted me-2"></i>
+                                                    <div>
+                                                        <h6 class="mb-0">{{ room.publisher.get_display_name }}</h6>
+                                                        <small class="text-muted">@{{ room.publisher.username }}</small>
+                                                    </div>
+                                                </div>
+                                                <p class="mb-1 text-muted small">
+                                                    {{ room.messages.last.message|truncatewords:10|default:"لا توجد رسائل" }}
+                                                </p>
+                                                <small class="text-muted">
+                                                    <i class="fas fa-clock me-1"></i>
+                                                    {{ room.updated_at|timesince }}
+                                                </small>
+                                            </div>
+                                            <div class="text-end">
+                                                {% if room.is_active %}
+                                                    <span class="badge bg-success chat-status-badge">{% trans "نشطة" %}</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary chat-status-badge">{% trans "محلولة" %}</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="empty-state">
+                                        <i class="fas fa-inbox"></i>
+                                        <h5>{% trans "لا توجد محادثات" %}</h5>
+                                        <p class="text-muted">{% trans "ستظهر هنا جميع محادثات الدعم" %}</p>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Chat Messages -->
+                        <div class="col-lg-8">
+                            <div id="chatContainer">
+                                {% if chat_rooms %}
+                                    {% with room=chat_rooms.0 %}
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-user-circle fa-3x text-muted me-3"></i>
+                                            <div>
+                                                <h5 class="mb-0">{{ room.publisher.get_display_name }}</h5>
+                                                <small class="text-muted">@{{ room.publisher.username }} • {{ room.publisher.email }}</small>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <button class="btn btn-sm btn-outline-success" onclick="markAsResolved({{ room.id }})">
+                                                <i class="fas fa-check me-1"></i> {% trans "وضع كمحلول" %}
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" onclick="closeChat({{ room.id }})">
+                                                <i class="fas fa-times me-1"></i> {% trans "إغلاق" %}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="chat-messages-container" id="chatMessages">
+                                        {% for message in room.messages.all %}
+                                        <div class="chat-message {% if message.sender.is_staff %}sent{% else %}received{% endif %}">
+                                            <div class="chat-avatar">
+                                                <i class="fas fa-user"></i>
+                                            </div>
+                                            <div>
+                                                <div class="chat-message-bubble">
+                                                    {{ message.message }}
+                                                </div>
+                                                <small class="text-muted d-block mt-1">
+                                                    {{ message.created_at|date:"H:i" }}
+                                                    {% if message.is_read %}
+                                                        <i class="fas fa-check-double text-primary"></i>
+                                                    {% endif %}
+                                                </small>
+                                            </div>
+                                        </div>
+                                        {% empty %}
+                                        <div class="empty-state">
+                                            <i class="fas fa-comment-slash"></i>
+                                            <h5>{% trans "لا توجد رسائل" %}</h5>
+                                            <p class="text-muted">{% trans "ابدأ المحادثة بإرسال رسالة" %}</p>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+
+                                    <div class="chat-input-box">
+                                        <form id="chatForm" onsubmit="sendMessage(event, {{ room.id }})">
+                                            <div class="input-group">
+                                                <input type="text" class="form-control" id="messageInput"
+                                                       placeholder="{% trans 'اكتب رسالتك هنا...' %}" required>
+                                                <button class="btn btn-primary" type="submit">
+                                                    <i class="fas fa-paper-plane me-1"></i> {% trans "إرسال" %}
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                    {% endwith %}
+                                {% else %}
+                                    <div class="empty-state">
+                                        <i class="fas fa-comments"></i>
+                                        <h5>{% trans "حدد محادثة لعرضها" %}</h5>
+                                        <p class="text-muted">{% trans "اختر محادثة من القائمة على اليمين" %}</p>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Chats Tab -->
+                <div class="tab-content-pane" id="active-chats">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>{% trans "الناشر" %}</th>
+                                            <th>{% trans "آخر رسالة" %}</th>
+                                            <th>{% trans "الحالة" %}</th>
+                                            <th>{% trans "غير مقروءة" %}</th>
+                                            <th>{% trans "التاريخ" %}</th>
+                                            <th>{% trans "إجراءات" %}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for room in chat_rooms %}
+                                            {% if room.is_active %}
+                                            <tr>
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="fas fa-user-circle fa-2x text-muted me-2"></i>
+                                                        <div>
+                                                            <div class="fw-bold">{{ room.publisher.get_display_name }}</div>
+                                                            <small class="text-muted">{{ room.publisher.email }}</small>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>{{ room.messages.last.message|truncatewords:8|default:"-" }}</td>
+                                                <td><span class="badge bg-success">{% trans "نشطة" %}</span></td>
+                                                <td>-</td>
+                                                <td>{{ room.updated_at|date:"d/m/Y H:i" }}</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-primary" onclick="loadChat({{ room.id }})">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-success" onclick="markAsResolved({{ room.id }})">
+                                                        <i class="fas fa-check"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center py-4">
+                                                <div class="empty-state">
+                                                    <i class="fas fa-inbox"></i>
+                                                    <h5>{% trans "لا توجد محادثات نشطة" %}</h5>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Unread Chats Tab -->
+                <div class="tab-content-pane" id="unread-chats">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                {% trans "قائمة المحادثات التي تحتوي على رسائل غير مقروءة" %}
+                            </div>
+                            <!-- Similar table structure as active chats -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resolved Chats Tab -->
+                <div class="tab-content-pane" id="resolved-chats">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>{% trans "الناشر" %}</th>
+                                            <th>{% trans "آخر رسالة" %}</th>
+                                            <th>{% trans "الحالة" %}</th>
+                                            <th>{% trans "التاريخ" %}</th>
+                                            <th>{% trans "إجراءات" %}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for room in chat_rooms %}
+                                            {% if not room.is_active %}
+                                            <tr>
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="fas fa-user-circle fa-2x text-muted me-2"></i>
+                                                        <div>
+                                                            <div class="fw-bold">{{ room.publisher.get_display_name }}</div>
+                                                            <small class="text-muted">{{ room.publisher.email }}</small>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>{{ room.messages.last.message|truncatewords:8|default:"-" }}</td>
+                                                <td><span class="badge bg-secondary">{% trans "محلولة" %}</span></td>
+                                                <td>{{ room.updated_at|date:"d/m/Y H:i" }}</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-primary" onclick="loadChat({{ room.id }})">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-warning" onclick="reopenChat({{ room.id }})">
+                                                        <i class="fas fa-redo"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="5" class="text-center py-4">
+                                                <div class="empty-state">
+                                                    <i class="fas fa-check-circle"></i>
+                                                    <h5>{% trans "لا توجد محادثات محلولة" %}</h5>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
+{% endblock %}
+
+{% block admin_extra_js %}
+<script>
+// Tab switching functionality
+function showTab(tabId) {
+    // Remove active class from all nav links
+    document.querySelectorAll('.admin-tabs .nav-link').forEach(link => {
+        link.classList.remove('active');
+    });
+
+    // Hide all tab content
+    document.querySelectorAll('.tab-content-pane').forEach(pane => {
+        pane.classList.remove('active');
+    });
+
+    // Show selected tab content
+    const targetTab = document.getElementById(tabId);
+    if (targetTab) {
+        targetTab.classList.add('active');
+    }
+
+    // Set clicked nav link as active
+    event.target.classList.add('active');
+
+    return false; // Prevent default link behavior
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function loadChat(roomId) {
+    // Highlight selected chat
+    document.querySelectorAll('.chat-list-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    event.currentTarget.classList.add('active');
+
+    // Load chat via AJAX
+    fetch(`/admin/support-chats/${roomId}/messages/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update chat container
+                document.getElementById('chatContainer').innerHTML = data.html;
+
+                // Scroll to bottom of messages
+                const messagesContainer = document.getElementById('chatMessages');
+                if (messagesContainer) {
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+            }
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+function sendMessage(event, roomId) {
+    event.preventDefault();
+
+    const messageInput = document.getElementById('messageInput');
+    const message = messageInput.value.trim();
+
+    if (!message) return;
+
+    fetch(`/admin/support-chats/${roomId}/send/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ message: message })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Clear input
+            messageInput.value = '';
+
+            // Reload chat
+            loadChat(roomId);
+        } else {
+            alert(data.error || 'حدث خطأ');
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function markAsResolved(roomId) {
+    if (!confirm('هل أنت متأكد من وضع هذه المحادثة كمحلولة؟')) return;
+
+    fetch(`/admin/support-chats/${roomId}/resolve/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'حدث خطأ');
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function closeChat(roomId) {
+    if (!confirm('هل أنت متأكد من إغلاق هذه المحادثة؟')) return;
+    markAsResolved(roomId);
+}
+
+function reopenChat(roomId) {
+    if (!confirm('هل أنت متأكد من إعادة فتح هذه المحادثة؟')) return;
+
+    fetch(`/admin/support-chats/${roomId}/reopen/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'حدث خطأ');
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+// Search functionality
+document.getElementById('chatSearch')?.addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    document.querySelectorAll('.chat-list-item').forEach(item => {
+        const text = item.textContent.toLowerCase();
+        item.style.display = text.includes(searchTerm) ? '' : 'none';
+    });
+});
+
+// Auto-scroll to bottom on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const messagesContainer = document.getElementById('chatMessages');
+    if (messagesContainer) {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+});
+</script>
 {% endblock %}

@@ -206,55 +206,210 @@
         </div>
     </div>
 
-    <!-- Premium Members Section -->
+    <!-- Packages & Subscriptions Tabs -->
     <div class="admin-content-card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">
-                <i class="fas fa-users me-2"></i>
-                {% trans "الأعضاء المميزون" %}
-            </h5>
+        <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs" id="packages-subscriptions-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="user-packages-tab" data-bs-toggle="tab" data-bs-target="#user-packages" type="button" role="tab">
+                        <i class="fas fa-boxes me-2"></i>
+                        {% trans "باقات الإعلانات" %}
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="user-subscriptions-tab" data-bs-toggle="tab" data-bs-target="#user-subscriptions" type="button" role="tab">
+                        <i class="fas fa-crown me-2"></i>
+                        {% trans "الاشتراكات المميزة" %}
+                    </button>
+                </li>
+            </ul>
         </div>
         <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>{% trans "المستخدم" %}</th>
-                            <th>{% trans "الباقة" %}</th>
-                            <th>{% trans "تاريخ الاشتراك" %}</th>
-                            <th>{% trans "تاريخ الانتهاء" %}</th>
-                            <th>{% trans "الحالة" %}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if premium_members %}
-                            {% for member in premium_members %}
-                            <tr>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-user-circle fa-2x text-muted me-2"></i>
-                                        <div>
-                                            <div class="fw-bold">{{ member.username }}</div>
-                                            <small class="text-muted">{{ member.email }}</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td><span class="badge bg-warning">{% trans "الباقة الذهبية" %}</span></td>
-                                <td>{{ member.date_joined|date:"d/m/Y" }}</td>
-                                <td>{{ member.subscription_end|date:"d/m/Y"|default:"-" }}</td>
-                                <td><span class="badge bg-success">{% trans "نشط" %}</span></td>
-                            </tr>
-                            {% endfor %}
-                        {% else %}
-                        <tr>
-                            <td colspan="5" class="text-center text-muted py-4">
-                                <i class="fas fa-crown fa-3x mb-3 d-block"></i>
-                                {% trans "لا يوجد أعضاء مميزون بعد" %}
-                            </td>
-                        </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
+            <div class="tab-content" id="packages-subscriptions-content">
+                <!-- User Packages Tab -->
+                <div class="tab-pane fade show active" id="user-packages" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">{% trans "باقات المستخدمين" %}</h5>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary active" onclick="filterUserPackages('all')">
+                                {% trans "الكل" %}
+                            </button>
+                            <button class="btn btn-outline-success" onclick="filterUserPackages('active')">
+                                {% trans "نشط" %}
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="filterUserPackages('expired')">
+                                {% trans "منتهي" %}
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>{% trans "المستخدم" %}</th>
+                                    <th>{% trans "الباقة" %}</th>
+                                    <th>{% trans "تاريخ الشراء" %}</th>
+                                    <th>{% trans "تاريخ الانتهاء" %}</th>
+                                    <th>{% trans "الإعلانات المتبقية" %}</th>
+                                    <th>{% trans "الحالة" %}</th>
+                                    <th>{% trans "إجراءات" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody id="userPackagesTable">
+                                {% if user_packages %}
+                                    {% for user_package in user_packages %}
+                                    <tr data-status="{% if user_package.is_active %}active{% else %}expired{% endif %}">
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <i class="fas fa-user-circle fa-2x text-muted me-2"></i>
+                                                <div>
+                                                    <div class="fw-bold">{{ user_package.user.username }}</div>
+                                                    <small class="text-muted">{{ user_package.user.email }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {% if user_package.package %}
+                                                <span class="badge bg-info">{{ user_package.package.name }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{% trans "إعلان مجاني" %}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ user_package.purchase_date|date:"d/m/Y H:i" }}</td>
+                                        <td>{{ user_package.expiry_date|date:"d/m/Y H:i" }}</td>
+                                        <td>
+                                            <span class="badge bg-primary">{{ user_package.ads_remaining }}</span>
+                                        </td>
+                                        <td>
+                                            {% if user_package.is_active %}
+                                                <span class="badge bg-success">{% trans "نشط" %}</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">{% trans "منتهي" %}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary" onclick="viewUserPackage({{ user_package.id }})" title="{% trans 'عرض التفاصيل' %}">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button class="btn btn-outline-success" onclick="extendUserPackage({{ user_package.id }})" title="{% trans 'تمديد' %}">
+                                                    <i class="fas fa-clock"></i>
+                                                </button>
+                                                <button class="btn btn-outline-warning" onclick="addAdsToPackage({{ user_package.id }})" title="{% trans 'إضافة إعلانات' %}">
+                                                    <i class="fas fa-plus"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">
+                                        <i class="fas fa-boxes fa-3x mb-3 d-block"></i>
+                                        {% trans "لا توجد باقات للمستخدمين بعد" %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- User Subscriptions Tab -->
+                <div class="tab-pane fade" id="user-subscriptions" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">{% trans "الاشتراكات المميزة" %}</h5>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary active" onclick="filterSubscriptions('all')">
+                                {% trans "الكل" %}
+                            </button>
+                            <button class="btn btn-outline-success" onclick="filterSubscriptions('active')">
+                                {% trans "نشط" %}
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="filterSubscriptions('expired')">
+                                {% trans "منتهي" %}
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>{% trans "المستخدم" %}</th>
+                                    <th>{% trans "نوع الباقة" %}</th>
+                                    <th>{% trans "السعر" %}</th>
+                                    <th>{% trans "تاريخ البدء" %}</th>
+                                    <th>{% trans "تاريخ الانتهاء" %}</th>
+                                    <th>{% trans "التجديد التلقائي" %}</th>
+                                    <th>{% trans "الحالة" %}</th>
+                                    <th>{% trans "إجراءات" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody id="subscriptionsTable">
+                                {% if user_subscriptions %}
+                                    {% for subscription in user_subscriptions %}
+                                    <tr data-status="{% if subscription.is_active %}active{% else %}expired{% endif %}">
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <i class="fas fa-user-circle fa-2x text-muted me-2"></i>
+                                                <div>
+                                                    <div class="fw-bold">{{ subscription.user.username }}</div>
+                                                    <small class="text-muted">{{ subscription.user.email }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-warning">{{ subscription.get_plan_display }}</span>
+                                        </td>
+                                        <td>{{ subscription.price }} {% trans "ريال" %}</td>
+                                        <td>{{ subscription.start_date|date:"d/m/Y" }}</td>
+                                        <td>{{ subscription.end_date|date:"d/m/Y" }}</td>
+                                        <td>
+                                            {% if subscription.auto_renew %}
+                                                <span class="badge bg-success">{% trans "نعم" %}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{% trans "لا" %}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if subscription.is_active %}
+                                                <span class="badge bg-success">{% trans "نشط" %}</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">{% trans "غير نشط" %}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary" onclick="viewSubscription({{ subscription.id }})" title="{% trans 'عرض التفاصيل' %}">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button class="btn btn-outline-success" onclick="extendSubscription({{ subscription.id }})" title="{% trans 'تمديد' %}">
+                                                    <i class="fas fa-clock"></i>
+                                                </button>
+                                                {% if subscription.is_active %}
+                                                <button class="btn btn-outline-danger" onclick="cancelSubscription({{ subscription.id }})" title="{% trans 'إلغاء' %}">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                                {% endif %}
+                                                <button class="btn btn-outline-warning" onclick="toggleAutoRenew({{ subscription.id }})" title="{% trans 'تبديل التجديد التلقائي' %}">
+                                                    <i class="fas fa-sync"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-4">
+                                        <i class="fas fa-crown fa-3x mb-3 d-block"></i>
+                                        {% trans "لا توجد اشتراكات مميزة بعد" %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -406,6 +561,161 @@ function togglePackage(packageId) {
 function addNewPackage() {
     // TODO: Open new package modal
     console.log('Add new package');
+}
+
+// User Packages Management
+function filterUserPackages(status) {
+    const rows = document.querySelectorAll('#userPackagesTable tr[data-status]');
+
+    rows.forEach(row => {
+        if (status === 'all' || row.dataset.status === status) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    // Update active button
+    document.querySelectorAll('#user-packages .btn-group .btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+}
+
+function viewUserPackage(packageId) {
+    // TODO: Open user package details modal
+    console.log('View user package:', packageId);
+}
+
+function extendUserPackage(packageId) {
+    const days = prompt('{% trans "كم يوماً تريد تمديد الباقة؟" %}', '30');
+    if (days && !isNaN(days)) {
+        fetch(`/admin/user-packages/${packageId}/extend/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ days: parseInt(days) })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('{% trans "تم تمديد الباقة بنجاح" %}');
+                location.reload();
+            } else {
+                alert(data.error || '{% trans "حدث خطأ" %}');
+            }
+        });
+    }
+}
+
+function addAdsToPackage(packageId) {
+    const count = prompt('{% trans "كم إعلان تريد إضافته؟" %}', '5');
+    if (count && !isNaN(count)) {
+        fetch(`/admin/user-packages/${packageId}/add-ads/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ads_count: parseInt(count) })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('{% trans "تم إضافة الإعلانات بنجاح" %}');
+                location.reload();
+            } else {
+                alert(data.error || '{% trans "حدث خطأ" %}');
+            }
+        });
+    }
+}
+
+// Subscriptions Management
+function filterSubscriptions(status) {
+    const rows = document.querySelectorAll('#subscriptionsTable tr[data-status]');
+
+    rows.forEach(row => {
+        if (status === 'all' || row.dataset.status === status) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    // Update active button
+    document.querySelectorAll('#user-subscriptions .btn-group .btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+}
+
+function viewSubscription(subscriptionId) {
+    // TODO: Open subscription details modal
+    console.log('View subscription:', subscriptionId);
+}
+
+function extendSubscription(subscriptionId) {
+    const days = prompt('{% trans "كم يوماً تريد تمديد الاشتراك؟" %}', '30');
+    if (days && !isNaN(days)) {
+        fetch(`/admin/subscriptions/${subscriptionId}/extend/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ days: parseInt(days) })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('{% trans "تم تمديد الاشتراك بنجاح" %}');
+                location.reload();
+            } else {
+                alert(data.error || '{% trans "حدث خطأ" %}');
+            }
+        });
+    }
+}
+
+function cancelSubscription(subscriptionId) {
+    if (confirm('{% trans "هل أنت متأكد من إلغاء هذا الاشتراك؟" %}')) {
+        fetch(`/admin/subscriptions/${subscriptionId}/cancel/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('{% trans "تم إلغاء الاشتراك بنجاح" %}');
+                location.reload();
+            } else {
+                alert(data.error || '{% trans "حدث خطأ" %}');
+            }
+        });
+    }
+}
+
+function toggleAutoRenew(subscriptionId) {
+    fetch(`/admin/subscriptions/${subscriptionId}/toggle-auto-renew/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('{% trans "تم تحديث إعدادات التجديد التلقائي" %}');
+            location.reload();
+        } else {
+            alert(data.error || '{% trans "حدث خطأ" %}');
+        }
+    });
 }
 
 // Member Management

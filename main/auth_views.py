@@ -45,7 +45,7 @@ class CustomLoginView(LoginView):
     def get_success_url(self):
         """
         Determine the redirect URL based on:
-        1. 'next' parameter (highest priority)
+        1. 'next' parameter (highest priority) - with proper validation
         2. User role:
            - Superusers/Staff -> Admin Dashboard
            - Publisher profile -> Publisher Dashboard (My Ads)
@@ -54,16 +54,25 @@ class CustomLoginView(LoginView):
         """
         # First check if there's a 'next' parameter
         next_url = self.request.POST.get("next") or self.request.GET.get("next")
+
         if next_url:
             # Validate the next URL to prevent open redirect vulnerabilities
             from django.utils.http import url_has_allowed_host_and_scheme
+            from django.core.exceptions import ValidationError
 
-            if url_has_allowed_host_and_scheme(
-                url=next_url,
-                allowed_hosts={self.request.get_host()},
-                require_https=self.request.is_secure(),
-            ):
-                return next_url
+            try:
+                # Additional validation: ensure URL doesn't contain dangerous patterns
+                if url_has_allowed_host_and_scheme(
+                    url=next_url,
+                    allowed_hosts={self.request.get_host()},
+                    require_https=self.request.is_secure(),
+                ):
+                    # Ensure it's not a logout URL to prevent redirect loops
+                    if not next_url.startswith("/logout"):
+                        return next_url
+            except (ValidationError, ValueError):
+                # If validation fails, fall through to role-based redirect
+                pass
 
         user = self.request.user
 
@@ -136,12 +145,24 @@ class CustomLoginView(LoginView):
         # Log the user in
         login(self.request, user)
 
+        # Merge session cart into user cart
+        self.merge_session_cart(user)
+
         # Handle "Remember Me" functionality
         remember_me = self.request.POST.get("remember_me")
-        if not remember_me:
-            self.request.session.set_expiry(0)  # Session expires on browser close
+
+        # In local development, always keep session active
+        from django.conf import settings
+
+        if settings.DEBUG:
+            # For local development, set longer session timeout
+            self.request.session.set_expiry(86400)  # 1 day
         else:
-            self.request.session.set_expiry(1209600)  # 2 weeks
+            # Production behavior
+            if not remember_me:
+                self.request.session.set_expiry(0)  # Session expires on browser close
+            else:
+                self.request.session.set_expiry(1209600)  # 2 weeks
 
         # Log IP address
         user.last_login_ip = get_client_ip(self.request)
@@ -157,6 +178,53 @@ class CustomLoginView(LoginView):
             messages.success(self.request, _(f"مرحباً بك {user.get_display_name()}! 🎉"))
 
         return super().form_valid(form)
+
+    def merge_session_cart(self, user):
+        """
+        Merge guest session cart into authenticated user's cart after login
+        """
+        try:
+            from main.models import Cart, CartItem, ClassifiedAd
+
+            session_cart = self.request.session.get("cart", {})
+            if not session_cart:
+                return
+
+            # Get or create user cart
+            cart, _ = Cart.objects.get_or_create(user=user)
+
+            # Merge each session cart item
+            for ad_id_str, item_data in session_cart.items():
+                try:
+                    ad_id = int(ad_id_str)
+                    ad = ClassifiedAd.objects.get(
+                        id=ad_id,
+                        status=ClassifiedAd.AdStatus.ACTIVE,
+                        cart_enabled_by_admin=True,
+                    )
+
+                    # Get or create cart item
+                    cart_item, created = CartItem.objects.get_or_create(
+                        cart=cart,
+                        ad=ad,
+                        defaults={"quantity": item_data.get("quantity", 1)},
+                    )
+
+                    if not created:
+                        # Item already exists, add quantities
+                        cart_item.quantity += item_data.get("quantity", 1)
+                        cart_item.save()
+
+                except (ValueError, ClassifiedAd.DoesNotExist):
+                    continue
+
+            # Clear session cart
+            self.request.session["cart"] = {}
+            self.request.session.modified = True
+
+        except Exception as e:
+            # Don't fail login if cart merge fails
+            pass
 
     def form_invalid(self, form):
         """
@@ -291,10 +359,25 @@ class RegisterView(CreateView):
 @login_required
 def logout_view(request):
     """
-    User logout view
+    User logout view with support for 'next' parameter
     """
+    # Check for next URL parameter
+    next_url = request.POST.get("next") or request.GET.get("next")
+
     logout(request)
     messages.success(request, _("تم تسجيل الخروج بنجاح. نراك قريباً! 👋"))
+
+    # Validate and redirect to next URL if provided
+    if next_url:
+        from django.utils.http import url_has_allowed_host_and_scheme
+
+        if url_has_allowed_host_and_scheme(
+            url=next_url,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        ):
+            return redirect(next_url)
+
     return redirect("main:home")
 
 

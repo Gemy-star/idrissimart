@@ -377,25 +377,15 @@ document.addEventListener('wishlistUpdated', (e) => {
     console.log('Wishlist updated:', e.detail);
 });
 
-// Export functions for global use
-window.CartWishlist = {
-    addToCart,
-    removeFromCart,
-    addToWishlist,
-    removeFromWishlist,
-    updateBadgeCount,
-    showNotification
-};
-
 /**
  * Update cart count in header
  * @param {number} count - The cart count
  */
 function updateCartCountInHeader(count) {
-    const cartCountEl = document.getElementById('cart-count');
-    if (cartCountEl) {
-        cartCountEl.textContent = count;
-    }
+    const cartCountElements = document.querySelectorAll('.cart-count');
+    cartCountElements.forEach(el => {
+        el.textContent = count;
+    });
 }
 
 /**
@@ -403,8 +393,20 @@ function updateCartCountInHeader(count) {
  * @param {number} count - The wishlist count
  */
 function updateWishlistCountInHeader(count) {
-    const wishlistCountEl = document.getElementById('wishlist-count');
-    if (wishlistCountEl) {
-        wishlistCountEl.textContent = count;
-    }
+    const wishlistCountElements = document.querySelectorAll('.wishlist-count');
+    wishlistCountElements.forEach(el => {
+        el.textContent = count;
+    });
 }
+
+// Export functions for global use
+window.CartWishlist = {
+    addToCart,
+    removeFromCart,
+    addToWishlist,
+    removeFromWishlist,
+    updateBadgeCount,
+    showNotification,
+    updateCartCountInHeader,
+    updateWishlistCountInHeader
+};

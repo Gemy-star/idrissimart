@@ -1256,10 +1256,25 @@ class AdDetailView(DetailView):
         ad = self.get_object()
 
         # Check if ad is in user's cart or wishlist
-        cart_items = self.request.session.get("cart", [])
-        wishlist_items = self.request.session.get("wishlist", [])
-        ad.is_in_cart = str(ad.id) in cart_items
-        ad.is_in_wishlist = str(ad.id) in wishlist_items
+        if self.request.user.is_authenticated:
+            # For authenticated users, check database
+            try:
+                from main.models import Cart, Wishlist, WishlistItem, CartItem
+
+                cart, _ = Cart.objects.get_or_create(user=self.request.user)
+                wishlist, _ = Wishlist.objects.get_or_create(user=self.request.user)
+
+                ad.is_in_cart = CartItem.objects.filter(cart=cart, ad=ad).exists()
+                ad.is_in_wishlist = WishlistItem.objects.filter(wishlist=wishlist, ad=ad).exists()
+            except Exception:
+                ad.is_in_cart = False
+                ad.is_in_wishlist = False
+        else:
+            # For guests, check session
+            cart_items = self.request.session.get("cart", [])
+            wishlist_items = self.request.session.get("wishlist", [])
+            ad.is_in_cart = str(ad.id) in cart_items
+            ad.is_in_wishlist = str(ad.id) in wishlist_items
 
         # Increment view count without triggering a full save/update_fields
         ClassifiedAd.objects.filter(pk=ad.pk).update(
@@ -1366,6 +1381,35 @@ class AdCreateView(LoginRequiredMixin, CreateView):
 
         if image_formset.is_valid():
             form.instance.user = self.request.user
+
+            # Determine if ad needs approval
+            # Skip approval if:
+            # 1. User is staff, OR
+            # 2. User is verified AND has an active package with remaining ads
+            needs_approval = True
+
+            if self.request.user.is_staff:
+                needs_approval = False
+            elif self.request.user.is_verified:
+                # Check if user has an active package with remaining ads
+                from main.models import UserPackage
+                active_package = UserPackage.objects.filter(
+                    user=self.request.user,
+                    ads_remaining__gt=0,
+                    expiry_date__gte=timezone.now()
+                ).first()
+
+                if active_package:
+                    needs_approval = False
+                    # Deduct one ad from the package
+                    active_package.use_ad()
+
+            # Set status based on approval requirement
+            if needs_approval:
+                form.instance.status = ClassifiedAd.AdStatus.PENDING
+            else:
+                form.instance.status = ClassifiedAd.AdStatus.ACTIVE
+
             self.object = form.save()
             image_formset.instance = self.object
             image_formset.save()
@@ -1374,7 +1418,7 @@ class AdCreateView(LoginRequiredMixin, CreateView):
             if self.object.status == ClassifiedAd.AdStatus.ACTIVE:
                 messages.success(self.request, _("تم نشر إعلانك بنجاح!"))
             else:
-                messages.success(self.request, _("تم إرسال إعلانك للمراجعة!"))
+                messages.success(self.request, _("تم إرسال إعلانك للمراجعة! سيتم نشره بعد موافقة الإدارة."))
 
             return super().form_valid(form)
         else:
@@ -1433,6 +1477,21 @@ class AdUpdateView(LoginRequiredMixin, UpdateView):
         context = self.get_context_data()
         image_formset = context["image_formset"]
         if image_formset.is_valid():
+            # Determine if updated ad needs re-approval
+            # Skip re-approval if:
+            # 1. User is staff, OR
+            # 2. User is verified (trusted user)
+            needs_approval = False
+
+            if not self.request.user.is_staff and not self.request.user.is_verified:
+                # Non-verified users need re-approval if ad was active
+                if self.object.status == ClassifiedAd.AdStatus.ACTIVE:
+                    needs_approval = True
+
+            if needs_approval:
+                form.instance.status = ClassifiedAd.AdStatus.PENDING
+                messages.info(self.request, _("سيتم مراجعة التعديلات من قبل الإدارة قبل نشرها."))
+
             self.object = form.save()
             image_formset.save()
             messages.success(self.request, _("تم تحديث إعلانك بنجاح!"))
@@ -2946,6 +3005,21 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
         context["premium_members"] = User.objects.filter(is_premium=True).order_by(
             "-date_joined"
         )[:20]
+
+        # User Packages - Get all user packages with related data
+        context["user_packages"] = (
+            UserPackage.objects.select_related("user", "package", "payment")
+            .order_by("-purchase_date")
+            .all()
+        )
+
+        # User Subscriptions - Get all user subscriptions
+        from main.models import UserSubscription
+
+        context["user_subscriptions"] = UserSubscription.objects.select_related(
+            "user"
+        ).order_by("-created_at").all()
+
         context["active_nav"] = "payments"
 
         return context
@@ -4035,14 +4109,191 @@ class AdminSupportChatsView(SuperadminRequiredMixin, TemplateView):
     template_name = "chat/admin_support_chats.html"
 
     def get_context_data(self, **kwargs):
+        from main.models import ChatRoom, ChatMessage
+        from django.db.models import Count, Q
+
         context = super().get_context_data(**kwargs)
         context["active_nav"] = "support_chats"
-        # TODO: Add support chat rooms queryset
-        # from .models import ChatRoom
-        # context['chat_rooms'] = ChatRoom.objects.filter(
-        #     room_type='publisher_admin'
-        # ).select_related('publisher').order_by('-updated_at')
+
+        # Get all support chat rooms (publisher-admin type)
+        chat_rooms = ChatRoom.objects.filter(
+            room_type='publisher_admin'
+        ).select_related('publisher').prefetch_related('messages').order_by('-updated_at')
+
+        context['chat_rooms'] = chat_rooms
+
+        # Calculate statistics
+        total_chats = chat_rooms.count()
+        active_chats = chat_rooms.filter(is_active=True).count()
+
+        # Count unread messages (messages from publishers not read by admin)
+        unread_messages = ChatMessage.objects.filter(
+            room__room_type='publisher_admin',
+            is_read=False,
+            sender__is_staff=False  # Messages from publishers
+        ).count()
+
+        # Count resolved chats today
+        from django.utils import timezone
+        today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        resolved_today = chat_rooms.filter(
+            is_active=False,
+            updated_at__gte=today_start
+        ).count()
+
+        context['chat_stats'] = {
+            'total_chats': total_chats,
+            'active_chats': active_chats,
+            'unread_messages': unread_messages,
+            'resolved_today': resolved_today,
+        }
+
         return context
+
+
+# ==============================================
+# ADMIN SUPPORT CHAT AJAX ENDPOINTS
+# ==============================================
+
+
+@superadmin_required
+def admin_chat_get_messages(request, room_id):
+    """Get chat messages for a specific room via AJAX"""
+    try:
+        from main.models import ChatRoom
+        from django.template.loader import render_to_string
+
+        room = get_object_or_404(
+            ChatRoom.objects.select_related('publisher').prefetch_related('messages__sender'),
+            id=room_id,
+            room_type='publisher_admin'
+        )
+
+        # Mark messages as read
+        room.messages.filter(is_read=False, sender__is_staff=False).update(
+            is_read=True,
+            read_at=timezone.now()
+        )
+
+        # Render chat HTML
+        html = render_to_string('chat/partials/_chat_messages.html', {
+            'room': room,
+            'request': request
+        })
+
+        return JsonResponse({
+            'success': True,
+            'html': html,
+            'room_id': room.id
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@superadmin_required
+@require_POST
+def admin_chat_send_message(request, room_id):
+    """Send a message in support chat via AJAX"""
+    try:
+        import json
+        from main.models import ChatRoom, ChatMessage
+
+        data = json.loads(request.body)
+        message_text = data.get('message', '').strip()
+
+        if not message_text:
+            return JsonResponse({
+                'success': False,
+                'error': _('الرسالة فارغة')
+            }, status=400)
+
+        room = get_object_or_404(
+            ChatRoom,
+            id=room_id,
+            room_type='publisher_admin'
+        )
+
+        # Create message
+        message = ChatMessage.objects.create(
+            room=room,
+            sender=request.user,
+            message=message_text
+        )
+
+        # Update room timestamp
+        room.save(update_fields=['updated_at'])
+
+        return JsonResponse({
+            'success': True,
+            'message': _('تم إرسال الرسالة'),
+            'message_id': message.id
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@superadmin_required
+@require_POST
+def admin_chat_resolve(request, room_id):
+    """Mark chat as resolved"""
+    try:
+        from main.models import ChatRoom
+
+        room = get_object_or_404(
+            ChatRoom,
+            id=room_id,
+            room_type='publisher_admin'
+        )
+
+        room.is_active = False
+        room.save(update_fields=['is_active', 'updated_at'])
+
+        return JsonResponse({
+            'success': True,
+            'message': _('تم وضع المحادثة كمحلولة')
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@superadmin_required
+@require_POST
+def admin_chat_reopen(request, room_id):
+    """Reopen a resolved chat"""
+    try:
+        from main.models import ChatRoom
+
+        room = get_object_or_404(
+            ChatRoom,
+            id=room_id,
+            room_type='publisher_admin'
+        )
+
+        room.is_active = True
+        room.save(update_fields=['is_active', 'updated_at'])
+
+        return JsonResponse({
+            'success': True,
+            'message': _('تم إعادة فتح المحادثة')
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
 
 
 class ChatWithPublisherView(LoginRequiredMixin, TemplateView):
@@ -4075,6 +4326,153 @@ class ChatWithPublisherView(LoginRequiredMixin, TemplateView):
         #         'room_type': 'publisher_client'
         #     }
         # )
+
+        return context
+
+
+# ==============================================
+# ADMIN PACKAGE & SUBSCRIPTION MANAGEMENT VIEWS
+# ==============================================
+
+
+@superadmin_required
+@require_POST
+def admin_user_package_extend(request, package_id):
+    """Extend user package expiry date"""
+    try:
+        import json
+
+        data = json.loads(request.body)
+        days = int(data.get("days", 0))
+
+        if days <= 0:
+            return JsonResponse({"success": False, "error": _("عدد الأيام غير صحيح")})
+
+        user_package = get_object_or_404(UserPackage, id=package_id)
+        user_package.expiry_date = user_package.expiry_date + timedelta(days=days)
+        user_package.save(update_fields=["expiry_date"])
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": _("تم تمديد الباقة بنجاح"),
+                "new_expiry": user_package.expiry_date.strftime("%Y-%m-%d %H:%M"),
+            }
+        )
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})
+
+
+@superadmin_required
+@require_POST
+def admin_user_package_add_ads(request, package_id):
+    """Add more ads to user package"""
+    try:
+        import json
+
+        data = json.loads(request.body)
+        ads_count = int(data.get("ads_count", 0))
+
+        if ads_count <= 0:
+            return JsonResponse(
+                {"success": False, "error": _("عدد الإعلانات غير صحيح")}
+            )
+
+        user_package = get_object_or_404(UserPackage, id=package_id)
+        user_package.ads_remaining += ads_count
+        user_package.save(update_fields=["ads_remaining"])
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": _("تم إضافة الإعلانات بنجاح"),
+                "new_ads_remaining": user_package.ads_remaining,
+            }
+        )
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})
+
+
+@superadmin_required
+@require_POST
+def admin_subscription_extend(request, subscription_id):
+    """Extend user subscription end date"""
+    try:
+        import json
+        from main.models import UserSubscription
+
+        data = json.loads(request.body)
+        days = int(data.get("days", 0))
+
+        if days <= 0:
+            return JsonResponse({"success": False, "error": _("عدد الأيام غير صحيح")})
+
+        subscription = get_object_or_404(UserSubscription, id=subscription_id)
+
+        # Convert date to datetime for addition
+        from datetime import datetime, date
+        if isinstance(subscription.end_date, date):
+            end_datetime = datetime.combine(subscription.end_date, datetime.min.time())
+        else:
+            end_datetime = subscription.end_date
+
+        new_end_date = (end_datetime + timedelta(days=days)).date()
+        subscription.end_date = new_end_date
+        subscription.save(update_fields=["end_date"])
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": _("تم تمديد الاشتراك بنجاح"),
+                "new_end_date": subscription.end_date.strftime("%Y-%m-%d"),
+            }
+        )
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})
+
+
+@superadmin_required
+@require_POST
+def admin_subscription_cancel(request, subscription_id):
+    """Cancel user subscription"""
+    try:
+        from main.models import UserSubscription
+
+        subscription = get_object_or_404(UserSubscription, id=subscription_id)
+        subscription.is_active = False
+        subscription.auto_renew = False
+        subscription.save(update_fields=["is_active", "auto_renew"])
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": _("تم إلغاء الاشتراك بنجاح"),
+            }
+        )
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})
+
+
+@superadmin_required
+@require_POST
+def admin_subscription_toggle_auto_renew(request, subscription_id):
+    """Toggle subscription auto-renew setting"""
+    try:
+        from main.models import UserSubscription
+
+        subscription = get_object_or_404(UserSubscription, id=subscription_id)
+        subscription.auto_renew = not subscription.auto_renew
+        subscription.save(update_fields=["auto_renew"])
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": _("تم تحديث إعدادات التجديد التلقائي"),
+                "auto_renew": subscription.auto_renew,
+            }
+        )
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})
 
         return context
 

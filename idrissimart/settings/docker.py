@@ -1,11 +1,39 @@
 import tempfile
+import logging
 
 from .common import *
+
+
+# A small logging filter to ignore noisy Invalid HTTP_HOST messages coming from
+# probes against random subdomains (e.g. ftp.idrissimart.com, mail.idrissimart.com)
+class IgnoreInvalidHostFilter(logging.Filter):
+    def filter(self, record):
+        try:
+            msg = record.getMessage()
+        except Exception:
+            return True
+
+        # Keep the normal flow; drop messages that indicate invalid host header
+        if isinstance(msg, str) and (
+            "Invalid HTTP_HOST header" in msg or "DisallowedHost" in msg
+        ):
+            return False
+
+        # Also check for DisallowedHost exception in the record
+        if hasattr(record, "exc_info") and record.exc_info:
+            exc_type = record.exc_info[0]
+            if exc_type and exc_type.__name__ == "DisallowedHost":
+                return False
+
+        return True
+
 
 DEBUG = False
 ALLOWED_HOSTS = [
     "idrissimart.com",
     "www.idrissimart.com",
+    # allow all subdomains like mail.idrissimart.com, ftp.idrissimart.com, etc.
+    ".idrissimart.com",
     "72.61.88.27",
 ]
 
@@ -50,6 +78,14 @@ FILE_UPLOAD_TEMP_DIR = os.getenv(
 )
 
 LOGGING = {
+    # Small filter to suppress noisy 'Invalid HTTP_HOST header' logs
+    # We attach this filter to django.request so 3rd-party probes to random
+    # subdomains (ftp., mail., etc.) don't spam production error logs.
+    "filters": {
+        "skip_disallowed_host": {
+            "()": "idrissimart.settings.docker.IgnoreInvalidHostFilter"
+        }
+    },
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
@@ -78,6 +114,7 @@ LOGGING = {
             "handlers": ["file", "console"],
             "level": "ERROR",
             "propagate": False,
+            "filters": ["skip_disallowed_host"],
         },
         "main": {
             "handlers": ["file", "console"],

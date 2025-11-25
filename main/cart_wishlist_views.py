@@ -16,9 +16,30 @@ from main.models import Cart, CartItem, ClassifiedAd, Wishlist, WishlistItem
 
 
 def get_or_create_cart(user):
-    """Get or create cart for user"""
+    """Get or create cart for authenticated user"""
     cart, created = Cart.objects.get_or_create(user=user)
     return cart
+
+
+def get_session_cart(request):
+    """Get cart items from session for guest users"""
+    return request.session.get("cart", {})
+
+
+def save_session_cart(request, cart_data):
+    """Save cart items to session for guest users"""
+    request.session["cart"] = cart_data
+    request.session.modified = True
+
+
+def get_cart_count(request):
+    """Get cart items count for both authenticated and guest users"""
+    if request.user.is_authenticated:
+        cart = get_or_create_cart(request.user)
+        return cart.get_items_count()
+    else:
+        session_cart = get_session_cart(request)
+        return sum(item["quantity"] for item in session_cart.values())
 
 
 def get_or_create_wishlist(user):
@@ -32,10 +53,9 @@ def get_or_create_wishlist(user):
 # ============================================
 
 
-@login_required
 @require_POST
 def add_to_cart(request):
-    """Add item to cart via AJAX"""
+    """Add item to cart via AJAX - supports both authenticated and guest users"""
     try:
         ad_id = request.POST.get("item_id")
         if not ad_id:
@@ -43,7 +63,9 @@ def add_to_cart(request):
                 {"success": False, "message": _("معرف الإعلان مفقود")}, status=400
             )
 
-        ad = get_object_or_404(ClassifiedAd, id=ad_id, status=ClassifiedAd.AdStatus.ACTIVE)
+        ad = get_object_or_404(
+            ClassifiedAd, id=ad_id, status=ClassifiedAd.AdStatus.ACTIVE
+        )
 
         # Check if cart is enabled for this ad
         if not ad.cart_enabled_by_admin:
@@ -55,24 +77,43 @@ def add_to_cart(request):
                 status=400,
             )
 
-        cart = get_or_create_cart(request.user)
+        if request.user.is_authenticated:
+            # Authenticated user - use database cart
+            cart = get_or_create_cart(request.user)
+            cart_item, created = CartItem.objects.get_or_create(cart=cart, ad=ad)
 
-        # Check if item already exists in cart
-        cart_item, created = CartItem.objects.get_or_create(cart=cart, ad=ad)
+            if not created:
+                cart_item.quantity += 1
+                cart_item.save()
+                message = _("تم زيادة الكمية في السلة")
+            else:
+                message = _("تمت إضافة {} إلى السلة").format(ad.title)
 
-        if not created:
-            # Item already in cart, increment quantity
-            cart_item.quantity += 1
-            cart_item.save()
-            message = _("تم زيادة الكمية في السلة")
+            cart_count = cart.get_items_count()
         else:
-            message = _("تمت إضافة {} إلى السلة").format(ad.title)
+            # Guest user - use session cart
+            session_cart = get_session_cart(request)
+            ad_id_str = str(ad_id)
+
+            if ad_id_str in session_cart:
+                session_cart[ad_id_str]["quantity"] += 1
+                message = _("تم زيادة الكمية في السلة")
+            else:
+                session_cart[ad_id_str] = {
+                    "quantity": 1,
+                    "title": ad.title,
+                    "price": float(ad.price),
+                }
+                message = _("تمت إضافة {} إلى السلة").format(ad.title)
+
+            save_session_cart(request, session_cart)
+            cart_count = sum(item["quantity"] for item in session_cart.values())
 
         return JsonResponse(
             {
                 "success": True,
                 "message": message,
-                "cart_count": cart.get_items_count(),
+                "cart_count": cart_count,
                 "item_id": ad_id,
             }
         )
@@ -87,10 +128,9 @@ def add_to_cart(request):
         )
 
 
-@login_required
 @require_POST
 def remove_from_cart(request):
-    """Remove item from cart via AJAX"""
+    """Remove item from cart via AJAX - supports both authenticated and guest users"""
     try:
         ad_id = request.POST.get("item_id")
         if not ad_id:
@@ -98,17 +138,34 @@ def remove_from_cart(request):
                 {"success": False, "message": _("معرف الإعلان مفقود")}, status=400
             )
 
-        cart = get_or_create_cart(request.user)
-        cart_item = get_object_or_404(CartItem, cart=cart, ad_id=ad_id)
+        if request.user.is_authenticated:
+            # Authenticated user - use database cart
+            cart = get_or_create_cart(request.user)
+            cart_item = get_object_or_404(CartItem, cart=cart, ad_id=ad_id)
+            ad_title = cart_item.ad.title
+            cart_item.delete()
+            cart_count = cart.get_items_count()
+        else:
+            # Guest user - use session cart
+            session_cart = get_session_cart(request)
+            ad_id_str = str(ad_id)
 
-        ad_title = cart_item.ad.title
-        cart_item.delete()
+            if ad_id_str not in session_cart:
+                return JsonResponse(
+                    {"success": False, "message": _("العنصر غير موجود في السلة")},
+                    status=404,
+                )
+
+            ad_title = session_cart[ad_id_str].get("title", "العنصر")
+            del session_cart[ad_id_str]
+            save_session_cart(request, session_cart)
+            cart_count = sum(item["quantity"] for item in session_cart.values())
 
         return JsonResponse(
             {
                 "success": True,
                 "message": _("تمت إزالة {} من السلة").format(ad_title),
-                "cart_count": cart.get_items_count(),
+                "cart_count": cart_count,
                 "item_id": ad_id,
             }
         )
@@ -123,10 +180,9 @@ def remove_from_cart(request):
         )
 
 
-@login_required
 @require_POST
 def update_cart_quantity(request):
-    """Update cart item quantity via AJAX"""
+    """Update cart item quantity via AJAX - supports both authenticated and guest users"""
     try:
         ad_id = request.POST.get("item_id")
         quantity = request.POST.get("quantity")
@@ -143,21 +199,52 @@ def update_cart_quantity(request):
                 status=400,
             )
 
-        cart = get_or_create_cart(request.user)
-        cart_item = get_object_or_404(CartItem, cart=cart, ad_id=ad_id)
+        if request.user.is_authenticated:
+            # Authenticated user - use database cart
+            cart = get_or_create_cart(request.user)
+            cart_item = get_object_or_404(CartItem, cart=cart, ad_id=ad_id)
+            cart_item.quantity = quantity
+            cart_item.save()
 
-        cart_item.quantity = quantity
-        cart_item.save()
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": _("تم تحديث الكمية"),
+                    "cart_count": cart.get_items_count(),
+                    "item_total": float(cart_item.get_total_price()),
+                    "cart_total": float(cart.get_total_amount()),
+                }
+            )
+        else:
+            # Guest user - use session cart
+            session_cart = get_session_cart(request)
+            ad_id_str = str(ad_id)
 
-        return JsonResponse(
-            {
-                "success": True,
-                "message": _("تم تحديث الكمية"),
-                "cart_count": cart.get_items_count(),
-                "item_total": float(cart_item.get_total_price()),
-                "cart_total": float(cart.get_total_amount()),
-            }
-        )
+            if ad_id_str not in session_cart:
+                return JsonResponse(
+                    {"success": False, "message": _("العنصر غير موجود في السلة")},
+                    status=404,
+                )
+
+            session_cart[ad_id_str]["quantity"] = quantity
+            save_session_cart(request, session_cart)
+
+            # Calculate totals
+            item_total = session_cart[ad_id_str]["price"] * quantity
+            cart_total = sum(
+                item["price"] * item["quantity"] for item in session_cart.values()
+            )
+            cart_count = sum(item["quantity"] for item in session_cart.values())
+
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": _("تم تحديث الكمية"),
+                    "cart_count": cart_count,
+                    "item_total": float(item_total),
+                    "cart_total": float(cart_total),
+                }
+            )
 
     except CartItem.DoesNotExist:
         return JsonResponse(
@@ -173,28 +260,70 @@ def update_cart_quantity(request):
         )
 
 
-@login_required
-def get_cart_count(request):
-    """Get cart items count via AJAX"""
+def get_cart_count_view(request):
+    """Get cart items count via AJAX - supports both authenticated and guest users"""
     try:
-        cart = get_or_create_cart(request.user)
-        return JsonResponse({"success": True, "cart_count": cart.get_items_count()})
+        if request.user.is_authenticated:
+            cart = get_or_create_cart(request.user)
+            count = cart.get_items_count()
+        else:
+            session_cart = get_session_cart(request)
+            count = sum(item["quantity"] for item in session_cart.values())
+
+        return JsonResponse({"success": True, "cart_count": count})
     except Exception as e:
         return JsonResponse(
             {"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500
         )
 
 
-@login_required
 def cart_view(request):
-    """Display cart page"""
-    cart = get_or_create_cart(request.user)
-    cart_items = cart.items.select_related("ad", "ad__user", "ad__category").all()
+    """Display cart page - supports both authenticated and guest users"""
+    if request.user.is_authenticated:
+        # Authenticated user - use database cart
+        cart = get_or_create_cart(request.user)
+        cart_items = cart.items.select_related("ad", "ad__user", "ad__category").all()
+        total_amount = cart.get_total_amount()
+        is_guest = False
+    else:
+        # Guest user - use session cart
+        session_cart = get_session_cart(request)
+
+        # Fetch ad objects for session cart
+        ad_ids = [int(ad_id) for ad_id in session_cart.keys()]
+        ads = (
+            ClassifiedAd.objects.filter(
+                id__in=ad_ids, status=ClassifiedAd.AdStatus.ACTIVE
+            )
+            .select_related("user", "category")
+            .prefetch_related("images")
+        )
+
+        # Build cart items with session data
+        cart_items = []
+        total_amount = 0
+        for ad in ads:
+            ad_id_str = str(ad.id)
+            if ad_id_str in session_cart:
+                quantity = session_cart[ad_id_str]["quantity"]
+                item_total = ad.price * quantity
+                cart_items.append(
+                    {
+                        "ad": ad,
+                        "quantity": quantity,
+                        "item_total": item_total,
+                    }
+                )
+                total_amount += item_total
+
+        cart = None
+        is_guest = True
 
     context = {
         "cart": cart,
         "cart_items": cart_items,
-        "total_amount": cart.get_total_amount(),
+        "total_amount": total_amount,
+        "is_guest": is_guest,
     }
 
     return render(request, "cart/cart.html", context)
@@ -216,7 +345,9 @@ def add_to_wishlist(request):
                 {"success": False, "message": _("معرف الإعلان مفقود")}, status=400
             )
 
-        ad = get_object_or_404(ClassifiedAd, id=ad_id, status=ClassifiedAd.AdStatus.ACTIVE)
+        ad = get_object_or_404(
+            ClassifiedAd, id=ad_id, status=ClassifiedAd.AdStatus.ACTIVE
+        )
         wishlist = get_or_create_wishlist(request.user)
 
         # Try to create wishlist item
@@ -301,7 +432,9 @@ def toggle_wishlist(request):
                 {"success": False, "message": _("معرف الإعلان مفقود")}, status=400
             )
 
-        ad = get_object_or_404(ClassifiedAd, id=ad_id, status=ClassifiedAd.AdStatus.ACTIVE)
+        ad = get_object_or_404(
+            ClassifiedAd, id=ad_id, status=ClassifiedAd.AdStatus.ACTIVE
+        )
         wishlist = get_or_create_wishlist(request.user)
 
         # Check if item exists in wishlist
@@ -365,9 +498,9 @@ def check_wishlist_status(request):
 
         wishlist = get_or_create_wishlist(request.user)
         wishlist_ad_ids = list(
-            WishlistItem.objects.filter(wishlist=wishlist, ad_id__in=ad_ids).values_list(
-                "ad_id", flat=True
-            )
+            WishlistItem.objects.filter(
+                wishlist=wishlist, ad_id__in=ad_ids
+            ).values_list("ad_id", flat=True)
         )
 
         return JsonResponse(
@@ -410,52 +543,58 @@ def get_bulk_ads(request):
     Fetch multiple ads by IDs for guest wishlist rendering
     Returns ad data with rendered HTML cards
     """
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'message': 'Method not allowed'}, status=405)
-    
+    if request.method != "POST":
+        return JsonResponse(
+            {"success": False, "message": "Method not allowed"}, status=405
+        )
+
     try:
         data = json.loads(request.body)
-        ad_ids = data.get('ad_ids', [])
-        
+        ad_ids = data.get("ad_ids", [])
+
         if not ad_ids or not isinstance(ad_ids, list):
-            return JsonResponse({'success': False, 'message': 'Invalid ad_ids'}, status=400)
-        
+            return JsonResponse(
+                {"success": False, "message": "Invalid ad_ids"}, status=400
+            )
+
         # Limit to 50 ads max to prevent abuse
         ad_ids = ad_ids[:50]
-        
+
         # Fetch ads
-        ads = ClassifiedAd.objects.filter(
-            id__in=ad_ids,
-            status=ClassifiedAd.AdStatus.ACTIVE
-        ).select_related(
-            'user', 'category', 'country'
-        ).prefetch_related('images')
-        
+        ads = (
+            ClassifiedAd.objects.filter(
+                id__in=ad_ids, status=ClassifiedAd.AdStatus.ACTIVE
+            )
+            .select_related("user", "category", "country")
+            .prefetch_related("images")
+        )
+
         # Render each ad card
         ads_data = []
         for ad in ads:
             try:
-                html = render_to_string('partials/_ad_card_component.html', {
-                    'ad': ad,
-                    'user': request.user,
-                    'LANGUAGE_CODE': request.LANGUAGE_CODE,
-                })
-                ads_data.append({
-                    'id': ad.id,
-                    'html': html,
-                })
+                html = render_to_string(
+                    "partials/_ad_card_component.html",
+                    {
+                        "ad": ad,
+                        "user": request.user,
+                        "LANGUAGE_CODE": request.LANGUAGE_CODE,
+                    },
+                )
+                ads_data.append(
+                    {
+                        "id": ad.id,
+                        "html": html,
+                    }
+                )
             except Exception as e:
                 # Skip ads that fail to render
                 print(f"Error rendering ad {ad.id}: {e}")
                 continue
-        
-        return JsonResponse({
-            'success': True,
-            'ads': ads_data,
-            'count': len(ads_data)
-        })
-        
+
+        return JsonResponse({"success": True, "ads": ads_data, "count": len(ads_data)})
+
     except json.JSONDecodeError:
-        return JsonResponse({'success': False, 'message': 'Invalid JSON'}, status=400)
+        return JsonResponse({"success": False, "message": "Invalid JSON"}, status=400)
     except Exception as e:
-        return JsonResponse({'success': False, 'message': str(e)}, status=500)
+        return JsonResponse({"success": False, "message": str(e)}, status=500)

@@ -9,6 +9,7 @@ from main.models import Cart, Wishlist
 def cart_wishlist_counts(request):
     """
     Add cart and wishlist counts to the context for all templates
+    Supports both authenticated and guest users for cart
     """
     context = {
         "cart_count": 0,
@@ -29,5 +30,14 @@ def cart_wishlist_counts(request):
             context["wishlist_count"] = wishlist.get_items_count()
         except Exception:
             context["wishlist_count"] = 0
+    else:
+        # Guest users - get cart count from session
+        try:
+            session_cart = request.session.get("cart", {})
+            context["cart_count"] = sum(
+                item["quantity"] for item in session_cart.values()
+            )
+        except Exception:
+            context["cart_count"] = 0
 
     return context

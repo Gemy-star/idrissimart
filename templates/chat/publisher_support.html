@@ -3,31 +3,436 @@
 
 {% block title %}{% trans "الدعم الفني" %} - {{ block.super }}{% endblock %}
 
-{% block content %}
-<div class="container-fluid py-4">
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header bg-gradient-success text-white">
-                    <h3 class="mb-0">
-                        <i class="fas fa-headset me-2"></i>
-                        {% trans "الدعم الفني" %}
-                    </h3>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        {% trans "نظام المحادثات مع الدعم الفني قيد التطوير. سيتم تفعيله قريباً." %}
-                    </div>
+{% block publisher_extra_css %}
+<style>
+    .support-ticket {
+        border: 1px solid #e3e6f0;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        background: white;
+        transition: all 0.3s ease;
+    }
+    .support-ticket:hover {
+        box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+    .chat-messages-container {
+        height: 500px;
+        overflow-y: auto;
+        background: #f8f9fc;
+        border-radius: 8px;
+        padding: 1.5rem;
+    }
+    .chat-message {
+        margin-bottom: 1rem;
+        display: flex;
+        gap: 0.75rem;
+    }
+    .chat-message.sent {
+        flex-direction: row-reverse;
+    }
+    .chat-message-bubble {
+        max-width: 70%;
+        padding: 0.75rem 1rem;
+        border-radius: 12px;
+        word-wrap: break-word;
+    }
+    .chat-message.received .chat-message-bubble {
+        background: white;
+        border: 1px solid #e3e6f0;
+    }
+    .chat-message.sent .chat-message-bubble {
+        background: linear-gradient(135deg, #1cc88a 0%, #13855c 100%);
+        color: white;
+    }
+    .chat-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #e3e6f0;
+        flex-shrink: 0;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #858796;
+    }
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    .dashboard-stat-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        margin-bottom: 1.5rem;
+    }
+    .dashboard-stat-card .stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+    }
+    .stat-success .stat-icon { background: linear-gradient(135deg, #1cc88a 0%, #13855c 100%); }
+    .stat-warning .stat-icon { background: linear-gradient(135deg, #f6c23e 0%, #dda20a 100%); }
+    .stat-danger .stat-icon { background: linear-gradient(135deg, #e74a3b 0%, #be2617 100%); }
+    .stat-info .stat-icon { background: linear-gradient(135deg, #36b9cc 0%, #258391 100%); }
+</style>
+{% endblock %}
 
-                    <div class="text-center py-5">
-                        <i class="fas fa-headset fa-5x text-muted mb-3"></i>
-                        <h4 class="text-muted">{% trans "تواصل مع فريق الدعم" %}</h4>
-                        <p class="text-muted">{% trans "يمكنك التواصل مع فريق الدعم الفني لحل أي مشكلة أو الإجابة على استفساراتك" %}</p>
+{% block publisher_content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="mb-4">
+        <h1 class="h3 mb-1">
+            <i class="fas fa-headset me-2"></i>
+            {% trans "الدعم الفني" %}
+        </h1>
+        <p class="text-muted mb-0">{% trans "تواصل مع فريق الدعم لحل أي مشكلة أو الإجابة على استفساراتك" %}</p>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="dashboard-stat-card stat-success">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon me-3">
+                        <i class="fas fa-ticket-alt"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-0">{{ support_stats.total_tickets|default:0 }}</h3>
+                        <p class="text-muted mb-0 small">{% trans "إجمالي الطلبات" %}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="dashboard-stat-card stat-warning">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon me-3">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-0">{{ support_stats.pending_tickets|default:0 }}</h3>
+                        <p class="text-muted mb-0 small">{% trans "قيد المعالجة" %}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="dashboard-stat-card stat-info">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon me-3">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-0">{{ support_stats.resolved_tickets|default:0 }}</h3>
+                        <p class="text-muted mb-0 small">{% trans "تم حلها" %}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="dashboard-stat-card stat-danger">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon me-3">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-0">{{ support_stats.unread_messages|default:0 }}</h3>
+                        <p class="text-muted mb-0 small">{% trans "ردود جديدة" %}</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Support Interface -->
+    <div class="card">
+        <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs" id="supportTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="my-tickets-tab" data-bs-toggle="tab" data-bs-target="#my-tickets" type="button" role="tab">
+                        <i class="fas fa-inbox me-2"></i>
+                        {% trans "طلباتي" %}
+                        <span class="badge bg-primary ms-2">{{ support_rooms|length|default:0 }}</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="new-ticket-tab" data-bs-toggle="tab" data-bs-target="#new-ticket" type="button" role="tab">
+                        <i class="fas fa-plus-circle me-2"></i>
+                        {% trans "طلب جديد" %}
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="resolved-tab" data-bs-toggle="tab" data-bs-target="#resolved" type="button" role="tab">
+                        <i class="fas fa-check-circle me-2"></i>
+                        {% trans "تم حلها" %}
+                    </button>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <div class="tab-content" id="supportTabsContent">
+                <!-- My Tickets Tab -->
+                <div class="tab-pane fade show active" id="my-tickets" role="tabpanel">
+                    <div class="row">
+                        <!-- Tickets List -->
+                        <div class="col-lg-4">
+                            <div class="mb-3">
+                                <input type="text" class="form-control" id="ticketSearch" placeholder="{% trans 'بحث في الطلبات...' %}">
+                            </div>
+                            {% if support_rooms %}
+                                {% for room in support_rooms %}
+                                <div class="support-ticket" onclick="loadSupportChat({{ room.id }})">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="mb-0"># {% trans "طلب" %} {{ room.id }}</h6>
+                                        {% if room.is_active %}
+                                            <span class="badge bg-warning">{% trans "قيد المعالجة" %}</span>
+                                        {% else %}
+                                            <span class="badge bg-success">{% trans "تم الحل" %}</span>
+                                        {% endif %}
+                                    </div>
+                                    <p class="mb-1 text-muted small">
+                                        {{ room.messages.last.message|truncatewords:10|default:"لا توجد رسائل" }}
+                                    </p>
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>
+                                        {{ room.updated_at|timesince }}
+                                    </small>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="empty-state">
+                                    <i class="fas fa-ticket-alt"></i>
+                                    <h5>{% trans "لا توجد طلبات" %}</h5>
+                                    <p class="text-muted">{% trans "ابدأ بإنشاء طلب دعم جديد" %}</p>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Support Chat -->
+                        <div class="col-lg-8">
+                            {% if support_rooms %}
+                                {% with room=support_rooms.0 %}
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <h5 class="mb-0"># {% trans "طلب دعم" %} {{ room.id }}</h5>
+                                        <small class="text-muted">{% trans "تم الإنشاء:" %} {{ room.created_at|date:"d/m/Y H:i" }}</small>
+                                    </div>
+                                    {% if room.is_active %}
+                                        <span class="badge bg-warning">{% trans "قيد المعالجة" %}</span>
+                                    {% else %}
+                                        <span class="badge bg-success">{% trans "تم الحل" %}</span>
+                                    {% endif %}
+                                </div>
+
+                                <div class="chat-messages-container" id="supportMessages">
+                                    {% for message in room.messages.all %}
+                                    <div class="chat-message {% if message.sender == request.user %}sent{% else %}received{% endif %}">
+                                        <div class="chat-avatar">
+                                            {% if message.sender.is_staff %}
+                                                <i class="fas fa-user-shield"></i>
+                                            {% else %}
+                                                <i class="fas fa-user"></i>
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <div class="chat-message-bubble">
+                                                {{ message.message }}
+                                            </div>
+                                            <small class="text-muted d-block mt-1">
+                                                {% if message.sender.is_staff %}
+                                                    {% trans "فريق الدعم" %}
+                                                {% else %}
+                                                    {% trans "أنت" %}
+                                                {% endif %}
+                                                • {{ message.created_at|date:"H:i" }}
+                                            </small>
+                                        </div>
+                                    </div>
+                                    {% empty %}
+                                    <div class="empty-state">
+                                        <i class="fas fa-comment-slash"></i>
+                                        <h5>{% trans "لا توجد رسائل" %}</h5>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+
+                                {% if room.is_active %}
+                                <div class="mt-3">
+                                    <form id="supportForm" onsubmit="sendSupportMessage(event, {{ room.id }})">
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" id="supportMessageInput"
+                                                   placeholder="{% trans 'اكتب رسالتك هنا...' %}" required>
+                                            <button class="btn btn-success" type="submit">
+                                                <i class="fas fa-paper-plane me-1"></i> {% trans "إرسال" %}
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                                {% else %}
+                                    <div class="alert alert-success mt-3">
+                                        <i class="fas fa-check-circle me-2"></i>
+                                        {% trans "تم حل هذا الطلب. يمكنك إنشاء طلب جديد إذا كنت بحاجة لمزيد من المساعدة." %}
+                                    </div>
+                                {% endif %}
+                                {% endwith %}
+                            {% else %}
+                                <div class="empty-state">
+                                    <i class="fas fa-headset"></i>
+                                    <h5>{% trans "ابدأ طلب دعم جديد" %}</h5>
+                                    <p class="text-muted">{% trans "انتقل إلى تبويب 'طلب جديد' لإنشاء طلب دعم" %}</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- New Ticket Tab -->
+                <div class="tab-pane fade" id="new-ticket" role="tabpanel">
+                    <div class="row justify-content-center">
+                        <div class="col-lg-8">
+                            <div class="card shadow-sm">
+                                <div class="card-body">
+                                    <h5 class="card-title mb-4">
+                                        <i class="fas fa-plus-circle me-2 text-success"></i>
+                                        {% trans "إنشاء طلب دعم جديد" %}
+                                    </h5>
+                                    <form id="newTicketForm" onsubmit="createSupportTicket(event)">
+                                        <div class="mb-3">
+                                            <label for="ticketSubject" class="form-label">{% trans "الموضوع" %}</label>
+                                            <input type="text" class="form-control" id="ticketSubject" required
+                                                   placeholder="{% trans 'وصف مختصر للمشكلة' %}">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="ticketCategory" class="form-label">{% trans "الفئة" %}</label>
+                                            <select class="form-select" id="ticketCategory" required>
+                                                <option value="">{% trans "اختر الفئة" %}</option>
+                                                <option value="technical">{% trans "مشكلة تقنية" %}</option>
+                                                <option value="payment">{% trans "الدفع والباقات" %}</option>
+                                                <option value="account">{% trans "الحساب" %}</option>
+                                                <option value="ads">{% trans "الإعلانات" %}</option>
+                                                <option value="other">{% trans "أخرى" %}</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="ticketMessage" class="form-label">{% trans "الرسالة" %}</label>
+                                            <textarea class="form-control" id="ticketMessage" rows="5" required
+                                                      placeholder="{% trans 'اشرح المشكلة بالتفصيل...' %}"></textarea>
+                                        </div>
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="fas fa-paper-plane me-2"></i>
+                                            {% trans "إرسال الطلب" %}
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resolved Tab -->
+                <div class="tab-pane fade" id="resolved" role="tabpanel">
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        {% trans "الطلبات التي تم حلها" %}
+                    </div>
+                    {% if support_rooms %}
+                        <div class="row">
+                            {% for room in support_rooms %}
+                                {% if not room.is_active %}
+                                <div class="col-md-6 mb-3">
+                                    <div class="support-ticket">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h6 class="mb-0"># {% trans "طلب" %} {{ room.id }}</h6>
+                                            <span class="badge bg-success">{% trans "تم الحل" %}</span>
+                                        </div>
+                                        <p class="mb-1 text-muted small">
+                                            {{ room.messages.last.message|truncatewords:15 }}
+                                        </p>
+                                        <small class="text-muted">
+                                            <i class="fas fa-check me-1"></i>
+                                            {{ room.updated_at|date:"d/m/Y" }}
+                                        </small>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-state">
+                            <i class="fas fa-check-circle"></i>
+                            <h5>{% trans "لا توجد طلبات محلولة" %}</h5>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function loadSupportChat(roomId) {
+    console.log('Loading support chat:', roomId);
+    // Load via AJAX
+}
+
+function sendSupportMessage(event, roomId) {
+    event.preventDefault();
+    const messageInput = document.getElementById('supportMessageInput');
+    const message = messageInput.value.trim();
+    if (!message) return;
+
+    console.log('Sending support message:', message, 'to room:', roomId);
+    messageInput.value = '';
+}
+
+function createSupportTicket(event) {
+    event.preventDefault();
+    const subject = document.getElementById('ticketSubject').value;
+    const category = document.getElementById('ticketCategory').value;
+    const message = document.getElementById('ticketMessage').value;
+
+    console.log('Creating ticket:', { subject, category, message });
+    // Create via AJAX and switch to my-tickets tab
+}
+
+// Search functionality
+document.getElementById('ticketSearch')?.addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    document.querySelectorAll('.support-ticket').forEach(item => {
+        const text = item.textContent.toLowerCase();
+        item.style.display = text.includes(searchTerm) ? '' : 'none';
+    });
+});
+</script>
 {% endblock %}

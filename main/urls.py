@@ -505,6 +505,33 @@ urlpatterns = [
         views.AdminPaymentsView.as_view(),
         name="admin_payments",
     ),
+    # User Package Management
+    path(
+        "admin/user-packages/<int:package_id>/extend/",
+        views.admin_user_package_extend,
+        name="admin_user_package_extend",
+    ),
+    path(
+        "admin/user-packages/<int:package_id>/add-ads/",
+        views.admin_user_package_add_ads,
+        name="admin_user_package_add_ads",
+    ),
+    # User Subscription Management
+    path(
+        "admin/subscriptions/<int:subscription_id>/extend/",
+        views.admin_subscription_extend,
+        name="admin_subscription_extend",
+    ),
+    path(
+        "admin/subscriptions/<int:subscription_id>/cancel/",
+        views.admin_subscription_cancel,
+        name="admin_subscription_cancel",
+    ),
+    path(
+        "admin/subscriptions/<int:subscription_id>/toggle-auto-renew/",
+        views.admin_subscription_toggle_auto_renew,
+        name="admin_subscription_toggle_auto_renew",
+    ),
     path(
         "admin/notifications/",
         views.AdminNotificationView.as_view(),
@@ -591,7 +618,7 @@ urlpatterns = [
         cart_wishlist_views.update_cart_quantity,
         name="cart_update_quantity",
     ),
-    path("api/cart/count/", cart_wishlist_views.get_cart_count, name="cart_count"),
+    path("api/cart/count/", cart_wishlist_views.get_cart_count_view, name="cart_count"),
     path("cart/", cart_wishlist_views.cart_view, name="cart_view"),
     # Wishlist URLs
     path("api/wishlist/add/", cart_wishlist_views.add_to_wishlist, name="wishlist_add"),
@@ -651,6 +678,27 @@ urlpatterns = [
         "admin/support-chats/",
         views.AdminSupportChatsView.as_view(),
         name="admin_support_chats",
+    ),
+    # Admin support chat AJAX endpoints
+    path(
+        "admin/support-chats/<int:room_id>/messages/",
+        views.admin_chat_get_messages,
+        name="admin_chat_get_messages",
+    ),
+    path(
+        "admin/support-chats/<int:room_id>/send/",
+        views.admin_chat_send_message,
+        name="admin_chat_send_message",
+    ),
+    path(
+        "admin/support-chats/<int:room_id>/resolve/",
+        views.admin_chat_resolve,
+        name="admin_chat_resolve",
+    ),
+    path(
+        "admin/support-chats/<int:room_id>/reopen/",
+        views.admin_chat_reopen,
+        name="admin_chat_reopen",
     ),
     path(
         "chat/publisher/<int:ad_id>/",

@@ -1320,6 +1320,22 @@
 
 {% block admin_extra_js %}
 <script>
+    // CSRF Token helper - Define first as it's needed by other functions
+    window.getCookie = function(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    };
+
     // Notification function
     window.showNotification = function(message, type = 'success') {
         const notification = document.createElement('div');
@@ -1335,48 +1351,48 @@
         }, 3000);
     };
 
-    document.addEventListener('DOMContentLoaded', function() {
-        // Image navigation
-        let currentImageIndex = 0;
-        const images = [
-            {% for image in ad.images.all %}
-                "{{ image.image.url }}"{% if not forloop.last %},{% endif %}
-            {% endfor %}
-        ];
+    // Image navigation - Define globally before DOM loads
+    let currentImageIndex = 0;
+    const images = [
+        {% for image in ad.images.all %}
+            "{{ image.image.url }}"{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
 
-        function previousImage() {
-            if (images.length > 0) {
-                currentImageIndex = (currentImageIndex - 1 + images.length) % images.length;
-                document.getElementById('mainAdImage').src = images[currentImageIndex];
+    window.previousImage = function() {
+        if (images.length > 0) {
+            currentImageIndex = (currentImageIndex - 1 + images.length) % images.length;
+            const mainImage = document.getElementById('mainAdImage');
+            if (mainImage) {
+                mainImage.src = images[currentImageIndex];
             }
         }
+    };
 
-        function nextImage() {
-            if (images.length > 0) {
-                currentImageIndex = (currentImageIndex + 1) % images.length;
-                document.getElementById('mainAdImage').src = images[currentImageIndex];
+    window.nextImage = function() {
+        if (images.length > 0) {
+            currentImageIndex = (currentImageIndex + 1) % images.length;
+            const mainImage = document.getElementById('mainAdImage');
+            if (mainImage) {
+                mainImage.src = images[currentImageIndex];
             }
         }
+    };
 
-        // Make functions global
-        window.previousImage = previousImage;
-        window.nextImage = nextImage;
-    });
-
-    // Modal helper functions
-    function openModal(modalId) {
+    // Modal helper functions - Define globally
+    window.openModal = function(modalId) {
         const modal = document.getElementById(modalId);
         if (modal) {
             modal.classList.add('active');
         }
-    }
+    };
 
-    function closeModal(modalId) {
+    window.closeModal = function(modalId) {
         const modal = document.getElementById(modalId);
         if (modal) {
             modal.classList.remove('active');
         }
-    }
+    };
 
     // Close modal when clicking outside
     window.addEventListener('click', function(event) {
@@ -1384,10 +1400,6 @@
             event.target.classList.remove('active');
         }
     });
-
-    // Make modal functions global
-    window.openModal = openModal;
-    window.closeModal = closeModal;
 
     // Admin actions - state variables
     let currentAdId = null;
@@ -1585,22 +1597,7 @@
         });
     };
 
-    window.getCookie = function(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    };
-
-    // Functions already assigned to window object above
+    // All functions are now assigned to window object above
 </script>
 {% endblock admin_extra_js %}
 

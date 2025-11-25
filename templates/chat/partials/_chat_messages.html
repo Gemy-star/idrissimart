@@ -1,0 +1,58 @@
+{% load i18n %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex align-items-center">
+        <i class="fas fa-user-circle fa-3x text-muted me-3"></i>
+        <div>
+            <h5 class="mb-0">{{ room.publisher.get_display_name }}</h5>
+            <small class="text-muted">@{{ room.publisher.username }} • {{ room.publisher.email }}</small>
+        </div>
+    </div>
+    <div>
+        <button class="btn btn-sm btn-outline-success" onclick="markAsResolved({{ room.id }})">
+            <i class="fas fa-check me-1"></i> {% trans "وضع كمحلول" %}
+        </button>
+        <button class="btn btn-sm btn-outline-danger" onclick="closeChat({{ room.id }})">
+            <i class="fas fa-times me-1"></i> {% trans "إغلاق" %}
+        </button>
+    </div>
+</div>
+
+<div class="chat-messages-container" id="chatMessages">
+    {% for message in room.messages.all %}
+    <div class="chat-message {% if message.sender.is_staff %}sent{% else %}received{% endif %}">
+        <div class="chat-avatar">
+            <i class="fas fa-user"></i>
+        </div>
+        <div>
+            <div class="chat-message-bubble">
+                {{ message.message }}
+            </div>
+            <small class="text-muted d-block mt-1">
+                {{ message.created_at|date:"H:i" }}
+                {% if message.is_read %}
+                    <i class="fas fa-check-double text-primary"></i>
+                {% endif %}
+            </small>
+        </div>
+    </div>
+    {% empty %}
+    <div class="empty-state">
+        <i class="fas fa-comment-slash"></i>
+        <h5>{% trans "لا توجد رسائل" %}</h5>
+        <p class="text-muted">{% trans "ابدأ المحادثة بإرسال رسالة" %}</p>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="chat-input-box">
+    <form id="chatForm" onsubmit="sendMessage(event, {{ room.id }})">
+        <div class="input-group">
+            <input type="text" class="form-control" id="messageInput"
+                   placeholder="{% trans 'اكتب رسالتك هنا...' %}" required>
+            <button class="btn btn-primary" type="submit">
+                <i class="fas fa-paper-plane me-1"></i> {% trans "إرسال" %}
+            </button>
+        </div>
+    </form>
+</div>
