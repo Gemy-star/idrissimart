@@ -230,6 +230,17 @@ CONSTANCE_CONFIG = CONSTANCE_CONFIG
 CONSTANCE_CONFIG_FIELDSETS = CONSTANCE_CONFIG_FIELDSETS
 
 # ===========================
+# System Check Settings
+# ===========================
+# Suppress warnings that are not applicable to our setup
+SILENCED_SYSTEM_CHECKS = [
+    # MariaDB doesn't support conditional indexes - this is expected
+    "models.W037",
+    # Suppress other MariaDB-related warnings if they appear
+    "mysql.W003",  # MySQL may not support timezone-aware datetimes
+]
+
+# ===========================
 # Django-Q2 Task Queue Settings
 # ===========================
 Q_CLUSTER = {

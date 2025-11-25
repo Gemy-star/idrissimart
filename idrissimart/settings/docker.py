@@ -58,9 +58,41 @@ DATABASES = {
         "PORT": os.getenv("DB_PORT", "3306"),
         "OPTIONS": {
             "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+            "charset": "utf8mb4",
+            "use_unicode": True,
         },
         "CONN_MAX_AGE": 60,
+        "ATOMIC_REQUESTS": True,  # Better transaction handling
+        "AUTOCOMMIT": True,
     }
+}
+
+# =======================
+# Database Connection Settings
+# =======================
+# Prevent database connection issues
+import pymysql
+
+pymysql.version_info = (1, 4, 6, "final", 0)
+pymysql.install_as_MySQLdb()
+
+# =======================
+# Django-Q2 Settings for MariaDB Production
+# =======================
+# Override Q_CLUSTER settings for MariaDB compatibility
+Q_CLUSTER = {
+    "name": "idrissimart_q_prod",
+    "workers": 2,  # Reduced for production stability
+    "recycle": 500,
+    "timeout": 120,  # Increased timeout for production
+    "compress": True,
+    "save_limit": 100,  # Reduced to save database space
+    "queue_limit": 200,
+    "cpu_affinity": 1,
+    "label": "Django Q Production",
+    "orm": "default",
+    "sync": False,  # Ensure async execution in production
+    "catch_up": False,  # Don't catch up missed schedules on restart
 }
 
 # =======================
@@ -116,6 +148,11 @@ LOGGING = {
             "propagate": False,
             "filters": ["skip_disallowed_host"],
         },
+        "django.db": {
+            "handlers": ["file", "console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
         "main": {
             "handlers": ["file", "console"],
             "level": "ERROR",
@@ -124,6 +161,12 @@ LOGGING = {
         "content": {
             "handlers": ["file", "console"],
             "level": "ERROR",
+            "propagate": False,
+        },
+        # Add more detailed logging for debugging
+        "django.db.backends": {
+            "handlers": ["file", "console"],
+            "level": "DEBUG" if os.getenv("SQL_DEBUG") == "1" else "WARNING",
             "propagate": False,
         },
     },
