@@ -162,12 +162,14 @@
                                             <a href="{% url 'main:admin_user_detail' user_obj.id %}" class="btn btn-sm btn-outline-primary" title="{% trans 'عرض التفاصيل' %}" aria-label="{% trans 'عرض التفاصيل' %}">
                                                 <i class="fas fa-eye"></i>
                                             </a>
-                                            <button type="button" class="btn btn-sm btn-outline-success chat-btn" title="{% trans 'محادثة' %}" aria-label="{% trans 'محادثة' %}" onclick="openChatPanel({{ user_obj.id }}, '{{ user_obj.get_full_name|default:user_obj.username|escapejs }}', this)">
+                                            <button type="button" class="btn btn-sm btn-outline-success chat-btn" title="{% trans 'محادثة' %}" aria-label="{% trans 'محادثة' %}" data-action="open-chat" data-user-id="{{ user_obj.id }}" data-user-name="{{ user_obj.get_full_name|default:user_obj.username|escapejs }}">
                                                 <i class="fas fa-comments"></i>
                                             </button>
                                             <button type="button"
                                                     class="btn btn-sm btn-outline-danger"
-                                                    onclick="handleUserAction('{{ user_obj.is_suspended|yesno:'unsuspend,suspend' }}', {{ user_obj.id }})"
+                                                    data-action="user-action"
+                                                    data-user-action="{{ user_obj.is_suspended|yesno:'unsuspend,suspend' }}"
+                                                    data-user-id="{{ user_obj.id }}"
                                                     title="{% if user_obj.is_suspended %}{% trans 'إلغاء التعليق' %}{% else %}{% trans 'تعليق' %}{% endif %}"
                                                     aria-label="{% if user_obj.is_suspended %}{% trans 'إلغاء التعليق' %}{% else %}{% trans 'تعليق' %}{% endif %}">
                                                 <i class="fas fa-user-slash"></i>
@@ -216,9 +218,11 @@
         </div>
     </div>
 
+{% endblock %}
+
+{% block modals %}
     <!-- User Action Confirmation Modal -->
-    <!-- Confirmation Modal -->
-    <div id="userActionModal" class="modal">
+    <div class="modal fade" id="userActionModal" tabindex="-1" aria-labelledby="userActionModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -226,7 +230,7 @@
                         <i class="fas fa-user-shield text-warning me-2"></i>
                         <span id="userActionTitle">{% trans "تأكيد الإجراء" %}</span>
                     </h2>
-                    <button class="btn-close" onclick="closeModal('userActionModal')">
+                    <button class="btn-close" data-action="close-modal" data-modal-id="userActionModal">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -237,7 +241,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-cancel" onclick="closeModal('userActionModal')">
+                    <button type="button" class="btn-cancel" data-action="close-modal" data-modal-id="userActionModal">
                         <i class="fas fa-times me-2"></i>
                         {% trans "إلغاء" %}
                     </button>
@@ -374,7 +378,30 @@
         let currentUserId = null;
         let currentUserAction = null;
 
-        window.handleUserAction = function(action, userId) {
+        // Event delegation for user management actions
+        document.addEventListener('click', function(e) {
+            const target = e.target.closest('[data-action]');
+            if (!target) return;
+
+            const action = target.dataset.action;
+
+            switch(action) {
+                case 'user-action':
+                    const userAction = target.dataset.userAction;
+                    const userId = parseInt(target.dataset.userId);
+                    if (userAction && userId) {
+                        handleUserAction(userAction, userId);
+                    }
+                    break;
+
+                case 'close-modal':
+                    const modalId = target.dataset.modalId;
+                    if (modalId) closeModal(modalId);
+                    break;
+            }
+        });
+
+        function handleUserAction(action, userId) {
             if (!action || !userId) return;
 
             currentUserId = userId;
@@ -397,7 +424,7 @@
             document.getElementById('userActionMessage').textContent = confirmMsg;
             document.getElementById('userActionButtonText').textContent = buttonText;
             openModal('userActionModal');
-        };
+        }
 
         // Confirm user action handler
         document.addEventListener('DOMContentLoaded', function() {

@@ -50,14 +50,14 @@
 
 <!-- Chat Custom Modal -->
 <div id="chatModal" class="chat-custom-modal">
-    <div class="chat-modal-backdrop" onclick="closeChatModal()"></div>
+    <div class="chat-modal-backdrop" data-action="close-chat-modal"></div>
     <div class="chat-modal-content" id="chatModalContent">
         <div class="chat-modal-header">
             <h5>
                 <i class="fas fa-comments me-2"></i>
                 <span id="chatModalTitle">{% trans "محادثة" %}</span>
             </h5>
-            <button type="button" class="btn-close" onclick="closeChatModal()" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-action="close-chat-modal" aria-label="Close"></button>
         </div>
         <div class="chat-modal-body" id="chatModalBody">
             <div class="text-center py-5">
@@ -73,6 +73,9 @@
 {% csrf_token %}
 
 {% endblock %}
+
+<!-- Modals Block for child templates (outside content block for proper z-index) -->
+{% block modals %}{% endblock %}
 
 {% block extra_js %}
     <script>
@@ -413,6 +416,27 @@
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeChatModal();
+            }
+        });
+
+        // Event delegation for admin dashboard actions
+        document.addEventListener('click', function(e) {
+            const target = e.target.closest('[data-action]');
+            if (!target) return;
+
+            const action = target.dataset.action;
+
+            switch(action) {
+                case 'close-chat-modal':
+                    closeChatModal();
+                    break;
+                case 'open-chat':
+                    const userId = parseInt(target.dataset.userId);
+                    const userName = target.dataset.userName;
+                    if (userId && userName) {
+                        openChatPanel(userId, userName, target);
+                    }
+                    break;
             }
         });
     </script>

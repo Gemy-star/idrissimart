@@ -932,10 +932,10 @@
                         <img src="{{ ad.images.first.image.url }}" alt="{{ ad.title }}" class="ad-main-image" id="mainAdImage" onerror="this.onerror=null;this.src='https://via.placeholder.com/800x400?text={% trans "Image Not Found" %}';">
                         {% if ad.images.count > 1 %}
                         <div class="image-nav-buttons">
-                            <button class="nav-btn" onclick="previousImage()">
+                            <button class="nav-btn" data-action="prev-image">
                                 <i class="fas fa-chevron-left"></i>
                             </button>
-                            <button class="nav-btn" onclick="nextImage()">
+                            <button class="nav-btn" data-action="next-image">
                                 <i class="fas fa-chevron-right"></i>
                             </button>
                         </div>
@@ -1227,7 +1227,7 @@
                     <!-- Admin actions for user -->
                     {% if request.user.is_staff %}
                         <div class="mt-4 pt-3 border-top">
-                            <button class="btn-action btn-suspend" onclick="handleUserAction('{{ ad.user.is_suspended|yesno:"unsuspend,suspend" }}', {{ ad.user.id }})">
+                            <button class="btn-action btn-suspend" data-action="user-action" data-user-action="{{ ad.user.is_suspended|yesno:"unsuspend,suspend" }}" data-user-id="{{ ad.user.id }}">
                                 {% if ad.user.is_suspended %}
                                     <i class="fas fa-play-circle me-2"></i> {% trans "إلغاء تعليق المستخدم" %}
                                 {% else %}
@@ -1235,7 +1235,7 @@
                                 {% endif %}
                             </button>
                             {% if ad.user.verification_status != 'verified' %}
-                                <button class="btn-action btn-verify" onclick="handleUserAction('verify', {{ ad.user.id }})">
+                                <button class="btn-action btn-verify" data-action="user-action" data-user-action="verify" data-user-id="{{ ad.user.id }}">
                                     <i class="fas fa-user-check me-2"></i> {% trans "توثيق المستخدم" %}
                                 </button>
                             {% endif %}
@@ -1488,6 +1488,17 @@
 
             case 'copy-url':
                 handleCopyUrl(target);
+                break;
+
+            case 'user-action':
+                const userAction = target.dataset.userAction;
+                const userId = parseInt(target.dataset.userId);
+                handleUserAction(userAction, userId);
+                break;
+
+            case 'close-modal':
+                const modalId = target.dataset.modalId;
+                if (modalId) closeModal(modalId);
                 break;
         }
     });

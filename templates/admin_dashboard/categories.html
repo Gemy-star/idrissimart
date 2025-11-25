@@ -56,33 +56,7 @@
         overflow: visible;
     }
 
-    /* ============================================
-       MODAL SYSTEM
-       ============================================ */
-    .modal {
-        display: none;
-        position: fixed;
-        z-index: 10600;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(4px);
-        align-items: center;
-        justify-content: center;
-    }
-
-    .modal.active {
-        display: flex;
-    }
-
-    .modal-content {
-        background: var(--categories-modal-bg);
-        border: 1px solid var(--categories-modal-border);
-        border-radius: 16px;
-        padding: 30px;
-        max-width: 600px;
-        width: 90%;
-        max-height: 90vh;
-        overflow-y: auto;
+    /* Bootstrap modals automatically use global z-index from admin-dashboard.css */
         box-shadow: 0 20px 60px var(--categories-shadow-medium);
         position: relative;
         color: var(--categories-text-primary);
@@ -673,104 +647,65 @@
                     </div>
                 {% endfor %}
     </div>
+
+<!-- Toast container -->
+<div class="admin-toast-container" id="adminToastContainer" aria-live="polite" aria-atomic="true"></div>
+
+{% endblock %}
+
+{% block modals %}
 <!-- Add/Edit Category Modal -->
-<div id="categoryModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 id="categoryModalLabel">
-                <i class="fas fa-plus-circle me-2"></i>
-                {% trans "إضافة قسم جديد" %}
-            </h2>
-            <button class="btn-close" onclick="event.stopPropagation(); closeModal('categoryModal')">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
+<div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="categoryModalLabel">
+                    <i class="fas fa-folder-plus me-2"></i>
+                    <span id="modalTitle">{% trans "إضافة قسم" %}</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
             <div class="modal-body">
-                <form id="categoryForm" onsubmit="event.preventDefault(); return false;">
-                    <input type="hidden" id="categoryId" name="category_id">
-                    <input type="hidden" id="parentCategoryId" name="parent_id">
+                <form id="categoryForm">
+                    <input type="hidden" id="categoryId" name="id">
+                    <input type="hidden" id="parentId" name="parent_id">
+                    <input type="hidden" id="sectionType" name="section_type">
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">{% trans "اسم القسم (عربي)" %} *</label>
-                            <input type="text" name="name_ar" class="form-control" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">{% trans "اسم القسم (إنجليزي)" %} *</label>
-                            <input type="text" name="name_en" class="form-control" required>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">{% trans "الاسم المختصر (slug)" %}</label>
-                            <input type="text" name="slug" class="form-control">
-                            <small class="form-text text-muted">{% trans "سيتم إنشاؤه تلقائياً إذا تُرك فارغاً" %}</small>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">{% trans "نوع القسم" %} *</label>
-                            <select name="section_type" class="form-select" required>
-                                {% for choice in section_choices %}
-                                    <option value="{{ choice.0 }}">{{ choice.1 }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">{% trans "الدولة" %}</label>
-                            <select name="country" class="form-select">
-                                <option value="">{% trans "جميع الدول" %}</option>
-                                {% for country in countries %}
-                                    <option value="{{ country.code }}">{{ country.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">{% trans "الترتيب" %}</label>
-                            <input type="number" name="order" class="form-control" value="0">
-                        </div>
+                    <div class="mb-3">
+                        <label class="form-label">{% trans "اسم القسم (عربي)" %}</label>
+                        <input type="text" class="form-control" id="nameAr" name="name_ar" required>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">{% trans "الوصف" %}</label>
-                        <textarea name="description" class="form-control" rows="3"></textarea>
+                        <label class="form-label">{% trans "اسم القسم (English)" %}</label>
+                        <input type="text" class="form-control" id="nameEn" name="name_en" required>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">{% trans "أيقونة القسم" %}</label>
-                            <input type="text" name="icon" class="form-control" placeholder="fas fa-car">
-                            <small class="form-text text-muted">{% trans "أيقونة Font Awesome" %}</small>
+                    <div class="mb-3">
+                        <label class="form-label">{% trans "الوصف (عربي)" %}</label>
+                        <textarea class="form-control" id="descriptionAr" name="description_ar" rows="3"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">{% trans "الوصف (English)" %}</label>
+                        <textarea class="form-control" id="descriptionEn" name="description_en" rows="3"></textarea>
+                    </div>
+
+                    <div class="mb-3" id="allowCartField">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="allowCart" name="allow_cart">
+                            <label class="form-check-label" for="allowCart">{% trans "السماح بإضافة للسلة" %}</label>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">{% trans "لون القسم" %}</label>
-                            <input type="color" name="color" class="form-control">
-                        </div>
-                    </div>
-
-                    <div class="form-check mb-3">
-                        <input type="checkbox" name="is_active" class="form-check-input" id="isActive" checked>
-                        <label class="form-check-label" for="isActive">
-                            {% trans "نشط" %}
-                        </label>
-                    </div>
-
-                    <div class="form-check mb-3" id="allowCartGroup">
-                        <input type="checkbox" name="allow_cart" class="form-check-input" id="allowCart">
-                        <label class="form-check-label" for="allowCart">
-                            {% trans "السماح بالسلة" %}
-                        </label>
                     </div>
                 </form>
             </div>
-            <div class="form-actions">
-                <button type="button" class="btn-primary btn-cancel" onclick="event.stopPropagation(); closeModal('categoryModal')">
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>
                     {% trans "إلغاء" %}
                 </button>
-                <button type="button" class="btn-primary" onclick="event.stopPropagation(); saveCategory()">
-                    <i class="fas fa-save me-2"></i>
+                <button type="button" class="btn btn-primary" onclick="saveCategory()">
+                    <i class="fas fa-save me-1"></i>
                     {% trans "حفظ" %}
                 </button>
             </div>
@@ -779,46 +714,39 @@
 </div>
 
 <!-- Custom Fields Modal -->
-<div id="customFieldsModal" class="modal">
-    <div class="modal-content" style="max-width: 800px;">
-        <div class="modal-header">
-            <h2 id="customFieldsModalLabel">
-                <i class="fas fa-list me-2"></i>
-                {% trans "إدارة الحقول المخصصة" %}
-            </h2>
-            <button class="btn-close" onclick="event.stopPropagation(); closeModal('customFieldsModal')">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
+<div class="modal fade" id="customFieldsModal" tabindex="-1" aria-labelledby="customFieldsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="customFieldsModalLabel">
+                    <i class="fas fa-list-alt me-2"></i>
+                    <span id="customFieldsCategoryName">{% trans "إدارة الحقول المخصصة" %}</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
             <div class="modal-body">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h6 id="customFieldsCategoryName">{% trans "الحقول المخصصة للقسم" %}</h6>
-                    <button class="btn btn-primary btn-sm" onclick="addCustomField()">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">{% trans "الحقول المخصصة" %}</h6>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="addCustomField()">
                         <i class="fas fa-plus me-1"></i>
-                        {% trans "إضافة حقل جديد" %}
+                        {% trans "إضافة حقل" %}
                     </button>
                 </div>
-
-                <div id="customFieldsList">
-                    <!-- Custom fields will be loaded here -->
-                </div>
+                <div id="customFieldsContainer"></div>
             </div>
-            <div class="form-actions">
-                <button type="button" class="btn-primary btn-cancel" onclick="event.stopPropagation(); closeModal('customFieldsModal')">
-                    {% trans "إغلاق" %}
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>
+                    {% trans "إلغاء" %}
                 </button>
-                <button type="button" class="btn-primary" onclick="event.stopPropagation(); saveCustomFields()">
-                    <i class="fas fa-save me-2"></i>
-                    {% trans "حفظ التغييرات" %}
+                <button type="button" class="btn btn-primary" onclick="saveCustomFields()">
+                    <i class="fas fa-save me-1"></i>
+                    {% trans "حفظ الحقول" %}
                 </button>
             </div>
         </div>
     </div>
 </div>
-
-<!-- Toast container -->
-<div class="admin-toast-container" id="adminToastContainer" aria-live="polite" aria-atomic="true"></div>
-
 {% endblock %}
 
 {% block admin_extra_js %}
@@ -826,40 +754,64 @@
     <script>
         let currentCategoryId = null;
 
+        // Initialize Bootstrap modals on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const modalElements = document.querySelectorAll('.modal');
+            modalElements.forEach(function(modalEl) {
+                if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    try {
+                        bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                    } catch (error) {
+                        console.error('Modal initialization error:', error);
+                    }
+                }
+            });
+        });
+
 // Show/Hide "السماح بالسلة" based on section_type
 function toggleAllowCartField() {
-    const sectionType = document.querySelector('[name="section_type"]').value;
-    const allowCartGroup = document.getElementById('allowCartGroup');
+    const sectionTypeField = document.getElementById('sectionType');
+    const allowCartGroup = document.getElementById('allowCartField');
 
-    if (sectionType === 'classified') {
+    if (!sectionTypeField || !allowCartGroup) return;
+
+    if (sectionTypeField.value === 'classified') {
         allowCartGroup.style.display = 'block';
     } else {
         allowCartGroup.style.display = 'none';
-        document.getElementById('allowCart').checked = false;
+        const allowCartCheckbox = document.getElementById('allowCart');
+        if (allowCartCheckbox) allowCartCheckbox.checked = false;
     }
 }
 
-// Modal Management Functions
+// Modal Management Functions (Bootstrap API)
 function openModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.classList.add('active');
+    const modalElement = document.getElementById(modalId);
+    if (modalElement) {
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
     }
 }
 
 function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.classList.remove('active');
+    const modalElement = document.getElementById(modalId);
+    if (modalElement) {
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        if (modal) modal.hide();
     }
 }
 
 // Category Management
 function showAddCategoryPanel() {
-    document.getElementById('categoryModalLabel').innerHTML = '<i class="fas fa-plus-circle me-2"></i>إضافة قسم جديد';
+    const modalTitle = document.querySelector('#categoryModalLabel span') || document.getElementById('categoryModalLabel');
+    if (modalTitle.tagName === 'SPAN') {
+        modalTitle.textContent = 'إضافة قسم جديد';
+    } else {
+        modalTitle.innerHTML = '<i class="fas fa-plus-circle me-2"></i>إضافة قسم جديد';
+    }
     document.getElementById('categoryForm').reset();
     document.getElementById('categoryId').value = '';
-    document.getElementById('parentCategoryId').value = '';
+    document.getElementById('parentId').value = '';
 
     openModal('categoryModal');
 
@@ -869,28 +821,42 @@ function showAddCategoryPanel() {
 
 function addCategoryToSection(sectionCode) {
     showAddCategoryPanel();
-    document.querySelector('[name="section_type"]').value = sectionCode;
+    document.getElementById('sectionType').value = sectionCode;
     toggleAllowCartField();
 }
 
 function addSubcategory(parentId) {
     showAddCategoryPanel();
-    document.getElementById('parentCategoryId').value = parentId;
-    document.getElementById('categoryModalLabel').innerHTML = '<i class="fas fa-plus-circle me-2"></i>إضافة قسم فرعي';
+    document.getElementById('parentId').value = parentId;
+    const modalTitle = document.querySelector('#categoryModalLabel span') || document.getElementById('categoryModalLabel');
+    if (modalTitle.tagName === 'SPAN') {
+        modalTitle.textContent = 'إضافة قسم فرعي';
+    } else {
+        modalTitle.innerHTML = '<i class="fas fa-plus-circle me-2"></i>إضافة قسم فرعي';
+    }
     toggleAllowCartField();
 }
 
 function editCategory(categoryId) {
-    document.getElementById('categoryModalLabel').innerHTML = '<i class="fas fa-edit me-2"></i>تعديل القسم';
+    const modalTitle = document.querySelector('#categoryModalLabel span') || document.getElementById('categoryModalLabel');
+    if (modalTitle.tagName === 'SPAN') {
+        modalTitle.textContent = 'تعديل القسم';
+    } else {
+        modalTitle.innerHTML = '<i class="fas fa-edit me-2"></i>تعديل القسم';
+    }
 
     // Load category data via AJAX
     fetch(`/admin/categories/${categoryId}/`)
         .then(response => response.json())
         .then(category => {
             document.getElementById('categoryId').value = category.id || '';
-            document.querySelector('[name="name_ar"]').value = category.name_ar || '';
-            // Backend uses 'name' not 'name_en'; use it for English field if available
-            document.querySelector('[name="name_en"]').value = category.name || '';
+            document.getElementById('nameAr').value = category.name_ar || '';
+            document.getElementById('nameEn').value = category.name || '';
+            document.getElementById('descriptionAr').value = category.description_ar || '';
+            document.getElementById('descriptionEn').value = category.description_en || '';
+            document.getElementById('parentId').value = category.parent_id || '';
+            document.getElementById('sectionType').value = category.section_type || '';
+            document.getElementById('allowCart').checked = category.allow_cart || false;
             document.querySelector('[name="slug"]').value = category.slug || '';
             document.querySelector('[name="section_type"]').value = category.section_type || '';
             document.querySelector('[name="description"]').value = category.description || '';
@@ -968,7 +934,8 @@ function saveCategory() {
     .then(data => {
         if (data.success) {
             showSuccess(data.message || 'تم الحفظ بنجاح');
-            closeModal('categoryModal');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('categoryModal'));
+            if (modal) modal.hide();
             location.reload();
         } else {
             showError(data.message || 'تعذر حفظ البيانات');
@@ -990,8 +957,10 @@ function manageCustomFields(categoryId) {
         })
         .then(data => {
             if (data.success) {
-                document.getElementById('customFieldsCategoryName').textContent =
-                    `الحقول المخصصة للقسم: ${data.category_name}`;
+                const categoryNameSpan = document.getElementById('customFieldsCategoryName');
+                if (categoryNameSpan) {
+                    categoryNameSpan.textContent = data.category_name || 'إدارة الحقول المخصصة';
+                }
                 displayCustomFields(data.fields);
 
                 // Show modal
@@ -1007,7 +976,12 @@ function manageCustomFields(categoryId) {
 }
 
 function displayCustomFields(fields) {
-    const container = document.getElementById('customFieldsList');
+    const container = document.getElementById('customFieldsContainer');
+
+    if (!container) {
+        console.error('customFieldsContainer not found');
+        return;
+    }
 
     if (fields.length === 0) {
         container.innerHTML = `
@@ -1061,7 +1035,13 @@ function displayCustomFields(fields) {
 }
 
 function addCustomField() {
-    const container = document.getElementById('customFieldsList');
+    const container = document.getElementById('customFieldsContainer');
+
+    if (!container) {
+        console.error('customFieldsContainer not found');
+        return;
+    }
+
     const newFieldHtml = `
         <div class="custom-field-item" data-field-id="new-${Date.now()}">
             <div class="row">
@@ -1138,7 +1118,8 @@ function saveCustomFields() {
     .then(data => {
         if (data.success) {
             showSuccess(data.message || 'تم حفظ الحقول بنجاح');
-            closeModal('customFieldsModal');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('customFieldsModal'));
+            if (modal) modal.hide();
         } else {
             showError(data.message || 'تعذر حفظ الحقول');
         }

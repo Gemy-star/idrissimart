@@ -198,7 +198,7 @@
                                                     </div>
 
                                                     <div class="action-buttons">
-                                                        <button class="btn-action btn-view" onclick="viewAdDetails({{ ad.pk }})"
+                                                        <button class="btn-action btn-view" data-action="view-ad-details" data-ad-id="{{ ad.pk }}"
                                                                 title="{% trans 'عرض التفاصيل' %}">
                                                             <i class="fas fa-eye"></i>
                                                         </button>
@@ -208,7 +208,7 @@
                                                             <i class="fas fa-edit"></i>
                                                         </a>
                                                         <button class="btn-action btn-toggle"
-                                                                onclick="toggleAdStatus({{ ad.pk }})"
+                                                                data-action="toggle-ad-status" data-ad-id="{{ ad.pk }}"
                                                                 title="{% if ad.status == 'active' %}{% trans 'إخفاء' %}{% else %}{% trans 'إظهار' %}{% endif %}">
                                                             {% if ad.status == 'active' %}
                                                                 <i class="fas fa-eye-slash"></i>
@@ -217,7 +217,7 @@
                                                             {% endif %}
                                                         </button>
                                                         <button class="btn-action btn-delete"
-                                                                onclick="deleteAd({{ ad.pk }}, '{{ ad.title|escapejs }}')"
+                                                                data-action="delete-ad" data-ad-id="{{ ad.pk }}" data-ad-title="{{ ad.title|escapejs }}"
                                                                 title="{% trans 'حذف' %}">
                                                             <i class="fas fa-trash"></i>
                                                         </button>
@@ -292,21 +292,21 @@
         </div>
     </div>
 </div>
+{% endblock publisher_content %}
 
-<!-- Ad Details Panel -->
-<div class="slide-panel" id="adDetailsPanel">
-    <div class="slide-panel-overlay"></div>
-    <div class="slide-panel-content" style="max-width: 700px;">
-        <div class="slide-panel-header">
-            <h5 class="slide-panel-title">
-                <i class="fas fa-info-circle me-2"></i>
-                {% trans "تفاصيل الإعلان" %}
-            </h5>
-            <button type="button" class="slide-panel-close" onclick="closeSidePanel('adDetailsPanel')">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div class="slide-panel-body" id="adDetailsContent">
+{% block modals %}
+<!-- Ad Details Modal -->
+<div class="modal fade" id="adDetailsPanel" tabindex="-1" aria-labelledby="adDetailsLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="adDetailsLabel">
+                    <i class="fas fa-info-circle me-2"></i>
+                    {% trans "تفاصيل الإعلان" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="adDetailsContent">
             <!-- Content will be loaded via AJAX -->
             <div class="text-center py-4">
                 <div class="spinner-border text-primary" role="status">
@@ -321,16 +321,14 @@
 <div class="slide-panel" id="confirmDeletePanel">
     <div class="slide-panel-overlay"></div>
     <div class="slide-panel-content">
-        <div class="slide-panel-header">
-            <h5 class="slide-panel-title">
-                <i class="fas fa-exclamation-triangle text-warning me-2"></i>
-                {% trans "تأكيد الحذف" %}
-            </h5>
-            <button type="button" class="slide-panel-close" onclick="closeSidePanel('confirmDeletePanel')">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div class="slide-panel-body">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger" id="confirmDeleteLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    {% trans "تأكيد الحذف" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
             <div class="alert alert-warning">
                 <i class="fas fa-info-circle me-2"></i>
                 {% trans "هل أنت متأكد من حذف الإعلان" %} "<span id="deleteAdTitle"></span>"؟
@@ -341,7 +339,7 @@
             </p>
         </div>
         <div class="slide-panel-footer">
-            <button type="button" class="btn btn-secondary" onclick="closeSidePanel('confirmDeletePanel')">
+            <button type="button" class="btn btn-secondary" data-action="close-side-panel" data-panel-id="confirmDeletePanel">
                 <i class="fas fa-times me-2"></i>
                 {% trans "إلغاء" %}
             </button>
@@ -402,7 +400,51 @@ document.addEventListener('DOMContentLoaded', function() {
 // Dashboard functionality
 let currentAdId = null;
 
+// Event delegation for publisher dashboard actions
+document.addEventListener('click', function(e) {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+
+    const action = target.dataset.action;
+
+    switch(action) {
+        case 'view-ad-details':
+            const viewAdId = parseInt(target.dataset.adId);
+            if (viewAdId) viewAdDetails(viewAdId);
+            break;
+
+        case 'toggle-ad-status':
+            const toggleAdId = parseInt(target.dataset.adId);
+            if (toggleAdId) toggleAdStatus(toggleAdId);
+            break;
+
+        case 'delete-ad':
+            const deleteAdId = parseInt(target.dataset.adId);
+            const adTitle = target.dataset.adTitle;
+            if (deleteAdId) deleteAd(deleteAdId, adTitle);
+            break;
+
+        case 'close-side-panel':
+            const panelId = target.dataset.panelId;
+            if (panelId) closeSidePanel(panelId);
+            break;
+    }
+});
+
 function viewAdDetails(adId) {
+    const modal = new bootstrap.Modal(document.getElementById('adDetailsPanel'));
+    const content = document.getElementById('adDetailsContent');
+
+    // Show loading
+    content.innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">{% trans "جاري التحميل..." %}</span>
+            </div>
+        </div>
+    `;
+
+    modal.show();
     openSidePanel('adDetailsPanel');
 
     // Load ad details via AJAX
