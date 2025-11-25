@@ -28,7 +28,7 @@ class IgnoreInvalidHostFilter(logging.Filter):
         return True
 
 
-DEBUG = False
+DEBUG = True
 ALLOWED_HOSTS = [
     "idrissimart.com",
     "www.idrissimart.com",
