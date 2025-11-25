@@ -834,6 +834,136 @@
 </style>
 {% endblock admin_extra_css %}
 
+<!-- Define critical functions immediately before content to ensure they're available for onclick handlers -->
+<script>
+    // Critical admin functions defined early for inline onclick handlers
+    window.getCookie = window.getCookie || function(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    };
+
+    window.currentAdId = window.currentAdId || null;
+    window.currentIsHidden = window.currentIsHidden || null;
+
+    window.toggleAdVisibility = window.toggleAdVisibility || function(adId, isCurrentlyHidden) {
+        console.log('toggleAdVisibility called early:', adId, isCurrentlyHidden);
+        window.currentAdId = adId;
+        window.currentIsHidden = isCurrentlyHidden;
+
+        // Wait for DOM to be ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                window.toggleAdVisibility(adId, isCurrentlyHidden);
+            });
+            return;
+        }
+
+        const actionText = isCurrentlyHidden ? 'إظهار' : 'إخفاء';
+        const message = isCurrentlyHidden ? 'هل أنت متأكد من إظهار هذا الإعلان؟' : 'هل أنت متأكد من إخفاء هذا الإعلان؟';
+
+        const toggleHideMessage = document.getElementById('toggleHideMessage');
+        const toggleHideButtonText = document.getElementById('toggleHideButtonText');
+
+        if (toggleHideMessage) toggleHideMessage.textContent = message;
+        if (toggleHideButtonText) toggleHideButtonText.textContent = actionText;
+
+        if (typeof window.openModal === 'function') {
+            window.openModal('toggleHideModal');
+        } else {
+            // Fallback if modal function not loaded yet
+            const modal = document.getElementById('toggleHideModal');
+            if (modal) modal.classList.add('active');
+        }
+    };
+
+    window.deleteAdvertisement = window.deleteAdvertisement || function(adId, adTitle) {
+        console.log('deleteAdvertisement called early:', adId, adTitle);
+        window.currentAdId = adId;
+
+        // Wait for DOM to be ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                window.deleteAdvertisement(adId, adTitle);
+            });
+            return;
+        }
+
+        const deleteAdTitle = document.getElementById('deleteAdTitle');
+        if (deleteAdTitle) deleteAdTitle.textContent = adTitle;
+
+        if (typeof window.openModal === 'function') {
+            window.openModal('deleteAdModal');
+        } else {
+            // Fallback if modal function not loaded yet
+            const modal = document.getElementById('deleteAdModal');
+            if (modal) modal.classList.add('active');
+        }
+    };
+
+    window.enableAdCart = window.enableAdCart || function(adId) {
+        console.log('enableAdCart called early:', adId);
+
+        if (!confirm('هل أنت متأكد من تفعيل السلة لهذا الإعلان؟')) return;
+
+        const url = '/ar/admin/ads/' + adId + '/enable-cart/';
+        console.log('Making request to:', url);
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': window.getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('تم تفعيل السلة بنجاح');
+                location.reload();
+            } else {
+                alert(data.error || 'حدث خطأ');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('خطأ في الاتصال بالخادم');
+        });
+    };
+
+    // Modal helper functions
+    window.openModal = window.openModal || function(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.add('active');
+        }
+    };
+
+    window.closeModal = window.closeModal || function(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('active');
+        }
+    };
+
+    console.log('Early functions defined:', {
+        toggleAdVisibility: typeof window.toggleAdVisibility,
+        deleteAdvertisement: typeof window.deleteAdvertisement,
+        enableAdCart: typeof window.enableAdCart,
+        openModal: typeof window.openModal,
+        closeModal: typeof window.closeModal
+    });
+</script>
+
 {% block admin_content %}
 <div class="publisher-dashboard">
     <div class="container">
