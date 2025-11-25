@@ -855,17 +855,25 @@ function closeModal(modalId) {
 
 // Category Management
 function showAddCategoryPanel() {
-    const modalTitle = document.querySelector('#categoryModalLabel span') || document.getElementById('categoryModalLabel');
-    if (modalTitle.tagName === 'SPAN') {
+    const modalTitle = document.getElementById('modalTitle');
+    if (modalTitle) {
         modalTitle.textContent = 'إضافة قسم جديد';
-    } else {
-        modalTitle.innerHTML = '<i class="fas fa-plus-circle me-2"></i>إضافة قسم جديد';
     }
-    document.getElementById('categoryForm').reset();
-    document.getElementById('categoryId').value = '';
-    document.getElementById('parentId').value = '';
 
-    openModal('categoryModal');
+    const form = document.getElementById('categoryForm');
+    if (form) form.reset();
+
+    const categoryIdField = document.getElementById('categoryId');
+    const parentIdField = document.getElementById('parentId');
+    if (categoryIdField) categoryIdField.value = '';
+    if (parentIdField) parentIdField.value = '';
+
+    // Show modal using Bootstrap
+    const modalEl = document.getElementById('categoryModal');
+    if (modalEl) {
+        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.show();
+    }
 
     // Toggle السماح بالسلة visibility after modal is shown
     setTimeout(() => toggleAllowCartField(), 100);
@@ -873,67 +881,65 @@ function showAddCategoryPanel() {
 
 function addCategoryToSection(sectionCode) {
     showAddCategoryPanel();
-    document.getElementById('sectionType').value = sectionCode;
+    const sectionTypeField = document.getElementById('sectionType');
+    if (sectionTypeField) sectionTypeField.value = sectionCode;
     toggleAllowCartField();
 }
 
 function addSubcategory(parentId) {
     showAddCategoryPanel();
-    document.getElementById('parentId').value = parentId;
-    const modalTitle = document.querySelector('#categoryModalLabel span') || document.getElementById('categoryModalLabel');
-    if (modalTitle.tagName === 'SPAN') {
+    const parentIdField = document.getElementById('parentId');
+    if (parentIdField) parentIdField.value = parentId;
+
+    const modalTitle = document.getElementById('modalTitle');
+    if (modalTitle) {
         modalTitle.textContent = 'إضافة قسم فرعي';
-    } else {
-        modalTitle.innerHTML = '<i class="fas fa-plus-circle me-2"></i>إضافة قسم فرعي';
     }
     toggleAllowCartField();
 }
 
 function editCategory(categoryId) {
-    const modalTitle = document.querySelector('#categoryModalLabel span') || document.getElementById('categoryModalLabel');
-    if (modalTitle.tagName === 'SPAN') {
+    const modalTitle = document.getElementById('modalTitle');
+    if (modalTitle) {
         modalTitle.textContent = 'تعديل القسم';
-    } else {
-        modalTitle.innerHTML = '<i class="fas fa-edit me-2"></i>تعديل القسم';
     }
 
     // Load category data via AJAX
     fetch(`/admin/categories/${categoryId}/`)
         .then(response => response.json())
         .then(category => {
-            document.getElementById('categoryId').value = category.id || '';
-            document.getElementById('nameAr').value = category.name_ar || '';
-            document.getElementById('nameEn').value = category.name || '';
-            document.getElementById('descriptionAr').value = category.description_ar || '';
-            document.getElementById('descriptionEn').value = category.description_en || '';
-            document.getElementById('parentId').value = category.parent_id || '';
-            document.getElementById('sectionType').value = category.section_type || '';
-            document.getElementById('allowCart').checked = category.allow_cart || false;
-            document.querySelector('[name="slug"]').value = category.slug || '';
-            document.querySelector('[name="section_type"]').value = category.section_type || '';
-            document.querySelector('[name="description"]').value = category.description || '';
-            // Optional fields may not exist server-side; guard accordingly
-            if (document.querySelector('[name="icon"]')) {
-                document.querySelector('[name="icon"]').value = category.icon || '';
-            }
-            if (document.querySelector('[name="color"]')) {
-                document.querySelector('[name="color"]').value = category.color || '';
-            }
-            if (document.querySelector('[name="order"]')) {
-                document.querySelector('[name="order"]').value = category.order || 0;
-            }
-            document.querySelector('[name="is_active"]').checked = !!category.is_active;
+            // Set only the fields that exist in the modal
+            const categoryIdField = document.getElementById('categoryId');
+            const nameArField = document.getElementById('nameAr');
+            const nameEnField = document.getElementById('nameEn');
+            const descriptionArField = document.getElementById('descriptionAr');
+            const descriptionEnField = document.getElementById('descriptionEn');
+            const parentIdField = document.getElementById('parentId');
+            const sectionTypeField = document.getElementById('sectionType');
+            const allowCartField = document.getElementById('allowCart');
 
-            // Load allow_cart if available
-            if (document.getElementById('allowCart')) {
-                document.getElementById('allowCart').checked = !!category.allow_cart;
-            }
+            if (categoryIdField) categoryIdField.value = category.id || '';
+            if (nameArField) nameArField.value = category.name_ar || '';
+            if (nameEnField) nameEnField.value = category.name_en || category.name || '';
+            if (descriptionArField) descriptionArField.value = category.description_ar || '';
+            if (descriptionEnField) descriptionEnField.value = category.description_en || '';
+            if (parentIdField) parentIdField.value = category.parent_id || '';
+            if (sectionTypeField) sectionTypeField.value = category.section_type || '';
+            if (allowCartField) allowCartField.checked = !!category.allow_cart;
 
             // Toggle السماح بالسلة visibility
             toggleAllowCartField();
 
-            // Show modal
-            openModal('categoryModal');
+            // Show modal using Bootstrap
+            const modalEl = document.getElementById('categoryModal');
+            if (modalEl) {
+                const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                modal.show();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading category:', error);
+            showError('حدث خطأ في تحميل بيانات القسم');
         });
 }
 
@@ -959,16 +965,22 @@ function deleteCategory(categoryId, categoryName) {
 
 function saveCategory() {
     const form = document.getElementById('categoryForm');
+    if (!form) {
+        showError('نموذج القسم غير موجود');
+        return;
+    }
+
     const formData = new FormData(form);
 
     // Map form field names to backend expectations
     // Backend expects 'parent' not 'parent_id'
-    const parentId = document.getElementById('parentCategoryId').value;
-    if (parentId) {
-        formData.set('parent', parentId);
+    const parentIdField = document.getElementById('parentId');
+    if (parentIdField && parentIdField.value) {
+        formData.set('parent', parentIdField.value);
     } else {
         formData.delete('parent');
     }
+
     // Ensure 'name' exists (mirror from name_en if provided)
     const nameEn = formData.get('name_en');
     if (nameEn && !formData.get('name')) {
@@ -986,12 +998,21 @@ function saveCategory() {
     .then(data => {
         if (data.success) {
             showSuccess(data.message || 'تم الحفظ بنجاح');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('categoryModal'));
-            if (modal) modal.hide();
+            const modalEl = document.getElementById('categoryModal');
+            if (modalEl) {
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+            }
             location.reload();
         } else {
             showError(data.message || 'تعذر حفظ البيانات');
         }
+    })
+    .catch(error => {
+        console.error('Error saving category:', error);
+        showError('حدث خطأ أثناء حفظ القسم');
+    });
+}
     });
 }
 
