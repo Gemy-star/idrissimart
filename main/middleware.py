@@ -145,3 +145,116 @@ class CountryFilterMiddleware:
 
         response = self.get_response(request)
         return response
+
+
+class VisitorTrackingMiddleware:
+    """
+    Middleware to track website visitors for analytics.
+    Records visitor information including IP, user agent, device type, etc.
+    """
+
+    # Paths to exclude from tracking
+    EXCLUDED_PATHS = [
+        '/static/',
+        '/media/',
+        '/favicon.ico',
+        '/robots.txt',
+        '/__debug__/',
+        '/admin/',  # Django admin
+    ]
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        # Track visitor before processing the request
+        self._track_visitor(request)
+        response = self.get_response(request)
+        return response
+
+    def _should_track(self, request):
+        """Determine if this request should be tracked"""
+        path = request.path
+
+        # Skip excluded paths
+        for excluded in self.EXCLUDED_PATHS:
+            if path.startswith(excluded):
+                return False
+
+        # Only track GET requests
+        if request.method != 'GET':
+            return False
+
+        return True
+
+    def _get_client_ip(self, request):
+        """Get the client's IP address"""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0].strip()
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip
+
+    def _get_device_type(self, user_agent):
+        """Determine device type from user agent"""
+        user_agent_lower = user_agent.lower()
+
+        if any(mobile in user_agent_lower for mobile in ['mobile', 'android', 'iphone', 'ipod']):
+            return 'mobile'
+        elif 'ipad' in user_agent_lower or 'tablet' in user_agent_lower:
+            return 'tablet'
+        else:
+            return 'desktop'
+
+    def _track_visitor(self, request):
+        """Track visitor information"""
+        if not self._should_track(request):
+            return
+
+        try:
+            from .models import Visitor
+            from django.utils import timezone
+
+            # Get visitor information
+            ip_address = self._get_client_ip(request)
+            session_key = request.session.session_key
+
+            # Create session key if it doesn't exist
+            if not session_key:
+                request.session.create()
+                session_key = request.session.session_key
+
+            user_agent = request.META.get('HTTP_USER_AGENT', '')
+            device_type = self._get_device_type(user_agent)
+            page_url = request.build_absolute_uri()
+            referrer = request.META.get('HTTP_REFERER', '')
+
+            # Get or create visitor record
+            visitor, created = Visitor.objects.get_or_create(
+                ip_address=ip_address,
+                session_key=session_key,
+                defaults={
+                    'user': request.user if request.user.is_authenticated else None,
+                    'user_agent': user_agent[:500],  # Limit length
+                    'page_url': page_url[:500],
+                    'referrer': referrer[:500],
+                    'device_type': device_type,
+                }
+            )
+
+            # Update existing visitor
+            if not created:
+                visitor.last_activity = timezone.now()
+                visitor.page_views += 1
+                visitor.page_url = page_url[:500]
+
+                # Update user if authenticated and not set
+                if request.user.is_authenticated and not visitor.user:
+                    visitor.user = request.user
+
+                visitor.save(update_fields=['last_activity', 'page_views', 'page_url', 'user'])
+
+        except Exception as e:
+            # Log error but don't break the request
+            logger.error(f"Error tracking visitor: {e}")

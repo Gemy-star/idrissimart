@@ -720,6 +720,106 @@ class DeleteAdView(LoginRequiredMixin, View):
             )
 
 
+class AdminChangeAdStatusView(LoginRequiredMixin, View):
+    """AJAX view to approve or reject an ad"""
+
+    def post(self, request, ad_id):
+        if not request.user.is_superuser:
+            return JsonResponse(
+                {"success": False, "error": "Permission denied"}, status=403
+            )
+
+        ad = get_object_or_404(ClassifiedAd, id=ad_id)
+
+        import json
+
+        data = json.loads(request.body)
+        action = data.get("action")
+        reason = data.get("reason", "")
+
+        if action == "approve":
+            ad.status = "ACTIVE"
+            ad.save()
+
+            # Send notification to user
+            Notification.objects.create(
+                user=ad.user,
+                title=_("تم قبول إعلانك"),
+                message=_("تم قبول إعلانك '{}' ونشره بنجاح").format(ad.title),
+                link=ad.get_absolute_url(),
+            )
+
+            return JsonResponse(
+                {"success": True, "message": _("تم قبول الإعلان بنجاح")}
+            )
+
+        elif action == "reject":
+            ad.status = "REJECTED"
+            ad.save()
+
+            # Send notification to user with reason
+            message = _("تم رفض إعلانك '{}'").format(ad.title)
+            if reason:
+                message += "\n" + _("السبب: {}").format(reason)
+
+            Notification.objects.create(
+                user=ad.user,
+                title=_("تم رفض إعلانك"),
+                message=message,
+                link=ad.get_absolute_url(),
+            )
+
+            return JsonResponse({"success": True, "message": _("تم رفض الإعلان بنجاح")})
+
+        return JsonResponse({"success": False, "error": "Invalid action"}, status=400)
+
+
+class AdminToggleAdFeatureView(LoginRequiredMixin, View):
+    """AJAX view to toggle ad features (highlight, urgent)"""
+
+    def post(self, request, ad_id):
+        if not request.user.is_superuser:
+            return JsonResponse(
+                {"success": False, "error": "Permission denied"}, status=403
+            )
+
+        ad = get_object_or_404(ClassifiedAd, id=ad_id)
+
+        import json
+
+        data = json.loads(request.body)
+        feature = data.get("feature")
+        state = data.get("state", False)
+
+        if feature == "highlight":
+            ad.is_highlighted = state
+            feature_name = _("التمييز")
+        elif feature == "urgent":
+            ad.is_urgent = state
+            feature_name = _("العاجل")
+        else:
+            return JsonResponse(
+                {"success": False, "error": "Invalid feature"}, status=400
+            )
+
+        ad.save()
+
+        # Send notification to user
+        action = _("تم تفعيل") if state else _("تم إلغاء")
+        Notification.objects.create(
+            user=ad.user,
+            title=_("تحديث ميزة الإعلان"),
+            message=_("{} {} لإعلانك '{}'").format(action, feature_name, ad.title),
+            link=ad.get_absolute_url(),
+        )
+
+        message = _("تم {} {} بنجاح").format(
+            _("تفعيل") if state else _("إلغاء"), feature_name
+        )
+
+        return JsonResponse({"success": True, "message": message})
+
+
 class AdminCategoriesView(LoginRequiredMixin, ListView):
     """Admin view for managing categories"""
 
@@ -738,7 +838,9 @@ class AdminCategoriesView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["all_categories"] = Category.objects.filter(parent__isnull=True).prefetch_related('subcategories')
+        context["all_categories"] = Category.objects.filter(
+            parent__isnull=True
+        ).prefetch_related("subcategories")
         return context
 
 

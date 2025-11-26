@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sites",
+    "django.contrib.humanize",
     # Third-party
     "channels",
     "compressor",
@@ -90,6 +91,8 @@ MIDDLEWARE = [
     "main.middleware.CountryFilterMiddleware",
     # User permissions middleware
     "main.middleware.UserPermissionMiddleware",
+    # Visitor tracking middleware
+    "main.middleware.VisitorTrackingMiddleware",
 ]
 
 ROOT_URLCONF = "idrissimart.urls"

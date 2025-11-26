@@ -8,6 +8,7 @@ from . import chatbot_views
 from . import enhanced_views
 from . import cart_wishlist_views
 from . import chat_views
+from . import blog_views
 from django.contrib.auth import views as dj_auth_views
 
 
@@ -233,6 +234,11 @@ urlpatterns = [
         name="admin_custom_field_delete",
     ),
     path(
+        "admin/reports/",
+        views.AdminReportsView.as_view(),
+        name="admin_reports",
+    ),
+    path(
         "admin/users/",
         views.AdminUsersManagementView.as_view(),
         name="admin_users",
@@ -272,6 +278,16 @@ urlpatterns = [
         "admin/ads/<int:ad_id>/delete/",
         classifieds_views.DeleteAdView.as_view(),
         name="delete_ad",
+    ),
+    path(
+        "admin/ads/<int:ad_id>/change-status/",
+        classifieds_views.AdminChangeAdStatusView.as_view(),
+        name="admin_change_ad_status",
+    ),
+    path(
+        "admin/ads/<int:ad_id>/toggle-feature/",
+        classifieds_views.AdminToggleAdFeatureView.as_view(),
+        name="admin_toggle_ad_feature",
     ),
     path(
         "admin/ads/<int:ad_id>/publisher/",
@@ -536,6 +552,32 @@ urlpatterns = [
         "admin/notifications/",
         views.AdminNotificationView.as_view(),
         name="admin_notifications",
+    ),
+    # Blog Management URLs
+    path(
+        "admin/blogs/",
+        blog_views.admin_blogs,
+        name="admin_blogs",
+    ),
+    path(
+        "admin/blogs/create/",
+        blog_views.admin_blog_create,
+        name="admin_blog_create",
+    ),
+    path(
+        "admin/blogs/<int:blog_id>/update/",
+        blog_views.admin_blog_update,
+        name="admin_blog_update",
+    ),
+    path(
+        "admin/blogs/<int:blog_id>/delete/",
+        blog_views.admin_blog_delete,
+        name="admin_blog_delete",
+    ),
+    path(
+        "admin/blogs/<int:blog_id>/toggle-publish/",
+        blog_views.admin_blog_toggle_publish,
+        name="admin_blog_toggle_publish",
     ),
     path(
         "admin/translations/",

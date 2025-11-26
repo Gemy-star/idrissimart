@@ -357,11 +357,15 @@ class CategoriesView(FilterView):
         content_labels = context_names.get(content_type, context_names["classified"])
 
         # Get all active categories for the category filter dropdown (hierarchical)
-        all_categories = Category.objects.filter(
-            is_active=True,
-            section_type=section_type_value or Category.SectionType.CLASSIFIED,
-            parent__isnull=True,
-        ).prefetch_related('subcategories__subcategories').order_by("order", "name")
+        all_categories = (
+            Category.objects.filter(
+                is_active=True,
+                section_type=section_type_value or Category.SectionType.CLASSIFIED,
+                parent__isnull=True,
+            )
+            .prefetch_related("subcategories__subcategories")
+            .order_by("order", "name")
+        )
 
         context.update(
             {
@@ -2650,9 +2654,11 @@ class AdminCustomFieldsView(SuperadminRequiredMixin, ListView):
         context["field_type_choices"] = CustomField.FieldType.choices
 
         # Get all categories hierarchically (main -> sub -> sub-sub)
-        context["all_categories"] = Category.objects.filter(
-            parent__isnull=True
-        ).prefetch_related('subcategories__subcategories').order_by("order", "name_ar")
+        context["all_categories"] = (
+            Category.objects.filter(parent__isnull=True)
+            .prefetch_related("subcategories__subcategories")
+            .order_by("order", "name_ar")
+        )
 
         # Group fields by category for the template
         context["fields_by_category"] = {}
@@ -4514,3 +4520,133 @@ def custom_500(request):
         return JsonResponse({"error": "Internal server error"}, status=500)
 
     return render(request, "500.html", status=500)
+
+
+class AdminReportsView(SuperadminRequiredMixin, TemplateView):
+    """
+    Admin reports view with comprehensive statistics.
+    Includes visitor stats, user stats, ad stats, revenue, etc.
+    """
+
+    template_name = "admin_dashboard/reports.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["active_nav"] = "reports"
+
+        now = timezone.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_ago = now - timedelta(days=7)
+        month_ago = now - timedelta(days=30)
+        year_ago = now - timedelta(days=365)
+
+        # Visitor Statistics (using Visitor model)
+        from .models import Visitor
+
+        online_threshold = now - timedelta(minutes=15)
+        context["online_now"] = Visitor.objects.filter(
+            last_activity__gte=online_threshold
+        ).count()
+        context["visitors_today"] = Visitor.objects.filter(
+            first_visit__gte=today_start
+        ).count()
+        context["visitors_week"] = Visitor.objects.filter(
+            first_visit__gte=week_ago
+        ).count()
+        context["visitors_month"] = Visitor.objects.filter(
+            first_visit__gte=month_ago
+        ).count()
+        context["visitors_year"] = Visitor.objects.filter(
+            first_visit__gte=year_ago
+        ).count()
+        context["visitors_total"] = Visitor.objects.count()
+
+        # User Statistics
+        context["total_users"] = User.objects.count()
+        context["verified_users"] = User.objects.filter(is_mobile_verified=True).count()
+        context["new_users_today"] = User.objects.filter(
+            date_joined__gte=today_start
+        ).count()
+        context["new_users_week"] = User.objects.filter(
+            date_joined__gte=week_ago
+        ).count()
+
+        # Ads Statistics
+        context["total_ads"] = ClassifiedAd.objects.count()
+        context["active_ads"] = ClassifiedAd.objects.filter(
+            status=ClassifiedAd.AdStatus.ACTIVE
+        ).count()
+        context["pending_ads"] = ClassifiedAd.objects.filter(
+            status=ClassifiedAd.AdStatus.PENDING
+        ).count()
+        context["ads_today"] = ClassifiedAd.objects.filter(
+            created_at__gte=today_start
+        ).count()
+
+        # Categories Statistics with ads count
+        total_ads_count = context["total_ads"] or 1  # Avoid division by zero
+        categories_stats = []
+        for category in Category.objects.filter(parent__isnull=True):
+            ads_count = ClassifiedAd.objects.filter(
+                Q(category=category)
+                | Q(category__parent=category)
+                | Q(category__parent__parent=category)
+            ).count()
+            total_views = (
+                ClassifiedAd.objects.filter(
+                    Q(category=category)
+                    | Q(category__parent=category)
+                    | Q(category__parent__parent=category)
+                ).aggregate(total=Sum("views_count"))["total"]
+                or 0
+            )
+
+            categories_stats.append(
+                {
+                    "name": category.name_ar if category.name_ar else category.name,
+                    "ads_count": ads_count,
+                    "total_views": total_views,
+                    "percentage": (
+                        (ads_count / total_ads_count) * 100
+                        if total_ads_count > 0
+                        else 0
+                    ),
+                }
+            )
+
+        context["categories_stats"] = sorted(
+            categories_stats, key=lambda x: x["ads_count"], reverse=True
+        )[
+            :10
+        ]  # Top 10 categories
+
+        # Revenue Statistics (from payments)
+        context["revenue_today"] = (
+            Payment.objects.filter(
+                status="completed", created_at__gte=today_start
+            ).aggregate(total=Sum("amount"))["total"]
+            or 0
+        )
+
+        context["revenue_week"] = (
+            Payment.objects.filter(
+                status="completed", created_at__gte=week_ago
+            ).aggregate(total=Sum("amount"))["total"]
+            or 0
+        )
+
+        context["revenue_month"] = (
+            Payment.objects.filter(
+                status="completed", created_at__gte=month_ago
+            ).aggregate(total=Sum("amount"))["total"]
+            or 0
+        )
+
+        context["revenue_total"] = (
+            Payment.objects.filter(status="completed").aggregate(total=Sum("amount"))[
+                "total"
+            ]
+            or 0
+        )
+
+        return context

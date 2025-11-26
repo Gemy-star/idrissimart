@@ -21,6 +21,15 @@
     /* All modal styles are inherited from admin-dashboard.css */
     /* Modal z-index hierarchy: backdrop (10500), modal (10600), dialog (10700) */
 
+    /* Ensure modals display correctly - Bootstrap 5 compatibility */
+    .modal.show {
+        display: block !important;
+    }
+
+    .modal-backdrop.show {
+        opacity: 0.5 !important;
+    }
+
     .publisher-dashboard {
         padding: 40px 0;
         background: #f5f7fa;
@@ -834,80 +843,168 @@
 </style>
 {% endblock admin_extra_css %}
 
-<!-- Admin action handlers will be set up via event delegation in admin_extra_js block -->
-<script>
-    // Early setup for CSRF token helper
-    window.getCookie = window.getCookie || function(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    };
-
-    // Modal helper functions defined early
-    window.openModal = window.openModal || function(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.classList.add('active');
-        }
-    };
-
-    window.closeModal = window.closeModal || function(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.classList.remove('active');
-        }
-    };
-</script>
-
 {% block admin_content %}
 <div class="publisher-dashboard">
     <div class="container">
+        <!-- Page Header with Breadcrumb -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'main:admin_dashboard' %}">{% trans "لوحة التحكم" %}</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'main:admin_ads' %}">{% trans "الإعلانات" %}</a></li>
+                        <li class="breadcrumb-item active">{{ ad.title|truncatewords:5 }}</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+
         <div class="row">
-            <!-- Left Column -->
+            <!-- Left Column - Main Content -->
             <div class="col-lg-8">
-                <!-- Admin Actions (Only for staff) -->
+                <!-- Admin Actions Card (Only for staff) -->
                 {% if request.user.is_staff %}
                 <div class="admin-actions-card">
-                    <h3>{% trans "إجراءات الإدارة" %}</h3>
-                    <div class="d-flex flex-wrap gap-2">
-                        <button class="btn-action btn-toggle-hide" id="hideBtn"
-                                data-action="toggle-hide"
-                                data-ad-id="{{ ad.id }}"
-                                data-is-hidden="{{ ad.is_hidden|yesno:'true,false' }}">
-                            {% if ad.is_hidden %}
-                                <i class="fas fa-eye me-2"></i> {% trans "إظهار الإعلان" %}
-                            {% else %}
-                                <i class="fas fa-eye-slash me-2"></i> {% trans "إخفاء الإعلان" %}
-                            {% endif %}
-                        </button>
-                        <button class="btn-action btn-delete"
-                                data-action="delete-ad"
-                                data-ad-id="{{ ad.id }}"
-                                data-ad-title="{{ ad.title|escapejs }}">
-                            <i class="fas fa-trash-alt me-2"></i> {% trans "حذف الإعلان" %}
-                        </button>
-                        {% if ad.allow_cart %}
-                            <button class="btn-action btn-enable-cart" id="cartBtn"
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h3 class="mb-0">
+                            <i class="fas fa-tools me-2"></i>
+                            {% trans "إجراءات الإدارة" %}
+                        </h3>
+                        <span class="badge bg-primary">{% trans "مدير" %}</span>
+                    </div>
+
+                    <div class="row g-2">
+                        <!-- Ad Status Actions -->
+                        {% if ad.status == 'PENDING' %}
+                        <div class="col-md-6">
+                            <button class="btn btn-success w-100"
+                                    data-action="approve-ad"
+                                    data-ad-id="{{ ad.id }}"
+                                    data-ad-title="{{ ad.title|escapejs }}">
+                                <i class="fas fa-check-circle me-2"></i>
+                                {% trans "قبول الإعلان" %}
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button class="btn btn-danger w-100"
+                                    data-action="reject-ad"
+                                    data-ad-id="{{ ad.id }}"
+                                    data-ad-title="{{ ad.title|escapejs }}">
+                                <i class="fas fa-times-circle me-2"></i>
+                                {% trans "رفض الإعلان" %}
+                            </button>
+                        </div>
+                        {% endif %}
+
+                        <!-- Visibility Toggle -->
+                        <div class="col-md-6">
+                            <button class="btn btn-secondary w-100"
+                                    data-action="toggle-hide"
+                                    data-ad-id="{{ ad.id }}"
+                                    data-is-hidden="{{ ad.is_hidden|yesno:'true,false' }}">
+                                {% if ad.is_hidden %}
+                                    <i class="fas fa-eye me-2"></i>
+                                    {% trans "إظهار الإعلان" %}
+                                {% else %}
+                                    <i class="fas fa-eye-slash me-2"></i>
+                                    {% trans "إخفاء الإعلان" %}
+                                {% endif %}
+                            </button>
+                        </div>
+
+                        <!-- Feature Toggles -->
+                        <div class="col-md-6">
+                            <button class="btn {% if ad.is_highlighted %}btn-outline-warning{% else %}btn-warning{% endif %} w-100"
+                                    data-action="toggle-feature"
+                                    data-ad-id="{{ ad.id }}"
+                                    data-feature="highlight"
+                                    data-current="{{ ad.is_highlighted|yesno:'true,false' }}">
+                                <i class="fas fa-star me-2"></i>
+                                {% if ad.is_highlighted %}
+                                    {% trans "إلغاء التمييز" %}
+                                {% else %}
+                                    {% trans "تمييز الإعلان" %}
+                                {% endif %}
+                            </button>
+                        </div>
+
+                        <div class="col-md-6">
+                            <button class="btn {% if ad.is_urgent %}btn-outline-danger{% else %}btn-danger{% endif %} w-100"
+                                    data-action="toggle-feature"
+                                    data-ad-id="{{ ad.id }}"
+                                    data-feature="urgent"
+                                    data-current="{{ ad.is_urgent|yesno:'true,false' }}">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                {% if ad.is_urgent %}
+                                    {% trans "إلغاء العاجل" %}
+                                {% else %}
+                                    {% trans "وضع كعاجل" %}
+                                {% endif %}
+                            </button>
+                        </div>
+
+                        <!-- Cart Toggle -->
+                        <div class="col-md-6">
+                            <button class="btn btn-primary w-100"
                                     data-action="enable-cart"
                                     data-ad-id="{{ ad.id }}"
-                                    {% if ad.cart_enabled_by_admin %}disabled{% endif %}>
+                                    {% if ad.enable_cart %}disabled{% endif %}>
                                 <i class="fas fa-shopping-cart me-2"></i>
-                                {% if ad.cart_enabled_by_admin %}
-                                    {% trans "تم تفعيل السلة" %}
+                                {% if ad.enable_cart %}
+                                    {% trans "السلة مفعلة" %}
                                 {% else %}
                                     {% trans "تفعيل السلة" %}
                                 {% endif %}
                             </button>
-                        {% endif %}
+                        </div>
+
+                        <!-- Delete Action -->
+                        <div class="col-md-12">
+                            <button class="btn btn-danger w-100"
+                                    data-action="delete-ad"
+                                    data-ad-id="{{ ad.id }}"
+                                    data-ad-title="{{ ad.title|escapejs }}">
+                                <i class="fas fa-trash me-2"></i>
+                                {% trans "حذف الإعلان نهائياً" %}
+                            </button>
+                        </div>
+
+                        <!-- User Actions -->
+                        <div class="col-12">
+                            <hr class="my-3">
+                            <h6 class="mb-2">
+                                <i class="fas fa-user-cog me-2"></i>
+                                {% trans "إجراءات المستخدم" %}
+                            </h6>
+                        </div>
+
+                        <div class="col-md-4">
+                            <button class="btn btn-warning btn-sm w-100"
+                                    data-action="user-action"
+                                    data-user-id="{{ ad.user.id }}"
+                                    data-user-action="suspend">
+                                <i class="fas fa-ban me-1"></i>
+                                {% trans "تعليق" %}
+                            </button>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-info btn-sm w-100"
+                                    data-action="user-action"
+                                    data-user-id="{{ ad.user.id }}"
+                                    data-user-action="unsuspend">
+                                <i class="fas fa-check me-1"></i>
+                                {% trans "إلغاء التعليق" %}
+                            </button>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-success btn-sm w-100"
+                                    data-action="user-action"
+                                    data-user-id="{{ ad.user.id }}"
+                                    data-user-action="verify">
+                                <i class="fas fa-certificate me-1"></i>
+                                {% trans "توثيق" %}
+                            </button>
+                        </div>
                     </div>
                 </div>
                 {% endif %}
@@ -1256,6 +1353,11 @@
     </div>
 </div>
 
+{% endblock admin_content %}
+
+{% block modals %}
+<!-- IMPORTANT: Modals MUST be placed outside the main content container to avoid z-index/overflow issues -->
+
 <!-- Delete Ad Modal -->
 <div class="modal fade" id="deleteAdModal" tabindex="-1" aria-labelledby="deleteAdModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -1344,7 +1446,7 @@
                     <i class="fas fa-times me-2"></i>
                     {% trans "إلغاء" %}
                 </button>
-                <button type="button" class="btn-warning" id="confirmUserActionBtn">
+                <button type="button" class="btn btn-warning" id="confirmUserActionBtn">
                     <i class="fas fa-check me-2"></i>
                     <span id="userActionLabel">{% trans "تأكيد" %}</span>
                 </button>
@@ -1353,32 +1455,107 @@
     </div>
 </div>
 
-{% endblock admin_content %}
+<!-- Approve/Reject Ad Modal -->
+<div class="modal fade" id="statusChangeModal" tabindex="-1" aria-labelledby="statusChangeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="statusChangeModalLabel">
+                    <i class="fas fa-check-circle text-success me-2"></i>
+                    <span id="statusChangeTitle">{% trans "تأكيد الإجراء" %}</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <span id="statusChangeMessage"></span>
+                </div>
+                <div id="rejectReasonContainer" style="display: none;">
+                    <label for="rejectReason" class="form-label">{% trans "سبب الرفض" %}:</label>
+                    <textarea id="rejectReason" class="form-control" rows="3" placeholder="{% trans 'اختياري - أدخل سبب رفض الإعلان' %}"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>
+                    {% trans "إلغاء" %}
+                </button>
+                <button type="button" class="btn btn-primary" id="confirmStatusChangeBtn">
+                    <i class="fas fa-check me-2"></i>
+                    <span id="statusChangeButtonText">{% trans "تأكيد" %}</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
-{% block admin_extra_js %}
+<!-- Feature Toggle Modal -->
+<div class="modal fade" id="featureToggleModal" tabindex="-1" aria-labelledby="featureToggleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="featureToggleModalLabel">
+                    <i class="fas fa-star text-warning me-2"></i>
+                    <span id="featureToggleTitle">{% trans "تأكيد الإجراء" %}</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <span id="featureToggleMessage"></span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>
+                    {% trans "إلغاء" %}
+                </button>
+                <button type="button" class="btn btn-warning" id="confirmFeatureToggleBtn">
+                    <i class="fas fa-check me-2"></i>
+                    <span id="featureToggleButtonText">{% trans "تأكيد" %}</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock modals %}
+
+{% block extra_js %}
+{{ block.super }}
 <script>
-    // CSRF Token helper - Define first as it's needed by other functions
-    window.getCookie = function(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
+    console.log('🚀 AD PUBLISHER DETAIL SCRIPT LOADED!');
+
+    // ============================================================================
+    // UTILITY FUNCTIONS
+    // ============================================================================
+
+    // Use existing getCookie from window or define it
+    if (typeof window.getCookie !== 'function') {
+        window.getCookie = function(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
                 }
             }
-        }
-        return cookieValue;
-    };
+            return cookieValue;
+        };
+    }
 
     // Notification function
-    window.showNotification = function(message, type = 'success') {
+    function showNotification(message, type = 'success') {
         const notification = document.createElement('div');
         notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} position-fixed`;
         notification.style.cssText = 'top: 20px; right: 20px; z-index: 10800; min-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
-        notification.textContent = message;
+        notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>${message}`;
         document.body.appendChild(notification);
 
         setTimeout(() => {
@@ -1386,9 +1563,45 @@
             notification.style.transition = 'opacity 0.3s ease';
             setTimeout(() => notification.remove(), 300);
         }, 3000);
-    };
+    }
 
-    // Image navigation - Define globally before DOM loads
+    // Modal helper functions using Bootstrap 5 API
+    function openModal(modalId) {
+        console.log('🔔 Opening modal:', modalId);
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            console.log('✅ Modal element found:', modalElement);
+            try {
+                // Get existing instance or create new one
+                let modal = bootstrap.Modal.getInstance(modalElement);
+                if (!modal) {
+                    console.log('🆕 Creating new modal instance');
+                    modal = new bootstrap.Modal(modalElement);
+                }
+                console.log('📤 Showing modal');
+                modal.show();
+            } catch (error) {
+                console.error('❌ Error opening modal:', error);
+            }
+        } else {
+            console.error('❌ Modal element not found:', modalId);
+        }
+    }
+
+    function closeModal(modalId) {
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            const modalInstance = bootstrap.Modal.getInstance(modalElement);
+            if (modalInstance) {
+                modalInstance.hide();
+            }
+        }
+    }
+
+    // ============================================================================
+    // IMAGE NAVIGATION
+    // ============================================================================
+
     let currentImageIndex = 0;
     const images = [
         {% for image in ad.images.all %}
@@ -1396,7 +1609,7 @@
         {% endfor %}
     ];
 
-    window.previousImage = function() {
+    function previousImage() {
         if (images.length > 0) {
             currentImageIndex = (currentImageIndex - 1 + images.length) % images.length;
             const mainImage = document.getElementById('mainAdImage');
@@ -1404,9 +1617,9 @@
                 mainImage.src = images[currentImageIndex];
             }
         }
-    };
+    }
 
-    window.nextImage = function() {
+    function nextImage() {
         if (images.length > 0) {
             currentImageIndex = (currentImageIndex + 1) % images.length;
             const mainImage = document.getElementById('mainAdImage');
@@ -1414,200 +1627,53 @@
                 mainImage.src = images[currentImageIndex];
             }
         }
-    };
+    }
 
-    // Modal helper functions using Bootstrap Modal API
-    window.openModal = function(modalId) {
-        const modalElement = document.getElementById(modalId);
-        if (modalElement) {
-            const modal = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
-            modal.show();
-        }
-    };
+    // ============================================================================
+    // STATE VARIABLES
+    // ============================================================================
 
-    window.closeModal = function(modalId) {
-        const modalElement = document.getElementById(modalId);
-        if (modalElement) {
-            const modal = bootstrap.Modal.getInstance(modalElement);
-            if (modal) {
-                modal.hide();
-            }
-        }
-    };
-
-    // Bootstrap modals handle backdrop clicks automatically
-
-    // Admin actions - state variables
     let currentAdId = null;
     let currentIsHidden = null;
     let currentAdTitle = null;
+    let currentUserId = null;
+    let currentUserAction = null;
+    let currentStatusChangeAdId = null;
+    let currentStatusChangeAction = null;
+    let currentStatusChangeAdTitle = null;
+    let currentFeatureAdId = null;
+    let currentFeatureType = null;
+    let currentFeatureState = null;
 
-    console.log('Setting up event delegation for admin actions...');
+    // ============================================================================
+    // ACTION HANDLERS
+    // ============================================================================
 
-    // Event delegation for all admin action buttons
-    document.addEventListener('click', function(e) {
-        const target = e.target.closest('[data-action]');
-        if (!target) return;
-
-        const action = target.dataset.action;
-        console.log('Action clicked:', action, target.dataset);
-
-        // Handle different actions
-        switch(action) {
-            case 'toggle-hide':
-                const adId = parseInt(target.dataset.adId);
-                const isHidden = target.dataset.isHidden === 'true';
-                handleToggleVisibility(adId, isHidden);
-                break;
-
-            case 'delete-ad':
-                const deleteAdId = parseInt(target.dataset.adId);
-                const deleteAdTitle = target.dataset.adTitle;
-                handleDeleteAd(deleteAdId, deleteAdTitle);
-                break;
-
-            case 'enable-cart':
-                const cartAdId = parseInt(target.dataset.adId);
-                handleEnableCart(cartAdId, target);
-                break;
-
-            case 'prev-image':
-                previousImage();
-                break;
-
-            case 'next-image':
-                nextImage();
-                break;
-
-            case 'copy-url':
-                handleCopyUrl(target);
-                break;
-
-            case 'user-action':
-                const userAction = target.dataset.userAction;
-                const userId = parseInt(target.dataset.userId);
-                handleUserAction(userAction, userId);
-                break;
-        }
-    });
-
-    // Handler functions
     function handleToggleVisibility(adId, isHidden) {
-        console.log('handleToggleVisibility:', adId, isHidden);
+        console.log('📍 handleToggleVisibility:', adId, isHidden);
         currentAdId = adId;
         currentIsHidden = isHidden;
 
         const actionText = isHidden ? '{% trans "إظهار" %}' : '{% trans "إخفاء" %}';
         const message = isHidden ? '{% trans "هل أنت متأكد من إظهار هذا الإعلان؟" %}' : '{% trans "هل أنت متأكد من إخفاء هذا الإعلان؟" %}';
 
-        const toggleHideMessage = document.getElementById('toggleHideMessage');
-        const toggleHideButtonText = document.getElementById('toggleHideButtonText');
+        document.getElementById('toggleHideMessage').textContent = message;
+        document.getElementById('toggleHideButtonText').textContent = actionText;
 
-        if (toggleHideMessage) toggleHideMessage.textContent = message;
-        if (toggleHideButtonText) toggleHideButtonText.textContent = actionText;
-
-        window.openModal('toggleHideModal');
+        openModal('toggleHideModal');
     }
 
-    // Confirm toggle hide handler
-    document.addEventListener('DOMContentLoaded', function() {
-        const confirmToggleBtn = document.getElementById('confirmToggleHideBtn');
-        if (confirmToggleBtn) {
-            confirmToggleBtn.addEventListener('click', function() {
-                if (window.currentAdId === null) return;
-
-                const url = "{% url 'main:toggle_ad_hide' 0 %}".replace('0', window.currentAdId);
-                fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': window.getCookie('csrftoken'),
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ hide: !window.currentIsHidden })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    const modalElement = document.getElementById('toggleHideModal');
-                    const modal = bootstrap.Modal.getInstance(modalElement);
-                    if (modal) {
-                        modal.hide();
-                    }
-                    if (data.success) {
-                        window.showNotification('{% trans "تم تحديث حالة الإعلان بنجاح." %}', 'success');
-                        location.reload();
-                    } else {
-                        window.showNotification(data.error || '{% trans "حدث خطأ." %}', 'error');
-                    }
-                })
-                .catch(() => {
-                    const modalElement = document.getElementById('toggleHideModal');
-                    const modal = bootstrap.Modal.getInstance(modalElement);
-                    if (modal) {
-                        modal.hide();
-                    }
-                    window.showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error');
-                });
-            });
-        }
-    });
-
     function handleDeleteAd(adId, adTitle) {
-        console.log('handleDeleteAd:', adId, adTitle);
+        console.log('📍 handleDeleteAd:', adId, adTitle);
         currentAdId = adId;
         currentAdTitle = adTitle;
 
-        const deleteAdTitle = document.getElementById('deleteAdTitle');
-        if (deleteAdTitle) deleteAdTitle.textContent = adTitle;
-
-        window.openModal('deleteAdModal');
+        document.getElementById('deleteAdTitle').textContent = adTitle;
+        openModal('deleteAdModal');
     }
 
-    // Confirm delete handler
-    document.addEventListener('DOMContentLoaded', function() {
-        const confirmDeleteBtn = document.getElementById('confirmDeleteAdBtn');
-        if (confirmDeleteBtn) {
-            confirmDeleteBtn.addEventListener('click', function() {
-                if (window.currentAdId === null) return;
-
-                const deleteAdTitle = document.getElementById('deleteAdTitle');
-                const adTitle = deleteAdTitle ? deleteAdTitle.textContent : '';
-
-                const url = "{% url 'main:delete_ad' 0 %}".replace('0', window.currentAdId);
-                fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': getCookie('csrftoken'),
-                        'Content-Type': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    const modalElement = document.getElementById('deleteAdModal');
-                    const modal = bootstrap.Modal.getInstance(modalElement);
-                    if (modal) {
-                        modal.hide();
-                    }
-                    if (data.success) {
-                        window.showNotification(`{% trans "تم حذف الإعلان" %} '${adTitle}' {% trans "بنجاح." %}`, 'success');
-                        window.location.href = "{% url 'main:admin_ads' %}";
-                    } else {
-                        window.showNotification(data.error || '{% trans "حدث خطأ." %}', 'error');
-                    }
-                })
-                .catch(() => {
-                    const modalElement = document.getElementById('deleteAdModal');
-                    const modal = bootstrap.Modal.getInstance(modalElement);
-                    if (modal) {
-                        modal.hide();
-                    }
-                    window.showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error');
-                });
-            });
-        }
-    });
-
     function handleEnableCart(adId, button) {
-        console.log('handleEnableCart:', adId);
+        console.log('🛒 handleEnableCart:', adId);
 
         if (!confirm('{% trans "هل أنت متأكد من تفعيل السلة لهذا الإعلان؟" %}')) return;
 
@@ -1616,30 +1682,30 @@
         fetch(url, {
             method: 'POST',
             headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
+                'X-CSRFToken': window.getCookie('csrftoken'),
                 'Content-Type': 'application/json'
             }
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                window.showNotification('{% trans "تم تفعيل السلة بنجاح." %}', 'success');
+                showNotification('{% trans "تم تفعيل السلة بنجاح." %}', 'success');
                 if (button) {
                     button.disabled = true;
                     button.innerHTML = '<i class="fas fa-shopping-cart me-2"></i> {% trans "تم تفعيل السلة" %}';
                 }
             } else {
-                window.showNotification(data.error || '{% trans "حدث خطأ." %}', 'error');
+                showNotification(data.error || '{% trans "حدث خطأ." %}', 'error');
             }
         })
-        .catch(() => window.showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error'));
+        .catch(error => {
+            console.error('Enable cart error:', error);
+            showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error');
+        });
     }
 
-    // User action state variables
-    let currentUserId = null;
-    let currentUserAction = null;
-
-    window.handleUserAction = function(action, userId) {
+    function handleUserAction(action, userId) {
+        console.log('👤 handleUserAction:', action, userId);
         currentUserId = userId;
         currentUserAction = action;
 
@@ -1660,53 +1726,11 @@
         document.getElementById('userActionMessage').textContent = message;
         document.getElementById('userActionLabel').textContent = actionLabel;
         openModal('userActionModal');
-    };
-
-    // Confirm user action handler
-    document.addEventListener('DOMContentLoaded', function() {
-        const confirmUserActionBtn = document.getElementById('confirmUserActionBtn');
-        if (confirmUserActionBtn) {
-            confirmUserActionBtn.addEventListener('click', function() {
-                if (currentUserId === null || currentUserAction === null) return;
-
-                const url = "{% url 'main:admin_user_action' 0 %}".replace('0', currentUserId);
-                fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': getCookie('csrftoken'),
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ action: currentUserAction })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    const modalElement = document.getElementById('userActionModal');
-                    const modal = bootstrap.Modal.getInstance(modalElement);
-                    if (modal) {
-                        modal.hide();
-                    }
-                    if (data.success) {
-                        window.showNotification(data.message, 'success');
-                        location.reload();
-                    } else {
-                        window.showNotification(data.message || '{% trans "حدث خطأ." %}', 'error');
-                    }
-                })
-                .catch(() => {
-                    const modalElement = document.getElementById('userActionModal');
-                    const modal = bootstrap.Modal.getInstance(modalElement);
-                    if (modal) {
-                        modal.hide();
-                    }
-                    window.showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error');
-                });
-            });
-        }
-    });
+    }
 
     function handleCopyUrl(button) {
         const url = window.location.href;
-        const originalText = button.dataset.originalText;
+        const originalText = button.getAttribute('data-original-text') || button.innerHTML;
 
         navigator.clipboard.writeText(url).then(function() {
             button.innerHTML = '<i class="fas fa-check me-2"></i> {% trans "تم النسخ!" %}';
@@ -1717,16 +1741,387 @@
             }, 2000);
         }, function(err) {
             console.error('Could not copy text: ', err);
-            window.showNotification('{% trans "فشل نسخ الرابط." %}', 'error');
+            showNotification('{% trans "فشل نسخ الرابط." %}', 'error');
         });
     }
 
-    console.log('Event delegation setup complete. All admin actions ready.');
-</script>
-{% endblock admin_extra_js %}
+    function handleStatusChange(adId, adTitle, action) {
+        console.log('✅❌ handleStatusChange:', adId, adTitle, action);
+        currentStatusChangeAdId = adId;
+        currentStatusChangeAction = action;
+        currentStatusChangeAdTitle = adTitle;
 
-{% block extra_js %}
+        const titleElement = document.getElementById('statusChangeTitle');
+        const messageElement = document.getElementById('statusChangeMessage');
+        const buttonTextElement = document.getElementById('statusChangeButtonText');
+        const rejectReasonContainer = document.getElementById('rejectReasonContainer');
+        const confirmBtn = document.getElementById('confirmStatusChangeBtn');
+
+        if (action === 'approve') {
+            titleElement.innerHTML = '<i class="fas fa-check-circle text-success me-2"></i> {% trans "تأكيد قبول الإعلان" %}';
+            messageElement.textContent = '{% trans "هل أنت متأكد من قبول الإعلان" %} "' + adTitle + '"؟';
+            buttonTextElement.textContent = '{% trans "قبول" %}';
+            confirmBtn.className = 'btn btn-success';
+            confirmBtn.innerHTML = '<i class="fas fa-check me-2"></i> {% trans "قبول" %}';
+            rejectReasonContainer.style.display = 'none';
+        } else if (action === 'reject') {
+            titleElement.innerHTML = '<i class="fas fa-times-circle text-danger me-2"></i> {% trans "تأكيد رفض الإعلان" %}';
+            messageElement.textContent = '{% trans "هل أنت متأكد من رفض الإعلان" %} "' + adTitle + '"؟';
+            buttonTextElement.textContent = '{% trans "رفض" %}';
+            confirmBtn.className = 'btn btn-danger';
+            confirmBtn.innerHTML = '<i class="fas fa-times me-2"></i> {% trans "رفض" %}';
+            rejectReasonContainer.style.display = 'block';
+        }
+
+        openModal('statusChangeModal');
+    }
+
+    function handleFeatureToggle(adId, feature, currentState) {
+        console.log('⭐ handleFeatureToggle:', adId, feature, currentState);
+        currentFeatureAdId = adId;
+        currentFeatureType = feature;
+        currentFeatureState = currentState;
+
+        const titleElement = document.getElementById('featureToggleTitle');
+        const messageElement = document.getElementById('featureToggleMessage');
+        const buttonTextElement = document.getElementById('featureToggleButtonText');
+
+        let title = '';
+        let message = '';
+        let actionText = '';
+
+        if (feature === 'highlight') {
+            title = currentState ? '{% trans "إلغاء تمييز الإعلان" %}' : '{% trans "تمييز الإعلان" %}';
+            message = currentState ?
+                '{% trans "هل أنت متأكد من إلغاء تمييز هذا الإعلان؟" %}' :
+                '{% trans "هل أنت متأكد من تمييز هذا الإعلان؟" %}';
+            actionText = currentState ? '{% trans "إلغاء التمييز" %}' : '{% trans "تمييز" %}';
+        } else if (feature === 'urgent') {
+            title = currentState ? '{% trans "إلغاء العاجل" %}' : '{% trans "وضع كعاجل" %}';
+            message = currentState ?
+                '{% trans "هل أنت متأكد من إلغاء وضع العاجل لهذا الإعلان؟" %}' :
+                '{% trans "هل أنت متأكد من وضع هذا الإعلان كعاجل؟" %}';
+            actionText = currentState ? '{% trans "إلغاء العاجل" %}' : '{% trans "وضع عاجل" %}';
+        }
+
+        titleElement.textContent = title;
+        messageElement.textContent = message;
+        buttonTextElement.textContent = actionText;
+
+        openModal('featureToggleModal');
+    }
+
+    // ============================================================================
+    // CONFIRM HANDLERS
+    // ============================================================================
+
+    function setupConfirmHandlers() {
+        console.log('✅ Setting up confirm handlers...');
+
+        // Toggle Hide Confirm
+        const confirmToggleBtn = document.getElementById('confirmToggleHideBtn');
+        if (confirmToggleBtn) {
+            confirmToggleBtn.replaceWith(confirmToggleBtn.cloneNode(true)); // Remove old listeners
+            document.getElementById('confirmToggleHideBtn').addEventListener('click', function() {
+                if (currentAdId === null) return;
+
+                const url = "{% url 'main:toggle_ad_hide' 0 %}".replace('0', currentAdId);
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': window.getCookie('csrftoken'),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ hide: !currentIsHidden })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    closeModal('toggleHideModal');
+                    if (data.success) {
+                        showNotification('{% trans "تم تحديث حالة الإعلان بنجاح." %}', 'success');
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        showNotification(data.error || '{% trans "حدث خطأ." %}', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Toggle hide error:', error);
+                    closeModal('toggleHideModal');
+                    showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error');
+                });
+            });
+        }
+
+        // Delete Confirm
+        const confirmDeleteBtn = document.getElementById('confirmDeleteAdBtn');
+        if (confirmDeleteBtn) {
+            confirmDeleteBtn.replaceWith(confirmDeleteBtn.cloneNode(true));
+            document.getElementById('confirmDeleteAdBtn').addEventListener('click', function() {
+                if (currentAdId === null) return;
+
+                const url = "{% url 'main:delete_ad' 0 %}".replace('0', currentAdId);
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': window.getCookie('csrftoken'),
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    closeModal('deleteAdModal');
+                    if (data.success) {
+                        showNotification(`{% trans "تم حذف الإعلان" %} '${currentAdTitle}' {% trans "بنجاح." %}`, 'success');
+                        setTimeout(() => window.location.href = "{% url 'main:admin_ads' %}", 1500);
+                    } else {
+                        showNotification(data.error || '{% trans "حدث خطأ." %}', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Delete error:', error);
+                    closeModal('deleteAdModal');
+                    showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error');
+                });
+            });
+        }
+
+        // User Action Confirm
+        const confirmUserActionBtn = document.getElementById('confirmUserActionBtn');
+        if (confirmUserActionBtn) {
+            confirmUserActionBtn.replaceWith(confirmUserActionBtn.cloneNode(true));
+            document.getElementById('confirmUserActionBtn').addEventListener('click', function() {
+                if (currentUserId === null || currentUserAction === null) return;
+
+                const url = "{% url 'main:admin_user_action' 0 %}".replace('0', currentUserId);
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': window.getCookie('csrftoken'),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ action: currentUserAction })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    closeModal('userActionModal');
+                    if (data.success) {
+                        showNotification(data.message, 'success');
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        showNotification(data.message || '{% trans "حدث خطأ." %}', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('User action error:', error);
+                    closeModal('userActionModal');
+                    showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error');
+                });
+            });
+        }
+
+        // Status Change Confirm
+        const confirmStatusChangeBtn = document.getElementById('confirmStatusChangeBtn');
+        if (confirmStatusChangeBtn) {
+            confirmStatusChangeBtn.replaceWith(confirmStatusChangeBtn.cloneNode(true));
+            document.getElementById('confirmStatusChangeBtn').addEventListener('click', function() {
+                if (currentStatusChangeAdId === null || currentStatusChangeAction === null) return;
+
+                const reason = currentStatusChangeAction === 'reject' ?
+                    document.getElementById('rejectReason')?.value || '' : '';
+
+                const url = "{% url 'main:admin_change_ad_status' 0 %}".replace('0', currentStatusChangeAdId);
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': window.getCookie('csrftoken'),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: currentStatusChangeAction,
+                        reason: reason
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    closeModal('statusChangeModal');
+                    if (data.success) {
+                        showNotification(data.message || '{% trans "تم تحديث حالة الإعلان بنجاح." %}', 'success');
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        showNotification(data.error || '{% trans "حدث خطأ." %}', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Status change error:', error);
+                    closeModal('statusChangeModal');
+                    showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error');
+                });
+            });
+        }
+
+        // Feature Toggle Confirm
+        const confirmFeatureToggleBtn = document.getElementById('confirmFeatureToggleBtn');
+        if (confirmFeatureToggleBtn) {
+            confirmFeatureToggleBtn.replaceWith(confirmFeatureToggleBtn.cloneNode(true));
+            document.getElementById('confirmFeatureToggleBtn').addEventListener('click', function() {
+                if (currentFeatureAdId === null || currentFeatureType === null) return;
+
+                const url = "{% url 'main:admin_toggle_ad_feature' 0 %}".replace('0', currentFeatureAdId);
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': window.getCookie('csrftoken'),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        feature: currentFeatureType,
+                        state: !currentFeatureState
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    closeModal('featureToggleModal');
+                    if (data.success) {
+                        showNotification(data.message || '{% trans "تم تحديث ميزة الإعلان بنجاح." %}', 'success');
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        showNotification(data.error || '{% trans "حدث خطأ." %}', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Feature toggle error:', error);
+                    closeModal('featureToggleModal');
+                    showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error');
+                });
+            });
+        }
+
+        console.log('✅ Confirm handlers setup complete');
+    }
+
+    // ============================================================================
+    // EVENT DELEGATION
+    // ============================================================================
+
+    function setupEventDelegation() {
+        console.log('✅ Setting up event delegation...');
+
+        document.addEventListener('click', function(e) {
+            const target = e.target.closest('[data-action]');
+
+            if (!target) return;
+
+            const action = target.dataset.action;
+            console.log('🎯 Action triggered:', action, target);
+
+            // Don't prevent default for links
+            if (target.tagName !== 'A') {
+                e.preventDefault();
+            }
+            e.stopPropagation();
+
+            switch(action) {
+                case 'toggle-hide':
+                    handleToggleVisibility(
+                        parseInt(target.dataset.adId),
+                        target.dataset.isHidden === 'true'
+                    );
+                    break;
+
+                case 'delete-ad':
+                    handleDeleteAd(
+                        parseInt(target.dataset.adId),
+                        target.dataset.adTitle
+                    );
+                    break;
+
+                case 'enable-cart':
+                    handleEnableCart(parseInt(target.dataset.adId), target);
+                    break;
+
+                case 'approve-ad':
+                    handleStatusChange(
+                        parseInt(target.dataset.adId),
+                        target.dataset.adTitle,
+                        'approve'
+                    );
+                    break;
+
+                case 'reject-ad':
+                    handleStatusChange(
+                        parseInt(target.dataset.adId),
+                        target.dataset.adTitle,
+                        'reject'
+                    );
+                    break;
+
+                case 'toggle-feature':
+                    handleFeatureToggle(
+                        parseInt(target.dataset.adId),
+                        target.dataset.feature,
+                        target.dataset.current === 'true'
+                    );
+                    break;
+
+                case 'prev-image':
+                    previousImage();
+                    break;
+
+                case 'next-image':
+                    nextImage();
+                    break;
+
+                case 'copy-url':
+                    handleCopyUrl(target);
+                    break;
+
+                case 'user-action':
+                    handleUserAction(
+                        target.dataset.userAction,
+                        parseInt(target.dataset.userId)
+                    );
+                    break;
+
+                default:
+                    console.warn('⚠️ Unknown action:', action);
+                    break;
+            }
+        });
+
+        console.log('✅ Event delegation setup complete');
+    }
+
+    // ============================================================================
+    // INITIALIZATION
+    // ============================================================================
+
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 Initializing ad publisher detail...');
+
+        // Initialize Bootstrap modals
+        const modalElements = document.querySelectorAll('.modal');
+        modalElements.forEach(function(modalEl) {
+            if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                try {
+                    bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                } catch (error) {
+                    console.error('Modal initialization error:', error);
+                }
+            }
+        });
+
+        // Setup event delegation
+        setupEventDelegation();
+
+        // Setup confirm handlers
+        setupConfirmHandlers();
+
+        console.log('✅ Ad publisher detail initialization complete');
+    });
+</script>
+
 <script>
+    // ========== Swiper and Statistics Animation ==========
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize Related Ads Swiper
         const relatedAdsSwiper = document.querySelector('.related-ads-swiper');
@@ -1826,3 +2221,4 @@
     });
 </script>
 {% endblock extra_js %}
+

@@ -2456,3 +2456,78 @@ class ChatMessage(models.Model):
             self.is_read = True
             self.read_at = timezone.now()
             self.save(update_fields=["is_read", "read_at"])
+
+
+class Visitor(models.Model):
+    """
+    Track website visitors for analytics.
+    Stores unique visitors by IP and session.
+    """
+
+    ip_address = models.GenericIPAddressField(verbose_name=_("عنوان IP"))
+    session_key = models.CharField(max_length=40, db_index=True, verbose_name=_("مفتاح الجلسة"))
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="visits",
+        verbose_name=_("المستخدم"),
+    )
+    user_agent = models.TextField(blank=True, verbose_name=_("متصفح المستخدم"))
+    page_url = models.CharField(max_length=500, blank=True, verbose_name=_("رابط الصفحة"))
+    referrer = models.CharField(max_length=500, blank=True, verbose_name=_("المصدر"))
+    country = models.CharField(max_length=2, blank=True, verbose_name=_("الدولة"))
+    city = models.CharField(max_length=100, blank=True, verbose_name=_("المدينة"))
+    device_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('mobile', _('موبايل')),
+            ('tablet', _('تابلت')),
+            ('desktop', _('كمبيوتر')),
+        ],
+        default='desktop',
+        verbose_name=_("نوع الجهاز"),
+    )
+    first_visit = models.DateTimeField(auto_now_add=True, verbose_name=_("أول زيارة"))
+    last_activity = models.DateTimeField(auto_now=True, db_index=True, verbose_name=_("آخر نشاط"))
+    page_views = models.PositiveIntegerField(default=1, verbose_name=_("عدد الصفحات"))
+
+    class Meta:
+        db_table = "visitors"
+        verbose_name = _("Visitor")
+        verbose_name_plural = _("Visitors")
+        ordering = ["-last_activity"]
+        indexes = [
+            models.Index(fields=["ip_address", "session_key"]),
+            models.Index(fields=["last_activity"]),
+            models.Index(fields=["first_visit"]),
+        ]
+        unique_together = [["ip_address", "session_key"]]
+
+    def __str__(self):
+        if self.user:
+            return f"{self.user.username} ({self.ip_address})"
+        return f"Guest ({self.ip_address})"
+
+    @property
+    def is_online(self):
+        """Check if visitor is currently online (active in last 15 minutes)"""
+        threshold = timezone.now() - timedelta(minutes=15)
+        return self.last_activity >= threshold
+
+    @classmethod
+    def get_online_count(cls):
+        """Get count of currently online visitors"""
+        threshold = timezone.now() - timedelta(minutes=15)
+        return cls.objects.filter(last_activity__gte=threshold).count()
+
+    @classmethod
+    def get_unique_visitors(cls, start_date=None, end_date=None):
+        """Get unique visitor count for a date range"""
+        queryset = cls.objects.all()
+        if start_date:
+            queryset = queryset.filter(first_visit__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(first_visit__lte=end_date)
+        return queryset.values('ip_address').distinct().count()

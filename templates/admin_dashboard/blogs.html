@@ -1,0 +1,793 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n %}
+
+{% block title %}
+    {% trans "إدارة المدونات" %} - {% trans "لوحة تحكم المدير" %}
+{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+    /* All modal styles are inherited from admin-dashboard.css */
+    /* Modal z-index hierarchy: backdrop (10500), modal (10600), dialog (10700) */
+
+    /* Ensure modals display correctly - Bootstrap 5 compatibility */
+    .modal.show {
+        display: block !important;
+    }
+
+    .modal-backdrop.show {
+        opacity: 0.5 !important;
+    }
+
+    .blog-stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 16px;
+        padding: 2rem;
+        color: white;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        margin-bottom: 2rem;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+
+    .blog-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        border-left: 4px solid #667eea;
+    }
+
+    .blog-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+    }
+
+    [data-theme='dark'] .blog-card {
+        background: #1a202c;
+        border-left-color: #a78bbd;
+    }
+
+    .blog-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 1rem;
+    }
+
+    .blog-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin-bottom: 0.5rem;
+    }
+
+    [data-theme='dark'] .blog-title {
+        color: #e9ecef;
+    }
+
+    .blog-meta {
+        display: flex;
+        gap: 1.5rem;
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-bottom: 1rem;
+    }
+
+    [data-theme='dark'] .blog-meta {
+        color: #9ca3af;
+    }
+
+    .blog-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .blog-content-preview {
+        color: #4b5563;
+        line-height: 1.6;
+        margin-bottom: 1rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    [data-theme='dark'] .blog-content-preview {
+        color: #cbd5e0;
+    }
+
+    .blog-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .blog-tag {
+        background: #e0e7ff;
+        color: #4c51bf;
+        padding: 0.25rem 0.75rem;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    [data-theme='dark'] .blog-tag {
+        background: rgba(167, 139, 189, 0.2);
+        color: #a78bbd;
+    }
+
+    .blog-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .blog-status-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .status-published {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-draft {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    [data-theme='dark'] .status-published {
+        background: rgba(16, 185, 129, 0.2);
+        color: #6ee7b7;
+    }
+
+    [data-theme='dark'] .status-draft {
+        background: rgba(245, 158, 11, 0.2);
+        color: #fbbf24;
+    }
+
+    .blog-image-thumb {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 12px;
+        margin-left: 1rem;
+    }
+
+    .filter-bar {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme='dark'] .filter-bar {
+        background: #1a202c;
+    }
+
+    .search-input-group {
+        position: relative;
+    }
+
+    .search-input-group i {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af;
+    }
+
+    .search-input {
+        padding-right: 3rem;
+        border-radius: 12px;
+        border: 2px solid #e5e7eb;
+    }
+
+    [data-theme='dark'] .search-input {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
+        color: #e9ecef;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        color: #cbd5e0;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state h3 {
+        color: #4b5563;
+        margin-bottom: 0.5rem;
+    }
+
+    [data-theme='dark'] .empty-state h3 {
+        color: #cbd5e0;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">{% trans "إدارة المدونات" %}</h2>
+            <p class="text-muted mb-0">{% trans "إنشاء وتحرير وحذف المدونات" %}</p>
+        </div>
+        <button class="btn btn-primary" data-action="create-blog">
+            <i class="fas fa-plus me-2"></i>
+            {% trans "مدونة جديدة" %}
+        </button>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="blog-stats-card">
+                <div class="stat-item">
+                    <div class="stat-value">{{ total_blogs }}</div>
+                    <div class="stat-label">{% trans "إجمالي المدونات" %}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="blog-stats-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                <div class="stat-item">
+                    <div class="stat-value">{{ published_blogs }}</div>
+                    <div class="stat-label">{% trans "منشور" %}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="blog-stats-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                <div class="stat-item">
+                    <div class="stat-value">{{ draft_blogs }}</div>
+                    <div class="stat-label">{% trans "مسودات" %}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <form method="get" class="row g-3" id="filterForm">
+            <div class="col-md-4">
+                <div class="search-input-group">
+                    <i class="fas fa-search"></i>
+                    <input type="text" name="search" class="form-control search-input"
+                           placeholder="{% trans 'البحث في المدونات...' %}"
+                           value="{{ search_query }}">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select name="status" class="form-select" onchange="this.form.submit()">
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>{% trans "جميع الحالات" %}</option>
+                    <option value="published" {% if status_filter == 'published' %}selected{% endif %}>{% trans "منشور" %}</option>
+                    <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>{% trans "مسودة" %}</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="sort" class="form-select" onchange="this.form.submit()">
+                    <option value="-published_date" {% if sort_by == '-published_date' %}selected{% endif %}>{% trans "الأحدث أولاً" %}</option>
+                    <option value="published_date" {% if sort_by == 'published_date' %}selected{% endif %}>{% trans "الأقدم أولاً" %}</option>
+                    <option value="title" {% if sort_by == 'title' %}selected{% endif %}>{% trans "العنوان (أ-ي)" %}</option>
+                    <option value="-likes_count" {% if sort_by == '-likes_count' %}selected{% endif %}>{% trans "الأكثر إعجاباً" %}</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter me-2"></i>
+                    {% trans "تطبيق" %}
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Blogs List -->
+    {% if blogs %}
+        {% for blog in blogs %}
+        <div class="blog-card">
+            <div class="d-flex">
+                <div class="flex-grow-1">
+                    <div class="blog-header">
+                        <div>
+                            <h3 class="blog-title">{{ blog.title }}</h3>
+                            <span class="blog-status-badge {% if blog.is_published %}status-published{% else %}status-draft{% endif %}">
+                                {% if blog.is_published %}
+                                    <i class="fas fa-check-circle me-1"></i> {% trans "منشور" %}
+                                {% else %}
+                                    <i class="fas fa-clock me-1"></i> {% trans "مسودة" %}
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="blog-meta">
+                        <div class="blog-meta-item">
+                            <i class="fas fa-user"></i>
+                            <span>{{ blog.author.username }}</span>
+                        </div>
+                        <div class="blog-meta-item">
+                            <i class="fas fa-calendar"></i>
+                            <span>{{ blog.published_date|date:"Y/m/d" }}</span>
+                        </div>
+                        <div class="blog-meta-item">
+                            <i class="fas fa-heart"></i>
+                            <span>{{ blog.likes_count }} {% trans "إعجاب" %}</span>
+                        </div>
+                        <div class="blog-meta-item">
+                            <i class="fas fa-comments"></i>
+                            <span>{{ blog.comments_count }} {% trans "تعليق" %}</span>
+                        </div>
+                    </div>
+
+                    <p class="blog-content-preview">{{ blog.content|truncatewords:30 }}</p>
+
+                    {% if blog.tags.all %}
+                    <div class="blog-tags">
+                        {% for tag in blog.tags.all %}
+                        <span class="blog-tag">
+                            <i class="fas fa-tag me-1"></i>{{ tag.name }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="blog-actions">
+                        <button class="btn btn-sm btn-primary" data-action="edit-blog" data-blog-id="{{ blog.id }}">
+                            <i class="fas fa-edit me-1"></i> {% trans "تعديل" %}
+                        </button>
+                        <button class="btn btn-sm btn-warning" data-action="toggle-publish" data-blog-id="{{ blog.id }}" data-is-published="{{ blog.is_published|lower }}">
+                            <i class="fas fa-sync-alt me-1"></i>
+                            {% if blog.is_published %}{% trans "تحويل لمسودة" %}{% else %}{% trans "نشر" %}{% endif %}
+                        </button>
+                        <a href="{{ blog.get_absolute_url }}" target="_blank" class="btn btn-sm btn-info">
+                            <i class="fas fa-eye me-1"></i> {% trans "عرض" %}
+                        </a>
+                        <button class="btn btn-sm btn-danger" data-action="delete-blog" data-blog-id="{{ blog.id }}" data-blog-title="{{ blog.title }}">
+                            <i class="fas fa-trash me-1"></i> {% trans "حذف" %}
+                        </button>
+                    </div>
+                </div>
+
+                {% if blog.image %}
+                <div>
+                    <img src="{{ blog.image.url }}" alt="{{ blog.title }}" class="blog-image-thumb">
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <!-- Pagination -->
+        {% if blogs.has_other_pages %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if blogs.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ blogs.previous_page_number }}&status={{ status_filter }}&search={{ search_query }}&sort={{ sort_by }}">
+                        {% trans "السابق" %}
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in blogs.paginator.page_range %}
+                    {% if blogs.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > blogs.number|add:'-3' and num < blogs.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}&status={{ status_filter }}&search={{ search_query }}&sort={{ sort_by }}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if blogs.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ blogs.next_page_number }}&status={{ status_filter }}&search={{ search_query }}&sort={{ sort_by }}">
+                        {% trans "التالي" %}
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    {% else %}
+        <div class="empty-state">
+            <i class="fas fa-blog"></i>
+            <h3>{% trans "لا توجد مدونات" %}</h3>
+            <p class="text-muted">{% trans "ابدأ بإنشاء مدونة جديدة" %}</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- IMPORTANT: Modals MUST be placed outside the main content container to avoid z-index/overflow issues -->
+
+<!-- Create/Edit Blog Modal -->
+<div class="modal fade" id="blogModal" tabindex="-1" aria-labelledby="blogModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="blogModalLabel">
+                    <i class="fas fa-blog me-2"></i>
+                    <span id="modalTitle">{% trans "مدونة جديدة" %}</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="blogForm" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="hidden" id="blogId" name="blog_id">
+
+                    <div class="mb-3">
+                        <label for="blogTitle" class="form-label">{% trans "العنوان" %} <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="blogTitle" name="title" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="blogContent" class="form-label">{% trans "المحتوى" %} <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="blogContent" name="content" rows="10" required></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="blogImage" class="form-label">{% trans "الصورة" %}</label>
+                        <input type="file" class="form-control" id="blogImage" name="image" accept="image/*">
+                        <div id="currentImage" class="mt-2" style="display: none;">
+                            <img id="currentImagePreview" src="" alt="Current image" style="max-width: 200px; border-radius: 8px;">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="blogTags" class="form-label">{% trans "الوسوم" %}</label>
+                        <input type="text" class="form-control" id="blogTags" name="tags" placeholder="{% trans 'افصل الوسوم بفاصلة' %}">
+                        <small class="form-text text-muted">{% trans "مثال: تقنية, برمجة, تطوير" %}</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="blogPublished" name="is_published" checked>
+                            <label class="form-check-label" for="blogPublished">
+                                {% trans "نشر المدونة" %}
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>
+                    {% trans "إلغاء" %}
+                </button>
+                <button type="button" class="btn btn-primary" id="saveBlogBtn">
+                    <i class="fas fa-save me-2"></i>
+                    {% trans "حفظ" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">
+                    <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                    {% trans "تأكيد الحذف" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>{% trans "هل أنت متأكد من حذف المدونة" %} "<strong id="deleteBlogTitle"></strong>"؟</p>
+                <p class="text-danger fw-bold">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    {% trans "لا يمكن التراجع عن هذا الإجراء" %}
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>
+                    {% trans "إلغاء" %}
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash me-2"></i>
+                    {% trans "حذف" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock modals %}
+
+{% block admin_extra_js %}
+<script>
+    let currentBlogId = null;
+    let currentDeleteId = null;
+
+    // CSRF Token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Show notification
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} position-fixed`;
+        notification.style.cssText = 'top: 20px; right: 20px; z-index: 10800; min-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+        notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>${message}`;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transition = 'opacity 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    // Initialize Bootstrap modals on page load with debugging
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🎯 Initializing modals...');
+        console.log('Bootstrap available:', typeof bootstrap !== 'undefined');
+
+        const modalElements = document.querySelectorAll('.modal');
+        console.log('Found modals:', modalElements.length);
+
+        modalElements.forEach(function(modalEl) {
+            console.log('Initializing modal:', modalEl.id);
+            if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                try {
+                    const existingModal = bootstrap.Modal.getInstance(modalEl);
+                    if (!existingModal) {
+                        const newModal = new bootstrap.Modal(modalEl);
+                        console.log('✅ Modal initialized:', modalEl.id);
+                    } else {
+                        console.log('✅ Modal already initialized:', modalEl.id);
+                    }
+                } catch (error) {
+                    console.error('❌ Modal initialization error:', modalEl.id, error);
+                }
+            }
+        });
+
+        console.log('✅ Modal initialization complete');
+    });
+
+    // Event Delegation
+    document.addEventListener('click', function(e) {
+        const target = e.target.closest('[data-action]');
+        if (!target) return;
+
+        const action = target.dataset.action;
+
+        switch(action) {
+            case 'create-blog':
+                openCreateModal();
+                break;
+
+            case 'edit-blog':
+                openEditModal(target.dataset.blogId);
+                break;
+
+            case 'delete-blog':
+                openDeleteModal(target.dataset.blogId, target.dataset.blogTitle);
+                break;
+
+            case 'toggle-publish':
+                togglePublishStatus(target.dataset.blogId, target.dataset.isPublished === 'true');
+                break;
+        }
+    });
+
+    // Open Create Modal
+    function openCreateModal() {
+        console.log('📝 Opening create modal...');
+        currentBlogId = null;
+        document.getElementById('modalTitle').textContent = '{% trans "مدونة جديدة" %}';
+        document.getElementById('blogForm').reset();
+        document.getElementById('blogId').value = '';
+        document.getElementById('currentImage').style.display = 'none';
+
+        const modalEl = document.getElementById('blogModal');
+        console.log('Modal element found:', !!modalEl);
+
+        if (modalEl) {
+            let modal = bootstrap.Modal.getInstance(modalEl);
+            if (!modal) {
+                console.log('Creating new modal instance...');
+                modal = new bootstrap.Modal(modalEl);
+            }
+            console.log('Showing modal...');
+            modal.show();
+            console.log('✅ Modal shown');
+        } else {
+            console.error('❌ Modal element not found!');
+        }
+    }
+
+    // Open Edit Modal
+    async function openEditModal(blogId) {
+        currentBlogId = blogId;
+
+        try {
+            const response = await fetch(`/admin/blogs/${blogId}/update/`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                document.getElementById('modalTitle').textContent = '{% trans "تعديل المدونة" %}';
+                document.getElementById('blogId').value = data.blog.id;
+                document.getElementById('blogTitle').value = data.blog.title;
+                document.getElementById('blogContent').value = data.blog.content;
+                document.getElementById('blogTags').value = data.blog.tags;
+                document.getElementById('blogPublished').checked = data.blog.is_published;
+
+                if (data.blog.image_url) {
+                    document.getElementById('currentImagePreview').src = data.blog.image_url;
+                    document.getElementById('currentImage').style.display = 'block';
+                }
+
+                const modalEl = document.getElementById('blogModal');
+                if (modalEl) {
+                    let modal = bootstrap.Modal.getInstance(modalEl);
+                    if (!modal) {
+                        modal = new bootstrap.Modal(modalEl);
+                    }
+                    modal.show();
+                    console.log('✅ Edit modal shown');
+                }
+            }
+        } catch (error) {
+            console.error('Error loading blog:', error);
+            showNotification('{% trans "خطأ في تحميل بيانات المدونة" %}', 'error');
+        }
+    }
+
+    // Save Blog
+    document.getElementById('saveBlogBtn').addEventListener('click', async function() {
+        const form = document.getElementById('blogForm');
+        const formData = new FormData(form);
+        formData.append('is_published', document.getElementById('blogPublished').checked);
+
+        const url = currentBlogId
+            ? `/admin/blogs/${currentBlogId}/update/`
+            : '/admin/blogs/create/';
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification(data.message, 'success');
+                bootstrap.Modal.getInstance(document.getElementById('blogModal')).hide();
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showNotification(data.error, 'error');
+            }
+        } catch (error) {
+            console.error('Error saving blog:', error);
+            showNotification('{% trans "خطأ في حفظ المدونة" %}', 'error');
+        }
+    });
+
+    // Open Delete Modal
+    function openDeleteModal(blogId, blogTitle) {
+        console.log('🗑️ Opening delete modal...');
+        currentDeleteId = blogId;
+        document.getElementById('deleteBlogTitle').textContent = blogTitle;
+
+        const modalEl = document.getElementById('deleteModal');
+        if (modalEl) {
+            let modal = bootstrap.Modal.getInstance(modalEl);
+            if (!modal) {
+                modal = new bootstrap.Modal(modalEl);
+            }
+            modal.show();
+            console.log('✅ Delete modal shown');
+        }
+    }
+
+    // Confirm Delete
+    document.getElementById('confirmDeleteBtn').addEventListener('click', async function() {
+        if (!currentDeleteId) return;
+
+        try {
+            const response = await fetch(`/admin/blogs/${currentDeleteId}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification(data.message, 'success');
+                bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showNotification(data.error, 'error');
+            }
+        } catch (error) {
+            console.error('Error deleting blog:', error);
+            showNotification('{% trans "خطأ في حذف المدونة" %}', 'error');
+        }
+    });
+
+    // Toggle Publish Status
+    async function togglePublishStatus(blogId, currentStatus) {
+        try {
+            const response = await fetch(`/admin/blogs/${blogId}/toggle-publish/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification(data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showNotification(data.error, 'error');
+            }
+        } catch (error) {
+            console.error('Error toggling status:', error);
+            showNotification('{% trans "خطأ في تغيير حالة المدونة" %}', 'error');
+        }
+    }
+</script>
+{% endblock %}

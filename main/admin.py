@@ -31,6 +31,7 @@ from .models import (
     UserPermissionLog,
     UserSubscription,
     UserVerificationRequest,
+    Visitor,
 )
 
 
@@ -634,3 +635,26 @@ class UserSubscriptionAdmin(admin.ModelAdmin):
     list_filter = ("is_active", "auto_renew", "start_date")
     search_fields = ("user__username", "user__email")
     date_hierarchy = "start_date"
+
+
+@admin.register(Visitor)
+class VisitorAdmin(admin.ModelAdmin):
+    list_display = (
+        "ip_address",
+        "user",
+        "device_type",
+        "page_views",
+        "first_visit",
+        "last_activity",
+        "is_online",
+    )
+    list_filter = ("device_type", "first_visit", "last_activity")
+    search_fields = ("ip_address", "user__username", "page_url")
+    readonly_fields = ("first_visit", "last_activity", "session_key", "user_agent")
+    date_hierarchy = "first_visit"
+
+    def is_online(self, obj):
+        return obj.is_online
+
+    is_online.boolean = True
+    is_online.short_description = _("متصل الآن")
