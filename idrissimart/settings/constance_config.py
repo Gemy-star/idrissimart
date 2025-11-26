@@ -1,3 +1,4 @@
+import os
 from django.utils.translation import gettext_lazy as _
 
 CONSTANCE_CONFIG = {
@@ -110,17 +111,31 @@ CONSTANCE_CONFIG = {
         _("PayPal Mode (sandbox or live)"),
     ),
     # Payment Settings - Paymob
+    # Note: Sensitive keys (API_KEY, SECRET_KEY, PUBLIC_KEY, HMAC_SECRET) are loaded from environment variables
+    # and should not be stored in the database. Other settings can be configured via admin.
     "PAYMOB_API_KEY": (
-        "",
-        _("Paymob API Key"),
+        os.getenv("PAYMOB_API_KEY", ""),
+        _("Paymob API Key (loaded from environment)"),
+    ),
+    "PAYMOB_SECRET_KEY": (
+        os.getenv("PAYMOB_SECRET_KEY", ""),
+        _("Paymob Secret Key (loaded from environment)"),
+    ),
+    "PAYMOB_PUBLIC_KEY": (
+        os.getenv("PAYMOB_PUBLIC_KEY", ""),
+        _("Paymob Public Key (loaded from environment)"),
     ),
     "PAYMOB_INTEGRATION_ID": (
-        "",
+        os.getenv("PAYMOB_INTEGRATION_ID", ""),
         _("Paymob Integration ID"),
     ),
     "PAYMOB_IFRAME_ID": (
-        "",
+        os.getenv("PAYMOB_IFRAME_ID", ""),
         _("Paymob iFrame ID"),
+    ),
+    "PAYMOB_HMAC_SECRET": (
+        os.getenv("PAYMOB_HMAC_SECRET", ""),
+        _("Paymob HMAC Secret (loaded from environment)"),
     ),
     "PAYMOB_MASTERCARD_INTEGRATION_ID": (
         "",
@@ -129,6 +144,15 @@ CONSTANCE_CONFIG = {
     "PAYMOB_VISA_INTEGRATION_ID": (
         "",
         _("Paymob Visa Integration ID"),
+    ),
+    "PAYMOB_ENABLED": (
+        True,
+        _("Enable Paymob payment gateway"),
+        bool,
+    ),
+    "PAYMOB_CURRENCY": (
+        "EGP",
+        _("Paymob payment currency"),
     ),
     # SMS Settings - Twilio
     "TWILIO_ACCOUNT_SID": (
@@ -382,9 +406,14 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "PAYPAL_MODE",
     ),
     "Payment Settings - Paymob": (
+        "PAYMOB_ENABLED",
+        "PAYMOB_CURRENCY",
         "PAYMOB_API_KEY",
+        "PAYMOB_SECRET_KEY",
+        "PAYMOB_PUBLIC_KEY",
         "PAYMOB_INTEGRATION_ID",
         "PAYMOB_IFRAME_ID",
+        "PAYMOB_HMAC_SECRET",
         "PAYMOB_MASTERCARD_INTEGRATION_ID",
         "PAYMOB_VISA_INTEGRATION_ID",
     ),

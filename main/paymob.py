@@ -1,27 +1,55 @@
 """
 Paymob Payment Gateway Integration Module
 Handles payment processing with Paymob Accept API
+
+This module integrates with django-constance for configuration management.
+Sensitive credentials are loaded from environment variables and managed
+through the Django admin panel under Config > Payment Settings - Paymob.
 """
 
 import hashlib
 import hmac
 import json
+import logging
 import requests
+from constance import config
 from django.conf import settings
 from typing import Dict, Optional
+import decimal
 
 
 class PaymobClient:
     """Client for interacting with Paymob Accept API."""
 
     def __init__(self):
-        self.api_key = settings.PAYMOB_API_KEY
-        self.secret_key = settings.PAYMOB_SECRET_KEY
-        self.public_key = settings.PAYMOB_PUBLIC_KEY
-        self.iframe_id = settings.PAYMOB_IFRAME_ID
-        self.integration_id = settings.PAYMOB_INTEGRATION_ID
-        self.hmac_secret = settings.PAYMOB_HMAC_SECRET
+        # Load credentials from django-constance
+        # These are automatically populated from environment variables
+        self.api_key = config.PAYMOB_API_KEY
+        self.secret_key = config.PAYMOB_SECRET_KEY
+        self.public_key = config.PAYMOB_PUBLIC_KEY
+        self.iframe_id = config.PAYMOB_IFRAME_ID
+        self.integration_id = config.PAYMOB_INTEGRATION_ID
+        self.hmac_secret = config.PAYMOB_HMAC_SECRET
+        self.currency = config.PAYMOB_CURRENCY
+        self.enabled = config.PAYMOB_ENABLED
         self.base_url = settings.PAYMOB_BASE_URL
+
+    def is_configured(self) -> bool:
+        """
+        Check if Paymob is properly configured.
+
+        Returns:
+            bool: True if all required credentials are set
+        """
+        return all(
+            [
+                self.enabled,
+                self.api_key,
+                self.secret_key,
+                self.public_key,
+                self.integration_id,
+            ]
+        )
 
     def authenticate(self) -> Optional[str]:
         """
@@ -37,13 +65,18 @@ class PaymobClient:
             response = requests.post(url, json=payload)
             response.raise_for_status()
             data = response.json()
-            return data.get("token")
-        except requests.exceptions.RequestException as e:
-            print(f"Paymob authentication error: {e}")
+            return data.get("token")  #
+        except requests.exceptions.RequestException as e:  #
+            logging.error(f"Paymob authentication error: {e}")
             return None
 
-    def create_order(self, auth_token: str, amount_cents: int,
-                     merchant_order_id: str, items: list = None) -> Optional[Dict]:
+    def create_order(
+        self,
+        auth_token: str,
+        amount_cents: int,
+        merchant_order_id: str,
+        items: list = None,
+    ) -> Optional[Dict]:
         """
         Create an order with Paymob.
 
@@ -61,21 +94,22 @@ class PaymobClient:
             "auth_token": auth_token,
             "delivery_needed": "false",
             "amount_cents": amount_cents,
-            "currency": "EGP",
+            "currency": self.currency,
             "merchant_order_id": merchant_order_id,
-            "items": items or []
+            "items": items or [],
         }
 
         try:
             response = requests.post(url, json=payload)
             response.raise_for_status()
             return response.json()
-        except requests.exceptions.RequestException as e:
-            print(f"Paymob order creation error: {e}")
+        except requests.exceptions.RequestException as e:  #
+            logging.error(f"Paymob order creation error: {e}")
             return None
 
-    def create_payment_key(self, auth_token: str, order_id: int,
-                           amount_cents: int, billing_data: Dict) -> Optional[str]:
+    def create_payment_key(
+        self, auth_token: str, order_id: int, amount_cents: int, billing_data: Dict
+    ) -> Optional[str]:
         """
         Create a payment key for processing payment.
 
@@ -95,17 +129,17 @@ class PaymobClient:
             "expiration": 3600,
             "order_id": order_id,
             "billing_data": billing_data,
-            "currency": "EGP",
-            "integration_id": self.integration_id
+            "currency": self.currency,
+            "integration_id": self.integration_id,
         }
 
         try:
             response = requests.post(url, json=payload)
             response.raise_for_status()
             data = response.json()
-            return data.get("token")
-        except requests.exceptions.RequestException as e:
-            print(f"Paymob payment key creation error: {e}")
+            return data.get("token")  #
+        except requests.exceptions.RequestException as e:  #
+            logging.error(f"Paymob payment key creation error: {e}")
             return None
 
     def verify_hmac(self, data: Dict) -> bool:
@@ -119,10 +153,10 @@ class PaymobClient:
             bool: True if signature is valid, False otherwise
         """
         if not self.hmac_secret:
-            print("Warning: HMAC secret not configured")
+            logging.warning("HMAC secret not configured for Paymob verification.")
             return False
 
-        received_hmac = data.get('hmac')
+        received_hmac = data.get("hmac")
         if not received_hmac:
             return False
 
@@ -152,15 +186,14 @@ class PaymobClient:
 
         # Calculate HMAC
         calculated_hmac = hmac.new(
-            self.hmac_secret.encode(),
-            concatenated_string.encode(),
-            hashlib.sha512
+            self.hmac_secret.encode(), concatenated_string.encode(), hashlib.sha512
         ).hexdigest()
 
         return hmac.compare_digest(calculated_hmac, received_hmac)
 
-    def process_payment(self, order_id: str, amount: float,
-                        billing_data: Dict) -> Optional[str]:
+    def process_payment(
+        self, order_id: str, amount: float, billing_data: Dict
+    ) -> Optional[str]:
         """
         Complete payment flow and return payment URL.
 
@@ -173,7 +206,8 @@ class PaymobClient:
             str: Payment iframe URL or None if process fails
         """
         # Convert amount to cents
-        amount_cents = int(amount * 100)
+        amount_decimal = decimal.Decimal(str(amount))
+        amount_cents = int(amount_decimal * 100)
 
         # Step 1: Authenticate
         auth_token = self.authenticate()
@@ -182,9 +216,7 @@ class PaymobClient:
 
         # Step 2: Create order
         order_data = self.create_order(
-            auth_token=auth_token,
-            amount_cents=amount_cents,
-            merchant_order_id=order_id
+            auth_token=auth_token, amount_cents=amount_cents, merchant_order_id=order_id
         )
         if not order_data:
             return None
@@ -196,7 +228,7 @@ class PaymobClient:
             auth_token=auth_token,
             order_id=paymob_order_id,
             amount_cents=amount_cents,
-            billing_data=billing_data
+            billing_data=billing_data,
         )
         if not payment_key:
             return None
@@ -219,16 +251,16 @@ def get_billing_data(user, email: str = None, phone: str = None) -> Dict:
     """
     return {
         "apartment": "NA",
-        "email": email or getattr(user, 'email', 'NA'),
+        "email": email or getattr(user, "email", "NA"),
         "floor": "NA",
-        "first_name": getattr(user, 'first_name', 'Customer'),
+        "first_name": getattr(user, "first_name", "Customer"),
         "street": "NA",
         "building": "NA",
-        "phone_number": phone or getattr(user, 'phone', 'NA'),
+        "phone_number": phone or getattr(user, "phone", "NA"),
         "shipping_method": "NA",
         "postal_code": "NA",
         "city": "NA",
         "country": "EG",
-        "last_name": getattr(user, 'last_name', ''),
-        "state": "NA"
+        "last_name": getattr(user, "last_name", ""),
+        "state": "NA",
     }

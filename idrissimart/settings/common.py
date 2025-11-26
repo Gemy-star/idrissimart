@@ -232,12 +232,9 @@ SUPPORTED_COUNTRIES = ["SA", "AE", "EG", "KW", "QA", "BH", "OM", "JO"]
 # ===========================
 # Paymob Payment Gateway Settings
 # ===========================
-PAYMOB_API_KEY = os.getenv("PAYMOB_API_KEY", "")
-PAYMOB_SECRET_KEY = os.getenv("PAYMOB_SECRET_KEY", "")
-PAYMOB_PUBLIC_KEY = os.getenv("PAYMOB_PUBLIC_KEY", "")
-PAYMOB_IFRAME_ID = os.getenv("PAYMOB_IFRAME_ID", "")
-PAYMOB_INTEGRATION_ID = os.getenv("PAYMOB_INTEGRATION_ID", "")
-PAYMOB_HMAC_SECRET = os.getenv("PAYMOB_HMAC_SECRET", "")
+# Note: Paymob credentials are managed via django-constance
+# They can be configured in the admin panel under "Config"
+# Sensitive keys are loaded from environment variables
 PAYMOB_BASE_URL = "https://accept.paymob.com/api"
 
 CONSTANCE_CONFIG = CONSTANCE_CONFIG
