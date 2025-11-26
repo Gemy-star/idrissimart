@@ -229,6 +229,17 @@ MAX_WISHLIST_ITEMS = 50
 DEFAULT_COUNTRY = "SA"
 SUPPORTED_COUNTRIES = ["SA", "AE", "EG", "KW", "QA", "BH", "OM", "JO"]
 
+# ===========================
+# Paymob Payment Gateway Settings
+# ===========================
+PAYMOB_API_KEY = os.getenv("PAYMOB_API_KEY", "")
+PAYMOB_SECRET_KEY = os.getenv("PAYMOB_SECRET_KEY", "")
+PAYMOB_PUBLIC_KEY = os.getenv("PAYMOB_PUBLIC_KEY", "")
+PAYMOB_IFRAME_ID = os.getenv("PAYMOB_IFRAME_ID", "")
+PAYMOB_INTEGRATION_ID = os.getenv("PAYMOB_INTEGRATION_ID", "")
+PAYMOB_HMAC_SECRET = os.getenv("PAYMOB_HMAC_SECRET", "")
+PAYMOB_BASE_URL = "https://accept.paymob.com/api"
+
 CONSTANCE_CONFIG = CONSTANCE_CONFIG
 CONSTANCE_CONFIG_FIELDSETS = CONSTANCE_CONFIG_FIELDSETS
 
