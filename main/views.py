@@ -1625,25 +1625,37 @@ def get_category_stats(request):
 
 @login_required
 def enhanced_ad_create_view(request):
-    """Simple enhanced ad creation view"""
+    """Simple enhanced ad creation view with balance check"""
 
-    # Check if user has an active package with remaining ads
-    has_quota = (
+    # First check if user is authenticated
+    if not request.user.is_authenticated:
+        messages.info(
+            request,
+            _("يجب تسجيل الدخول أولاً لتتمكن من نشر الإعلانات."),
+        )
+        return redirect("main:login")
+
+    # Check if user has any active package with remaining ads
+    active_package = (
         UserPackage.objects.filter(
             user=request.user,
             expiry_date__gte=timezone.now(),
             ads_remaining__gt=0,
         )
         .order_by("expiry_date")
-        .exists()
+        .first()
     )
 
-    if not has_quota:
-        messages.error(
+    if not active_package:
+        # User has no balance (ads_remaining = 0) or no active package
+        messages.warning(
             request,
-            _("لقد استنفدت إعلانك المجاني! يرجى شراء باقة للاستمرار في نشر الإعلانات."),
+            _("يجب الاشتراك في باقة لتتمكن من نشر إعلان. رصيدك الحالي = 0"),
         )
         return redirect("main:packages_list")
+
+    # Store remaining ads count for display
+    request.session["ads_remaining"] = active_package.ads_remaining
 
     if request.method == "POST":
         # استخدام النموذج المبسط
@@ -2586,7 +2598,7 @@ class AdminAdsManagementView(SuperadminRequiredMixin, ListView):
 
 class AdminCategoryCustomFieldsView(SuperadminRequiredMixin, View):
     """
-    API endpoint to get custom fields for a specific category.
+    API endpoint to get and save custom fields for a specific category.
     """
 
     def get(self, request, category_id):
@@ -2618,6 +2630,46 @@ class AdminCategoryCustomFieldsView(SuperadminRequiredMixin, View):
         except Category.DoesNotExist:
             return JsonResponse(
                 {"success": False, "message": "Category not found"}, status=404
+            )
+
+    def post(self, request, category_id):
+        """Save custom fields for a category"""
+        try:
+            import json
+
+            category = Category.objects.get(id=category_id)
+            data = json.loads(request.body)
+            fields_data = data.get("fields", [])
+
+            # Delete existing fields for this category
+            CustomField.objects.filter(category=category).delete()
+
+            # Create new fields
+            for index, field_data in enumerate(fields_data):
+                CustomField.objects.create(
+                    category=category,
+                    name=field_data.get("name", ""),
+                    label_ar=field_data.get(
+                        "name", ""
+                    ),  # Use name as label if not provided
+                    label_en=field_data.get("name", ""),
+                    field_type=field_data.get("type", "text"),
+                    is_required=field_data.get("required", False),
+                    options=field_data.get("options", ""),
+                    order=index,
+                )
+
+            return JsonResponse(
+                {"success": True, "message": _("تم حفظ الحقول المخصصة بنجاح")}
+            )
+
+        except Category.DoesNotExist:
+            return JsonResponse(
+                {"success": False, "message": "Category not found"}, status=404
+            )
+        except Exception as e:
+            return JsonResponse(
+                {"success": False, "message": f"Error: {str(e)}"}, status=400
             )
 
 

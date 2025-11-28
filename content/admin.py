@@ -1,6 +1,8 @@
 # admin.py
 from django.contrib import admin
 from django.utils.html import format_html
+from django.db import models
+from django_ckeditor_5.widgets import CKEditor5Widget
 
 from .models import Blog, Comment, Country
 
@@ -68,6 +70,10 @@ class BlogAdmin(admin.ModelAdmin):
     date_hierarchy = "published_date"
     ordering = ("-published_date",)
 
+    formfield_overrides = {
+        models.TextField: {'widget': CKEditor5Widget(config_name='admin')},
+    }
+
     def get_queryset(self, request):
         return super().get_queryset(request).prefetch_related("tags")
 
@@ -83,6 +89,10 @@ class CommentAdmin(admin.ModelAdmin):
     list_filter = ("active", "created_on")
     search_fields = ("author__username", "body")
     actions = ["approve_comments"]
+
+    formfield_overrides = {
+        models.TextField: {'widget': CKEditor5Widget(config_name='default')},
+    }
 
     def approve_comments(self, request, queryset):
         queryset.update(active=True)

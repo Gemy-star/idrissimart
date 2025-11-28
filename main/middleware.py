@@ -155,12 +155,41 @@ class VisitorTrackingMiddleware:
 
     # Paths to exclude from tracking
     EXCLUDED_PATHS = [
-        '/static/',
-        '/media/',
-        '/favicon.ico',
-        '/robots.txt',
-        '/__debug__/',
-        '/admin/',  # Django admin
+        "/static/",
+        "/media/",
+        "/favicon.ico",
+        "/robots.txt",
+        "/__debug__/",
+        "/admin/",  # Django admin
+        "/api/",  # API endpoints
+        "/.well-known/",
+    ]
+
+    # Common bot user agents to exclude
+    BOT_USER_AGENTS = [
+        "bot",
+        "crawler",
+        "spider",
+        "scraper",
+        "curl",
+        "wget",
+        "python-requests",
+        "googlebot",
+        "bingbot",
+        "slurp",
+        "duckduckbot",
+        "baiduspider",
+        "yandexbot",
+        "facebookexternalhit",
+        "linkedinbot",
+        "twitterbot",
+        "whatsapp",
+        "telegram",
+        "headlesschrome",
+        "phantomjs",
+        "nightmarejs",
+        "selenium",
+        "playwright",
     ]
 
     def __init__(self, get_response):
@@ -181,40 +210,127 @@ class VisitorTrackingMiddleware:
             if path.startswith(excluded):
                 return False
 
-        # Only track GET requests
-        if request.method != 'GET':
+        # Only track GET requests (actual page views)
+        if request.method != "GET":
+            return False
+
+        # Skip AJAX requests
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return False
+
+        # Skip API requests
+        if request.content_type and "application/json" in request.content_type:
+            return False
+
+        # Skip bots and crawlers
+        user_agent = request.META.get("HTTP_USER_AGENT", "").lower()
+        if any(bot in user_agent for bot in self.BOT_USER_AGENTS):
             return False
 
         return True
 
     def _get_client_ip(self, request):
-        """Get the client's IP address"""
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0].strip()
-        else:
-            ip = request.META.get('REMOTE_ADDR')
-        return ip
+        """Get the client's real IP address from various proxy headers"""
+        # Check multiple headers in order of preference
+        headers_to_check = [
+            "HTTP_X_REAL_IP",
+            "HTTP_CF_CONNECTING_IP",  # Cloudflare
+            "HTTP_X_FORWARDED_FOR",
+            "HTTP_X_FORWARDED",
+            "HTTP_FORWARDED_FOR",
+            "HTTP_FORWARDED",
+            "REMOTE_ADDR",
+        ]
+
+        for header in headers_to_check:
+            ip = request.META.get(header)
+            if ip:
+                # X-Forwarded-For can contain multiple IPs, get the first one
+                if "," in ip:
+                    ip = ip.split(",")[0].strip()
+                # Validate IP format
+                if self._is_valid_ip(ip):
+                    return ip
+
+        return request.META.get("REMOTE_ADDR", "127.0.0.1")
+
+    def _is_valid_ip(self, ip):
+        """Validate IP address format"""
+        import re
+
+        # Simple IPv4 validation
+        ipv4_pattern = r"^(\d{1,3}\.){3}\d{1,3}$"
+        # Simple IPv6 validation
+        ipv6_pattern = r"^([\da-fA-F]{1,4}:){7}[\da-fA-F]{1,4}$|^::1$"
+
+        if re.match(ipv4_pattern, ip):
+            parts = ip.split(".")
+            return all(0 <= int(part) <= 255 for part in parts)
+        elif re.match(ipv6_pattern, ip):
+            return True
+        return False
 
     def _get_device_type(self, user_agent):
-        """Determine device type from user agent"""
+        """Determine device type from user agent with better detection"""
         user_agent_lower = user_agent.lower()
 
-        if any(mobile in user_agent_lower for mobile in ['mobile', 'android', 'iphone', 'ipod']):
-            return 'mobile'
-        elif 'ipad' in user_agent_lower or 'tablet' in user_agent_lower:
-            return 'tablet'
-        else:
-            return 'desktop'
+        # Mobile devices
+        mobile_patterns = [
+            "mobile",
+            "android",
+            "iphone",
+            "ipod",
+            "blackberry",
+            "windows phone",
+            "opera mini",
+        ]
+        if any(pattern in user_agent_lower for pattern in mobile_patterns):
+            return "mobile"
+
+        # Tablet devices
+        tablet_patterns = [
+            "ipad",
+            "tablet",
+            "kindle",
+            "playbook",
+            "nexus 7",
+            "nexus 10",
+        ]
+        if any(pattern in user_agent_lower for pattern in tablet_patterns):
+            return "tablet"
+
+        # Desktop/Laptop
+        return "desktop"
+
+    def _get_browser_info(self, user_agent):
+        """Extract browser name from user agent"""
+        user_agent_lower = user_agent.lower()
+
+        browsers = {
+            "edg": "Edge",
+            "chrome": "Chrome",
+            "safari": "Safari",
+            "firefox": "Firefox",
+            "opera": "Opera",
+            "msie": "IE",
+            "trident": "IE",
+        }
+
+        for key, name in browsers.items():
+            if key in user_agent_lower:
+                return name
+
+        return "Other"
 
     def _track_visitor(self, request):
-        """Track visitor information"""
+        """Track visitor information with improved accuracy"""
         if not self._should_track(request):
             return
 
         try:
             from .models import Visitor
             from django.utils import timezone
+            from datetime import timedelta
 
             # Get visitor information
             ip_address = self._get_client_ip(request)
@@ -225,36 +341,63 @@ class VisitorTrackingMiddleware:
                 request.session.create()
                 session_key = request.session.session_key
 
-            user_agent = request.META.get('HTTP_USER_AGENT', '')
+            user_agent = request.META.get("HTTP_USER_AGENT", "")
             device_type = self._get_device_type(user_agent)
             page_url = request.build_absolute_uri()
-            referrer = request.META.get('HTTP_REFERER', '')
+            referrer = request.META.get("HTTP_REFERER", "")
+
+            # Get country from session if available
+            country = request.session.get("selected_country", "")
+
+            # Check if this is a unique visitor (not seen in last 30 minutes)
+            now = timezone.now()
+            recent_threshold = now - timedelta(minutes=30)
 
             # Get or create visitor record
             visitor, created = Visitor.objects.get_or_create(
                 ip_address=ip_address,
                 session_key=session_key,
                 defaults={
-                    'user': request.user if request.user.is_authenticated else None,
-                    'user_agent': user_agent[:500],  # Limit length
-                    'page_url': page_url[:500],
-                    'referrer': referrer[:500],
-                    'device_type': device_type,
-                }
+                    "user": request.user if request.user.is_authenticated else None,
+                    "user_agent": user_agent[:500],  # Limit length
+                    "page_url": page_url[:500],
+                    "referrer": referrer[:500],
+                    "device_type": device_type,
+                    "country": country[:2] if country else "",
+                },
             )
 
-            # Update existing visitor
+            # Update existing visitor only if they're returning after some time
             if not created:
-                visitor.last_activity = timezone.now()
-                visitor.page_views += 1
+                # Only increment page views if it's a different page or after 1 minute
+                should_count = (
+                    visitor.page_url != page_url[:500]
+                    or (now - visitor.last_activity).total_seconds() > 60
+                )
+
+                update_fields = ["last_activity"]
+                visitor.last_activity = now
+
+                if should_count:
+                    visitor.page_views += 1
+                    update_fields.append("page_views")
+
+                # Always update current page URL
                 visitor.page_url = page_url[:500]
+                update_fields.append("page_url")
 
                 # Update user if authenticated and not set
                 if request.user.is_authenticated and not visitor.user:
                     visitor.user = request.user
+                    update_fields.append("user")
 
-                visitor.save(update_fields=['last_activity', 'page_views', 'page_url', 'user'])
+                # Update country if available
+                if country and not visitor.country:
+                    visitor.country = country[:2]
+                    update_fields.append("country")
+
+                visitor.save(update_fields=update_fields)
 
         except Exception as e:
             # Log error but don't break the request
-            logger.error(f"Error tracking visitor: {e}")
+            logger.error(f"Error tracking visitor: {e}", exc_info=True)

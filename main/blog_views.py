@@ -6,7 +6,7 @@ Handles CRUD operations for blog posts
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseNotFound
 from django.db.models import Q, Count
 from django.utils.text import slugify
 from django.core.paginator import Paginator
@@ -20,8 +20,33 @@ def is_staff(user):
     return user.is_staff
 
 
-@login_required
-@user_passes_test(is_staff)
+def staff_required(view_func):
+    """
+    Decorator to check if user is staff.
+    Returns JSON error for AJAX requests instead of redirect.
+    """
+
+    @login_required
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_staff:
+            # Check if it's an AJAX request
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "error": _("ليس لديك صلاحية للوصول إلى هذه الصفحة"),
+                    },
+                    status=403,
+                )
+            # Regular request - redirect to login or show error
+            messages.error(request, _("ليس لديك صلاحية للوصول إلى هذه الصفحة"))
+            return redirect("main:home")
+        return view_func(request, *args, **kwargs)
+
+    return wrapper
+
+
+@staff_required
 def admin_blogs(request):
     """
     Main blog management page with list, search, and filter
@@ -79,8 +104,7 @@ def admin_blogs(request):
     return render(request, "admin_dashboard/blogs.html", context)
 
 
-@login_required
-@user_passes_test(is_staff)
+@staff_required
 def admin_blog_create(request):
     """
     Create new blog post via AJAX
@@ -127,13 +151,19 @@ def admin_blog_create(request):
     return JsonResponse({"success": False, "error": _("طريقة غير صالحة")})
 
 
-@login_required
-@user_passes_test(is_staff)
+@staff_required
 def admin_blog_update(request, blog_id):
     """
     Update existing blog post via AJAX
     """
-    blog = get_object_or_404(Blog, id=blog_id)
+    try:
+        blog = get_object_or_404(Blog, id=blog_id)
+    except Blog.DoesNotExist:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse(
+                {"success": False, "error": _("المدونة غير موجودة")}, status=404
+            )
+        return HttpResponseNotFound(_("المدونة غير موجودة"))
 
     if request.method == "POST":
         try:
@@ -190,8 +220,7 @@ def admin_blog_update(request, blog_id):
     )
 
 
-@login_required
-@user_passes_test(is_staff)
+@staff_required
 def admin_blog_delete(request, blog_id):
     """
     Delete blog post via AJAX
@@ -214,8 +243,7 @@ def admin_blog_delete(request, blog_id):
     return JsonResponse({"success": False, "error": _("طريقة غير صالحة")})
 
 
-@login_required
-@user_passes_test(is_staff)
+@staff_required
 def admin_blog_toggle_publish(request, blog_id):
     """
     Toggle blog publish status via AJAX

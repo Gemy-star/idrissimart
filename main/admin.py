@@ -1,7 +1,9 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext_lazy as _
+from django.db import models
 from mptt.admin import MPTTModelAdmin
+from django_ckeditor_5.widgets import CKEditor5Widget
 
 # Import chatbot admin configurations
 from .chatbot_admin import *
@@ -51,6 +53,11 @@ class CategoryAdmin(MPTTModelAdmin):
     search_fields = ("name", "name_ar", "slug", "slug_ar")
     prepopulated_fields = {"slug": ("name",), "slug_ar": ("name_ar",)}
     list_editable = ("is_active",)
+
+    formfield_overrides = {
+        models.TextField: {'widget': CKEditor5Widget(config_name='admin')},
+    }
+
     fieldsets = (
         (
             None,
@@ -133,6 +140,10 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
     inlines = [AdImageInline, AdFeatureInline]
     list_editable = ("status", "is_hidden")
     actions = ["approve_ads", "reject_ads", "mark_as_pending"]
+
+    formfield_overrides = {
+        models.TextField: {'widget': CKEditor5Widget(config_name='admin')},
+    }
 
     def approve_ads(self, request, queryset):
         """Approve selected ads"""
@@ -369,6 +380,10 @@ class AboutPageAdmin(admin.ModelAdmin):
     search_fields = ("title", "tagline", "who_we_are_content")
     list_editable = ("is_active",)
 
+    formfield_overrides = {
+        models.TextField: {'widget': CKEditor5Widget(config_name='admin')},
+    }
+
 
 @admin.register(ContactInfo)
 class ContactInfoAdmin(admin.ModelAdmin):
@@ -386,6 +401,10 @@ class ContactMessageAdmin(admin.ModelAdmin):
     list_editable = ("status",)
     ordering = ("-created_at",)
 
+    formfield_overrides = {
+        models.TextField: {'widget': CKEditor5Widget(config_name='admin')},
+    }
+
 
 @admin.register(CompanyValue)
 class CompanyValueAdmin(admin.ModelAdmin):
@@ -394,6 +413,10 @@ class CompanyValueAdmin(admin.ModelAdmin):
     search_fields = ("title", "description")
     list_editable = ("order", "is_active")
     ordering = ("order",)
+
+    formfield_overrides = {
+        models.TextField: {'widget': CKEditor5Widget(config_name='admin')},
+    }
 
 
 # --- Enhanced Models Admin ---

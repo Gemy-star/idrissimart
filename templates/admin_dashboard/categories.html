@@ -6,6 +6,7 @@
 {% endblock %}
 
 {% block admin_extra_css %}
+<script src="https://cdn.ckeditor.com/ckeditor5/40.0.0/super-build/ckeditor.js"></script>
 <style>
     /* ============================================
        CSS VARIABLES FOR THEME MANAGEMENT
@@ -972,6 +973,13 @@ function saveCategory() {
 
     const formData = new FormData(form);
 
+    // Map 'id' field to 'category_id' as expected by backend
+    const categoryId = formData.get('id');
+    if (categoryId) {
+        formData.set('category_id', categoryId);
+        formData.delete('id');
+    }
+
     // Map form field names to backend expectations
     // Backend expects 'parent' not 'parent_id'
     const parentIdField = document.getElementById('parentId');
@@ -980,11 +988,29 @@ function saveCategory() {
     } else {
         formData.delete('parent');
     }
+    formData.delete('parent_id');
 
     // Ensure 'name' exists (mirror from name_en if provided)
     const nameEn = formData.get('name_en');
     if (nameEn && !formData.get('name')) {
         formData.set('name', nameEn);
+    }
+
+    // Get description from CKEditor instances if they exist
+    if (editorArInstance) {
+        const descriptionAr = editorArInstance.getData();
+        formData.set('description_ar', descriptionAr);
+    }
+    if (editorEnInstance) {
+        const descriptionEn = editorEnInstance.getData();
+        formData.set('description_en', descriptionEn);
+    }
+
+    // Combine descriptions if backend expects single 'description' field
+    const descAr = formData.get('description_ar') || '';
+    const descEn = formData.get('description_en') || '';
+    if (descAr || descEn) {
+        formData.set('description', descAr || descEn);
     }
 
     fetch('/admin/categories/save/', {
@@ -1359,5 +1385,109 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             });
         });
+
+        // CKEditor instances for description fields
+        let editorArInstance = null;
+        let editorEnInstance = null;
+
+        // Initialize CKEditor for category descriptions
+        function initializeCategoryEditors() {
+            // Destroy existing instances if they exist
+            if (editorArInstance) {
+                editorArInstance.destroy().then(() => {
+                    editorArInstance = null;
+                    createArEditor();
+                });
+            } else {
+                createArEditor();
+            }
+
+            if (editorEnInstance) {
+                editorEnInstance.destroy().then(() => {
+                    editorEnInstance = null;
+                    createEnEditor();
+                });
+            } else {
+                createEnEditor();
+            }
+        }
+
+        function createArEditor() {
+            const descArElement = document.getElementById('descriptionAr');
+            if (descArElement) {
+                CKEDITOR.ClassicEditor.create(descArElement, {
+                    language: 'ar',
+                    removePlugins: [
+                        'DocumentOutline', 'RealTimeCollaborativeEditing', 'RealTimeCollaborativeComments',
+                        'TrackChanges', 'Comments', 'RevisionHistory',
+                        'AIAssistant', 'TableOfContents', 'FormatPainter', 'Template', 'PasteFromOfficeEnhanced',
+                        'CKBox', 'CKFinder', 'EasyImage', 'MultiLevelList', 'CaseChange'
+                    ],
+                    toolbar: {
+                        items: [
+                            'heading', '|',
+                            'bold', 'italic', 'link', 'bulletedList', 'numberedList', 'blockQuote', '|',
+                            'insertTable', '|',
+                            'undo', 'redo'
+                        ]
+                    }
+                }).then(editor => {
+                    editorArInstance = editor;
+                    console.log('✅ Arabic description editor initialized');
+                }).catch(error => {
+                    console.error('❌ Arabic editor initialization error:', error);
+                });
+            }
+        }
+
+        function createEnEditor() {
+            const descEnElement = document.getElementById('descriptionEn');
+            if (descEnElement) {
+                CKEDITOR.ClassicEditor.create(descEnElement, {
+                    language: 'ar',
+                    removePlugins: [
+                        'DocumentOutline', 'RealTimeCollaborativeEditing', 'RealTimeCollaborativeComments',
+                        'TrackChanges', 'Comments', 'RevisionHistory',
+                        'AIAssistant', 'TableOfContents', 'FormatPainter', 'Template', 'PasteFromOfficeEnhanced',
+                        'CKBox', 'CKFinder', 'EasyImage', 'MultiLevelList', 'CaseChange'
+                    ],
+                    toolbar: {
+                        items: [
+                            'heading', '|',
+                            'bold', 'italic', 'link', 'bulletedList', 'numberedList', 'blockQuote', '|',
+                            'insertTable', '|',
+                            'undo', 'redo'
+                        ]
+                    }
+                }).then(editor => {
+                    editorEnInstance = editor;
+                    console.log('✅ English description editor initialized');
+                }).catch(error => {
+                    console.error('❌ English editor initialization error:', error);
+                });
+            }
+        }
+
+        // Hook into modal show event to initialize editors
+        const categoryModal = document.getElementById('categoryModal');
+        if (categoryModal) {
+            categoryModal.addEventListener('shown.bs.modal', function () {
+                setTimeout(() => initializeCategoryEditors(), 300);
+            });
+
+            // Destroy editors when modal is hidden
+            categoryModal.addEventListener('hidden.bs.modal', function () {
+                if (editorArInstance) {
+                    editorArInstance.destroy().then(() => {
+                        editorArInstance = null;
+                    });
+                }
+                if (editorEnInstance) {
+                    editorEnInstance.destroy().then(() => {
+                        editorEnInstance = null;
+                    });
+                }
+            });
+        }
     </script>
 {% endblock %}

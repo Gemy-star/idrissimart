@@ -1,4 +1,5 @@
 from django import forms
+from django_ckeditor_5.widgets import CKEditor5Widget
 
 from .models import Comment
 
@@ -10,7 +11,5 @@ class CommentForm(forms.ModelForm):
         model = Comment
         fields = ("body", "parent_id")
         widgets = {
-            "body": forms.Textarea(
-                attrs={"rows": 4, "placeholder": "اكتب تعليقك هنا..."}
-            ),
+            "body": CKEditor5Widget(config_name='default'),
         }

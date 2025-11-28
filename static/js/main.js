@@ -622,9 +622,10 @@
 
     try {
       new Swiper('.categories-swiper', {
-        slidesPerView: 1,
+        slidesPerView: 'auto',
         spaceBetween: 8,
-        freeMode: true,
+        centeredSlides: true,
+        freeMode: false,
         loop: true,
         autoplay: {
           delay: 3000,
@@ -638,20 +639,24 @@
         speed: 800,
         breakpoints: {
           320: {
-            slidesPerView: 1,
+            slidesPerView: 'auto',
             spaceBetween: 8,
+            centeredSlides: true,
           },
           768: {
-            slidesPerView: 2,
+            slidesPerView: 'auto',
             spaceBetween: 12,
+            centeredSlides: true,
           },
           1024: {
-            slidesPerView: 3,
+            slidesPerView: 'auto',
             spaceBetween: 15,
+            centeredSlides: true,
           },
           1200: {
-            slidesPerView: 3,
+            slidesPerView: 'auto',
             spaceBetween: 20,
+            centeredSlides: true,
           }
         }
       })

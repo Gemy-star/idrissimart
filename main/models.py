@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from django.utils.translation import gettext_lazy as _
 from mptt.models import MPTTModel, TreeForeignKey, TreeManager
+from django_ckeditor_5.fields import CKEditor5Field
 
 
 class UserManager(BaseUserManager):
@@ -849,9 +850,10 @@ class Category(MPTTModel):
         blank=True,
         related_name="subcategories",
     )
-    description = models.TextField(
+    description = CKEditor5Field(
         blank=True,
         verbose_name=_("الوصف - Description"),
+        config_name='default',
     )
     icon = models.CharField(max_length=100, blank=True)
     image = models.ImageField(
@@ -927,7 +929,7 @@ class Category(MPTTModel):
 
     # SEO Fields
     meta_title = models.CharField(max_length=200, blank=True)
-    meta_description = models.TextField(blank=True)
+    meta_description = CKEditor5Field(blank=True, config_name='default')
     meta_keywords = models.CharField(max_length=500, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -1180,18 +1182,23 @@ class AboutPage(models.Model):  # This model is correct, no changes needed here.
     who_we_are_title = models.CharField(
         max_length=100, default="من نحن؟", verbose_name=_("عنوان من نحن")
     )
-    who_we_are_content = models.TextField(
-        verbose_name=_("محتوى من نحن - Who We Are Content")
+    who_we_are_content = CKEditor5Field(
+        verbose_name=_("محتوى من نحن - Who We Are Content"),
+        config_name='admin',
     )
     vision_title = models.CharField(
         max_length=100, default="رؤيتنا", verbose_name=_("عنوان الرؤية")
     )
-    vision_content = models.TextField(verbose_name=_("محتوى الرؤية - Vision Content"))
+    vision_content = CKEditor5Field(
+        verbose_name=_("محتوى الرؤية - Vision Content"),
+        config_name='admin',
+    )
     mission_title = models.CharField(
         max_length=100, default="رسالتنا", verbose_name=_("عنوان الرسالة")
     )
-    mission_content = models.TextField(
-        verbose_name=_("محتوى الرسالة - Mission Content")
+    mission_content = CKEditor5Field(
+        verbose_name=_("محتوى الرسالة - Mission Content"),
+        config_name='admin',
     )
     values_title = models.CharField(
         max_length=100, default="قيمنا", verbose_name=_("عنوان القيم")
@@ -1231,7 +1238,7 @@ class CompanyValue(models.Model):  # This model is correct, no changes needed he
     """Company values for about page"""
 
     title = models.CharField(max_length=100, verbose_name=_("العنوان - Title"))
-    description = models.TextField(verbose_name=_("الوصف - Description"))
+    description = CKEditor5Field(verbose_name=_("الوصف - Description"), config_name='default')
     icon_class = models.CharField(
         max_length=100,
         blank=True,
@@ -1331,7 +1338,7 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
         Category, on_delete=models.PROTECT, related_name="classified_ads"
     )
     title = models.CharField(max_length=255, verbose_name=_("عنوان الإعلان"))
-    description = models.TextField(verbose_name=_("وصف الإعلان"))
+    description = CKEditor5Field(verbose_name=_("وصف الإعلان"), config_name='default')
     price = models.DecimalField(
         max_digits=12, decimal_places=2, verbose_name=_("السعر")
     )
@@ -1417,14 +1424,16 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
         verbose_name=_("مبلغ الحجز"),
         help_text=_("المبلغ المطلوب للحجز"),
     )
-    delivery_terms = models.TextField(
+    delivery_terms = CKEditor5Field(
         blank=True,
         verbose_name=_("شروط التوصيل والتحصيل"),
         help_text=_("شروط خدمة التوصيل والتحصيل"),
+        config_name='default',
     )
-    delivery_terms_en = models.TextField(
+    delivery_terms_en = CKEditor5Field(
         blank=True,
         verbose_name=_("شروط التوصيل والتحصيل (EN)"),
+        config_name='default',
     )
 
     # Admin Control
@@ -1451,7 +1460,7 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
     reviewed_at = models.DateTimeField(
         null=True, blank=True, verbose_name=_("تاريخ المراجعة")
     )
-    admin_notes = models.TextField(blank=True, verbose_name=_("ملاحظات الإدارة"))
+    admin_notes = CKEditor5Field(blank=True, verbose_name=_("ملاحظات الإدارة"), config_name='admin')
 
     # Status and Timestamps
     status = models.CharField(

@@ -5,6 +5,7 @@ from django.urls import reverse
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 from taggit.managers import TaggableManager
+from django_ckeditor_5.fields import CKEditor5Field
 
 
 class Country(models.Model):
@@ -120,7 +121,7 @@ class Blog(models.Model):
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="blog_posts"
     )
-    content = models.TextField()
+    content = CKEditor5Field(config_name='admin')
     image = models.ImageField(upload_to="blogs/", blank=True, null=True)
     published_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
@@ -150,7 +151,7 @@ class Comment(models.Model):
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="comments"
     )
-    body = models.TextField()
+    body = CKEditor5Field(config_name='default')
     created_on = models.DateTimeField(auto_now_add=True)
     active = models.BooleanField(default=True)  # To allow for moderation
     parent = models.ForeignKey(

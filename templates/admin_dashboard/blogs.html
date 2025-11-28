@@ -6,6 +6,7 @@
 {% endblock %}
 
 {% block admin_extra_css %}
+<script src="https://cdn.ckeditor.com/ckeditor5/40.0.0/super-build/ckeditor.js"></script>
 <style>
     /* All modal styles are inherited from admin-dashboard.css */
     /* Modal z-index hierarchy: backdrop (10500), modal (10600), dialog (10700) */
@@ -348,7 +349,7 @@
                         </div>
                     </div>
 
-                    <p class="blog-content-preview">{{ blog.content|truncatewords:30 }}</p>
+                    <p class="blog-content-preview">{{ blog.content|striptags|truncatewords:30 }}</p>
 
                     {% if blog.tags.all %}
                     <div class="blog-tags">
@@ -532,6 +533,7 @@
 <script>
     let currentBlogId = null;
     let currentDeleteId = null;
+    let editorInstance = null;
 
     // CSRF Token
     function getCookie(name) {
@@ -618,6 +620,113 @@
         }
     });
 
+    // Initialize CKEditor
+    function initializeCKEditor() {
+        if (editorInstance) {
+            editorInstance.destroy().then(() => {
+                createEditor();
+            });
+        } else {
+            createEditor();
+        }
+    }
+
+    function createEditor() {
+        CKEDITOR.ClassicEditor.create(document.getElementById('blogContent'), {
+            language: 'ar',
+            // Remove plugins that require collaboration features, special containers, or premium license
+            removePlugins: [
+                'RealTimeCollaborativeEditing', 'RealTimeCollaborativeComments', 'RealTimeCollaborativeTrackChanges',
+                'RealTimeCollaborativeRevisionHistory', 'PresenceList', 'Comments', 'TrackChanges', 'TrackChangesData',
+                'RevisionHistory', 'Pagination', 'WProofreader', 'MathType', 'SlashCommand', 'DocumentOutline',
+                'AIAssistant', 'TableOfContents', 'FormatPainter', 'Template', 'PasteFromOfficeEnhanced',
+                'CKBox', 'CKFinder', 'EasyImage', 'RealTimeCollaboration', 'ExportPdf', 'ExportWord',
+                'MultiLevelList', 'CaseChange'
+            ],
+            toolbar: {
+                items: [
+                    'heading', '|',
+                    'fontSize', 'fontFamily', 'fontColor', 'fontBackgroundColor', '|',
+                    'bold', 'italic', 'underline', 'strikethrough', 'code', 'subscript', 'superscript', '|',
+                    'link', 'bulletedList', 'numberedList', 'todoList', '|',
+                    'alignment', 'indent', 'outdent', '|',
+                    'blockQuote', 'codeBlock', 'htmlEmbed', '|',
+                    'imageUpload', 'insertTable', 'mediaEmbed', 'horizontalLine', 'pageBreak', '|',
+                    'highlight', 'removeFormat', '|',
+                    'findAndReplace', '|',
+                    'undo', 'redo', '|',
+                    'sourceEditing'
+                ],
+                shouldNotGroupWhenFull: true
+            },
+            fontSize: {
+                options: [9, 11, 13, 'default', 17, 19, 21, 24, 28, 32, 36]
+            },
+            fontFamily: {
+                options: [
+                    'default',
+                    'Arial, Helvetica, sans-serif',
+                    'Courier New, Courier, monospace',
+                    'Georgia, serif',
+                    'Lucida Sans Unicode, Lucida Grande, sans-serif',
+                    'Tahoma, Geneva, sans-serif',
+                    'Times New Roman, Times, serif',
+                    'Trebuchet MS, Helvetica, sans-serif',
+                    'Verdana, Geneva, sans-serif'
+                ]
+            },
+            htmlEmbed: {
+                showPreviews: true
+            },
+            codeBlock: {
+                languages: [
+                    { language: 'plaintext', label: 'Plain text' },
+                    { language: 'c', label: 'C' },
+                    { language: 'cs', label: 'C#' },
+                    { language: 'cpp', label: 'C++' },
+                    { language: 'css', label: 'CSS' },
+                    { language: 'diff', label: 'Diff' },
+                    { language: 'html', label: 'HTML' },
+                    { language: 'java', label: 'Java' },
+                    { language: 'javascript', label: 'JavaScript' },
+                    { language: 'php', label: 'PHP' },
+                    { language: 'python', label: 'Python' },
+                    { language: 'ruby', label: 'Ruby' },
+                    { language: 'typescript', label: 'TypeScript' },
+                    { language: 'xml', label: 'XML' }
+                ]
+            },
+            image: {
+                toolbar: [
+                    'imageTextAlternative', '|',
+                    'imageStyle:inline', 'imageStyle:wrapText', 'imageStyle:breakText', '|',
+                    'imageStyle:block', 'imageStyle:side', 'imageStyle:alignLeft', 'imageStyle:alignRight', 'imageStyle:alignCenter', '|',
+                    'toggleImageCaption', 'linkImage'
+                ]
+            },
+            table: {
+                contentToolbar: [
+                    'tableColumn', 'tableRow', 'mergeTableCells',
+                    'tableProperties', 'tableCellProperties', 'toggleTableCaption'
+                ]
+            },
+            heading: {
+                options: [
+                    { model: 'paragraph', title: 'Paragraph', class: 'ck-heading_paragraph' },
+                    { model: 'heading1', view: 'h1', title: 'Heading 1', class: 'ck-heading_heading1' },
+                    { model: 'heading2', view: 'h2', title: 'Heading 2', class: 'ck-heading_heading2' },
+                    { model: 'heading3', view: 'h3', title: 'Heading 3', class: 'ck-heading_heading3' },
+                    { model: 'heading4', view: 'h4', title: 'Heading 4', class: 'ck-heading_heading4' }
+                ]
+            }
+        }).then(editor => {
+            editorInstance = editor;
+            console.log('✅ CKEditor initialized with enhanced toolbar (40+ tools)');
+        }).catch(error => {
+            console.error('❌ CKEditor initialization error:', error);
+        });
+    }
+
     // Open Create Modal
     function openCreateModal() {
         console.log('📝 Opening create modal...');
@@ -639,6 +748,9 @@
             console.log('Showing modal...');
             modal.show();
             console.log('✅ Modal shown');
+
+            // Initialize CKEditor after modal is shown
+            setTimeout(() => initializeCKEditor(), 300);
         } else {
             console.error('❌ Modal element not found!');
         }
@@ -655,13 +767,27 @@
                 }
             });
 
+            // Check if response is JSON
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                console.error('❌ Response is not JSON:', response.status);
+                if (response.status === 403 || response.status === 401) {
+                    showNotification('{% trans "ليس لديك صلاحية للوصول. يرجى تسجيل الدخول كمسؤول." %}', 'error');
+                    setTimeout(() => {
+                        window.location.href = '{% url "main:login" %}';
+                    }, 2000);
+                } else {
+                    showNotification('{% trans "حدث خطأ في تحميل بيانات المدونة" %}', 'error');
+                }
+                return;
+            }
+
             const data = await response.json();
 
             if (data.success) {
                 document.getElementById('modalTitle').textContent = '{% trans "تعديل المدونة" %}';
                 document.getElementById('blogId').value = data.blog.id;
                 document.getElementById('blogTitle').value = data.blog.title;
-                document.getElementById('blogContent').value = data.blog.content;
                 document.getElementById('blogTags').value = data.blog.tags;
                 document.getElementById('blogPublished').checked = data.blog.is_published;
 
@@ -678,7 +804,19 @@
                     }
                     modal.show();
                     console.log('✅ Edit modal shown');
+
+                    // Initialize CKEditor and set content after modal is shown
+                    setTimeout(() => {
+                        initializeCKEditor();
+                        setTimeout(() => {
+                            if (editorInstance) {
+                                editorInstance.setData(data.blog.content);
+                            }
+                        }, 500);
+                    }, 300);
                 }
+            } else {
+                showNotification(data.error || '{% trans "خطأ في تحميل البيانات" %}', 'error');
             }
         } catch (error) {
             console.error('Error loading blog:', error);
@@ -690,6 +828,13 @@
     document.getElementById('saveBlogBtn').addEventListener('click', async function() {
         const form = document.getElementById('blogForm');
         const formData = new FormData(form);
+
+        // Get content from CKEditor
+        if (editorInstance) {
+            const content = editorInstance.getData();
+            formData.set('content', content);
+        }
+
         formData.append('is_published', document.getElementById('blogPublished').checked);
 
         const url = currentBlogId
@@ -700,17 +845,39 @@
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': getCookie('csrftoken')
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
                 body: formData
             });
+
+            // Check if response is JSON
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                if (response.status === 403 || response.status === 401) {
+                    showNotification('ليس لديك صلاحية. يرجى تسجيل الدخول كمسؤول.', 'error');
+                    setTimeout(() => window.location.href = '{% url "main:login" %}', 2000);
+                } else {
+                    showNotification('{% trans "حدث خطأ في حفظ المدونة" %}', 'error');
+                }
+                return;
+            }
 
             const data = await response.json();
 
             if (data.success) {
                 showNotification(data.message, 'success');
                 bootstrap.Modal.getInstance(document.getElementById('blogModal')).hide();
-                setTimeout(() => location.reload(), 1000);
+
+                // Destroy editor instance before reload
+                if (editorInstance) {
+                    editorInstance.destroy().then(() => {
+                        editorInstance = null;
+                        setTimeout(() => location.reload(), 1000);
+                    });
+                } else {
+                    setTimeout(() => location.reload(), 1000);
+                }
             } else {
                 showNotification(data.error, 'error');
             }
@@ -750,6 +917,18 @@
                 }
             });
 
+            // Check if response is JSON
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                if (response.status === 403 || response.status === 401) {
+                    showNotification('ليس لديك صلاحية. يرجى تسجيل الدخول كمسؤول.', 'error');
+                    setTimeout(() => window.location.href = '{% url "main:login" %}', 2000);
+                } else {
+                    showNotification('{% trans "حدث خطأ في حذف المدونة" %}', 'error');
+                }
+                return;
+            }
+
             const data = await response.json();
 
             if (data.success) {
@@ -775,6 +954,18 @@
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             });
+
+            // Check if response is JSON
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                if (response.status === 403 || response.status === 401) {
+                    showNotification('ليس لديك صلاحية. يرجى تسجيل الدخول كمسؤول.', 'error');
+                    setTimeout(() => window.location.href = '{% url "main:login" %}', 2000);
+                } else {
+                    showNotification('{% trans "حدث خطأ في تغيير حالة المدونة" %}', 'error');
+                }
+                return;
+            }
 
             const data = await response.json();
 

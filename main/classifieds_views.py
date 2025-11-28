@@ -72,34 +72,42 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
 
     def dispatch(self, request, *args, **kwargs):
         """
-        Allow access only if the user has an active package with remaining ads.
-        If none, redirect to packages page to acquire a package (free or paid).
+        Check user's ad balance before allowing ad creation.
+        If ads_remaining = 0, redirect to packages page.
         """
-        # First check if user is authenticated (LoginRequiredMixin will handle redirect)
+        # First check if user is authenticated
         if not request.user.is_authenticated:
+            # Add toast message for guest users
+            messages.info(
+                request,
+                _("يجب تسجيل الدخول أولاً لتتمكن من نشر الإعلانات."),
+            )
+            # Let LoginRequiredMixin handle the redirect
             return super().dispatch(request, *args, **kwargs)
 
         user = request.user
 
-        # Require an active user package with remaining ads
-        has_quota = (
+        # Check if user has any active package with remaining ads
+        active_package = (
             UserPackage.objects.filter(
                 user=user,
                 expiry_date__gte=timezone.now(),
                 ads_remaining__gt=0,
             )
             .order_by("expiry_date")
-            .exists()
+            .first()
         )
 
-        if not has_quota:
-            messages.error(
+        if not active_package:
+            # User has no balance (ads_remaining = 0) or no active package
+            messages.warning(
                 request,
-                _(
-                    "لقد استنفدت إعلانك المجاني! يرجى شراء باقة للاستمرار في نشر الإعلانات."
-                ),
+                _("يجب الاشتراك في باقة لتتمكن من نشر إعلان. رصيدك الحالي = 0"),
             )
             return redirect("main:packages_list")
+
+        # Store remaining ads count in session for display
+        request.session["ads_remaining"] = active_package.ads_remaining
 
         return super().dispatch(request, *args, **kwargs)
 
@@ -856,11 +864,14 @@ class CategorySaveView(LoginRequiredMixin, View):
         category_id = request.POST.get("category_id")
         name = request.POST.get("name")
         name_ar = request.POST.get("name_ar")
+        name_en = request.POST.get("name_en")
         slug = request.POST.get("slug")
         slug_ar = request.POST.get("slug_ar")
         parent_id = request.POST.get("parent")
         section_type = request.POST.get("section_type")
         description = request.POST.get("description", "")
+        description_ar = request.POST.get("description_ar", "")
+        description_en = request.POST.get("description_en", "")
         allow_cart = request.POST.get("allow_cart") == "on"
         require_admin_approval = request.POST.get("require_admin_approval") == "on"
         is_active = request.POST.get("is_active") == "on"
@@ -870,6 +881,10 @@ class CategorySaveView(LoginRequiredMixin, View):
         country_code = request.POST.get("country")  # optional
 
         try:
+            # Use slugify to auto-generate slugs if not provided
+            from django.utils.text import slugify
+            import uuid
+
             if category_id:
                 # Update existing category
                 category = Category.objects.get(id=category_id)
@@ -878,12 +893,71 @@ class CategorySaveView(LoginRequiredMixin, View):
                 category = Category()
 
             # Basic required fields
-            category.name = name
-            category.name_ar = name_ar
+            # Use name_en as 'name' if available, otherwise use name_ar
+            category.name = name_en or name_ar or name
+            category.name_ar = name_ar or name
+
+            # Auto-generate slugs if not provided
+            if not slug:
+                base_slug = slugify(name_en or name_ar or name)
+                # Ensure uniqueness for new categories
+                if not category_id:
+                    slug = base_slug
+                    counter = 1
+                    while Category.objects.filter(slug=slug).exists():
+                        slug = f"{base_slug}-{counter}"
+                        counter += 1
+                else:
+                    # For updates, check if slug conflicts with other categories
+                    slug = base_slug
+                    counter = 1
+                    while (
+                        Category.objects.filter(slug=slug)
+                        .exclude(id=category_id)
+                        .exists()
+                    ):
+                        slug = f"{base_slug}-{counter}"
+                        counter += 1
+
+            if not slug_ar:
+                # For Arabic, use Arabic name or fallback to regular slug
+                base_slug_ar = slugify(name_ar or name_en or name)
+                if not category_id:
+                    slug_ar = base_slug_ar if base_slug_ar else slug
+                    counter = 1
+                    while Category.objects.filter(slug_ar=slug_ar).exists():
+                        slug_ar = (
+                            f"{base_slug_ar}-{counter}"
+                            if base_slug_ar
+                            else f"{slug}-{counter}"
+                        )
+                        counter += 1
+                else:
+                    slug_ar = base_slug_ar if base_slug_ar else slug
+                    counter = 1
+                    while (
+                        Category.objects.filter(slug_ar=slug_ar)
+                        .exclude(id=category_id)
+                        .exists()
+                    ):
+                        slug_ar = (
+                            f"{base_slug_ar}-{counter}"
+                            if base_slug_ar
+                            else f"{slug}-{counter}"
+                        )
+                        counter += 1
+
             category.slug = slug
             category.slug_ar = slug_ar
             category.section_type = section_type
             category.description = description
+
+            # Save bilingual descriptions if model supports them
+            if hasattr(category, "description_ar"):
+                category.description_ar = description_ar
+            if hasattr(category, "description_en"):
+                category.description_en = description_en
+
             category.icon = icon
             category.order = int(order) if str(order).isdigit() else 0
             # Optional color stored in meta or dedicated field if exists
@@ -956,11 +1030,14 @@ class CategoryGetView(LoginRequiredMixin, View):
                 "id": category.id,
                 "name": category.name,
                 "name_ar": category.name_ar,
+                "name_en": category.name,  # Add name_en for the form
                 "slug": category.slug,
                 "slug_ar": category.slug_ar,
-                "parent": category.parent_id if category.parent else None,
+                "parent_id": category.parent_id if category.parent else None,
                 "section_type": category.section_type,
                 "description": category.description,
+                "description_ar": getattr(category, "description_ar", ""),
+                "description_en": getattr(category, "description_en", ""),
                 "allow_cart": getattr(category, "allow_cart", False),
                 "require_admin_approval": getattr(
                     category, "require_admin_approval", True
@@ -969,7 +1046,11 @@ class CategoryGetView(LoginRequiredMixin, View):
                 "order": getattr(category, "order", 0),
                 "icon": getattr(category, "icon", ""),
                 "color": getattr(category, "color", ""),
-                "country": getattr(category.country, "code", None),
+                "country": (
+                    getattr(category.country, "code", None)
+                    if category.country
+                    else None
+                ),
             }
         )
 
