@@ -4521,7 +4521,82 @@ def admin_subscription_toggle_auto_renew(request, subscription_id):
     except Exception as e:
         return JsonResponse({"success": False, "error": str(e)})
 
-        return context
+
+@superadmin_required
+@require_POST
+def admin_package_toggle(request, package_id):
+    """Toggle package active status"""
+    try:
+        from main.models import Package as AdPackage
+
+        package = get_object_or_404(AdPackage, id=package_id)
+
+        # If trying to activate the package, check if it has associated payments
+        if not package.is_active:  # Will be activated
+            # Check if any users have purchased this package
+            user_packages_count = UserPackage.objects.filter(package=package).count()
+
+            if user_packages_count == 0:
+                # No purchases yet - allow activation (it's a new package being made available)
+                package.is_active = True
+                message = _("تم تفعيل الباقة")
+            else:
+                # Has purchases - verify at least one payment exists
+                paid_packages = UserPackage.objects.filter(
+                    package=package,
+                    payment__isnull=False,
+                    payment__status=Payment.PaymentStatus.COMPLETED,
+                ).exists()
+
+                if paid_packages or user_packages_count > 0:
+                    # Has paid users or assigned packages - allow activation
+                    package.is_active = True
+                    message = _("تم تفعيل الباقة")
+                else:
+                    # Has users but no completed payments - warning
+                    package.is_active = True
+                    message = _(
+                        "تم تفعيل الباقة - تنبيه: لا توجد مدفوعات مكتملة لهذه الباقة"
+                    )
+        else:
+            # Deactivating package
+            package.is_active = False
+            message = _("تم تعطيل الباقة")
+
+        package.save(update_fields=["is_active"])
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": message,
+                "is_active": package.is_active,
+            }
+        )
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})
+
+
+@superadmin_required
+@require_POST
+def admin_member_cancel(request, member_id):
+    """Cancel a premium membership"""
+    try:
+        from main.models import UserSubscription
+
+        # Assuming member_id refers to a UserSubscription
+        subscription = get_object_or_404(UserSubscription, id=member_id)
+        subscription.is_active = False
+        subscription.auto_renew = False
+        subscription.save(update_fields=["is_active", "auto_renew"])
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": _("تم إلغاء العضوية المميزة بنجاح"),
+            }
+        )
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})
 
 
 # ========== Custom Error Handlers ==========

@@ -755,6 +755,14 @@
     <script>
         let currentCategoryId = null;
 
+        // URL patterns with language prefix
+        const CATEGORY_URLS = {
+            save: '{% url "main:admin_category_save" %}',
+            get: (id) => `{% url "main:admin_category_get" 0 %}`.replace('/0/', `/${id}/`),
+            delete: (id) => `{% url "main:admin_category_delete" 0 %}`.replace('/0/', `/${id}/`),
+            customFields: (id) => `{% url "main:admin_category_custom_fields" 0 %}`.replace('/0/', `/${id}/`)
+        };
+
         // Initialize Bootstrap modals on page load
         document.addEventListener('DOMContentLoaded', function() {
             const modalElements = document.querySelectorAll('.modal');
@@ -906,7 +914,7 @@ function editCategory(categoryId) {
     }
 
     // Load category data via AJAX
-    fetch(`/admin/categories/${categoryId}/`)
+    fetch(CATEGORY_URLS.get(categoryId))
         .then(response => response.json())
         .then(category => {
             // Set only the fields that exist in the modal
@@ -946,7 +954,7 @@ function editCategory(categoryId) {
 
 function deleteCategory(categoryId, categoryName) {
     confirmDelete(`{% trans "هل أنت متأكد من حذف القسم" %} "${categoryName || ''}"؟`, () => {
-        fetch(`/admin/categories/${categoryId}/delete/`, { // Use the correct, non-prefixed URL
+        fetch(CATEGORY_URLS.delete(categoryId), {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken')
@@ -1013,7 +1021,7 @@ function saveCategory() {
         formData.set('description', descAr || descEn);
     }
 
-    fetch('/admin/categories/save/', {
+    fetch(CATEGORY_URLS.save, {
         method: 'POST',
         headers: {
             'X-CSRFToken': getCookie('csrftoken')
@@ -1045,7 +1053,7 @@ function manageCustomFields(categoryId) {
     currentCategoryId = categoryId;
 
     // Load custom fields for the category
-    fetch(`/admin/categories/${categoryId}/custom-fields/`)
+    fetch(CATEGORY_URLS.customFields(categoryId))
         .then(response => {
             if (!response.ok) {
                 throw new Error('Failed to load custom fields');
@@ -1203,7 +1211,7 @@ function saveCustomFields() {
         }
     });
 
-    fetch(`/admin/categories/${currentCategoryId}/custom-fields/`, {
+    fetch(CATEGORY_URLS.customFields(currentCategoryId), {
         method: 'POST',
         headers: {
             'X-CSRFToken': getCookie('csrftoken'),

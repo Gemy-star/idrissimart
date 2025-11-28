@@ -548,6 +548,18 @@ urlpatterns = [
         views.admin_subscription_toggle_auto_renew,
         name="admin_subscription_toggle_auto_renew",
     ),
+    # Package Management
+    path(
+        "admin/packages/<int:package_id>/toggle/",
+        views.admin_package_toggle,
+        name="admin_package_toggle",
+    ),
+    # Member Management
+    path(
+        "admin/members/<int:member_id>/cancel/",
+        views.admin_member_cancel,
+        name="admin_member_cancel",
+    ),
     path(
         "admin/notifications/",
         views.AdminNotificationView.as_view(),

@@ -535,6 +535,14 @@
     let currentDeleteId = null;
     let editorInstance = null;
 
+    // URL patterns with language prefix
+    const BLOG_URLS = {
+        create: '{% url "main:admin_blog_create" %}',
+        update: (id) => `{% url "main:admin_blog_update" 0 %}`.replace('/0/', `/${id}/`),
+        delete: (id) => `{% url "main:admin_blog_delete" 0 %}`.replace('/0/', `/${id}/`),
+        togglePublish: (id) => `{% url "main:admin_blog_toggle_publish" 0 %}`.replace('/0/', `/${id}/`)
+    };
+
     // CSRF Token
     function getCookie(name) {
         let cookieValue = null;
@@ -570,6 +578,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         console.log('🎯 Initializing modals...');
         console.log('Bootstrap available:', typeof bootstrap !== 'undefined');
+        console.log('Bootstrap.Modal available:', typeof bootstrap !== 'undefined' && typeof bootstrap.Modal !== 'undefined');
 
         const modalElements = document.querySelectorAll('.modal');
         console.log('Found modals:', modalElements.length);
@@ -591,6 +600,14 @@
             }
         });
 
+        // Test event delegation
+        console.log('🔍 Testing buttons with data-action...');
+        const buttons = document.querySelectorAll('[data-action]');
+        console.log('Found buttons with data-action:', buttons.length);
+        buttons.forEach(btn => {
+            console.log('  - Button:', btn.dataset.action, btn.textContent.trim());
+        });
+
         console.log('✅ Modal initialization complete');
     });
 
@@ -600,21 +617,26 @@
         if (!target) return;
 
         const action = target.dataset.action;
+        console.log('👉 Button clicked:', action, target.dataset);
 
         switch(action) {
             case 'create-blog':
+                console.log('✅ Opening create modal...');
                 openCreateModal();
                 break;
 
             case 'edit-blog':
+                console.log('✅ Opening edit modal for blog:', target.dataset.blogId);
                 openEditModal(target.dataset.blogId);
                 break;
 
             case 'delete-blog':
+                console.log('✅ Opening delete modal for blog:', target.dataset.blogId);
                 openDeleteModal(target.dataset.blogId, target.dataset.blogTitle);
                 break;
 
             case 'toggle-publish':
+                console.log('✅ Toggling publish status for blog:', target.dataset.blogId);
                 togglePublishStatus(target.dataset.blogId, target.dataset.isPublished === 'true');
                 break;
         }
@@ -761,7 +783,7 @@
         currentBlogId = blogId;
 
         try {
-            const response = await fetch(`/admin/blogs/${blogId}/update/`, {
+            const response = await fetch(BLOG_URLS.update(blogId), {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
@@ -826,6 +848,7 @@
 
     // Save Blog
     document.getElementById('saveBlogBtn').addEventListener('click', async function() {
+        console.log('💾 Save button clicked');
         const form = document.getElementById('blogForm');
         const formData = new FormData(form);
 
@@ -833,37 +856,66 @@
         if (editorInstance) {
             const content = editorInstance.getData();
             formData.set('content', content);
+            console.log('📝 Content from CKEditor:', content.substring(0, 100) + '...');
         }
 
-        formData.append('is_published', document.getElementById('blogPublished').checked);
+        const isPublished = document.getElementById('blogPublished').checked;
+        formData.set('is_published', isPublished);
+        console.log('📢 Is Published:', isPublished);
 
         const url = currentBlogId
-            ? `/admin/blogs/${currentBlogId}/update/`
-            : '/admin/blogs/create/';
+            ? BLOG_URLS.update(currentBlogId)
+            : BLOG_URLS.create;
+
+        console.log('🌐 Request URL:', url);
+        console.log('📦 Current Blog ID:', currentBlogId);
+
+        // Log form data
+        console.log('📋 Form Data:');
+        for (let pair of formData.entries()) {
+            if (pair[0] !== 'content') {
+                console.log(`  ${pair[0]}: ${pair[1]}`);
+            } else {
+                console.log(`  ${pair[0]}: [content]`);
+            }
+        }
 
         try {
+            const csrfToken = getCookie('csrftoken');
+            console.log('🔐 CSRF Token:', csrfToken ? 'Found' : 'Missing');
+
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': getCookie('csrftoken'),
+                    'X-CSRFToken': csrfToken,
                     'X-Requested-With': 'XMLHttpRequest'
                 },
                 body: formData
             });
 
+            console.log('📡 Response Status:', response.status);
+            console.log('📡 Response OK:', response.ok);
+
             // Check if response is JSON
             const contentType = response.headers.get("content-type");
+            console.log('📄 Response Content-Type:', contentType);
+
             if (!contentType || !contentType.includes("application/json")) {
+                console.error('❌ Response is not JSON');
                 if (response.status === 403 || response.status === 401) {
                     showNotification('ليس لديك صلاحية. يرجى تسجيل الدخول كمسؤول.', 'error');
                     setTimeout(() => window.location.href = '{% url "main:login" %}', 2000);
                 } else {
+                    // Try to get the text response for debugging
+                    const text = await response.text();
+                    console.error('Response text:', text.substring(0, 500));
                     showNotification('{% trans "حدث خطأ في حفظ المدونة" %}', 'error');
                 }
                 return;
             }
 
             const data = await response.json();
+            console.log('✅ Response Data:', data);
 
             if (data.success) {
                 showNotification(data.message, 'success');
@@ -879,10 +931,11 @@
                     setTimeout(() => location.reload(), 1000);
                 }
             } else {
+                console.error('❌ Error from server:', data.error);
                 showNotification(data.error, 'error');
             }
         } catch (error) {
-            console.error('Error saving blog:', error);
+            console.error('❌ Error saving blog:', error);
             showNotification('{% trans "خطأ في حفظ المدونة" %}', 'error');
         }
     });
@@ -909,7 +962,7 @@
         if (!currentDeleteId) return;
 
         try {
-            const response = await fetch(`/admin/blogs/${currentDeleteId}/delete/`, {
+            const response = await fetch(BLOG_URLS.delete(currentDeleteId), {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': getCookie('csrftoken'),
@@ -947,7 +1000,7 @@
     // Toggle Publish Status
     async function togglePublishStatus(blogId, currentStatus) {
         try {
-            const response = await fetch(`/admin/blogs/${blogId}/toggle-publish/`, {
+            const response = await fetch(BLOG_URLS.togglePublish(blogId), {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': getCookie('csrftoken'),

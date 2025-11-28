@@ -450,6 +450,17 @@
 {% block admin_extra_js %}
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+// URL patterns with language prefix
+const PAYMENT_URLS = {
+    userPackageExtend: (id) => `{% url "main:admin_user_package_extend" 0 %}`.replace('/0/', `/${id}/`),
+    userPackageAddAds: (id) => `{% url "main:admin_user_package_add_ads" 0 %}`.replace('/0/', `/${id}/`),
+    subscriptionExtend: (id) => `{% url "main:admin_subscription_extend" 0 %}`.replace('/0/', `/${id}/`),
+    subscriptionCancel: (id) => `{% url "main:admin_subscription_cancel" 0 %}`.replace('/0/', `/${id}/`),
+    subscriptionToggleAutoRenew: (id) => `{% url "main:admin_subscription_toggle_auto_renew" 0 %}`.replace('/0/', `/${id}/`),
+    packageToggle: (id) => `{% url "main:admin_package_toggle" 0 %}`.replace('/0/', `/${id}/`),
+    memberCancel: (id) => `{% url "main:admin_member_cancel" 0 %}`.replace('/0/', `/${id}/`)
+};
+
 // Initialize page
 document.addEventListener('DOMContentLoaded', function() {
     initializeRevenueChart();
@@ -542,20 +553,28 @@ function editPackage(packageId) {
 }
 
 function togglePackage(packageId) {
-    // TODO: Toggle package active status
-    fetch(`/admin/packages/${packageId}/toggle/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken'),
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        }
-    });
+    if (confirm('هل أنت متأكد من تغيير حالة الباقة؟')) {
+        fetch(PAYMENT_URLS.packageToggle(packageId), {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert(data.error || '{% trans "حدث خطأ" %}');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('{% trans "حدث خطأ في الاتصال بالخادم" %}');
+        });
+    }
 }
 
 function addNewPackage() {
@@ -590,7 +609,7 @@ function viewUserPackage(packageId) {
 function extendUserPackage(packageId) {
     const days = prompt('{% trans "كم يوماً تريد تمديد الباقة؟" %}', '30');
     if (days && !isNaN(days)) {
-        fetch(`/admin/user-packages/${packageId}/extend/`, {
+        fetch(PAYMENT_URLS.userPackageExtend(packageId), {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken'),
@@ -613,7 +632,7 @@ function extendUserPackage(packageId) {
 function addAdsToPackage(packageId) {
     const count = prompt('{% trans "كم إعلان تريد إضافته؟" %}', '5');
     if (count && !isNaN(count)) {
-        fetch(`/admin/user-packages/${packageId}/add-ads/`, {
+        fetch(PAYMENT_URLS.userPackageAddAds(packageId), {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken'),
@@ -660,7 +679,7 @@ function viewSubscription(subscriptionId) {
 function extendSubscription(subscriptionId) {
     const days = prompt('{% trans "كم يوماً تريد تمديد الاشتراك؟" %}', '30');
     if (days && !isNaN(days)) {
-        fetch(`/admin/subscriptions/${subscriptionId}/extend/`, {
+        fetch(PAYMENT_URLS.subscriptionExtend(subscriptionId), {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken'),
@@ -682,7 +701,7 @@ function extendSubscription(subscriptionId) {
 
 function cancelSubscription(subscriptionId) {
     if (confirm('{% trans "هل أنت متأكد من إلغاء هذا الاشتراك؟" %}')) {
-        fetch(`/admin/subscriptions/${subscriptionId}/cancel/`, {
+        fetch(PAYMENT_URLS.subscriptionCancel(subscriptionId), {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken')
@@ -701,7 +720,7 @@ function cancelSubscription(subscriptionId) {
 }
 
 function toggleAutoRenew(subscriptionId) {
-    fetch(`/admin/subscriptions/${subscriptionId}/toggle-auto-renew/`, {
+    fetch(PAYMENT_URLS.subscriptionToggleAutoRenew(subscriptionId), {
         method: 'POST',
         headers: {
             'X-CSRFToken': getCookie('csrftoken')
@@ -736,7 +755,7 @@ function extendMembership(memberId) {
 
 function cancelMembership(memberId) {
     if (confirm('هل أنت متأكد من إلغاء العضوية المميزة؟')) {
-        fetch(`/admin/members/${memberId}/cancel/`, {
+        fetch(PAYMENT_URLS.memberCancel(memberId), {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken')
@@ -745,8 +764,15 @@ function cancelMembership(memberId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                alert(data.message);
                 location.reload();
+            } else {
+                alert(data.error || '{% trans "حدث خطأ" %}');
             }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('{% trans "حدث خطأ في الاتصال بالخادم" %}');
         });
     }
 }

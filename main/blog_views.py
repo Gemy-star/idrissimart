@@ -12,6 +12,7 @@ from django.utils.text import slugify
 from django.core.paginator import Paginator
 from content.models import Blog
 from django.utils.translation import gettext_lazy as _
+from functools import wraps
 import json
 
 
@@ -24,10 +25,26 @@ def staff_required(view_func):
     """
     Decorator to check if user is staff.
     Returns JSON error for AJAX requests instead of redirect.
+    Prevents POST to GET redirect issue.
     """
 
-    @login_required
+    @wraps(view_func)
     def wrapper(request, *args, **kwargs):
+        # Check if user is authenticated first
+        if not request.user.is_authenticated:
+            # Check if it's an AJAX request
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "error": _("يجب تسجيل الدخول أولاً"),
+                    },
+                    status=401,
+                )
+            # Regular request - redirect to login
+            return redirect("main:login")
+
+        # Check if user is staff
         if not request.user.is_staff:
             # Check if it's an AJAX request
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
@@ -41,6 +58,7 @@ def staff_required(view_func):
             # Regular request - redirect to login or show error
             messages.error(request, _("ليس لديك صلاحية للوصول إلى هذه الصفحة"))
             return redirect("main:home")
+
         return view_func(request, *args, **kwargs)
 
     return wrapper
@@ -109,6 +127,11 @@ def admin_blog_create(request):
     """
     Create new blog post via AJAX
     """
+    print(f"🔍 admin_blog_create called - Method: {request.method}")
+    print(f"🔍 Is AJAX: {request.headers.get('X-Requested-With') == 'XMLHttpRequest'}")
+    print(f"🔍 POST data: {request.POST.dict()}")
+    print(f"🔍 FILES: {list(request.FILES.keys())}")
+
     if request.method == "POST":
         try:
             title = request.POST.get("title", "").strip()
@@ -117,8 +140,15 @@ def admin_blog_create(request):
             tags = request.POST.get("tags", "").strip()
             image = request.FILES.get("image")
 
+            print(f"📝 Title: {title[:50] if title else 'EMPTY'}")
+            print(f"📝 Content length: {len(content)}")
+            print(f"📝 Is Published: {is_published}")
+            print(f"📝 Tags: {tags}")
+            print(f"📝 Image: {image}")
+
             # Validation
             if not title or not content:
+                print("❌ Validation failed: Missing title or content")
                 return JsonResponse(
                     {"success": False, "error": _("العنوان والمحتوى مطلوبان")}
                 )
@@ -132,10 +162,13 @@ def admin_blog_create(request):
                 image=image,
             )
 
+            print(f"✅ Blog created with ID: {blog.id}")
+
             # Add tags
             if tags:
                 tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
                 blog.tags.add(*tag_list)
+                print(f"✅ Tags added: {tag_list}")
 
             return JsonResponse(
                 {
@@ -146,8 +179,13 @@ def admin_blog_create(request):
             )
 
         except Exception as e:
+            print(f"❌ Exception in admin_blog_create: {str(e)}")
+            import traceback
+
+            traceback.print_exc()
             return JsonResponse({"success": False, "error": str(e)})
 
+    print(f"❌ Method is not POST, returning error")
     return JsonResponse({"success": False, "error": _("طريقة غير صالحة")})
 
 
@@ -156,9 +194,14 @@ def admin_blog_update(request, blog_id):
     """
     Update existing blog post via AJAX
     """
+    print(f"🔍 admin_blog_update called - Method: {request.method}, Blog ID: {blog_id}")
+    print(f"🔍 Is AJAX: {request.headers.get('X-Requested-With') == 'XMLHttpRequest'}")
+
     try:
         blog = get_object_or_404(Blog, id=blog_id)
+        print(f"✅ Blog found: {blog.title}")
     except Blog.DoesNotExist:
+        print(f"❌ Blog not found: {blog_id}")
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
             return JsonResponse(
                 {"success": False, "error": _("المدونة غير موجودة")}, status=404
@@ -166,6 +209,9 @@ def admin_blog_update(request, blog_id):
         return HttpResponseNotFound(_("المدونة غير موجودة"))
 
     if request.method == "POST":
+        print(f"🔍 POST data: {request.POST.dict()}")
+        print(f"🔍 FILES: {list(request.FILES.keys())}")
+
         try:
             title = request.POST.get("title", "").strip()
             content = request.POST.get("content", "").strip()
@@ -173,8 +219,13 @@ def admin_blog_update(request, blog_id):
             tags = request.POST.get("tags", "").strip()
             image = request.FILES.get("image")
 
+            print(f"📝 Title: {title[:50] if title else 'EMPTY'}")
+            print(f"📝 Content length: {len(content)}")
+            print(f"📝 Is Published: {is_published}")
+
             # Validation
             if not title or not content:
+                print("❌ Validation failed: Missing title or content")
                 return JsonResponse(
                     {"success": False, "error": _("العنوان والمحتوى مطلوبان")}
                 )
@@ -186,23 +237,31 @@ def admin_blog_update(request, blog_id):
 
             if image:
                 blog.image = image
+                print(f"📸 Image updated")
 
             blog.save()
+            print(f"✅ Blog updated: {blog.id}")
 
             # Update tags
             blog.tags.clear()
             if tags:
                 tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
                 blog.tags.add(*tag_list)
+                print(f"✅ Tags updated: {tag_list}")
 
             return JsonResponse(
                 {"success": True, "message": _("تم تحديث المدونة بنجاح")}
             )
 
         except Exception as e:
+            print(f"❌ Exception in admin_blog_update: {str(e)}")
+            import traceback
+
+            traceback.print_exc()
             return JsonResponse({"success": False, "error": str(e)})
 
     # GET request - return blog data
+    print(f"📖 Returning blog data for GET request")
     tags_str = ", ".join([tag.name for tag in blog.tags.all()])
 
     return JsonResponse(
@@ -225,12 +284,15 @@ def admin_blog_delete(request, blog_id):
     """
     Delete blog post via AJAX
     """
+    print(f"🔍 admin_blog_delete called - Method: {request.method}, Blog ID: {blog_id}")
+
     if request.method == "POST":
         blog = get_object_or_404(Blog, id=blog_id)
         blog_title = blog.title
 
         try:
             blog.delete()
+            print(f"✅ Blog deleted: {blog_title}")
             return JsonResponse(
                 {
                     "success": True,
@@ -238,8 +300,10 @@ def admin_blog_delete(request, blog_id):
                 }
             )
         except Exception as e:
+            print(f"❌ Exception in admin_blog_delete: {str(e)}")
             return JsonResponse({"success": False, "error": str(e)})
 
+    print(f"❌ Method is not POST: {request.method}")
     return JsonResponse({"success": False, "error": _("طريقة غير صالحة")})
 
 
