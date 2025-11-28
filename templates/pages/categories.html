@@ -489,7 +489,17 @@
                                 {% trans "الرئيسية" %}
                             </a>
                         </li>
-                        {% if request.GET.category %}
+                        {% if parent_category %}
+                            <li class="breadcrumb-item">
+                                <a href="{% url 'main:categories' %}">
+                                    <i class="fas fa-th-large me-2"></i>
+                                    {% trans "جميع الأقسام" %}
+                                </a>
+                            </li>
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {{ parent_category.name_ar|default:parent_category.name }}
+                            </li>
+                        {% elif request.GET.category %}
                             {% for cat in categories %}
                                 {% if cat.slug == request.GET.category %}
                                     <li class="breadcrumb-item">
@@ -514,17 +524,23 @@
 
                 <div class="text-center">
                     <h1 class="hero-title" style="color: white !important; visibility: visible !important; opacity: 1 !important;">
-                        <i class="fas fa-th-large me-3"></i>
-                        {% if request.GET.category %}
+                        {% if parent_category %}
+                            <i class="fas fa-{% if parent_category.icon %}{{ parent_category.icon }}{% else %}tag{% endif %} me-3"></i>
+                            {{ parent_category.name_ar|default:parent_category.name }}
+                        {% elif request.GET.category %}
+                            <i class="fas fa-th-large me-3"></i>
                             {% for cat in categories %}
                                 {% if cat.slug == request.GET.category %}{{ cat.name_ar|default:cat.name }}{% endif %}
                             {% endfor %}
                         {% else %}
+                            <i class="fas fa-th-large me-3"></i>
                             {% trans "جميع الفئات" %}
                         {% endif %}
                     </h1>
                     <p class="hero-subtitle" style="color: rgba(255, 255, 255, 0.95) !important; visibility: visible !important; opacity: 1 !important;">
-                        {% if request.GET.category %}
+                        {% if parent_category %}
+                            {% trans "استعرض جميع الأقسام الفرعية والإعلانات في هذه الفئة" %}
+                        {% elif request.GET.category %}
                             {% trans "استعرض جميع الإعلانات في هذه الفئة" %}
                         {% else %}
                             {% trans "استكشف جميع فئات منصة إدريسي مارت المتنوعة واعثر على ما تبحث عنه بسهولة" %}
@@ -646,20 +662,32 @@
                         <div class="filter-group">
                             <label class="filter-label">
                                 <i class="fas fa-tag me-1"></i>
-                                {% trans "الفئة" %}
+                                {% if parent_category %}
+                                    {% trans "القسم الفرعي" %}
+                                {% else %}
+                                    {% trans "الفئة" %}
+                                {% endif %}
                             </label>
-                            <select id="categoryFilter" class="filter-select">
-                                <option value="">{% trans "جميع الفئات" %}</option>
-                                {% for category in all_categories %}
+                            <select id="categoryFilter" class="filter-select" onchange="filterByCategory(this.value)">
+                                <option value="">
+                                    {% if parent_category %}
+                                        {% trans "جميع الأقسام الفرعية" %}
+                                    {% else %}
+                                        {% trans "جميع الفئات" %}
+                                    {% endif %}
+                                </option>
+                                {% for category in categories %}
                                     <option value="{{ category.id }}">
                                         {% if LANGUAGE_CODE == 'ar' and category.name_ar %}{{ category.name_ar }}{% else %}{{ category.name }}{% endif %}
                                     </option>
-                                    {% for subcategory in category.subcategories.all %}
-                                        <option value="{{ subcategory.id }}">&nbsp;&nbsp;&nbsp;↳ {% if LANGUAGE_CODE == 'ar' and subcategory.name_ar %}{{ subcategory.name_ar }}{% else %}{{ subcategory.name }}{% endif %}</option>
-                                        {% for subsubcategory in subcategory.subcategories.all %}
-                                            <option value="{{ subsubcategory.id }}">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↳ {% if LANGUAGE_CODE == 'ar' and subsubcategory.name_ar %}{{ subsubcategory.name_ar }}{% else %}{{ subsubcategory.name }}{% endif %}</option>
+                                    {% if not parent_category %}
+                                        {% for subcategory in category.subcategories.all %}
+                                            <option value="{{ subcategory.id }}">&nbsp;&nbsp;&nbsp;↳ {% if LANGUAGE_CODE == 'ar' and subcategory.name_ar %}{{ subcategory.name_ar }}{% else %}{{ subcategory.name }}{% endif %}</option>
+                                            {% for subsubcategory in subcategory.subcategories.all %}
+                                                <option value="{{ subsubcategory.id }}">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↳ {% if LANGUAGE_CODE == 'ar' and subsubcategory.name_ar %}{{ subsubcategory.name_ar }}{% else %}{{ subsubcategory.name }}{% endif %}</option>
+                                            {% endfor %}
                                         {% endfor %}
-                                    {% endfor %}
+                                    {% endif %}
                                 {% endfor %}
                             </select>
                         </div>
@@ -1006,5 +1034,22 @@
         document.addEventListener('DOMContentLoaded', () => {
             window.categoriesManager = new CategoriesManager();
         });
+
+        // Function to filter by category using parent parameter
+        function filterByCategory(categoryId) {
+            if (categoryId) {
+                // Navigate to categories page with parent parameter
+                window.location.href = "{% url 'main:categories' %}?parent=" + categoryId;
+            } else {
+                // Navigate back to all categories
+                {% if parent_category %}
+                    // If we're currently viewing a parent, go back to all categories
+                    window.location.href = "{% url 'main:categories' %}";
+                {% else %}
+                    // Refresh the current page
+                    window.location.href = "{% url 'main:categories' %}";
+                {% endif %}
+            }
+        }
     </script>
 {% endblock %}

@@ -232,17 +232,29 @@ class CategoriesView(FilterView):
         if config.get("prefetch_fields"):
             queryset = queryset.prefetch_related(*config["prefetch_fields"])
 
-        # Apply category filtering - supports main, sub, and sub-sub categories
-        category_slug = self.request.GET.get("category")
-        if category_slug:
+        # Apply parent category filtering (for viewing subcategories)
+        parent_id = self.request.GET.get("parent")
+        if parent_id:
             try:
-                category = Category.objects.get(slug=category_slug, is_active=True)
+                parent_category = Category.objects.get(id=parent_id, is_active=True)
                 # Get all descendants (subcategories and sub-subcategories)
-                descendants = category.get_descendants(include_self=True)
+                descendants = parent_category.get_descendants(include_self=True)
                 filter_field = config.get("category_field", "category")
                 queryset = queryset.filter(**{f"{filter_field}__in": descendants})
-            except Category.DoesNotExist:
+            except (Category.DoesNotExist, ValueError):
                 pass
+        else:
+            # Apply category filtering by slug - supports main, sub, and sub-sub categories
+            category_slug = self.request.GET.get("category")
+            if category_slug:
+                try:
+                    category = Category.objects.get(slug=category_slug, is_active=True)
+                    # Get all descendants (subcategories and sub-subcategories)
+                    descendants = category.get_descendants(include_self=True)
+                    filter_field = config.get("category_field", "category")
+                    queryset = queryset.filter(**{f"{filter_field}__in": descendants})
+                except Category.DoesNotExist:
+                    pass
 
         # Apply section filtering
         section = self.request.GET.get("section")
@@ -314,10 +326,25 @@ class CategoriesView(FilterView):
         # Get selected country
         selected_country = get_selected_country_from_request(self.request)
 
+        # Check if filtering by parent category
+        parent_id = self.request.GET.get("parent")
+        parent_category = None
+        if parent_id:
+            try:
+                parent_category = Category.objects.get(id=parent_id, is_active=True)
+            except (Category.DoesNotExist, ValueError):
+                parent_category = None
+
         # Get categories by section with content counts (generic approach)
-        categories_by_section = self._get_categories_with_content_counts(
-            section_type=content_type, country_code=selected_country
-        )
+        # If parent is specified, get subcategories of that parent
+        if parent_category:
+            categories_by_section = self._get_subcategories_with_content_counts(
+                parent_category, content_type, selected_country
+            )
+        else:
+            categories_by_section = self._get_categories_with_content_counts(
+                section_type=content_type, country_code=selected_country
+            )
 
         # Get cart and wishlist counts from session
         cart_count = len(self.request.session.get("cart", []))
@@ -327,6 +354,7 @@ class CategoriesView(FilterView):
         current_filters = {
             "search": self.request.GET.get("search", ""),
             "category": self.request.GET.get("category", ""),
+            "parent": self.request.GET.get("parent", ""),
             "section": self.request.GET.get("section", "all"),
             "min_price": self.request.GET.get("min_price", ""),
             "max_price": self.request.GET.get("max_price", ""),
@@ -336,10 +364,15 @@ class CategoriesView(FilterView):
         # Calculate statistics based on content type
         total_items = self.get_queryset().count()
         section_type_value = self._get_section_type_from_string(content_type)
-        active_categories = Category.objects.filter(
-            is_active=True,
-            section_type=section_type_value or Category.SectionType.CLASSIFIED,
-        ).count()
+
+        # Calculate active categories based on parent filter
+        if parent_category:
+            active_categories = parent_category.get_children().filter(is_active=True).count()
+        else:
+            active_categories = Category.objects.filter(
+                is_active=True,
+                section_type=section_type_value or Category.SectionType.CLASSIFIED,
+            ).count()
 
         # Dynamic context based on content type
         context_names = {
@@ -357,15 +390,24 @@ class CategoriesView(FilterView):
         content_labels = context_names.get(content_type, context_names["classified"])
 
         # Get all active categories for the category filter dropdown (hierarchical)
-        all_categories = (
-            Category.objects.filter(
-                is_active=True,
-                section_type=section_type_value or Category.SectionType.CLASSIFIED,
-                parent__isnull=True,
+        # If viewing subcategories of a parent, show those; otherwise show root categories
+        if parent_category:
+            all_categories = (
+                parent_category.get_children()
+                .filter(is_active=True)
+                .prefetch_related("children")
+                .order_by("order", "name")
             )
-            .prefetch_related("subcategories__subcategories")
-            .order_by("order", "name")
-        )
+        else:
+            all_categories = (
+                Category.objects.filter(
+                    is_active=True,
+                    section_type=section_type_value or Category.SectionType.CLASSIFIED,
+                    parent__isnull=True,
+                )
+                .prefetch_related("subcategories__subcategories")
+                .order_by("order", "name")
+            )
 
         context.update(
             {
@@ -383,6 +425,7 @@ class CategoriesView(FilterView):
                 "page_title": content_labels["page_title"],
                 "meta_description": content_labels["meta_description"],
                 "has_filters": any(current_filters.values()),
+                "parent_category": parent_category,  # Add parent category to context
             }
         )
 
@@ -473,6 +516,63 @@ class CategoriesView(FilterView):
                     "category": category,
                     "subcategories": subcategory_data,
                     "content_count": content_count,
+                }
+            )
+
+        return categories_by_section
+
+    def _get_subcategories_with_content_counts(
+        self, parent_category, content_type="classified", country_code=None
+    ):
+        """
+        Get subcategories of a parent category with their content counts
+        Similar to _get_categories_with_content_counts but for subcategories
+        """
+        categories_by_section = {}
+        config = self.content_type_config.get(
+            content_type, self.content_type_config["classified"]
+        )
+
+        section = parent_category.section_type
+        if section not in categories_by_section:
+            categories_by_section[section] = []
+
+        # Get direct children (subcategories) of the parent
+        subcategories = (
+            parent_category.get_children().filter(is_active=True).order_by("order", "name")
+        )
+
+        for subcat in subcategories:
+            subcat_descendants = subcat.get_descendants(include_self=True)
+            subcat_count = self._count_content_for_categories(
+                subcat_descendants, content_type, config, country_code
+            )
+
+            # Process sub-subcategories
+            sub_subcategory_data = []
+            sub_subcategories = (
+                subcat.get_children()
+                .filter(is_active=True)
+                .order_by("order", "name")
+            )
+
+            for sub_subcat in sub_subcategories:
+                sub_subcat_descendants = sub_subcat.get_descendants(include_self=True)
+                sub_subcat_count = self._count_content_for_categories(
+                    sub_subcat_descendants, content_type, config, country_code
+                )
+                sub_subcategory_data.append(
+                    {
+                        "category": sub_subcat,
+                        "content_count": sub_subcat_count,
+                    }
+                )
+
+            categories_by_section[section].append(
+                {
+                    "category": subcat,
+                    "subcategories": sub_subcategory_data,
+                    "content_count": subcat_count,
                 }
             )
 
