@@ -558,38 +558,60 @@
 
         // Function to update chat notifications
         function updateChatNotifications() {
-            fetch('/admin/chat-notifications/')
+            fetch('/admin/chat-notifications/?t=' + Date.now())
                 .then(response => response.json())
                 .then(data => {
+                    console.log('Chat notifications data:', data);
                     const supportBadge = document.getElementById('admin-support-badge');
                     const historyBadge = document.getElementById('chat-history-badge');
 
                     if (supportBadge) {
-                        if (data.unread_support_messages > 0) {
-                            supportBadge.textContent = data.unread_support_messages;
-                            supportBadge.style.display = 'inline-block';
-                        } else {
-                            supportBadge.style.display = 'none';
-                        }
+                        supportBadge.textContent = data.unread_support_messages || 0;
                     }
 
                     if (historyBadge) {
-                        if (data.total_user_chats > 0) {
-                            historyBadge.textContent = data.total_user_chats;
-                            historyBadge.style.display = 'inline-block';
-                        } else {
-                            historyBadge.style.display = 'none';
-                        }
+                        historyBadge.textContent = data.total_support_chats || 0;
                     }
                 })
                 .catch(error => console.error('Error updating chat notifications:', error));
         }
 
-        // Update chat notifications every 30 seconds
+        // Function to update admin notification counts
+        function updateAdminNotificationCounts() {
+            fetch('/admin/notification-counts-update/?t=' + Date.now())
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Notification counts data:', data);
+                    // Update total notifications badge
+                    const totalBadge = document.getElementById('total-notifications-badge');
+                    if (totalBadge) {
+                        totalBadge.textContent = data.unread_notifications || 0;
+                    }
+
+                    // Update customer notifications badge
+                    const customerBadge = document.getElementById('customer-notifications-badge');
+                    if (customerBadge) {
+                        customerBadge.textContent = data.unread_customer_notifications || 0;
+                    }
+
+                    // Update publisher notifications badge
+                    const publisherBadge = document.getElementById('publisher-notifications-badge');
+                    if (publisherBadge) {
+                        publisherBadge.textContent = data.unread_publisher_notifications || 0;
+                    }
+                })
+                .catch(error => console.error('Error updating admin notification counts:', error));
+        }
+
+        // Update notifications every 30 seconds
         setInterval(updateChatNotifications, 30000);
+        setInterval(updateAdminNotificationCounts, 30000);
 
         // Initial load
-        document.addEventListener('DOMContentLoaded', updateChatNotifications);
+        document.addEventListener('DOMContentLoaded', function() {
+            updateChatNotifications();
+            updateAdminNotificationCounts();
+        });
 
         // Make showChatHistory globally available
         window.showChatHistory = showChatHistory;

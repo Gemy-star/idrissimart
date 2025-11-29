@@ -4388,9 +4388,13 @@ class AdminSupportChatsView(SuperadminRequiredMixin, TemplateView):
 # ==============================================
 
 
-@superadmin_required
+@login_required
 def admin_chat_get_messages(request, room_id):
     """Get chat messages for a specific room via AJAX"""
+    # Check if user is staff
+    if not request.user.is_staff:
+        return JsonResponse({"success": False, "error": "Unauthorized"}, status=403)
+
     try:
         from main.models import ChatRoom
         from django.template.loader import render_to_string
@@ -4416,13 +4420,20 @@ def admin_chat_get_messages(request, room_id):
         return JsonResponse({"success": True, "html": html, "room_id": room.id})
 
     except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error getting messages for room {room_id}: {str(e)}")
         return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 
-@superadmin_required
+@login_required
 @require_POST
 def admin_chat_send_message(request, room_id):
     """Send a message in support chat via AJAX"""
+    # Check if user is staff
+    if not request.user.is_staff:
+        return JsonResponse({"success": False, "error": "Unauthorized"}, status=403)
+
     try:
         import json
         from main.models import ChatRoom, ChatMessage
@@ -4453,8 +4464,14 @@ def admin_chat_send_message(request, room_id):
             }
         )
 
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "error": "Invalid JSON"}, status=400)
     except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error sending message: {str(e)}")
         return JsonResponse({"success": False, "error": str(e)}, status=500)
+
 
 
 @superadmin_required
@@ -4493,45 +4510,65 @@ def admin_chat_reopen(request, room_id):
         return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 
-@superadmin_required
+@login_required
 def admin_chat_notifications(request):
     """Get chat notification counts for admin dashboard"""
-    from main.models import ChatRoom, ChatMessage
-    from django.db.models import Q
+    # Check if user is staff
+    if not request.user.is_staff:
+        return JsonResponse({"error": "Unauthorized"}, status=403)
 
-    # Support chat statistics
-    unread_support_messages = ChatMessage.objects.filter(
-        room__room_type="publisher_admin",
-        is_read=False,
-        sender__is_staff=False,  # Messages from publishers
-    ).count()
+    try:
+        from main.models import ChatRoom, ChatMessage
+        from django.db.models import Q
 
-    # Regular chat statistics
-    total_user_chats = ChatRoom.objects.filter(
-        Q(room_type="user_to_user") | Q(room_type="ad_inquiry")
-    ).count()
+        # Support chat statistics
+        unread_support_messages = ChatMessage.objects.filter(
+            room__room_type="publisher_admin",
+            is_read=False,
+            sender__is_staff=False,  # Messages from publishers
+        ).count()
 
-    # Support chat totals
-    total_support_chats = ChatRoom.objects.filter(room_type="publisher_admin").count()
-    active_support_chats = ChatRoom.objects.filter(
-        room_type="publisher_admin", is_active=True
-    ).count()
-    resolved_support_chats = total_support_chats - active_support_chats
+        # Regular chat statistics
+        total_user_chats = ChatRoom.objects.filter(
+            Q(room_type="user_to_user") | Q(room_type="ad_inquiry")
+        ).count()
 
-    # Recent activity (last 24 hours)
-    yesterday = timezone.now() - timedelta(hours=24)
-    recent_activity = ChatMessage.objects.filter(created_at__gte=yesterday).count()
+        # Support chat totals
+        total_support_chats = ChatRoom.objects.filter(
+            room_type="publisher_admin"
+        ).count()
+        active_support_chats = ChatRoom.objects.filter(
+            room_type="publisher_admin", is_active=True
+        ).count()
+        resolved_support_chats = total_support_chats - active_support_chats
 
-    return JsonResponse(
-        {
-            "unread_support_messages": unread_support_messages,
-            "total_user_chats": total_user_chats,
-            "recent_activity": recent_activity,
-            "total_support_chats": total_support_chats,
-            "active_support_chats": active_support_chats,
-            "resolved_support_chats": resolved_support_chats,
-        }
-    )
+        # Recent activity (last 24 hours)
+        yesterday = timezone.now() - timedelta(hours=24)
+        recent_activity = ChatMessage.objects.filter(created_at__gte=yesterday).count()
+
+        return JsonResponse(
+            {
+                "unread_support_messages": unread_support_messages,
+                "total_user_chats": total_user_chats,
+                "recent_activity": recent_activity,
+                "total_support_chats": total_support_chats,
+                "active_support_chats": active_support_chats,
+                "resolved_support_chats": resolved_support_chats,
+            }
+        )
+    except Exception as e:
+        return JsonResponse(
+            {
+                "unread_support_messages": 0,
+                "total_user_chats": 0,
+                "recent_activity": 0,
+                "total_support_chats": 0,
+                "active_support_chats": 0,
+                "resolved_support_chats": 0,
+                "error": str(e),
+            },
+            status=200,
+        )
 
 
 @superadmin_required
@@ -4639,53 +4676,107 @@ def admin_notifications_breakdown(request):
     )
 
 
-@superadmin_required
+@login_required
 def admin_notification_counts_update(request):
     """Update notification counts for real-time dashboard updates"""
-    from main.models import Notification
+    # Check if user is staff
+    if not request.user.is_staff:
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+
+    try:
+        from main.models import Notification
+        from django.db.models import Q
+
+        # Get updated counts
+        total_notifications = Notification.objects.count()
+        unread_notifications = Notification.objects.filter(is_read=False).count()
+
+        # Admin notifications
+        unread_admin_notifications = Notification.objects.filter(
+            Q(notification_type="general") | Q(user__is_staff=True), is_read=False
+        ).count()
+
+        # Customer notifications
+        unread_customer_notifications = Notification.objects.filter(
+            user__is_staff=False, user__groups__isnull=True, is_read=False
+        ).count()
+
+        # Publisher notifications
+        unread_publisher_notifications = Notification.objects.filter(
+            notification_type__in=[
+                "ad_approved",
+                "ad_rejected",
+                "ad_expired",
+                "package_expired",
+            ],
+            is_read=False,
+        ).count()
+
+        return JsonResponse(
+            {
+                "total_notifications": total_notifications,
+                "unread_notifications": unread_notifications,
+                "unread_admin_notifications": unread_admin_notifications,
+                "unread_customer_notifications": unread_customer_notifications,
+                "unread_publisher_notifications": unread_publisher_notifications,
+            }
+        )
+    except Exception as e:
+        return JsonResponse(
+            {
+                "total_notifications": 0,
+                "unread_notifications": 0,
+                "unread_admin_notifications": 0,
+                "unread_customer_notifications": 0,
+                "unread_publisher_notifications": 0,
+                "error": str(e),
+            },
+            status=200,
+        )
+
+
+@login_required
+def user_notification_counts(request):
+    """Get notification counts for authenticated users (publisher dashboard)"""
+    from main.models import Notification, ChatMessage
     from django.db.models import Q
 
-    # Get updated counts
-    total_notifications = Notification.objects.count()
-    unread_notifications = Notification.objects.filter(is_read=False).count()
+    context = {
+        "user_unread_notifications": 0,
+        "unread_chat_messages": 0,
+        "unread_support_messages": 0,
+    }
 
-    # Admin notifications
-    unread_admin_notifications = Notification.objects.filter(
-        Q(notification_type="general") | Q(user__is_staff=True), is_read=False
-    ).count()
+    try:
+        # User's personal notifications
+        context["user_unread_notifications"] = Notification.objects.filter(
+            user=request.user, is_read=False
+        ).count()
 
-    # Customer notifications
-    unread_customer_notifications = Notification.objects.filter(
-        user__is_staff=False, user__groups__isnull=True, is_read=False
-    ).count()
-
-    # Publisher notifications
-    unread_publisher_notifications = (
-        Notification.objects.filter(
-            Q(
-                notification_type__in=[
-                    "ad_approved",
-                    "ad_rejected",
-                    "ad_expired",
-                    "package_expired",
-                ]
+        # Chat messages for publishers
+        if (
+            hasattr(request.user, "classifiedad_set")
+            and request.user.classifiedad_set.exists()
+        ):
+            context["unread_chat_messages"] = (
+                ChatMessage.objects.filter(room__publisher=request.user, is_read=False)
+                .exclude(sender=request.user)
+                .count()
             )
-            | Q(user__classifiedad__isnull=False),
-            is_read=False,
-        )
-        .distinct()
-        .count()
-    )
 
-    return JsonResponse(
-        {
-            "total_notifications": total_notifications,
-            "unread_notifications": unread_notifications,
-            "unread_admin_notifications": unread_admin_notifications,
-            "unread_customer_notifications": unread_customer_notifications,
-            "unread_publisher_notifications": unread_publisher_notifications,
-        }
-    )
+        # Support messages for publishers (messages from admin to this user)
+        context["unread_support_messages"] = ChatMessage.objects.filter(
+            room__room_type="publisher_admin",
+            room__publisher=request.user,
+            is_read=False,
+            sender__is_staff=True,  # Messages from admin
+        ).count()
+
+    except Exception as e:
+        # Return default values on error
+        pass
+
+    return JsonResponse(context)
 
 
 class ChatWithPublisherView(LoginRequiredMixin, TemplateView):

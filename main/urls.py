@@ -775,6 +775,11 @@ urlpatterns = [
         name="admin_notification_counts_update",
     ),
     path(
+        "api/user-notification-counts/",
+        views.user_notification_counts,
+        name="user_notification_counts",
+    ),
+    path(
         "chat/publisher/<int:ad_id>/",
         views.ChatWithPublisherView.as_view(),
         name="chat_with_publisher",

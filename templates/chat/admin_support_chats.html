@@ -595,13 +595,16 @@ function loadChat(roomId) {
     // Highlight selected chat
     document.querySelectorAll('.chat-list-item').forEach(item => {
         item.classList.remove('active');
+        if (item.getAttribute('onclick') && item.getAttribute('onclick').includes(`loadChat(${roomId})`)) {
+            item.classList.add('active');
+        }
     });
-    event.currentTarget.classList.add('active');
 
     // Load chat via AJAX
     fetch(`/admin/support-chats/${roomId}/messages/`)
         .then(response => response.json())
         .then(data => {
+            console.log('Chat loaded:', data);
             if (data.success) {
                 // Update chat container
                 document.getElementById('chatContainer').innerHTML = data.html;
@@ -611,9 +614,11 @@ function loadChat(roomId) {
                 if (messagesContainer) {
                     messagesContainer.scrollTop = messagesContainer.scrollHeight;
                 }
+            } else {
+                console.error('Failed to load chat:', data.error);
             }
         })
-        .catch(error => console.error('Error:', error));
+        .catch(error => console.error('Error loading chat:', error));
 }
 
 function sendMessage(event, roomId) {
@@ -622,7 +627,12 @@ function sendMessage(event, roomId) {
     const messageInput = document.getElementById('messageInput');
     const message = messageInput.value.trim();
 
-    if (!message) return;
+    if (!message) {
+        console.log('Empty message, not sending');
+        return;
+    }
+
+    console.log('Sending message to room', roomId, ':', message);
 
     fetch(`/admin/support-chats/${roomId}/send/`, {
         method: 'POST',
@@ -632,19 +642,30 @@ function sendMessage(event, roomId) {
         },
         body: JSON.stringify({ message: message })
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Response status:', response.status);
+        return response.json();
+    })
     .then(data => {
+        console.log('Send message response:', data);
         if (data.success) {
             // Clear input
             messageInput.value = '';
 
             // Reload chat
             loadChat(roomId);
+
+            // Show success toast
+            showToast('تم إرسال الرسالة بنجاح', 'success');
         } else {
+            console.error('Failed to send message:', data.error);
             alert(data.error || 'حدث خطأ');
         }
     })
-    .catch(error => console.error('Error:', error));
+    .catch(error => {
+        console.error('Error sending message:', error);
+        alert('حدث خطأ في إرسال الرسالة');
+    });
 }
 
 function markAsResolved(roomId) {

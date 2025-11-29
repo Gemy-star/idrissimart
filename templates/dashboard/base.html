@@ -99,7 +99,39 @@
                     }, 1000);
                 });
             });
+
+            // Update notification counts for publisher dashboard
+            updatePublisherNotificationCounts();
+
+            // Auto-update every 30 seconds
+            setInterval(updatePublisherNotificationCounts, 30000);
         });
+
+        // Function to update publisher notification counts
+        function updatePublisherNotificationCounts() {
+            fetch('/api/user-notification-counts/')
+            .then(response => response.json())
+            .then(data => {
+                // Update chat messages badge
+                updateBadge('chat-badge', data.unread_chat_messages || 0);
+
+                // Update notifications badge
+                updateBadge('notifications-badge', data.user_unread_notifications || 0);
+                updateBadge('messages-badge', data.user_unread_notifications || 0);
+
+                // Update support badge if there are unread support messages
+                updateBadge('support-badge', data.unread_support_messages || 0);
+            })
+            .catch(error => console.error('Error updating publisher notification counts:', error));
+        }
+
+        // Helper function to update badge
+        function updateBadge(badgeId, count) {
+            const badge = document.getElementById(badgeId);
+            if (badge) {
+                badge.textContent = count;
+            }
+        }
 
         // Bootstrap modals handle all modal interactions automatically
         // including overlay clicks, escape key, and accessibility features

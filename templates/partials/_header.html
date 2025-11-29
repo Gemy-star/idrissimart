@@ -609,22 +609,26 @@
 
         // Initialize Categories Swiper
         document.addEventListener('DOMContentLoaded', function() {
+            // Check if we have enough slides for loop mode
+            const categorySlides = document.querySelectorAll('.categories-swiper .swiper-slide');
+            const hasEnoughSlides = categorySlides.length >= 3; // Need at least 3 slides for smooth loop
+
             categoriesSwiper = new Swiper('.categories-swiper', {
                 slidesPerView: 'auto',
                 spaceBetween: 8,
                 freeMode: false,
-                centeredSlides: true,
-                centeredSlidesBounds: true,
-                loop: true,
-                loopAdditionalSlides: 2,
-                loopedSlides: 5,
-                autoplay: {
+                centeredSlides: hasEnoughSlides,
+                centeredSlidesBounds: hasEnoughSlides,
+                loop: hasEnoughSlides, // Only enable loop if we have enough slides
+                loopAdditionalSlides: hasEnoughSlides ? 2 : 0,
+                loopedSlides: hasEnoughSlides ? Math.min(5, categorySlides.length) : 0,
+                autoplay: hasEnoughSlides ? {
                     delay: 0, // No delay between slides for continuous motion
                     disableOnInteraction: false,
                     reverseDirection: false, // Changed to false for natural left-to-right movement
                     pauseOnMouseEnter: false // Don't pause on hover for marquee effect
-                },
-                speed: 5000, // Very slow transition speed for marquee effect
+                } : false, // Disable autoplay if not enough slides
+                speed: hasEnoughSlides ? 5000 : 300, // Slower for marquee, normal for few slides
                 pagination: {
                     el: '.categories-swiper-pagination',
                     clickable: true,
@@ -633,12 +637,21 @@
                 breakpoints: {
                     320: {
                         spaceBetween: 6,
+                        slidesPerView: hasEnoughSlides ? 'auto' : Math.min(2, categorySlides.length),
                     },
                     640: {
                         spaceBetween: 8,
+                        slidesPerView: hasEnoughSlides ? 'auto' : Math.min(3, categorySlides.length),
                     },
                     1024: {
                         spaceBetween: 10,
+                        slidesPerView: hasEnoughSlides ? 'auto' : Math.min(4, categorySlides.length),
+                    }
+                },
+                on: {
+                    init: function() {
+                        // Log configuration for debugging
+                        console.log('Categories Swiper initialized with', categorySlides.length, 'slides, loop:', hasEnoughSlides);
                     }
                 }
             });

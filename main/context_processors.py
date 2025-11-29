@@ -52,14 +52,48 @@ def cart_wishlist_counts(request):
             context["ads_remaining"] = 0
             context["has_ad_balance"] = False
 
-        # Add chat view counts for admin users
-        if request.user.is_staff:
-            try:
-                from main.models import ChatRoom, ChatMessage, Notification
-                from django.db.models import Q
-                from django.utils import timezone
-                from datetime import timedelta
+        # Add notification and message counts for authenticated users
+        try:
+            from main.models import ChatRoom, ChatMessage, Notification
+            from django.db.models import Q
+            from django.utils import timezone
+            from datetime import timedelta
+            import logging
 
+            logger = logging.getLogger(__name__)
+
+            # Basic notification counts for all users
+            context["user_unread_notifications"] = Notification.objects.filter(
+                user=request.user, is_read=False
+            ).count()
+
+            context["user_total_notifications"] = Notification.objects.filter(
+                user=request.user
+            ).count()
+
+            logger.info(
+                f"User {request.user.username} - Unread notifications: {context['user_unread_notifications']}"
+            )
+
+            # Chat message counts for publishers
+            if (
+                hasattr(request.user, "classifiedad_set")
+                and request.user.classifiedad_set.exists()
+            ):
+                # User is a publisher - get chat messages
+                context["unread_chat_messages"] = (
+                    ChatMessage.objects.filter(
+                        room__publisher=request.user,
+                        is_read=False,
+                    )
+                    .exclude(sender=request.user)
+                    .count()
+                )  # Messages from others
+            else:
+                context["unread_chat_messages"] = 0
+
+            # Admin-specific counts
+            if request.user.is_staff:
                 # Support chat statistics
                 context["unread_support_messages"] = ChatMessage.objects.filter(
                     room__room_type="publisher_admin",
@@ -74,6 +108,10 @@ def cart_wishlist_counts(request):
                 context["total_support_chats"] = ChatRoom.objects.filter(
                     room_type="publisher_admin"
                 ).count()
+
+                logger.info(
+                    f"Admin {request.user.username} - Unread support: {context['unread_support_messages']}, Total chats: {context['total_support_chats']}"
+                )
 
                 # Recent activity (last 24 hours)
                 yesterday = timezone.now() - timedelta(hours=24)
@@ -98,21 +136,14 @@ def cart_wishlist_counts(request):
                 ).count()
 
                 # Publisher notifications (users with ads)
-                context["publisher_notifications"] = (
-                    Notification.objects.filter(
-                        Q(
-                            notification_type__in=[
-                                "ad_approved",
-                                "ad_rejected",
-                                "ad_expired",
-                                "package_expired",
-                            ]
-                        )
-                        | Q(user__classifiedad__isnull=False)
-                    )
-                    .distinct()
-                    .count()
-                )
+                context["publisher_notifications"] = Notification.objects.filter(
+                    notification_type__in=[
+                        "ad_approved",
+                        "ad_rejected",
+                        "ad_expired",
+                        "package_expired",
+                    ]
+                ).count()
 
                 # Unread counts by type
                 context["unread_admin_notifications"] = Notification.objects.filter(
@@ -124,24 +155,17 @@ def cart_wishlist_counts(request):
                     user__is_staff=False, user__groups__isnull=True, is_read=False
                 ).count()
 
-                context["unread_publisher_notifications"] = (
-                    Notification.objects.filter(
-                        Q(
-                            notification_type__in=[
-                                "ad_approved",
-                                "ad_rejected",
-                                "ad_expired",
-                                "package_expired",
-                            ]
-                        )
-                        | Q(user__classifiedad__isnull=False),
-                        is_read=False,
-                    )
-                    .distinct()
-                    .count()
-                )
-
-            except Exception:
+                context["unread_publisher_notifications"] = Notification.objects.filter(
+                    notification_type__in=[
+                        "ad_approved",
+                        "ad_rejected",
+                        "ad_expired",
+                        "package_expired",
+                    ],
+                    is_read=False,
+                ).count()
+            else:
+                # Non-admin users - set admin-specific counts to 0
                 context["unread_support_messages"] = 0
                 context["active_support_chats"] = 0
                 context["total_support_chats"] = 0
@@ -154,6 +178,30 @@ def cart_wishlist_counts(request):
                 context["unread_admin_notifications"] = 0
                 context["unread_customer_notifications"] = 0
                 context["unread_publisher_notifications"] = 0
+
+        except Exception as e:
+            # Fallback values if queries fail
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(
+                f"Error in context processor for user {request.user.username}: {str(e)}"
+            )
+            context["user_unread_notifications"] = 0
+            context["user_total_notifications"] = 0
+            context["unread_chat_messages"] = 0
+            context["unread_support_messages"] = 0
+            context["active_support_chats"] = 0
+            context["total_support_chats"] = 0
+            context["recent_chat_activity"] = 0
+            context["total_notifications"] = 0
+            context["unread_notifications"] = 0
+            context["admin_notifications"] = 0
+            context["customer_notifications"] = 0
+            context["publisher_notifications"] = 0
+            context["unread_admin_notifications"] = 0
+            context["unread_customer_notifications"] = 0
+            context["unread_publisher_notifications"] = 0
     else:
         # Guest users - get cart count from session
         try:
