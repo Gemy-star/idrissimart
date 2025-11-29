@@ -3250,6 +3250,60 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
         return context
 
 
+@login_required
+def admin_payment_transaction_detail(request, transaction_id):
+    """Get payment transaction details for admin view"""
+    # Check if user is staff
+    if not request.user.is_staff:
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+
+    try:
+        transaction = get_object_or_404(
+            Payment.objects.select_related("user"), id=transaction_id
+        )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "transaction": {
+                    "id": transaction.id,
+                    "user_name": transaction.user.get_full_name()
+                    or transaction.user.username,
+                    "user_email": transaction.user.email,
+                    "package_name": transaction.description or "غير محدد",
+                    "amount": str(transaction.amount),
+                    "currency": transaction.currency or "SAR",
+                    "payment_method": transaction.get_provider_display() if transaction.provider else "غير محدد",
+                    "status": transaction.status,
+                    "status_display": transaction.get_status_display(),
+                    "transaction_id": transaction.provider_transaction_id or "غير متوفر",
+                    "created_at": transaction.created_at.strftime("%Y-%m-%d %H:%M"),
+                    "completed_at": (
+                        transaction.completed_at.strftime("%Y-%m-%d %H:%M")
+                        if transaction.completed_at
+                        else None
+                    ),
+                    "notes": transaction.metadata.get("notes", "") if transaction.metadata else "",
+                },
+            }
+        )
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error loading transaction {transaction_id}: {str(e)}")
+        return JsonResponse(
+            {"success": False, "error": "حدث خطأ في تحميل تفاصيل المعاملة"},
+            status=500,
+        )
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error loading transaction {transaction_id}: {str(e)}")
+        return JsonResponse(
+            {"success": False, "error": "حدث خطأ في تحميل تفاصيل المعاملة"}, status=500
+        )
+
+
 class AdminNotificationView(SuperadminRequiredMixin, ListView):
     """
     Admin notification view - Shows all notifications for admin users
@@ -4391,11 +4445,14 @@ class AdminSupportChatsView(SuperadminRequiredMixin, TemplateView):
 def admin_chat_get_messages(request, room_id):
     """Get chat messages for a specific room via AJAX"""
     import logging
+
     logger = logging.getLogger(__name__)
 
     # Check if user is staff
     if not request.user.is_staff:
-        logger.warning(f"Unauthorized access attempt to chat room {room_id} by user {request.user}")
+        logger.warning(
+            f"Unauthorized access attempt to chat room {room_id} by user {request.user}"
+        )
         return JsonResponse({"success": False, "error": "Unauthorized"}, status=403)
 
     try:
@@ -4406,20 +4463,26 @@ def admin_chat_get_messages(request, room_id):
         logger.info(f"Fetching chat room {room_id}")
 
         try:
-            room = ChatRoom.objects.select_related("publisher").prefetch_related(
-                "messages__sender"
-            ).get(
-                id=room_id,
-                room_type="publisher_admin",
+            room = (
+                ChatRoom.objects.select_related("publisher")
+                .prefetch_related("messages__sender")
+                .get(
+                    id=room_id,
+                    room_type="publisher_admin",
+                )
             )
         except ObjectDoesNotExist:
             logger.error(f"Chat room {room_id} not found")
-            return JsonResponse({"success": False, "error": "Chat room not found"}, status=404)
+            return JsonResponse(
+                {"success": False, "error": "Chat room not found"}, status=404
+            )
 
         logger.info(f"Chat room {room_id} found with {room.messages.count()} messages")
 
         # Mark messages as read
-        unread_count = room.messages.filter(is_read=False, sender__is_staff=False).count()
+        unread_count = room.messages.filter(
+            is_read=False, sender__is_staff=False
+        ).count()
         room.messages.filter(is_read=False, sender__is_staff=False).update(
             is_read=True, read_at=timezone.now()
         )
@@ -4432,13 +4495,17 @@ def admin_chat_get_messages(request, room_id):
             )
             logger.info(f"Successfully rendered template for room {room_id}")
         except Exception as template_error:
-            logger.error(f"Template rendering error for room {room_id}: {str(template_error)}")
+            logger.error(
+                f"Template rendering error for room {room_id}: {str(template_error)}"
+            )
             raise
 
         return JsonResponse({"success": True, "html": html, "room_id": room.id})
 
     except Exception as e:
-        logger.error(f"Error getting messages for room {room_id}: {str(e)}", exc_info=True)
+        logger.error(
+            f"Error getting messages for room {room_id}: {str(e)}", exc_info=True
+        )
         return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 

@@ -521,6 +521,11 @@ urlpatterns = [
         views.AdminPaymentsView.as_view(),
         name="admin_payments",
     ),
+    path(
+        "admin/payment-transaction/<int:transaction_id>/",
+        views.admin_payment_transaction_detail,
+        name="admin_payment_transaction_detail",
+    ),
     # User Package Management
     path(
         "admin/user-packages/<int:package_id>/extend/",

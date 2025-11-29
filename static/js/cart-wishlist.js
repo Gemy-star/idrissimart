@@ -399,6 +399,36 @@ function updateWishlistCountInHeader(count) {
     });
 }
 
+// Toggle cart function for ad cards (add/remove with visual feedback)
+async function toggleCartCard(adId, button, itemName = 'المنتج', price = 0) {
+    try {
+        const isActive = button.classList.contains('active');
+
+        if (isActive) {
+            // Remove from cart
+            const result = await removeFromCart(adId);
+            if (result.success) {
+                button.classList.remove('active');
+                button.title = 'إضافة للسلة';
+                button.setAttribute('aria-label', 'إضافة للسلة');
+                showNotification(`تم إزالة ${itemName} من السلة`, 'success');
+            }
+        } else {
+            // Add to cart
+            const result = await addToCart(adId, itemName);
+            if (result.success) {
+                button.classList.add('active');
+                button.title = 'إزالة من السلة';
+                button.setAttribute('aria-label', 'إزالة من السلة');
+                showNotification(`تم إضافة ${itemName} للسلة`, 'success');
+            }
+        }
+    } catch (error) {
+        console.error('Error toggling cart:', error);
+        showNotification('حدث خطأ في العملية', 'error');
+    }
+}
+
 // Export functions for global use
 window.CartWishlist = {
     addToCart,
@@ -410,3 +440,7 @@ window.CartWishlist = {
     updateCartCountInHeader,
     updateWishlistCountInHeader
 };
+
+// Make toggleCartCard globally available
+window.toggleCartCard = toggleCartCard;
+

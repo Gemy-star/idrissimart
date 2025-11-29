@@ -637,25 +637,39 @@ class ToggleAdHideView(LoginRequiredMixin, View):
                 {"success": False, "error": "Permission denied"}, status=403
             )
 
-        ad = get_object_or_404(ClassifiedAd, id=ad_id)
+        try:
+            ad = get_object_or_404(ClassifiedAd, id=ad_id)
 
-        import json
+            # Try to parse JSON data, fallback to POST data
+            try:
+                import json
 
-        data = json.loads(request.body)
-        ad.is_hidden = data.get("hide", False)
-        ad.save()
+                data = json.loads(request.body)
+                hide_value = data.get("hide", False)
+            except (json.JSONDecodeError, ValueError):
+                # Fallback to POST data
+                hide_value = request.POST.get("hide", "false").lower() == "true"
 
-        # Send notification to user
-        Notification.objects.create(
-            user=ad.user,
-            title=_("تغيير حالة الإعلان"),
-            message=_("تم {} إعلانك '{}'").format(
-                _("إخفاء") if ad.is_hidden else _("إظهار"), ad.title
-            ),
-            link=ad.get_absolute_url(),
-        )
+            ad.is_hidden = hide_value
+            ad.save()
 
-        return JsonResponse({"success": True})
+            # Send notification to user
+            Notification.objects.create(
+                user=ad.user,
+                title=_("تغيير حالة الإعلان"),
+                message=_("تم {} إعلانك '{}'. يمكنك مشاهدته في صفحة إعلاناتك.").format(
+                    _("إخفاء") if ad.is_hidden else _("إظهار"), ad.title
+                ),
+                notification_type="general",
+            )
+
+            return JsonResponse({"success": True, "is_hidden": ad.is_hidden})
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error toggling ad hide {ad_id}: {str(e)}")
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 
 class EnableAdCartView(LoginRequiredMixin, View):
@@ -667,25 +681,31 @@ class EnableAdCartView(LoginRequiredMixin, View):
                 {"success": False, "error": "Permission denied"}, status=403
             )
 
-        ad = get_object_or_404(ClassifiedAd, id=ad_id)
+        try:
+            ad = get_object_or_404(ClassifiedAd, id=ad_id)
 
-        if not ad.allow_cart:
-            return JsonResponse(
-                {"success": False, "error": "Cart not allowed for this ad"}, status=400
+            # Admin can enable cart regardless of category settings
+            # This is the whole point of cart_enabled_by_admin field
+            ad.cart_enabled_by_admin = True
+            ad.save()
+
+            # Send notification to user
+            Notification.objects.create(
+                user=ad.user,
+                title=_("تفعيل السلة"),
+                message=_(
+                    "تم تفعيل السلة لإعلانك '{}'. يمكنك مشاهدته في صفحة إعلاناتك."
+                ).format(ad.title),
+                notification_type="general",
             )
 
-        ad.cart_enabled_by_admin = True
-        ad.save()
+            return JsonResponse({"success": True})
+        except Exception as e:
+            import logging
 
-        # Send notification to user
-        Notification.objects.create(
-            user=ad.user,
-            title=_("تفعيل السلة"),
-            message=_("تم تفعيل السلة لإعلانك '{}'").format(ad.title),
-            link=ad.get_absolute_url(),
-        )
-
-        return JsonResponse({"success": True})
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error enabling cart for ad {ad_id}: {str(e)}")
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 
 class DeleteAdView(LoginRequiredMixin, View):
@@ -753,8 +773,10 @@ class AdminChangeAdStatusView(LoginRequiredMixin, View):
             Notification.objects.create(
                 user=ad.user,
                 title=_("تم قبول إعلانك"),
-                message=_("تم قبول إعلانك '{}' ونشره بنجاح").format(ad.title),
-                link=ad.get_absolute_url(),
+                message=_(
+                    "تم قبول إعلانك '{}' ونشره بنجاح. يمكنك مشاهدته في صفحة إعلاناتك."
+                ).format(ad.title),
+                notification_type="ad_approved",
             )
 
             return JsonResponse(
@@ -774,7 +796,7 @@ class AdminChangeAdStatusView(LoginRequiredMixin, View):
                 user=ad.user,
                 title=_("تم رفض إعلانك"),
                 message=message,
-                link=ad.get_absolute_url(),
+                notification_type="ad_rejected",
             )
 
             return JsonResponse({"success": True, "message": _("تم رفض الإعلان بنجاح")})
@@ -817,8 +839,10 @@ class AdminToggleAdFeatureView(LoginRequiredMixin, View):
         Notification.objects.create(
             user=ad.user,
             title=_("تحديث ميزة الإعلان"),
-            message=_("{} {} لإعلانك '{}'").format(action, feature_name, ad.title),
-            link=ad.get_absolute_url(),
+            message=_("{} {} لإعلانك '{}'. يمكنك مشاهدته في صفحة إعلاناتك.").format(
+                action, feature_name, ad.title
+            ),
+            notification_type="general",
         )
 
         message = _("تم {} {} بنجاح").format(

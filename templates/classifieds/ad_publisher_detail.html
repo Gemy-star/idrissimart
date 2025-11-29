@@ -1509,6 +1509,37 @@
     </div>
 </div>
 
+<!-- Enable Cart Modal -->
+<div class="modal fade" id="enableCartModal" tabindex="-1" aria-labelledby="enableCartModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="enableCartModalLabel">
+                    <i class="fas fa-shopping-cart text-success me-2"></i>
+                    {% trans "تفعيل السلة" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <span id="enableCartMessage">{% trans "هل أنت متأكد من تفعيل السلة لهذا الإعلان؟" %}</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>
+                    {% trans "إلغاء" %}
+                </button>
+                <button type="button" class="btn btn-success" id="confirmEnableCartBtn">
+                    <i class="fas fa-shopping-cart me-2"></i>
+                    {% trans "تفعيل" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- User Action Modal -->
 <div class="modal fade" id="userActionModal" tabindex="-1" aria-labelledby="userActionModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -1759,34 +1790,9 @@
 
     function handleEnableCart(adId, button) {
         console.log('🛒 handleEnableCart:', adId);
-
-        if (!confirm('{% trans "هل أنت متأكد من تفعيل السلة لهذا الإعلان؟" %}')) return;
-
-        const url = "{% url 'main:enable_ad_cart' 0 %}".replace('0', adId);
-
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': window.getCookie('csrftoken'),
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showNotification('{% trans "تم تفعيل السلة بنجاح." %}', 'success');
-                if (button) {
-                    button.disabled = true;
-                    button.innerHTML = '<i class="fas fa-shopping-cart me-2"></i> {% trans "تم تفعيل السلة" %}';
-                }
-            } else {
-                showNotification(data.error || '{% trans "حدث خطأ." %}', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Enable cart error:', error);
-            showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error');
-        });
+        currentAdId = adId;
+        currentButton = button;
+        openModal('enableCartModal');
     }
 
     function handleUserAction(action, userId) {
@@ -1932,6 +1938,48 @@
                 .catch(error => {
                     console.error('Toggle hide error:', error);
                     closeModal('toggleHideModal');
+                    showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error');
+                });
+            });
+        }
+
+        // Enable Cart Confirm
+        const confirmEnableCartBtn = document.getElementById('confirmEnableCartBtn');
+        if (confirmEnableCartBtn) {
+            confirmEnableCartBtn.replaceWith(confirmEnableCartBtn.cloneNode(true));
+            document.getElementById('confirmEnableCartBtn').addEventListener('click', function() {
+                if (currentAdId === null) return;
+
+                const url = "{% url 'main:enable_ad_cart' 0 %}".replace('0', currentAdId);
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': window.getCookie('csrftoken'),
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    closeModal('enableCartModal');
+                    if (data.success) {
+                        showNotification('{% trans "تم تفعيل السلة بنجاح." %}', 'success');
+                        if (currentButton) {
+                            currentButton.disabled = true;
+                            currentButton.innerHTML = '<i class="fas fa-shopping-cart me-2"></i> {% trans "تم تفعيل السلة" %>';
+                        }
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        showNotification(data.error || '{% trans "حدث خطأ." %}', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Enable cart error:', error);
+                    closeModal('enableCartModal');
                     showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error');
                 });
             });

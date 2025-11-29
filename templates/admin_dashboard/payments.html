@@ -542,8 +542,158 @@ function filterTransactions(status) {
 }
 
 function viewTransaction(transactionId) {
-    // TODO: Open transaction details modal
-    console.log('View transaction:', transactionId);
+    // Fetch transaction details
+    fetch(`/admin/payment-transaction/${transactionId}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showTransactionModal(data.transaction);
+            } else {
+                showToast(data.error || 'حدث خطأ في تحميل تفاصيل المعاملة', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading transaction:', error);
+            showToast('حدث خطأ في تحميل تفاصيل المعاملة', 'error');
+        });
+}
+
+function showTransactionModal(transaction) {
+    const modalHTML = `
+        <div class="modal fade" id="transactionModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-file-invoice-dollar me-2"></i>
+                            تفاصيل المعاملة #${transaction.id}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">المستخدم</label>
+                                <p class="fw-bold">${transaction.user_name}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">البريد الإلكتروني</label>
+                                <p>${transaction.user_email}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">الباقة</label>
+                                <p class="fw-bold">${transaction.package_name}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">المبلغ</label>
+                                <p class="fw-bold text-primary">${transaction.amount} ${transaction.currency}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">طريقة الدفع</label>
+                                <p>
+                                    <i class="fas fa-credit-card me-1"></i>
+                                    ${transaction.payment_method}
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">الحالة</label>
+                                <p>
+                                    <span class="badge ${transaction.status === 'completed' ? 'bg-success' :
+                                                         transaction.status === 'pending' ? 'bg-warning' :
+                                                         transaction.status === 'failed' ? 'bg-danger' : 'bg-secondary'}">
+                                        ${transaction.status_display}
+                                    </span>
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">رقم المعاملة</label>
+                                <p><code>${transaction.transaction_id || '-'}</code></p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">تاريخ الإنشاء</label>
+                                <p>
+                                    <i class="fas fa-clock me-1"></i>
+                                    ${transaction.created_at}
+                                </p>
+                            </div>
+                            ${transaction.completed_at ? `
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">تاريخ الاكتمال</label>
+                                <p>
+                                    <i class="fas fa-check-circle me-1 text-success"></i>
+                                    ${transaction.completed_at}
+                                </p>
+                            </div>
+                            ` : ''}
+                            ${transaction.notes ? `
+                            <div class="col-12">
+                                <label class="form-label text-muted">ملاحظات</label>
+                                <p class="border rounded p-2 bg-light">${transaction.notes}</p>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1"></i> إغلاق
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal if any
+    const existingModal = document.getElementById('transactionModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('transactionModal'));
+    modal.show();
+
+    // Clean up on close
+    document.getElementById('transactionModal').addEventListener('hidden.bs.modal', function () {
+        this.remove();
+    });
+}
+
+function showToast(message, type = 'info', duration = 5000) {
+    const toastContainer = document.querySelector('.toast-container') || createToastContainer();
+    const toastId = 'toast-' + Date.now();
+    const bgClass = type === 'success' ? 'bg-success' :
+                   type === 'error' ? 'bg-danger' :
+                   type === 'warning' ? 'bg-warning' : 'bg-info';
+
+    const toastHTML = `
+        <div id="${toastId}" class="toast align-items-center ${bgClass} text-white border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    `;
+
+    toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement, { delay: duration });
+    toast.show();
+
+    toastElement.addEventListener('hidden.bs.toast', function () {
+        this.remove();
+    });
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.className = 'toast-container position-fixed top-0 end-0 p-3';
+    container.style.zIndex = '11000';
+    document.body.appendChild(container);
+    return container;
 }
 
 // Package Management
