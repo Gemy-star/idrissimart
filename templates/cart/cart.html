@@ -1,0 +1,500 @@
+{% extends "base.html" %}
+{% load static i18n %}
+
+{% block title %}{% trans "السلة" %} - {% trans "إدريسي مارت" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .cart-page {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        padding: 3rem 0;
+    }
+
+    .cart-header {
+        background: white;
+        border-radius: 20px;
+        padding: 2.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .cart-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+        background: linear-gradient(90deg, #4b315e, #3a2449);
+    }
+
+    .cart-header-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 70px;
+        height: 70px;
+        background: linear-gradient(135deg, #4b315e, #3a2449);
+        border-radius: 50%;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 8px 20px rgba(75, 49, 94, 0.3);
+    }
+
+    .cart-header-icon i {
+        font-size: 2rem;
+        color: white;
+    }
+
+    .cart-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+    }
+
+    .cart-subtitle {
+        color: #7f8c8d;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .cart-count-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: linear-gradient(135deg, #4b315e, #3a2449);
+        color: white;
+        padding: 0.4rem 1rem;
+        border-radius: 50px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        box-shadow: 0 4px 15px rgba(75, 49, 94, 0.3);
+    }
+
+    .cart-content {
+        display: grid;
+        grid-template-columns: 1fr 350px;
+        gap: 2rem;
+    }
+
+    @media (max-width: 992px) {
+        .cart-content {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .cart-items {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .cart-item {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        display: flex;
+        gap: 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .cart-item:hover {
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .cart-item-image {
+        width: 120px;
+        height: 120px;
+        border-radius: 10px;
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+
+    .cart-item-details {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .cart-item-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+    }
+
+    .cart-item-price {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #4b315e;
+    }
+
+    .cart-item-quantity {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .quantity-btn {
+        width: 35px;
+        height: 35px;
+        border: 2px solid #4b315e;
+        background: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .quantity-btn:hover {
+        background: #4b315e;
+        color: white;
+    }
+
+    .quantity-value {
+        min-width: 40px;
+        text-align: center;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+
+    .cart-item-remove {
+        background: #e74c3c;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .cart-item-remove:hover {
+        background: #c0392b;
+        transform: scale(1.05);
+    }
+
+    .cart-summary {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        position: sticky;
+        top: 100px;
+        height: fit-content;
+    }
+
+    .cart-summary-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #ecf0f1;
+    }
+
+    .cart-summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        font-size: 1rem;
+    }
+
+    .cart-summary-total {
+        display: flex;
+        justify-content: space-between;
+        padding: 1.5rem 0 1rem 0;
+        border-top: 2px solid #ecf0f1;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #4b315e;
+    }
+
+    .cart-checkout-btn {
+        width: 100%;
+        background: linear-gradient(135deg, #4b315e, #3a2449);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 1rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 1rem;
+    }
+
+    .cart-checkout-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(75, 49, 94, 0.3);
+    }
+
+    .cart-empty {
+        background: white;
+        border-radius: 20px;
+        padding: 4rem 2rem;
+        text-align: center;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+    }
+
+    .cart-empty-icon {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 2rem;
+        background: linear-gradient(135deg, #4b315e, #3a2449);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 10px 30px rgba(75, 49, 94, 0.3);
+    }
+
+    .cart-empty-icon i {
+        font-size: 3.5rem;
+        color: white;
+    }
+
+    .cart-empty-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 1rem;
+    }
+
+    .cart-empty-text {
+        font-size: 1.1rem;
+        color: #7f8c8d;
+        margin-bottom: 2rem;
+    }
+
+    .cart-empty-btn {
+        background: linear-gradient(135deg, #4b315e, #3a2449);
+        color: white;
+        padding: 1rem 2.5rem;
+        border-radius: 50px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-weight: 600;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 6px 20px rgba(75, 49, 94, 0.3);
+    }
+
+    .cart-empty-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(75, 49, 94, 0.4);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cart-page">
+    <div class="container">
+        <!-- Cart Header -->
+        <div class="cart-header text-center">
+            <div class="cart-header-icon">
+                <i class="fas fa-shopping-cart"></i>
+            </div>
+            <h1 class="cart-title">{% trans "سلة التسوق" %}</h1>
+            <p class="cart-subtitle">
+                {% if cart_items %}
+                    <span class="cart-count-badge">
+                        <i class="fas fa-box"></i>
+                        {{ cart_items|length }} {% trans "منتج" %}
+                    </span>
+                {% else %}
+                    <span>{% trans "سلة التسوق فارغة" %}</span>
+                {% endif %}
+            </p>
+        </div>
+
+        {% if cart_items %}
+            <div class="cart-content">
+                <!-- Cart Items -->
+                <div class="cart-items">
+                    {% for item in cart_items %}
+                        <div class="cart-item" data-item-id="{% if is_guest %}{{ item.ad.id }}{% else %}{{ item.id }}{% endif %}">
+                            <!-- Item Image -->
+                            {% if item.ad.images.first %}
+                                <img src="{{ item.ad.images.first.image.url }}"
+                                     alt="{{ item.ad.title }}"
+                                     class="cart-item-image">
+                            {% else %}
+                                <img src="{% static 'images/placeholder.png' %}"
+                                     alt="{{ item.ad.title }}"
+                                     class="cart-item-image">
+                            {% endif %}
+
+                            <!-- Item Details -->
+                            <div class="cart-item-details">
+                                <h3 class="cart-item-title">{{ item.ad.title }}</h3>
+                                <p class="cart-item-price">{{ item.ad.price }} {% trans "ر.س" %}</p>
+
+                                <!-- Quantity Control -->
+                                <div class="cart-item-quantity">
+                                    <button class="quantity-btn" onclick="updateQuantity({{ item.ad.id }}, -1)">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                    <span class="quantity-value">{% if is_guest %}{{ item.quantity }}{% else %}{{ item.quantity }}{% endif %}</span>
+                                    <button class="quantity-btn" onclick="updateQuantity({{ item.ad.id }}, 1)">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Item Total -->
+                                <p class="text-muted">
+                                    {% trans "المجموع:" %}
+                                    <strong>{% if is_guest %}{{ item.item_total }}{% else %}{{ item.get_total }}{% endif %} {% trans "ر.س" %}</strong>
+                                </p>
+                            </div>
+
+                            <!-- Remove Button -->
+                            <button class="cart-item-remove" onclick="removeFromCart({{ item.ad.id }})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Cart Summary -->
+                <div class="cart-summary">
+                    <h2 class="cart-summary-title">{% trans "ملخص الطلب" %}</h2>
+
+                    <div class="cart-summary-row">
+                        <span>{% trans "المجموع الفرعي:" %}</span>
+                        <span>{{ total_amount }} {% trans "ر.س" %}</span>
+                    </div>
+
+                    <div class="cart-summary-row">
+                        <span>{% trans "الضريبة:" %}</span>
+                        <span>0 {% trans "ر.س" %}</span>
+                    </div>
+
+                    <div class="cart-summary-total">
+                        <span>{% trans "الإجمالي:" %}</span>
+                        <span>{{ total_amount }} {% trans "ر.س" %}</span>
+                    </div>
+
+                    <button class="cart-checkout-btn" onclick="proceedToCheckout()">
+                        <i class="fas fa-credit-card me-2"></i>
+                        {% trans "إتمام عملية الشراء" %}
+                    </button>
+
+                    <a href="{% url 'main:home' %}" class="btn btn-outline-secondary w-100 mt-3">
+                        {% trans "متابعة التسوق" %}
+                    </a>
+                </div>
+            </div>
+        {% else %}
+            <!-- Empty Cart -->
+            <div class="cart-empty">
+                <div class="cart-empty-icon">
+                    <i class="fas fa-shopping-cart"></i>
+                </div>
+                <h2 class="cart-empty-title">{% trans "سلة التسوق فارغة!" %}</h2>
+                <p class="cart-empty-text">
+                    {% trans "لم تقم بإضافة أي منتجات إلى سلة التسوق حتى الآن" %}
+                </p>
+                <a href="{% url 'main:home' %}" class="cart-empty-btn">
+                    <i class="fas fa-arrow-left"></i>
+                    {% trans "تصفح المنتجات" %}
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function updateQuantity(adId, change) {
+    const lang = document.documentElement.lang || 'ar';
+    const formData = new FormData();
+    formData.append('ad_id', adId);
+    formData.append('action', change > 0 ? 'add' : 'remove');
+
+    fetch(`/${lang}/cart/update/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            showToast(data.message || '{% trans "حدث خطأ" %}', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('{% trans "حدث خطأ" %}', 'error');
+    });
+}
+
+function removeFromCart(adId) {
+    if (!confirm('{% trans "هل أنت متأكد من إزالة هذا المنتج؟" %}')) {
+        return;
+    }
+
+    const lang = document.documentElement.lang || 'ar';
+    const formData = new FormData();
+    formData.append('ad_id', adId);
+
+    fetch(`/${lang}/cart/remove/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            showToast(data.message || '{% trans "حدث خطأ" %}', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('{% trans "حدث خطأ" %}', 'error');
+    });
+}
+
+function proceedToCheckout() {
+    const lang = document.documentElement.lang || 'ar';
+    window.location.href = `/${lang}/checkout/`;
+}
+</script>
+{% endblock %}
