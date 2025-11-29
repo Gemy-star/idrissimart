@@ -134,6 +134,18 @@ async function addToCart(itemId, itemName = 'المنتج') {
             body: `item_id=${itemId}`
         });
 
+        // Check if response is JSON before parsing
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            console.error('Non-JSON response received:', await response.text());
+            showNotification('يجب تسجيل الدخول أولاً', 'error');
+            // Redirect to login after 2 seconds
+            setTimeout(() => {
+                window.location.href = '/accounts/login/?next=' + encodeURIComponent(window.location.pathname);
+            }, 2000);
+            return { success: false, error: 'Not authenticated' };
+        }
+
         const data = await response.json();
 
         if (data.success) {
@@ -176,6 +188,18 @@ async function removeFromCart(itemId, itemName = 'المنتج') {
             },
             body: `item_id=${itemId}`
         });
+
+        // Check if response is JSON before parsing
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            console.error('Non-JSON response received:', await response.text());
+            showNotification('يجب تسجيل الدخول أولاً', 'error');
+            // Redirect to login after 2 seconds
+            setTimeout(() => {
+                window.location.href = '/accounts/login/?next=' + encodeURIComponent(window.location.pathname);
+            }, 2000);
+            return { success: false, error: 'Not authenticated' };
+        }
 
         const data = await response.json();
 
