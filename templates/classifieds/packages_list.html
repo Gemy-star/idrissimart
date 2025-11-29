@@ -416,32 +416,31 @@ function purchasePackage(packageId) {
 }
 
 function activatePackage(packageId) {
-    if (confirm('{% trans "هل تريد تفعيل هذه الباقة المجانية؟" %}')) {
-        // Make AJAX call to activate package
-        fetch('/ajax/activate-package/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            },
-            body: JSON.stringify({
-                'package_id': packageId
-            })
+    // Make AJAX call to activate package without confirmation
+    fetch('/ajax/activate-package/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            'package_id': packageId
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                window.showNotification(data.message, 'success');
-                setTimeout(() => location.reload(), 1500);
-            } else {
-                window.showNotification(data.error, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            window.showNotification('{% trans "حدث خطأ في تفعيل الباقة" %}', 'error');
-        });
-    }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.showNotification(data.message, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            // Show error message using toast notification
+            window.showNotification(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        window.showNotification('{% trans "حدث خطأ في تفعيل الباقة" %}', 'error');
+    });
 }
 
 function processPayment(method) {
