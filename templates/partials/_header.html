@@ -628,57 +628,79 @@
         let subcategoriesSwiper = null;
         let categoriesSwiper = null;
 
-        // Initialize Categories Swiper
-        document.addEventListener('DOMContentLoaded', function() {
-            // Check if we have enough slides for loop mode
-            const categorySlides = document.querySelectorAll('.categories-swiper .swiper-slide');
-            const hasEnoughSlides = categorySlides.length >= 3; // Need at least 3 slides for smooth loop
+        // Initialize Categories Swiper with conditional marquee effect
+        const categorySlides = document.querySelectorAll('.categories-swiper .swiper-slide');
+        const slideCount = categorySlides.length;
 
-            categoriesSwiper = new Swiper('.categories-swiper', {
-                slidesPerView: 'auto',
-                spaceBetween: 8,
-                freeMode: false,
-                centeredSlides: hasEnoughSlides,
-                centeredSlidesBounds: hasEnoughSlides,
-                loop: hasEnoughSlides, // Only enable loop if we have enough slides
-                loopAdditionalSlides: hasEnoughSlides ? 2 : 0,
-                loopedSlides: hasEnoughSlides ? Math.min(5, categorySlides.length) : 0,
-                autoplay: hasEnoughSlides ? {
-                    delay: 0, // No delay between slides for continuous motion
-                    disableOnInteraction: false,
-                    reverseDirection: false, // Changed to false for natural left-to-right movement
-                    pauseOnMouseEnter: false // Don't pause on hover for marquee effect
-                } : false, // Disable autoplay if not enough slides
-                speed: hasEnoughSlides ? 5000 : 300, // Slower for marquee, normal for few slides
-                pagination: {
-                    el: '.categories-swiper-pagination',
-                    clickable: true,
-                    dynamicBullets: true,
+        // Determine if we need marquee based on screen size and slide count
+        const isMobile = window.innerWidth < 768;
+        const shouldEnableMarquee = isMobile ? slideCount > 3 : slideCount > 5;
+
+        // Calculate minimum slides required for loop mode (must be at least double slidesPerView)
+        const minSlidesForLoop = 6; // Safe minimum for 'auto' slidesPerView
+        const canEnableLoop = shouldEnableMarquee && slideCount >= minSlidesForLoop;
+
+        console.log('🎨 Categories Swiper - Slides:', slideCount, '| Mobile:', isMobile, '| Marquee:', shouldEnableMarquee, '| Loop enabled:', canEnableLoop);
+
+        categoriesSwiper = new Swiper('.categories-swiper', {
+            slidesPerView: 'auto',
+            spaceBetween: 20,
+            speed: shouldEnableMarquee ? 3000 : 300, // Slow for marquee, normal for navigation
+            loop: canEnableLoop, // Only enable loop if we have enough slides
+            loopedSlides: canEnableLoop ? Math.max(slideCount, 8) : 0,
+            loopAdditionalSlides: canEnableLoop ? 2 : 0,
+            centeredSlides: false,
+            allowTouchMove: true,
+            freeMode: !shouldEnableMarquee, // Enable free mode when not in marquee
+            slidesPerGroup: 1, // Move one slide at a time to avoid loop warnings
+            autoplay: canEnableLoop ? {
+                delay: 0,
+                disableOnInteraction: false,
+                pauseOnMouseEnter: true,
+                reverseDirection: false
+            } : false,
+            pagination: {
+                el: '.categories-swiper-pagination',
+                clickable: true,
+                dynamicBullets: true,
+            },
+            breakpoints: {
+                320: {
+                    spaceBetween: 10,
+                    speed: shouldEnableMarquee ? 2500 : 300,
+                    slidesPerGroup: 1,
                 },
-                breakpoints: {
-                    320: {
-                        spaceBetween: 6,
-                        slidesPerView: hasEnoughSlides ? 'auto' : Math.min(2, categorySlides.length),
-                    },
-                    640: {
-                        spaceBetween: 8,
-                        slidesPerView: hasEnoughSlides ? 'auto' : Math.min(3, categorySlides.length),
-                    },
-                    1024: {
-                        spaceBetween: 10,
-                        slidesPerView: hasEnoughSlides ? 'auto' : Math.min(4, categorySlides.length),
-                    }
+                640: {
+                    spaceBetween: 15,
+                    speed: shouldEnableMarquee ? 3000 : 300,
+                    slidesPerGroup: 1,
                 },
-                on: {
-                    init: function() {
-                        // Log configuration for debugging
-                        console.log('Categories Swiper initialized with', categorySlides.length, 'slides, loop:', hasEnoughSlides);
-                    }
+                1024: {
+                    spaceBetween: 20,
+                    speed: shouldEnableMarquee ? 3500 : 300,
+                    slidesPerGroup: 1,
                 }
-            });
-        });
+            },
+            on: {
+                init: function() {
+                    console.log('✅ Categories Swiper initialized');
+                    console.log('   Slides:', slideCount, '| Marquee:', shouldEnableMarquee, '| Loop:', canEnableLoop, '| Looped slides:', this.loopedSlides);
+                }
+            }
+        });        // Reinitialize on resize to adjust marquee behavior
+        let resizeTimer;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(function() {
+                const newIsMobile = window.innerWidth < 768;
+                const newShouldEnableMarquee = newIsMobile ? slideCount > 3 : slideCount > 5;
 
-        // Mobile menu toggle
+                if (categoriesSwiper && (newShouldEnableMarquee !== shouldEnableMarquee)) {
+                    categoriesSwiper.destroy(true, true);
+                    location.reload(); // Reload to reinitialize properly
+                }
+            }, 250);
+        });        // Mobile menu toggle
         function toggleMobileMenu(show) {
             if (show) {
                 mobileNav.classList.add('show');
