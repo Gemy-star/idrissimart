@@ -367,7 +367,9 @@ class CategoriesView(FilterView):
 
         # Calculate active categories based on parent filter
         if parent_category:
-            active_categories = parent_category.get_children().filter(is_active=True).count()
+            active_categories = (
+                parent_category.get_children().filter(is_active=True).count()
+            )
         else:
             active_categories = Category.objects.filter(
                 is_active=True,
@@ -539,7 +541,9 @@ class CategoriesView(FilterView):
 
         # Get direct children (subcategories) of the parent
         subcategories = (
-            parent_category.get_children().filter(is_active=True).order_by("order", "name")
+            parent_category.get_children()
+            .filter(is_active=True)
+            .order_by("order", "name")
         )
 
         for subcat in subcategories:
@@ -551,9 +555,7 @@ class CategoriesView(FilterView):
             # Process sub-subcategories
             sub_subcategory_data = []
             sub_subcategories = (
-                subcat.get_children()
-                .filter(is_active=True)
-                .order_by("order", "name")
+                subcat.get_children().filter(is_active=True).order_by("order", "name")
             )
 
             for sub_subcat in sub_subcategories:
@@ -2482,6 +2484,10 @@ class AdminDashboardView(SuperadminRequiredMixin, TemplateView):
 
         # Chart Data
         context["chart_data"] = self.get_chart_data()
+
+        # Chat Statistics
+        context["chat_stats"] = self.get_chat_stats()
+
         context["active_nav"] = "dashboard"
 
         return context
@@ -2531,6 +2537,47 @@ class AdminDashboardView(SuperadminRequiredMixin, TemplateView):
         )
 
         return stats
+
+    def get_chat_stats(self):
+        """Get chat statistics for admin dashboard"""
+        from main.models import ChatRoom, ChatMessage
+        from django.db.models import Q
+
+        # Support chat statistics
+        total_support_chats = ChatRoom.objects.filter(
+            room_type="publisher_admin"
+        ).count()
+        active_support_chats = ChatRoom.objects.filter(
+            room_type="publisher_admin", is_active=True
+        ).count()
+
+        # Unread messages from publishers to admin
+        unread_support_messages = ChatMessage.objects.filter(
+            room__room_type="publisher_admin",
+            is_read=False,
+            sender__is_staff=False,  # Messages from publishers
+        ).count()
+
+        # Regular chat statistics
+        total_user_chats = ChatRoom.objects.filter(
+            Q(room_type="user_to_user") | Q(room_type="ad_inquiry")
+        ).count()
+
+        # Recent chat activity (last 24 hours)
+        from django.utils import timezone
+
+        yesterday = timezone.now() - timedelta(hours=24)
+        recent_chat_activity = ChatMessage.objects.filter(
+            created_at__gte=yesterday
+        ).count()
+
+        return {
+            "total_support_chats": total_support_chats,
+            "active_support_chats": active_support_chats,
+            "unread_support_messages": unread_support_messages,
+            "total_user_chats": total_user_chats,
+            "recent_activity": recent_chat_activity,
+        }
 
     def get_recent_ads(self):
         """Get recent ads for admin review"""
@@ -4440,6 +4487,88 @@ def admin_chat_reopen(request, room_id):
 
     except Exception as e:
         return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
+@superadmin_required
+def admin_chat_notifications(request):
+    """Get chat notification counts for admin dashboard"""
+    from main.models import ChatRoom, ChatMessage
+    from django.db.models import Q
+
+    # Support chat statistics
+    unread_support_messages = ChatMessage.objects.filter(
+        room__room_type="publisher_admin",
+        is_read=False,
+        sender__is_staff=False,  # Messages from publishers
+    ).count()
+
+    # Regular chat statistics
+    total_user_chats = ChatRoom.objects.filter(
+        Q(room_type="user_to_user") | Q(room_type="ad_inquiry")
+    ).count()
+
+    # Recent activity (last 24 hours)
+    yesterday = timezone.now() - timedelta(hours=24)
+    recent_activity = ChatMessage.objects.filter(created_at__gte=yesterday).count()
+
+    return JsonResponse(
+        {
+            "unread_support_messages": unread_support_messages,
+            "total_user_chats": total_user_chats,
+            "recent_activity": recent_activity,
+        }
+    )
+
+
+@superadmin_required
+def admin_chat_history_data(request):
+    """Get chat history data for admin dashboard"""
+    from main.models import ChatRoom, ChatMessage
+    from django.db.models import Q, Max
+    from django.utils import timezone
+
+    # Get chat room statistics
+    total_chats = ChatRoom.objects.count()
+    active_chats = ChatRoom.objects.filter(is_active=True).count()
+
+    # Recent activity (last 24 hours)
+    yesterday = timezone.now() - timedelta(hours=24)
+    recent_activity = ChatMessage.objects.filter(created_at__gte=yesterday).count()
+
+    # Get recent chats with last messages
+    recent_chat_rooms = ChatRoom.objects.annotate(
+        last_message_time=Max("messages__created_at")
+    ).order_by("-last_message_time")[:10]
+
+    recent_chats = []
+    for room in recent_chat_rooms:
+        last_message = room.messages.order_by("-created_at").first()
+        participant = getattr(room, "publisher", None) or getattr(room, "client", None)
+
+        if participant and last_message:
+            recent_chats.append(
+                {
+                    "participant": participant.get_full_name() or participant.username,
+                    "last_message": (
+                        last_message.content[:50]
+                        + ("..." if len(last_message.content) > 50 else "")
+                        if hasattr(last_message, "content")
+                        else last_message.message[:50]
+                        + ("..." if len(last_message.message) > 50 else "")
+                    ),
+                    "status": "active" if room.is_active else "inactive",
+                    "last_activity": last_message.created_at.strftime("%Y-%m-%d %H:%M"),
+                }
+            )
+
+    return JsonResponse(
+        {
+            "total_chats": total_chats,
+            "active_chats": active_chats,
+            "recent_activity": recent_activity,
+            "recent_chats": recent_chats,
+        }
+    )
 
 
 class ChatWithPublisherView(LoginRequiredMixin, TemplateView):

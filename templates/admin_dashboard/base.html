@@ -442,6 +442,144 @@
                     break;
             }
         });
+
+        // Function to show chat history modal
+        function showChatHistory() {
+            // Create and show chat history modal
+            const existingModal = document.getElementById('chatHistoryModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            const modal = document.createElement('div');
+            modal.id = 'chatHistoryModal';
+            modal.className = 'chat-custom-modal active';
+            modal.innerHTML = `
+                <div class="chat-modal-backdrop" onclick="closeChatHistory()"></div>
+                <div class="chat-modal-content" style="max-width: 800px;">
+                    <div class="chat-modal-header">
+                        <h5>
+                            <i class="fas fa-history me-2"></i>
+                            تاريخ المحادثات
+                        </h5>
+                        <button type="button" class="btn-close" onclick="closeChatHistory()"></button>
+                    </div>
+                    <div class="chat-modal-body">
+                        <div class="text-center py-4">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p class="mt-2">جاري تحميل تاريخ المحادثات...</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            // Load chat history data
+            fetch('/admin/chat-history-data/')
+                .then(response => response.json())
+                .then(data => {
+                    const modalBody = modal.querySelector('.chat-modal-body');
+                    modalBody.innerHTML = `
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="stat-box mb-3">
+                                    <div class="text-center">
+                                        <h4>${data.total_chats || 0}</h4>
+                                        <p class="mb-0">إجمالي المحادثات</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="stat-box mb-3">
+                                    <div class="text-center">
+                                        <h4>${data.active_chats || 0}</h4>
+                                        <p class="mb-0">محادثات نشطة</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="stat-box mb-3">
+                                    <div class="text-center">
+                                        <h4>${data.recent_activity || 0}</h4>
+                                        <p class="mb-0">نشاط آخر 24 ساعة</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chat-history-list">
+                            ${data.recent_chats ? data.recent_chats.map(chat => `
+                                <div class="chat-history-item p-3 mb-2 border rounded">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <div>
+                                            <h6 class="mb-1">${chat.participant}</h6>
+                                            <p class="text-muted mb-0 small">${chat.last_message}</p>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge bg-${chat.status === 'active' ? 'success' : 'secondary'}">${chat.status}</span>
+                                            <small class="d-block text-muted">${chat.last_activity}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('') : '<p class="text-center text-muted">لا توجد محادثات</p>'}
+                        </div>
+                    `;
+                })
+                .catch(error => {
+                    console.error('Error loading chat history:', error);
+                    const modalBody = modal.querySelector('.chat-modal-body');
+                    modalBody.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            حدث خطأ في تحميل تاريخ المحادثات
+                        </div>
+                    `;
+                });
+        }
+
+        function closeChatHistory() {
+            const modal = document.getElementById('chatHistoryModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        // Function to update chat notifications
+        function updateChatNotifications() {
+            fetch('/admin/chat-notifications/')
+                .then(response => response.json())
+                .then(data => {
+                    const supportBadge = document.getElementById('admin-support-badge');
+                    const historyBadge = document.getElementById('chat-history-badge');
+
+                    if (supportBadge) {
+                        if (data.unread_support_messages > 0) {
+                            supportBadge.textContent = data.unread_support_messages;
+                            supportBadge.style.display = 'inline-block';
+                        } else {
+                            supportBadge.style.display = 'none';
+                        }
+                    }
+
+                    if (historyBadge) {
+                        if (data.total_user_chats > 0) {
+                            historyBadge.textContent = data.total_user_chats;
+                            historyBadge.style.display = 'inline-block';
+                        } else {
+                            historyBadge.style.display = 'none';
+                        }
+                    }
+                })
+                .catch(error => console.error('Error updating chat notifications:', error));
+        }
+
+        // Update chat notifications every 30 seconds
+        setInterval(updateChatNotifications, 30000);
+
+        // Initial load
+        document.addEventListener('DOMContentLoaded', updateChatNotifications);
+
+        // Make showChatHistory globally available
+        window.showChatHistory = showChatHistory;
     </script>
 
     {% block admin_extra_js %}{% endblock %}
