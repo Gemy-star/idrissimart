@@ -3270,10 +3270,9 @@ class AdminNotificationView(SuperadminRequiredMixin, ListView):
         context["active_nav"] = "notifications"
         return context
 
-    def get(self, request, *args, **kwargs):
-        """Mark all admin notifications as read when viewed"""
-        Notification.objects.filter(user=request.user).update(is_read=True)
-        return super().get(request, *args, **kwargs)
+    # Removed auto-mark-as-read functionality
+    # Admin viewing all notifications shouldn't mark them as read
+    # Individual notifications can be marked as read by their owners
 
 
 class AdminTranslationsView(SuperadminRequiredMixin, TemplateView):
@@ -4421,6 +4420,7 @@ def admin_chat_get_messages(request, room_id):
 
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Error getting messages for room {room_id}: {str(e)}")
         return JsonResponse({"success": False, "error": str(e)}, status=500)
@@ -4468,10 +4468,10 @@ def admin_chat_send_message(request, room_id):
         return JsonResponse({"success": False, "error": "Invalid JSON"}, status=400)
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Error sending message: {str(e)}")
         return JsonResponse({"success": False, "error": str(e)}, status=500)
-
 
 
 @superadmin_required
