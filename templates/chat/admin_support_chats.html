@@ -259,24 +259,25 @@
             </h5>
             <!-- Admin Tabs matching ads_management pattern -->
             <div class="nav nav-tabs admin-tabs mb-4" role="tablist">
-                <a class="nav-link nav-link-theme active" href="#" onclick="showTab('all-chats')">
+                <a class="nav-link nav-link-theme active" href="#" onclick="showTab('all-chats')" id="tab-all-chats">
                     <i class="fas fa-inbox me-2"></i>
                     {% trans "جميع المحادثات" %}
-                    <span class="badge bg-primary ms-1">{{ chat_rooms|length }}</span>
+                    <span class="badge bg-primary ms-1" id="count-all-chats">{{ chat_stats.total_chats|default:0 }}</span>
                 </a>
-                <a class="nav-link nav-link-theme" href="#" onclick="showTab('active-chats')">
+                <a class="nav-link nav-link-theme" href="#" onclick="showTab('active-chats')" id="tab-active-chats">
                     <i class="fas fa-comment-dots me-2"></i>
                     {% trans "نشطة" %}
-                    <span class="badge bg-warning ms-1">{{ chat_stats.active_chats }}</span>
+                    <span class="badge bg-warning ms-1" id="count-active-chats">{{ chat_stats.active_chats|default:0 }}</span>
                 </a>
-                <a class="nav-link nav-link-theme" href="#" onclick="showTab('unread-chats')">
+                <a class="nav-link nav-link-theme" href="#" onclick="showTab('unread-chats')" id="tab-unread-chats">
                     <i class="fas fa-envelope me-2"></i>
                     {% trans "غير مقروءة" %}
-                    <span class="badge bg-danger ms-1">{{ chat_stats.unread_messages }}</span>
+                    <span class="badge bg-danger ms-1" id="count-unread-chats">{{ chat_stats.unread_messages|default:0 }}</span>
                 </a>
-                <a class="nav-link nav-link-theme" href="#" onclick="showTab('resolved-chats')">
+                <a class="nav-link nav-link-theme" href="#" onclick="showTab('resolved-chats')" id="tab-resolved-chats">
                     <i class="fas fa-check-circle me-2"></i>
                     {% trans "محلولة" %}
+                    <span class="badge bg-secondary ms-1" id="count-resolved-chats">{{ chat_stats.resolved_chats|default:0 }}</span>
                 </a>
             </div>
         </div>
@@ -305,9 +306,16 @@
                                                         <small class="text-muted">@{{ room.publisher.username }}</small>
                                                     </div>
                                                 </div>
-                                                <p class="mb-1 text-muted small">
-                                                    {{ room.messages.last.message|truncatewords:10|default:"لا توجد رسائل" }}
-                                                </p>
+                                                <div class="message-preview-container">
+                                                    <p class="mb-1 text-muted small message-preview"
+                                                       data-full-message="{{ room.messages.last.message|default:'لا توجد رسائل' }}"
+                                                       onclick="toggleMessageView(this)"
+                                                       style="cursor: pointer;"
+                                                       title="انقر لعرض/إخفاء الرسالة كاملة">
+                                                        <span class="truncated-message">{{ room.messages.last.message|truncatewords:8|default:"لا توجد رسائل" }}</span>
+                                                        <i class="fas fa-expand-alt ms-1 expand-icon" style="font-size: 0.7em; opacity: 0.6;"></i>
+                                                    </p>
+                                                </div>
                                                 <small class="text-muted">
                                                     <i class="fas fa-clock me-1"></i>
                                                     {{ room.updated_at|timesince }}
@@ -659,7 +667,244 @@ function markAsResolved(roomId) {
     .catch(error => console.error('Error:', error));
 }
 
-function closeChat(roomId) {
+// Enhanced alert system with toast notifications
+function showToast(message, type = 'info', duration = 5000) {
+    const toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        // Create toast container if it doesn't exist
+        const container = document.createElement('div');
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        container.style.zIndex = '11000';
+        document.body.appendChild(container);
+    }
+
+    const toastId = 'toast-' + Date.now();
+    const iconClass = type === 'success' ? 'fas fa-check-circle text-success' :
+                     type === 'error' ? 'fas fa-exclamation-circle text-danger' :
+                     type === 'warning' ? 'fas fa-exclamation-triangle text-warning' :
+                     'fas fa-info-circle text-info';
+
+    const bgClass = type === 'success' ? 'bg-success' :
+                   type === 'error' ? 'bg-danger' :
+                   type === 'warning' ? 'bg-warning' :
+                   'bg-info';
+
+    const toastHTML = `
+        <div id="${toastId}" class="toast align-items-center ${bgClass} text-white border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="${iconClass} me-2"></i>
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    `;
+
+    const container = document.querySelector('.toast-container') || document.body;
+    container.insertAdjacentHTML('beforeend', toastHTML);
+
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement, { delay: duration });
+    toast.show();
+
+    // Remove element after hide
+    toastElement.addEventListener('hidden.bs.toast', function () {
+        this.remove();
+    });
+}
+
+// Replace standard alerts with enhanced notifications
+function showAlert(message, type = 'info') {
+    showToast(message, type);
+}
+
+// Enhanced message viewing functionality
+function toggleMessageView(element) {
+    const fullMessage = element.getAttribute('data-full-message');
+    const truncatedSpan = element.querySelector('.truncated-message');
+    const expandIcon = element.querySelector('.expand-icon');
+
+    if (element.classList.contains('expanded')) {
+        // Collapse to truncated view
+        const words = fullMessage.split(' ');
+        const truncated = words.slice(0, 8).join(' ') + (words.length > 8 ? '...' : '');
+        truncatedSpan.textContent = truncated;
+        expandIcon.className = 'fas fa-expand-alt ms-1 expand-icon';
+        expandIcon.style.opacity = '0.6';
+        element.classList.remove('expanded');
+        element.style.maxHeight = '';
+        element.style.whiteSpace = '';
+    } else {
+        // Expand to full message
+        truncatedSpan.textContent = fullMessage;
+        expandIcon.className = 'fas fa-compress-alt ms-1 expand-icon';
+        expandIcon.style.opacity = '1';
+        element.classList.add('expanded');
+        element.style.maxHeight = 'none';
+        element.style.whiteSpace = 'normal';
+    }
+}
+
+// Function to show full message content (fallback)
+function showFullMessage(element) {
+    const fullMessage = element.getAttribute('data-full-message');
+    if (fullMessage && fullMessage.length > 50) {
+        showToast(fullMessage, 'info', 8000);
+    }
+}
+
+// Notification management functions
+function showNotificationBreakdown() {
+    fetch('/admin/notifications-breakdown/')
+    .then(response => response.json())
+    .then(data => {
+        const modal = createNotificationModal('إشعارات العملاء', data.customer_notifications);
+        document.body.appendChild(modal);
+    })
+    .catch(error => {
+        console.error('Error loading customer notifications:', error);
+        showAlert('حدث خطأ في تحميل إشعارات العملاء', 'error');
+    });
+}
+
+function showPublisherNotifications() {
+    fetch('/admin/notifications-breakdown/')
+    .then(response => response.json())
+    .then(data => {
+        const modal = createNotificationModal('إشعارات الناشرين', data.publisher_notifications);
+        document.body.appendChild(modal);
+    })
+    .catch(error => {
+        console.error('Error loading publisher notifications:', error);
+        showAlert('حدث خطأ في تحميل إشعارات الناشرين', 'error');
+    });
+}
+
+function createNotificationModal(title, notifications) {
+    const modalId = 'notification-modal-' + Date.now();
+    const modal = document.createElement('div');
+    modal.id = modalId;
+    modal.className = 'chat-custom-modal active';
+    modal.innerHTML = `
+        <div class="chat-modal-backdrop" onclick="closeNotificationModal('${modalId}')"></div>
+        <div class="chat-modal-content" style="max-width: 900px; max-height: 80vh;">
+            <div class="chat-modal-header">
+                <h5>
+                    <i class="fas fa-bell me-2"></i>
+                    ${title}
+                </h5>
+                <button type="button" class="btn-close" onclick="closeNotificationModal('${modalId}')"></button>
+            </div>
+            <div class="chat-modal-body" style="max-height: 60vh; overflow-y: auto;">
+                ${notifications && notifications.length > 0 ?
+                    notifications.map(notification => `
+                        <div class="notification-item p-3 mb-2 border rounded ${notification.is_read ? '' : 'bg-light'}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">${notification.title}</h6>
+                                    <p class="mb-1 text-muted small">${notification.message}</p>
+                                    <small class="text-muted">
+                                        <i class="fas fa-user me-1"></i>
+                                        ${notification.user_name}
+                                        <span class="ms-2">
+                                            <i class="fas fa-clock me-1"></i>
+                                            ${notification.created_at}
+                                        </span>
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge ${notification.is_read ? 'bg-secondary' : 'bg-primary'}">
+                                        ${notification.is_read ? 'مقروءة' : 'غير مقروءة'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('') :
+                    '<p class="text-center text-muted py-4">لا توجد إشعارات</p>'
+                }
+            </div>
+        </div>
+    `;
+    return modal;
+}
+
+function closeNotificationModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// Function to update tab counts
+function updateTabCounts() {
+    fetch('/admin/chat-notifications/')
+    .then(response => response.json())
+    .then(data => {
+        // Update chat badges
+        const countAllChats = document.getElementById('count-all-chats');
+        const countActiveChats = document.getElementById('count-active-chats');
+        const countUnreadChats = document.getElementById('count-unread-chats');
+
+        if (countAllChats) countAllChats.textContent = data.total_support_chats || 0;
+        if (countActiveChats) countActiveChats.textContent = data.active_support_chats || 0;
+        if (countUnreadChats) countUnreadChats.textContent = data.unread_support_messages || 0;
+
+        // Update resolved count (total - active)
+        const countResolvedChats = document.getElementById('count-resolved-chats');
+        if (countResolvedChats) {
+            const resolvedCount = (data.total_support_chats || 0) - (data.active_support_chats || 0);
+            countResolvedChats.textContent = resolvedCount;
+        }
+
+        // Show notification if there are new unread messages
+        if (data.unread_support_messages > 0) {
+            const currentCount = parseInt(countUnreadChats?.getAttribute('data-last-count') || '0');
+            if (data.unread_support_messages > currentCount) {
+                showToast(`لديك ${data.unread_support_messages} رسائل غير مقروءة جديدة`, 'warning');
+            }
+            countUnreadChats?.setAttribute('data-last-count', data.unread_support_messages);
+        }
+    })
+    .catch(error => console.error('Error updating tab counts:', error));
+
+    // Update notification counts
+    updateNotificationCounts();
+}
+
+// Function to update notification counts
+function updateNotificationCounts() {
+    fetch('/admin/notification-counts-update/')
+    .then(response => response.json())
+    .then(data => {
+        // Update navigation badges
+        updateBadge('total-notifications-badge', data.unread_notifications);
+        updateBadge('customer-notifications-badge', data.unread_customer_notifications);
+        updateBadge('publisher-notifications-badge', data.unread_publisher_notifications);
+
+        // Show notification for new notifications
+        const totalBadge = document.getElementById('total-notifications-badge');
+        const currentTotal = parseInt(totalBadge?.getAttribute('data-last-count') || '0');
+        if (data.unread_notifications > currentTotal) {
+            showToast(`لديك ${data.unread_notifications - currentTotal} إشعارات جديدة`, 'info');
+        }
+        totalBadge?.setAttribute('data-last-count', data.unread_notifications);
+    })
+    .catch(error => console.error('Error updating notification counts:', error));
+}
+
+// Helper function to update badge visibility and count
+function updateBadge(badgeId, count) {
+    const badge = document.getElementById(badgeId);
+    if (badge) {
+        if (count > 0) {
+            badge.textContent = count;
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+}function closeChat(roomId) {
     if (!confirm('هل أنت متأكد من إغلاق هذه المحادثة؟')) return;
     markAsResolved(roomId);
 }
@@ -676,29 +921,106 @@ function reopenChat(roomId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
+            showToast('تم إعادة فتح المحادثة بنجاح', 'success');
+            setTimeout(() => location.reload(), 1000);
         } else {
-            alert(data.error || 'حدث خطأ');
+            showAlert(data.error || 'حدث خطأ', 'error');
         }
     })
-    .catch(error => console.error('Error:', error));
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('حدث خطأ في الاتصال', 'error');
+    });
 }
 
-// Search functionality
+// Search functionality with enhanced UX
 document.getElementById('chatSearch')?.addEventListener('input', function(e) {
     const searchTerm = e.target.value.toLowerCase();
-    document.querySelectorAll('.chat-list-item').forEach(item => {
+    const chatItems = document.querySelectorAll('.chat-list-item');
+    let visibleCount = 0;
+
+    chatItems.forEach(item => {
         const text = item.textContent.toLowerCase();
-        item.style.display = text.includes(searchTerm) ? '' : 'none';
+        const isVisible = text.includes(searchTerm);
+        item.style.display = isVisible ? '' : 'none';
+        if (isVisible) visibleCount++;
     });
+
+    // Show search results count
+    if (searchTerm) {
+        showToast(`تم العثور على ${visibleCount} محادثة`, 'info', 2000);
+    }
 });
 
-// Auto-scroll to bottom on page load
-document.addEventListener('DOMContentLoaded', function() {
+// Auto-scroll to bottom on page load and message updates
+function scrollToBottom() {
     const messagesContainer = document.getElementById('chatMessages');
     if (messagesContainer) {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
+}
+
+// Enhanced markAsResolved function
+function markAsResolved(roomId) {
+    fetch(`/admin/support-chats/${roomId}/resolve/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('تم وضع المحادثة كمحلولة', 'success');
+            updateTabCounts();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert(data.error || 'حدث خطأ', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('حدث خطأ في الاتصال', 'error');
+    });
+}
+
+// Auto-refresh functionality
+let autoRefreshInterval;
+
+function startAutoRefresh() {
+    // Update tab counts every 30 seconds
+    autoRefreshInterval = setInterval(updateTabCounts, 30000);
+}
+
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    scrollToBottom();
+    startAutoRefresh();
+    updateTabCounts(); // Initial load
+
+    // Stop auto-refresh when page is hidden (performance optimization)
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            stopAutoRefresh();
+        } else {
+            startAutoRefresh();
+        }
+    });
+
+    // Add click handlers for tab switching
+    document.querySelectorAll('.nav-link-theme').forEach(tab => {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            const tabId = this.onclick.toString().match(/showTab\('([^']+)'\)/)[1];
+            showTab(tabId);
+        });
+    });
 });
 </script>
 {% endblock %}

@@ -4369,11 +4369,15 @@ class AdminSupportChatsView(SuperadminRequiredMixin, TemplateView):
             is_active=False, updated_at__gte=today_start
         ).count()
 
+        # Count total resolved chats
+        resolved_chats = chat_rooms.filter(is_active=False).count()
+
         context["chat_stats"] = {
             "total_chats": total_chats,
             "active_chats": active_chats,
             "unread_messages": unread_messages,
             "resolved_today": resolved_today,
+            "resolved_chats": resolved_chats,
         }
 
         return context
@@ -4507,6 +4511,13 @@ def admin_chat_notifications(request):
         Q(room_type="user_to_user") | Q(room_type="ad_inquiry")
     ).count()
 
+    # Support chat totals
+    total_support_chats = ChatRoom.objects.filter(room_type="publisher_admin").count()
+    active_support_chats = ChatRoom.objects.filter(
+        room_type="publisher_admin", is_active=True
+    ).count()
+    resolved_support_chats = total_support_chats - active_support_chats
+
     # Recent activity (last 24 hours)
     yesterday = timezone.now() - timedelta(hours=24)
     recent_activity = ChatMessage.objects.filter(created_at__gte=yesterday).count()
@@ -4516,6 +4527,9 @@ def admin_chat_notifications(request):
             "unread_support_messages": unread_support_messages,
             "total_user_chats": total_user_chats,
             "recent_activity": recent_activity,
+            "total_support_chats": total_support_chats,
+            "active_support_chats": active_support_chats,
+            "resolved_support_chats": resolved_support_chats,
         }
     )
 
@@ -4567,6 +4581,109 @@ def admin_chat_history_data(request):
             "active_chats": active_chats,
             "recent_activity": recent_activity,
             "recent_chats": recent_chats,
+        }
+    )
+
+
+@superadmin_required
+def admin_notifications_breakdown(request):
+    """Get detailed breakdown of notifications by user type"""
+    from main.models import Notification
+    from django.db.models import Q
+
+    # Customer notifications (regular users)
+    customer_notifications = (
+        Notification.objects.filter(user__is_staff=False, user__groups__isnull=True)
+        .select_related("user")
+        .order_by("-created_at")[:20]
+    )
+
+    # Publisher notifications (users with ads)
+    publisher_notifications = (
+        Notification.objects.filter(
+            Q(
+                notification_type__in=[
+                    "ad_approved",
+                    "ad_rejected",
+                    "ad_expired",
+                    "package_expired",
+                ]
+            )
+            | Q(user__classifiedad__isnull=False)
+        )
+        .distinct()
+        .select_related("user")
+        .order_by("-created_at")[:20]
+    )
+
+    # Format notifications for JSON response
+    def format_notifications(notifications):
+        return [
+            {
+                "id": notif.id,
+                "title": notif.title,
+                "message": notif.message,
+                "user_name": notif.user.get_full_name() or notif.user.username,
+                "is_read": notif.is_read,
+                "created_at": notif.created_at.strftime("%Y-%m-%d %H:%M"),
+                "notification_type": notif.notification_type,
+            }
+            for notif in notifications
+        ]
+
+    return JsonResponse(
+        {
+            "customer_notifications": format_notifications(customer_notifications),
+            "publisher_notifications": format_notifications(publisher_notifications),
+        }
+    )
+
+
+@superadmin_required
+def admin_notification_counts_update(request):
+    """Update notification counts for real-time dashboard updates"""
+    from main.models import Notification
+    from django.db.models import Q
+
+    # Get updated counts
+    total_notifications = Notification.objects.count()
+    unread_notifications = Notification.objects.filter(is_read=False).count()
+
+    # Admin notifications
+    unread_admin_notifications = Notification.objects.filter(
+        Q(notification_type="general") | Q(user__is_staff=True), is_read=False
+    ).count()
+
+    # Customer notifications
+    unread_customer_notifications = Notification.objects.filter(
+        user__is_staff=False, user__groups__isnull=True, is_read=False
+    ).count()
+
+    # Publisher notifications
+    unread_publisher_notifications = (
+        Notification.objects.filter(
+            Q(
+                notification_type__in=[
+                    "ad_approved",
+                    "ad_rejected",
+                    "ad_expired",
+                    "package_expired",
+                ]
+            )
+            | Q(user__classifiedad__isnull=False),
+            is_read=False,
+        )
+        .distinct()
+        .count()
+    )
+
+    return JsonResponse(
+        {
+            "total_notifications": total_notifications,
+            "unread_notifications": unread_notifications,
+            "unread_admin_notifications": unread_admin_notifications,
+            "unread_customer_notifications": unread_customer_notifications,
+            "unread_publisher_notifications": unread_publisher_notifications,
         }
     )
 

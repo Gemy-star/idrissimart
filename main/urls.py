@@ -765,6 +765,16 @@ urlpatterns = [
         name="admin_chat_history_data",
     ),
     path(
+        "admin/notifications-breakdown/",
+        views.admin_notifications_breakdown,
+        name="admin_notifications_breakdown",
+    ),
+    path(
+        "admin/notification-counts-update/",
+        views.admin_notification_counts_update,
+        name="admin_notification_counts_update",
+    ),
+    path(
         "chat/publisher/<int:ad_id>/",
         views.ChatWithPublisherView.as_view(),
         name="chat_with_publisher",
