@@ -125,45 +125,43 @@ def cart_wishlist_counts(request):
                     is_read=False
                 ).count()
 
-                # Admin notifications (general system notifications)
-                context["admin_notifications"] = Notification.objects.filter(
+                # Customer notifications (regular users without staff status and no special groups)
+                customer_notifications_qs = Notification.objects.filter(
+                    user__is_staff=False,
+                    user__groups__isnull=True
+                )
+                context["customer_notifications"] = customer_notifications_qs.count()
+                context["unread_customer_notifications"] = customer_notifications_qs.filter(
+                    is_read=False
+                ).count()
+
+                # Publisher notifications (users with published ads)
+                # Check for users who have classifieds
+                from main.models import ClassifiedAd
+                publisher_user_ids = ClassifiedAd.objects.values_list('user_id', flat=True).distinct()
+                publisher_notifications_qs = Notification.objects.filter(
+                    user_id__in=publisher_user_ids
+                )
+                context["publisher_notifications"] = publisher_notifications_qs.count()
+                context["unread_publisher_notifications"] = publisher_notifications_qs.filter(
+                    is_read=False
+                ).count()
+
+                # Admin notifications - general or for staff users
+                admin_notifications_qs = Notification.objects.filter(
                     Q(notification_type="general") | Q(user__is_staff=True)
+                )
+                context["admin_notifications"] = admin_notifications_qs.count()
+                context["unread_admin_notifications"] = admin_notifications_qs.filter(
+                    is_read=False
                 ).count()
 
-                # Customer notifications (regular users)
-                context["customer_notifications"] = Notification.objects.filter(
-                    user__is_staff=False, user__groups__isnull=True  # No special groups
-                ).count()
-
-                # Publisher notifications (users with ads)
-                context["publisher_notifications"] = Notification.objects.filter(
-                    notification_type__in=[
-                        "ad_approved",
-                        "ad_rejected",
-                        "ad_expired",
-                        "package_expired",
-                    ]
-                ).count()
-
-                # Unread counts by type
-                context["unread_admin_notifications"] = Notification.objects.filter(
-                    Q(notification_type="general") | Q(user__is_staff=True),
-                    is_read=False,
-                ).count()
-
-                context["unread_customer_notifications"] = Notification.objects.filter(
-                    user__is_staff=False, user__groups__isnull=True, is_read=False
-                ).count()
-
-                context["unread_publisher_notifications"] = Notification.objects.filter(
-                    notification_type__in=[
-                        "ad_approved",
-                        "ad_rejected",
-                        "ad_expired",
-                        "package_expired",
-                    ],
-                    is_read=False,
-                ).count()
+                logger.info(
+                    f"Admin {request.user.username} - Total notifications: {context['total_notifications']}, "
+                    f"Unread: {context['unread_notifications']}, "
+                    f"Customer unread: {context['unread_customer_notifications']}, "
+                    f"Publisher unread: {context['unread_publisher_notifications']}"
+                )
             else:
                 # Non-admin users - set admin-specific counts to 0
                 context["unread_support_messages"] = 0

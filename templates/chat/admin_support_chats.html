@@ -601,8 +601,14 @@ function loadChat(roomId) {
     });
 
     // Load chat via AJAX
-    fetch(`/admin/support-chats/${roomId}/messages/`)
-        .then(response => response.json())
+    const url = `{% url 'main:admin_chat_get_messages' room_id=0 %}`.replace('/0/', `/${roomId}/`);
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             console.log('Chat loaded:', data);
             if (data.success) {
@@ -616,9 +622,13 @@ function loadChat(roomId) {
                 }
             } else {
                 console.error('Failed to load chat:', data.error);
+                showToast(data.error || 'حدث خطأ في تحميل المحادثة', 'error');
             }
         })
-        .catch(error => console.error('Error loading chat:', error));
+        .catch(error => {
+            console.error('Error loading chat:', error);
+            showToast('حدث خطأ في تحميل المحادثة', 'error');
+        });
 }
 
 function sendMessage(event, roomId) {
@@ -634,7 +644,8 @@ function sendMessage(event, roomId) {
 
     console.log('Sending message to room', roomId, ':', message);
 
-    fetch(`/admin/support-chats/${roomId}/send/`, {
+    const url = `{% url 'main:admin_chat_send_message' room_id=0 %}`.replace('/0/', `/${roomId}/`);
+    fetch(url, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -644,6 +655,9 @@ function sendMessage(event, roomId) {
     })
     .then(response => {
         console.log('Response status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         return response.json();
     })
     .then(data => {
@@ -669,18 +683,51 @@ function sendMessage(event, roomId) {
 }
 
 function markAsResolved(roomId) {
-    if (!confirm('هل أنت متأكد من وضع هذه المحادثة كمحلولة؟')) return;
+    // Create confirmation toast instead of alert
+    const confirmToast = document.createElement('div');
+    confirmToast.className = 'position-fixed top-50 start-50 translate-middle p-4 bg-white rounded shadow-lg';
+    confirmToast.style.zIndex = '11000';
+    confirmToast.style.minWidth = '300px';
+    confirmToast.innerHTML = `
+        <div class="text-center">
+            <i class="fas fa-check-circle text-success fa-3x mb-3"></i>
+            <h5>تأكيد الحل</h5>
+            <p class="text-muted">هل أنت متأكد من وضع هذه المحادثة كمحلولة؟</p>
+            <div class="d-flex gap-2 justify-content-center mt-3">
+                <button class="btn btn-success" onclick="confirmMarkAsResolved(${roomId})">
+                    <i class="fas fa-check me-1"></i> نعم، وضع كمحلول
+                </button>
+                <button class="btn btn-secondary" onclick="this.closest('div').parentElement.remove()">
+                    <i class="fas fa-times me-1"></i> إلغاء
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(confirmToast);
+}
 
-    fetch(`/admin/support-chats/${roomId}/resolve/`, {
+function confirmMarkAsResolved(roomId) {
+    // Remove confirmation dialog
+    document.querySelectorAll('.position-fixed.top-50').forEach(el => el.remove());
+
+    // Execute resolve action
+    const url = `{% url 'main:admin_chat_resolve' room_id=0 %}`.replace('/0/', `/${roomId}/`);
+    fetch(url, {
         method: 'POST',
         headers: {
             'X-CSRFToken': getCookie('csrftoken')
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             showToast('تم وضع المحادثة كمحلولة بنجاح', 'success');
+            updateTabCounts();
             setTimeout(() => location.reload(), 1000);
         } else {
             showToast(data.error || 'حدث خطأ', 'error');
@@ -781,8 +828,14 @@ function showFullMessage(element) {
 
 // Notification management functions
 function showNotificationBreakdown() {
-    fetch('/admin/notifications-breakdown/')
-    .then(response => response.json())
+    const url = "{% url 'main:admin_notifications_breakdown' %}";
+    fetch(url)
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         const modal = createNotificationModal('إشعارات العملاء', data.customer_notifications);
         document.body.appendChild(modal);
@@ -794,8 +847,14 @@ function showNotificationBreakdown() {
 }
 
 function showPublisherNotifications() {
-    fetch('/admin/notifications-breakdown/')
-    .then(response => response.json())
+    const url = "{% url 'main:admin_notifications_breakdown' %}";
+    fetch(url)
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         const modal = createNotificationModal('إشعارات الناشرين', data.publisher_notifications);
         document.body.appendChild(modal);
@@ -863,8 +922,14 @@ function closeNotificationModal(modalId) {
 
 // Function to update tab counts
 function updateTabCounts() {
-    fetch('/admin/chat-notifications/')
-    .then(response => response.json())
+    const url = "{% url 'main:admin_chat_notifications' %}";
+    fetch(url)
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         // Update chat badges
         const countAllChats = document.getElementById('count-all-chats');
@@ -899,8 +964,14 @@ function updateTabCounts() {
 
 // Function to update notification counts
 function updateNotificationCounts() {
-    fetch('/admin/notification-counts-update/')
-    .then(response => response.json())
+    const url = "{% url 'main:admin_notification_counts_update' %}";
+    fetch(url)
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         // Update navigation badges
         updateBadge('total-notifications-badge', data.unread_notifications);
@@ -932,31 +1003,89 @@ function updateBadge(badgeId, count) {
 }
 
 function closeChat(roomId) {
-    if (!confirm('هل أنت متأكد من إغلاق هذه المحادثة؟')) return;
+    // Create confirmation toast instead of alert
+    const confirmToast = document.createElement('div');
+    confirmToast.className = 'position-fixed top-50 start-50 translate-middle p-4 bg-white rounded shadow-lg';
+    confirmToast.style.zIndex = '11000';
+    confirmToast.style.minWidth = '300px';
+    confirmToast.innerHTML = `
+        <div class="text-center">
+            <i class="fas fa-times-circle text-danger fa-3x mb-3"></i>
+            <h5>تأكيد الإغلاق</h5>
+            <p class="text-muted">هل أنت متأكد من إغلاق هذه المحادثة؟</p>
+            <div class="d-flex gap-2 justify-content-center mt-3">
+                <button class="btn btn-danger" onclick="confirmCloseChat(${roomId})">
+                    <i class="fas fa-check me-1"></i> نعم، إغلاق
+                </button>
+                <button class="btn btn-secondary" onclick="this.closest('div').parentElement.remove()">
+                    <i class="fas fa-times me-1"></i> إلغاء
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(confirmToast);
+}
+
+function confirmCloseChat(roomId) {
+    // Remove confirmation dialog
+    document.querySelectorAll('.position-fixed.top-50').forEach(el => el.remove());
+    // Execute close action
     markAsResolved(roomId);
 }
 
 function reopenChat(roomId) {
-    if (!confirm('هل أنت متأكد من إعادة فتح هذه المحادثة؟')) return;
+    // Create confirmation toast instead of alert
+    const confirmToast = document.createElement('div');
+    confirmToast.className = 'position-fixed top-50 start-50 translate-middle p-4 bg-white rounded shadow-lg';
+    confirmToast.style.zIndex = '11000';
+    confirmToast.style.minWidth = '300px';
+    confirmToast.innerHTML = `
+        <div class="text-center">
+            <i class="fas fa-redo text-warning fa-3x mb-3"></i>
+            <h5>تأكيد إعادة الفتح</h5>
+            <p class="text-muted">هل أنت متأكد من إعادة فتح هذه المحادثة؟</p>
+            <div class="d-flex gap-2 justify-content-center mt-3">
+                <button class="btn btn-warning" onclick="confirmReopenChat(${roomId})">
+                    <i class="fas fa-check me-1"></i> نعم، إعادة فتح
+                </button>
+                <button class="btn btn-secondary" onclick="this.closest('div').parentElement.remove()">
+                    <i class="fas fa-times me-1"></i> إلغاء
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(confirmToast);
+}
 
-    fetch(`/admin/support-chats/${roomId}/reopen/`, {
+function confirmReopenChat(roomId) {
+    // Remove confirmation dialog
+    document.querySelectorAll('.position-fixed.top-50').forEach(el => el.remove());
+
+    // Execute reopen action
+    const url = `{% url 'main:admin_chat_reopen' room_id=0 %}`.replace('/0/', `/${roomId}/`);
+    fetch(url, {
         method: 'POST',
         headers: {
             'X-CSRFToken': getCookie('csrftoken')
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             showToast('تم إعادة فتح المحادثة بنجاح', 'success');
             setTimeout(() => location.reload(), 1000);
         } else {
-            showAlert(data.error || 'حدث خطأ', 'error');
+            showToast(data.error || 'حدث خطأ', 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showAlert('حدث خطأ في الاتصال', 'error');
+        showToast('حدث خطأ في الاتصال', 'error');
     });
 }
 
@@ -987,29 +1116,7 @@ function scrollToBottom() {
     }
 }
 
-// Enhanced markAsResolved function
-function markAsResolved(roomId) {
-    fetch(`/admin/support-chats/${roomId}/resolve/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken')
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showToast('تم وضع المحادثة كمحلولة', 'success');
-            updateTabCounts();
-            setTimeout(() => location.reload(), 1000);
-        } else {
-            showAlert(data.error || 'حدث خطأ', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showAlert('حدث خطأ في الاتصال', 'error');
-    });
-}
+// markAsResolved function defined above - removed duplicate
 
 // Auto-refresh functionality
 let autoRefreshInterval;
