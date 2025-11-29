@@ -86,6 +86,11 @@ urlpatterns = [
         name="my_ads",
     ),
     path(
+        "publisher/reports/",
+        classifieds_views.PublisherReportsView.as_view(),
+        name="publisher_reports",
+    ),
+    path(
         "classifieds/create/",
         classifieds_views.ClassifiedAdCreateView.as_view(),
         name="ad_create",
@@ -94,6 +99,11 @@ urlpatterns = [
         "classifieds/<int:pk>/edit/",
         classifieds_views.ClassifiedAdUpdateView.as_view(),
         name="ad_update",
+    ),
+    path(
+        "classifieds/delete/<int:ad_id>/",
+        classifieds_views.PublisherDeleteAdView.as_view(),
+        name="publisher_ad_delete",
     ),
     path(
         "classifieds/create/success/<int:pk>/",
@@ -376,6 +386,36 @@ urlpatterns = [
         "dashboard/notifications/",
         views.PublisherNotificationView.as_view(),
         name="publisher_notifications",
+    ),
+    path(
+        "dashboard/settings/",
+        views.PublisherSettingsView.as_view(),
+        name="publisher_settings",
+    ),
+    path(
+        "dashboard/settings/update-profile/",
+        views.publisher_update_profile,
+        name="publisher_update_profile",
+    ),
+    path(
+        "dashboard/settings/update-notifications/",
+        views.publisher_update_notifications,
+        name="publisher_update_notifications",
+    ),
+    path(
+        "dashboard/settings/change-password/",
+        views.publisher_change_password,
+        name="publisher_change_password",
+    ),
+    path(
+        "dashboard/settings/update-email/",
+        views.publisher_update_email,
+        name="publisher_update_email",
+    ),
+    path(
+        "dashboard/settings/delete-account/",
+        views.publisher_delete_account,
+        name="publisher_delete_account",
     ),
     path(
         "dashboard/ad/<int:ad_id>/toggle-status/",
@@ -707,6 +747,11 @@ urlpatterns = [
     path("chat/room/<int:room_id>/", chat_views.chat_room, name="chat_room"),
     path("chat/room/", chat_views.chat_room, name="chat_room_new"),
     path(
+        "chat/room/<int:room_id>/archive/",
+        chat_views.archive_chat_room,
+        name="archive_chat_room",
+    ),
+    path(
         "chat/room/<int:room_id>/send/",
         chat_views.send_message,
         name="chat_send_message",
@@ -732,6 +777,11 @@ urlpatterns = [
         "publisher/support/",
         views.PublisherSupportChatView.as_view(),
         name="publisher_support_chat",
+    ),
+    path(
+        "publisher/support/create/",
+        chat_views.create_support_ticket,
+        name="create_support_ticket",
     ),
     path(
         "admin/support-chats/",
@@ -788,5 +838,16 @@ urlpatterns = [
         "chat/publisher/<int:ad_id>/",
         views.ChatWithPublisherView.as_view(),
         name="chat_with_publisher",
+    ),
+    # Newsletter URLs
+    path(
+        "newsletter/subscribe/",
+        views.newsletter_subscribe,
+        name="newsletter_subscribe",
+    ),
+    path(
+        "newsletter/unsubscribe/<str:email>/",
+        views.newsletter_unsubscribe,
+        name="newsletter_unsubscribe",
     ),
 ]

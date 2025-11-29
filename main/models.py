@@ -2540,3 +2540,37 @@ class Visitor(models.Model):
         if end_date:
             queryset = queryset.filter(first_visit__lte=end_date)
         return queryset.values('ip_address').distinct().count()
+
+
+class NewsletterSubscriber(models.Model):
+    """
+    Newsletter subscription model for managing email subscribers.
+    """
+
+    email = models.EmailField(unique=True, verbose_name=_("البريد الإلكتروني"))
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
+    subscribed_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الاشتراك"))
+    unsubscribed_at = models.DateTimeField(null=True, blank=True, verbose_name=_("تاريخ إلغاء الاشتراك"))
+    ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name=_("عنوان IP"))
+    user_agent = models.TextField(blank=True, verbose_name=_("متصفح المستخدم"))
+
+    class Meta:
+        db_table = "newsletter_subscribers"
+        verbose_name = _("Newsletter Subscriber")
+        verbose_name_plural = _("Newsletter Subscribers")
+        ordering = ["-subscribed_at"]
+        indexes = [
+            models.Index(fields=["email"]),
+            models.Index(fields=["is_active"]),
+            models.Index(fields=["subscribed_at"]),
+        ]
+
+    def __str__(self):
+        status = _("نشط") if self.is_active else _("غير نشط")
+        return f"{self.email} - {status}"
+
+    def unsubscribe(self):
+        """Mark subscriber as inactive"""
+        self.is_active = False
+        self.unsubscribed_at = timezone.now()
+        self.save()

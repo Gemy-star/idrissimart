@@ -1,0 +1,830 @@
+{% extends 'dashboard/base.html' %}
+{% load static i18n %}
+
+{% block publisher_title %}{% trans "إعدادات الحساب" %}{% endblock %}
+
+{% block publisher_extra_css %}
+<style>
+    /* Ensure tab content is visible */
+    .tab-pane {
+        display: none;
+    }
+    .tab-pane.active {
+        display: block !important;
+    }
+    .tab-pane.show {
+        opacity: 1 !important;
+    }
+
+    /* Force visibility of content */
+    .tab-content {
+        display: block !important;
+    }
+
+    .settings-container {
+        background: var(--card-bg);
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .settings-tabs {
+        border-bottom: 2px solid var(--border-color);
+        margin-bottom: 2rem;
+    }
+
+    .settings-tabs .nav-link {
+        border: none;
+        border-bottom: 3px solid transparent;
+        color: var(--text-muted);
+        padding: 1rem 1.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .settings-tabs .nav-link:hover {
+        color: var(--primary-color);
+        border-bottom-color: var(--primary-light);
+    }
+
+    .settings-tabs .nav-link.active {
+        color: var(--primary-color);
+        border-bottom-color: var(--primary-color);
+        background: transparent;
+    }
+
+    .settings-tabs .nav-link i {
+        margin-left: 0.5rem;
+    }
+
+    .settings-section {
+        margin-bottom: 2.5rem;
+    }
+
+    .settings-section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        color: var(--text-color);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .settings-section-title i {
+        color: var(--primary-color);
+    }
+
+    .profile-avatar-section {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .profile-avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid var(--primary-light);
+        margin-bottom: 1rem;
+    }
+
+    .profile-avatar-placeholder {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: var(--primary-light);
+        color: var(--primary-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        font-weight: 600;
+        margin: 0 auto 1rem;
+    }
+
+    .btn-upload {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn-upload input[type="file"] {
+        position: absolute;
+        top: 0;
+        right: 0;
+        min-width: 100%;
+        min-height: 100%;
+        font-size: 100px;
+        text-align: right;
+        filter: alpha(opacity=0);
+        opacity: 0;
+        outline: none;
+        background: white;
+        cursor: inherit;
+        display: block;
+    }
+
+    .danger-zone {
+        background: #fff3f3;
+        border: 1px solid #ffdddd;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-top: 2rem;
+    }
+
+    .danger-zone-title {
+        color: #d32f2f;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: var(--text-color);
+    }
+
+    .form-control:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.15);
+    }
+
+    .notification-item {
+        padding: 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .notification-item-content h6 {
+        margin-bottom: 0.25rem;
+        font-weight: 600;
+    }
+
+    .notification-item-content p {
+        margin-bottom: 0;
+        font-size: 0.875rem;
+        color: var(--text-muted);
+    }
+
+    .form-switch {
+        padding-right: 2.5rem;
+    }
+
+    .form-switch .form-check-input {
+        width: 3rem;
+        height: 1.5rem;
+        cursor: pointer;
+    }
+
+    .form-switch .form-check-input:checked {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+    }
+
+    .user-info-card {
+        background: var(--background-color);
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .user-info-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .user-info-item:last-child {
+        border-bottom: none;
+    }
+
+    .user-info-label {
+        font-weight: 600;
+        color: var(--text-muted);
+    }
+
+    .user-info-value {
+        color: var(--text-color);
+    }
+
+    .badge-verified {
+        background: #4caf50;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+    }
+
+    .badge-unverified {
+        background: #ff9800;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+    }
+</style>
+{% endblock %}
+
+{% block publisher_content %}
+<div class="settings-container">
+    <h2 class="mb-4">
+        <i class="fas fa-cog text-primary"></i> {% trans "إعدادات الحساب" %}
+    </h2>
+
+    <!-- Settings Tabs -->
+    <ul class="nav nav-tabs settings-tabs" id="settingsTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile" type="button" role="tab">
+                <i class="fas fa-user"></i>
+                {% trans "الملف الشخصي" %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications" type="button" role="tab">
+                <i class="fas fa-bell"></i>
+                {% trans "الإشعارات" %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button" role="tab">
+                <i class="fas fa-shield-alt"></i>
+                {% trans "الأمان" %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="account-tab" data-bs-toggle="tab" data-bs-target="#account" type="button" role="tab">
+                <i class="fas fa-user-cog"></i>
+                {% trans "إدارة الحساب" %}
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="settingsTabContent">
+        <!-- Profile Tab -->
+        <div class="tab-pane fade show active" id="profile" role="tabpanel">
+            <!-- Avatar Section -->
+            <div class="settings-section">
+                <div class="profile-avatar-section">
+                    {% if user.avatar %}
+                        <img src="{{ user.avatar.url }}" alt="{% trans 'الصورة الشخصية' %}" class="profile-avatar" id="avatarPreview">
+                    {% else %}
+                        <div class="profile-avatar-placeholder" id="avatarPlaceholder">
+                            {{ user.first_name|first|default:user.username|first|upper }}
+                        </div>
+                    {% endif %}
+                    <div>
+                        <button type="button" class="btn btn-primary btn-upload">
+                            <i class="fas fa-camera me-2"></i>{% trans "تغيير الصورة" %}
+                            <input type="file" id="avatarInput" accept="image/*">
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Info Card -->
+            <div class="user-info-card">
+                <div class="user-info-item">
+                    <span class="user-info-label">{% trans "اسم المستخدم" %}</span>
+                    <span class="user-info-value">{{ user.username }}</span>
+                </div>
+                <div class="user-info-item">
+                    <span class="user-info-label">{% trans "البريد الإلكتروني" %}</span>
+                    <span class="user-info-value">{{ user.email }}</span>
+                </div>
+                <div class="user-info-item">
+                    <span class="user-info-label">{% trans "نوع الحساب" %}</span>
+                    <span class="user-info-value">{{ user.get_profile_type_display }}</span>
+                </div>
+                <div class="user-info-item">
+                    <span class="user-info-label">{% trans "حالة التوثيق" %}</span>
+                    <span class="user-info-value">
+                        {% if user.verification_status == 'verified' %}
+                            <span class="badge-verified"><i class="fas fa-check-circle me-1"></i>{% trans "موثق" %}</span>
+                        {% else %}
+                            <span class="badge-unverified"><i class="fas fa-clock me-1"></i>{{ user.get_verification_status_display }}</span>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Profile Form -->
+            <form id="profileForm" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                <div class="settings-section">
+                    <h3 class="settings-section-title">
+                        <i class="fas fa-id-card"></i>
+                        {% trans "المعلومات الشخصية" %}
+                    </h3>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">{% trans "الاسم الأول" %}</label>
+                                <input type="text" class="form-control" name="first_name" value="{{ user.first_name }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">{% trans "اسم العائلة" %}</label>
+                                <input type="text" class="form-control" name="last_name" value="{{ user.last_name }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">{% trans "الهاتف" %}</label>
+                                <input type="tel" class="form-control" name="phone" value="{{ user.phone }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">
+                                    {% trans "الجوال" %}
+                                    {% if user.is_mobile_verified %}
+                                        <i class="fas fa-check-circle text-success" title="{% trans 'موثق' %}"></i>
+                                    {% endif %}
+                                </label>
+                                <input type="tel" class="form-control" name="mobile" value="{{ user.mobile }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">{% trans "واتساب" %}</label>
+                                <input type="tel" class="form-control" name="whatsapp" value="{{ user.whatsapp }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">{% trans "نبذة تعريفية (عربي)" %}</label>
+                        <textarea class="form-control" name="bio_ar" rows="3">{{ user.bio_ar }}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">{% trans "نبذة تعريفية (إنجليزي)" %}</label>
+                        <textarea class="form-control" name="bio" rows="3">{{ user.bio }}</textarea>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3 class="settings-section-title">
+                        <i class="fas fa-map-marker-alt"></i>
+                        {% trans "معلومات الموقع" %}
+                    </h3>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">{% trans "الدولة" %}</label>
+                                <input type="text" class="form-control" name="country" value="{{ user.country }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">{% trans "المدينة" %}</label>
+                                <input type="text" class="form-control" name="city" value="{{ user.city }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">{% trans "العنوان" %}</label>
+                        <textarea class="form-control" name="address" rows="2">{{ user.address }}</textarea>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3 class="settings-section-title">
+                        <i class="fas fa-building"></i>
+                        {% trans "معلومات الشركة" %}
+                    </h3>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">{% trans "اسم الشركة (عربي)" %}</label>
+                                <input type="text" class="form-control" name="company_name_ar" value="{{ user.company_name_ar }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">{% trans "اسم الشركة (إنجليزي)" %}</label>
+                                <input type="text" class="form-control" name="company_name" value="{{ user.company_name }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>{% trans "حفظ التغييرات" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Notifications Tab -->
+        <div class="tab-pane fade" id="notifications" role="tabpanel">
+            <div class="settings-section">
+                <h3 class="settings-section-title">
+                    <i class="fas fa-envelope"></i>
+                    {% trans "إعدادات الإشعارات" %}
+                </h3>
+
+                <div class="notification-item">
+                    <div class="notification-item-content">
+                        <h6>{% trans "إشعارات البريد الإلكتروني" %}</h6>
+                        <p>{% trans "تلقي إشعارات حول الإعلانات والرسائل عبر البريد الإلكتروني" %}</p>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="emailNotifications"
+                               {% if user.email_notifications %}checked{% endif %}>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Tab -->
+        <div class="tab-pane fade" id="security" role="tabpanel">
+            <!-- Change Password -->
+            <div class="settings-section">
+                <h3 class="settings-section-title">
+                    <i class="fas fa-lock"></i>
+                    {% trans "تغيير كلمة المرور" %}
+                </h3>
+
+                <form id="changePasswordForm">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label class="form-label">{% trans "كلمة المرور الحالية" %}</label>
+                        <input type="password" class="form-control" name="current_password" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">{% trans "كلمة المرور الجديدة" %}</label>
+                        <input type="password" class="form-control" name="new_password" required>
+                        <small class="form-text text-muted">
+                            {% trans "يجب أن تكون كلمة المرور 8 أحرف على الأقل" %}
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">{% trans "تأكيد كلمة المرور الجديدة" %}</label>
+                        <input type="password" class="form-control" name="confirm_password" required>
+                    </div>
+
+                    <div class="text-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-key me-2"></i>{% trans "تغيير كلمة المرور" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Change Email -->
+            <div class="settings-section">
+                <h3 class="settings-section-title">
+                    <i class="fas fa-envelope"></i>
+                    {% trans "تغيير البريد الإلكتروني" %}
+                </h3>
+
+                <form id="changeEmailForm">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label class="form-label">{% trans "البريد الإلكتروني الحالي" %}</label>
+                        <input type="email" class="form-control" value="{{ user.email }}" disabled>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">{% trans "البريد الإلكتروني الجديد" %}</label>
+                        <input type="email" class="form-control" name="email" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">{% trans "كلمة المرور للتأكيد" %}</label>
+                        <input type="password" class="form-control" name="password" required>
+                    </div>
+
+                    <div class="text-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-check me-2"></i>{% trans "تحديث البريد الإلكتروني" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Account Tab -->
+        <div class="tab-pane fade" id="account" role="tabpanel">
+            <div class="settings-section">
+                <h3 class="settings-section-title">
+                    <i class="fas fa-info-circle"></i>
+                    {% trans "معلومات الحساب" %}
+                </h3>
+
+                <div class="user-info-card">
+                    <div class="user-info-item">
+                        <span class="user-info-label">{% trans "تاريخ الانضمام" %}</span>
+                        <span class="user-info-value">{{ user.date_joined|date:"Y/m/d" }}</span>
+                    </div>
+                    <div class="user-info-item">
+                        <span class="user-info-label">{% trans "آخر تسجيل دخول" %}</span>
+                        <span class="user-info-value">{{ user.last_login|date:"Y/m/d H:i" }}</span>
+                    </div>
+                    <div class="user-info-item">
+                        <span class="user-info-label">{% trans "عدد الإعلانات" %}</span>
+                        <span class="user-info-value">{{ user.classifiedads.count }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Danger Zone -->
+            <div class="danger-zone">
+                <h4 class="danger-zone-title">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    {% trans "منطقة الخطر" %}
+                </h4>
+                <p class="text-muted mb-3">
+                    {% trans "حذف الحساب هو إجراء نهائي ولا يمكن التراجع عنه. سيتم حذف جميع بياناتك وإعلاناتك." %}
+                </p>
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
+                    <i class="fas fa-trash-alt me-2"></i>{% trans "حذف الحساب" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Account Modal -->
+<div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle me-2"></i>{% trans "تأكيد حذف الحساب" %}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-danger fw-bold">{% trans "تحذير: هذا الإجراء لا يمكن التراجع عنه!" %}</p>
+                <p>{% trans "سيتم حذف جميع بياناتك بما في ذلك:" %}</p>
+                <ul>
+                    <li>{% trans "جميع إعلاناتك" %}</li>
+                    <li>{% trans "رسائلك ومحادثاتك" %}</li>
+                    <li>{% trans "إعداداتك وتفضيلاتك" %}</li>
+                </ul>
+                <form id="deleteAccountForm">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label class="form-label">{% trans "أدخل كلمة المرور للتأكيد" %}</label>
+                        <input type="password" class="form-control" name="password" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash-alt me-2"></i>{% trans "حذف الحساب نهائياً" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block publisher_extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tabs
+    const triggerTabList = document.querySelectorAll('#settingsTabs button[data-bs-toggle="tab"]');
+    triggerTabList.forEach(triggerEl => {
+        const tabTrigger = new bootstrap.Tab(triggerEl);
+
+        triggerEl.addEventListener('click', event => {
+            event.preventDefault();
+            tabTrigger.show();
+        });
+    });
+
+    // Get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Show toast notification
+    function showToast(message, type = 'info') {
+        // Using the global showToast function from base.html
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type);
+        } else {
+            alert(message);
+        }
+    }
+
+    // Avatar upload preview
+    const avatarInput = document.getElementById('avatarInput');
+    if (avatarInput) {
+        avatarInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('avatarPreview');
+                    const placeholder = document.getElementById('avatarPlaceholder');
+
+                    if (preview) {
+                        preview.src = e.target.result;
+                    } else if (placeholder) {
+                        placeholder.outerHTML = `<img src="${e.target.result}" alt="Avatar" class="profile-avatar" id="avatarPreview">`;
+                    }
+                };
+                reader.readAsDataURL(file);
+
+                // Auto-submit avatar
+                const formData = new FormData();
+                formData.append('avatar', file);
+                formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+
+                fetch('{% url "main:publisher_update_profile" %}', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast(data.message, 'success');
+                    } else {
+                        showToast(data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showToast('{% trans "حدث خطأ أثناء رفع الصورة" %}', 'error');
+                });
+            }
+        });
+    }
+
+    // Profile form submission
+    const profileForm = document.getElementById('profileForm');
+    if (profileForm) {
+        profileForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            fetch('{% url "main:publisher_update_profile" %}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                } else {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('{% trans "حدث خطأ أثناء الحفظ" %}', 'error');
+            });
+        });
+    }
+
+    // Email notifications toggle
+    const emailNotificationsToggle = document.getElementById('emailNotifications');
+    if (emailNotificationsToggle) {
+        emailNotificationsToggle.addEventListener('change', function() {
+            const formData = new FormData();
+            formData.append('email_notifications', this.checked);
+            formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+
+            fetch('{% url "main:publisher_update_notifications" %}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                } else {
+                    showToast(data.message, 'error');
+                    this.checked = !this.checked;
+                }
+            })
+            .catch(error => {
+                showToast('{% trans "حدث خطأ" %}', 'error');
+                this.checked = !this.checked;
+            });
+        });
+    }
+
+    // Change password form
+    const changePasswordForm = document.getElementById('changePasswordForm');
+    if (changePasswordForm) {
+        changePasswordForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            fetch('{% url "main:publisher_change_password" %}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    this.reset();
+                } else {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('{% trans "حدث خطأ" %}', 'error');
+            });
+        });
+    }
+
+    // Change email form
+    const changeEmailForm = document.getElementById('changeEmailForm');
+    if (changeEmailForm) {
+        changeEmailForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            fetch('{% url "main:publisher_update_email" %}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('{% trans "حدث خطأ" %}', 'error');
+            });
+        });
+    }
+
+    // Delete account
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    if (confirmDeleteBtn) {
+        confirmDeleteBtn.addEventListener('click', function() {
+            const form = document.getElementById('deleteAccountForm');
+            const formData = new FormData(form);
+
+            if (confirm('{% trans "هل أنت متأكد تماماً؟ هذا الإجراء لا يمكن التراجع عنه!" %}')) {
+                fetch('{% url "main:publisher_delete_account" %}', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast(data.message, 'success');
+                        setTimeout(() => {
+                            window.location.href = data.redirect;
+                        }, 1500);
+                    } else {
+                        showToast(data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showToast('{% trans "حدث خطأ" %}', 'error');
+                });
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

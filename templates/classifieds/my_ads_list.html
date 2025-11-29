@@ -17,25 +17,185 @@
                 </h1>
                 <p class="text-muted mb-0">{% trans "إدارة إعلاناتك المنشورة على المنصة" %}</p>
             </div>
-        </div>
-    </div>
-    <section class="my-ads-section py-5 bg-secondary">
-        <div class="container">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2 class="h3 mb-0">{% trans "قائمة الإعلانات" %}</h2>
+            <div class="col-auto">
                 <a href="{% url 'main:ad_create' %}"
                    class="btn btn-custom btn-primary-custom">
                     <i class="fas fa-plus me-2"></i> {% trans "إضافة إعلان جديد" %}
                 </a>
             </div>
-            {% if ads %}
-                <div class="row g-4">
-                    {% for ad in ads %}
-                        <div class="col-md-6 col-lg-4">
-                            {% include "classifieds/_ad_card.html" with ad=ad is_owner=True %}
+        </div>
+    </div>
 
+    <!-- Statistics Cards -->
+    <section class="stats-section mb-4">
+        <div class="container-fluid">
+            <div class="row g-3">
+                <div class="col-md-6 col-lg-3">
+                    <div class="stats-card">
+                        <div class="stats-icon">
+                            <i class="fas fa-bullhorn fa-2x"></i>
                         </div>
-                    {% endfor %}
+                        <h3>{{ stats.total_ads }}</h3>
+                        <p>{% trans "إجمالي الإعلانات" %}</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="stats-card">
+                        <div class="stats-icon text-success">
+                            <i class="fas fa-check-circle fa-2x"></i>
+                        </div>
+                        <h3>{{ stats.active_ads }}</h3>
+                        <p>{% trans "إعلانات نشطة" %}</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="stats-card">
+                        <div class="stats-icon text-warning">
+                            <i class="fas fa-clock fa-2x"></i>
+                        </div>
+                        <h3>{{ stats.pending_ads }}</h3>
+                        <p>{% trans "قيد المراجعة" %}</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="stats-card">
+                        <div class="stats-icon text-info">
+                            <i class="fas fa-eye fa-2x"></i>
+                        </div>
+                        <h3>{{ stats.total_views }}</h3>
+                        <p>{% trans "إجمالي المشاهدات" %}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="my-ads-section py-4">
+```        <div class="container-fluid">
+            {% if ads %}
+                <div class="card admin-content-card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-list me-2"></i>
+                            {% trans "قائمة الإعلانات" %} ({{ ads|length }})
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-ads mb-0">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 80px;">{% trans "الصورة" %}</th>
+                                        <th>{% trans "العنوان" %}</th>
+                                        <th style="width: 120px;">{% trans "السعر" %}</th>
+                                        <th style="width: 150px;">{% trans "التصنيف" %}</th>
+                                        <th style="width: 120px;">{% trans "الحالة" %}</th>
+                                        <th style="width: 100px;">{% trans "المشاهدات" %}</th>
+                                        <th style="width: 120px;">{% trans "تاريخ النشر" %}</th>
+                                        <th style="width: 180px;" class="text-center">{% trans "الإجراءات" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ad in ads %}
+                                        <tr class="ad-row">
+                                            <td>
+                                                {% if ad.images.first %}
+                                                    <img src="{{ ad.images.first.image.url }}"
+                                                         alt="{{ ad.title }}"
+                                                         class="ad-thumbnail">
+                                                {% else %}
+                                                    <div class="ad-thumbnail-placeholder">
+                                                        <i class="fas fa-image"></i>
+                                                    </div>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="ad-title-cell">
+                                                    <a href="{% url 'main:ad_detail' ad.pk %}"
+                                                       class="ad-title-link"
+                                                       target="_blank">
+                                                        {{ ad.title }}
+                                                    </a>
+                                                    {% if ad.is_highlighted %}
+                                                        <span class="badge bg-warning ms-2">
+                                                            <i class="fas fa-star"></i> {% trans "مميز" %}
+                                                        </span>
+                                                    {% endif %}
+                                                    {% if ad.is_pinned %}
+                                                        <span class="badge bg-info ms-2">
+                                                            <i class="fas fa-thumbtack"></i> {% trans "مثبت" %}
+                                                        </span>
+                                                    {% endif %}
+                                                    {% if ad.is_urgent %}
+                                                        <span class="badge bg-danger ms-2">
+                                                            <i class="fas fa-bolt"></i> {% trans "عاجل" %}
+                                                        </span>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <strong class="text-primary">{{ ad.price }} {{ ad.currency }}</strong>
+                                            </td>
+                                            <td>
+                                                <span class="category-badge">
+                                                    {{ ad.category.name }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% if ad.status == 'active' %}
+                                                    <span class="badge bg-success">
+                                                        <i class="fas fa-check-circle"></i> {% trans "نشط" %}
+                                                    </span>
+                                                {% elif ad.status == 'pending' %}
+                                                    <span class="badge bg-warning">
+                                                        <i class="fas fa-clock"></i> {% trans "قيد المراجعة" %}
+                                                    </span>
+                                                {% elif ad.status == 'rejected' %}
+                                                    <span class="badge bg-danger">
+                                                        <i class="fas fa-times-circle"></i> {% trans "مرفوض" %}
+                                                    </span>
+                                                {% elif ad.status == 'expired' %}
+                                                    <span class="badge bg-secondary">
+                                                        <i class="fas fa-calendar-times"></i> {% trans "منتهي" %}
+                                                    </span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="views-count">
+                                                    <i class="fas fa-eye me-1"></i>
+                                                    {{ ad.views_count }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">{{ ad.created_at|date:"d/m/Y" }}</small>
+                                            </td>
+                                            <td class="text-center">
+                                                <div class="action-buttons">
+                                                    <a href="{% url 'main:ad_detail' ad.pk %}"
+                                                       class="btn btn-sm btn-info"
+                                                       title="{% trans 'عرض' %}"
+                                                       target="_blank">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                    <a href="{% url 'main:ad_update' ad.pk %}"
+                                                       class="btn btn-sm btn-warning"
+                                                       title="{% trans 'تعديل' %}">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-danger"
+                                                            title="{% trans 'حذف' %}"
+                                                            onclick="confirmDeleteAd({{ ad.pk }}, '{{ ad.title|escapejs }}')">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             {% else %}
                 <div class="card ad-content-card text-center py-5">
@@ -54,3 +214,134 @@
     </section>
 
 {% endblock publisher_content %}
+
+{% block modals %}
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteAdModal" tabindex="-1" aria-labelledby="deleteAdModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteAdModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    {% trans "تأكيد الحذف" %}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">{% trans "هل أنت متأكد من حذف الإعلان" %} "<strong id="adTitleToDelete"></strong>"؟</p>
+                <p class="text-muted mt-2 mb-0">
+                    <small>{% trans "لا يمكن التراجع عن هذا الإجراء" %}</small>
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> {% trans "إلغاء" %}
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash me-1"></i> {% trans "حذف" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock modals %}
+
+{% block publisher_extra_js %}
+<script>
+    let adIdToDelete = null;
+
+    function confirmDeleteAd(adId, adTitle) {
+        adIdToDelete = adId;
+        document.getElementById('adTitleToDelete').textContent = adTitle;
+        const modal = new bootstrap.Modal(document.getElementById('deleteAdModal'));
+        modal.show();
+    }
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', async function() {
+        if (!adIdToDelete) return;
+
+        try {
+            const response = await fetch(`/ar/classifieds/delete/${adIdToDelete}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Close modal
+                bootstrap.Modal.getInstance(document.getElementById('deleteAdModal')).hide();
+
+                // Show success message
+                showNotification(data.message || '{% trans "تم حذف الإعلان بنجاح" %}', 'success');
+
+                // Reload page after 1 second
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showNotification(data.message || '{% trans "حدث خطأ أثناء الحذف" %}', 'error');
+            }
+        } catch (error) {
+            console.error('Error deleting ad:', error);
+            showNotification('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
+        }
+    });
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function showNotification(message, type) {
+        // Create toast container if it doesn't exist
+        let toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+            toastContainer.style.zIndex = '9999';
+            document.body.appendChild(toastContainer);
+        }
+
+        // Create toast element
+        const toastId = 'toast-' + Date.now();
+        const bgClass = type === 'success' ? 'bg-success' : 'bg-danger';
+        const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+
+        const toastHTML = `
+            <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="fas ${icon} me-2"></i>${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        `;
+
+        toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+
+        const toastElement = document.getElementById(toastId);
+        const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
+        toast.show();
+
+        // Remove toast element after it's hidden
+        toastElement.addEventListener('hidden.bs.toast', function() {
+            toastElement.remove();
+        });
+    }
+</script>
+{% endblock publisher_extra_js %}

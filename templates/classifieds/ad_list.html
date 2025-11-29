@@ -33,6 +33,7 @@
                 </div>
                 <div class="modal-body">
                     <form id="saveSearchForm">
+                        {% csrf_token %}
                         <div class="mb-3">
                             <label for="searchNameInput" class="form-label">{% trans "أدخل اسمًا لهذا البحث:" %}</label>
                             <input type="text" class="form-control" id="searchNameInput" required>
@@ -156,7 +157,14 @@
                         </div>
                         <div class="d-grid">
                             <button type="submit" class="btn btn-custom btn-primary-custom mb-2">تطبيق الفلتر</button>
-
+                            {% if request.user.is_authenticated %}
+                                <button type="button"
+                                        class="btn btn-custom btn-outline-secondary"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#saveSearchModal">
+                                    <i class="fas fa-bookmark me-2"></i>{% trans "حفظ البحث" %}
+                                </button>
+                            {% endif %}
                         </div>
                     </form>
                 </div>
@@ -214,6 +222,61 @@
 
 {% block extra_js %}
     <script>
+        // Get CSRF token from cookie
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Show notification function
+        function showNotification(message, type) {
+            // Create toast container if it doesn't exist
+            let toastContainer = document.querySelector('.toast-container');
+            if (!toastContainer) {
+                toastContainer = document.createElement('div');
+                toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+                toastContainer.style.zIndex = '9999';
+                document.body.appendChild(toastContainer);
+            }
+
+            // Create toast element
+            const toastId = 'toast-' + Date.now();
+            const bgClass = type === 'success' ? 'bg-success' : 'bg-danger';
+            const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+
+            const toastHTML = `
+                <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="fas ${icon} me-2"></i>${message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
+            `;
+
+            toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
+            toast.show();
+
+            // Remove toast element after it's hidden
+            toastElement.addEventListener('hidden.bs.toast', function() {
+                toastElement.remove();
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const saveSearchForm = document.getElementById('saveSearchForm');
             if (saveSearchForm) {
@@ -225,7 +288,7 @@
                     if (!searchName) return;
 
                     const queryParams = window.location.search.substring(1);
-                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                    const csrfToken = getCookie('csrftoken') || document.querySelector('[name=csrfmiddlewaretoken]')?.value;
 
                     fetch("{% url 'main:save_search' %}", {
                             method: 'POST',
@@ -240,14 +303,17 @@
                         })
                         .then(response => response.json())
                         .then(data => {
-                            window.showNotification(data.message, data.success ? 'success' : 'error');
+                            showNotification(data.message, data.success ? 'success' : 'error');
                             if (data.success) {
                                 const modal = bootstrap.Modal.getInstance(document.getElementById('saveSearchModal'));
                                 if (modal) modal.hide();
                                 searchNameInput.value = '';
                             }
                         })
-                        .catch(error => console.error('Error:', error));
+                        .catch(error => {
+                            console.error('Error:', error);
+                            showNotification('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
+                        });
                 });
             }
         });

@@ -39,7 +39,7 @@ def chat_list(request):
     for room in chat_rooms:
         room.last_message = room.messages.order_by("-created_at").first()
         # Determine other user - handle admin chat rooms where client can be None
-        if room.room_type == 'publisher_admin':
+        if room.room_type == "publisher_admin":
             # For admin chats, if current user is staff, other_user is the publisher
             # If current user is the publisher, other_user represents admin/support
             room.other_user = room.publisher if user.is_staff else None
@@ -67,7 +67,7 @@ def chat_room(request, room_id=None):
         chat_room = get_object_or_404(ChatRoom, id=room_id, is_active=True)
 
         # Check if user is participant (handle admin chats where client can be None)
-        if chat_room.room_type == 'publisher_admin':
+        if chat_room.room_type == "publisher_admin":
             # Admin chats: allow publisher or staff
             if user != chat_room.publisher and not user.is_staff:
                 return redirect("main:chat_list")
@@ -80,7 +80,7 @@ def chat_room(request, room_id=None):
         chat_room.mark_as_read(user)
 
         # Determine other user
-        if chat_room.room_type == 'publisher_admin':
+        if chat_room.room_type == "publisher_admin":
             # For admin chats, other_user is the publisher if viewing as staff, None otherwise
             other_user = chat_room.publisher if user.is_staff else None
         else:
@@ -139,7 +139,7 @@ def send_message(request, room_id):
     chat_room = get_object_or_404(ChatRoom, id=room_id, is_active=True)
 
     # Check if user is participant (handle admin chats where client can be None)
-    if chat_room.room_type == 'publisher_admin':
+    if chat_room.room_type == "publisher_admin":
         if request.user != chat_room.publisher and not request.user.is_staff:
             return JsonResponse({"error": "Unauthorized"}, status=403)
     else:
@@ -185,7 +185,7 @@ def get_messages(request, room_id):
     chat_room = get_object_or_404(ChatRoom, id=room_id, is_active=True)
 
     # Check if user is participant (handle admin chats where client can be None)
-    if chat_room.room_type == 'publisher_admin':
+    if chat_room.room_type == "publisher_admin":
         if request.user != chat_room.publisher and not request.user.is_staff:
             return JsonResponse({"error": "Unauthorized"}, status=403)
     else:
@@ -234,7 +234,7 @@ def mark_read(request, room_id):
     chat_room = get_object_or_404(ChatRoom, id=room_id, is_active=True)
 
     # Check if user is participant (handle admin chats where client can be None)
-    if chat_room.room_type == 'publisher_admin':
+    if chat_room.room_type == "publisher_admin":
         if request.user != chat_room.publisher and not request.user.is_staff:
             return JsonResponse({"error": "Unauthorized"}, status=403)
     else:
@@ -242,6 +242,25 @@ def mark_read(request, room_id):
             return JsonResponse({"error": "Unauthorized"}, status=403)
 
     chat_room.mark_as_read(request.user)
+
+    return JsonResponse({"success": True})
+
+
+@login_required
+@require_POST
+def archive_chat_room(request, room_id):
+    """
+    Archive a chat room (soft delete)
+    """
+    chat_room = get_object_or_404(ChatRoom, id=room_id)
+
+    # Check if user is the publisher
+    if request.user != chat_room.publisher:
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+
+    # Soft delete by setting is_active to False
+    chat_room.is_active = False
+    chat_room.save()
 
     return JsonResponse({"success": True})
 
@@ -286,3 +305,61 @@ def admin_chat_panel(request):
     }
 
     return render(request, "chat/partials/_chat_panel_content.html", context)
+
+
+@login_required
+@require_POST
+def create_support_ticket(request):
+    """
+    Create a new support ticket (publisher to admin chat)
+    """
+    import json
+
+    try:
+        data = json.loads(request.body)
+        subject = data.get("subject", "").strip()
+        category = data.get("category", "").strip()
+        message = data.get("message", "").strip()
+
+        if not all([subject, category, message]):
+            return JsonResponse(
+                {"success": False, "error": "All fields are required"}, status=400
+            )
+
+        # Translate category names
+        category_names = {
+            "technical": "مشكلة تقنية",
+            "payment": "الدفع والباقات",
+            "account": "الحساب",
+            "ads": "الإعلانات",
+            "other": "أخرى",
+        }
+        category_display = category_names.get(category, category)
+
+        # Create a new publisher_admin chat room
+        chat_room = ChatRoom.objects.create(
+            room_type="publisher_admin",
+            publisher=request.user,
+            client=None,  # Admin chats don't have a client
+        )
+
+        # Create the first message with subject and category info
+        initial_message = f"[{category_display}] {subject}\n\n{message}"
+        ChatMessage.objects.create(
+            room=chat_room, sender=request.user, message=initial_message
+        )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "room_id": chat_room.id,
+                "message": "Support ticket created successfully",
+            }
+        )
+
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {"success": False, "error": "Invalid JSON data"}, status=400
+        )
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=500)

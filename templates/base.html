@@ -672,6 +672,62 @@
                         {% endif %}
                     {% endfor %}
                 {% endif %}
+
+                // Newsletter form submission
+                const newsletterForm = document.getElementById('newsletterForm');
+                if (newsletterForm) {
+                    newsletterForm.addEventListener('submit', function(e) {
+                        e.preventDefault();
+
+                        const submitBtn = document.getElementById('newsletterSubmitBtn');
+                        const emailInput = document.getElementById('newsletterEmail');
+                        const messageDiv = document.getElementById('newsletterMessage');
+                        const formData = new FormData(this);
+
+                        // Disable submit button
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جارٍ الاشتراك..." %}';
+
+                        fetch('{% url "main:newsletter_subscribe" %}', {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'X-CSRFToken': getCookie('csrftoken')
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                messageDiv.className = 'mt-2 alert alert-success';
+                                messageDiv.textContent = data.message;
+                                messageDiv.style.display = 'block';
+                                emailInput.value = '';
+                                showToast(data.message, 'success');
+                            } else {
+                                messageDiv.className = 'mt-2 alert alert-danger';
+                                messageDiv.textContent = data.message;
+                                messageDiv.style.display = 'block';
+                                showToast(data.message, 'error');
+                            }
+                        })
+                        .catch(error => {
+                            messageDiv.className = 'mt-2 alert alert-danger';
+                            messageDiv.textContent = '{% trans "حدث خطأ أثناء الاشتراك. يرجى المحاولة مرة أخرى." %}';
+                            messageDiv.style.display = 'block';
+                            showToast('{% trans "حدث خطأ أثناء الاشتراك" %}', 'error');
+                        })
+                        .finally(() => {
+                            // Re-enable submit button
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>{% trans "اشترك" %}';
+
+                            // Hide message after 5 seconds
+                            setTimeout(() => {
+                                messageDiv.style.display = 'none';
+                            }, 5000);
+                        });
+                    });
+                }
             });
         </script>
 

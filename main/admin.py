@@ -26,6 +26,7 @@ from .models import (
     ContactInfo,
     ContactMessage,
     CustomField,
+    NewsletterSubscriber,
     Notification,
     SavedSearch,
     User,
@@ -681,3 +682,72 @@ class VisitorAdmin(admin.ModelAdmin):
 
     is_online.boolean = True
     is_online.short_description = _("متصل الآن")
+
+
+@admin.register(NewsletterSubscriber)
+class NewsletterSubscriberAdmin(admin.ModelAdmin):
+    list_display = (
+        "email",
+        "is_active",
+        "subscribed_at",
+        "unsubscribed_at",
+    )
+    list_filter = ("is_active", "subscribed_at")
+    search_fields = ("email",)
+    readonly_fields = ("subscribed_at", "unsubscribed_at", "ip_address", "user_agent")
+    date_hierarchy = "subscribed_at"
+    actions = ["activate_subscribers", "deactivate_subscribers", "export_emails"]
+
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": ("email", "is_active")
+            },
+        ),
+        (
+            _("Subscription Information"),
+            {
+                "fields": ("subscribed_at", "unsubscribed_at"),
+            },
+        ),
+        (
+            _("Technical Information"),
+            {
+                "fields": ("ip_address", "user_agent"),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+    def activate_subscribers(self, request, queryset):
+        updated = queryset.update(is_active=True, unsubscribed_at=None)
+        self.message_user(request, _(f"تم تفعيل {updated} مشترك بنجاح"))
+    activate_subscribers.short_description = _("تفعيل المشتركين المحددين")
+
+    def deactivate_subscribers(self, request, queryset):
+        from django.utils import timezone
+        updated = queryset.update(is_active=False, unsubscribed_at=timezone.now())
+        self.message_user(request, _(f"تم إلغاء تفعيل {updated} مشترك بنجاح"))
+    deactivate_subscribers.short_description = _("إلغاء تفعيل المشتركين المحددين")
+
+    def export_emails(self, request, queryset):
+        from django.http import HttpResponse
+        import csv
+
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="newsletter_subscribers.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(['Email', 'Active', 'Subscribed At', 'Unsubscribed At'])
+
+        for subscriber in queryset:
+            writer.writerow([
+                subscriber.email,
+                'Yes' if subscriber.is_active else 'No',
+                subscriber.subscribed_at,
+                subscriber.unsubscribed_at or ''
+            ])
+
+        return response
+    export_emails.short_description = _("تصدير البريد الإلكتروني للمشتركين المحددين")

@@ -47,6 +47,8 @@ from main.models import (
     CustomField,
     Payment,
     Notification,
+    ChatRoom,
+    ChatMessage,
 )
 from main.templatetags.idrissimart_tags import phone_format
 from main.utils import get_selected_country_from_request
@@ -3273,22 +3275,32 @@ def admin_payment_transaction_detail(request, transaction_id):
                     "package_name": transaction.description or "غير محدد",
                     "amount": str(transaction.amount),
                     "currency": transaction.currency or "SAR",
-                    "payment_method": transaction.get_provider_display() if transaction.provider else "غير محدد",
+                    "payment_method": (
+                        transaction.get_provider_display()
+                        if transaction.provider
+                        else "غير محدد"
+                    ),
                     "status": transaction.status,
                     "status_display": transaction.get_status_display(),
-                    "transaction_id": transaction.provider_transaction_id or "غير متوفر",
+                    "transaction_id": transaction.provider_transaction_id
+                    or "غير متوفر",
                     "created_at": transaction.created_at.strftime("%Y-%m-%d %H:%M"),
                     "completed_at": (
                         transaction.completed_at.strftime("%Y-%m-%d %H:%M")
                         if transaction.completed_at
                         else None
                     ),
-                    "notes": transaction.metadata.get("notes", "") if transaction.metadata else "",
+                    "notes": (
+                        transaction.metadata.get("notes", "")
+                        if transaction.metadata
+                        else ""
+                    ),
                 },
             }
         )
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Error loading transaction {transaction_id}: {str(e)}")
         return JsonResponse(
@@ -4352,14 +4364,64 @@ class PublisherChatsView(LoginRequiredMixin, TemplateView):
     template_name = "chat/publisher_chats.html"
 
     def get_context_data(self, **kwargs):
+        from django.db.models import Count, Q
+
         context = super().get_context_data(**kwargs)
         context["active_nav"] = "chats"
-        # TODO: Add chat rooms queryset
-        # from .models import ChatRoom
-        # context['chat_rooms'] = ChatRoom.objects.filter(
-        #     publisher=self.request.user,
-        #     room_type='publisher_client'
-        # ).select_related('client', 'ad').order_by('-updated_at')
+
+        # Get all chat rooms for the publisher
+        chat_rooms = (
+            ChatRoom.objects.filter(
+                publisher=self.request.user, room_type="publisher_client"
+            )
+            .select_related("client", "ad")
+            .prefetch_related("messages")
+            .order_by("-updated_at")
+        )
+
+        # Add unread count for each room
+        rooms_with_unread = []
+        for room in chat_rooms:
+            room.unread_count = room.get_unread_count(self.request.user)
+            rooms_with_unread.append(room)
+
+        context["chat_rooms"] = rooms_with_unread
+
+        # Calculate statistics
+        total_chats = len(rooms_with_unread)
+        active_chats = (
+            ChatRoom.objects.filter(
+                publisher=self.request.user,
+                is_active=True,
+                room_type="publisher_client",
+                messages__created_at__gte=timezone.now() - timezone.timedelta(days=7),
+            )
+            .distinct()
+            .count()
+        )
+
+        unread_messages = (
+            ChatMessage.objects.filter(room__publisher=self.request.user, is_read=False)
+            .exclude(sender=self.request.user)
+            .count()
+        )
+
+        active_ads = (
+            ChatRoom.objects.filter(
+                publisher=self.request.user, room_type="publisher_client"
+            )
+            .values("ad")
+            .distinct()
+            .count()
+        )
+
+        context["chat_stats"] = {
+            "total_chats": total_chats,
+            "active_chats": active_chats,
+            "unread_messages": unread_messages,
+            "active_ads": active_ads,
+        }
+
         return context
 
 
@@ -4369,15 +4431,44 @@ class PublisherSupportChatView(LoginRequiredMixin, TemplateView):
     template_name = "chat/publisher_support.html"
 
     def get_context_data(self, **kwargs):
+        from django.db.models import Count, Q
+
         context = super().get_context_data(**kwargs)
         context["active_nav"] = "support"
-        # TODO: Add support chat room
-        # from .models import ChatRoom
-        # context['chat_room'], created = ChatRoom.objects.get_or_create(
-        #     publisher=self.request.user,
-        #     room_type='publisher_admin',
-        #     defaults={'client': None, 'ad': None}
-        # )
+
+        # Get all support chat rooms for the publisher
+        support_rooms = (
+            ChatRoom.objects.filter(
+                publisher=self.request.user, room_type="publisher_admin"
+            )
+            .select_related("publisher")
+            .prefetch_related("messages")
+            .order_by("-updated_at")
+        )
+
+        context["support_rooms"] = support_rooms
+
+        # Calculate statistics
+        total_tickets = support_rooms.count()
+        pending_tickets = support_rooms.filter(is_active=True).count()
+        resolved_tickets = support_rooms.filter(is_active=False).count()
+
+        # Count unread messages from admin (messages where sender is staff and not read by publisher)
+        unread_messages = (
+            ChatMessage.objects.filter(
+                room__in=support_rooms, sender__is_staff=True, is_read=False
+            )
+            .exclude(sender=self.request.user)
+            .count()
+        )
+
+        context["support_stats"] = {
+            "total_tickets": total_tickets,
+            "pending_tickets": pending_tickets,
+            "resolved_tickets": resolved_tickets,
+            "unread_messages": unread_messages,
+        }
+
         return context
 
 
@@ -5296,3 +5387,280 @@ class AdminReportsView(SuperadminRequiredMixin, TemplateView):
         )
 
         return context
+
+
+@require_POST
+def newsletter_subscribe(request):
+    """Handle newsletter subscription requests"""
+    from .models import NewsletterSubscriber
+
+    email = request.POST.get('email', '').strip().lower()
+
+    if not email:
+        return JsonResponse({
+            'success': False,
+            'message': _('يرجى إدخال البريد الإلكتروني')
+        }, status=400)
+
+    # Validate email format
+    from django.core.validators import validate_email
+    from django.core.exceptions import ValidationError
+
+    try:
+        validate_email(email)
+    except ValidationError:
+        return JsonResponse({
+            'success': False,
+            'message': _('البريد الإلكتروني غير صالح')
+        }, status=400)
+
+    # Get client IP and user agent
+    def get_client_ip(request):
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip
+
+    ip_address = get_client_ip(request)
+    user_agent = request.META.get('HTTP_USER_AGENT', '')
+
+    # Check if already subscribed
+    subscriber, created = NewsletterSubscriber.objects.get_or_create(
+        email=email,
+        defaults={
+            'ip_address': ip_address,
+            'user_agent': user_agent,
+        }
+    )
+
+    if created:
+        return JsonResponse({
+            'success': True,
+            'message': _('تم الاشتراك بنجاح! شكراً لك')
+        })
+    else:
+        if subscriber.is_active:
+            return JsonResponse({
+                'success': False,
+                'message': _('أنت مشترك بالفعل في نشرتنا البريدية')
+            }, status=400)
+        else:
+            # Reactivate subscription
+            subscriber.is_active = True
+            subscriber.unsubscribed_at = None
+            subscriber.save()
+            return JsonResponse({
+                'success': True,
+                'message': _('تم إعادة تفعيل اشتراكك بنجاح!')
+            })
+
+
+@require_http_methods(["GET"])
+def newsletter_unsubscribe(request, email):
+    """Handle newsletter unsubscribe requests"""
+    from .models import NewsletterSubscriber
+
+    try:
+        subscriber = NewsletterSubscriber.objects.get(email=email, is_active=True)
+        subscriber.unsubscribe()
+        messages.success(request, _('تم إلغاء الاشتراك بنجاح'))
+    except NewsletterSubscriber.DoesNotExist:
+        messages.info(request, _('هذا البريد الإلكتروني غير مشترك'))
+
+    return redirect('home')
+
+
+class PublisherSettingsView(LoginRequiredMixin, TemplateView):
+    """Publisher settings page with profile, notifications, and security settings"""
+    template_name = "dashboard/publisher_settings.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["active_nav"] = "settings"
+        context["page_title"] = _("الإعدادات")
+        context["user"] = self.request.user
+        return context
+
+
+@login_required
+@require_POST
+def publisher_update_profile(request):
+    """Update publisher profile information"""
+    user = request.user
+
+    try:
+        # Update basic profile info
+        user.first_name = request.POST.get('first_name', '').strip()
+        user.last_name = request.POST.get('last_name', '').strip()
+        user.phone = request.POST.get('phone', '').strip()
+        user.mobile = request.POST.get('mobile', '').strip()
+        user.whatsapp = request.POST.get('whatsapp', '').strip()
+        user.bio = request.POST.get('bio', '').strip()
+        user.bio_ar = request.POST.get('bio_ar', '').strip()
+        user.city = request.POST.get('city', '').strip()
+        user.country = request.POST.get('country', '').strip()
+        user.address = request.POST.get('address', '').strip()
+
+        # Update company info if provided
+        user.company_name = request.POST.get('company_name', '').strip()
+        user.company_name_ar = request.POST.get('company_name_ar', '').strip()
+
+        # Handle avatar upload
+        if 'avatar' in request.FILES:
+            user.avatar = request.FILES['avatar']
+
+        user.save()
+
+        return JsonResponse({
+            'success': True,
+            'message': _('تم تحديث الملف الشخصي بنجاح')
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': _('حدث خطأ أثناء تحديث الملف الشخصي')
+        }, status=400)
+
+
+@login_required
+@require_POST
+def publisher_update_notifications(request):
+    """Update publisher notification preferences"""
+    user = request.user
+
+    try:
+        user.email_notifications = request.POST.get('email_notifications') == 'true'
+        user.save()
+
+        return JsonResponse({
+            'success': True,
+            'message': _('تم تحديث إعدادات الإشعارات بنجاح')
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': _('حدث خطأ أثناء تحديث إعدادات الإشعارات')
+        }, status=400)
+
+
+@login_required
+@require_POST
+def publisher_change_password(request):
+    """Change publisher password"""
+    from django.contrib.auth import update_session_auth_hash
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError
+
+    user = request.user
+    current_password = request.POST.get('current_password', '')
+    new_password = request.POST.get('new_password', '')
+    confirm_password = request.POST.get('confirm_password', '')
+
+    # Verify current password
+    if not user.check_password(current_password):
+        return JsonResponse({
+            'success': False,
+            'message': _('كلمة المرور الحالية غير صحيحة')
+        }, status=400)
+
+    # Check if new passwords match
+    if new_password != confirm_password:
+        return JsonResponse({
+            'success': False,
+            'message': _('كلمات المرور الجديدة غير متطابقة')
+        }, status=400)
+
+    # Validate new password
+    try:
+        validate_password(new_password, user)
+    except ValidationError as e:
+        return JsonResponse({
+            'success': False,
+            'message': ', '.join(e.messages)
+        }, status=400)
+
+    # Update password
+    user.set_password(new_password)
+    user.save()
+
+    # Keep the user logged in after password change
+    update_session_auth_hash(request, user)
+
+    return JsonResponse({
+        'success': True,
+        'message': _('تم تغيير كلمة المرور بنجاح')
+    })
+
+
+@login_required
+@require_POST
+def publisher_update_email(request):
+    """Update publisher email address"""
+    user = request.user
+    new_email = request.POST.get('email', '').strip().lower()
+    password = request.POST.get('password', '')
+
+    # Verify password
+    if not user.check_password(password):
+        return JsonResponse({
+            'success': False,
+            'message': _('كلمة المرور غير صحيحة')
+        }, status=400)
+
+    # Validate email
+    from django.core.validators import validate_email
+    from django.core.exceptions import ValidationError
+
+    try:
+        validate_email(new_email)
+    except ValidationError:
+        return JsonResponse({
+            'success': False,
+            'message': _('البريد الإلكتروني غير صالح')
+        }, status=400)
+
+    # Check if email already exists
+    if User.objects.filter(email=new_email).exclude(id=user.id).exists():
+        return JsonResponse({
+            'success': False,
+            'message': _('هذا البريد الإلكتروني مستخدم بالفعل')
+        }, status=400)
+
+    user.email = new_email
+    user.save()
+
+    return JsonResponse({
+        'success': True,
+        'message': _('تم تحديث البريد الإلكتروني بنجاح')
+    })
+
+
+@login_required
+@require_POST
+def publisher_delete_account(request):
+    """Delete publisher account (soft delete)"""
+    user = request.user
+    password = request.POST.get('password', '')
+
+    # Verify password
+    if not user.check_password(password):
+        return JsonResponse({
+            'success': False,
+            'message': _('كلمة المرور غير صحيحة')
+        }, status=400)
+
+    # Deactivate user account
+    user.is_active = False
+    user.save()
+
+    # Log out the user
+    from django.contrib.auth import logout
+    logout(request)
+
+    return JsonResponse({
+        'success': True,
+        'message': _('تم حذف الحساب بنجاح'),
+        'redirect': reverse('main:home')
+    })

@@ -59,6 +59,111 @@ class MyClassifiedAdsView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["active_nav"] = "my_ads"
+
+        # Add statistics
+        user_ads = ClassifiedAd.objects.filter(user=self.request.user)
+        context["stats"] = {
+            "total_ads": user_ads.count(),
+            "active_ads": user_ads.filter(status=ClassifiedAd.AdStatus.ACTIVE).count(),
+            "pending_ads": user_ads.filter(
+                status=ClassifiedAd.AdStatus.PENDING
+            ).count(),
+            "rejected_ads": user_ads.filter(
+                status=ClassifiedAd.AdStatus.REJECTED
+            ).count(),
+            "expired_ads": user_ads.filter(
+                status=ClassifiedAd.AdStatus.EXPIRED
+            ).count(),
+            "total_views": sum(ad.views_count for ad in user_ads),
+            "highlighted_ads": user_ads.filter(is_highlighted=True).count(),
+            "pinned_ads": user_ads.filter(is_pinned=True).count(),
+            "urgent_ads": user_ads.filter(is_urgent=True).count(),
+        }
+
+        return context
+
+
+class PublisherReportsView(LoginRequiredMixin, ListView):
+    """View to display publisher reports and analytics."""
+
+    model = ClassifiedAd
+    template_name = "classifieds/publisher_reports.html"
+    context_object_name = "ads"
+
+    def get_queryset(self):
+        return ClassifiedAd.objects.filter(user=self.request.user).order_by(
+            "-created_at"
+        )
+
+    def get_context_data(self, **kwargs):
+        from django.db.models import Avg, Count, Max, Min, Sum
+        from datetime import timedelta
+
+        context = super().get_context_data(**kwargs)
+        context["active_nav"] = "statistics"
+
+        user_ads = ClassifiedAd.objects.filter(user=self.request.user)
+        now = timezone.now()
+
+        # Overall Statistics
+        context["stats"] = {
+            "total_ads": user_ads.count(),
+            "active_ads": user_ads.filter(status=ClassifiedAd.AdStatus.ACTIVE).count(),
+            "pending_ads": user_ads.filter(
+                status=ClassifiedAd.AdStatus.PENDING
+            ).count(),
+            "rejected_ads": user_ads.filter(
+                status=ClassifiedAd.AdStatus.REJECTED
+            ).count(),
+            "expired_ads": user_ads.filter(
+                status=ClassifiedAd.AdStatus.EXPIRED
+            ).count(),
+            "total_views": user_ads.aggregate(Sum("views_count"))["views_count__sum"]
+            or 0,
+            "avg_views": user_ads.aggregate(Avg("views_count"))["views_count__avg"]
+            or 0,
+            "highlighted_ads": user_ads.filter(is_highlighted=True).count(),
+            "pinned_ads": user_ads.filter(is_pinned=True).count(),
+            "urgent_ads": user_ads.filter(is_urgent=True).count(),
+        }
+
+        # This Month Statistics
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        month_ads = user_ads.filter(created_at__gte=month_start)
+        context["month_stats"] = {
+            "new_ads": month_ads.count(),
+            "views": month_ads.aggregate(Sum("views_count"))["views_count__sum"] or 0,
+        }
+
+        # This Week Statistics
+        week_start = now - timedelta(days=now.weekday())
+        week_ads = user_ads.filter(created_at__gte=week_start)
+        context["week_stats"] = {
+            "new_ads": week_ads.count(),
+            "views": week_ads.aggregate(Sum("views_count"))["views_count__sum"] or 0,
+        }
+
+        # Top Performing Ads
+        context["top_ads"] = user_ads.order_by("-views_count")[:5]
+
+        # Ads by Category
+        context["category_stats"] = (
+            user_ads.values("category__name")
+            .annotate(count=Count("id"), total_views=Sum("views_count"))
+            .order_by("-count")[:10]
+        )
+
+        # Ads by Status
+        context["status_stats"] = (
+            user_ads.values("status").annotate(count=Count("id")).order_by("-count")
+        )
+
+        # Recent Activity (last 7 days)
+        last_7_days = now - timedelta(days=7)
+        context["recent_ads"] = user_ads.filter(created_at__gte=last_7_days).order_by(
+            "-created_at"
+        )[:10]
+
         return context
 
 
@@ -737,6 +842,42 @@ class DeleteAdView(LoginRequiredMixin, View):
                     "success": True,
                     "message": _("تم حذف الإعلان '{}' بنجاح.").format(ad_title),
                 }
+            )
+        except Exception as e:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": _("حدث خطأ أثناء حذف الإعلان: {}").format(str(e)),
+                },
+                status=500,
+            )
+
+
+class PublisherDeleteAdView(LoginRequiredMixin, View):
+    """AJAX view for publishers to delete their own ads"""
+
+    def post(self, request, ad_id):
+        try:
+            # Get the ad and verify ownership
+            ad = get_object_or_404(ClassifiedAd, id=ad_id, user=request.user)
+            ad_title = ad.title
+
+            # Delete the ad
+            ad.delete()
+
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": _("تم حذف الإعلان '{}' بنجاح.").format(ad_title),
+                }
+            )
+        except ClassifiedAd.DoesNotExist:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": _("الإعلان غير موجود أو ليس لديك صلاحية لحذفه"),
+                },
+                status=404,
             )
         except Exception as e:
             return JsonResponse(
