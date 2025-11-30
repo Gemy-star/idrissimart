@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "django_q",
     "mptt",
     "django_ckeditor_5",
+    "solo",
     # Local apps
     "main.apps.MainConfig",
     "content.apps.ContentConfig",

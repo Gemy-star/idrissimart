@@ -35,11 +35,9 @@ from content.models import Blog, Country
 from main.filters import ClassifiedAdFilter
 from main.forms import AdImageFormSet, ClassifiedAdForm, ContactForm
 from main.models import (
-    AboutPage,
     AdFeature,
     Category,
     ClassifiedAd,
-    ContactInfo,
     AdPackage,
     UserPackage,
     CartSettings,
@@ -58,7 +56,13 @@ class HomeView(TemplateView):
     template_name = "pages/home.html"
 
     def get_context_data(self, **kwargs):
+        from content.site_config import HomePage
+
         context = super().get_context_data(**kwargs)
+
+        # Get HomePage content from django-solo
+        home_page = HomePage.get_solo()
+        context["home_page"] = home_page
 
         # Get selected country from middleware/utility function
         selected_country = get_selected_country_from_request(self.request)
@@ -1112,38 +1116,17 @@ class AboutView(TemplateView):
     template_name = "pages/about.html"
 
     def get_context_data(self, **kwargs):
+        from content.site_config import AboutPage
+
         context = super().get_context_data(**kwargs)
 
-        # Get about page content
-        about_content = AboutPage.get_active_content()
-        if not about_content:
-            # Create default content if none exists
-            about_content = AboutPage.objects.create(
-                title="إدريسي مارت",
-                tagline="تميّزك… ملموس",
-                subtitle="منصتك للتجارة الإلكترونية المتكاملة",
-                who_we_are_content="""
-                منصة <strong>إدريسي مارت</strong> هي منصة سعودية متخصصة في التجارة الإلكترونية المتكاملة،
-                تأسست لتجمع بين البائعين المعتمدين والمشترين في سوق واحد متنوع.
+        # Get about page content from django-solo
+        about_page = AboutPage.get_solo()
 
-                نهدف إلى تسهيل تجربة التسوق والبيع من خلال منصة موحدة تضم تنوعاً كبيراً من المنتجات والخدمات،
-                وتدعم البائعين المحليين للوصول إلى جمهور أوسع.
-
-                نعتز بانطلاقنا من قلب المملكة، لنكون المنصة التي تجمع الإبداع المحلي بروح التطور العالمي
-                في عالم التجارة الإلكترونية.
-                """,
-                vision_content="""
-                أن نكون المنصة السعودية الرائدة في التجارة الإلكترونية المتكاملة،
-                التي تُلهم وتُبرز التميّز في كل قطاع وخدمة.
-                """,
-                mission_content="""
-                نحوّل أفكار التجارة والخدمات إلى تجارب رقمية متكاملة تعبّر عن الجودة،
-                وتبني أقوى الروابط بين البائعين والعملاء في المملكة.
-                """,
-            )
-
-        context["about_content"] = about_content
-        context["page_title"] = _("من نحن - إدريسي مارت")
+        context["about_page"] = about_page
+        context["page_title"] = (
+            about_page.title_ar if about_page.title_ar else _("من نحن - إدريسي مارت")
+        )
         context["meta_description"] = _("تعرف على منصة إدريسي مارت ورؤيتنا ورسالتنا")
 
         return context
@@ -1156,31 +1139,31 @@ class ContactView(TemplateView):
 
     def get_context_data(self, **kwargs):
         from constance import config
+        from content.site_config import ContactPage
 
         context = super().get_context_data(**kwargs)
 
-        # Get contact information
-        contact_info = ContactInfo.get_active_info()
-        if not contact_info:
-            # Create default contact info if none exists
-            contact_info = ContactInfo.objects.create(
-                phone="+966 11 123 4567",
-                email="info@idrissimart.com",
-                address="الرياض، المملكة العربية السعودية",
-                whatsapp="+966 50 123 4567",
-                map_embed_url="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3620.059022564443!2d46.71516947512605!3d24.7038092779999!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3e2f05072c84c457%3A0xf45cf328d8856bac!2z2KfZhNi52YbYqSDYp9mE2KfYsdiz2YrYp9mEINin2YTYrNix2KfYtNmK2Kkg2YTZhNmF2YrYp9ix2KfYqiDYp9mE2YXYrdmK2KfYqiDYp9mE2KfZhNiz2KfZhdi52Kkg!5e0!3m2!1sar!2ssa!4v1728780637482!5m2!1sar!2ssa",
-            )
+        # Get contact page content from django-solo
+        contact_page = ContactPage.get_solo()
 
         # Initialize contact form
         form = ContactForm(
             user=self.request.user if self.request.user.is_authenticated else None
         )
 
-        context["contact_info"] = contact_info
+        context["contact_page"] = contact_page
         context["form"] = form
         context["config"] = config
-        context["page_title"] = _("اتصل بنا - إدريسي مارت")
-        context["meta_description"] = _("تواصل معنا في إدريسي مارت")
+        context["page_title"] = (
+            contact_page.title_ar
+            if contact_page.title_ar
+            else _("اتصل بنا - إدريسي مارت")
+        )
+        context["meta_description"] = (
+            contact_page.description_ar
+            if contact_page.description_ar
+            else _("تواصل معنا في إدريسي مارت")
+        )
 
         return context
 
@@ -1223,9 +1206,15 @@ class PrivacyPolicyView(TemplateView):
 
     def get_context_data(self, **kwargs):
         from constance import config
+        from content.site_config import PrivacyPage
 
         context = super().get_context_data(**kwargs)
         context["config"] = config
+        privacy_page = PrivacyPage.get_solo()
+        context["privacy_page"] = privacy_page
+        context["page_title"] = (
+            privacy_page.title_ar if privacy_page.title_ar else _("سياسة الخصوصية")
+        )
         return context
 
 
@@ -1236,9 +1225,15 @@ class TermsConditionsView(TemplateView):
 
     def get_context_data(self, **kwargs):
         from constance import config
+        from content.site_config import TermsPage
 
         context = super().get_context_data(**kwargs)
         context["config"] = config
+        terms_page = TermsPage.get_solo()
+        context["terms_page"] = terms_page
+        context["page_title"] = (
+            terms_page.title_ar if terms_page.title_ar else _("الشروط والأحكام")
+        )
         return context
 
 
@@ -5394,13 +5389,12 @@ def newsletter_subscribe(request):
     """Handle newsletter subscription requests"""
     from .models import NewsletterSubscriber
 
-    email = request.POST.get('email', '').strip().lower()
+    email = request.POST.get("email", "").strip().lower()
 
     if not email:
-        return JsonResponse({
-            'success': False,
-            'message': _('يرجى إدخال البريد الإلكتروني')
-        }, status=400)
+        return JsonResponse(
+            {"success": False, "message": _("يرجى إدخال البريد الإلكتروني")}, status=400
+        )
 
     # Validate email format
     from django.core.validators import validate_email
@@ -5409,52 +5403,49 @@ def newsletter_subscribe(request):
     try:
         validate_email(email)
     except ValidationError:
-        return JsonResponse({
-            'success': False,
-            'message': _('البريد الإلكتروني غير صالح')
-        }, status=400)
+        return JsonResponse(
+            {"success": False, "message": _("البريد الإلكتروني غير صالح")}, status=400
+        )
 
     # Get client IP and user agent
     def get_client_ip(request):
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
         if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0]
+            ip = x_forwarded_for.split(",")[0]
         else:
-            ip = request.META.get('REMOTE_ADDR')
+            ip = request.META.get("REMOTE_ADDR")
         return ip
 
     ip_address = get_client_ip(request)
-    user_agent = request.META.get('HTTP_USER_AGENT', '')
+    user_agent = request.META.get("HTTP_USER_AGENT", "")
 
     # Check if already subscribed
     subscriber, created = NewsletterSubscriber.objects.get_or_create(
         email=email,
         defaults={
-            'ip_address': ip_address,
-            'user_agent': user_agent,
-        }
+            "ip_address": ip_address,
+            "user_agent": user_agent,
+        },
     )
 
     if created:
-        return JsonResponse({
-            'success': True,
-            'message': _('تم الاشتراك بنجاح! شكراً لك')
-        })
+        return JsonResponse(
+            {"success": True, "message": _("تم الاشتراك بنجاح! شكراً لك")}
+        )
     else:
         if subscriber.is_active:
-            return JsonResponse({
-                'success': False,
-                'message': _('أنت مشترك بالفعل في نشرتنا البريدية')
-            }, status=400)
+            return JsonResponse(
+                {"success": False, "message": _("أنت مشترك بالفعل في نشرتنا البريدية")},
+                status=400,
+            )
         else:
             # Reactivate subscription
             subscriber.is_active = True
             subscriber.unsubscribed_at = None
             subscriber.save()
-            return JsonResponse({
-                'success': True,
-                'message': _('تم إعادة تفعيل اشتراكك بنجاح!')
-            })
+            return JsonResponse(
+                {"success": True, "message": _("تم إعادة تفعيل اشتراكك بنجاح!")}
+            )
 
 
 @require_http_methods(["GET"])
@@ -5465,15 +5456,16 @@ def newsletter_unsubscribe(request, email):
     try:
         subscriber = NewsletterSubscriber.objects.get(email=email, is_active=True)
         subscriber.unsubscribe()
-        messages.success(request, _('تم إلغاء الاشتراك بنجاح'))
+        messages.success(request, _("تم إلغاء الاشتراك بنجاح"))
     except NewsletterSubscriber.DoesNotExist:
-        messages.info(request, _('هذا البريد الإلكتروني غير مشترك'))
+        messages.info(request, _("هذا البريد الإلكتروني غير مشترك"))
 
-    return redirect('home')
+    return redirect("home")
 
 
 class PublisherSettingsView(LoginRequiredMixin, TemplateView):
     """Publisher settings page with profile, notifications, and security settings"""
+
     template_name = "dashboard/publisher_settings.html"
 
     def get_context_data(self, **kwargs):
@@ -5492,36 +5484,35 @@ def publisher_update_profile(request):
 
     try:
         # Update basic profile info
-        user.first_name = request.POST.get('first_name', '').strip()
-        user.last_name = request.POST.get('last_name', '').strip()
-        user.phone = request.POST.get('phone', '').strip()
-        user.mobile = request.POST.get('mobile', '').strip()
-        user.whatsapp = request.POST.get('whatsapp', '').strip()
-        user.bio = request.POST.get('bio', '').strip()
-        user.bio_ar = request.POST.get('bio_ar', '').strip()
-        user.city = request.POST.get('city', '').strip()
-        user.country = request.POST.get('country', '').strip()
-        user.address = request.POST.get('address', '').strip()
+        user.first_name = request.POST.get("first_name", "").strip()
+        user.last_name = request.POST.get("last_name", "").strip()
+        user.phone = request.POST.get("phone", "").strip()
+        user.mobile = request.POST.get("mobile", "").strip()
+        user.whatsapp = request.POST.get("whatsapp", "").strip()
+        user.bio = request.POST.get("bio", "").strip()
+        user.bio_ar = request.POST.get("bio_ar", "").strip()
+        user.city = request.POST.get("city", "").strip()
+        user.country = request.POST.get("country", "").strip()
+        user.address = request.POST.get("address", "").strip()
 
         # Update company info if provided
-        user.company_name = request.POST.get('company_name', '').strip()
-        user.company_name_ar = request.POST.get('company_name_ar', '').strip()
+        user.company_name = request.POST.get("company_name", "").strip()
+        user.company_name_ar = request.POST.get("company_name_ar", "").strip()
 
         # Handle avatar upload
-        if 'avatar' in request.FILES:
-            user.avatar = request.FILES['avatar']
+        if "avatar" in request.FILES:
+            user.avatar = request.FILES["avatar"]
 
         user.save()
 
-        return JsonResponse({
-            'success': True,
-            'message': _('تم تحديث الملف الشخصي بنجاح')
-        })
+        return JsonResponse(
+            {"success": True, "message": _("تم تحديث الملف الشخصي بنجاح")}
+        )
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': _('حدث خطأ أثناء تحديث الملف الشخصي')
-        }, status=400)
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ أثناء تحديث الملف الشخصي")},
+            status=400,
+        )
 
 
 @login_required
@@ -5531,18 +5522,17 @@ def publisher_update_notifications(request):
     user = request.user
 
     try:
-        user.email_notifications = request.POST.get('email_notifications') == 'true'
+        user.email_notifications = request.POST.get("email_notifications") == "true"
         user.save()
 
-        return JsonResponse({
-            'success': True,
-            'message': _('تم تحديث إعدادات الإشعارات بنجاح')
-        })
+        return JsonResponse(
+            {"success": True, "message": _("تم تحديث إعدادات الإشعارات بنجاح")}
+        )
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': _('حدث خطأ أثناء تحديث إعدادات الإشعارات')
-        }, status=400)
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ أثناء تحديث إعدادات الإشعارات")},
+            status=400,
+        )
 
 
 @login_required
@@ -5554,32 +5544,31 @@ def publisher_change_password(request):
     from django.core.exceptions import ValidationError
 
     user = request.user
-    current_password = request.POST.get('current_password', '')
-    new_password = request.POST.get('new_password', '')
-    confirm_password = request.POST.get('confirm_password', '')
+    current_password = request.POST.get("current_password", "")
+    new_password = request.POST.get("new_password", "")
+    confirm_password = request.POST.get("confirm_password", "")
 
     # Verify current password
     if not user.check_password(current_password):
-        return JsonResponse({
-            'success': False,
-            'message': _('كلمة المرور الحالية غير صحيحة')
-        }, status=400)
+        return JsonResponse(
+            {"success": False, "message": _("كلمة المرور الحالية غير صحيحة")},
+            status=400,
+        )
 
     # Check if new passwords match
     if new_password != confirm_password:
-        return JsonResponse({
-            'success': False,
-            'message': _('كلمات المرور الجديدة غير متطابقة')
-        }, status=400)
+        return JsonResponse(
+            {"success": False, "message": _("كلمات المرور الجديدة غير متطابقة")},
+            status=400,
+        )
 
     # Validate new password
     try:
         validate_password(new_password, user)
     except ValidationError as e:
-        return JsonResponse({
-            'success': False,
-            'message': ', '.join(e.messages)
-        }, status=400)
+        return JsonResponse(
+            {"success": False, "message": ", ".join(e.messages)}, status=400
+        )
 
     # Update password
     user.set_password(new_password)
@@ -5588,10 +5577,7 @@ def publisher_change_password(request):
     # Keep the user logged in after password change
     update_session_auth_hash(request, user)
 
-    return JsonResponse({
-        'success': True,
-        'message': _('تم تغيير كلمة المرور بنجاح')
-    })
+    return JsonResponse({"success": True, "message": _("تم تغيير كلمة المرور بنجاح")})
 
 
 @login_required
@@ -5599,15 +5585,14 @@ def publisher_change_password(request):
 def publisher_update_email(request):
     """Update publisher email address"""
     user = request.user
-    new_email = request.POST.get('email', '').strip().lower()
-    password = request.POST.get('password', '')
+    new_email = request.POST.get("email", "").strip().lower()
+    password = request.POST.get("password", "")
 
     # Verify password
     if not user.check_password(password):
-        return JsonResponse({
-            'success': False,
-            'message': _('كلمة المرور غير صحيحة')
-        }, status=400)
+        return JsonResponse(
+            {"success": False, "message": _("كلمة المرور غير صحيحة")}, status=400
+        )
 
     # Validate email
     from django.core.validators import validate_email
@@ -5616,25 +5601,23 @@ def publisher_update_email(request):
     try:
         validate_email(new_email)
     except ValidationError:
-        return JsonResponse({
-            'success': False,
-            'message': _('البريد الإلكتروني غير صالح')
-        }, status=400)
+        return JsonResponse(
+            {"success": False, "message": _("البريد الإلكتروني غير صالح")}, status=400
+        )
 
     # Check if email already exists
     if User.objects.filter(email=new_email).exclude(id=user.id).exists():
-        return JsonResponse({
-            'success': False,
-            'message': _('هذا البريد الإلكتروني مستخدم بالفعل')
-        }, status=400)
+        return JsonResponse(
+            {"success": False, "message": _("هذا البريد الإلكتروني مستخدم بالفعل")},
+            status=400,
+        )
 
     user.email = new_email
     user.save()
 
-    return JsonResponse({
-        'success': True,
-        'message': _('تم تحديث البريد الإلكتروني بنجاح')
-    })
+    return JsonResponse(
+        {"success": True, "message": _("تم تحديث البريد الإلكتروني بنجاح")}
+    )
 
 
 @login_required
@@ -5642,14 +5625,13 @@ def publisher_update_email(request):
 def publisher_delete_account(request):
     """Delete publisher account (soft delete)"""
     user = request.user
-    password = request.POST.get('password', '')
+    password = request.POST.get("password", "")
 
     # Verify password
     if not user.check_password(password):
-        return JsonResponse({
-            'success': False,
-            'message': _('كلمة المرور غير صحيحة')
-        }, status=400)
+        return JsonResponse(
+            {"success": False, "message": _("كلمة المرور غير صحيحة")}, status=400
+        )
 
     # Deactivate user account
     user.is_active = False
@@ -5657,10 +5639,13 @@ def publisher_delete_account(request):
 
     # Log out the user
     from django.contrib.auth import logout
+
     logout(request)
 
-    return JsonResponse({
-        'success': True,
-        'message': _('تم حذف الحساب بنجاح'),
-        'redirect': reverse('main:home')
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "message": _("تم حذف الحساب بنجاح"),
+            "redirect": reverse("main:home"),
+        }
+    )

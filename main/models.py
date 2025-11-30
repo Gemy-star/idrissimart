@@ -853,7 +853,7 @@ class Category(MPTTModel):
     description = CKEditor5Field(
         blank=True,
         verbose_name=_("الوصف - Description"),
-        config_name='default',
+        config_name="default",
     )
     icon = models.CharField(max_length=100, blank=True)
     image = models.ImageField(
@@ -929,7 +929,7 @@ class Category(MPTTModel):
 
     # SEO Fields
     meta_title = models.CharField(max_length=200, blank=True)
-    meta_description = CKEditor5Field(blank=True, config_name='default')
+    meta_description = CKEditor5Field(blank=True, config_name="default")
     meta_keywords = models.CharField(max_length=500, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -951,7 +951,18 @@ class Category(MPTTModel):
         return self.name
 
     def save(self, *args, **kwargs):
-        """Override save to ensure slug_ar is set if not provided"""
+        """Override save to ensure slug_ar is set and add watermark to category images"""
+        # Add watermark to category image if it's a new upload
+        if self.image and not self.pk:
+            from .utils import add_watermark_to_image
+
+            watermarked = add_watermark_to_image(
+                self.image, opacity=150, position="bottom-right", scale=0.10
+            )
+
+            if watermarked:
+                self.image = watermarked
+
         if not self.slug_ar and self.name_ar:
             import re
 
@@ -1045,61 +1056,6 @@ class Category(MPTTModel):
         return queryset
 
 
-class ContactInfo(models.Model):  # This model is correct, no changes needed here.
-    """Contact information for the platform"""
-
-    phone = models.CharField(
-        max_length=20,
-        verbose_name=_("رقم الهاتف - Phone"),
-        help_text=_("رقم الهاتف الرئيسي للمنصة"),
-    )
-    email = models.EmailField(
-        verbose_name=_("البريد الإلكتروني - Email"),
-        help_text=_("البريد الإلكتروني الرئيسي للمنصة"),
-    )
-    address = models.TextField(
-        verbose_name=_("العنوان - Address"), help_text=_("عنوان المكتب الرئيسي")
-    )
-    working_hours = models.CharField(
-        max_length=100,
-        default="السبت - الخميس، 9:00 ص - 5:00 م",
-        verbose_name=_("ساعات العمل - Working Hours"),
-    )
-    whatsapp = models.CharField(
-        max_length=20, blank=True, verbose_name=_("واتساب - WhatsApp")
-    )
-    facebook = models.URLField(blank=True, verbose_name=_("فيسبوك - Facebook"))
-    twitter = models.URLField(blank=True, verbose_name=_("تويتر - Twitter"))
-    instagram = models.URLField(blank=True, verbose_name=_("انستغرام - Instagram"))
-    linkedin = models.URLField(blank=True, verbose_name=_("لينكدإن - LinkedIn"))
-    map_embed_url = models.TextField(
-        blank=True,
-        verbose_name=_("رابط الخريطة - Map Embed URL"),
-        help_text=_("رابط الخريطة من Google Maps"),
-    )
-    google_maps_link = models.URLField(
-        blank=True,
-        verbose_name=_("رابط Google Maps - Google Maps Link"),
-        help_text=_("رابط مباشر إلى الموقع على Google Maps"),
-    )
-    is_active = models.BooleanField(default=True, verbose_name=_("نشط - Active"))
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = "contact_info"
-        verbose_name = _("Contact Information")
-        verbose_name_plural = _("Contact Information")
-
-    def __str__(self):
-        return f"Contact Info - {self.email}"
-
-    @classmethod
-    def get_active_info(cls):
-        """Get the active contact information"""
-        return cls.objects.filter(is_active=True).first()
-
-
 class ContactMessage(models.Model):  # This model is correct, no changes needed here.
     """Contact messages from users"""
 
@@ -1163,112 +1119,6 @@ class ContactMessage(models.Model):  # This model is correct, no changes needed 
         self.status = self.Status.REPLIED
         self.replied_at = timezone.now()
         self.save()
-
-
-class AboutPage(models.Model):  # This model is correct, no changes needed here.
-    """About page content management"""
-
-    title = models.CharField(
-        max_length=200, default="إدريسي مارت", verbose_name=_("العنوان - Title")
-    )
-    tagline = models.CharField(
-        max_length=200, default="تميّزك… ملموس", verbose_name=_("الشعار - Tagline")
-    )
-    subtitle = models.CharField(
-        max_length=300,
-        default="منصتك للتجارة الإلكترونية المتكاملة",
-        verbose_name=_("العنوان الفرعي - Subtitle"),
-    )
-    who_we_are_title = models.CharField(
-        max_length=100, default="من نحن؟", verbose_name=_("عنوان من نحن")
-    )
-    who_we_are_content = CKEditor5Field(
-        verbose_name=_("محتوى من نحن - Who We Are Content"),
-        config_name='admin',
-    )
-    vision_title = models.CharField(
-        max_length=100, default="رؤيتنا", verbose_name=_("عنوان الرؤية")
-    )
-    vision_content = CKEditor5Field(
-        verbose_name=_("محتوى الرؤية - Vision Content"),
-        config_name='admin',
-    )
-    mission_title = models.CharField(
-        max_length=100, default="رسالتنا", verbose_name=_("عنوان الرسالة")
-    )
-    mission_content = CKEditor5Field(
-        verbose_name=_("محتوى الرسالة - Mission Content"),
-        config_name='admin',
-    )
-    values_title = models.CharField(
-        max_length=100, default="قيمنا", verbose_name=_("عنوان القيم")
-    )
-    # Statistics
-    vendors_count = models.IntegerField(
-        default=500, verbose_name=_("عدد البائعين - Vendors Count")
-    )
-    products_count = models.IntegerField(
-        default=5000, verbose_name=_("عدد المنتجات - Products Count")
-    )
-    customers_count = models.IntegerField(
-        default=10000, verbose_name=_("عدد العملاء - Customers Count")
-    )
-    categories_count = models.IntegerField(
-        default=20, verbose_name=_("عدد الفئات - Categories Count")
-    )
-    is_active = models.BooleanField(default=True, verbose_name=_("نشط - Active"))
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = "about_page"
-        verbose_name = _("About Page")
-        verbose_name_plural = _("About Pages")
-
-    def __str__(self):
-        return f"About Page - {self.title}"
-
-    @classmethod
-    def get_active_content(cls):
-        """Get the active about page content"""
-        return cls.objects.filter(is_active=True).first()
-
-
-class CompanyValue(models.Model):  # This model is correct, no changes needed here.
-    """Company values for about page"""
-
-    title = models.CharField(max_length=100, verbose_name=_("العنوان - Title"))
-    description = CKEditor5Field(verbose_name=_("الوصف - Description"), config_name='default')
-    icon_class = models.CharField(
-        max_length=100,
-        blank=True,
-        verbose_name=_("فئة الأيقونة - Icon Class"),
-        help_text=_("مثال: fas fa-check"),
-    )
-    svg_icon = models.TextField(
-        blank=True,
-        verbose_name=_("أيقونة SVG - SVG Icon"),
-        help_text=_("كود SVG للأيقونة"),
-    )
-    order = models.IntegerField(default=0, verbose_name=_("الترتيب - Order"))
-    is_active = models.BooleanField(default=True, verbose_name=_("نشط - Active"))
-    about_page = models.ForeignKey(
-        AboutPage,
-        on_delete=models.CASCADE,
-        related_name="values",
-        verbose_name=_("صفحة من نحن"),
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = "company_values"
-        verbose_name = _("Company Value")
-        verbose_name_plural = _("Company Values")
-        ordering = ["order", "title"]
-
-    def __str__(self):
-        return self.title
 
 
 class ClassifiedAdManager(models.Manager):
@@ -1338,7 +1188,7 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
         Category, on_delete=models.PROTECT, related_name="classified_ads"
     )
     title = models.CharField(max_length=255, verbose_name=_("عنوان الإعلان"))
-    description = CKEditor5Field(verbose_name=_("وصف الإعلان"), config_name='default')
+    description = CKEditor5Field(verbose_name=_("وصف الإعلان"), config_name="default")
     price = models.DecimalField(
         max_digits=12, decimal_places=2, verbose_name=_("السعر")
     )
@@ -1428,12 +1278,12 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
         blank=True,
         verbose_name=_("شروط التوصيل والتحصيل"),
         help_text=_("شروط خدمة التوصيل والتحصيل"),
-        config_name='default',
+        config_name="default",
     )
     delivery_terms_en = CKEditor5Field(
         blank=True,
         verbose_name=_("شروط التوصيل والتحصيل (EN)"),
-        config_name='default',
+        config_name="default",
     )
 
     # Admin Control
@@ -1460,7 +1310,9 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
     reviewed_at = models.DateTimeField(
         null=True, blank=True, verbose_name=_("تاريخ المراجعة")
     )
-    admin_notes = CKEditor5Field(blank=True, verbose_name=_("ملاحظات الإدارة"), config_name='admin')
+    admin_notes = CKEditor5Field(
+        blank=True, verbose_name=_("ملاحظات الإدارة"), config_name="admin"
+    )
 
     # Status and Timestamps
     status = models.CharField(
@@ -1566,6 +1418,23 @@ class AdImage(models.Model):  # This model is correct, no changes needed here.
         verbose_name = _("Ad Image")
         verbose_name_plural = _("Ad Images")
         ordering = ["order"]
+
+    def save(self, *args, **kwargs):
+        """Add watermark to image before saving"""
+        if self.image and not self.pk:  # Only for new uploads
+            from .utils import add_watermark_to_image
+
+            watermarked = add_watermark_to_image(
+                self.image,
+                opacity=180,  # Semi-transparent
+                position="bottom-right",
+                scale=0.12,  # 12% of image width
+            )
+
+            if watermarked:
+                self.image = watermarked
+
+        super().save(*args, **kwargs)
 
 
 class AdFeature(models.Model):  # This model is correct, no changes needed here.
@@ -2474,7 +2343,9 @@ class Visitor(models.Model):
     """
 
     ip_address = models.GenericIPAddressField(verbose_name=_("عنوان IP"))
-    session_key = models.CharField(max_length=40, db_index=True, verbose_name=_("مفتاح الجلسة"))
+    session_key = models.CharField(
+        max_length=40, db_index=True, verbose_name=_("مفتاح الجلسة")
+    )
     user = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -2484,22 +2355,26 @@ class Visitor(models.Model):
         verbose_name=_("المستخدم"),
     )
     user_agent = models.TextField(blank=True, verbose_name=_("متصفح المستخدم"))
-    page_url = models.CharField(max_length=500, blank=True, verbose_name=_("رابط الصفحة"))
+    page_url = models.CharField(
+        max_length=500, blank=True, verbose_name=_("رابط الصفحة")
+    )
     referrer = models.CharField(max_length=500, blank=True, verbose_name=_("المصدر"))
     country = models.CharField(max_length=2, blank=True, verbose_name=_("الدولة"))
     city = models.CharField(max_length=100, blank=True, verbose_name=_("المدينة"))
     device_type = models.CharField(
         max_length=20,
         choices=[
-            ('mobile', _('موبايل')),
-            ('tablet', _('تابلت')),
-            ('desktop', _('كمبيوتر')),
+            ("mobile", _("موبايل")),
+            ("tablet", _("تابلت")),
+            ("desktop", _("كمبيوتر")),
         ],
-        default='desktop',
+        default="desktop",
         verbose_name=_("نوع الجهاز"),
     )
     first_visit = models.DateTimeField(auto_now_add=True, verbose_name=_("أول زيارة"))
-    last_activity = models.DateTimeField(auto_now=True, db_index=True, verbose_name=_("آخر نشاط"))
+    last_activity = models.DateTimeField(
+        auto_now=True, db_index=True, verbose_name=_("آخر نشاط")
+    )
     page_views = models.PositiveIntegerField(default=1, verbose_name=_("عدد الصفحات"))
 
     class Meta:
@@ -2539,7 +2414,7 @@ class Visitor(models.Model):
             queryset = queryset.filter(first_visit__gte=start_date)
         if end_date:
             queryset = queryset.filter(first_visit__lte=end_date)
-        return queryset.values('ip_address').distinct().count()
+        return queryset.values("ip_address").distinct().count()
 
 
 class NewsletterSubscriber(models.Model):
@@ -2549,9 +2424,15 @@ class NewsletterSubscriber(models.Model):
 
     email = models.EmailField(unique=True, verbose_name=_("البريد الإلكتروني"))
     is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
-    subscribed_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الاشتراك"))
-    unsubscribed_at = models.DateTimeField(null=True, blank=True, verbose_name=_("تاريخ إلغاء الاشتراك"))
-    ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name=_("عنوان IP"))
+    subscribed_at = models.DateTimeField(
+        auto_now_add=True, verbose_name=_("تاريخ الاشتراك")
+    )
+    unsubscribed_at = models.DateTimeField(
+        null=True, blank=True, verbose_name=_("تاريخ إلغاء الاشتراك")
+    )
+    ip_address = models.GenericIPAddressField(
+        null=True, blank=True, verbose_name=_("عنوان IP")
+    )
     user_agent = models.TextField(blank=True, verbose_name=_("متصفح المستخدم"))
 
     class Meta:

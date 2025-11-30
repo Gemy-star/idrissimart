@@ -3,8 +3,19 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.db import models
 from django_ckeditor_5.widgets import CKEditor5Widget
+from solo.admin import SingletonModelAdmin
 
-from .models import Blog, Comment, Country
+from .models import (
+    Blog,
+    Comment,
+    Country,
+    SiteConfiguration,
+    AboutPage,
+    ContactPage,
+    HomePage,
+    TermsPage,
+    PrivacyPage,
+)
 
 
 @admin.register(Country)
@@ -71,7 +82,7 @@ class BlogAdmin(admin.ModelAdmin):
     ordering = ("-published_date",)
 
     formfield_overrides = {
-        models.TextField: {'widget': CKEditor5Widget(config_name='admin')},
+        models.TextField: {"widget": CKEditor5Widget(config_name="admin")},
     }
 
     def get_queryset(self, request):
@@ -90,11 +101,143 @@ class CommentAdmin(admin.ModelAdmin):
     search_fields = ("author__username", "body")
     actions = ["approve_comments"]
 
+    def approve_comments(self, request, queryset):
+        queryset.update(active=True)
+
+
+# Solo Model Admins for Site Configuration
+@admin.register(SiteConfiguration)
+class SiteConfigurationAdmin(SingletonModelAdmin):
+    fieldsets = (
+        (
+            "SEO و الكلمات المفتاحية",
+            {
+                "fields": (
+                    "meta_keywords",
+                    "meta_keywords_ar",
+                )
+            },
+        ),
+        (
+            "محتوى التذييل",
+            {
+                "fields": (
+                    "footer_text",
+                    "footer_text_ar",
+                    "copyright_text",
+                )
+            },
+        ),
+    )
+
     formfield_overrides = {
-        models.TextField: {'widget': CKEditor5Widget(config_name='default')},
+        models.TextField: {"widget": CKEditor5Widget(config_name="default")},
+    }
+
+
+@admin.register(AboutPage)
+class AboutPageAdmin(SingletonModelAdmin):
+    fieldsets = (
+        ("العنوان", {"fields": ("title", "title_ar")}),
+        ("المحتوى الرئيسي", {"fields": ("content", "content_ar", "featured_image")}),
+        ("رسالتنا", {"fields": ("mission", "mission_ar"), "classes": ("collapse",)}),
+        ("رؤيتنا", {"fields": ("vision", "vision_ar"), "classes": ("collapse",)}),
+        ("قيمنا", {"fields": ("values", "values_ar"), "classes": ("collapse",)}),
+    )
+
+
+@admin.register(ContactPage)
+class ContactPageAdmin(SingletonModelAdmin):
+    fieldsets = (
+        (
+            "العنوان والوصف",
+            {"fields": ("title", "title_ar", "description", "description_ar")},
+        ),
+        ("إعدادات النموذج", {"fields": ("enable_contact_form", "notification_email")}),
+        ("ساعات العمل", {"fields": ("office_hours", "office_hours_ar")}),
+        ("الخريطة", {"fields": ("map_embed_code",), "classes": ("collapse",)}),
+    )
+
+
+@admin.register(HomePage)
+class HomePageAdmin(SingletonModelAdmin):
+    fieldsets = (
+        (
+            "قسم البطل (Hero Section)",
+            {
+                "fields": (
+                    "hero_title",
+                    "hero_title_ar",
+                    "hero_subtitle",
+                    "hero_subtitle_ar",
+                    "hero_image",
+                    "hero_button_text",
+                    "hero_button_text_ar",
+                    "hero_button_url",
+                )
+            },
+        ),
+        (
+            "نافذة الإعلان (Modal)",
+            {
+                "fields": (
+                    "show_modal",
+                    "modal_title",
+                    "modal_title_ar",
+                    "modal_content",
+                    "modal_content_ar",
+                    "modal_image",
+                    "modal_button_text",
+                    "modal_button_text_ar",
+                    "modal_button_url",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "الأقسام المميزة",
+            {
+                "fields": ("show_featured_categories", "show_featured_ads"),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+    formfield_overrides = {
+        models.TextField: {"widget": CKEditor5Widget(config_name="default")},
     }
 
     def approve_comments(self, request, queryset):
         queryset.update(active=True)
 
     approve_comments.short_description = "Approve selected comments"
+
+
+@admin.register(TermsPage)
+class TermsPageAdmin(SingletonModelAdmin):
+    fieldsets = (
+        ("العنوان", {"fields": ("title", "title_ar")}),
+        ("المحتوى", {"fields": ("content", "content_ar")}),
+        ("معلومات التحديث", {"fields": ("last_updated",), "classes": ("collapse",)}),
+    )
+
+    readonly_fields = ("last_updated",)
+
+    formfield_overrides = {
+        models.TextField: {"widget": CKEditor5Widget(config_name="default")},
+    }
+
+
+@admin.register(PrivacyPage)
+class PrivacyPageAdmin(SingletonModelAdmin):
+    fieldsets = (
+        ("العنوان", {"fields": ("title", "title_ar")}),
+        ("المحتوى", {"fields": ("content", "content_ar")}),
+        ("معلومات التحديث", {"fields": ("last_updated",), "classes": ("collapse",)}),
+    )
+
+    readonly_fields = ("last_updated",)
+
+    formfield_overrides = {
+        models.TextField: {"widget": CKEditor5Widget(config_name="default")},
+    }

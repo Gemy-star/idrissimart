@@ -542,6 +542,41 @@ urlpatterns = [
         name="admin_dashboard",
     ),
     path(
+        "admin/site-content/",
+        enhanced_views.admin_site_content,
+        name="admin_site_content",
+    ),
+    path(
+        "admin/site-content/homepage/edit/",
+        enhanced_views.admin_edit_homepage,
+        name="admin_edit_homepage",
+    ),
+    path(
+        "admin/site-content/aboutpage/edit/",
+        enhanced_views.admin_edit_aboutpage,
+        name="admin_edit_aboutpage",
+    ),
+    path(
+        "admin/site-content/contactpage/edit/",
+        enhanced_views.admin_edit_contactpage,
+        name="admin_edit_contactpage",
+    ),
+    path(
+        "admin/site-content/siteconfig/edit/",
+        enhanced_views.admin_edit_siteconfig,
+        name="admin_edit_siteconfig",
+    ),
+    path(
+        "admin/site-content/termspage/edit/",
+        enhanced_views.admin_edit_termspage,
+        name="admin_edit_termspage",
+    ),
+    path(
+        "admin/site-content/privacypage/edit/",
+        enhanced_views.admin_edit_privacypage,
+        name="admin_edit_privacypage",
+    ),
+    path(
         "admin/categories/",
         views.AdminCategoriesView.as_view(),
         name="admin_categories",

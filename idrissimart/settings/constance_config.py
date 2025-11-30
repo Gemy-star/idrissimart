@@ -154,18 +154,41 @@ CONSTANCE_CONFIG = {
         "EGP",
         _("Paymob payment currency"),
     ),
+    # Email Settings - SendGrid
+    "SENDGRID_API_KEY": (
+        os.getenv("SENDGRID_API_KEY", ""),
+        _("SendGrid API Key (loaded from environment)"),
+    ),
+    "SENDGRID_FROM_EMAIL": (
+        "noreply@idrissimart.com",
+        _("SendGrid From Email"),
+    ),
+    "SENDGRID_FROM_NAME": (
+        "إدريسي مارت",
+        _("SendGrid From Name"),
+    ),
+    "SENDGRID_ENABLED": (
+        True,
+        _("Enable SendGrid email service"),
+        bool,
+    ),
     # SMS Settings - Twilio
     "TWILIO_ACCOUNT_SID": (
-        "ACbda2c87d81ac899a614f26b69c25c8af",
+        os.getenv("TWILIO_ACCOUNT_SID", "ACbda2c87d81ac899a614f26b69c25c8af"),
         _("Twilio Account SID"),
     ),
     "TWILIO_AUTH_TOKEN": (
-        "f8cad167753ac2bacca2c70db8a4f541",
+        os.getenv("TWILIO_AUTH_TOKEN", "f8cad167753ac2bacca2c70db8a4f541"),
         _("Twilio Auth Token"),
     ),
     "TWILIO_PHONE_NUMBER": (
         "+12605822569",
         _("Twilio Phone Number"),
+    ),
+    "TWILIO_ENABLED": (
+        True,
+        _("Enable Twilio SMS service"),
+        bool,
     ),
     "TWILIO_DEVELOPMENT_MODE": (
         False,
@@ -417,7 +440,14 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "PAYMOB_MASTERCARD_INTEGRATION_ID",
         "PAYMOB_VISA_INTEGRATION_ID",
     ),
+    "Email Settings - SendGrid": (
+        "SENDGRID_ENABLED",
+        "SENDGRID_API_KEY",
+        "SENDGRID_FROM_EMAIL",
+        "SENDGRID_FROM_NAME",
+    ),
     "SMS Settings - Twilio": (
+        "TWILIO_ENABLED",
         "TWILIO_ACCOUNT_SID",
         "TWILIO_AUTH_TOKEN",
         "TWILIO_PHONE_NUMBER",

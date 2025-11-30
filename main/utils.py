@@ -465,3 +465,122 @@ def normalize_phone_number(phone, country_code="SA"):
             return phone
         # Otherwise, prepend country code
         return country_config["phone_code"] + phone
+
+
+# Image processing utilities
+def add_watermark_to_image(
+    image_field, watermark_path=None, opacity=128, position="bottom-right", scale=0.15
+):
+    """
+    Add watermark to an uploaded image
+
+    Args:
+        image_field: Django ImageField instance
+        watermark_path: Path to watermark image (defaults to mini-logo-dark-theme.png)
+        opacity: Watermark opacity (0-255)
+        position: Watermark position ('bottom-right', 'bottom-left', 'top-right', 'top-left', 'center')
+        scale: Watermark scale relative to image width (0.0-1.0)
+
+    Returns:
+        InMemoryUploadedFile: Watermarked image file
+    """
+    import os
+    from io import BytesIO
+    from PIL import Image
+    from django.core.files.uploadedfile import InMemoryUploadedFile
+    from django.conf import settings
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    if not watermark_path:
+        watermark_path = os.path.join(
+            settings.STATIC_ROOT or settings.BASE_DIR / "static",
+            "images/logos/mini-logo-dark-theme.png",
+        )
+
+    # If STATIC_ROOT doesn't exist (development), try STATICFILES_DIRS
+    if not os.path.exists(watermark_path) and hasattr(settings, "STATICFILES_DIRS"):
+        for static_dir in settings.STATICFILES_DIRS:
+            alt_path = os.path.join(static_dir, "images/logos/mini-logo-dark-theme.png")
+            if os.path.exists(alt_path):
+                watermark_path = alt_path
+                break
+
+    try:
+        # Open the original image
+        image = Image.open(image_field)
+
+        # Convert to RGBA if needed
+        if image.mode != "RGBA":
+            image = image.convert("RGBA")
+
+        # Check if watermark file exists
+        if not os.path.exists(watermark_path):
+            logger.warning(f"Watermark file not found: {watermark_path}")
+            return None
+
+        # Open watermark
+        watermark = Image.open(watermark_path)
+        if watermark.mode != "RGBA":
+            watermark = watermark.convert("RGBA")
+
+        # Calculate watermark size (scale relative to image width)
+        img_width, img_height = image.size
+        wm_width = int(img_width * scale)
+        wm_height = int(watermark.size[1] * (wm_width / watermark.size[0]))
+        watermark = watermark.resize((wm_width, wm_height), Image.Resampling.LANCZOS)
+
+        # Apply opacity to watermark
+        alpha = watermark.split()[3]
+        alpha = alpha.point(lambda p: int(p * opacity / 255))
+        watermark.putalpha(alpha)
+
+        # Calculate position
+        padding = 20  # pixels from edge
+        positions = {
+            "bottom-right": (
+                img_width - wm_width - padding,
+                img_height - wm_height - padding,
+            ),
+            "bottom-left": (padding, img_height - wm_height - padding),
+            "top-right": (img_width - wm_width - padding, padding),
+            "top-left": (padding, padding),
+            "center": ((img_width - wm_width) // 2, (img_height - wm_height) // 2),
+        }
+
+        watermark_position = positions.get(position, positions["bottom-right"])
+
+        # Create a transparent layer for the watermark
+        transparent = Image.new("RGBA", image.size, (0, 0, 0, 0))
+        transparent.paste(watermark, watermark_position, watermark)
+
+        # Composite the watermark onto the image
+        watermarked = Image.alpha_composite(image, transparent)
+
+        # Convert back to RGB if original was not RGBA
+        if hasattr(image_field, "file") and hasattr(image_field.file, "content_type"):
+            if image_field.file.content_type in ["image/jpeg", "image/jpg"]:
+                watermarked = watermarked.convert("RGB")
+
+        # Save to BytesIO
+        output = BytesIO()
+        image_format = "PNG" if image_field.name.lower().endswith(".png") else "JPEG"
+        watermarked.save(output, format=image_format, quality=95)
+        output.seek(0)
+
+        # Create InMemoryUploadedFile
+        watermarked_file = InMemoryUploadedFile(
+            output,
+            "ImageField",
+            image_field.name,
+            f"image/{image_format.lower()}",
+            output.getbuffer().nbytes,
+            None,
+        )
+
+        return watermarked_file
+
+    except Exception as e:
+        logger.error(f"Error adding watermark to image: {str(e)}")
+        return None

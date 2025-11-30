@@ -16,6 +16,8 @@ from django.urls import reverse
 from constance import config
 from .models import Payment, AdPackage, UserPackage
 from .payment_services import PaymentService
+from .services.paypal_service import PayPalService
+from .services.paymob_service import PaymobService
 from django.utils import timezone
 from datetime import timedelta
 
@@ -170,10 +172,10 @@ def paypal_success(request):
         )
 
         # Execute PayPal payment
-        payment_service = PaymentService()
-        success, result = payment_service.paypal.execute_payment(payment_id, payer_id)
+        paypal_service = PayPalService()
+        success, result = paypal_service.capture_order(payment_id)
 
-        if success and result.get("status") == "approved":
+        if success and result.get("status") == "COMPLETED":
             # Mark payment as completed
             payment.mark_completed(payment_id)
 

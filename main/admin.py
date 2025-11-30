@@ -12,7 +12,6 @@ from .chatbot_admin import *
 from .chat_admin import *
 
 from .models import (
-    AboutPage,
     AdFeature,
     AdFeaturePrice,
     AdImage,
@@ -22,8 +21,6 @@ from .models import (
     CartSettings,
     Category,
     ClassifiedAd,
-    CompanyValue,
-    ContactInfo,
     ContactMessage,
     CustomField,
     NewsletterSubscriber,
@@ -56,7 +53,7 @@ class CategoryAdmin(MPTTModelAdmin):
     list_editable = ("is_active",)
 
     formfield_overrides = {
-        models.TextField: {'widget': CKEditor5Widget(config_name='admin')},
+        models.TextField: {"widget": CKEditor5Widget(config_name="admin")},
     }
 
     fieldsets = (
@@ -143,7 +140,7 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
     actions = ["approve_ads", "reject_ads", "mark_as_pending"]
 
     formfield_overrides = {
-        models.TextField: {'widget': CKEditor5Widget(config_name='admin')},
+        models.TextField: {"widget": CKEditor5Widget(config_name="admin")},
     }
 
     def approve_ads(self, request, queryset):
@@ -374,25 +371,6 @@ class NotificationAdmin(admin.ModelAdmin):
     list_editable = ("is_read",)
 
 
-@admin.register(AboutPage)
-class AboutPageAdmin(admin.ModelAdmin):
-    list_display = ("title", "tagline", "is_active", "updated_at")
-    list_filter = ("is_active", "updated_at")
-    search_fields = ("title", "tagline", "who_we_are_content")
-    list_editable = ("is_active",)
-
-    formfield_overrides = {
-        models.TextField: {'widget': CKEditor5Widget(config_name='admin')},
-    }
-
-
-@admin.register(ContactInfo)
-class ContactInfoAdmin(admin.ModelAdmin):
-    list_display = ("email", "phone", "address", "is_active")
-    list_filter = ("is_active",)
-    search_fields = ("email", "phone", "address")
-
-
 @admin.register(ContactMessage)
 class ContactMessageAdmin(admin.ModelAdmin):
     list_display = ("name", "email", "subject", "status", "created_at")
@@ -403,20 +381,7 @@ class ContactMessageAdmin(admin.ModelAdmin):
     ordering = ("-created_at",)
 
     formfield_overrides = {
-        models.TextField: {'widget': CKEditor5Widget(config_name='admin')},
-    }
-
-
-@admin.register(CompanyValue)
-class CompanyValueAdmin(admin.ModelAdmin):
-    list_display = ("title", "icon_class", "order", "is_active")
-    list_filter = ("is_active",)
-    search_fields = ("title", "description")
-    list_editable = ("order", "is_active")
-    ordering = ("order",)
-
-    formfield_overrides = {
-        models.TextField: {'widget': CKEditor5Widget(config_name='admin')},
+        models.TextField: {"widget": CKEditor5Widget(config_name="admin")},
     }
 
 
@@ -701,9 +666,7 @@ class NewsletterSubscriberAdmin(admin.ModelAdmin):
     fieldsets = (
         (
             None,
-            {
-                "fields": ("email", "is_active")
-            },
+            {"fields": ("email", "is_active")},
         ),
         (
             _("Subscription Information"),
@@ -723,31 +686,39 @@ class NewsletterSubscriberAdmin(admin.ModelAdmin):
     def activate_subscribers(self, request, queryset):
         updated = queryset.update(is_active=True, unsubscribed_at=None)
         self.message_user(request, _(f"تم تفعيل {updated} مشترك بنجاح"))
+
     activate_subscribers.short_description = _("تفعيل المشتركين المحددين")
 
     def deactivate_subscribers(self, request, queryset):
         from django.utils import timezone
+
         updated = queryset.update(is_active=False, unsubscribed_at=timezone.now())
         self.message_user(request, _(f"تم إلغاء تفعيل {updated} مشترك بنجاح"))
+
     deactivate_subscribers.short_description = _("إلغاء تفعيل المشتركين المحددين")
 
     def export_emails(self, request, queryset):
         from django.http import HttpResponse
         import csv
 
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="newsletter_subscribers.csv"'
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = (
+            'attachment; filename="newsletter_subscribers.csv"'
+        )
 
         writer = csv.writer(response)
-        writer.writerow(['Email', 'Active', 'Subscribed At', 'Unsubscribed At'])
+        writer.writerow(["Email", "Active", "Subscribed At", "Unsubscribed At"])
 
         for subscriber in queryset:
-            writer.writerow([
-                subscriber.email,
-                'Yes' if subscriber.is_active else 'No',
-                subscriber.subscribed_at,
-                subscriber.unsubscribed_at or ''
-            ])
+            writer.writerow(
+                [
+                    subscriber.email,
+                    "Yes" if subscriber.is_active else "No",
+                    subscriber.subscribed_at,
+                    subscriber.unsubscribed_at or "",
+                ]
+            )
 
         return response
+
     export_emails.short_description = _("تصدير البريد الإلكتروني للمشتركين المحددين")

@@ -573,3 +573,315 @@ def get_ads(request):
     ]
 
     return JsonResponse({"success": True, "ads": list(ads)})
+
+
+@staff_member_required
+def admin_site_content(request):
+    """Admin page to manage site content using django-solo models"""
+    from content.site_config import (
+        SiteConfiguration,
+        AboutPage,
+        ContactPage,
+        HomePage,
+        TermsPage,
+        PrivacyPage,
+    )
+
+    context = {
+        "active_nav": "site_content",
+        "site_config": SiteConfiguration.get_solo(),
+        "about_page": AboutPage.get_solo(),
+        "contact_page": ContactPage.get_solo(),
+        "home_page": HomePage.get_solo(),
+        "terms_page": TermsPage.get_solo(),
+        "privacy_page": PrivacyPage.get_solo(),
+    }
+
+    return render(request, "admin_dashboard/site_content.html", context)
+
+
+@staff_member_required
+def admin_edit_homepage(request):
+    """Edit HomePage content"""
+    from content.site_config import HomePage
+    from django import forms
+    from django_ckeditor_5.widgets import CKEditor5Widget
+
+    class HomePageForm(forms.ModelForm):
+        class Meta:
+            model = HomePage
+            fields = [
+                "hero_title",
+                "hero_title_ar",
+                "hero_subtitle",
+                "hero_subtitle_ar",
+                "hero_image",
+                "hero_button_text",
+                "hero_button_text_ar",
+                "hero_button_url",
+                "show_modal",
+                "modal_title",
+                "modal_title_ar",
+                "modal_content",
+                "modal_content_ar",
+                "modal_image",
+                "modal_button_text",
+                "modal_button_text_ar",
+                "modal_button_url",
+                "show_featured_categories",
+                "show_featured_ads",
+            ]
+            widgets = {
+                "hero_subtitle": CKEditor5Widget(config_name="default"),
+                "hero_subtitle_ar": CKEditor5Widget(config_name="default"),
+                "modal_content": CKEditor5Widget(config_name="default"),
+                "modal_content_ar": CKEditor5Widget(config_name="default"),
+            }
+
+    home_page = HomePage.get_solo()
+
+    if request.method == "POST":
+        form = HomePageForm(request.POST, request.FILES, instance=home_page)
+        if form.is_valid():
+            form.save()
+            messages.success(request, _("تم تحديث محتوى الصفحة الرئيسية بنجاح"))
+            return redirect("main:admin_site_content")
+    else:
+        form = HomePageForm(instance=home_page)
+
+    context = {
+        "active_nav": "site_content",
+        "form": form,
+        "page_title": _("تحرير الصفحة الرئيسية"),
+    }
+
+    return render(request, "admin_dashboard/edit_homepage.html", context)
+
+
+@staff_member_required
+def admin_edit_aboutpage(request):
+    """Edit AboutPage content"""
+    from content.site_config import AboutPage
+    from django import forms
+    from django_ckeditor_5.widgets import CKEditor5Widget
+
+    class AboutPageForm(forms.ModelForm):
+        class Meta:
+            model = AboutPage
+            fields = [
+                "title",
+                "title_ar",
+                "content",
+                "content_ar",
+                "mission",
+                "mission_ar",
+                "vision",
+                "vision_ar",
+                "values",
+                "values_ar",
+                "featured_image",
+            ]
+            widgets = {
+                "content": CKEditor5Widget(config_name="default"),
+                "content_ar": CKEditor5Widget(config_name="default"),
+                "mission": CKEditor5Widget(config_name="default"),
+                "mission_ar": CKEditor5Widget(config_name="default"),
+                "vision": CKEditor5Widget(config_name="default"),
+                "vision_ar": CKEditor5Widget(config_name="default"),
+                "values": CKEditor5Widget(config_name="default"),
+                "values_ar": CKEditor5Widget(config_name="default"),
+            }
+
+    about_page = AboutPage.get_solo()
+
+    if request.method == "POST":
+        form = AboutPageForm(request.POST, request.FILES, instance=about_page)
+        if form.is_valid():
+            form.save()
+            messages.success(request, _("تم تحديث صفحة من نحن بنجاح"))
+            return redirect("main:admin_site_content")
+    else:
+        form = AboutPageForm(instance=about_page)
+
+    context = {
+        "active_nav": "site_content",
+        "form": form,
+        "page_title": _("تحرير صفحة من نحن"),
+    }
+
+    return render(request, "admin_dashboard/edit_aboutpage.html", context)
+
+
+@staff_member_required
+def admin_edit_contactpage(request):
+    """Edit ContactPage content"""
+    from content.site_config import ContactPage
+    from django import forms
+    from django_ckeditor_5.widgets import CKEditor5Widget
+
+    class ContactPageForm(forms.ModelForm):
+        class Meta:
+            model = ContactPage
+            fields = [
+                "title",
+                "title_ar",
+                "description",
+                "description_ar",
+                "enable_contact_form",
+                "notification_email",
+                "office_hours",
+                "office_hours_ar",
+                "map_embed_code",
+            ]
+            widgets = {
+                "description": CKEditor5Widget(config_name="default"),
+                "description_ar": CKEditor5Widget(config_name="default"),
+                "office_hours": CKEditor5Widget(config_name="default"),
+                "office_hours_ar": CKEditor5Widget(config_name="default"),
+                "map_embed_code": CKEditor5Widget(config_name="default"),
+            }
+
+    contact_page = ContactPage.get_solo()
+
+    if request.method == "POST":
+        form = ContactPageForm(request.POST, instance=contact_page)
+        if form.is_valid():
+            form.save()
+            messages.success(request, _("تم تحديث صفحة اتصل بنا بنجاح"))
+            return redirect("main:admin_site_content")
+    else:
+        form = ContactPageForm(instance=contact_page)
+
+    context = {
+        "active_nav": "site_content",
+        "form": form,
+        "page_title": _("تحرير صفحة اتصل بنا"),
+    }
+
+    return render(request, "admin_dashboard/edit_contactpage.html", context)
+
+
+@staff_member_required
+def admin_edit_siteconfig(request):
+    """Edit SiteConfiguration"""
+    from content.site_config import SiteConfiguration
+    from django import forms
+    from django_ckeditor_5.widgets import CKEditor5Widget
+
+    class SiteConfigForm(forms.ModelForm):
+        class Meta:
+            model = SiteConfiguration
+            fields = [
+                "meta_keywords",
+                "meta_keywords_ar",
+                "footer_text",
+                "footer_text_ar",
+                "copyright_text",
+            ]
+            widgets = {
+                "footer_text": CKEditor5Widget(config_name="default"),
+                "footer_text_ar": CKEditor5Widget(config_name="default"),
+            }
+
+    site_config = SiteConfiguration.get_solo()
+
+    if request.method == "POST":
+        form = SiteConfigForm(request.POST, instance=site_config)
+        if form.is_valid():
+            form.save()
+            messages.success(request, _("تم تحديث إعدادات الموقع بنجاح"))
+            return redirect("main:admin_site_content")
+    else:
+        form = SiteConfigForm(instance=site_config)
+
+    context = {
+        "active_nav": "site_content",
+        "form": form,
+        "page_title": _("تحرير إعدادات الموقع"),
+    }
+
+    return render(request, "admin_dashboard/edit_siteconfig.html", context)
+
+
+@staff_member_required
+def admin_edit_termspage(request):
+    """Edit TermsPage content"""
+    from content.site_config import TermsPage
+    from django import forms
+    from django_ckeditor_5.widgets import CKEditor5Widget
+
+    class TermsPageForm(forms.ModelForm):
+        class Meta:
+            model = TermsPage
+            fields = [
+                "title",
+                "title_ar",
+                "content",
+                "content_ar",
+            ]
+            widgets = {
+                "content": CKEditor5Widget(config_name="default"),
+                "content_ar": CKEditor5Widget(config_name="default"),
+            }
+
+    terms_page = TermsPage.get_solo()
+
+    if request.method == "POST":
+        form = TermsPageForm(request.POST, instance=terms_page)
+        if form.is_valid():
+            form.save()
+            messages.success(request, _("تم تحديث صفحة الشروط والأحكام بنجاح"))
+            return redirect("main:admin_site_content")
+    else:
+        form = TermsPageForm(instance=terms_page)
+
+    context = {
+        "active_nav": "site_content",
+        "form": form,
+        "terms_page": terms_page,
+        "page_title": _("تحرير الشروط والأحكام"),
+    }
+
+    return render(request, "admin_dashboard/edit_termspage.html", context)
+
+
+@staff_member_required
+def admin_edit_privacypage(request):
+    """Edit PrivacyPage content"""
+    from content.site_config import PrivacyPage
+    from django import forms
+    from django_ckeditor_5.widgets import CKEditor5Widget
+
+    class PrivacyPageForm(forms.ModelForm):
+        class Meta:
+            model = PrivacyPage
+            fields = [
+                "title",
+                "title_ar",
+                "content",
+                "content_ar",
+            ]
+            widgets = {
+                "content": CKEditor5Widget(config_name="default"),
+                "content_ar": CKEditor5Widget(config_name="default"),
+            }
+
+    privacy_page = PrivacyPage.get_solo()
+
+    if request.method == "POST":
+        form = PrivacyPageForm(request.POST, instance=privacy_page)
+        if form.is_valid():
+            form.save()
+            messages.success(request, _("تم تحديث صفحة سياسة الخصوصية بنجاح"))
+            return redirect("main:admin_site_content")
+    else:
+        form = PrivacyPageForm(instance=privacy_page)
+
+    context = {
+        "active_nav": "site_content",
+        "form": form,
+        "privacy_page": privacy_page,
+        "page_title": _("تحرير سياسة الخصوصية"),
+    }
+
+    return render(request, "admin_dashboard/edit_privacypage.html", context)
