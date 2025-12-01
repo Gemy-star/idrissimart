@@ -185,7 +185,7 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@idrissimart.com")
 EMAIL_HOST_USER = DEFAULT_FROM_EMAIL
 
 # =======================
-# Google reCAPTCHA
+# Google reCAPTCHA v2
 # =======================
 RECAPTCHA_PUBLIC_KEY = os.getenv(
     "RECAPTCHA_SITE_KEY", "6LcFPR4sAAAAAF2OLomwf-srKNlJtt33V05-FziB"
@@ -194,7 +194,6 @@ RECAPTCHA_PRIVATE_KEY = os.getenv(
     "RECAPTCHA_SECRET_KEY", "6LcFPR4sAAAAAAPO3McKxxpBR1-hehL9A-gy5uAI"
 )
 
-RECAPTCHA_REQUIRED_SCORE = 0.85  # for reCAPTCHA v3
 # For backward compatibility
 RECAPTCHA_SITE_KEY = RECAPTCHA_PUBLIC_KEY
 RECAPTCHA_SECRET_KEY = RECAPTCHA_PRIVATE_KEY
