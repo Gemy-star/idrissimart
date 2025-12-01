@@ -34,10 +34,19 @@
                                checked />
                         <label for="type_default" class="profile-type-label">
                             <i class="fas fa-user profile-type-icon"></i>
-                            <span class="profile-type-name">{% trans "افتراضي" %}</span>
+                            <span class="profile-type-name">{% trans "مستخدم افتراضي" %}</span>
                             <span class="profile-type-desc">{% trans "مستخدم عادي" %}</span>
                         </label>
                     </div>
+                    <div class="profile-type-card">
+                        <input type="radio" name="profile_type" value="publisher" id="type_publisher" />
+                        <label for="type_publisher" class="profile-type-label">
+                            <i class="fas fa-bullhorn profile-type-icon"></i>
+                            <span class="profile-type-name">{% trans "ناشر" %}</span>
+                            <span class="profile-type-desc">{% trans "ناشر إعلانات" %}</span>
+                        </label>
+                    </div>
+                    {% if profile_type_settings.enable_service %}
                     <div class="profile-type-card">
                         <input type="radio" name="profile_type" value="service" id="type_service" />
                         <label for="type_service" class="profile-type-label">
@@ -46,6 +55,8 @@
                             <span class="profile-type-desc">{% trans "مقدم خدمات" %}</span>
                         </label>
                     </div>
+                    {% endif %}
+                    {% if profile_type_settings.enable_merchant %}
                     <div class="profile-type-card">
                         <input type="radio" name="profile_type" value="merchant" id="type_merchant" />
                         <label for="type_merchant" class="profile-type-label">
@@ -54,6 +65,8 @@
                             <span class="profile-type-desc">{% trans "بائع منتجات" %}</span>
                         </label>
                     </div>
+                    {% endif %}
+                    {% if profile_type_settings.enable_educational %}
                     <div class="profile-type-card">
                         <input type="radio"
                                name="profile_type"
@@ -65,6 +78,7 @@
                             <span class="profile-type-desc">{% trans "مدرب أو محاضر" %}</span>
                         </label>
                     </div>
+                    {% endif %}
                 </div>
                 <!-- Name Fields -->
                 <div class="form-row">
@@ -97,6 +111,29 @@
                                    required />
                             <i class="fas fa-user"></i>
                         </div>
+                    </div>
+                </div>
+                <!-- Country Selection -->
+                <div class="form-group">
+                    <label class="form-label">
+                        {% trans "الدولة" %}
+                        <span class="required">*</span>
+                    </label>
+                    <div class="form-control-wrapper">
+                        <select id="country"
+                                name="country"
+                                class="form-control"
+                                required>
+                            <option value="">{% trans "اختر الدولة" %}</option>
+                            {% for country in countries %}
+                            <option value="{{ country.code }}"
+                                    data-phone-code="{{ country.phone_code }}"
+                                    {% if country.code == 'SA' %}selected{% endif %}>
+                                {{ country.flag_emoji }} {{ country.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <i class="fas fa-globe"></i>
                     </div>
                 </div>
                 <!-- Username -->
@@ -140,27 +177,19 @@
                         <span class="required">*</span>
                     </label>
                     <div class="form-control-wrapper">
-                        <select id="country_code"
-                                name="country_code"
-                                class="form-control mb-2"
-                                onchange="updatePhonePlaceholder()"
-                                required>
-                            {% for country in countries %}
-                            <option value="{{ country.code }}"
-                                    {% if country.code == 'SA' %}selected{% endif %}>
-                                {{ country.flag_emoji }} {{ country.name }} ({{ country.phone_code }})
-                            </option>
-                            {% endfor %}
-                        </select>
-                        <input type="tel"
-                               id="phone"
-                               name="phone"
-                               class="form-control"
-                               placeholder="{% trans 'مثال: 0501234567' %}"
-                               value="{{ form_data.phone|default:'' }}"
-                               required />
-                        <i class="fas fa-phone"></i>
+                        <div class="input-group">
+                            <span class="input-group-text" id="phone-code-display">+966</span>
+                            <input type="tel"
+                                   id="phone"
+                                   name="phone"
+                                   class="form-control"
+                                   placeholder="{% trans 'مثال: 501234567' %}"
+                                   value="{{ form_data.phone|default:'' }}"
+                                   required />
+                        </div>
+                        <input type="hidden" id="country_code" name="country_code" value="SA" />
                     </div>
+                    <span class="form-helper" id="phone-helper">{% trans "أدخل رقم الجوال بدون الصفر أو كود الدولة" %}</span>
                     <div class="d-flex gap-2 mt-2">
                         <button type="button"
                                 id="sendCodeBtn"
@@ -340,10 +369,20 @@
                     <input type="checkbox" name="terms_accepted" id="terms_accepted" required />
                     <label for="terms_accepted">
                         {% trans "أوافق على" %}
-                        <a href="#" target="_blank">{% trans "الشروط والأحكام" %}</a>
+                        <a href="{% url 'main:terms' %}" target="_blank">{% trans "الشروط والأحكام" %}</a>
                         {% trans "و" %}
-                        <a href="#" target="_blank">{% trans "سياسة الخصوصية" %}</a>
+                        <a href="{% url 'main:privacy' %}" target="_blank">{% trans "سياسة الخصوصية" %}</a>
                     </label>
+                </div>
+
+                <!-- Google reCAPTCHA -->
+                <div class="form-group">
+                    {{ form.captcha }}
+                    {% if form.captcha.errors %}
+                        <div class="text-danger small mt-1">
+                            {{ form.captcha.errors.0 }}
+                        </div>
+                    {% endif %}
                 </div>
                 <button type="submit" class="btn-auth btn-auth-primary">
                     <i class="fas fa-user-plus"></i>
@@ -354,6 +393,9 @@
                 <p>
                     {% trans "لديك حساب بالفعل؟" %}
                     <a href="{% url 'main:login' %}">{% trans "تسجيل الدخول" %}</a>
+                </p>
+                <p class="mt-2">
+                    <a href="{% url 'main:password_reset_request' %}">{% trans "نسيت كلمة المرور؟" %}</a>
                 </p>
             </div>
         </div>
@@ -621,15 +663,47 @@
             }, 1000);
         }
 
-        // Modify form submission to check phone verification
+        // Modify form submission to check phone verification and reCAPTCHA
         const originalSubmitHandler = document.getElementById('registerForm').onsubmit;
         document.getElementById('registerForm').addEventListener('submit', function(e) {
+            // Check phone verification
             if (!phoneVerified) {
                 e.preventDefault();
                 showToast('{% trans "يجب التحقق من رقم الجوال قبل إنشاء الحساب" %}', 'warning');
                 document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'center' });
                 return false;
             }
+        });
+
+        // Update phone code when country changes
+        document.getElementById('country').addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const phoneCode = selectedOption.getAttribute('data-phone-code');
+            const countryCode = selectedOption.value;
+
+            document.getElementById('phone-code-display').textContent = phoneCode;
+            document.getElementById('country_code').value = countryCode;
+
+            // Update phone placeholder based on country
+            const phoneInput = document.getElementById('phone');
+            const placeholders = {
+                'SA': '501234567',
+                'EG': '1012345678',
+                'AE': '501234567',
+                'KW': '50123456',
+                'QA': '33123456',
+                'BH': '36123456',
+                'OM': '91123456'
+            };
+            phoneInput.placeholder = placeholders[countryCode] || '501234567';
+        });
+
+        // Initialize phone code on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            const countrySelect = document.getElementById('country');
+            const selectedOption = countrySelect.options[countrySelect.selectedIndex];
+            const phoneCode = selectedOption.getAttribute('data-phone-code');
+            document.getElementById('phone-code-display').textContent = phoneCode || '+966';
         });
     </script>
 

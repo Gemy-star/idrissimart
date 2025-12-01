@@ -394,17 +394,19 @@ def activate_package(request):
         if package.price > 0:
             return JsonResponse({"success": False, "error": _("هذه الباقة غير مجانية")})
 
-        # Check if user already has an active package of this type
-        existing_package = UserPackage.objects.filter(
-            user=request.user,
-            package=package,
-            is_active=True,
-            expiry_date__gt=timezone.now(),
-        ).first()
+        # Check if user already activated this free package before (even if expired)
+        already_activated = UserPackage.objects.filter(
+            user=request.user, package=package
+        ).exists()
 
-        if existing_package:
+        if already_activated:
             return JsonResponse(
-                {"success": False, "error": _("لديك باقة نشطة من هذا النوع بالفعل")}
+                {
+                    "success": False,
+                    "error": _(
+                        "لقد قمت بتفعيل هذه الباقة المجانية من قبل. الباقات المجانية يمكن تفعيلها مرة واحدة فقط."
+                    ),
+                }
             )
 
         # Create user package

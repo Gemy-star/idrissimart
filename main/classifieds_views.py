@@ -632,6 +632,20 @@ class PackagePurchaseView(LoginRequiredMixin, View):
 
         # Check if it's a free package or default package
         if package.price == 0 or package.is_default:
+            # Check if user already activated this free package before
+            already_activated = UserPackage.objects.filter(
+                user=request.user, package=package
+            ).exists()
+
+            if already_activated:
+                messages.warning(
+                    request,
+                    _(
+                        "لقد قمت بتفعيل هذه الباقة المجانية من قبل. الباقات المجانية يمكن تفعيلها مرة واحدة فقط."
+                    ),
+                )
+                return redirect("main:packages_list")
+
             # Create user package immediately
             user_package = UserPackage.objects.create(
                 user=request.user, package=package

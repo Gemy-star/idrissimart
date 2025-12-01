@@ -192,6 +192,23 @@ class User(AbstractUser):  # This model is correct, no changes needed here.
         blank=True,
         verbose_name=_("انتهاء رمز التحقق - Code Expires"),
     )
+
+    # Email verification fields
+    is_email_verified = models.BooleanField(
+        default=False,
+        verbose_name=_("البريد الإلكتروني موثق - Email Verified"),
+    )
+    email_verification_token = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name=_("رمز التحقق من البريد - Email Verification Token"),
+    )
+    email_verification_expires = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_("انتهاء رمز التحقق - Token Expires"),
+    )
+
     whatsapp = models.CharField(
         max_length=20,
         blank=True,

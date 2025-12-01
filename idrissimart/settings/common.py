@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "mptt",
     "django_ckeditor_5",
     "solo",
+    "django_recaptcha",
     # Local apps
     "main.apps.MainConfig",
     "content.apps.ContentConfig",
@@ -120,6 +121,7 @@ TEMPLATES = [
                 "content.context_processors.header_categories",
                 "content.context_processors.notifications",
                 "main.context_processors.cart_wishlist_counts",
+                "main.context_processors.recaptcha_keys",
             ],
         },
     },
@@ -174,11 +176,32 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 # =======================
-# Compressor
+# Email Configuration
 # =======================
 EMAIL_BACKEND = "sendgrid_backend.SendGridBackend"
 SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
 SENDGRID_SANDBOX_MODE_IN_DEBUG = True
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@idrissimart.com")
+EMAIL_HOST_USER = DEFAULT_FROM_EMAIL
+
+# =======================
+# Google reCAPTCHA
+# =======================
+RECAPTCHA_PUBLIC_KEY = os.getenv(
+    "RECAPTCHA_SITE_KEY", "6LcFPR4sAAAAAF2OLomwf-srKNlJtt33V05-FziB"
+)
+RECAPTCHA_PRIVATE_KEY = os.getenv(
+    "RECAPTCHA_SECRET_KEY", "6LcFPR4sAAAAAAPO3McKxxpBR1-hehL9A-gy5uAI"
+)
+
+RECAPTCHA_REQUIRED_SCORE = 0.85  # for reCAPTCHA v3
+# For backward compatibility
+RECAPTCHA_SITE_KEY = RECAPTCHA_PUBLIC_KEY
+RECAPTCHA_SECRET_KEY = RECAPTCHA_PRIVATE_KEY
+
+# =======================
+# Compressor
+# =======================
 
 STATICFILES_FINDERS = [
     "django.contrib.staticfiles.finders.FileSystemFinder",

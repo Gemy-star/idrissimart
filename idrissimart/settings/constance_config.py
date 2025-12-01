@@ -388,6 +388,22 @@ CONSTANCE_CONFIG = {
         "daily",
         _("Statistics report frequency (daily/weekly/monthly)"),
     ),
+    # User Registration Settings
+    "ENABLE_SERVICE_PROVIDER_REGISTRATION": (
+        False,
+        _("Enable Service Provider registration type"),
+        bool,
+    ),
+    "ENABLE_MERCHANT_REGISTRATION": (
+        False,
+        _("Enable Merchant registration type"),
+        bool,
+    ),
+    "ENABLE_EDUCATIONAL_REGISTRATION": (
+        False,
+        _("Enable Educational registration type"),
+        bool,
+    ),
 }
 
 CONSTANCE_CONFIG_FIELDSETS = {
@@ -500,5 +516,10 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "SITE_NAME_IN_EMAILS",
         "ADS_NOTIFICATION_FREQUENCY",
         "STATS_REPORT_FREQUENCY",
+    ),
+    "User Registration": (
+        "ENABLE_SERVICE_PROVIDER_REGISTRATION",
+        "ENABLE_MERCHANT_REGISTRATION",
+        "ENABLE_EDUCATIONAL_REGISTRATION",
     ),
 }

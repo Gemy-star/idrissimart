@@ -5,7 +5,7 @@ from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.views import LoginView
 from django.contrib.sites.shortcuts import get_current_site
-from django.core.mail import EmailMultiAlternatives
+from django.core.mail import EmailMultiAlternatives, send_mail, BadHeaderError
 from django.core.validators import validate_email
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
@@ -258,12 +258,30 @@ class RegisterView(CreateView):
             return redirect("main:home")
 
         from content.models import Country
+        from constance import config
 
         form = self.form_class()
         countries = Country.objects.filter(is_active=True).order_by("order")
 
+        # Get profile type settings from constance
+        profile_type_settings = {
+            "enable_service": getattr(
+                config, "ENABLE_SERVICE_PROVIDER_REGISTRATION", False
+            ),
+            "enable_merchant": getattr(config, "ENABLE_MERCHANT_REGISTRATION", False),
+            "enable_educational": getattr(
+                config, "ENABLE_EDUCATIONAL_REGISTRATION", False
+            ),
+        }
+
         return render(
-            request, self.template_name, {"form": form, "countries": countries}
+            request,
+            self.template_name,
+            {
+                "form": form,
+                "countries": countries,
+                "profile_type_settings": profile_type_settings,
+            },
         )
 
     def post(self, request, *args, **kwargs):
@@ -271,8 +289,20 @@ class RegisterView(CreateView):
             return redirect("main:home")
 
         from content.models import Country
+        from constance import config
 
         countries = Country.objects.filter(is_active=True).order_by("order")
+
+        # Get profile type settings from constance
+        profile_type_settings = {
+            "enable_service": getattr(
+                config, "ENABLE_SERVICE_PROVIDER_REGISTRATION", False
+            ),
+            "enable_merchant": getattr(config, "ENABLE_MERCHANT_REGISTRATION", False),
+            "enable_educational": getattr(
+                config, "ENABLE_EDUCATIONAL_REGISTRATION", False
+            ),
+        }
 
         form = self.form_class(request.POST)
         if form.is_valid():
@@ -286,7 +316,13 @@ class RegisterView(CreateView):
             if not request.session.get(f"phone_verified_{normalized_phone}"):
                 messages.error(request, _("يجب التحقق من رقم الجوال قبل إنشاء الحساب"))
                 return render(
-                    request, self.template_name, {"form": form, "countries": countries}
+                    request,
+                    self.template_name,
+                    {
+                        "form": form,
+                        "countries": countries,
+                        "profile_type_settings": profile_type_settings,
+                    },
                 )
 
             if profile_type == "service":
@@ -347,11 +383,18 @@ class RegisterView(CreateView):
             if f"phone_verified_{normalized_phone}" in request.session:
                 del request.session[f"phone_verified_{normalized_phone}"]
 
+            # Send email verification
+            send_email_verification(request, user)
+
             # Auto login after registration
             login(request, user)
 
             messages.success(
                 request, _("مرحباً بك في إدريسي مارت! 🎉 تم إنشاء حسابك بنجاح")
+            )
+            messages.info(
+                request,
+                _("تم إرسال رابط تأكيد إلى بريدك الإلكتروني. يرجى التحقق من بريدك."),
             )
             return redirect(self.success_url)
         else:
@@ -361,7 +404,13 @@ class RegisterView(CreateView):
                     messages.error(request, f"{form.fields[field].label}: {error}")
             messages.error(request, _("يرجى تصحيح الأخطاء أدناه والمحاولة مرة أخرى."))
             return render(
-                request, self.template_name, {"form": form, "countries": countries}
+                request,
+                self.template_name,
+                {
+                    "form": form,
+                    "countries": countries,
+                    "profile_type_settings": profile_type_settings,
+                },
             )
 
 
@@ -602,3 +651,98 @@ def password_reset_request(request):
         template_name="password/password_reset.html",
         context={"password_reset_form": password_reset_form},
     )
+
+
+def send_email_verification(request, user):
+    """Send email verification link to user"""
+    import uuid
+    from datetime import timedelta
+    from django.core.mail import send_mail
+    from django.template.loader import render_to_string
+    from django.contrib.sites.shortcuts import get_current_site
+    from django.conf import settings
+
+    # Generate verification token
+    token = str(uuid.uuid4())
+    user.email_verification_token = token
+    user.email_verification_expires = timezone.now() + timedelta(hours=24)
+    user.save(update_fields=["email_verification_token", "email_verification_expires"])
+
+    # Build verification link
+    current_site = get_current_site(request)
+    verification_link = (
+        f"{request.scheme}://{current_site.domain}/verify-email/{user.id}/{token}/"
+    )
+
+    # Send email
+    subject = _("تأكيد البريد الإلكتروني - Verify Your Email")
+    message = render_to_string(
+        "emails/email_verification.html",
+        {
+            "user": user,
+            "verification_link": verification_link,
+            "site_name": "إدريسي مارت",
+        },
+    )
+
+    try:
+        send_mail(
+            subject,
+            "",
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+            html_message=message,
+            fail_silently=False,
+        )
+        return True
+    except Exception as e:
+        print(f"Error sending verification email: {e}")
+        return False
+
+
+def verify_email(request, user_id, token):
+    """Verify user email with token"""
+    try:
+        user = User.objects.get(id=user_id)
+
+        # Check if token is valid and not expired
+        if user.email_verification_token == token:
+            if (
+                user.email_verification_expires
+                and user.email_verification_expires > timezone.now()
+            ):
+                user.is_email_verified = True
+                user.email_verification_token = ""
+                user.save(
+                    update_fields=["is_email_verified", "email_verification_token"]
+                )
+
+                messages.success(request, _("تم تأكيد بريدك الإلكتروني بنجاح!"))
+                return redirect("main:home")
+            else:
+                messages.error(
+                    request, _("انتهت صلاحية رابط التأكيد. يرجى طلب رابط جديد.")
+                )
+        else:
+            messages.error(request, _("رابط التأكيد غير صحيح."))
+    except User.DoesNotExist:
+        messages.error(request, _("المستخدم غير موجود."))
+
+    return redirect("main:home")
+
+
+def resend_email_verification(request):
+    """Resend email verification link"""
+    if not request.user.is_authenticated:
+        return redirect("main:login")
+
+    if request.user.is_email_verified:
+        messages.info(request, _("بريدك الإلكتروني مؤكد بالفعل."))
+        return redirect("main:home")
+
+    if send_email_verification(request, request.user):
+        messages.success(request, _("تم إرسال رابط التأكيد إلى بريدك الإلكتروني."))
+    else:
+        messages.error(request, _("حدث خطأ أثناء إرسال البريد. يرجى المحاولة لاحقاً."))
+
+    return redirect("main:home")

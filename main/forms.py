@@ -4,6 +4,8 @@ from django.forms import inlineformset_factory
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django_ckeditor_5.widgets import CKEditor5Widget
+from django_recaptcha.fields import ReCaptchaField
+from django_recaptcha.widgets import ReCaptchaV2Checkbox
 
 from .models import (
     AdImage,
@@ -121,11 +123,33 @@ class ClassifiedAdForm(forms.ModelForm):
         ]
         widgets = {
             "title": forms.TextInput(attrs={"class": "form-control"}),
-            "description": CKEditor5Widget(config_name='default'),
+            "description": CKEditor5Widget(config_name="default"),
             "price": forms.NumberInput(attrs={"class": "form-control"}),
             "city": forms.TextInput(attrs={"class": "form-control"}),
             "address": forms.TextInput(attrs={"class": "form-control"}),
             "video_url": forms.URLInput(attrs={"class": "form-control"}),
+        }
+        error_messages = {
+            "category": {
+                "required": _("يجب اختيار القسم المناسب لإعلانك"),
+            },
+            "title": {
+                "required": _("يجب كتابة عنوان للإعلان"),
+                "max_length": _("عنوان الإعلان طويل جداً (الحد الأقصى 200 حرف)"),
+            },
+            "description": {
+                "required": _("يجب كتابة وصف تفصيلي للإعلان"),
+            },
+            "price": {
+                "required": _("يجب تحديد السعر"),
+                "invalid": _("السعر يجب أن يكون رقماً صحيحاً"),
+            },
+            "country": {
+                "required": _("يجب اختيار الدولة"),
+            },
+            "city": {
+                "required": _("يجب كتابة اسم المدينة"),
+            },
         }
 
     def __init__(self, *args, **kwargs):
@@ -426,22 +450,44 @@ class RegistrationForm(forms.Form):
         label=_("اسم المستخدم"),
         min_length=3,
         widget=forms.TextInput(attrs={"placeholder": _("اسم المستخدم")}),
+        error_messages={
+            "min_length": _("اسم المستخدم يجب أن يكون 3 أحرف على الأقل."),
+            "required": _("اسم المستخدم مطلوب."),
+        },
     )
     email = forms.EmailField(
         label=_("البريد الإلكتروني"),
         widget=forms.EmailInput(attrs={"placeholder": _("البريد الإلكتروني")}),
+        error_messages={
+            "invalid": _("صيغة البريد الإلكتروني غير صحيحة."),
+            "required": _("البريد الإلكتروني مطلوب."),
+        },
     )
     password = forms.CharField(
         label=_("كلمة المرور"),
         min_length=8,
         widget=forms.PasswordInput(attrs={"placeholder": _("كلمة المرور")}),
+        error_messages={
+            "min_length": _("كلمة المرور يجب أن تكون 8 أحرف على الأقل."),
+            "required": _("كلمة المرور مطلوبة."),
+        },
     )
     password2 = forms.CharField(
         label=_("تأكيد كلمة المرور"),
         widget=forms.PasswordInput(attrs={"placeholder": _("تأكيد كلمة المرور")}),
+        error_messages={
+            "required": _("تأكيد كلمة المرور مطلوب."),
+        },
     )
     first_name = forms.CharField(label=_("الاسم الأول"), required=False)
     last_name = forms.CharField(label=_("الاسم الأخير"), required=False)
+    country = forms.CharField(
+        label=_("الدولة"),
+        required=True,
+        error_messages={
+            "required": _("يجب اختيار الدولة."),
+        },
+    )
     phone = forms.CharField(
         label=_("رقم الجوال"),
         required=True,
@@ -455,13 +501,26 @@ class RegistrationForm(forms.Form):
     )
     profile_type = forms.ChoiceField(
         label=_("نوع الحساب"),
-        choices=User.ProfileType.choices,
+        choices=[],  # Will be populated in __init__
         initial=User.ProfileType.DEFAULT,
     )
     terms_accepted = forms.BooleanField(
         label=_("أوافق على الشروط والأحكام"),
         required=True,
         error_messages={"required": _("يجب الموافقة على الشروط والأحكام")},
+    )
+
+    # Google reCAPTCHA
+    captcha = ReCaptchaField(
+        widget=ReCaptchaV2Checkbox(
+            attrs={
+                "data-theme": "light",
+                "data-size": "normal",
+            }
+        ),
+        error_messages={
+            "required": _("يرجى التحقق من أنك لست روبوت"),
+        },
     )
 
     # Fields for service provider
@@ -499,23 +558,94 @@ class RegistrationForm(forms.Form):
         widget=forms.TextInput(attrs={"class": "merchant-field"}),
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Build profile type choices based on settings
+        from constance import config
+
+        profile_choices = [
+            (User.ProfileType.DEFAULT, _("مستخدم افتراضي - Default User")),
+            (User.ProfileType.PUBLISHER, _("ناشر - Publisher")),
+        ]
+
+        # Add optional profile types based on settings
+        if getattr(config, "ENABLE_SERVICE_PROVIDER_REGISTRATION", False):
+            profile_choices.append(
+                (User.ProfileType.SERVICE, _("خدمي - Service Provider"))
+            )
+
+        if getattr(config, "ENABLE_MERCHANT_REGISTRATION", False):
+            profile_choices.append((User.ProfileType.MERCHANT, _("تاجر - Merchant")))
+
+        if getattr(config, "ENABLE_EDUCATIONAL_REGISTRATION", False):
+            profile_choices.append(
+                (User.ProfileType.EDUCATIONAL, _("تعليمي - Educational"))
+            )
+
+        self.fields["profile_type"].choices = profile_choices
+
     def clean_username(self):
         username = self.cleaned_data.get("username").lower()
         if User.objects.filter(username=username).exists():
-            raise ValidationError(_("This username is already taken."))
+            raise ValidationError(_("اسم المستخدم مستخدم من قبل. يرجى اختيار اسم آخر."))
         return username
 
     def clean_email(self):
         email = self.cleaned_data.get("email").lower()
         if User.objects.filter(email=email).exists():
-            raise ValidationError(_("This email address is already registered."))
+            raise ValidationError(
+                _("هذا البريد الإلكتروني مسجل مسبقاً. يرجى استخدام بريد آخر.")
+            )
         return email
+
+    def clean_password(self):
+        from django.contrib.auth.password_validation import validate_password
+
+        password = self.cleaned_data.get("password")
+
+        if password:
+            try:
+                # Validate password using Django's validators
+                validate_password(password)
+            except ValidationError as e:
+                # Replace English error messages with Arabic
+                arabic_errors = []
+                for error in e.messages:
+                    if "too short" in error.lower() or "at least" in error.lower():
+                        arabic_errors.append(
+                            _(
+                                "كلمة المرور قصيرة جداً. يجب أن تحتوي على 8 أحرف على الأقل."
+                            )
+                        )
+                    elif "too common" in error.lower() or "common" in error.lower():
+                        arabic_errors.append(
+                            _("كلمة المرور شائعة جداً. يرجى اختيار كلمة مرور أقوى.")
+                        )
+                    elif (
+                        "numeric" in error.lower()
+                        or "entirely numeric" in error.lower()
+                    ):
+                        arabic_errors.append(
+                            _("كلمة المرور لا يمكن أن تكون أرقاماً فقط.")
+                        )
+                    elif "similar" in error.lower() or "personal" in error.lower():
+                        arabic_errors.append(
+                            _("كلمة المرور مشابهة جداً لبياناتك الشخصية.")
+                        )
+                    else:
+                        arabic_errors.append(error)
+                raise ValidationError(arabic_errors)
+
+        return password
 
     def clean_password2(self):
         password = self.cleaned_data.get("password")
         password2 = self.cleaned_data.get("password2")
         if password and password2 and password != password2:
-            raise ValidationError(_("The two password fields didn't match."))
+            raise ValidationError(
+                _("كلمتا المرور غير متطابقتين. يرجى التأكد من كتابتهما بشكل صحيح.")
+            )
         return password2
 
     def clean_phone(self):
@@ -545,12 +675,10 @@ class RegistrationForm(forms.Form):
         profile_type = cleaned_data.get("profile_type")
 
         if profile_type == "service" and not cleaned_data.get("specialization"):
-            self.add_error(
-                "specialization", _("Specialization is required for service providers.")
-            )
+            self.add_error("specialization", _("التخصص مطلوب لمقدمي الخدمات."))
 
         if profile_type == "merchant" and not cleaned_data.get("company_name"):
-            self.add_error("company_name", _("Company name is required for merchants."))
+            self.add_error("company_name", _("اسم الشركة مطلوب للتجار."))
 
         return cleaned_data
 

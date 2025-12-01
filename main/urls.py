@@ -43,6 +43,21 @@ urlpatterns = [
     ),
     path("logout/", auth_views.logout_view, name="logout"),
     path(
+        "verify-email/<int:user_id>/<str:token>/",
+        auth_views.verify_email,
+        name="verify_email",
+    ),
+    path(
+        "resend-verification-email/",
+        auth_views.resend_email_verification,
+        name="resend_email_verification",
+    ),
+    path(
+        "password-reset-request/",
+        auth_views.password_reset_request,
+        name="password_reset_request",
+    ),
+    path(
         "password_reset/",
         dj_auth_views.PasswordResetView.as_view(),
         name="password_reset",
