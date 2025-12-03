@@ -150,6 +150,36 @@ class Blog(models.Model):
     def get_absolute_url(self):
         return reverse("content:blog_detail", kwargs={"slug": self.slug})
 
+    def get_safe_content(self):
+        """Return sanitized content with scripts and dangerous tags removed"""
+        from bs4 import BeautifulSoup
+
+        # Parse the HTML content
+        soup = BeautifulSoup(self.content, "html.parser")
+
+        # Remove all script tags
+        for script in soup.find_all("script"):
+            script.decompose()
+
+        # Remove all style tags (optional, keep if you want inline styles)
+        for style in soup.find_all("style"):
+            style.decompose()
+
+        # Remove potentially dangerous tags
+        dangerous_tags = ["iframe", "object", "embed", "applet", "link"]
+        for tag in dangerous_tags:
+            for element in soup.find_all(tag):
+                element.decompose()
+
+        # Remove on* event attributes (onclick, onload, etc.)
+        for tag in soup.find_all(True):
+            attrs_to_remove = [attr for attr in tag.attrs if attr.startswith("on")]
+            for attr in attrs_to_remove:
+                del tag[attr]
+
+        # Return cleaned HTML
+        return str(soup)
+
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.title)

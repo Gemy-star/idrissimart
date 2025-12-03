@@ -1356,6 +1356,36 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
     def __str__(self):
         return self.title
 
+    def get_safe_description(self):
+        """Return sanitized description with scripts and dangerous tags removed"""
+        from bs4 import BeautifulSoup
+
+        # Parse the HTML content
+        soup = BeautifulSoup(self.description, "html.parser")
+
+        # Remove all script tags
+        for script in soup.find_all("script"):
+            script.decompose()
+
+        # Remove all style tags (optional, keep if you want inline styles)
+        for style in soup.find_all("style"):
+            style.decompose()
+
+        # Remove potentially dangerous tags
+        dangerous_tags = ["iframe", "object", "embed", "applet", "link"]
+        for tag in dangerous_tags:
+            for element in soup.find_all(tag):
+                element.decompose()
+
+        # Remove on* event attributes (onclick, onload, etc.)
+        for tag in soup.find_all(True):
+            attrs_to_remove = [attr for attr in tag.attrs if attr.startswith("on")]
+            for attr in attrs_to_remove:
+                del tag[attr]
+
+        # Return cleaned HTML
+        return str(soup)
+
     def save(self, *args, **kwargs):
         if not self.expires_at:
             self.expires_at = timezone.now() + timezone.timedelta(days=30)
