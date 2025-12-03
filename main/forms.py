@@ -260,19 +260,22 @@ class ClassifiedAdForm(forms.ModelForm):
 
     def save(self, commit=True):
         instance = super().save(commit=False)
+        from main.models import CategoryCustomField
 
         # Ensure custom_fields is a dict
         if not isinstance(instance.custom_fields, dict):
             instance.custom_fields = {}
 
-        # Gather custom field data from POST data directly (since fields are rendered by JavaScript)
-        if instance.category and instance.category.custom_field_schema:
-            schema = instance.category.custom_field_schema or []
+        # Gather custom field data from POST data
+        if instance.category:
+            category_fields = CategoryCustomField.objects.filter(
+                category=instance.category,
+                is_active=True
+            ).select_related('custom_field').order_by('order')
 
-            for field_schema in schema:
-                field_name = field_schema.get("name")
-                if not field_name:
-                    continue
+            for cf in category_fields:
+                field = cf.custom_field
+                field_name = f"custom_{field.name}"
 
                 # Get value from cleaned_data if available, otherwise from data dict
                 if field_name in self.cleaned_data:
@@ -280,7 +283,7 @@ class ClassifiedAdForm(forms.ModelForm):
                 elif self.data and field_name in self.data:
                     value = self.data.get(field_name)
                     # Handle checkbox fields
-                    if field_schema.get("type") == "checkbox":
+                    if field.field_type == "checkbox":
                         value = value == "on" or value == "true" or value == True
                 else:
                     continue

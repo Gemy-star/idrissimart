@@ -1420,6 +1420,54 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
 
         return reverse("main:ad_detail", kwargs={"pk": self.pk})
 
+    def get_custom_fields_for_card(self):
+        """Get custom fields that should be displayed on the ad card"""
+        if not self.custom_fields or not self.category:
+            return []
+
+        # Get all custom fields for this category that should show on card
+        category_custom_fields = (
+            CategoryCustomField.objects.filter(
+                category=self.category, show_on_card=True, is_active=True
+            )
+            .select_related("custom_field")
+            .order_by("order")
+        )
+
+        fields_to_display = []
+        for cat_cf in category_custom_fields:
+            field_key = cat_cf.custom_field.key
+            if field_key in self.custom_fields:
+                field_value = self.custom_fields[field_key]
+
+                # Skip empty values
+                if not field_value:
+                    continue
+
+                # For select/radio fields, get the option label
+                if cat_cf.custom_field.field_type in ["select", "radio"]:
+                    try:
+                        option = CustomFieldOption.objects.get(
+                            custom_field=cat_cf.custom_field, value=field_value
+                        )
+                        field_value = option.label
+                    except CustomFieldOption.DoesNotExist:
+                        pass
+
+                # For checkbox fields
+                elif cat_cf.custom_field.field_type == "checkbox":
+                    field_value = _("نعم") if field_value else _("لا")
+
+                fields_to_display.append(
+                    {
+                        "label": cat_cf.custom_field.label,
+                        "value": field_value,
+                        "icon": cat_cf.custom_field.icon or "fa-info-circle",
+                    }
+                )
+
+        return fields_to_display
+
 
 class AdImage(models.Model):  # This model is correct, no changes needed here.
     """Model for multiple ad images"""
@@ -2008,7 +2056,7 @@ class AdTransaction(models.Model):
 
 
 class CustomField(models.Model):
-    """Model for custom fields per category."""
+    """Model for custom fields that can be shared across categories."""
 
     class FieldType(models.TextChoices):
         TEXT = "text", _("نص")
@@ -2027,13 +2075,8 @@ class CustomField(models.Model):
         RANGE = "range", _("نطاق")
         FILE = "file", _("ملف")
 
-    category = models.ForeignKey(
-        Category,
-        on_delete=models.CASCADE,
-        related_name="custom_fields",
-        verbose_name=_("القسم"),
-    )
-    name = models.CharField(max_length=100, verbose_name=_("اسم الحقل"))
+    # Remove direct category FK - will use M2M through CategoryCustomField
+    name = models.CharField(max_length=100, unique=True, verbose_name=_("اسم الحقل"))
     label_ar = models.CharField(max_length=100, verbose_name=_("التسمية بالعربية"))
     label_en = models.CharField(
         max_length=100, blank=True, verbose_name=_("التسمية بالإنجليزية")
@@ -2041,18 +2084,13 @@ class CustomField(models.Model):
     field_type = models.CharField(
         max_length=20, choices=FieldType.choices, verbose_name=_("نوع الحقل")
     )
-    is_required = models.BooleanField(default=False, verbose_name=_("مطلوب"))
+    is_required = models.BooleanField(default=False, verbose_name=_("مطلوب افتراضياً"))
     help_text = models.TextField(blank=True, verbose_name=_("نص المساعدة"))
     placeholder = models.CharField(
         max_length=200, blank=True, verbose_name=_("نص تذكيري")
     )
     default_value = models.CharField(
         max_length=500, blank=True, verbose_name=_("القيمة الافتراضية")
-    )
-    options = models.TextField(
-        blank=True,
-        help_text=_("خيارات مفصولة بفاصلة (للحقول من نوع select, radio, checkbox)"),
-        verbose_name=_("الخيارات"),
     )
     min_length = models.PositiveIntegerField(
         null=True, blank=True, verbose_name=_("الحد الأدنى للطول")
@@ -2077,31 +2115,102 @@ class CustomField(models.Model):
     validation_regex = models.CharField(
         max_length=200, blank=True, verbose_name=_("نمط التحقق (Regex)")
     )
-    order = models.PositiveIntegerField(default=0, verbose_name=_("ترتيب العرض"))
     is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # M2M relationship with categories
+    categories = models.ManyToManyField(
+        Category,
+        through="CategoryCustomField",
+        related_name="custom_fields",
+        verbose_name=_("الأقسام"),
+        blank=True,
+    )
+
     class Meta:
         db_table = "custom_fields"
-        verbose_name = _("Custom Field")
-        verbose_name_plural = _("Custom Fields")
-        ordering = ["category", "order", "name"]
-        unique_together = [["category", "name"]]
+        verbose_name = _("حقل مخصص")
+        verbose_name_plural = _("الحقول المخصصة")
+        ordering = ["name"]
 
     def __str__(self):
-        return f"{self.category.name} - {self.label_ar or self.name}"
+        return f"{self.label_ar or self.name}"
 
     @property
     def label(self):
         """Return the appropriate label based on current language."""
         return self.label_ar or self.name
 
-    def get_options_list(self):
-        """Return options as a list."""
-        if self.options:
-            return [opt.strip() for opt in self.options.split(",") if opt.strip()]
-        return []
+
+class CustomFieldOption(models.Model):
+    """Model for custom field options (for select, radio, checkbox fields)."""
+
+    custom_field = models.ForeignKey(
+        CustomField,
+        on_delete=models.CASCADE,
+        related_name="field_options",
+        verbose_name=_("الحقل المخصص"),
+    )
+    label_ar = models.CharField(max_length=200, verbose_name=_("الخيار بالعربية"))
+    label_en = models.CharField(
+        max_length=200, blank=True, verbose_name=_("الخيار بالإنجليزية")
+    )
+    value = models.CharField(max_length=200, verbose_name=_("القيمة"))
+    order = models.PositiveIntegerField(default=0, verbose_name=_("الترتيب"))
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
+
+    class Meta:
+        db_table = "custom_field_options"
+        verbose_name = _("خيار الحقل المخصص")
+        verbose_name_plural = _("خيارات الحقول المخصصة")
+        ordering = ["custom_field", "order", "label_ar"]
+        unique_together = [["custom_field", "value"]]
+
+    def __str__(self):
+        return f"{self.custom_field.name} - {self.label_ar}"
+
+    @property
+    def label(self):
+        """Return the appropriate label based on current language."""
+        from django.utils.translation import get_language
+
+        if get_language() == "en" and self.label_en:
+            return self.label_en
+        return self.label_ar
+
+
+class CategoryCustomField(models.Model):
+    """Through model for Category and CustomField relationship."""
+
+    category = models.ForeignKey(
+        Category, on_delete=models.CASCADE, verbose_name=_("القسم")
+    )
+    custom_field = models.ForeignKey(
+        CustomField, on_delete=models.CASCADE, verbose_name=_("الحقل المخصص")
+    )
+    is_required = models.BooleanField(
+        default=False,
+        verbose_name=_("مطلوب في هذا القسم"),
+        help_text=_("تجاوز الإعداد الافتراضي للحقل"),
+    )
+    order = models.PositiveIntegerField(default=0, verbose_name=_("ترتيب العرض"))
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط في هذا القسم"))
+    show_on_card = models.BooleanField(
+        default=False,
+        verbose_name=_("إظهار على بطاقة الإعلان"),
+        help_text=_("إظهار قيمة هذا الحقل على بطاقة الإعلان من الخارج"),
+    )
+
+    class Meta:
+        db_table = "category_custom_fields"
+        verbose_name = _("حقل مخصص للقسم")
+        verbose_name_plural = _("الحقول المخصصة للأقسام")
+        ordering = ["category", "order"]
+        unique_together = [["category", "custom_field"]]
+
+    def __str__(self):
+        return f"{self.category.name} - {self.custom_field.label}"
 
 
 class Wishlist(models.Model):

@@ -20,9 +20,11 @@ from .models import (
     AdTransaction,
     CartSettings,
     Category,
+    CategoryCustomField,
     ClassifiedAd,
     ContactMessage,
     CustomField,
+    CustomFieldOption,
     NewsletterSubscriber,
     Notification,
     SavedSearch,
@@ -579,21 +581,102 @@ class AdTransactionAdmin(admin.ModelAdmin):
     date_hierarchy = "created_at"
 
 
+class CustomFieldOptionInline(admin.TabularInline):
+    """Inline for custom field options."""
+
+    model = CustomFieldOption
+    extra = 3
+    fields = ("label_ar", "label_en", "value", "order", "is_active")
+    ordering = ("order", "label_ar")
+
+
+class CategoryCustomFieldInline(admin.TabularInline):
+    """Inline for associating custom fields with categories."""
+
+    model = CategoryCustomField
+    extra = 1
+    fields = ("category", "is_required", "order", "is_active", "show_on_card")
+    autocomplete_fields = ["category"]
+
+
 @admin.register(CustomField)
 class CustomFieldAdmin(admin.ModelAdmin):
     list_display = (
-        "category",
         "name",
         "label_ar",
         "field_type",
         "is_required",
         "is_active",
-        "order",
+        "get_categories_count",
     )
-    list_filter = ("field_type", "is_required", "is_active", "category")
+    list_filter = ("field_type", "is_required", "is_active")
     search_fields = ("name", "label_ar", "label_en")
-    list_editable = ("order", "is_active", "is_required")
-    ordering = ("category", "order", "name")
+    list_editable = ("is_active", "is_required")
+    ordering = ("name",)
+    inlines = [CustomFieldOptionInline, CategoryCustomFieldInline]
+
+    fieldsets = (
+        (
+            _("معلومات أساسية"),
+            {"fields": ("name", "label_ar", "label_en", "field_type")},
+        ),
+        (
+            _("إعدادات الحقل"),
+            {
+                "fields": (
+                    "is_required",
+                    "is_active",
+                    "help_text",
+                    "placeholder",
+                    "default_value",
+                )
+            },
+        ),
+        (
+            _("قيود التحقق"),
+            {
+                "fields": (
+                    "min_length",
+                    "max_length",
+                    "min_value",
+                    "max_value",
+                    "validation_regex",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+    def get_categories_count(self, obj):
+        return obj.categories.count()
+
+    get_categories_count.short_description = _("عدد الأقسام")
+
+
+@admin.register(CustomFieldOption)
+class CustomFieldOptionAdmin(admin.ModelAdmin):
+    list_display = (
+        "custom_field",
+        "label_ar",
+        "label_en",
+        "value",
+        "order",
+        "is_active",
+    )
+    list_filter = ("custom_field", "is_active")
+    search_fields = ("label_ar", "label_en", "value")
+    list_editable = ("order", "is_active")
+    ordering = ("custom_field", "order")
+
+
+@admin.register(CategoryCustomField)
+class CategoryCustomFieldAdmin(admin.ModelAdmin):
+    list_display = ("category", "custom_field", "is_required", "order", "is_active")
+    list_filter = ("category", "is_required", "is_active")
+    search_fields = ("category__name", "custom_field__name")
+    list_editable = ("is_required", "order", "is_active")
+    ordering = ("category", "order")
+    autocomplete_fields = ["category", "custom_field"]
 
 
 @admin.register(UserPermissionLog)

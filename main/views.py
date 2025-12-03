@@ -1389,19 +1389,27 @@ class AdDetailView(DetailView):
 
         # Prepare custom fields with labels for clean display in the template
         custom_fields_with_labels = []
-        if ad.category.custom_field_schema and ad.custom_fields:
-            schema = ad.category.custom_field_schema
-            for field_schema in schema:
-                field_name = field_schema.get("name")
+        if ad.custom_fields:
+            from main.models import CategoryCustomField
+
+            # Get custom fields for this category
+            category_fields = CategoryCustomField.objects.filter(
+                category=ad.category,
+                is_active=True
+            ).select_related('custom_field').order_by('order')
+
+            for cf in category_fields:
+                field = cf.custom_field
+                field_name = f"custom_{field.name}"
                 value = ad.custom_fields.get(field_name)
 
                 # Only show fields that have a value
                 if value is not None and value != "":
                     custom_fields_with_labels.append(
                         {
-                            "label": field_schema.get("label", field_name),
+                            "label": field.label_ar or field.name,
                             "value": value,
-                            "type": field_schema.get("type", "text"),
+                            "type": field.field_type,
                         }
                     )
         context["custom_fields"] = custom_fields_with_labels
@@ -2747,22 +2755,38 @@ class AdminCategoryCustomFieldsView(SuperadminRequiredMixin, View):
 
     def get(self, request, category_id):
         try:
-            category = Category.objects.get(id=category_id)
-            fields = CustomField.objects.filter(category=category).order_by("order")
+            from main.models import CategoryCustomField, CustomFieldOption
 
-            fields_data = [
-                {
+            category = Category.objects.get(id=category_id)
+            category_fields = CategoryCustomField.objects.filter(
+                category=category
+            ).select_related("custom_field").prefetch_related(
+                "custom_field__field_options"
+            ).order_by("order")
+
+            fields_data = []
+            for cf in category_fields:
+                field = cf.custom_field
+                # Get options for this field
+                options = []
+                if field.field_type in ["select", "radio", "checkbox"]:
+                    options = list(
+                        field.field_options.filter(is_active=True)
+                        .values_list("value", flat=True)
+                        .order_by("order")
+                    )
+
+                fields_data.append({
                     "id": field.id,
                     "name": field.name,
                     "label_ar": field.label_ar,
                     "label_en": field.label_en,
                     "field_type": field.field_type,
-                    "is_required": field.is_required,
-                    "options": field.options,
-                    "order": field.order,
-                }
-                for field in fields
-            ]
+                    "is_required": cf.is_required,  # From CategoryCustomField
+                    "options": ",".join(options) if options else "",  # Join for compatibility
+                    "order": cf.order,  # From CategoryCustomField
+                    "show_on_card": cf.show_on_card,  # Show on ad card
+                })
 
             return JsonResponse(
                 {
@@ -2780,28 +2804,64 @@ class AdminCategoryCustomFieldsView(SuperadminRequiredMixin, View):
         """Save custom fields for a category"""
         try:
             import json
+            from main.models import CategoryCustomField, CustomFieldOption
 
             category = Category.objects.get(id=category_id)
             data = json.loads(request.body)
             fields_data = data.get("fields", [])
 
-            # Delete existing fields for this category
-            CustomField.objects.filter(category=category).delete()
+            # Delete existing CategoryCustomField relationships for this category
+            CategoryCustomField.objects.filter(category=category).delete()
 
-            # Create new fields
+            # Create or update fields and their relationships
             for index, field_data in enumerate(fields_data):
-                CustomField.objects.create(
-                    category=category,
-                    name=field_data.get("name", ""),
-                    label_ar=field_data.get(
-                        "name", ""
-                    ),  # Use name as label if not provided
-                    label_en=field_data.get("name", ""),
-                    field_type=field_data.get("type", "text"),
-                    is_required=field_data.get("required", False),
-                    options=field_data.get("options", ""),
-                    order=index,
+                field_name = field_data.get("name", "")
+                if not field_name:
+                    continue
+
+                # Get or create the CustomField
+                field, created = CustomField.objects.get_or_create(
+                    name=field_name,
+                    defaults={
+                        "label_ar": field_data.get("name", ""),
+                        "label_en": field_data.get("name", ""),
+                        "field_type": field_data.get("type", "text"),
+                    }
                 )
+
+                # If field already exists, update it
+                if not created:
+                    field.label_ar = field_data.get("name", field.label_ar)
+                    field.field_type = field_data.get("type", field.field_type)
+                    field.save()
+
+                # Create CategoryCustomField relationship
+                CategoryCustomField.objects.create(
+                    category=category,
+                    custom_field=field,
+                    is_required=field_data.get("required", False),
+                    order=index,
+                    is_active=True,
+                    show_on_card=field_data.get("show_on_card", False),
+                )
+
+                # Handle options for select/radio/checkbox fields
+                options_str = field_data.get("options", "")
+                if options_str and field.field_type in ["select", "radio", "checkbox"]:
+                    # Delete existing options for this field
+                    CustomFieldOption.objects.filter(custom_field=field).delete()
+
+                    # Create new options
+                    options_list = [opt.strip() for opt in options_str.split(",") if opt.strip()]
+                    for opt_index, option_value in enumerate(options_list):
+                        CustomFieldOption.objects.create(
+                            custom_field=field,
+                            label_ar=option_value,
+                            label_en=option_value,
+                            value=option_value,
+                            order=opt_index,
+                            is_active=True,
+                        )
 
             return JsonResponse(
                 {"success": True, "message": _("تم حفظ الحقول المخصصة بنجاح")}
@@ -2828,17 +2888,17 @@ class AdminCustomFieldsView(SuperadminRequiredMixin, ListView):
     context_object_name = "fields"
 
     def get_queryset(self):
-        queryset = CustomField.objects.select_related("category").order_by(
-            "category__name", "order"
-        )
+        queryset = CustomField.objects.prefetch_related(
+            "categories", "field_options"
+        ).order_by("name")
         search_query = self.request.GET.get("search", "")
 
         if search_query:
             queryset = queryset.filter(
                 Q(name__icontains=search_query)
                 | Q(label_ar__icontains=search_query)
-                | Q(category__name__icontains=search_query)
-            )
+                | Q(categories__name__icontains=search_query)
+            ).distinct()
         return queryset
 
     def get_context_data(self, **kwargs):
@@ -2856,10 +2916,13 @@ class AdminCustomFieldsView(SuperadminRequiredMixin, ListView):
             .order_by("order", "name_ar")
         )
 
-        # Group fields by category for the template
-        context["fields_by_category"] = {}
-        for field in context["fields"]:
-            context["fields_by_category"].setdefault(field.category, []).append(field)
+        # Get all fields with their category relationships
+        from main.models import CategoryCustomField
+        context["category_fields"] = CategoryCustomField.objects.select_related(
+            "category", "custom_field"
+        ).prefetch_related("custom_field__field_options").order_by(
+            "category__name", "order"
+        )
         return context
 
 
@@ -2868,7 +2931,22 @@ class AdminCustomFieldGetView(SuperadminRequiredMixin, View):
 
     def get(self, request, field_id):
         try:
+            from main.models import CustomFieldOption
+
             field = get_object_or_404(CustomField, pk=field_id)
+
+            # Get options for select/radio/checkbox fields
+            options_list = []
+            if field.field_type in ["select", "radio", "checkbox"]:
+                options_list = list(
+                    field.field_options.filter(is_active=True)
+                    .values_list("value", flat=True)
+                    .order_by("order")
+                )
+
+            # Get categories this field is associated with
+            category_ids = list(field.categories.values_list("id", flat=True))
+
             data = {
                 "id": field.id,
                 "name": field.name,
@@ -2879,10 +2957,9 @@ class AdminCustomFieldGetView(SuperadminRequiredMixin, View):
                 "help_text": field.help_text,
                 "placeholder": field.placeholder,
                 "default_value": field.default_value,
-                "options": field.options,
-                "order": field.order,
+                "options": ",".join(options_list),  # Join for backward compatibility
                 "is_active": field.is_active,
-                "category_id": field.category_id,
+                "category_ids": category_ids,  # Multiple categories now
             }
             return JsonResponse({"success": True, "field": data})
         except Http404:
@@ -2896,6 +2973,8 @@ class AdminCustomFieldSaveView(SuperadminRequiredMixin, View):
 
     def post(self, request):
         try:
+            from main.models import CategoryCustomField, CustomFieldOption
+
             field_id = request.POST.get("field_id")
             if field_id:
                 field = get_object_or_404(CustomField, pk=field_id)
@@ -2904,24 +2983,50 @@ class AdminCustomFieldSaveView(SuperadminRequiredMixin, View):
                 field = CustomField()
                 message = _("تم إنشاء الحقل بنجاح.")
 
-            # Update fields from POST data
-            category_id = request.POST.get("category")
-            if not category_id:
-                return JsonResponse(
-                    {"success": False, "message": _("Category is required.")},
-                    status=400,
-                )
-
-            field.category = get_object_or_404(Category, pk=category_id)
+            # Update field data
             field.name = request.POST.get("name", field.name)
             field.label_ar = request.POST.get("label_ar", field.label_ar)
             field.label_en = request.POST.get("label_en", field.label_en)
             field.field_type = request.POST.get("field_type", field.field_type)
             field.is_required = request.POST.get("is_required") == "on"
             field.is_active = request.POST.get("is_active") == "on"
-            field.order = request.POST.get("order", field.order)
-            field.options = request.POST.get("options", field.options)
+            field.help_text = request.POST.get("help_text", field.help_text or "")
+            field.placeholder = request.POST.get("placeholder", field.placeholder or "")
+            field.default_value = request.POST.get("default_value", field.default_value or "")
             field.save()
+
+            # Handle category association
+            category_id = request.POST.get("category")
+            if category_id:
+                category = get_object_or_404(Category, pk=category_id)
+                # Create or update CategoryCustomField relationship
+                CategoryCustomField.objects.update_or_create(
+                    category=category,
+                    custom_field=field,
+                    defaults={
+                        "is_required": field.is_required,
+                        "order": int(request.POST.get("order", 0)),
+                        "is_active": True,
+                    }
+                )
+
+            # Handle options for select/radio/checkbox fields
+            options_str = request.POST.get("options", "")
+            if options_str and field.field_type in ["select", "radio", "checkbox"]:
+                # Delete existing options
+                CustomFieldOption.objects.filter(custom_field=field).delete()
+
+                # Create new options
+                options_list = [opt.strip() for opt in options_str.split(",") if opt.strip()]
+                for index, option_value in enumerate(options_list):
+                    CustomFieldOption.objects.create(
+                        custom_field=field,
+                        label_ar=option_value,
+                        label_en=option_value,
+                        value=option_value,
+                        order=index,
+                        is_active=True,
+                    )
 
             return JsonResponse({"success": True, "message": message})
         except Exception as e:
