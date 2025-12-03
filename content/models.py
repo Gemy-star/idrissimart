@@ -153,7 +153,40 @@ class Blog(models.Model):
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.title)
+            # If slugify returns empty string (e.g., Arabic-only titles), use ID
+            if not self.slug:
+                # For new objects without ID yet, use a temporary slug
+                if not self.pk:
+                    import uuid
+
+                    self.slug = f"blog-{str(uuid.uuid4())[:8]}"
+                else:
+                    self.slug = f"blog-{self.pk}"
+
+        # Ensure slug is never empty
+        if not self.slug or self.slug.strip() == "":
+            if self.pk:
+                self.slug = f"blog-{self.pk}"
+            else:
+                import uuid
+
+                self.slug = f"blog-{str(uuid.uuid4())[:8]}"
+
         super().save(*args, **kwargs)
+
+        # If slug was temporary (UUID-based), update it with the actual ID
+        if self.slug.startswith("blog-") and not self.slug.startswith("blog-temp-"):
+            parts = self.slug.split("-")
+            if len(parts) == 2 and len(parts[1]) == 8 and not parts[1].isdigit():
+                # It's a UUID, replace with ID
+                new_slug = f"blog-{self.pk}"
+                # Ensure uniqueness
+                counter = 1
+                while Blog.objects.filter(slug=new_slug).exclude(pk=self.pk).exists():
+                    new_slug = f"blog-{self.pk}-{counter}"
+                    counter += 1
+                Blog.objects.filter(pk=self.pk).update(slug=new_slug)
+                self.slug = new_slug
 
 
 class Comment(models.Model):
