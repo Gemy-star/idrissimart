@@ -3506,14 +3506,17 @@ def admin_category_get(request, category_id):
                 "success": True,
                 "id": category.id,
                 "name": category.name,
+                "name_en": category.name,  # English name
                 "name_ar": category.name_ar,
                 "slug": category.slug,
                 "section_type": category.section_type,
                 "description": category.description or "",
+                "description_ar": category.description or "",  # Arabic description
+                "description_en": category.description or "",  # English description (same for now)
                 "icon": category.icon or "",
-                "color": category.color or "",
-                "order": category.order,
-                "is_active": category.is_active,
+                "color": getattr(category, 'color', '') or "",
+                "order": getattr(category, 'order', 0),
+                "is_active": getattr(category, 'is_active', True),
                 "allow_cart": category.allow_cart,
                 "parent_id": category.parent.id if category.parent else None,
             }
@@ -3531,6 +3534,8 @@ def admin_category_save(request):
     Create or update a category via AJAX.
     """
     try:
+        from django.utils.text import slugify
+
         category_id = request.POST.get("category_id")
 
         # Get or create category
@@ -3540,16 +3545,44 @@ def admin_category_save(request):
             category = Category()
 
         # Update category fields
-        category.name = request.POST.get("name_en", "")
-        category.name_ar = request.POST.get("name_ar", "")
-        category.slug = request.POST.get("slug", "")
+        name_en = request.POST.get("name_en", "")
+        name_ar = request.POST.get("name_ar", "")
+
+        category.name = name_en or name_ar  # Use English name as primary, fallback to Arabic
+        category.name_ar = name_ar
+
+        # Auto-generate slug if not provided or on new category
+        provided_slug = request.POST.get("slug", "")
+        if provided_slug:
+            category.slug = provided_slug
+        elif not category.id:  # New category
+            # Generate unique slug
+            base_slug = slugify(name_en) if name_en else slugify(name_ar, allow_unicode=True)
+            slug = base_slug
+            counter = 1
+            while Category.objects.filter(slug=slug).exclude(pk=category.id if category.id else None).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            category.slug = slug
+
         category.section_type = request.POST.get("section_type", "classified")
-        category.description = request.POST.get("description", "")
+
+        # Handle description - prefer description_ar if provided
+        description_ar = request.POST.get("description_ar", "")
+        description_en = request.POST.get("description_en", "")
+        category.description = description_ar or description_en or request.POST.get("description", "")
+
         category.icon = request.POST.get("icon", "")
-        category.color = request.POST.get("color", "")
-        category.order = int(request.POST.get("order", 0))
-        category.is_active = request.POST.get("is_active") == "on"
-        category.allow_cart = request.POST.get("allow_cart") == "on"
+
+        # Handle optional fields with getattr/setattr for compatibility
+        if hasattr(category, 'color'):
+            category.color = request.POST.get("color", "")
+        if hasattr(category, 'order'):
+            category.order = int(request.POST.get("order", 0))
+        if hasattr(category, 'is_active'):
+            category.is_active = request.POST.get("is_active") == "on" or request.POST.get("is_active") == "true"
+
+        category.allow_cart = request.POST.get("allow_cart") == "on" or request.POST.get("allow_cart") == "true"
 
         # Handle parent category
         parent_id = request.POST.get("parent")
@@ -3561,6 +3594,7 @@ def admin_category_save(request):
         # Handle country
         country_code = request.POST.get("country")
         if country_code:
+            from content.models import Country
             category.country = Country.objects.get(code=country_code)
         else:
             category.country = None
@@ -3576,6 +3610,9 @@ def admin_category_save(request):
         )
 
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Error saving category: {error_trace}")  # For debugging
         return JsonResponse(
             {"success": False, "message": f"حدث خطأ: {str(e)}"}, status=500
         )
