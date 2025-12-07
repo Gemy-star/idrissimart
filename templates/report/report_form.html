@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "إبلاغ" %} - {{ block.super }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/ad-card-enhancements.css' %}">
+<style>
+.report-container {
+    max-width: 600px;
+    margin: 40px auto;
+    padding: 30px;
+    background: var(--bg-primary);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] .report-container {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.report-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.report-header i {
+    font-size: 3rem;
+    color: #ef4444;
+    margin-bottom: 15px;
+}
+
+.report-header h1 {
+    font-size: 1.75rem;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+}
+
+.report-info {
+    background: var(--bg-secondary);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 25px;
+    border-right: 4px solid #3b82f6;
+}
+
+.report-info h3 {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.report-info p {
+    color: var(--text-muted);
+    margin: 5px 0;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease;
+    background: var(--input-bg);
+    color: var(--text-primary);
+}
+
+/* Select dropdown specific styles */
+select.form-control {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23334155' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: left 12px center;
+    padding-left: 35px;
+    cursor: pointer;
+}
+
+[data-theme='dark'] select.form-control {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23cbd5e1' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+}
+
+select.form-control option {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    padding: 10px;
+}
+
+textarea.form-control {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+[data-theme='dark'] .form-control:focus {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.btn-submit {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    padding: 12px 32px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.btn-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.btn-cancel {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    padding: 12px 32px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 10px;
+    transition: background 0.3s ease;
+}
+
+.btn-cancel:hover {
+    background: var(--bg-hover);
+}
+
+.warning-note {
+    background: #fef3c7;
+    color: #92400e;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-right: 4px solid #f59e0b;
+}
+
+[data-theme='dark'] .warning-note {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border-right-color: #f59e0b;
+}
+
+.warning-note i {
+    margin-left: 8px;
+}
+
+.text-danger {
+    color: #ef4444;
+}
+
+[data-theme='dark'] .text-danger {
+    color: #fca5a5;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-container">
+    <div class="report-header">
+        <i class="fas fa-flag"></i>
+        <h1>
+            {% if report_type == 'ad' %}
+                {% trans "إبلاغ عن إعلان" %}
+            {% else %}
+                {% trans "إبلاغ عن مستخدم" %}
+            {% endif %}
+        </h1>
+    </div>
+
+    {% if report_type == 'ad' %}
+    <div class="report-info">
+        <h3>{% trans "الإعلان المبلغ عنه" %}</h3>
+        <p><strong>{{ ad.title }}</strong></p>
+        <p>{% trans "المعلن" %}: {{ ad.user.username }}</p>
+    </div>
+    {% else %}
+    <div class="report-info">
+        <h3>{% trans "المستخدم المبلغ عنه" %}</h3>
+        <p><strong>{{ reported_user.username }}</strong></p>
+    </div>
+    {% endif %}
+
+    <div class="warning-note">
+        <i class="fas fa-exclamation-triangle"></i>
+        {% trans "يرجى التأكد من صحة البلاغ. الإبلاغات الكاذبة قد تؤدي إلى تعليق حسابك." %}
+    </div>
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger">
+        {{ form.non_field_errors }}
+    </div>
+    {% endif %}
+
+    <form method="post" id="report-form">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label for="{{ form.report_type.id_for_label }}">{{ form.report_type.label }}</label>
+            {{ form.report_type }}
+            {% if form.report_type.errors %}
+                <small class="text-danger">{{ form.report_type.errors }}</small>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+            {{ form.description }}
+            {% if form.description.errors %}
+                <small class="text-danger">{{ form.description.errors }}</small>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.evidence_url.id_for_label }}">{{ form.evidence_url.label }}</label>
+            {{ form.evidence_url }}
+            {% if form.evidence_url.errors %}
+                <small class="text-danger">{{ form.evidence_url.errors }}</small>
+            {% endif %}
+        </div>
+
+        <button type="submit" class="btn-submit">
+            <i class="fas fa-paper-plane"></i>
+            {% trans "إرسال البلاغ" %}
+        </button>
+
+        <button type="button" class="btn-cancel" onclick="window.history.back()">
+            <i class="fas fa-times"></i>
+            {% trans "إلغاء" %}
+        </button>
+    </form>
+</div>
+{% endblock %}

@@ -73,7 +73,7 @@ def report_ad(request, ad_id):
         "report_type": "ad",
     }
 
-    return render(request, "reports/report_form.html", context)
+    return render(request, "report/report_form.html", context)
 
 
 @login_required
