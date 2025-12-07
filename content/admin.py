@@ -78,16 +78,23 @@ class HomeSliderAdmin(admin.ModelAdmin):
     list_display = [
         "image_preview",
         "title_display",
+        "country_display",
         "is_active",
         "order",
         "created_at",
     ]
-    list_filter = ["is_active", "created_at"]
+    list_filter = ["is_active", "country", "created_at"]
     search_fields = ["title", "title_ar", "subtitle", "subtitle_ar"]
     list_editable = ["is_active", "order"]
     ordering = ["order", "-created_at"]
 
     fieldsets = (
+        (
+            "الدولة",
+            {
+                "fields": ("country",),
+            },
+        ),
         (
             "العنوان",
             {
@@ -149,6 +156,20 @@ class HomeSliderAdmin(admin.ModelAdmin):
         return obj.title_ar or obj.title
 
     title_display.short_description = "العنوان"
+
+    def country_display(self, obj):
+        """Display country flag and name"""
+        if obj.country:
+            return format_html(
+                "<span>{} {}</span>",
+                obj.country.flag_emoji,
+                obj.country.name,
+            )
+        return format_html(
+            '<span style="color: #999;">{% trans "عام - All Countries" %}</span>'
+        )
+
+    country_display.short_description = "الدولة"
 
     actions = ["activate_slides", "deactivate_slides"]
 

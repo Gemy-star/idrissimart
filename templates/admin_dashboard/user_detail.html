@@ -622,6 +622,12 @@
                     {% csrf_token %}
 
                     <div class="info-row">
+                        <span class="info-label">{% trans "اسم المستخدم" %}:</span>
+                        <span class="info-value info-display">{{ user_obj.username }}</span>
+                        <input type="text" name="username" value="{{ user_obj.username }}" class="form-control info-edit" style="display: none;" required>
+                    </div>
+
+                    <div class="info-row">
                         <span class="info-label">{% trans "الاسم الأول" %}:</span>
                         <span class="info-value info-display">{{ user_obj.first_name|default:_("غير متوفر") }}</span>
                         <input type="text" name="first_name" value="{{ user_obj.first_name }}" class="form-control info-edit" style="display: none;">
@@ -636,7 +642,7 @@
                     <div class="info-row">
                         <span class="info-label">{% trans "البريد الإلكتروني" %}:</span>
                         <span class="info-value info-display">{{ user_obj.email }}</span>
-                        <input type="email" name="email" value="{{ user_obj.email }}" class="form-control info-edit" style="display: none;">
+                        <input type="email" name="email" value="{{ user_obj.email }}" class="form-control info-edit" style="display: none;" required>
                     </div>
 
                     <div class="info-row">
@@ -646,14 +652,30 @@
                     </div>
 
                     <div class="info-row">
+                        <span class="info-label">{% trans "الواتساب" %}:</span>
+                        <span class="info-value info-display">{{ user_obj.whatsapp|default:_("غير متوفر") }}</span>
+                        <input type="text" name="whatsapp" value="{{ user_obj.whatsapp }}" class="form-control info-edit" style="display: none;">
+                    </div>
+
+                    <div class="info-row">
                         <span class="info-label">{% trans "الدولة" %}:</span>
-                        <span class="info-value">
+                        <span class="info-value info-display">
                             {% if user_obj.country %}
                                 <i class="fas fa-flag me-1"></i> {{ user_obj.country.name }}
                             {% else %}
                                 {% trans "غير محدد" %}
                             {% endif %}
                         </span>
+                        <select name="country" class="form-control info-edit" style="display: none;">
+                            <option value="">{% trans "-- اختر الدولة --" %}</option>
+                            {% comment %}Countries will be loaded dynamically{% endcomment %}
+                        </select>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">{% trans "المدينة" %}:</span>
+                        <span class="info-value info-display">{{ user_obj.city|default:_("غير متوفر") }}</span>
+                        <input type="text" name="city" value="{{ user_obj.city }}" class="form-control info-edit" style="display: none;">
                     </div>
 
                     <div class="info-row">
@@ -671,6 +693,120 @@
                             <option value="" {% if not user_obj.language %}selected{% endif %}>{% trans "غير محدد" %}</option>
                             <option value="ar" {% if user_obj.language == 'ar' %}selected{% endif %}>{% trans "العربية" %}</option>
                             <option value="en" {% if user_obj.language == 'en' %}selected{% endif %}>{% trans "الإنجليزية" %}</option>
+                        </select>
+                    </div>
+
+                    <!-- Password Change Section -->
+                    <div class="info-row info-edit" style="display: none; flex-direction: column; align-items: flex-start;">
+                        <div class="w-100 mb-3">
+                            <label class="info-label mb-2" style="display: block;">
+                                <i class="fas fa-key me-1"></i>
+                                {% trans "كلمة المرور الجديدة" %}:
+                            </label>
+                            <div class="input-group">
+                                <input type="password" id="newPassword" name="new_password" class="form-control" placeholder="{% trans 'اتركه فارغاً إذا لم ترد التغيير' %}">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('newPassword', this)">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <small class="text-muted mt-1 d-block">
+                                <i class="fas fa-info-circle me-1"></i>
+                                {% trans "يجب أن تحتوي على 8 أحرف على الأقل" %}
+                            </small>
+                        </div>
+                        <div class="w-100">
+                            <label class="info-label mb-2" style="display: block;">
+                                <i class="fas fa-key me-1"></i>
+                                {% trans "تأكيد كلمة المرور" %}:
+                            </label>
+                            <div class="input-group">
+                                <input type="password" id="confirmPassword" name="confirm_password" class="form-control" placeholder="{% trans 'أعد إدخال كلمة المرور' %}">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('confirmPassword', this)">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- User Type & Roles -->
+                    <div class="info-row">
+                        <span class="info-label">{% trans "نوع المستخدم" %}:</span>
+                        <span class="info-value info-display">
+                            {% if user_obj.is_company %}
+                                <span class="badge" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white;">
+                                    <i class="fas fa-building me-1"></i> {% trans "شركة" %}
+                                </span>
+                            {% else %}
+                                <span class="badge" style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white;">
+                                    <i class="fas fa-user me-1"></i> {% trans "شخص" %}
+                                </span>
+                            {% endif %}
+                        </span>
+                        <select name="is_company" class="form-control info-edit" style="display: none;">
+                            <option value="False" {% if not user_obj.is_company %}selected{% endif %}>{% trans "شخص" %}</option>
+                            <option value="True" {% if user_obj.is_company %}selected{% endif %}>{% trans "شركة" %}</option>
+                        </select>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">{% trans "حالة التوثيق" %}:</span>
+                        <span class="info-value info-display">
+                            {% if user_obj.is_verified %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check-circle me-1"></i> {% trans "موثق" %}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">
+                                    <i class="fas fa-times-circle me-1"></i> {% trans "غير موثق" %}
+                                </span>
+                            {% endif %}
+                        </span>
+                        <select name="is_verified" class="form-control info-edit" style="display: none;">
+                            <option value="False" {% if not user_obj.is_verified %}selected{% endif %}>{% trans "غير موثق" %}</option>
+                            <option value="True" {% if user_obj.is_verified %}selected{% endif %}>{% trans "موثق" %}</option>
+                        </select>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">{% trans "الصلاحيات" %}:</span>
+                        <span class="info-value info-display">
+                            {% if user_obj.is_superuser %}
+                                <span class="badge" style="background: linear-gradient(135deg, #dc2626, #991b1b); color: white;">
+                                    <i class="fas fa-crown me-1"></i> {% trans "مدير عام" %}
+                                </span>
+                            {% elif user_obj.is_staff %}
+                                <span class="badge" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;">
+                                    <i class="fas fa-user-shield me-1"></i> {% trans "مشرف" %}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">
+                                    <i class="fas fa-user me-1"></i> {% trans "عضو" %}
+                                </span>
+                            {% endif %}
+                        </span>
+                        <select name="user_role" class="form-control info-edit" style="display: none;">
+                            <option value="member" {% if not user_obj.is_staff and not user_obj.is_superuser %}selected{% endif %}>{% trans "عضو" %}</option>
+                            <option value="staff" {% if user_obj.is_staff and not user_obj.is_superuser %}selected{% endif %}>{% trans "مشرف" %}</option>
+                            <option value="superuser" {% if user_obj.is_superuser %}selected{% endif %}>{% trans "مدير عام" %}</option>
+                        </select>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">{% trans "الحالة النشطة" %}:</span>
+                        <span class="info-value info-display">
+                            {% if user_obj.is_active %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check-circle me-1"></i> {% trans "نشط" %}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-times-circle me-1"></i> {% trans "غير نشط" %}
+                                </span>
+                            {% endif %}
+                        </span>
+                        <select name="is_active" class="form-control info-edit" style="display: none;">
+                            <option value="True" {% if user_obj.is_active %}selected{% endif %}>{% trans "نشط" %}</option>
+                            <option value="False" {% if not user_obj.is_active %}selected{% endif %}>{% trans "غير نشط" %}</option>
                         </select>
                     </div>
 
@@ -773,6 +909,27 @@
                         </button>
                     {% endif %}
                 </div>
+
+                <!-- Additional Admin Actions -->
+                <div class="action-buttons mt-3" style="gap: 10px;">
+                    <button class="btn-action flex-fill" style="background: linear-gradient(135deg, #6366f1, #4f46e5);" onclick="openResetPasswordModal({{ user_obj.id }})">
+                        <i class="fas fa-key me-2"></i> {% trans "إعادة تعيين كلمة المرور" %}
+                    </button>
+                    <button class="btn-action flex-fill" style="background: linear-gradient(135deg, #f59e0b, #d97706);" onclick="sendNotificationToUser({{ user_obj.id }})">
+                        <i class="fas fa-envelope me-2"></i> {% trans "إرسال إشعار" %}
+                    </button>
+                </div>
+
+                <div class="action-buttons mt-2" style="gap: 10px;">
+                    <button class="btn-action flex-fill" style="background: linear-gradient(135deg, #dc2626, #991b1b);" onclick="handleUserAction('ban', {{ user_obj.id }})">
+                        <i class="fas fa-ban me-2"></i> {% trans "حظر المستخدم" %}
+                    </button>
+                    {% if not user_obj.is_superuser %}
+                    <button class="btn-action flex-fill" style="background: linear-gradient(135deg, #7f1d1d, #450a0a);" onclick="confirmDeleteUser({{ user_obj.id }}, '{{ user_obj.username|escapejs }}')">
+                        <i class="fas fa-trash-alt me-2"></i> {% trans "حذف المستخدم" %}
+                    </button>
+                    {% endif %}
+                </div>
             </div>
         </div>
 
@@ -853,6 +1010,177 @@
                     <button type="button" id="confirmUserActionBtn" class="btn-warning">
                         <i class="fas fa-check me-2"></i>
                         <span id="userActionButtonText">{% trans "تأكيد" %}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset Password Modal -->
+    <div class="modal" id="resetPasswordModal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header" style="background: linear-gradient(135deg, #6366f1, #4f46e5); color: white;">
+                    <h5 class="modal-title">
+                        <i class="fas fa-key me-2"></i>
+                        {% trans "إعادة تعيين كلمة المرور" %}
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" onclick="closeModal('resetPasswordModal')"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="resetPasswordForm">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-lock me-1"></i>
+                                {% trans "كلمة المرور الجديدة" %}
+                            </label>
+                            <div class="input-group">
+                                <input type="password" id="adminNewPassword" class="form-control" placeholder="{% trans 'أدخل كلمة المرور الجديدة' %}" required>
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('adminNewPassword', this)">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                {% trans "يجب أن تحتوي على 8 أحرف على الأقل" %}
+                            </small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-lock me-1"></i>
+                                {% trans "تأكيد كلمة المرور" %}
+                            </label>
+                            <div class="input-group">
+                                <input type="password" id="adminConfirmPassword" class="form-control" placeholder="{% trans 'أعد إدخال كلمة المرور' %}" required>
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('adminConfirmPassword', this)">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="sendPasswordEmail">
+                            <label class="form-check-label" for="sendPasswordEmail">
+                                {% trans "إرسال كلمة المرور الجديدة للمستخدم عبر البريد الإلكتروني" %}
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeModal('resetPasswordModal')">
+                        <i class="fas fa-times me-2"></i>
+                        {% trans "إلغاء" %}
+                    </button>
+                    <button type="button" class="btn-success" onclick="confirmResetPassword()">
+                        <i class="fas fa-check me-2"></i>
+                        {% trans "إعادة تعيين" %}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Send Notification Modal -->
+    <div class="modal" id="sendNotificationModal">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;">
+                    <h5 class="modal-title">
+                        <i class="fas fa-envelope me-2"></i>
+                        {% trans "إرسال إشعار للمستخدم" %}
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" onclick="closeModal('sendNotificationModal')"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="sendNotificationForm">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-heading me-1"></i>
+                                {% trans "عنوان الإشعار" %}
+                            </label>
+                            <input type="text" id="notificationTitle" class="form-control" placeholder="{% trans 'أدخل عنوان الإشعار' %}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-comment-dots me-1"></i>
+                                {% trans "نص الإشعار" %}
+                            </label>
+                            <textarea id="notificationMessage" class="form-control" rows="4" placeholder="{% trans 'أدخل نص الإشعار' %}" required></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="sendEmail" checked>
+                                    <label class="form-check-label" for="sendEmail">
+                                        <i class="fas fa-envelope me-1"></i>
+                                        {% trans "إرسال عبر البريد الإلكتروني" %}
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="sendSMS">
+                                    <label class="form-check-label" for="sendSMS">
+                                        <i class="fas fa-sms me-1"></i>
+                                        {% trans "إرسال عبر SMS" %}
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeModal('sendNotificationModal')">
+                        <i class="fas fa-times me-2"></i>
+                        {% trans "إلغاء" %}
+                    </button>
+                    <button type="button" class="btn-success" onclick="confirmSendNotification()">
+                        <i class="fas fa-paper-plane me-2"></i>
+                        {% trans "إرسال" %}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete User Modal -->
+    <div class="modal" id="deleteUserModal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header" style="background: linear-gradient(135deg, #dc2626, #991b1b); color: white;">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        {% trans "تأكيد حذف المستخدم" %}
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" onclick="closeModal('deleteUserModal')"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong>{% trans "تحذير:" %}</strong>
+                        {% trans "هذا الإجراء لا يمكن التراجع عنه!" %}
+                    </div>
+                    <p class="mb-3">
+                        {% trans "هل أنت متأكد من حذف المستخدم" %} <strong id="deleteUsername"></strong>؟
+                    </p>
+                    <p class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        {% trans "سيتم حذف جميع بيانات المستخدم وإعلاناته بشكل نهائي." %}
+                    </p>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="deleteUserAds">
+                        <label class="form-check-label" for="deleteUserAds">
+                            {% trans "حذف جميع إعلانات المستخدم أيضاً" %}
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeModal('deleteUserModal')">
+                        <i class="fas fa-times me-2"></i>
+                        {% trans "إلغاء" %}
+                    </button>
+                    <button type="button" class="btn" style="background: linear-gradient(135deg, #dc2626, #991b1b); color: white;" onclick="executeDeleteUser()">
+                        <i class="fas fa-trash-alt me-2"></i>
+                        {% trans "حذف نهائي" %}
                     </button>
                 </div>
             </div>
@@ -1059,14 +1387,62 @@
 
             // Reset form
             document.getElementById('userEditForm').reset();
+            // Clear password fields
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+        }
+
+        // Toggle Password Visibility
+        window.togglePasswordVisibility = function(inputId, button) {
+            const input = document.getElementById(inputId);
+            const icon = button.querySelector('i');
+
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        };
+
+        // Validate password match
+        function validatePasswords() {
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (newPassword && confirmPassword && newPassword !== confirmPassword) {
+                showNotification('{% trans "كلمات المرور غير متطابقة" %}', 'error');
+                return false;
+            }
+
+            if (newPassword && newPassword.length < 8) {
+                showNotification('{% trans "كلمة المرور يجب أن تحتوي على 8 أحرف على الأقل" %}', 'error');
+                return false;
+            }
+
+            return true;
         }
 
         // Handle form submission
         document.getElementById('userEditForm').addEventListener('submit', function(e) {
             e.preventDefault();
 
+            // Validate passwords before submission
+            if (!validatePasswords()) {
+                return;
+            }
+
             const formData = new FormData(this);
             const url = this.action;
+
+            // Show loading state
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري الحفظ..." %}';
 
             fetch(url, {
                 method: 'POST',
@@ -1077,17 +1453,183 @@
             })
             .then(r => r.json())
             .then(data => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+
                 if (data.success) {
-                    showToast(data.message || '{% trans "تم حفظ التغييرات بنجاح" %}', 'success');
-                    setTimeout(() => location.reload(), 1000);
+                    showNotification(data.message || '{% trans "تم حفظ التغييرات بنجاح" %}', 'success');
+                    setTimeout(() => location.reload(), 1500);
                 } else {
-                    showToast(data.message || '{% trans "حدث خطأ أثناء الحفظ" %}', 'error');
+                    showNotification(data.message || '{% trans "حدث خطأ أثناء الحفظ" %}', 'error');
+                }
+            })
+            .catch(error => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+                console.error('Error:', error);
+                showNotification('{% trans "خطأ في الاتصال بالخادم" %}', 'error');
+            });
+        });
+
+        // Reset Password Modal Functions
+        let currentResetUserId = null;
+
+        window.openResetPasswordModal = function(userId) {
+            currentResetUserId = userId;
+            document.getElementById('adminNewPassword').value = '';
+            document.getElementById('adminConfirmPassword').value = '';
+            document.getElementById('sendPasswordEmail').checked = false;
+            openModal('resetPasswordModal');
+        };
+
+        window.confirmResetPassword = function() {
+            const newPassword = document.getElementById('adminNewPassword').value;
+            const confirmPassword = document.getElementById('adminConfirmPassword').value;
+            const sendEmail = document.getElementById('sendPasswordEmail').checked;
+
+            if (!newPassword || !confirmPassword) {
+                showNotification('{% trans "الرجاء إدخال كلمة المرور" %}', 'error');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                showNotification('{% trans "كلمات المرور غير متطابقة" %}', 'error');
+                return;
+            }
+
+            if (newPassword.length < 8) {
+                showNotification('{% trans "كلمة المرور يجب أن تحتوي على 8 أحرف على الأقل" %}', 'error');
+                return;
+            }
+
+            fetch("{% url 'main:admin_reset_user_password' 0 %}".replace('0', currentResetUserId), {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    new_password: newPassword,
+                    send_email: sendEmail
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                closeModal('resetPasswordModal');
+                if (data.success) {
+                    showNotification(data.message || '{% trans "تم إعادة تعيين كلمة المرور بنجاح" %}', 'success');
+                } else {
+                    showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                showToast('{% trans "خطأ في الاتصال بالخادم" %}', 'error');
+                closeModal('resetPasswordModal');
+                showNotification('{% trans "خطأ في الاتصال" %}', 'error');
             });
-        });
+        };
+
+        // Send Notification Functions
+        let currentNotificationUserId = null;
+
+        window.sendNotificationToUser = function(userId) {
+            currentNotificationUserId = userId;
+            document.getElementById('notificationTitle').value = '';
+            document.getElementById('notificationMessage').value = '';
+            document.getElementById('sendEmail').checked = true;
+            document.getElementById('sendSMS').checked = false;
+            openModal('sendNotificationModal');
+        };
+
+        window.confirmSendNotification = function() {
+            const title = document.getElementById('notificationTitle').value;
+            const message = document.getElementById('notificationMessage').value;
+            const sendEmail = document.getElementById('sendEmail').checked;
+            const sendSMS = document.getElementById('sendSMS').checked;
+
+            if (!title || !message) {
+                showNotification('{% trans "الرجاء إدخال العنوان والنص" %}', 'error');
+                return;
+            }
+
+            if (!sendEmail && !sendSMS) {
+                showNotification('{% trans "الرجاء اختيار طريقة الإرسال" %}', 'error');
+                return;
+            }
+
+            fetch("{% url 'main:admin_send_user_notification' 0 %}".replace('0', currentNotificationUserId), {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: title,
+                    message: message,
+                    send_email: sendEmail,
+                    send_sms: sendSMS
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                closeModal('sendNotificationModal');
+                if (data.success) {
+                    showNotification(data.message || '{% trans "تم إرسال الإشعار بنجاح" %}', 'success');
+                } else {
+                    showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                closeModal('sendNotificationModal');
+                showNotification('{% trans "خطأ في الاتصال" %}', 'error');
+            });
+        };
+
+        // Delete User Functions
+        let currentDeleteUserId = null;
+
+        window.confirmDeleteUser = function(userId, username) {
+            currentDeleteUserId = userId;
+            document.getElementById('deleteUsername').textContent = username;
+            document.getElementById('deleteUserAds').checked = false;
+            openModal('deleteUserModal');
+        };
+
+        window.executeDeleteUser = function() {
+            const deleteAds = document.getElementById('deleteUserAds').checked;
+
+            if (!confirm('{% trans "هل أنت متأكد تماماً؟ هذا الإجراء نهائي!" %}')) {
+                return;
+            }
+
+            fetch("{% url 'main:admin_delete_user' 0 %}".replace('0', currentDeleteUserId), {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    delete_ads: deleteAds
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                closeModal('deleteUserModal');
+                if (data.success) {
+                    showNotification(data.message || '{% trans "تم حذف المستخدم بنجاح" %}', 'success');
+                    setTimeout(() => {
+                        window.location.href = "{% url 'main:admin_users' %}";
+                    }, 1500);
+                } else {
+                    showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                closeModal('deleteUserModal');
+                showNotification('{% trans "خطأ في الاتصال" %}', 'error');
+            });
+        };
     </script>
 {% endblock %}

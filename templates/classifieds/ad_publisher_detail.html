@@ -1001,16 +1001,16 @@
 
                         <!-- Visibility Toggle -->
                         <div class="col-md-6 col-lg-4">
-                            <button class="btn btn-outline-secondary w-100 py-2 shadow-sm"
+                            <button class="btn {% if ad.is_hidden %}btn-outline-secondary{% else %}btn-success{% endif %} w-100 py-2 shadow-sm"
                                     data-action="toggle-hide"
                                     data-ad-id="{{ ad.id }}"
                                     data-is-hidden="{{ ad.is_hidden|yesno:'true,false' }}">
                                 {% if ad.is_hidden %}
-                                    <i class="fas fa-eye me-2"></i>
-                                    {% trans "إظهار الإعلان" %}
-                                {% else %}
                                     <i class="fas fa-eye-slash me-2"></i>
-                                    {% trans "إخفاء الإعلان" %}
+                                    {% trans "مخفي - اضغط للإظهار" %}
+                                {% else %}
+                                    <i class="fas fa-eye me-2"></i>
+                                    {% trans "ظاهر - اضغط للإخفاء" %}
                                 {% endif %}
                             </button>
                         </div>
@@ -1022,11 +1022,12 @@
                                     data-ad-id="{{ ad.id }}"
                                     data-feature="highlight"
                                     data-current="{{ ad.is_highlighted|yesno:'true,false' }}">
-                                <i class="fas fa-star me-2"></i>
                                 {% if ad.is_highlighted %}
-                                    {% trans "إلغاء التمييز" %}
+                                    <i class="fas fa-star me-2"></i>
+                                    {% trans "مميز ✓" %}
                                 {% else %}
-                                    {% trans "تمييز الإعلان" %}
+                                    <i class="far fa-star me-2"></i>
+                                    {% trans "غير مميز" %}
                                 {% endif %}
                             </button>
                         </div>
@@ -1038,28 +1039,152 @@
                                     data-ad-id="{{ ad.id }}"
                                     data-feature="urgent"
                                     data-current="{{ ad.is_urgent|yesno:'true,false' }}">
-                                <i class="fas fa-exclamation-triangle me-2"></i>
                                 {% if ad.is_urgent %}
-                                    {% trans "إلغاء العاجل" %}
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    {% trans "عاجل ✓" %}
                                 {% else %}
-                                    {% trans "وضع كعاجل" %}
+                                    <i class="far fa-exclamation-triangle me-2"></i>
+                                    {% trans "غير عاجل" %}
+                                {% endif %}
+                            </button>
+                        </div>
+
+                        <!-- Featured Toggle -->
+                        <div class="col-md-6 col-lg-4">
+                            <button class="btn {% if ad.is_featured %}btn-warning{% else %}btn-outline-warning{% endif %} w-100 py-2 shadow-sm"
+                                    data-action="toggle-feature"
+                                    data-ad-id="{{ ad.id }}"
+                                    data-feature="featured"
+                                    data-current="{{ ad.is_featured|yesno:'true,false' }}">
+                                {% if ad.is_featured %}
+                                    <i class="fas fa-crown me-2"></i>
+                                    {% trans "إعلان مميز ✓" %}
+                                {% else %}
+                                    <i class="far fa-gem me-2"></i>
+                                    {% trans "غير مميز" %}
                                 {% endif %}
                             </button>
                         </div>
 
                         <!-- Cart Toggle -->
-                        <div class="col-md-6">
-                            <button class="btn {% if ad.enable_cart %}btn-success{% else %}btn-outline-primary{% endif %} w-100 py-2 shadow-sm"
-                                    data-action="enable-cart"
+                        <div class="col-md-6 col-lg-4">
+                            <button class="btn {% if ad.cart_enabled_by_admin %}btn-success{% else %}btn-outline-primary{% endif %} w-100 py-2 shadow-sm"
+                                    data-action="toggle-cart"
                                     data-ad-id="{{ ad.id }}"
-                                    {% if ad.enable_cart %}disabled{% endif %}>
-                                <i class="fas fa-shopping-cart me-2"></i>
-                                {% if ad.enable_cart %}
-                                    <i class="fas fa-check-circle me-1"></i>
-                                    {% trans "السلة مفعلة" %}
+                                    data-cart-enabled="{{ ad.cart_enabled_by_admin|yesno:'true,false' }}">
+                                {% if ad.cart_enabled_by_admin %}
+                                    <i class="fas fa-shopping-cart me-2"></i>
+                                    {% trans "السلة مفعلة ✓" %}
                                 {% else %}
+                                    <i class="fas fa-cart-plus me-2"></i>
                                     {% trans "تفعيل السلة" %}
                                 {% endif %}
+                            </button>
+                        </div>
+
+                        <!-- Sold Toggle -->
+                        <div class="col-md-6 col-lg-4">
+                            <button class="btn {% if ad.status == 'SOLD' %}btn-secondary{% else %}btn-outline-secondary{% endif %} w-100 py-2 shadow-sm"
+                                    data-action="mark-sold"
+                                    data-ad-id="{{ ad.id }}"
+                                    data-is-sold="{{ ad.status|yesno:'SOLD:true,false' }}">
+                                {% if ad.status == 'SOLD' %}
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    {% trans "مباع ✓" %}
+                                {% else %}
+                                    <i class="far fa-handshake me-2"></i>
+                                    {% trans "تحديد كمباع" %}
+                                {% endif %}
+                            </button>
+                        </div>
+
+                        <!-- Edit Actions Section -->
+                        <div class="col-12 mt-3">
+                            <h6 class="text-muted mb-3 fw-bold">
+                                <i class="fas fa-edit me-2"></i>
+                                {% trans "إجراءات التعديل" %}
+                            </h6>
+                        </div>
+
+                        <!-- Edit Full Content -->
+                        <div class="col-md-6 col-lg-4">
+                            <a href="{% url 'main:ad_update' ad.id %}" class="btn btn-primary w-100 py-2 shadow-sm">
+                                <i class="fas fa-pen me-2"></i>
+                                {% trans "تعديل كامل المحتوى" %}
+                            </a>
+                        </div>
+
+                        <!-- Contact Publisher -->
+                        <div class="col-md-6 col-lg-4">
+                            <button class="btn btn-info w-100 py-2 shadow-sm"
+                                    data-action="contact-publisher"
+                                    data-ad-id="{{ ad.id }}"
+                                    data-publisher-name="{{ ad.user.get_full_name|default:ad.user.username }}"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#contactPublisherModal">
+                                <i class="fas fa-envelope me-2"></i>
+                                {% trans "مخاطبة الناشر" %}
+                            </button>
+                        </div>
+
+                        <!-- Change Category -->
+                        <div class="col-md-6 col-lg-4">
+                            <button class="btn btn-outline-info w-100 py-2 shadow-sm"
+                                    data-action="change-category"
+                                    data-ad-id="{{ ad.id }}"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#changeCategoryModal">
+                                <i class="fas fa-sitemap me-2"></i>
+                                {% trans "تغيير القسم والفئة" %}
+                            </button>
+                        </div>
+
+                        <!-- Extend Expiration -->
+                        <div class="col-md-6 col-lg-4">
+                            <button class="btn btn-warning w-100 py-2 shadow-sm"
+                                    data-action="extend-ad"
+                                    data-ad-id="{{ ad.id }}"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#extendAdModal">
+                                <i class="fas fa-calendar-plus me-2"></i>
+                                {% trans "تمديد الإعلان" %}
+                            </button>
+                        </div>
+
+                        <!-- Suspend Ad -->
+                        <div class="col-md-6 col-lg-4">
+                            <button class="btn {% if ad.status == 'SUSPENDED' %}btn-warning{% else %}btn-outline-warning{% endif %} w-100 py-2 shadow-sm"
+                                    data-action="suspend-ad"
+                                    data-ad-id="{{ ad.id }}"
+                                    data-is-suspended="{{ ad.status|yesno:'SUSPENDED:true,false' }}">
+                                {% if ad.status == 'SUSPENDED' %}
+                                    <i class="fas fa-play-circle me-2"></i>
+                                    {% trans "معلق - إلغاء التعليق" %}
+                                {% else %}
+                                    <i class="fas fa-pause-circle me-2"></i>
+                                    {% trans "تعليق الإعلان" %}
+                                {% endif %}
+                            </button>
+                        </div>
+
+                        <!-- Boost Ad -->
+                        <div class="col-md-6 col-lg-4">
+                            <button class="btn btn-gradient w-100 py-2 shadow-sm"
+                                    data-action="boost-ad"
+                                    data-ad-id="{{ ad.id }}"
+                                    style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+                                <i class="fas fa-rocket me-2"></i>
+                                {% trans "ترويج الإعلان" %}
+                            </button>
+                        </div>
+
+                        <!-- Duplicate Ad -->
+                        <div class="col-md-6 col-lg-4">
+                            <button class="btn btn-outline-info w-100 py-2 shadow-sm"
+                                    data-action="duplicate-ad"
+                                    data-ad-id="{{ ad.id }}">
+                                <i class="fas fa-copy me-2"></i>
+                                {% trans "نسخ الإعلان" %}
                             </button>
                         </div>
 
@@ -1071,6 +1196,16 @@
                                     data-ad-title="{{ ad.title|escapejs }}">
                                 <i class="fas fa-trash-alt me-2"></i>
                                 {% trans "حذف الإعلان نهائياً" %}
+                            </button>
+                        </div>
+
+                        <!-- Permanent Ban -->
+                        <div class="col-md-6">
+                            <button class="btn btn-dark w-100 py-2 shadow-sm"
+                                    data-action="ban-ad"
+                                    data-ad-id="{{ ad.id }}">
+                                <i class="fas fa-ban me-2"></i>
+                                {% trans "حظر نهائي" %}
                             </button>
                         </div>
 
@@ -1315,14 +1450,14 @@
                     }
 
                     .related-ads-swiper .swiper-pagination-bullet {
-                        background: #cbd5e0;
+                        background: #ff6001;
                         opacity: 0.5;
                         width: 10px;
                         height: 10px;
                     }
 
                     .related-ads-swiper .swiper-pagination-bullet-active {
-                        background-color: var(--primary-color);
+                        background-color: #ff6001;
                         opacity: 1;
                     }
 
@@ -1464,6 +1599,129 @@
 
 {% block modals %}
 <!-- IMPORTANT: Modals MUST be placed outside the main content container to avoid z-index/overflow issues -->
+
+<!-- Change Category Modal -->
+<div class="modal fade" id="changeCategoryModal" tabindex="-1" aria-labelledby="changeCategoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); color: white;">
+                <h5 class="modal-title" id="changeCategoryModalLabel">
+                    <i class="fas fa-sitemap me-2"></i>
+                    {% trans "تغيير القسم والفئة" %}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="changeCategoryForm">
+                    <div class="mb-3">
+                        <label for="newCategory" class="form-label fw-bold">
+                            <i class="fas fa-folder me-2"></i>
+                            {% trans "اختر القسم الجديد" %}
+                        </label>
+                        <select class="form-select" id="newCategory" name="category" required>
+                            <option value="">{% trans "-- اختر القسم --" %}</option>
+                            {% comment %}
+                            Categories will be loaded dynamically or via context
+                            {% endcomment %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="changeReason" class="form-label fw-bold">
+                            <i class="fas fa-comment-dots me-2"></i>
+                            {% trans "سبب التغيير (اختياري)" %}
+                        </label>
+                        <textarea class="form-control" id="changeReason" name="reason" rows="3" placeholder="{% trans 'أدخل سبب تغيير القسم...' %}"></textarea>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        {% trans "سيتم إعادة تقييم الحقول المخصصة بناءً على القسم الجديد" %}
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>
+                    {% trans "إلغاء" %}
+                </button>
+                <button type="button" class="btn btn-primary" id="confirmCategoryChange">
+                    <i class="fas fa-check me-2"></i>
+                    {% trans "تأكيد التغيير" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Extend Ad Modal -->
+<div class="modal fade" id="extendAdModal" tabindex="-1" aria-labelledby="extendAdModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #f093fb, #f5576c); color: white;">
+                <h5 class="modal-title" id="extendAdModalLabel">
+                    <i class="fas fa-calendar-plus me-2"></i>
+                    {% trans "تمديد صلاحية الإعلان" %}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="extendAdForm">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">
+                            <i class="fas fa-clock me-2"></i>
+                            {% trans "تاريخ الانتهاء الحالي" %}
+                        </label>
+                        <input type="text" class="form-control" value="{{ ad.expires_at|date:'Y-m-d H:i' }}" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="extendDays" class="form-label fw-bold">
+                            <i class="fas fa-plus-circle me-2"></i>
+                            {% trans "عدد الأيام للتمديد" %}
+                        </label>
+                        <select class="form-select" id="extendDays" name="days" required>
+                            <option value="">{% trans "-- اختر المدة --" %}</option>
+                            <option value="7">{% trans "7 أيام" %}</option>
+                            <option value="15">{% trans "15 يوم" %}</option>
+                            <option value="30">{% trans "30 يوم (شهر)" %}</option>
+                            <option value="60">{% trans "60 يوم (شهرين)" %}</option>
+                            <option value="90">{% trans "90 يوم (3 أشهر)" %}</option>
+                            <option value="180">{% trans "180 يوم (6 أشهر)" %}</option>
+                            <option value="365">{% trans "365 يوم (سنة)" %}</option>
+                            <option value="custom">{% trans "مخصص..." %}</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="customDaysInput" style="display: none;">
+                        <label for="customDays" class="form-label fw-bold">
+                            <i class="fas fa-calendar-day me-2"></i>
+                            {% trans "عدد الأيام المخصص" %}
+                        </label>
+                        <input type="number" class="form-control" id="customDays" name="custom_days" min="1" max="3650" placeholder="{% trans 'أدخل عدد الأيام' %}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="extendNote" class="form-label fw-bold">
+                            <i class="fas fa-sticky-note me-2"></i>
+                            {% trans "ملاحظة (اختياري)" %}
+                        </label>
+                        <textarea class="form-control" id="extendNote" name="note" rows="2" placeholder="{% trans 'أضف ملاحظة عن سبب التمديد...' %}"></textarea>
+                    </div>
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <span id="newExpiryDate">{% trans "سيتم حساب التاريخ الجديد بعد الاختيار" %}</span>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>
+                    {% trans "إلغاء" %}
+                </button>
+                <button type="button" class="btn btn-success" id="confirmExtendAd">
+                    <i class="fas fa-calendar-check me-2"></i>
+                    {% trans "تمديد الإعلان" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Delete Ad Modal -->
 <div class="modal fade" id="deleteAdModal" tabindex="-1" aria-labelledby="deleteAdModalLabel" aria-hidden="true">
@@ -1653,6 +1911,51 @@
                 <button type="button" class="btn btn-warning" id="confirmFeatureToggleBtn">
                     <i class="fas fa-check me-2"></i>
                     <span id="featureToggleButtonText">{% trans "تأكيد" %}</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Contact Publisher Modal -->
+<div class="modal fade" id="contactPublisherModal" tabindex="-1" aria-labelledby="contactPublisherModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h5 class="modal-title" id="contactPublisherModalLabel">
+                    <i class="fas fa-envelope me-2"></i>
+                    {% trans "مخاطبة الناشر" %}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <span>{% trans "سيتم إرسال هذه الرسالة إلى" %} <strong id="publisherName"></strong> {% trans "عبر البريد الإلكتروني" %}</span>
+                </div>
+
+                <form id="contactPublisherForm">
+                    <div class="mb-3">
+                        <label for="contactSubject" class="form-label">{% trans "الموضوع" %}</label>
+                        <input type="text" class="form-control" id="contactSubject"
+                               placeholder="{% trans 'مثال: بخصوص إعلانك...' %}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="contactMessage" class="form-label">{% trans "الرسالة" %}</label>
+                        <textarea class="form-control" id="contactMessage" rows="5"
+                                  placeholder="{% trans 'اكتب رسالتك هنا...' %}" required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>
+                    {% trans "إلغاء" %}
+                </button>
+                <button type="button" class="btn btn-primary" id="confirmContactPublisherBtn">
+                    <i class="fas fa-paper-plane me-2"></i>
+                    {% trans "إرسال" %}
                 </button>
             </div>
         </div>
@@ -1924,6 +2227,170 @@
         openModal('featureToggleModal');
     }
 
+    // New Handler Functions
+    function handleToggleCart(adId) {
+        if (!confirm('{% trans "هل تريد تغيير حالة السلة لهذا الإعلان؟" %}')) return;
+
+        fetch("{% url 'main:admin_ad_toggle_cart' 0 %}".replace('0', adId), {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showNotification(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error');
+        });
+    }
+
+    function handleMarkSold(adId) {
+        if (!confirm('{% trans "هل تريد تغيير حالة البيع لهذا الإعلان؟" %}')) return;
+
+        fetch("{% url 'main:admin_ad_mark_sold' 0 %}".replace('0', adId), {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showNotification(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error');
+        });
+    }
+
+    function handleSuspendAd(adId) {
+        if (!confirm('{% trans "هل تريد تغيير حالة التعليق لهذا الإعلان؟" %}')) return;
+
+        fetch("{% url 'main:admin_ad_suspend' 0 %}".replace('0', adId), {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showNotification(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error');
+        });
+    }
+
+    function handleBoostAd(adId) {
+        if (!confirm('{% trans "هل تريد ترويج هذا الإعلان؟ سيظهر في أعلى القائمة" %}')) return;
+
+        fetch("{% url 'main:admin_ad_boost' 0 %}".replace('0', adId), {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showNotification(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error');
+        });
+    }
+
+    function handleDuplicateAd(adId) {
+        if (!confirm('{% trans "هل تريد نسخ هذا الإعلان؟" %}')) return;
+
+        fetch("{% url 'main:admin_ad_duplicate' 0 %}".replace('0', adId), {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                if (data.new_ad_id) {
+                    setTimeout(() => {
+                        window.location.href = "{% url 'main:ad_publisher_detail' 0 %}".replace('0', data.new_ad_id);
+                    }, 1500);
+                }
+            } else {
+                showNotification(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error');
+        });
+    }
+
+    function handleBanAd(adId) {
+        if (!confirm('{% trans "تحذير! هل تريد حظر هذا الإعلان نهائياً؟ هذا الإجراء لا يمكن التراجع عنه" %}')) return;
+
+        fetch("{% url 'main:admin_ad_ban' 0 %}".replace('0', adId), {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                setTimeout(() => window.location.href = "{% url 'main:admin_ads' %}", 1500);
+            } else {
+                showNotification(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error');
+        });
+    }
+
+    let currentContactAdId = null;
+    function handleContactPublisher(adId, publisherName) {
+        currentContactAdId = adId;
+        document.getElementById('publisherName').textContent = publisherName;
+        document.getElementById('contactSubject').value = '';
+        document.getElementById('contactMessage').value = '';
+        // Modal will open via data-bs-toggle
+    }
+
     // ============================================================================
     // CONFIRM HANDLERS
     // ============================================================================
@@ -2151,6 +2618,52 @@
             });
         }
 
+        // Contact Publisher Confirm
+        const confirmContactPublisherBtn = document.getElementById('confirmContactPublisherBtn');
+        if (confirmContactPublisherBtn) {
+            confirmContactPublisherBtn.replaceWith(confirmContactPublisherBtn.cloneNode(true));
+            document.getElementById('confirmContactPublisherBtn').addEventListener('click', function() {
+                if (currentContactAdId === null) return;
+
+                const subject = document.getElementById('contactSubject').value.trim();
+                const message = document.getElementById('contactMessage').value.trim();
+
+                if (!subject || !message) {
+                    showNotification('{% trans "الرجاء إدخال الموضوع والرسالة" %}', 'error');
+                    return;
+                }
+
+                const url = "{% url 'main:admin_contact_publisher' 0 %}".replace('0', currentContactAdId);
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        subject: subject,
+                        message: message
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    closeModal('contactPublisherModal');
+                    if (data.success) {
+                        showNotification(data.message, 'success');
+                        document.getElementById('contactSubject').value = '';
+                        document.getElementById('contactMessage').value = '';
+                    } else {
+                        showNotification(data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Contact publisher error:', error);
+                    closeModal('contactPublisherModal');
+                    showNotification('{% trans "خطأ في الاتصال بالخادم" %}', 'error');
+                });
+            });
+        }
+
         console.log('✅ Confirm handlers setup complete');
     }
 
@@ -2192,6 +2705,37 @@
 
                 case 'enable-cart':
                     handleEnableCart(parseInt(target.dataset.adId), target);
+                    break;
+
+                case 'toggle-cart':
+                    handleToggleCart(parseInt(target.dataset.adId));
+                    break;
+
+                case 'mark-sold':
+                    handleMarkSold(parseInt(target.dataset.adId));
+                    break;
+
+                case 'suspend-ad':
+                    handleSuspendAd(parseInt(target.dataset.adId));
+                    break;
+
+                case 'boost-ad':
+                    handleBoostAd(parseInt(target.dataset.adId));
+                    break;
+
+                case 'duplicate-ad':
+                    handleDuplicateAd(parseInt(target.dataset.adId));
+                    break;
+
+                case 'ban-ad':
+                    handleBanAd(parseInt(target.dataset.adId));
+                    break;
+
+                case 'contact-publisher':
+                    handleContactPublisher(
+                        parseInt(target.dataset.adId),
+                        target.dataset.publisherName
+                    );
                     break;
 
                 case 'approve-ad':
@@ -2373,6 +2917,363 @@
         if (statsCard) {
             statsObserver.observe(statsCard);
         }
+
+        // ============================================================================
+        // NEW ACTION HANDLERS
+        // ============================================================================
+
+        // Handle Change Category
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('[data-action="change-category"]')) {
+                const button = e.target.closest('[data-action="change-category"]');
+                const adId = button.getAttribute('data-ad-id');
+                currentAdId = adId;
+                // Load categories dynamically via AJAX if needed
+                console.log('Opening category change modal for ad:', adId);
+            }
+        });
+
+        // Setup modal event listeners to capture ad ID
+        const changeCategoryModal = document.getElementById('changeCategoryModal');
+        if (changeCategoryModal) {
+            changeCategoryModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                if (button) {
+                    currentAdId = button.getAttribute('data-ad-id');
+                    console.log('Change Category Modal opened for ad:', currentAdId);
+
+                    // Load categories if not already loaded
+                    loadCategories();
+                }
+            });
+        }
+
+        const extendAdModal = document.getElementById('extendAdModal');
+        if (extendAdModal) {
+            extendAdModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                if (button) {
+                    currentAdId = button.getAttribute('data-ad-id');
+                    console.log('Extend Ad Modal opened for ad:', currentAdId);
+                }
+            });
+        }
+
+        // Function to load categories
+        function loadCategories() {
+            const categorySelect = document.getElementById('newCategory');
+            if (!categorySelect || categorySelect.options.length > 1) return; // Already loaded
+
+            // You can load from context or fetch via AJAX
+            // For now, we'll use inline data from template
+            {% if categories %}
+                const categories = [
+                    {% for cat in categories %}
+                    { id: {{ cat.id }}, name: '{{ cat.name|escapejs }}' }{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ];
+                categories.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat.id;
+                    option.textContent = cat.name;
+                    categorySelect.appendChild(option);
+                });
+            {% endif %}
+        }
+
+        // Confirm Category Change
+        const confirmCategoryBtn = document.getElementById('confirmCategoryChange');
+        if (confirmCategoryBtn) {
+            confirmCategoryBtn.addEventListener('click', function() {
+                const categoryId = document.getElementById('newCategory').value;
+                const reason = document.getElementById('changeReason').value;
+
+                if (!categoryId) {
+                    showNotification('{% trans "الرجاء اختيار قسم جديد" %}', 'error');
+                    return;
+                }
+
+                if (!currentAdId) {
+                    showNotification('{% trans "خطأ: لم يتم تحديد الإعلان" %}', 'error');
+                    return;
+                }
+
+                fetch("{% url 'main:admin_ad_change_category' 0 %}".replace('0', currentAdId), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': window.getCookie('csrftoken'),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ category_id: categoryId, reason: reason })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification(data.message || '{% trans "تم تغيير القسم بنجاح" %}', 'success');
+                        closeModal('changeCategoryModal');
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error');
+                });
+            });
+        }
+
+        // Handle Extend Days Selection
+        const extendDaysSelect = document.getElementById('extendDays');
+        const customDaysInput = document.getElementById('customDaysInput');
+        if (extendDaysSelect) {
+            extendDaysSelect.addEventListener('change', function() {
+                if (this.value === 'custom') {
+                    customDaysInput.style.display = 'block';
+                } else {
+                    customDaysInput.style.display = 'none';
+                    if (this.value) {
+                        updateNewExpiryDate(parseInt(this.value));
+                    }
+                }
+            });
+        }
+
+        // Update new expiry date preview
+        function updateNewExpiryDate(days) {
+            const currentExpiry = new Date('{{ ad.expires_at|date:"Y-m-d" }}');
+            const newExpiry = new Date(currentExpiry.getTime() + (days * 24 * 60 * 60 * 1000));
+            const formatted = newExpiry.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+            document.getElementById('newExpiryDate').textContent = '{% trans "التاريخ الجديد:" %} ' + formatted;
+        }
+
+        // Confirm Extend Ad
+        const confirmExtendBtn = document.getElementById('confirmExtendAd');
+        if (confirmExtendBtn) {
+            confirmExtendBtn.addEventListener('click', function() {
+                let days = document.getElementById('extendDays').value;
+                const note = document.getElementById('extendNote').value;
+
+                if (days === 'custom') {
+                    days = document.getElementById('customDays').value;
+                }
+
+                if (!days || days <= 0) {
+                    showNotification('{% trans "الرجاء اختيار عدد الأيام" %}', 'error');
+                    return;
+                }
+
+                if (!currentAdId) {
+                    showNotification('{% trans "خطأ: لم يتم تحديد الإعلان" %}', 'error');
+                    return;
+                }
+
+                fetch("{% url 'main:admin_ad_extend' 0 %}".replace('0', currentAdId), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': window.getCookie('csrftoken'),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ days: parseInt(days), note: note })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification(data.message || '{% trans "تم تمديد الإعلان بنجاح" %}', 'success');
+                        closeModal('extendAdModal');
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error');
+                });
+            });
+        }
+
+        // Handle Toggle Cart
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('[data-action="toggle-cart"]')) {
+                const button = e.target.closest('[data-action="toggle-cart"]');
+                const adId = button.getAttribute('data-ad-id');
+                const cartEnabled = button.getAttribute('data-cart-enabled') === 'true';
+
+                fetch("{% url 'main:admin_ad_toggle_cart' 0 %}".replace('0', adId), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': window.getCookie('csrftoken'),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ enable: !cartEnabled })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification(data.message || '{% trans "تم تحديث حالة السلة" %}', 'success');
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error');
+                });
+            }
+
+            // Handle Mark as Sold
+            if (e.target.closest('[data-action="mark-sold"]')) {
+                const button = e.target.closest('[data-action="mark-sold"]');
+                const adId = button.getAttribute('data-ad-id');
+                const isSold = button.getAttribute('data-is-sold') === 'true';
+
+                if (confirm(isSold ? '{% trans "إلغاء وضع البيع؟" %}' : '{% trans "تحديد الإعلان كمباع؟" %}')) {
+                    fetch("{% url 'main:admin_ad_mark_sold' 0 %}".replace('0', adId), {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': window.getCookie('csrftoken'),
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ sold: !isSold })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showNotification(data.message || '{% trans "تم تحديث حالة الإعلان" %}', 'success');
+                            setTimeout(() => location.reload(), 1000);
+                        } else {
+                            showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showNotification('{% trans "حدث خطأ" %}', 'error');
+                    });
+                }
+            }
+
+            // Handle Suspend Ad
+            if (e.target.closest('[data-action="suspend-ad"]')) {
+                const button = e.target.closest('[data-action="suspend-ad"]');
+                const adId = button.getAttribute('data-ad-id');
+                const isSuspended = button.getAttribute('data-is-suspended') === 'true';
+
+                if (confirm(isSuspended ? '{% trans "إلغاء تعليق الإعلان؟" %}' : '{% trans "تعليق الإعلان؟" %}')) {
+                    fetch("{% url 'main:admin_ad_suspend' 0 %}".replace('0', adId), {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': window.getCookie('csrftoken'),
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ suspend: !isSuspended })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showNotification(data.message || '{% trans "تم تحديث حالة الإعلان" %}', 'success');
+                            setTimeout(() => location.reload(), 1000);
+                        } else {
+                            showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showNotification('{% trans "حدث خطأ" %}', 'error');
+                    });
+                }
+            }
+
+            // Handle Boost Ad
+            if (e.target.closest('[data-action="boost-ad"]')) {
+                const button = e.target.closest('[data-action="boost-ad"]');
+                const adId = button.getAttribute('data-ad-id');
+
+                if (confirm('{% trans "ترويج هذا الإعلان؟" %}')) {
+                    fetch("{% url 'main:admin_ad_boost' 0 %}".replace('0', adId), {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': window.getCookie('csrftoken'),
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showNotification(data.message || '{% trans "تم ترويج الإعلان بنجاح" %}', 'success');
+                            setTimeout(() => location.reload(), 1000);
+                        } else {
+                            showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showNotification('{% trans "حدث خطأ" %}', 'error');
+                    });
+                }
+            }
+
+            // Handle Duplicate Ad
+            if (e.target.closest('[data-action="duplicate-ad"]')) {
+                const button = e.target.closest('[data-action="duplicate-ad"]');
+                const adId = button.getAttribute('data-ad-id');
+
+                if (confirm('{% trans "نسخ هذا الإعلان؟" %}')) {
+                    fetch("{% url 'main:admin_ad_duplicate' 0 %}".replace('0', adId), {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': window.getCookie('csrftoken'),
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showNotification(data.message || '{% trans "تم نسخ الإعلان بنجاح" %}', 'success');
+                            if (data.new_ad_url) {
+                                setTimeout(() => window.location.href = data.new_ad_url, 1500);
+                            }
+                        } else {
+                            showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showNotification('{% trans "حدث خطأ" %}', 'error');
+                    });
+                }
+            }
+
+            // Handle Ban Ad
+            if (e.target.closest('[data-action="ban-ad"]')) {
+                const button = e.target.closest('[data-action="ban-ad"]');
+                const adId = button.getAttribute('data-ad-id');
+
+                if (confirm('{% trans "حظر هذا الإعلان نهائياً؟ هذا الإجراء لا يمكن التراجع عنه!" %}')) {
+                    fetch("{% url 'main:admin_ad_ban' 0 %}".replace('0', adId), {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': window.getCookie('csrftoken'),
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showNotification(data.message || '{% trans "تم حظر الإعلان" %}', 'success');
+                            setTimeout(() => window.location.href = "{% url 'main:admin_ads_management' %}", 1500);
+                        } else {
+                            showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showNotification('{% trans "حدث خطأ" %}', 'error');
+                    });
+                }
+            }
+        });
     });
 </script>
 {% endblock extra_js %}

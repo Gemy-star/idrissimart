@@ -281,6 +281,16 @@ class HomeSlider(models.Model):
         max_length=500, blank=True, verbose_name=_("رابط الزر - Button URL")
     )
 
+    country = models.ForeignKey(
+        Country,
+        on_delete=models.CASCADE,
+        related_name="home_sliders",
+        verbose_name=_("الدولة - Country"),
+        help_text=_("اختر الدولة التي سيظهر فيها هذا السلايدر"),
+        null=True,
+        blank=True,
+    )
+
     background_color = models.CharField(
         max_length=20,
         default="#4B315E",

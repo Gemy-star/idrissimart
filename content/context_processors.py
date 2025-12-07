@@ -1,6 +1,7 @@
 from content.models import Country, HomeSlider
 from main.models import Notification
 from constance import config
+from django.db import models
 
 
 def countries(request):
@@ -15,8 +16,25 @@ def countries(request):
 def home_sliders(request):
     """
     Context processor to make home sliders available in templates
+    Filters sliders based on selected country
     """
-    return {"home_sliders": HomeSlider.objects.filter(is_active=True).order_by("order")}
+    selected_country = request.session.get("selected_country", "EG")
+
+    try:
+        country = Country.objects.get(code=selected_country, is_active=True)
+        # Get sliders for selected country or sliders without country (legacy/global)
+        sliders = (
+            HomeSlider.objects.filter(is_active=True)
+            .filter(models.Q(country=country) | models.Q(country__isnull=True))
+            .order_by("order")
+        )
+    except Country.DoesNotExist:
+        # Fallback to sliders without country assignment
+        sliders = HomeSlider.objects.filter(
+            is_active=True, country__isnull=True
+        ).order_by("order")
+
+    return {"home_sliders": sliders}
 
 
 def user_preferences(request):

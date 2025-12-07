@@ -19,7 +19,7 @@ class BlogListView(ListView):
     model = Blog
     template_name = "pages/blog_list.html"
     context_object_name = "blogs"
-    paginate_by = 6  # Show 6 blogs per page
+    paginate_by = 12  # Show 12 blogs per page
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
