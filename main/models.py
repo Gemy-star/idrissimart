@@ -1312,6 +1312,13 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
         help_text=_("إظهار 'السعر عند الطلب' بدلاً من السعر الفعلي"),
     )
 
+    # Partial Payment Option
+    allow_partial_payment = models.BooleanField(
+        default=False,
+        verbose_name=_("السماح بالدفع الجزئي"),
+        help_text=_("السماح للعملاء بدفع جزء من المبلغ عند الطلب"),
+    )
+
     # Rating
     rating = models.DecimalField(
         max_digits=3,
@@ -2348,77 +2355,6 @@ class CartSettings(models.Model):
         verbose_name_plural = _("Cart Settings")
 
 
-class AdReservation(models.Model):
-    """Model for ad reservations through cart system"""
-
-    class ReservationStatus(models.TextChoices):
-        PENDING = "pending", _("قيد الانتظار")
-        CONFIRMED = "confirmed", _("مؤكد")
-        CANCELLED = "cancelled", _("ملغي")
-        COMPLETED = "completed", _("مكتمل")
-        REFUNDED = "refunded", _("مسترد")
-
-    ad = models.ForeignKey(
-        ClassifiedAd,
-        on_delete=models.CASCADE,
-        related_name="reservations",
-        verbose_name=_("الإعلان"),
-    )
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name="reservations",
-        verbose_name=_("المستخدم"),
-    )
-    reservation_amount = models.DecimalField(
-        max_digits=12, decimal_places=2, verbose_name=_("مبلغ الحجز")
-    )
-    full_amount = models.DecimalField(
-        max_digits=12, decimal_places=2, verbose_name=_("المبلغ الكامل")
-    )
-    status = models.CharField(
-        max_length=20,
-        choices=ReservationStatus.choices,
-        default=ReservationStatus.PENDING,
-        verbose_name=_("حالة الحجز"),
-    )
-    notes = models.TextField(blank=True, verbose_name=_("ملاحظات"))
-    delivery_address = models.TextField(blank=True, verbose_name=_("عنوان التوصيل"))
-    delivery_fee = models.DecimalField(
-        max_digits=10, decimal_places=2, default=0.00, verbose_name=_("رسوم التوصيل")
-    )
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    expires_at = models.DateTimeField(
-        verbose_name=_("ينتهي في"), help_text=_("وقت انتهاء الحجز")
-    )
-
-    class Meta:
-        db_table = "ad_reservations"
-        verbose_name = _("Ad Reservation")
-        verbose_name_plural = _("Ad Reservations")
-        ordering = ["-created_at"]
-
-    def save(self, *args, **kwargs):
-        if not self.expires_at:
-            # Default reservation expires in 48 hours
-            self.expires_at = timezone.now() + timezone.timedelta(hours=48)
-        super().save(*args, **kwargs)
-
-    def calculate_total_amount(self):
-        """Calculate total amount including delivery fee"""
-        return self.reservation_amount + self.delivery_fee
-
-    def is_expired(self):
-        """Check if reservation has expired"""
-        return timezone.now() > self.expires_at
-
-    def get_remaining_amount(self):
-        """Get remaining amount to be paid"""
-        return self.full_amount - self.reservation_amount
-
-
 class AdTransaction(models.Model):
     """Model to track all ad-related financial transactions"""
 
@@ -2426,7 +2362,7 @@ class AdTransaction(models.Model):
         AD_POST = "ad_post", _("نشر إعلان")
         FEATURE_PURCHASE = "feature_purchase", _("شراء ميزة")
         PACKAGE_PURCHASE = "package_purchase", _("شراء باقة")
-        RESERVATION = "reservation", _("حجز")
+        ORDER_PAYMENT = "order_payment", _("دفع طلب")
         PAYMENT_COMPLETION = "payment_completion", _("إكمال دفع")
         REFUND = "refund", _("استرداد")
         COMMISSION = "commission", _("عمولة المنصة")
@@ -2452,13 +2388,13 @@ class AdTransaction(models.Model):
         related_name="transactions",
         verbose_name=_("الإعلان"),
     )
-    reservation = models.ForeignKey(
-        AdReservation,
+    order = models.ForeignKey(
+        'Order',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="transactions",
-        verbose_name=_("الحجز"),
+        verbose_name=_("الطلب"),
     )
     transaction_type = models.CharField(
         max_length=20, choices=TransactionType.choices, verbose_name=_("نوع المعاملة")
@@ -2762,6 +2698,199 @@ class CartItem(models.Model):
     def get_total_price(self):
         """Calculate total price for this cart item"""
         return self.ad.price * self.quantity
+
+
+# ===========================
+# ORDER MODELS
+# ===========================
+
+
+class Order(models.Model):
+    """Model for customer orders"""
+
+    STATUS_CHOICES = [
+        ('pending', _('قيد الانتظار')),
+        ('processing', _('قيد المعالجة')),
+        ('shipped', _('تم الشحن')),
+        ('delivered', _('تم التسليم')),
+        ('cancelled', _('ملغي')),
+        ('refunded', _('مسترد')),
+    ]
+
+    PAYMENT_METHOD_CHOICES = [
+        ('cod', _('الدفع عند الاستلام')),
+        ('online', _('الدفع الإلكتروني')),
+        ('partial', _('دفع جزئي')),
+    ]
+
+    PAYMENT_STATUS_CHOICES = [
+        ('unpaid', _('غير مدفوع')),
+        ('partial', _('دفع جزئي')),
+        ('paid', _('مدفوع بالكامل')),
+        ('refunded', _('مسترد')),
+    ]
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="orders",
+        verbose_name=_("المستخدم")
+    )
+    order_number = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name=_("رقم الطلب")
+    )
+
+    # Delivery Information
+    full_name = models.CharField(max_length=200, verbose_name=_("الاسم الكامل"))
+    phone = models.CharField(max_length=20, verbose_name=_("رقم الهاتف"))
+    address = models.TextField(verbose_name=_("العنوان"))
+    city = models.CharField(max_length=100, verbose_name=_("المدينة"))
+    postal_code = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name=_("الرمز البريدي")
+    )
+    notes = models.TextField(blank=True, verbose_name=_("ملاحظات"))
+
+    # Payment & Status
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        default='cod',
+        verbose_name=_("طريقة الدفع")
+    )
+    payment_status = models.CharField(
+        max_length=20,
+        choices=PAYMENT_STATUS_CHOICES,
+        default='unpaid',
+        verbose_name=_("حالة الدفع")
+    )
+    total_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name=_("المبلغ الإجمالي")
+    )
+    paid_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name=_("المبلغ المدفوع")
+    )
+    remaining_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name=_("المبلغ المتبقي")
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+        verbose_name=_("الحالة")
+    )
+
+    # Expiration & Delivery
+    expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_("ينتهي في"),
+        help_text=_("تاريخ انتهاء الطلب (للطلبات المحجوزة)")
+    )
+    delivery_fee = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        verbose_name=_("رسوم التوصيل")
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإنشاء"))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("تاريخ التحديث"))
+
+    class Meta:
+        db_table = "orders"
+        verbose_name = _("Order")
+        verbose_name_plural = _("Orders")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Order #{self.order_number} - {self.user.username}"
+
+    def save(self, *args, **kwargs):
+        if not self.order_number:
+            # Generate unique order number
+            import random
+            import string
+            from django.utils import timezone
+            timestamp = timezone.now().strftime('%Y%m%d%H%M%S')
+            random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+            self.order_number = f"ORD-{timestamp}-{random_str}"
+
+        # Calculate remaining amount
+        self.remaining_amount = self.total_amount - self.paid_amount
+
+        # Update payment status based on amounts
+        if self.paid_amount >= self.total_amount:
+            self.payment_status = 'paid'
+        elif self.paid_amount > 0:
+            self.payment_status = 'partial'
+        else:
+            self.payment_status = 'unpaid'
+
+        super().save(*args, **kwargs)
+
+    def get_items_count(self):
+        """Get total items in order"""
+        return self.items.count()
+
+    def is_expired(self):
+        """Check if order has expired"""
+        if self.expires_at:
+            from django.utils import timezone
+            return timezone.now() > self.expires_at
+        return False
+
+    def get_payment_percentage(self):
+        """Get payment completion percentage"""
+        if self.total_amount > 0:
+            return (self.paid_amount / self.total_amount) * 100
+        return 0
+
+
+class OrderItem(models.Model):
+    """Model for order items"""
+
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name=_("الطلب")
+    )
+    ad = models.ForeignKey(
+        ClassifiedAd,
+        on_delete=models.CASCADE,
+        related_name="order_items",
+        verbose_name=_("الإعلان")
+    )
+    price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name=_("السعر")
+    )
+
+    class Meta:
+        db_table = "order_items"
+        verbose_name = _("Order Item")
+        verbose_name_plural = _("Order Items")
+
+    def __str__(self):
+        return f"{self.order.order_number} - {self.ad.title}"
+
+    def get_total_price(self):
+        """Calculate total price for this order item"""
+        return self.price
 
 
 # ===========================
@@ -3152,3 +3281,101 @@ class AdReport(models.Model):
         if notes:
             self.admin_notes = notes
         self.save()
+
+
+class FAQCategory(models.Model):
+    """FAQ Category Model"""
+
+    name = models.CharField(
+        max_length=200,
+        verbose_name=_("اسم الفئة - Category Name")
+    )
+    name_ar = models.CharField(
+        max_length=200,
+        verbose_name=_("اسم الفئة بالعربية"),
+        blank=True
+    )
+    icon = models.CharField(
+        max_length=50,
+        default="fas fa-question-circle",
+        verbose_name=_("أيقونة - Icon"),
+        help_text=_("Font Awesome icon class (e.g., fas fa-question-circle)")
+    )
+    order = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("الترتيب - Order")
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_("نشط - Active")
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "faq_categories"
+        verbose_name = _("FAQ Category")
+        verbose_name_plural = _("FAQ Categories")
+        ordering = ["order", "name"]
+
+    def __str__(self):
+        return self.name_ar or self.name
+
+
+class FAQ(models.Model):
+    """Frequently Asked Questions Model"""
+
+    category = models.ForeignKey(
+        FAQCategory,
+        on_delete=models.CASCADE,
+        related_name="faqs",
+        verbose_name=_("الفئة - Category")
+    )
+    question = models.CharField(
+        max_length=500,
+        verbose_name=_("السؤال - Question")
+    )
+    question_ar = models.CharField(
+        max_length=500,
+        verbose_name=_("السؤال بالعربية"),
+        blank=True
+    )
+    answer = models.TextField(
+        verbose_name=_("الإجابة - Answer")
+    )
+    answer_ar = models.TextField(
+        verbose_name=_("الإجابة بالعربية"),
+        blank=True
+    )
+    order = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("الترتيب - Order")
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_("نشط - Active")
+    )
+    views_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("عدد المشاهدات - Views Count")
+    )
+    is_popular = models.BooleanField(
+        default=False,
+        verbose_name=_("سؤال شائع - Popular Question")
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "faqs"
+        verbose_name = _("FAQ")
+        verbose_name_plural = _("FAQs")
+        ordering = ["category__order", "order", "-is_popular"]
+
+    def __str__(self):
+        return self.question_ar or self.question
+
+    def increment_views(self):
+        """Increment views count"""
+        self.views_count += 1
+        self.save(update_fields=["views_count"])

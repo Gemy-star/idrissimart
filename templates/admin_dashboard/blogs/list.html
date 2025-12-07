@@ -1,0 +1,342 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n %}
+
+{% block title %}
+    {% trans "إدارة المدونات" %} - {% trans "لوحة تحكم المدير" %}
+{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+    .blog-stats-card {
+        background: linear-gradient(135deg, var(--primary-color, #4b315e) 0%, var(--secondary-color, #ff6001) 100%);
+        border-radius: 16px;
+        padding: 2rem;
+        color: white;
+        box-shadow: 0 10px 30px rgba(75, 49, 94, 0.3);
+        margin-bottom: 2rem;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+
+    .blog-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        border-right: 4px solid #667eea;
+    }
+
+    .blog-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+    }
+
+    [data-theme='dark'] .blog-card {
+        background: #1a202c;
+        border-right-color: #a78bbd;
+    }
+
+    .blog-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin-bottom: 0.5rem;
+    }
+
+    [data-theme='dark'] .blog-title {
+        color: #e9ecef;
+    }
+
+    .blog-meta {
+        display: flex;
+        gap: 1.5rem;
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+
+    [data-theme='dark'] .blog-meta {
+        color: #9ca3af;
+    }
+
+    .blog-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .blog-status-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .status-published {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-draft {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    [data-theme='dark'] .status-published {
+        background: rgba(16, 185, 129, 0.2);
+        color: #6ee7b7;
+    }
+
+    [data-theme='dark'] .status-draft {
+        background: rgba(245, 158, 11, 0.2);
+        color: #fbbf24;
+    }
+
+    .filter-bar {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme='dark'] .filter-bar {
+        background: #1a202c;
+    }
+
+    .search-input {
+        border-radius: 12px;
+        border: 2px solid #e5e7eb;
+    }
+
+    [data-theme='dark'] .search-input {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
+        color: #e9ecef;
+    }
+
+    .category-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        display: inline-block;
+        margin-bottom: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">{% trans "إدارة المدونات" %}</h2>
+            <p class="text-muted mb-0">{% trans "عرض وتحرير وحذف المدونات" %}</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'main:admin_blog_categories' %}" class="btn btn-outline-primary">
+                <i class="fas fa-folder me-2"></i>
+                {% trans "إدارة الفئات" %}
+            </a>
+            <a href="/admin/content/blog/add/" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>
+                {% trans "مدونة جديدة" %}
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="blog-stats-card">
+                <div class="stat-item">
+                    <div class="stat-value">{{ total_blogs }}</div>
+                    <div class="stat-label">{% trans "إجمالي المدونات" %}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="blog-stats-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                <div class="stat-item">
+                    <div class="stat-value">{{ published_blogs }}</div>
+                    <div class="stat-label">{% trans "منشور" %}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="blog-stats-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                <div class="stat-item">
+                    <div class="stat-value">{{ draft_blogs }}</div>
+                    <div class="stat-label">{% trans "مسودات" %}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <input type="text" name="search" class="form-control search-input"
+                       placeholder="{% trans 'البحث في المدونات...' %}"
+                       value="{{ search_query }}">
+            </div>
+            <div class="col-md-2">
+                <select name="category" class="form-select" onchange="this.form.submit()">
+                    <option value="">{% trans "كل الفئات" %}</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}" {% if selected_category == category.id|stringformat:'s' %}selected{% endif %}>
+                        {{ category.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="status" class="form-select" onchange="this.form.submit()">
+                    <option value="">{% trans "كل الحالات" %}</option>
+                    <option value="published" {% if selected_status == 'published' %}selected{% endif %}>{% trans "منشور" %}</option>
+                    <option value="draft" {% if selected_status == 'draft' %}selected{% endif %}>{% trans "مسودة" %}</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter me-2"></i>
+                    {% trans "تطبيق" %}
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Blogs List -->
+    {% if blogs %}
+        {% for blog in blogs %}
+        <div class="blog-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                    {% if blog.category %}
+                    <span class="category-badge" style="background-color: {{ blog.category.color }}20; color: {{ blog.category.color }};">
+                        <i class="{{ blog.category.icon }}"></i> {{ blog.category.name }}
+                    </span>
+                    {% endif %}
+
+                    <h3 class="blog-title">{{ blog.title }}</h3>
+
+                    <span class="blog-status-badge {% if blog.is_published %}status-published{% else %}status-draft{% endif %}">
+                        {% if blog.is_published %}
+                            <i class="fas fa-check-circle me-1"></i> {% trans "منشور" %}
+                        {% else %}
+                            <i class="fas fa-clock me-1"></i> {% trans "مسودة" %}
+                        {% endif %}
+                    </span>
+
+                    <div class="blog-meta mt-3">
+                        <div class="blog-meta-item">
+                            <i class="fas fa-user"></i>
+                            <span>{{ blog.author.username }}</span>
+                        </div>
+                        <div class="blog-meta-item">
+                            <i class="fas fa-calendar"></i>
+                            <span>{{ blog.published_date|date:"Y/m/d" }}</span>
+                        </div>
+                        <div class="blog-meta-item">
+                            <i class="fas fa-eye"></i>
+                            <span>{{ blog.views_count }} {% trans "مشاهدة" %}</span>
+                        </div>
+                        <div class="blog-meta-item">
+                            <i class="fas fa-heart"></i>
+                            <span>{{ blog.get_likes_count }} {% trans "إعجاب" %}</span>
+                        </div>
+                        <div class="blog-meta-item">
+                            <i class="fas fa-comments"></i>
+                            <span>{{ blog.comments.count }} {% trans "تعليق" %}</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <a href="/admin/content/blog/{{ blog.id }}/change/" class="btn btn-sm btn-primary">
+                            <i class="fas fa-edit me-1"></i> {% trans "تعديل" %}
+                        </a>
+                        <form method="post" action="{% url 'main:admin_blog_toggle_publish' blog.pk %}" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-warning">
+                                <i class="fas fa-sync-alt me-1"></i>
+                                {% if blog.is_published %}{% trans "تحويل لمسودة" %}{% else %}{% trans "نشر" %}{% endif %}
+                            </button>
+                        </form>
+                        <a href="{{ blog.get_absolute_url }}" target="_blank" class="btn btn-sm btn-info">
+                            <i class="fas fa-eye me-1"></i> {% trans "عرض" %}
+                        </a>
+                        <a href="{% url 'main:admin_blog_delete' blog.pk %}" class="btn btn-sm btn-danger">
+                            <i class="fas fa-trash me-1"></i> {% trans "حذف" %}
+                        </a>
+                    </div>
+                </div>
+
+                {% if blog.image %}
+                <div>
+                    <img src="{{ blog.image.url }}" alt="{{ blog.title }}"
+                         style="width: 100px; height: 100px; object-fit: cover; border-radius: 12px;">
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <!-- Pagination -->
+        {% if blogs.has_other_pages %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if blogs.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ blogs.previous_page_number }}&category={{ selected_category }}&status={{ selected_status }}&search={{ search_query }}">
+                        {% trans "السابق" %}
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in blogs.paginator.page_range %}
+                    {% if blogs.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > blogs.number|add:'-3' and num < blogs.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}&category={{ selected_category }}&status={{ selected_status }}&search={{ search_query }}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if blogs.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ blogs.next_page_number }}&category={{ selected_category }}&status={{ selected_status }}&search={{ search_query }}">
+                        {% trans "التالي" %}
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-blog fa-4x text-muted mb-3"></i>
+            <h3 class="text-muted">{% trans "لا توجد مدونات" %}</h3>
+            <p class="text-muted">{% trans "ابدأ بإضافة مدونة جديدة" %}</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

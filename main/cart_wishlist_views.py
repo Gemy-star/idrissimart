@@ -3,10 +3,11 @@ Cart and Wishlist Views
 Handles all cart and wishlist functionality including AJAX endpoints
 """
 
+from decimal import Decimal
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, render, redirect
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 from django.template.loader import render_to_string
@@ -219,7 +220,11 @@ def cart_view(request):
     """Display cart page - only for authenticated users"""
     # Authenticated user - use database cart
     cart = get_or_create_cart(request.user)
-    cart_items = cart.items.select_related("ad", "ad__user", "ad__category").all()
+    cart_items = (
+        cart.items.select_related("ad", "ad__user", "ad__category")
+        .prefetch_related("ad__images")
+        .all()
+    )
     total_amount = cart.get_total_amount()
     is_guest = False
 
@@ -231,6 +236,170 @@ def cart_view(request):
     }
 
     return render(request, "cart/cart.html", context)
+
+
+@login_required
+def check_partial_payment_eligibility(request):
+    """Check if cart items allow partial payment"""
+    cart = get_or_create_cart(request.user)
+    cart_items = cart.items.select_related("ad").all()
+
+    # Check if all ads allow partial payment
+    all_allow_partial = all(item.ad.allow_partial_payment for item in cart_items)
+
+    # Get list of ads that don't allow partial payment
+    ads_not_allowing = [
+        {"id": item.ad.id, "title": item.ad.title}
+        for item in cart_items
+        if not item.ad.allow_partial_payment
+    ]
+
+    return JsonResponse(
+        {
+            "allowed": all_allow_partial,
+            "ads_not_allowing": ads_not_allowing,
+            "total_items": cart_items.count(),
+        }
+    )
+
+
+@login_required
+def checkout_view(request):
+    """Display checkout page"""
+    cart = get_or_create_cart(request.user)
+    cart_items = (
+        cart.items.select_related("ad", "ad__user", "ad__category")
+        .prefetch_related("ad__images")
+        .all()
+    )
+
+    if not cart_items.exists():
+        from django.contrib import messages
+
+        messages.warning(request, _("السلة فارغة"))
+        return redirect("main:cart_view")
+
+    if (
+        request.method == "POST"
+        and request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    ):
+        # Handle order placement
+        try:
+            from main.models import Order, OrderItem
+            from django.db import transaction
+
+            # Get form data
+            full_name = request.POST.get("full_name")
+            phone = request.POST.get("phone")
+            address = request.POST.get("address")
+            city = request.POST.get("city")
+            postal_code = request.POST.get("postal_code", "")
+            notes = request.POST.get("notes", "")
+            payment_method = request.POST.get("payment_method", "cod")
+
+            # Validate partial payment eligibility
+            if payment_method == "partial":
+                # Check if all ads in cart allow partial payment
+                ads_not_allowing_partial = cart_items.filter(
+                    ad__allow_partial_payment=False
+                ).select_related("ad")
+
+                if ads_not_allowing_partial.exists():
+                    ad_titles = [item.ad.title for item in ads_not_allowing_partial[:3]]
+                    return JsonResponse(
+                        {
+                            "success": False,
+                            "message": _(
+                                "بعض المنتجات في السلة لا تدعم الدفع الجزئي: {ads}"
+                            ).format(ads=", ".join(ad_titles)),
+                        },
+                        status=400,
+                    )
+
+            # Get partial payment amount if applicable
+            paid_amount = None
+            if payment_method == "partial":
+                paid_amount = request.POST.get("paid_amount")
+                if paid_amount:
+                    try:
+                        paid_amount = Decimal(paid_amount)
+                    except (ValueError, TypeError):
+                        return JsonResponse(
+                            {
+                                "success": False,
+                                "message": _("المبلغ المدفوع غير صحيح"),
+                            },
+                            status=400,
+                        )
+
+            # Calculate total
+            total_amount = cart.get_total_amount()
+
+            # Create order atomically
+            with transaction.atomic():
+                # Determine payment status
+                payment_status = "unpaid"
+                if payment_method == "online":
+                    payment_status = "unpaid"  # Will be updated after payment gateway
+                elif payment_method == "partial" and paid_amount:
+                    if paid_amount >= total_amount:
+                        payment_status = "paid"
+                        paid_amount = total_amount
+                    else:
+                        payment_status = "partial"
+                elif payment_method == "cod":
+                    payment_status = "unpaid"
+
+                # Create order
+                order = Order.objects.create(
+                    user=request.user,
+                    full_name=full_name,
+                    phone=phone,
+                    address=address,
+                    city=city,
+                    postal_code=postal_code,
+                    notes=notes,
+                    payment_method=payment_method,
+                    payment_status=payment_status,
+                    paid_amount=paid_amount or Decimal("0.00"),
+                    total_amount=total_amount,
+                    status="pending",
+                )
+
+                # Create order items
+                for cart_item in cart_items:
+                    OrderItem.objects.create(
+                        order=order,
+                        ad=cart_item.ad,
+                        quantity=cart_item.quantity,
+                        price=cart_item.ad.price,
+                    )
+
+                # Clear cart
+                cart_items.delete()
+
+            # Return success response
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": _("تم تأكيد الطلب بنجاح"),
+                    "order_id": order.id,
+                    "redirect_url": f"/{request.LANGUAGE_CODE}/",
+                }
+            )
+
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)}, status=400)
+
+    total_amount = cart.get_total_amount()
+
+    context = {
+        "cart": cart,
+        "cart_items": cart_items,
+        "total_amount": total_amount,
+    }
+
+    return render(request, "cart/checkout.html", context)
 
 
 # ============================================

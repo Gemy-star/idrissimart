@@ -617,5 +617,78 @@
         window.showChatHistory = showChatHistory;
     </script>
 
+    <!-- Reusable Alert/Confirm Modals -->
+    <div class="modal fade" id="alertModal" tabindex="-1" aria-labelledby="alertModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="alertModalLabel">{% trans "تنبيه" %}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="alertModalBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">{% trans "حسناً" %}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmModalLabel">{% trans "تأكيد" %}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="confirmModalBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="button" class="btn btn-danger" id="confirmModalAction">{% trans "تأكيد" %}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global alert function
+        window.showAlert = function(message, title = '{% trans "تنبيه" %}') {
+            document.getElementById('alertModalLabel').textContent = title;
+            document.getElementById('alertModalBody').textContent = message;
+            const modal = new bootstrap.Modal(document.getElementById('alertModal'));
+            modal.show();
+        };
+
+        // Global confirm function
+        window.showConfirm = function(message, onConfirm, title = '{% trans "تأكيد" %}') {
+            document.getElementById('confirmModalLabel').textContent = title;
+            document.getElementById('confirmModalBody').textContent = message;
+            const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+            const confirmBtn = document.getElementById('confirmModalAction');
+
+            // Remove previous event listeners
+            const newConfirmBtn = confirmBtn.cloneNode(true);
+            confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+
+            // Add new event listener
+            newConfirmBtn.addEventListener('click', function() {
+                modal.hide();
+                if (typeof onConfirm === 'function') {
+                    onConfirm();
+                }
+            });
+
+            modal.show();
+        };
+
+        // Helper for delete links
+        window.confirmDelete = function(event, message) {
+            event.preventDefault();
+            const href = event.currentTarget.getAttribute('href');
+            showConfirm(message, function() {
+                window.location.href = href;
+            });
+        };
+    </script>
+
     {% block admin_extra_js %}{% endblock %}
 {% endblock %}

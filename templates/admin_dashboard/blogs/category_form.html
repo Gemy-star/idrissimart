@@ -1,0 +1,311 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n %}
+
+{% block title %}
+    {{ form_title }} - {% trans "لوحة تحكم المدير" %}
+{% endblock %}
+
+{% block admin_extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    .icon-picker-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+        gap: 10px;
+        max-height: 300px;
+        overflow-y: auto;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+
+    [data-theme='dark'] .icon-picker-grid {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .icon-option {
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: white;
+    }
+
+    [data-theme='dark'] .icon-option {
+        background: #1a202c;
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .icon-option:hover {
+        border-color: var(--primary-color, #4b315e);
+        transform: scale(1.1);
+    }
+
+    .icon-option.selected {
+        border-color: var(--primary-color, #4b315e);
+        background: var(--primary-color, #4b315e);
+        color: white;
+    }
+
+    .color-preview {
+        width: 50px;
+        height: 50px;
+        border-radius: 8px;
+        border: 2px solid #dee2e6;
+        cursor: pointer;
+    }
+
+    .preset-colors {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .preset-color {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: all 0.2s;
+    }
+
+    .preset-color:hover {
+        transform: scale(1.1);
+        border-color: #333;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-folder me-2"></i>
+                        {{ form_title }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="name" class="form-label">{% trans "الاسم بالعربية" %} <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" name="name"
+                                       value="{{ category.name|default:'' }}" required>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="name_en" class="form-label">{% trans "الاسم بالإنجليزية" %}</label>
+                                <input type="text" class="form-control" id="name_en" name="name_en"
+                                       value="{{ category.name_en|default:'' }}">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="slug" class="form-label">{% trans "الرابط (Slug)" %} <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="slug" name="slug"
+                                   value="{{ category.slug|default:'' }}" required>
+                            <small class="form-text text-muted">{% trans "سيتم استخدامه في الرابط URL" %}</small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="description" class="form-label">{% trans "الوصف بالعربية" %}</label>
+                                <textarea class="form-control" id="description" name="description" rows="3">{{ category.description|default:'' }}</textarea>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="description_en" class="form-label">{% trans "الوصف بالإنجليزية" %}</label>
+                                <textarea class="form-control" id="description_en" name="description_en" rows="3">{{ category.description_en|default:'' }}</textarea>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">{% trans "الأيقونة" %}</label>
+                                <input type="hidden" id="icon" name="icon" value="{{ category.icon|default:'fas fa-folder' }}">
+                                <div class="input-group mb-2">
+                                    <input type="text" id="iconDisplay" class="form-control"
+                                           value="{{ category.icon|default:'fas fa-folder' }}" readonly>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="$('#iconModal').modal('show')">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                </div>
+                                <div class="d-flex align-items-center gap-3">
+                                    <div id="iconPreview" style="font-size: 2rem;">
+                                        <i class="{{ category.icon|default:'fas fa-folder' }}"></i>
+                                    </div>
+                                    <small class="text-muted">{% trans "انقر للاختيار من Font Awesome" %}</small>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="color" class="form-label">{% trans "اللون" %}</label>
+                                <div class="d-flex align-items-center gap-3 mb-3">
+                                    <input type="color" class="form-control color-preview" id="color" name="color"
+                                           value="{{ category.color|default:'#6b4c7a' }}">
+                                    <input type="text" class="form-control" id="colorText"
+                                           value="{{ category.color|default:'#6b4c7a' }}">
+                                </div>
+                                <div class="preset-colors">
+                                    <div class="preset-color" style="background: #6b4c7a;" data-color="#6b4c7a"></div>
+                                    <div class="preset-color" style="background: #3b82f6;" data-color="#3b82f6"></div>
+                                    <div class="preset-color" style="background: #10b981;" data-color="#10b981"></div>
+                                    <div class="preset-color" style="background: #f59e0b;" data-color="#f59e0b"></div>
+                                    <div class="preset-color" style="background: #ef4444;" data-color="#ef4444"></div>
+                                    <div class="preset-color" style="background: #8b5cf6;" data-color="#8b5cf6"></div>
+                                    <div class="preset-color" style="background: #ec4899;" data-color="#ec4899"></div>
+                                    <div class="preset-color" style="background: #14b8a6;" data-color="#14b8a6"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="order" class="form-label">{% trans "الترتيب" %}</label>
+                                <input type="number" class="form-control" id="order" name="order"
+                                       value="{{ category.order|default:0 }}" min="0">
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check form-switch mt-4">
+                                    <input class="form-check-input" type="checkbox" id="is_active" name="is_active"
+                                           {% if category.is_active or not category %}checked{% endif %}>
+                                    <label class="form-check-label" for="is_active">
+                                        {% trans "نشط" %}
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 justify-content-end mt-4">
+                            <a href="{% url 'main:admin_blog_categories' %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>
+                                {% trans "إلغاء" %}
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>
+                                {{ submit_text }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Icon Picker Modal -->
+<div class="modal fade" id="iconModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{% trans "اختر أيقونة" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="text" class="form-control mb-3" id="iconSearch" placeholder="{% trans 'بحث...' %}">
+                <div class="icon-picker-grid" id="iconGrid"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block admin_extra_js %}
+<script>
+    // Auto-generate slug from name
+    document.getElementById('name').addEventListener('input', function(e) {
+        const slug = document.getElementById('slug');
+        if (!slug.value || slug.dataset.auto !== 'false') {
+            slug.value = e.target.value
+                .toLowerCase()
+                .replace(/\s+/g, '-')
+                .replace(/[^\w\u0600-\u06FF-]/g, '');
+            slug.dataset.auto = 'true';
+        }
+    });
+
+    document.getElementById('slug').addEventListener('input', function() {
+        this.dataset.auto = 'false';
+    });
+
+    // Color picker sync
+    const colorPicker = document.getElementById('color');
+    const colorText = document.getElementById('colorText');
+
+    colorPicker.addEventListener('input', function() {
+        colorText.value = this.value;
+    });
+
+    colorText.addEventListener('input', function() {
+        if (/^#[0-9A-F]{6}$/i.test(this.value)) {
+            colorPicker.value = this.value;
+        }
+    });
+
+    // Preset colors
+    document.querySelectorAll('.preset-color').forEach(preset => {
+        preset.addEventListener('click', function() {
+            const color = this.dataset.color;
+            colorPicker.value = color;
+            colorText.value = color;
+        });
+    });
+
+    // Font Awesome icons
+    const commonIcons = [
+        'fa-folder', 'fa-blog', 'fa-newspaper', 'fa-book', 'fa-file-alt',
+        'fa-bookmark', 'fa-tags', 'fa-tag', 'fa-star', 'fa-heart',
+        'fa-lightbulb', 'fa-rocket', 'fa-code', 'fa-laptop', 'fa-mobile',
+        'fa-camera', 'fa-image', 'fa-video', 'fa-music', 'fa-headphones',
+        'fa-gamepad', 'fa-trophy', 'fa-graduation-cap', 'fa-briefcase', 'fa-chart-line',
+        'fa-shopping-cart', 'fa-gift', 'fa-home', 'fa-building', 'fa-car',
+        'fa-plane', 'fa-globe', 'fa-map-marker-alt', 'fa-utensils', 'fa-coffee',
+        'fa-tree', 'fa-leaf', 'fa-fire', 'fa-bolt', 'fa-cloud',
+        'fa-sun', 'fa-moon', 'fa-users', 'fa-user', 'fa-comment',
+        'fa-envelope', 'fa-phone', 'fa-cog', 'fa-wrench', 'fa-tools'
+    ];
+
+    function loadIcons(filter = '') {
+        const grid = document.getElementById('iconGrid');
+        grid.innerHTML = '';
+
+        commonIcons
+            .filter(icon => !filter || icon.includes(filter))
+            .forEach(icon => {
+                const div = document.createElement('div');
+                div.className = 'icon-option';
+                div.innerHTML = `<i class="fas ${icon}"></i>`;
+                div.onclick = () => selectIcon(`fas ${icon}`);
+                grid.appendChild(div);
+            });
+    }
+
+    function selectIcon(iconClass) {
+        document.getElementById('icon').value = iconClass;
+        document.getElementById('iconDisplay').value = iconClass;
+        document.getElementById('iconPreview').innerHTML = `<i class="${iconClass}"></i>`;
+        bootstrap.Modal.getInstance(document.getElementById('iconModal')).hide();
+    }
+
+    document.getElementById('iconSearch').addEventListener('input', function(e) {
+        loadIcons(e.target.value);
+    });
+
+    // Load icons when modal is shown
+    document.getElementById('iconModal').addEventListener('shown.bs.modal', function() {
+        loadIcons();
+    });
+</script>
+{% endblock %}

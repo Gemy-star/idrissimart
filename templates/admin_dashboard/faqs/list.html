@@ -1,0 +1,244 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load i18n static %}
+
+{% block title %}{% trans "إدارة الأسئلة الشائعة" %}{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+/* Theme-adaptive styles for FAQs page */
+.card {
+    background-color: var(--bs-card-bg, #fff);
+    border-color: var(--bs-border-color, #dee2e6);
+}
+
+[data-bs-theme="dark"] .card {
+    background-color: var(--bs-card-bg, #212529);
+    border-color: var(--bs-border-color, #495057);
+}
+
+[data-bs-theme="dark"] .table {
+    --bs-table-color: var(--bs-body-color);
+    --bs-table-striped-bg: rgba(255, 255, 255, 0.025);
+    --bs-table-hover-bg: rgba(255, 255, 255, 0.05);
+}
+
+/* Badge color adjustments for dark theme */
+[data-bs-theme="dark"] .badge.bg-warning {
+    color: #000;
+}
+
+/* Form control dark theme */
+[data-bs-theme="dark"] .form-control,
+[data-bs-theme="dark"] .form-select {
+    background-color: var(--bs-body-bg);
+    border-color: var(--bs-border-color);
+    color: var(--bs-body-color);
+}
+
+[data-bs-theme="dark"] .form-control:focus,
+[data-bs-theme="dark"] .form-select:focus {
+    background-color: var(--bs-body-bg);
+    border-color: var(--bs-primary);
+    color: var(--bs-body-color);
+}
+
+/* Statistics cards - ensure white text on colored backgrounds */
+.card.bg-primary,
+.card.bg-success,
+.card.bg-warning,
+.card.bg-info {
+    color: white !important;
+}
+
+.card.bg-warning {
+    color: #000 !important;
+}
+
+/* Ensure text-muted is visible in dark theme */
+[data-bs-theme="dark"] .text-muted {
+    color: var(--bs-secondary-color) !important;
+}
+</style>
+{% endblock %}
+
+{% block admin_content %}
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h2><i class="fas fa-question-circle me-2"></i>{% trans "إدارة الأسئلة الشائعة" %}</h2>
+        </div>
+        <div class="col-md-6 text-end">
+            <a href="{% url 'main:admin_faq_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>{% trans "إضافة سؤال جديد" %}
+            </a>
+            <a href="{% url 'main:admin_faq_categories' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-folder me-2"></i>{% trans "إدارة الفئات" %}
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5>{% trans "إجمالي الأسئلة" %}</h5>
+                    <h2>{{ total_faqs }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5>{% trans "أسئلة نشطة" %}</h5>
+                    <h2>{{ active_faqs }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h5>{% trans "أسئلة غير نشطة" %}</h5>
+                    <h2>{{ inactive_faqs }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5>{% trans "أسئلة شائعة" %}</h5>
+                    <h2>{{ popular_faqs }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">{% trans "الفئة" %}</label>
+                    <select name="category" class="form-select">
+                        <option value="">{% trans "كل الفئات" %}</option>
+                        {% for category in categories %}
+                            <option value="{{ category.id }}" {% if selected_category == category.id|stringformat:"s" %}selected{% endif %}>
+                                {{ category.name_ar }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">{% trans "الحالة" %}</label>
+                    <select name="status" class="form-select">
+                        <option value="">{% trans "الكل" %}</option>
+                        <option value="active" {% if selected_status == 'active' %}selected{% endif %}>{% trans "نشط" %}</option>
+                        <option value="inactive" {% if selected_status == 'inactive' %}selected{% endif %}>{% trans "غير نشط" %}</option>
+                        <option value="popular" {% if selected_status == 'popular' %}selected{% endif %}>{% trans "شائع" %}</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">{% trans "البحث" %}</label>
+                    <input type="text" name="search" class="form-control" placeholder="{% trans 'ابحث في الأسئلة...' %}" value="{{ search_query }}">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search me-2"></i>{% trans "بحث" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- FAQs Table -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>{% trans "السؤال" %}</th>
+                            <th>{% trans "الفئة" %}</th>
+                            <th>{% trans "الترتيب" %}</th>
+                            <th>{% trans "المشاهدات" %}</th>
+                            <th>{% trans "الحالة" %}</th>
+                            <th>{% trans "شائع" %}</th>
+                            <th>{% trans "الإجراءات" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for faq in faqs %}
+                        <tr>
+                            <td>{{ faq.id }}</td>
+                            <td>
+                                <strong>{{ faq.question_ar|truncatewords:10 }}</strong>
+                                <br>
+                                <small class="text-muted">{{ faq.question_en|truncatewords:10 }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ faq.category.name_ar }}</span>
+                            </td>
+                            <td>{{ faq.order }}</td>
+                            <td>
+                                <i class="fas fa-eye text-muted"></i> {{ faq.views_count }}
+                            </td>
+                            <td>
+                                {% if faq.is_active %}
+                                    <span class="badge bg-success">{% trans "نشط" %}</span>
+                                {% else %}
+                                    <span class="badge bg-danger">{% trans "غير نشط" %}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if faq.is_popular %}
+                                    <i class="fas fa-star text-warning"></i>
+                                {% else %}
+                                    <i class="far fa-star text-muted"></i>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'main:admin_faq_edit' faq.id %}" class="btn btn-sm btn-primary" title="{% trans 'تعديل' %}">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'main:admin_faq_delete' faq.id %}" class="btn btn-sm btn-danger" title="{% trans 'حذف' %}">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted">
+                                <i class="fas fa-inbox fa-3x mb-3"></i>
+                                <p>{% trans "لا توجد أسئلة" %}</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if faqs.has_other_pages %}
+            <nav>
+                <ul class="pagination justify-content-center">
+                    {% if faqs.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ faqs.previous_page_number }}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">{% trans "السابق" %}</a>
+                        </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">{{ faqs.number }} / {{ faqs.paginator.num_pages }}</span>
+                    </li>
+
+                    {% if faqs.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ faqs.next_page_number }}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">{% trans "التالي" %}</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

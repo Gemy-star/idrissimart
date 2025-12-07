@@ -1,0 +1,597 @@
+{% extends "base.html" %}
+{% load static i18n %}
+
+{% block title %}{% trans "إتمام الطلب" %} - {% trans "إدريسي مارت" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .checkout-page {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        padding: 3rem 0;
+    }
+
+    .checkout-header {
+        background: white;
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+        text-align: center;
+    }
+
+    .checkout-header-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #4b315e, #3a2449);
+        border-radius: 50%;
+        margin-bottom: 1rem;
+    }
+
+    .checkout-header-icon i {
+        font-size: 1.5rem;
+        color: white;
+    }
+
+    .checkout-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 0;
+    }
+
+    .checkout-container {
+        display: grid;
+        grid-template-columns: 1fr 400px;
+        gap: 2rem;
+    }
+
+    @media (max-width: 992px) {
+        .checkout-container {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .checkout-section {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .section-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #e0e0e0;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #34495e;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-label .required {
+        color: #e74c3c;
+        margin-right: 0.25rem;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        font-size: 1rem;
+        transition: all 0.3s;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #4b315e;
+        box-shadow: 0 0 0 3px rgba(75, 49, 94, 0.1);
+    }
+
+    .order-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+    }
+
+    .order-item-image {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+
+    .order-item-details {
+        flex: 1;
+    }
+
+    .order-item-title {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 0.25rem;
+        font-size: 0.95rem;
+    }
+
+    .order-item-price {
+        color: #7f8c8d;
+        font-size: 0.9rem;
+    }
+
+    .order-item-quantity {
+        color: #95a5a6;
+        font-size: 0.85rem;
+    }
+
+    .order-summary {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+    }
+
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        color: #5a6c7d;
+    }
+
+    .summary-row.total {
+        border-top: 2px solid #dee2e6;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #2c3e50;
+    }
+
+    .checkout-btn {
+        width: 100%;
+        padding: 1rem;
+        background: linear-gradient(135deg, #4b315e, #3a2449);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 5px 15px rgba(75, 49, 94, 0.3);
+    }
+
+    .checkout-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(75, 49, 94, 0.4);
+    }
+
+    .checkout-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .payment-methods {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .payment-method {
+        padding: 1rem;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-align: center;
+    }
+
+    .payment-method:hover {
+        border-color: #4b315e;
+    }
+
+    .payment-method.active {
+        border-color: #4b315e;
+        background: rgba(75, 49, 94, 0.05);
+    }
+
+    .payment-method input[type="radio"] {
+        display: none;
+    }
+
+    .payment-method-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        color: #4b315e;
+    }
+
+    .payment-method-label {
+        font-weight: 600;
+        color: #2c3e50;
+    }
+
+    .back-to-cart {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #4b315e;
+        text-decoration: none;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        transition: all 0.3s;
+    }
+
+    .back-to-cart:hover {
+        gap: 0.75rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="checkout-page">
+    <div class="container">
+        <!-- Header -->
+        <div class="checkout-header">
+            <div class="checkout-header-icon">
+                <i class="fas fa-credit-card"></i>
+            </div>
+            <h1 class="checkout-title">{% trans "إتمام الطلب" %}</h1>
+        </div>
+
+        <a href="{% url 'main:cart_view' %}" class="back-to-cart">
+            <i class="fas fa-arrow-right"></i>
+            {% trans "العودة للسلة" %}
+        </a>
+
+        <div class="checkout-container">
+            <!-- Delivery & Payment Info -->
+            <div>
+                <!-- Delivery Information -->
+                <div class="checkout-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-map-marker-alt me-2"></i>
+                        {% trans "معلومات التوصيل" %}
+                    </h2>
+
+                    <form id="checkoutForm">
+                        {% csrf_token %}
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        <span class="required">*</span>
+                                        {% trans "الاسم الكامل" %}
+                                    </label>
+                                    <input type="text" name="full_name" class="form-control"
+                                           value="{{ user.get_full_name }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        <span class="required">*</span>
+                                        {% trans "رقم الهاتف" %}
+                                    </label>
+                                    <input type="tel" name="phone" class="form-control"
+                                           value="{{ user.phone_number }}" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">
+                                <span class="required">*</span>
+                                {% trans "العنوان" %}
+                            </label>
+                            <textarea name="address" class="form-control" rows="3" required>{{ user.address }}</textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        <span class="required">*</span>
+                                        {% trans "المدينة" %}
+                                    </label>
+                                    <input type="text" name="city" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        {% trans "الرمز البريدي" %}
+                                    </label>
+                                    <input type="text" name="postal_code" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">
+                                {% trans "ملاحظات إضافية" %}
+                            </label>
+                            <textarea name="notes" class="form-control" rows="3"
+                                      placeholder="{% trans 'أي ملاحظات خاصة بالطلب...' %}"></textarea>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Payment Method -->
+                <div class="checkout-section mt-4">
+                    <h2 class="section-title">
+                        <i class="fas fa-wallet me-2"></i>
+                        {% trans "طريقة الدفع" %}
+                    </h2>
+
+                    <div class="payment-methods">
+                        <div class="payment-method active" onclick="selectPaymentMethod('cod')">
+                            <input type="radio" name="payment_method" value="cod" checked>
+                            <div class="payment-method-icon">
+                                <i class="fas fa-money-bill-wave"></i>
+                            </div>
+                            <div class="payment-method-label">
+                                {% trans "الدفع عند الاستلام" %}
+                            </div>
+                        </div>
+
+                        <div class="payment-method" onclick="selectPaymentMethod('online')">
+                            <input type="radio" name="payment_method" value="online">
+                            <div class="payment-method-icon">
+                                <i class="fas fa-credit-card"></i>
+                            </div>
+                            <div class="payment-method-label">
+                                {% trans "الدفع الإلكتروني" %}
+                            </div>
+                        </div>
+
+                        <div class="payment-method" id="partialPaymentMethod" onclick="selectPaymentMethod('partial')">
+                            <input type="radio" name="payment_method" value="partial" id="partialPaymentRadio">
+                            <div class="payment-method-icon">
+                                <i class="fas fa-percentage"></i>
+                            </div>
+                            <div class="payment-method-label">
+                                {% trans "دفع جزئي" %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="onlinePaymentNote" style="display: none;" class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        {% trans "سيتم تحويلك لبوابة الدفع الإلكتروني لإتمام العملية" %}
+                    </div>
+
+                    <div id="partialPaymentNote" style="display: none;" class="alert alert-warning">
+                        <i class="fas fa-info-circle me-2"></i>
+                        {% trans "يمكنك دفع جزء من المبلغ الآن وإكمال الدفع لاحقاً" %}
+                        <div class="mt-3">
+                            <label class="form-label">{% trans "المبلغ المدفوع الآن" %}</label>
+                            <input type="number"
+                                   name="paid_amount"
+                                   id="paidAmount"
+                                   class="form-control"
+                                   min="0"
+                                   step="0.01"
+                                   placeholder="{% trans 'أدخل المبلغ المدفوع' %}">
+                            <small class="text-muted">
+                                {% trans "المبلغ الإجمالي:" %} <span id="totalForPartial">{{ cart.get_total_amount }}</span> {% trans "ريال" %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Summary -->
+            <div>
+                <div class="checkout-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-receipt me-2"></i>
+                        {% trans "ملخص الطلب" %}
+                    </h2>
+
+                    <!-- Cart Items -->
+                    {% for item in cart_items %}
+                    <div class="order-item">
+                        {% if item.ad.images.first %}
+                            <img src="{{ item.ad.images.first.image.url }}"
+                                 alt="{{ item.ad.title }}"
+                                 class="order-item-image">
+                        {% else %}
+                            <img src="{% static 'images/placeholder.png' %}"
+                                 alt="{{ item.ad.title }}"
+                                 class="order-item-image">
+                        {% endif %}
+
+                        <div class="order-item-details">
+                            <div class="order-item-title">{{ item.ad.title }}</div>
+                            <div class="order-item-price">{{ item.ad.price }} {% trans "ر.س" %}</div>
+                            <div class="order-item-quantity">{% trans "الكمية:" %} {{ item.quantity }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <!-- Summary -->
+                    <div class="order-summary">
+                        <div class="summary-row">
+                            <span>{% trans "المجموع الفرعي" %}</span>
+                            <span>{{ total_amount }} {% trans "ر.س" %}</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>{% trans "رسوم التوصيل" %}</span>
+                            <span>{% trans "مجاناً" %}</span>
+                        </div>
+                        <div class="summary-row total">
+                            <span>{% trans "المجموع الكلي" %}</span>
+                            <span>{{ total_amount }} {% trans "ر.س" %}</span>
+                        </div>
+                    </div>
+
+                    <button type="button" class="checkout-btn" onclick="placeOrder()">
+                        <i class="fas fa-check-circle me-2"></i>
+                        {% trans "تأكيد الطلب" %}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function selectPaymentMethod(method) {
+    // Remove active class from all
+    document.querySelectorAll('.payment-method').forEach(el => {
+        el.classList.remove('active');
+    });
+
+    // Add active to selected
+    const selected = document.querySelector(`input[value="${method}"]`).closest('.payment-method');
+    selected.classList.add('active');
+
+    // Check radio
+    document.querySelector(`input[value="${method}"]`).checked = true;
+
+    // Show/hide online payment note
+    const onlineNote = document.getElementById('onlinePaymentNote');
+    const partialNote = document.getElementById('partialPaymentNote');
+
+    if (method === 'online') {
+        onlineNote.style.display = 'block';
+        partialNote.style.display = 'none';
+    } else if (method === 'partial') {
+        onlineNote.style.display = 'none';
+        partialNote.style.display = 'block';
+    } else {
+        onlineNote.style.display = 'none';
+        partialNote.style.display = 'none';
+    }
+}
+
+function placeOrder() {
+    const form = document.getElementById('checkoutForm');
+
+    // Validate form
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
+
+    // Validate partial payment amount
+    if (paymentMethod === 'partial') {
+        const paidAmount = parseFloat(document.getElementById('paidAmount').value);
+        const totalAmount = parseFloat(document.getElementById('totalForPartial').textContent);
+
+        if (!paidAmount || paidAmount <= 0) {
+            alert('{% trans "يرجى إدخال المبلغ المدفوع" %}');
+            return;
+        }
+
+        if (paidAmount > totalAmount) {
+            alert('{% trans "المبلغ المدفوع لا يمكن أن يكون أكبر من المبلغ الإجمالي" %}');
+            return;
+        }
+    }
+
+    // Get payment method
+    const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
+
+    // Disable button
+    const btn = event.target;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري المعالجة..." %}';
+
+    // Collect form data
+    const formData = new FormData(form);
+    formData.append('payment_method', paymentMethod);
+
+    // Send request
+    fetch("{% url 'main:checkout' %}", {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            alert('{% trans "تم تأكيد الطلب بنجاح!" %}');
+
+            // Redirect based on payment method
+            if (paymentMethod === 'online' && data.payment_url) {
+                window.location.href = data.payment_url;
+            } else {
+                window.location.href = data.redirect_url || "{% url 'main:home' %}";
+            }
+        } else {
+            alert(data.error || '{% trans "حدث خطأ" %}');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check-circle me-2"></i>{% trans "تأكيد الطلب" %}';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('{% trans "حدث خطأ في معالجة الطلب" %}');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check-circle me-2"></i>{% trans "تأكيد الطلب" %}';
+    });
+}
+
+// Check partial payment eligibility on page load
+document.addEventListener('DOMContentLoaded', function() {
+    fetch("{% url 'main:check_partial_payment_eligibility' %}", {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const partialMethod = document.getElementById('partialPaymentMethod');
+        const partialRadio = document.getElementById('partialPaymentRadio');
+
+        if (!data.allowed) {
+            // Disable partial payment option
+            partialMethod.style.opacity = '0.5';
+            partialMethod.style.cursor = 'not-allowed';
+            partialRadio.disabled = true;
+
+            // Add tooltip
+            partialMethod.title = '{% trans "بعض المنتجات لا تدعم الدفع الجزئي" %}';
+
+            // If partial payment is selected, switch to COD
+            if (partialRadio.checked) {
+                selectPaymentMethod('cod');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error checking partial payment eligibility:', error);
+    });
+});
+</script>
+{% endblock %}
+

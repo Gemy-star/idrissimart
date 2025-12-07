@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}
+    {% trans "الأسئلة الشائعة" %} - {{ config.SITE_NAME }}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+
+    .faq-section {
+        padding: 3rem 0;
+    }
+
+    .faq-category {
+        margin-bottom: 3rem;
+    }
+
+    .faq-category-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 3px solid var(--secondary-color);
+        display: inline-block;
+    }
+
+    .faq-accordion .accordion-item {
+        border: none;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+    }
+
+    .faq-accordion .accordion-item:hover {
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+        transform: translateY(-2px);
+    }
+
+    .faq-accordion .accordion-button {
+        background-color: var(--white-color);
+        color: var(--text-primary);
+        font-weight: 600;
+        font-size: 1.1rem;
+        padding: 1.25rem 1.5rem;
+        border: none;
+        transition: all 0.3s ease;
+    }
+
+    .faq-accordion .accordion-button:not(.collapsed) {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        color: white;
+        box-shadow: none;
+    }
+
+    .faq-accordion .accordion-button:focus {
+        box-shadow: none;
+        border: none;
+    }
+
+    .faq-accordion .accordion-button::after {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23666'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+    }
+
+    .faq-accordion .accordion-button:not(.collapsed)::after {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23fff'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+    }
+
+    .faq-accordion .accordion-body {
+        padding: 1.5rem;
+        background-color: #f8f9fa;
+        color: var(--text-secondary);
+        line-height: 1.8;
+    }
+
+    .faq-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        background: var(--secondary-color);
+        color: white;
+        border-radius: 50%;
+        margin-left: 0.75rem;
+        font-size: 1rem;
+    }
+
+    [data-theme="dark"] .faq-accordion .accordion-button {
+        background-color: var(--bg-secondary);
+        color: var(--text-primary);
+    }
+
+    [data-theme="dark"] .faq-accordion .accordion-body {
+        background-color: var(--bg-primary);
+        color: var(--text-secondary);
+    }
+
+    @media (max-width: 768px) {
+        .faq-hero h1 {
+            font-size: 2rem;
+        }
+
+        .faq-category-title {
+            font-size: 1.5rem;
+        }
+
+        .faq-accordion .accordion-button {
+            font-size: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <!-- FAQ Hero Section -->
+    <section class="page-hero">
+        <div class="container">
+            <div class="hero-content-center">
+                <h1 class="page-title">{% trans "الأسئلة الشائعة" %}</h1>
+                <p class="page-subtitle">{% trans "إجابات على الأسئلة الأكثر تكراراً حول استخدام المنصة" %}</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Content Section -->
+    <section class="faq-section">
+        <div class="container">
+            {% for category in faq_categories %}
+            <!-- {{ category.name }} -->
+            <div class="faq-category">
+                <h2 class="faq-category-title">
+                    <i class="{{ category.icon }} faq-icon"></i>
+                    {% if LANGUAGE_CODE == 'ar' and category.name_ar %}
+                        {{ category.name_ar }}
+                    {% else %}
+                        {{ category.name }}
+                    {% endif %}
+                </h2>
+                <div class="accordion faq-accordion" id="faqCat{{ category.id }}">
+                    {% for faq in category.faqs.all %}
+                    {% if faq.is_active %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#faq{{ faq.id }}">
+                                {% if LANGUAGE_CODE == 'ar' and faq.question_ar %}
+                                    {{ faq.question_ar }}
+                                {% else %}
+                                    {{ faq.question_en|default:faq.question_ar }}
+                                {% endif %}
+                            </button>
+                        </h2>
+                        <div id="faq{{ faq.id }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" data-bs-parent="#faqCat{{ category.id }}">
+                            <div class="accordion-body">
+                                {% if LANGUAGE_CODE == 'ar' and faq.answer_ar %}
+                                    {{ faq.answer_ar|linebreaks }}
+                                {% else %}
+                                    {{ faq.answer_en|default:faq.answer_ar|linebreaks }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Still have questions? -->
+            <div class="text-center mt-5 p-5" style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 15px;">
+                <h3 class="mb-3">{% trans "لم تجد إجابة لسؤالك؟" %}</h3>
+                <p class="mb-4">{% trans "فريق الدعم لدينا جاهز لمساعدتك" %}</p>
+                <a href="{% url 'main:contact' %}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-envelope me-2"></i>{% trans "تواصل معنا" %}
+                </a>
+            </div>
+        </div>
+    </section>
+{% endblock %}

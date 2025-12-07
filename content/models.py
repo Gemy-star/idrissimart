@@ -125,6 +125,59 @@ class Country(models.Model):
         ]
 
 
+class BlogCategory(models.Model):
+    """Blog Category Model"""
+
+    name = models.CharField(max_length=100, verbose_name=_("الاسم"))
+    name_en = models.CharField(
+        max_length=100, blank=True, verbose_name=_("الاسم بالإنجليزية")
+    )
+    slug = models.SlugField(
+        max_length=100, unique=True, blank=True, verbose_name=_("الرابط")
+    )
+    description = models.TextField(blank=True, verbose_name=_("الوصف"))
+    icon = models.CharField(
+        max_length=50,
+        blank=True,
+        default="fas fa-folder",
+        verbose_name=_("أيقونة"),
+        help_text=_("أيقونة FontAwesome مثل: fas fa-book"),
+    )
+    color = models.CharField(
+        max_length=7,
+        default="#6b4c7a",
+        verbose_name=_("اللون"),
+        help_text=_("كود اللون بصيغة HEX"),
+    )
+    order = models.IntegerField(default=0, verbose_name=_("الترتيب"))
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("فئة المدونة")
+        verbose_name_plural = _("فئات المدونات")
+        ordering = ["order", "name"]
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            from django.utils.text import slugify
+
+            self.slug = slugify(self.name, allow_unicode=True)
+            if not self.slug:
+                self.slug = (
+                    slugify(self.name_en) if self.name_en else f"category-{self.pk}"
+                )
+        super().save(*args, **kwargs)
+
+    def get_blogs_count(self):
+        """Get count of published blogs in this category"""
+        return self.blogs.filter(is_published=True).count()
+
+
 class Blog(models.Model):
     title = models.CharField(max_length=200)
     slug = models.SlugField(max_length=200, unique=True, blank=True)
@@ -136,10 +189,21 @@ class Blog(models.Model):
     published_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
     is_published = models.BooleanField(default=True)
+    views_count = models.PositiveIntegerField(
+        default=0, verbose_name=_("عدد المشاهدات")
+    )
     likes = models.ManyToManyField(
         settings.AUTH_USER_MODEL, related_name="blog_likes", blank=True
     )
     tags = TaggableManager(blank=True)
+    category = models.ForeignKey(
+        "BlogCategory",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="blogs",
+        verbose_name=_("الفئة"),
+    )
 
     class Meta:
         ordering = ["-published_date"]
@@ -149,6 +213,15 @@ class Blog(models.Model):
 
     def get_absolute_url(self):
         return reverse("content:blog_detail", kwargs={"slug": self.slug})
+
+    def increment_views(self):
+        """Increment the views count"""
+        self.views_count += 1
+        self.save(update_fields=["views_count"])
+
+    def get_likes_count(self):
+        """Get the number of likes"""
+        return self.likes.count()
 
     def get_safe_content(self):
         """Return sanitized content with scripts and dangerous tags removed"""

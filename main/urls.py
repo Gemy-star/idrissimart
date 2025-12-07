@@ -11,6 +11,7 @@ from . import chat_views
 from . import blog_views
 from . import admin_ad_views
 from . import admin_content_views
+from . import admin_orders_views
 from . import publisher_views
 from . import review_views
 from . import admin_review_views
@@ -26,7 +27,7 @@ urlpatterns = [
     path("categories/", views.CategoriesView.as_view(), name="categories"),
     path("about/", views.AboutView.as_view(), name="about"),
     path("contact/", views.ContactView.as_view(), name="contact"),
-    path("social/", views.SocialMediaView.as_view(), name="social"),
+    path("faq/", views.FAQView.as_view(), name="faq"),
     path("privacy/", views.PrivacyPolicyView.as_view(), name="privacy"),
     path("terms/", views.TermsConditionsView.as_view(), name="terms"),
     path(
@@ -770,6 +771,136 @@ urlpatterns = [
         admin_content_views.admin_home_slider_toggle,
         name="admin_home_slider_toggle",
     ),
+    # Site Content Management
+    path(
+        "admin/site-content/",
+        admin_content_views.admin_site_content,
+        name="admin_site_content",
+    ),
+    path(
+        "admin/site-content/contact/",
+        admin_content_views.admin_edit_contactpage,
+        name="admin_edit_contactpage",
+    ),
+    path(
+        "admin/site-content/about/",
+        admin_content_views.admin_edit_aboutpage,
+        name="admin_edit_aboutpage",
+    ),
+    path(
+        "admin/site-content/home/",
+        admin_content_views.admin_edit_homepage,
+        name="admin_edit_homepage",
+    ),
+    path(
+        "admin/site-content/config/",
+        admin_content_views.admin_edit_siteconfig,
+        name="admin_edit_siteconfig",
+    ),
+    # Blog Categories Management
+    path(
+        "admin/blog-categories/",
+        admin_content_views.admin_blog_categories,
+        name="admin_blog_categories",
+    ),
+    path(
+        "admin/blog-categories/create/",
+        admin_content_views.admin_blog_category_create,
+        name="admin_blog_category_create",
+    ),
+    path(
+        "admin/blog-categories/<int:pk>/edit/",
+        admin_content_views.admin_blog_category_edit,
+        name="admin_blog_category_edit",
+    ),
+    path(
+        "admin/blog-categories/<int:pk>/delete/",
+        admin_content_views.admin_blog_category_delete,
+        name="admin_blog_category_delete",
+    ),
+    # Blog Management
+    path(
+        "admin/blogs/",
+        admin_content_views.admin_blogs,
+        name="admin_blogs",
+    ),
+    path(
+        "admin/blogs/<int:pk>/toggle-publish/",
+        admin_content_views.admin_blog_toggle_publish,
+        name="admin_blog_toggle_publish",
+    ),
+    path(
+        "admin/blogs/<int:pk>/delete/",
+        admin_content_views.admin_blog_delete,
+        name="admin_blog_delete",
+    ),
+    # Admin Orders Management
+    path(
+        "admin/orders/",
+        admin_orders_views.admin_orders_list,
+        name="admin_orders_list",
+    ),
+    path(
+        "admin/orders/<int:order_id>/",
+        admin_orders_views.admin_order_detail,
+        name="admin_order_detail",
+    ),
+    path(
+        "admin/orders/<int:order_id>/update-status/",
+        admin_orders_views.admin_order_update_status,
+        name="admin_order_update_status",
+    ),
+    path(
+        "admin/orders/<int:order_id>/delete/",
+        admin_orders_views.admin_order_delete,
+        name="admin_order_delete",
+    ),
+    path(
+        "admin/orders/statistics/",
+        admin_orders_views.admin_orders_statistics,
+        name="admin_orders_statistics",
+    ),
+    # FAQ Management URLs
+    path(
+        "admin/faqs/",
+        admin_content_views.admin_faqs,
+        name="admin_faqs",
+    ),
+    path(
+        "admin/faqs/create/",
+        admin_content_views.admin_faq_create,
+        name="admin_faq_create",
+    ),
+    path(
+        "admin/faqs/<int:faq_id>/edit/",
+        admin_content_views.admin_faq_edit,
+        name="admin_faq_edit",
+    ),
+    path(
+        "admin/faqs/<int:faq_id>/delete/",
+        admin_content_views.admin_faq_delete,
+        name="admin_faq_delete",
+    ),
+    path(
+        "admin/faqs/categories/",
+        admin_content_views.admin_faq_categories,
+        name="admin_faq_categories",
+    ),
+    path(
+        "admin/faqs/categories/create/",
+        admin_content_views.admin_faq_category_create,
+        name="admin_faq_category_create",
+    ),
+    path(
+        "admin/faqs/categories/<int:category_id>/edit/",
+        admin_content_views.admin_faq_category_edit,
+        name="admin_faq_category_edit",
+    ),
+    path(
+        "admin/faqs/categories/<int:category_id>/delete/",
+        admin_content_views.admin_faq_category_delete,
+        name="admin_faq_category_delete",
+    ),
     path(
         "admin/categories/",
         views.AdminCategoriesView.as_view(),
@@ -959,6 +1090,12 @@ urlpatterns = [
     ),
     path("api/cart/count/", cart_wishlist_views.get_cart_count_view, name="cart_count"),
     path("cart/", cart_wishlist_views.cart_view, name="cart_view"),
+    path("checkout/", cart_wishlist_views.checkout_view, name="checkout"),
+    path(
+        "api/cart/check-partial-payment/",
+        cart_wishlist_views.check_partial_payment_eligibility,
+        name="check_partial_payment_eligibility",
+    ),
     # Wishlist URLs
     path("api/wishlist/add/", cart_wishlist_views.add_to_wishlist, name="wishlist_add"),
     path(
@@ -1252,6 +1389,17 @@ urlpatterns = [
         "publisher/dashboard/stats/",
         publisher_views.publisher_dashboard_stats_ajax,
         name="publisher_dashboard_stats",
+    ),
+    # Publisher Orders
+    path(
+        "publisher/orders/",
+        admin_orders_views.publisher_orders_list,
+        name="publisher_orders_list",
+    ),
+    path(
+        "publisher/orders/<int:order_id>/",
+        admin_orders_views.publisher_order_detail,
+        name="publisher_order_detail",
     ),
     # Publisher Reviews
     path(

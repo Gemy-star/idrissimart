@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تأكيد الطلب</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            direction: rtl;
+            text-align: right;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+        .content {
+            padding: 30px;
+        }
+        .order-info {
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .order-info h2 {
+            margin-top: 0;
+            color: #333;
+            font-size: 20px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #666;
+        }
+        .info-value {
+            color: #333;
+        }
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .items-table th {
+            background-color: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: right;
+        }
+        .items-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .total-section {
+            background-color: #fff3cd;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 18px;
+        }
+        .total-row.grand-total {
+            font-weight: bold;
+            font-size: 22px;
+            color: #667eea;
+            border-top: 2px solid #667eea;
+            padding-top: 15px;
+            margin-top: 10px;
+        }
+        .payment-status {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .status-unpaid {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .status-partial {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .status-paid {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 25px;
+            margin: 20px 0;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✓ تم إنشاء طلبك بنجاح</h1>
+            <p style="margin: 10px 0 0 0; font-size: 16px;">شكراً لك على طلبك من إدريسي مارت</p>
+        </div>
+
+        <div class="content">
+            <p>مرحباً <strong>{{ user.get_full_name|default:user.username }}</strong>،</p>
+            <p>تم استلام طلبك بنجاح وسنبدأ في معالجته قريباً.</p>
+
+            <div class="order-info">
+                <h2>تفاصيل الطلب</h2>
+                <div class="info-row">
+                    <span class="info-label">رقم الطلب:</span>
+                    <span class="info-value"><strong>{{ order.order_number }}</strong></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">تاريخ الطلب:</span>
+                    <span class="info-value">{{ order.created_at|date:"Y-m-d H:i" }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">حالة الطلب:</span>
+                    <span class="info-value">{{ order.get_status_display }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">حالة الدفع:</span>
+                    <span class="info-value">
+                        {% if order.payment_status == 'paid' %}
+                            <span class="payment-status status-paid">مدفوع كاملاً</span>
+                        {% elif order.payment_status == 'partial' %}
+                            <span class="payment-status status-partial">دفع جزئي</span>
+                        {% else %}
+                            <span class="payment-status status-unpaid">غير مدفوع</span>
+                        {% endif %}
+                    </span>
+                </div>
+                {% if order.payment_method %}
+                <div class="info-row">
+                    <span class="info-label">طريقة الدفع:</span>
+                    <span class="info-value">{{ order.get_payment_method_display }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <h3>العناصر المطلوبة:</h3>
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th>المنتج</th>
+                        <th>السعر</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>{{ item.ad.title }}</td>
+                        <td>{{ item.price }} ريال</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <div class="total-section">
+                <div class="total-row">
+                    <span>المجموع الفرعي:</span>
+                    <span>{{ order.total_amount }} ريال</span>
+                </div>
+                {% if order.delivery_fee %}
+                <div class="total-row">
+                    <span>رسوم التوصيل:</span>
+                    <span>{{ order.delivery_fee }} ريال</span>
+                </div>
+                {% endif %}
+                <div class="total-row grand-total">
+                    <span>المجموع الكلي:</span>
+                    <span>{{ order.total_amount }} ريال</span>
+                </div>
+                {% if order.payment_status == 'partial' %}
+                <div class="total-row" style="color: #856404; margin-top: 10px;">
+                    <span>المبلغ المدفوع:</span>
+                    <span>{{ order.paid_amount }} ريال</span>
+                </div>
+                <div class="total-row" style="color: #721c24;">
+                    <span>المبلغ المتبقي:</span>
+                    <span>{{ order.remaining_amount }} ريال</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <div style="text-align: center;">
+                <a href="{{ site_url }}/orders/{{ order.id }}/" class="button">
+                    عرض تفاصيل الطلب
+                </a>
+            </div>
+
+            <div style="background-color: #e3f2fd; padding: 15px; border-radius: 6px; margin-top: 20px;">
+                <p style="margin: 0; color: #1565c0;">
+                    <strong>ملاحظة:</strong> سيتم التواصل معك قريباً لتأكيد الطلب وترتيب التوصيل.
+                </p>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p style="margin: 0;">شكراً لاستخدامك إدريسي مارت</p>
+            <p style="margin: 10px 0 0 0;">إذا كان لديك أي استفسار، يرجى التواصل معنا</p>
+        </div>
+    </div>
+</body>
+</html>

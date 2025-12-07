@@ -35,9 +35,13 @@
         margin-bottom: 1rem;
         display: flex;
         gap: 0.75rem;
+        align-items: flex-end;
     }
     .chat-message.sent {
-        flex-direction: row-reverse;
+        justify-content: flex-end;
+    }
+    .chat-message.received {
+        justify-content: flex-start;
     }
     .chat-message-bubble {
         max-width: 70%;
@@ -48,10 +52,12 @@
     .chat-message.received .chat-message-bubble {
         background: white;
         border: 1px solid #e3e6f0;
+        border-radius: 12px 12px 12px 4px;
     }
     .chat-message.sent .chat-message-bubble {
         background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
         color: white;
+        border-radius: 12px 12px 4px 12px;
     }
     .chat-avatar {
         width: 40px;
@@ -62,6 +68,21 @@
         justify-content: center;
         background: #e3e6f0;
         flex-shrink: 0;
+    }
+    .chat-message.sent .chat-avatar {
+        background: #4e73df;
+        color: white;
+    }
+    .chat-message-content {
+        display: flex;
+        flex-direction: column;
+        max-width: 70%;
+    }
+    .chat-message.sent .chat-message-content {
+        align-items: flex-end;
+    }
+    .chat-message.received .chat-message-content {
+        align-items: flex-start;
     }
     .unread-badge {
         background: #e74a3b;
@@ -367,10 +388,12 @@
                                     <div class="chat-messages-container" id="chatMessages">
                                         {% for message in room.messages.all %}
                                         <div class="chat-message {% if message.sender.is_staff %}sent{% else %}received{% endif %}">
+                                            {% if not message.sender.is_staff %}
                                             <div class="chat-avatar">
                                                 <i class="fas fa-user"></i>
                                             </div>
-                                            <div>
+                                            {% endif %}
+                                            <div class="chat-message-content">
                                                 <div class="chat-message-bubble">
                                                     {{ message.message }}
                                                 </div>
@@ -381,6 +404,11 @@
                                                     {% endif %}
                                                 </small>
                                             </div>
+                                            {% if message.sender.is_staff %}
+                                            <div class="chat-avatar">
+                                                <i class="fas fa-user-shield"></i>
+                                            </div>
+                                            {% endif %}
                                         </div>
                                         {% empty %}
                                         <div class="empty-state">
@@ -591,7 +619,8 @@ function getCookie(name) {
     return cookieValue;
 }
 
-function loadChat(roomId) {
+// Load chat function - globally accessible
+window.loadChat = function(roomId) {
     // Highlight selected chat
     document.querySelectorAll('.chat-list-item').forEach(item => {
         item.classList.remove('active');
@@ -682,7 +711,8 @@ function sendMessage(event, roomId) {
     });
 }
 
-function markAsResolved(roomId) {
+// Mark as resolved function - globally accessible
+window.markAsResolved = function(roomId) {
     // Create confirmation toast instead of alert
     const confirmToast = document.createElement('div');
     confirmToast.className = 'position-fixed top-50 start-50 translate-middle p-4 bg-white rounded shadow-lg';

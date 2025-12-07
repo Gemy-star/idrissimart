@@ -126,6 +126,31 @@ class ContactPage(SingletonModel):
         help_text=_("البريد الذي سيتم إرسال رسائل التواصل إليه"),
     )
 
+    # Display settings for contact info cards
+    show_phone = models.BooleanField(
+        default=True,
+        verbose_name=_("إظهار بطاقة الهاتف"),
+        help_text=_("إظهار أو إخفاء بطاقة معلومات الهاتف"),
+    )
+
+    show_address = models.BooleanField(
+        default=True,
+        verbose_name=_("إظهار بطاقة العنوان"),
+        help_text=_("إظهار أو إخفاء بطاقة معلومات العنوان"),
+    )
+
+    show_office_hours = models.BooleanField(
+        default=True,
+        verbose_name=_("إظهار بطاقة ساعات العمل"),
+        help_text=_("إظهار أو إخفاء بطاقة ساعات العمل"),
+    )
+
+    show_map = models.BooleanField(
+        default=True,
+        verbose_name=_("إظهار الخريطة"),
+        help_text=_("إظهار أو إخفاء قسم الخريطة"),
+    )
+
     # Office hours
     office_hours = CKEditor5Field(
         blank=True, verbose_name=_("ساعات العمل - Office Hours"), config_name="default"

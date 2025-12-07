@@ -17,10 +17,11 @@ from .models import (
     AdImage,
     AdPackage,
     AdReport,
-    AdReservation,
     AdReview,
     AdTransaction,
     AdUpgradeHistory,
+    Cart,
+    CartItem,
     CartSettings,
     Category,
     CategoryCustomField,
@@ -28,8 +29,12 @@ from .models import (
     ContactMessage,
     CustomField,
     CustomFieldOption,
+    FAQ,
+    FAQCategory,
     NewsletterSubscriber,
     Notification,
+    Order,
+    OrderItem,
     Payment,
     SavedSearch,
     User,
@@ -900,22 +905,6 @@ class CartSettingsAdmin(admin.ModelAdmin):
     search_fields = ("category__name", "category__name_ar")
 
 
-@admin.register(AdReservation)
-class AdReservationAdmin(admin.ModelAdmin):
-    list_display = (
-        "ad",
-        "user",
-        "status",
-        "reservation_amount",
-        "created_at",
-        "expires_at",
-    )
-    list_filter = ("status", "created_at", "expires_at")
-    search_fields = ("ad__title", "user__username", "user__email")
-    readonly_fields = ("created_at",)
-    date_hierarchy = "created_at"
-
-
 @admin.register(AdTransaction)
 class AdTransactionAdmin(admin.ModelAdmin):
     list_display = ("ad", "user", "transaction_type", "amount", "created_at")
@@ -1223,6 +1212,196 @@ class AdReportAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         """Auto-set reviewed_by when status changes to resolved"""
-        if change and obj.status == "resolved" and not obj.reviewed_by:
+        if obj.status == "resolved" and not obj.reviewed_by:
             obj.reviewed_by = request.user
         super().save_model(request, obj, form, change)
+
+
+# ===========================
+# ORDER ADMIN
+# ===========================
+
+
+class OrderItemInline(admin.TabularInline):
+    model = OrderItem
+    extra = 0
+    readonly_fields = ("ad", "price")
+    can_delete = False
+
+
+@admin.register(Order)
+class OrderAdmin(admin.ModelAdmin):
+    list_display = (
+        "order_number",
+        "user",
+        "full_name",
+        "phone",
+        "city",
+        "total_amount",
+        "payment_method",
+        "status",
+        "created_at",
+    )
+    list_filter = ("status", "payment_method", "created_at")
+    search_fields = ("order_number", "user__username", "full_name", "phone")
+    readonly_fields = ("order_number", "created_at", "updated_at")
+    inlines = [OrderItemInline]
+
+    fieldsets = (
+        (
+            "معلومات الطلب",
+            {
+                "fields": (
+                    "order_number",
+                    "user",
+                    "status",
+                    "payment_method",
+                    "total_amount",
+                )
+            },
+        ),
+        (
+            "معلومات التوصيل",
+            {"fields": ("full_name", "phone", "address", "city", "postal_code")},
+        ),
+        ("ملاحظات", {"fields": ("notes",)}),
+        ("التواريخ", {"fields": ("created_at", "updated_at")}),
+    )
+
+
+@admin.register(Cart)
+class CartAdmin(admin.ModelAdmin):
+    list_display = ("user", "get_items_count", "get_total_amount", "updated_at")
+    search_fields = ("user__username",)
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(CartItem)
+class CartItemAdmin(admin.ModelAdmin):
+    list_display = ("cart", "ad", "quantity", "get_total_price", "added_at")
+    list_filter = ("added_at",)
+    search_fields = ("cart__user__username", "ad__title")
+    readonly_fields = ("added_at",)
+
+    def get_total_price(self, obj):
+        return f"{obj.get_total_price()} ر.س"
+
+    get_total_price.short_description = "المجموع"
+
+
+@admin.register(FAQCategory)
+class FAQCategoryAdmin(admin.ModelAdmin):
+    """Admin for FAQ Categories"""
+
+    list_display = (
+        "name",
+        "name_ar",
+        "icon",
+        "order",
+        "is_active",
+        "faq_count",
+        "created_at",
+    )
+    list_filter = ("is_active", "created_at")
+    search_fields = ("name", "name_ar")
+    list_editable = ("order", "is_active")
+    ordering = ("order", "name")
+
+    fieldsets = (
+        (
+            _("معلومات أساسية - Basic Information"),
+            {"fields": ("name", "name_ar", "icon", "order", "is_active")},
+        ),
+    )
+
+    def faq_count(self, obj):
+        """Get count of FAQs in this category"""
+        return obj.faqs.filter(is_active=True).count()
+
+    faq_count.short_description = _("عدد الأسئلة")
+
+
+@admin.register(FAQ)
+class FAQAdmin(admin.ModelAdmin):
+    """Admin for FAQs"""
+
+    list_display = (
+        "get_question_preview",
+        "category",
+        "order",
+        "is_active",
+        "is_popular",
+        "views_count",
+        "created_at",
+    )
+    list_filter = ("category", "is_active", "is_popular", "created_at")
+    search_fields = ("question", "question_ar", "answer", "answer_ar")
+    list_editable = ("order", "is_active", "is_popular")
+    ordering = ("category__order", "order")
+
+    fieldsets = (
+        (
+            _("الفئة - Category"),
+            {"fields": ("category",)},
+        ),
+        (
+            _("السؤال - Question"),
+            {"fields": ("question", "question_ar")},
+        ),
+        (
+            _("الإجابة - Answer"),
+            {"fields": ("answer", "answer_ar")},
+        ),
+        (
+            _("إعدادات - Settings"),
+            {"fields": ("order", "is_active", "is_popular")},
+        ),
+        (
+            _("إحصائيات - Statistics"),
+            {"fields": ("views_count",), "classes": ("collapse",)},
+        ),
+    )
+
+    readonly_fields = ("views_count",)
+
+    def get_question_preview(self, obj):
+        """Get question preview"""
+        question = obj.question_ar or obj.question
+        return question[:100] + "..." if len(question) > 100 else question
+
+    get_question_preview.short_description = _("السؤال")
+
+    actions = [
+        "mark_as_popular",
+        "mark_as_not_popular",
+        "activate_faqs",
+        "deactivate_faqs",
+    ]
+
+    def mark_as_popular(self, request, queryset):
+        """Mark selected FAQs as popular"""
+        updated = queryset.update(is_popular=True)
+        self.message_user(request, f"{updated} FAQ(s) marked as popular.")
+
+    mark_as_popular.short_description = _("تحديد كشائع")
+
+    def mark_as_not_popular(self, request, queryset):
+        """Mark selected FAQs as not popular"""
+        updated = queryset.update(is_popular=False)
+        self.message_user(request, f"{updated} FAQ(s) unmarked as popular.")
+
+    mark_as_not_popular.short_description = _("إزالة من الشائع")
+
+    def activate_faqs(self, request, queryset):
+        """Activate selected FAQs"""
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f"{updated} FAQ(s) activated.")
+
+    activate_faqs.short_description = _("تفعيل")
+
+    def deactivate_faqs(self, request, queryset):
+        """Deactivate selected FAQs"""
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f"{updated} FAQ(s) deactivated.")
+
+    deactivate_faqs.short_description = _("إلغاء التفعيل")

@@ -7,6 +7,7 @@ from solo.admin import SingletonModelAdmin
 
 from .models import (
     Blog,
+    BlogCategory,
     Comment,
     Country,
     HomeSlider,
@@ -71,6 +72,72 @@ class CountryAdmin(admin.ModelAdmin):
         self.message_user(request, f"تم إلغاء تفعيل {updated} دولة")
 
     deactivate_countries.short_description = "إلغاء تفعيل الدول المحددة"
+
+
+@admin.register(BlogCategory)
+class BlogCategoryAdmin(admin.ModelAdmin):
+    list_display = [
+        "icon_display",
+        "name",
+        "name_en",
+        "color_display",
+        "order",
+        "is_active",
+        "blogs_count",
+    ]
+    list_filter = ["is_active"]
+    search_fields = ["name", "name_en", "slug"]
+    list_editable = ["order", "is_active"]
+    prepopulated_fields = {"slug": ("name",)}
+    ordering = ["order", "name"]
+
+    fieldsets = (
+        (
+            "معلومات أساسية",
+            {
+                "fields": (
+                    "name",
+                    "name_en",
+                    "slug",
+                    "description",
+                    "description_en",
+                )
+            },
+        ),
+        (
+            "التخصيص",
+            {"fields": ("icon", "color", "order", "is_active")},
+        ),
+        (
+            "التواريخ",
+            {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
+        ),
+    )
+
+    readonly_fields = ("created_at", "updated_at")
+
+    def icon_display(self, obj):
+        return format_html(
+            '<i class="{}" style="color: {}; font-size: 20px;"></i>',
+            obj.icon,
+            obj.color,
+        )
+
+    icon_display.short_description = "الأيقونة"
+
+    def color_display(self, obj):
+        return format_html(
+            '<span style="display: inline-block; width: 20px; height: 20px; background-color: {}; border-radius: 3px; border: 1px solid #ddd;"></span> {}',
+            obj.color,
+            obj.color,
+        )
+
+    color_display.short_description = "اللون"
+
+    def blogs_count(self, obj):
+        return obj.get_blogs_count()
+
+    blogs_count.short_description = "عدد المدونات"
 
 
 @admin.register(HomeSlider)
@@ -190,8 +257,15 @@ class HomeSliderAdmin(admin.ModelAdmin):
 
 @admin.register(Blog)
 class BlogAdmin(admin.ModelAdmin):
-    list_display = ("title", "author", "published_date", "is_published", "tag_list")
-    list_filter = ("is_published", "author")
+    list_display = (
+        "title",
+        "author",
+        "category",
+        "published_date",
+        "views_count",
+        "is_published",
+    )
+    list_filter = ("is_published", "author", "category")
     search_fields = ("title", "content")
     prepopulated_fields = {"slug": ("title",)}
     date_hierarchy = "published_date"
@@ -202,12 +276,7 @@ class BlogAdmin(admin.ModelAdmin):
     }
 
     def get_queryset(self, request):
-        return super().get_queryset(request).prefetch_related("tags")
-
-    def tag_list(self, obj):
-        return ", ".join(o.name for o in obj.tags.all())
-
-    tag_list.short_description = "Tags"
+        return super().get_queryset(request).select_related("category")
 
 
 @admin.register(Comment)
@@ -270,6 +339,18 @@ class ContactPageAdmin(SingletonModelAdmin):
             {"fields": ("title", "title_ar", "description", "description_ar")},
         ),
         ("إعدادات النموذج", {"fields": ("enable_contact_form", "notification_email")}),
+        (
+            "إعدادات الإظهار",
+            {
+                "fields": (
+                    "show_phone",
+                    "show_address",
+                    "show_office_hours",
+                    "show_map",
+                ),
+                "description": "تحكم في إظهار أو إخفاء العناصر في صفحة اتصل بنا",
+            },
+        ),
         ("ساعات العمل", {"fields": ("office_hours", "office_hours_ar")}),
         ("الخريطة", {"fields": ("map_embed_code",), "classes": ("collapse",)}),
     )

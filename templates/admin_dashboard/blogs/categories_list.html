@@ -1,0 +1,210 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n %}
+
+{% block title %}
+    {% trans "إدارة فئات المدونات" %} - {% trans "لوحة تحكم المدير" %}
+{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+    .category-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        border-right: 4px solid;
+    }
+
+    .category-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    [data-theme='dark'] .category-card {
+        background: #1a202c;
+    }
+
+    .category-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .stats-card {
+        background: linear-gradient(135deg, var(--primary-color, #4b315e) 0%, var(--secondary-color, #ff6001) 100%);
+        border-radius: 16px;
+        padding: 2rem;
+        color: white;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(75, 49, 94, 0.3);
+    }
+
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">{% trans "إدارة فئات المدونات" %}</h2>
+            <p class="text-muted mb-0">{% trans "إنشاء وتحرير وحذف فئات المدونات" %}</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'main:admin_blogs' %}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-right me-2"></i>
+                {% trans "العودة للمدونات" %}
+            </a>
+            <a href="{% url 'main:admin_blog_category_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>
+                {% trans "فئة جديدة" %}
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="stats-card">
+                <div class="stat-value">{{ total_categories }}</div>
+                <div class="stat-label">{% trans "إجمالي الفئات" %}</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="stats-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                <div class="stat-value">{{ active_categories }}</div>
+                <div class="stat-label">{% trans "الفئات النشطة" %}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-10">
+                    <input type="text" name="search" class="form-control"
+                           placeholder="{% trans 'البحث في الفئات...' %}"
+                           value="{{ search_query }}">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search me-2"></i>
+                        {% trans "بحث" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Categories List -->
+    {% if categories %}
+        <div class="row">
+            {% for category in categories %}
+            <div class="col-md-6 mb-3">
+                <div class="category-card" style="border-right-color: {{ category.color }};">
+                    <div class="d-flex align-items-center">
+                        <div class="category-icon" style="background-color: {{ category.color }}20;">
+                            <i class="{{ category.icon }}" style="color: {{ category.color }};"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="mb-1">{{ category.name }}</h5>
+                            {% if category.name_en %}
+                            <p class="text-muted mb-1 small">{{ category.name_en }}</p>
+                            {% endif %}
+                            {% if category.description %}
+                            <p class="text-muted mb-2 small">{{ category.description|truncatewords:15 }}</p>
+                            {% endif %}
+                            <div class="d-flex gap-3 small text-muted">
+                                <span>
+                                    <i class="fas fa-blog me-1"></i>
+                                    {{ category.get_blogs_count }} {% trans "مدونة" %}
+                                </span>
+                                <span>
+                                    <i class="fas fa-sort me-1"></i>
+                                    {% trans "ترتيب:" %} {{ category.order }}
+                                </span>
+                                <span>
+                                    {% if category.is_active %}
+                                        <i class="fas fa-check-circle text-success me-1"></i>
+                                        {% trans "نشط" %}
+                                    {% else %}
+                                        <i class="fas fa-times-circle text-danger me-1"></i>
+                                        {% trans "غير نشط" %}
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="d-flex flex-column gap-2">
+                            <a href="{% url 'main:admin_blog_category_edit' category.pk %}"
+                               class="btn btn-sm btn-primary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{% url 'main:admin_blog_category_delete' category.pk %}"
+                               class="btn btn-sm btn-danger">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if categories.has_other_pages %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if categories.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ categories.previous_page_number }}&search={{ search_query }}">
+                        {% trans "السابق" %}
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in categories.paginator.page_range %}
+                    {% if categories.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > categories.number|add:'-3' and num < categories.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}&search={{ search_query }}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if categories.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ categories.next_page_number }}&search={{ search_query }}">
+                        {% trans "التالي" %}
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-folder fa-4x text-muted mb-3"></i>
+            <h3 class="text-muted">{% trans "لا توجد فئات" %}</h3>
+            <p class="text-muted">{% trans "ابدأ بإضافة فئة جديدة" %}</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

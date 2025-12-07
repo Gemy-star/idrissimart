@@ -13,6 +13,14 @@
 {% block content %}
     <section class="blog-detail-section py-5">
         <div class="container">
+            <!-- Back to Blogs Link -->
+            <div class="mb-4">
+                <a href="{% url 'content:blog_list' %}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-arrow-right me-2"></i>
+                    {% trans "العودة إلى المدونات" %}
+                </a>
+            </div>
+
             <div class="row g-lg-5">
                 <!-- Left Column: Main Blog Content -->
                 <div class="col-lg-8">
@@ -363,20 +371,42 @@
             if (likeBtn) {
                 likeBtn.addEventListener('click', function() {
                     const slug = this.dataset.slug;
-                    const url = `/blog/${slug}/like/`;
+                    const url = "{% url 'content:blog_like' blog.slug %}";
                     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+                    // Disable button during request
+                    likeBtn.disabled = true;
 
                     fetch(url, {
                             method: 'POST',
                             headers: {
                                 'X-CSRFToken': csrfToken,
+                                'X-Requested-With': 'XMLHttpRequest',
                                 'Content-Type': 'application/json'
                             },
+                            credentials: 'same-origin'
                         })
-                        .then(response => response.json())
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
                         .then(data => {
-                            document.getElementById('like-count').textContent = data.like_count + ' {% trans "إعجابات" %}';
-                            likeBtn.classList.toggle('active', data.liked);
+                            if (data.success) {
+                                document.getElementById('like-count').textContent = data.like_count + ' {% trans "إعجابات" %}';
+                                likeBtn.classList.toggle('active', data.liked);
+                            } else {
+                                console.error('Error:', data.error);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('{% trans "حدث خطأ أثناء تسجيل الإعجاب" %}');
+                        })
+                        .finally(() => {
+                            // Re-enable button
+                            likeBtn.disabled = false;
                         });
                 });
             }

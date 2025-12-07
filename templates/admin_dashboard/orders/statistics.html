@@ -1,0 +1,491 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load i18n static %}
+
+{% block title %}{% trans "إحصائيات الطلبات" %}{% endblock %}
+
+{% block admin_extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+/* Light theme gradients */
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white !important;
+}
+.bg-gradient-success {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white !important;
+}
+.bg-gradient-warning {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white !important;
+}
+.bg-gradient-danger {
+    background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
+    color: white !important;
+}
+
+/* Ensure text is readable */
+.bg-gradient-primary .text-white-50,
+.bg-gradient-success .text-white-50,
+.bg-gradient-warning .text-white-50,
+.bg-gradient-danger .text-white-50 {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* Chart cards */
+.card {
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    background-color: var(--bs-card-bg, #fff);
+}
+
+/* Dark theme support */
+[data-bs-theme="dark"] .card {
+    background-color: var(--bs-card-bg, #212529);
+    border-color: var(--bs-border-color, #495057);
+}
+
+[data-bs-theme="dark"] .table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--bs-body-color);
+}
+</style>
+{% endblock %}
+
+{% block admin_content %}
+    <div class="row mb-3">
+        <div class="col-12">
+            <a href="{% url 'main:admin_orders_list' %}" class="btn btn-secondary mb-3">
+                <i class="fas fa-arrow-right me-2"></i>
+                {% trans "العودة للطلبات" %}
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-gradient-primary text-white shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-white-50 mb-1">{% trans "إجمالي الإيرادات" %}</h6>
+                            <h3 class="mb-0">{{ statistics.total_revenue|floatformat:2 }}</h3>
+                            <small>{{ currency_symbol }}</small>
+                        </div>
+                        <div class="text-white-50">
+                            <i class="fas fa-dollar-sign fa-3x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-gradient-success text-white shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-white-50 mb-1">{% trans "الطلبات المكتملة" %}</h6>
+                            <h3 class="mb-0">{{ statistics.delivered_orders }}</h3>
+                            <small>{% trans "طلب" %}</small>
+                        </div>
+                        <div class="text-white-50">
+                            <i class="fas fa-check-circle fa-3x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-gradient-warning text-white shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-white-50 mb-1">{% trans "قيد المعالجة" %}</h6>
+                            <h3 class="mb-0">{{ statistics.pending_orders|add:statistics.processing_orders }}</h3>
+                            <small>{% trans "طلب" %}</small>
+                        </div>
+                        <div class="text-white-50">
+                            <i class="fas fa-clock fa-3x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-gradient-danger text-white shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-white-50 mb-1">{% trans "الطلبات الملغاة" %}</h6>
+                            <h3 class="mb-0">{{ statistics.cancelled_orders }}</h3>
+                            <small>{% trans "طلب" %}</small>
+                        </div>
+                        <div class="text-white-50">
+                            <i class="fas fa-times-circle fa-3x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <!-- Order Status Distribution -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        {% trans "توزيع حالات الطلبات" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="orderStatusChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Methods Chart -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-credit-card me-2"></i>
+                        {% trans "طرق الدفع" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="paymentMethodsChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Charts Row -->
+    <div class="row mb-4">
+        <!-- Daily Orders Chart -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        {% trans "الطلبات اليومية" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="dailyOrdersChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Daily Revenue Chart -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        {% trans "الإيرادات اليومية" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="dailyRevenueChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Customers -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users me-2"></i>
+                        {% trans "أفضل العملاء" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>{% trans "العميل" %}</th>
+                                    <th>{% trans "عدد الطلبات" %}</th>
+                                    <th>{% trans "إجمالي الإنفاق" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for customer in statistics.top_customers %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>
+                                        <i class="fas fa-user-circle text-primary me-2"></i>
+                                        {{ customer.user__first_name }} {{ customer.user__last_name }}
+                                        {% if not customer.user__first_name %}
+                                            {{ customer.user__username }}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ customer.order_count }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="text-success fw-bold">{{ customer.total_spent|floatformat:2 }} {% trans "ريال" %}</span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4">
+                                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                        <p class="text-muted mb-0">{% trans "لا توجد بيانات" %}</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Chart defaults for RTL
+    Chart.defaults.font.family = 'Cairo, sans-serif';
+
+    // Order Status Chart
+    const statusCtx = document.getElementById('orderStatusChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: [
+                '{% trans "قيد الانتظار" %}',
+                '{% trans "قيد المعالجة" %}',
+                '{% trans "تم الشحن" %}',
+                '{% trans "تم التسليم" %}',
+                '{% trans "ملغي" %}'
+            ],
+            datasets: [{
+                data: [
+                    {{ statistics.pending_orders|default:0 }},
+                    {{ statistics.processing_orders|default:0 }},
+                    {{ statistics.shipped_orders|default:0 }},
+                    {{ statistics.delivered_orders|default:0 }},
+                    {{ statistics.cancelled_orders|default:0 }}
+                ],
+                backgroundColor: [
+                    'rgba(255, 193, 7, 0.8)',
+                    'rgba(23, 162, 184, 0.8)',
+                    'rgba(0, 123, 255, 0.8)',
+                    'rgba(40, 167, 69, 0.8)',
+                    'rgba(220, 53, 69, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(255, 193, 7, 1)',
+                    'rgba(23, 162, 184, 1)',
+                    'rgba(0, 123, 255, 1)',
+                    'rgba(40, 167, 69, 1)',
+                    'rgba(220, 53, 69, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    rtl: {% if LANGUAGE_CODE == 'ar' %}true{% else %}false{% endif %},
+                    labels: {
+                        padding: 15,
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    rtl: {% if LANGUAGE_CODE == 'ar' %}true{% else %}false{% endif %}
+                }
+            }
+        }
+    });
+
+    // Payment Methods Chart
+    const paymentCtx = document.getElementById('paymentMethodsChart').getContext('2d');
+    new Chart(paymentCtx, {
+        type: 'pie',
+        data: {
+            labels: [
+                '{% trans "الدفع عند الاستلام" %}',
+                '{% trans "الدفع الإلكتروني" %}',
+                '{% trans "دفع جزئي" %}'
+            ],
+            datasets: [{
+                data: [
+                    {% for method, data in payment_stats.items %}
+                        {{ data.count }}{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                backgroundColor: [
+                    'rgba(102, 126, 234, 0.8)',
+                    'rgba(118, 75, 162, 0.8)',
+                    'rgba(255, 154, 158, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(102, 126, 234, 1)',
+                    'rgba(118, 75, 162, 1)',
+                    'rgba(255, 154, 158, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    rtl: {% if LANGUAGE_CODE == 'ar' %}true{% else %}false{% endif %},
+                    labels: {
+                        padding: 15,
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    rtl: {% if LANGUAGE_CODE == 'ar' %}true{% else %}false{% endif %}
+                }
+            }
+        }
+    });
+
+    // Daily Orders Chart
+    const dailyCtx = document.getElementById('dailyOrdersChart').getContext('2d');
+    new Chart(dailyCtx, {
+        type: 'line',
+        data: {
+            labels: [
+                {% for day in statistics.daily_orders %}
+                    '{{ day.date|date:"m/d" }}'{% if not forloop.last %},{% endif %}
+                {% empty %}
+                    ''
+                {% endfor %}
+            ],
+            datasets: [{
+                label: '{% trans "عدد الطلبات" %}',
+                data: [
+                    {% for day in statistics.daily_orders %}
+                        {{ day.count|default:0 }}{% if not forloop.last %},{% endif %}
+                    {% empty %}
+                        0
+                    {% endfor %}
+                ],
+                borderColor: 'rgba(40, 167, 69, 1)',
+                backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                pointRadius: 4,
+                pointBackgroundColor: 'rgba(40, 167, 69, 1)',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    rtl: {% if LANGUAGE_CODE == 'ar' %}true{% else %}false{% endif %}
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+
+    // Daily Revenue Chart
+    const revenueCtx = document.getElementById('dailyRevenueChart').getContext('2d');
+    new Chart(revenueCtx, {
+        type: 'bar',
+        data: {
+            labels: [
+                {% for day in statistics.daily_orders %}
+                    '{{ day.date|date:"m/d" }}'{% if not forloop.last %},{% endif %}
+                {% empty %}
+                    ''
+                {% endfor %}
+            ],
+            datasets: [{
+                label: '{% trans "الإيرادات (ريال)" %}',
+                data: [
+                    {% for day in statistics.daily_orders %}
+                        {{ day.revenue|default:0 }}{% if not forloop.last %},{% endif %}
+                    {% empty %}
+                        0
+                    {% endfor %}
+                ],
+                backgroundColor: 'rgba(255, 193, 7, 0.8)',
+                borderColor: 'rgba(255, 193, 7, 1)',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    rtl: {% if LANGUAGE_CODE == 'ar' %}true{% else %}false{% endif %},
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += context.parsed.y.toFixed(2) + ' {% trans "ريال" %}';
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

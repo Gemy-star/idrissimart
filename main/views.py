@@ -1187,16 +1187,23 @@ class ContactView(TemplateView):
             return self.render_to_response(context)
 
 
-class SocialMediaView(TemplateView):
-    """Social media page view"""
+class FAQView(TemplateView):
+    """FAQ (Frequently Asked Questions) page view"""
 
-    template_name = "pages/social.html"
+    template_name = "pages/faq.html"
 
     def get_context_data(self, **kwargs):
         from constance import config
+        from main.models import FAQCategory
 
         context = super().get_context_data(**kwargs)
         context["config"] = config
+
+        # Get all active FAQ categories with their FAQs
+        context["faq_categories"] = FAQCategory.objects.filter(
+            is_active=True
+        ).prefetch_related("faqs").order_by("order")
+
         return context
 
 

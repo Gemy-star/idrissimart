@@ -1,0 +1,116 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load i18n static %}
+
+{% block title %}{% trans "إدارة فئات الأسئلة" %}{% endblock %}
+
+{% block admin_content %}
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h2><i class="fas fa-folder me-2"></i>{% trans "إدارة فئات الأسئلة" %}</h2>
+        </div>
+        <div class="col-md-6 text-end">
+            <a href="{% url 'main:admin_faq_category_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>{% trans "إضافة فئة جديدة" %}
+            </a>
+            <a href="{% url 'main:admin_faqs' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-right me-2"></i>{% trans "العودة للأسئلة" %}
+            </a>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5>{% trans "إجمالي الفئات" %}</h5>
+                    <h2>{{ total_categories }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5>{% trans "فئات نشطة" %}</h5>
+                    <h2>{{ active_categories }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>{% trans "الاسم (عربي)" %}</th>
+                            <th>{% trans "الاسم (إنجليزي)" %}</th>
+                            <th>{% trans "الترتيب" %}</th>
+                            <th>{% trans "عدد الأسئلة" %}</th>
+                            <th>{% trans "الحالة" %}</th>
+                            <th>{% trans "الإجراءات" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for category in categories %}
+                        <tr>
+                            <td>{{ category.id }}</td>
+                            <td><strong>{{ category.name_ar|default:"-" }}</strong></td>
+                            <td>{{ category.name|default:"-" }}</td>
+                            <td>{{ category.order }}</td>
+                            <td>
+                                <span class="badge bg-info">{{ category.faqs.count }}</span>
+                            </td>
+                            <td>
+                                {% if category.is_active %}
+                                    <span class="badge bg-success">{% trans "نشط" %}</span>
+                                {% else %}
+                                    <span class="badge bg-danger">{% trans "غير نشط" %}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'main:admin_faq_category_edit' category.id %}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'main:admin_faq_category_delete' category.id %}" class="btn btn-sm btn-danger">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">
+                                <i class="fas fa-inbox fa-3x mb-3"></i>
+                                <p>{% trans "لا توجد فئات" %}</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if categories.has_other_pages %}
+            <nav>
+                <ul class="pagination justify-content-center">
+                    {% if categories.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ categories.previous_page_number }}">{% trans "السابق" %}</a>
+                        </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">{{ categories.number }} / {{ categories.paginator.num_pages }}</span>
+                    </li>
+
+                    {% if categories.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ categories.next_page_number }}">{% trans "التالي" %}</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

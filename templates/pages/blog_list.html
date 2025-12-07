@@ -51,13 +51,19 @@
                         {% endif %}
                         <!-- Popular Tags Section -->
                         <div class="blog-sidebar-card">
-                            <h3 class="blog-sidebar-title">{% trans "الوسوم الشائعة" %}</h3>
-                            <div class="blog-tag-cloud">
-                                {% for tag in popular_tags %}
-                                    <a href="{% url 'content:blog_list_by_tag' tag.slug %}" class="blog-tag">{{ tag.name }}</a>
-                                {% empty %}
-                                    <p class="text-muted">{% trans "لا توجد وسوم بعد." %}</p>
-                                {% endfor %}
+                            <h3 class="blog-sidebar-title">{% trans "الفئات" %}</h3>
+                            <div class="blog-categories-list">
+                                {% if categories %}
+                                    {% for category in categories %}
+                                        <a href="{% url 'content:blog_list_by_category' category.slug %}" class="blog-category-item">
+                                            <i class="{{ category.icon }}" style="color: {{ category.color }};"></i>
+                                            <span>{{ category.name }}</span>
+                                            <span class="badge bg-secondary">{{ category.get_blogs_count }}</span>
+                                        </a>
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="text-muted">{% trans "لا توجد فئات بعد." %}</p>
+                                {% endif %}
                             </div>
                         </div>
                         <!-- All Tags Section -->
@@ -77,7 +83,25 @@
                 <div class="col-lg-9">
                     <!-- All Posts Section -->
                     <section class="all-blogs">
-                        <h2 class="blog-section-title">{% trans "جميع المنشورات" %}</h2>
+                        {% if current_tag %}
+                            <div class="alert alert-info d-flex justify-content-between align-items-center">
+                                <span>
+                                    <i class="fas fa-tag me-2"></i>
+                                    {% trans "عرض المنشورات بوسم:" %} <strong>{{ current_tag.name }}</strong>
+                                </span>
+                                <a href="{% url 'content:blog_list' %}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-times me-1"></i>
+                                    {% trans "إلغاء الفلتر" %}
+                                </a>
+                            </div>
+                        {% endif %}
+                        <h2 class="blog-section-title">
+                            {% if current_tag %}
+                                {% trans "منشورات" %} {{ current_tag.name }}
+                            {% else %}
+                                {% trans "جميع المنشورات" %}
+                            {% endif %}
+                        </h2>
                         <div class="row g-4">
                             {% for blog in blogs %}
                                 <div class="col-lg-4 col-md-6">
@@ -97,14 +121,13 @@
                                         </a>
 
                                         <div class="card-body">
-                                            <!-- Blog Tags -->
-                                            {% if blog.tags.all %}
-                                                <div class="blog-tags">
-                                                    {% for tag in blog.tags.all|slice:":2" %}
-                                                        <a href="{% url 'content:blog_list_by_tag' tag.slug %}" class="blog-tag">
-                                                            {{ tag.name }}
-                                                        </a>
-                                                    {% endfor %}
+                                            <!-- Blog Category -->
+                                            {% if blog.category %}
+                                                <div class="blog-category-badge mb-2">
+                                                    <span class="badge" style="background-color: {{ blog.category.color }};">
+                                                        <i class="{{ blog.category.icon }} me-1"></i>
+                                                        {{ blog.category.name }}
+                                                    </span>
                                                 </div>
                                             {% endif %}
 
@@ -130,12 +153,22 @@
                                                         {{ blog.published_date|date:"Y-m-d" }}
                                                     </small>
                                                 </div>
-                                                <a href="{{ blog.get_absolute_url }}"
-                                                   class="blog-read-more-btn">
-                                                    {% trans "اقرأ المزيد" %}
-                                                    <i class="fas fa-arrow-left ms-1"></i>
-                                                </a>
+                                                <div class="blog-stats">
+                                                    <small class="text-muted me-3">
+                                                        <i class="fas fa-eye"></i>
+                                                        {{ blog.views_count }}
+                                                    </small>
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-heart"></i>
+                                                        {{ blog.get_likes_count }}
+                                                    </small>
+                                                </div>
                                             </div>
+                                            <a href="{{ blog.get_absolute_url }}"
+                                               class="blog-read-more-btn">
+                                                {% trans "اقرأ المزيد" %}
+                                                <i class="fas fa-arrow-left ms-1"></i>
+                                            </a>
                                         </div>
                                     </article>
                                 </div>
@@ -152,7 +185,7 @@
                                     {% if page_obj.has_previous %}
                                         <li class="page-item">
                                             <a class="page-link"
-                                               href="?page={{ page_obj.previous_page_number }}"
+                                               href="{% if current_tag %}{% url 'content:blog_list_by_tag' current_tag.slug %}?page={{ page_obj.previous_page_number }}{% else %}?page={{ page_obj.previous_page_number }}{% endif %}"
                                                aria-label="{% trans 'السابق' %}">
                                                 <span aria-hidden="true">&laquo;</span>
                                             </a>
@@ -169,14 +202,14 @@
                                             </li>
                                         {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
                                             <li class="page-item">
-                                                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                                <a class="page-link" href="{% if current_tag %}{% url 'content:blog_list_by_tag' current_tag.slug %}?page={{ num }}{% else %}?page={{ num }}{% endif %}">{{ num }}</a>
                                             </li>
                                         {% endif %}
                                     {% endfor %}
                                     {% if page_obj.has_next %}
                                         <li class="page-item">
                                             <a class="page-link"
-                                               href="?page={{ page_obj.next_page_number }}"
+                                               href="{% if current_tag %}{% url 'content:blog_list_by_tag' current_tag.slug %}?page={{ page_obj.next_page_number }}{% else %}?page={{ page_obj.next_page_number }}{% endif %}"
                                                aria-label="{% trans 'التالي' %}">
                                                 <span aria-hidden="true">&raquo;</span>
                                             </a>

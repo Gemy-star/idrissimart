@@ -12,7 +12,7 @@ from django.views.generic.edit import FormView
 from taggit.models import Tag
 
 from .forms import CommentForm
-from .models import Blog, Comment
+from .models import Blog, Comment, BlogCategory
 
 
 class BlogListView(ListView):
@@ -24,20 +24,50 @@ class BlogListView(ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["recent_blogs"] = Blog.objects.filter(is_published=True)[:5]
+        # Get all categories
+        context["categories"] = BlogCategory.objects.filter(is_active=True).order_by(
+            "order", "name"
+        )
         # Get all tags for the "All Tags" section
         context["all_tags"] = Tag.objects.all()
         # Get top 10 most popular tags
         context["popular_tags"] = Tag.objects.annotate(
             num_posts=Count("blog")
         ).order_by("-num_posts")[:10]
+
+        # Add current tag if filtering by tag
+        tag_slug = self.kwargs.get("tag_slug")
+        if tag_slug:
+            context["current_tag"] = get_object_or_404(Tag, slug=tag_slug)
+
+        # Add current category if filtering by category
+        category_slug = self.kwargs.get("category_slug")
+        if category_slug:
+            context["current_category"] = get_object_or_404(
+                BlogCategory, slug=category_slug
+            )
+
         return context
 
     def get_queryset(self):
-        queryset = Blog.objects.filter(is_published=True)
+        queryset = (
+            Blog.objects.filter(is_published=True)
+            .select_related("author", "category")
+            .order_by("-published_date")
+        )
+
+        # Filter by tag
         tag_slug = self.kwargs.get("tag_slug")
         if tag_slug:
             tag = get_object_or_404(Tag, slug=tag_slug)
             queryset = queryset.filter(tags__in=[tag])
+
+        # Filter by category
+        category_slug = self.kwargs.get("category_slug")
+        if category_slug:
+            category = get_object_or_404(BlogCategory, slug=category_slug)
+            queryset = queryset.filter(category=category)
+
         return queryset
 
 
@@ -50,6 +80,8 @@ class BlogDetailView(SingleObjectMixin, FormView):
 
     def get(self, request, *args, **kwargs):
         self.object = self.get_object()
+        # Increment views count
+        self.object.increment_views()
         context = self.get_context_data(object=self.object)
         return self.render_to_response(context)
 
@@ -102,14 +134,19 @@ class BlogDetailView(SingleObjectMixin, FormView):
 
 class BlogLikeView(LoginRequiredMixin, View):
     def post(self, request, slug):
-        blog = get_object_or_404(Blog, slug=slug)
-        user_liked = blog.likes.filter(pk=request.user.pk).exists()
+        try:
+            blog = get_object_or_404(Blog, slug=slug)
+            user_liked = blog.likes.filter(pk=request.user.pk).exists()
 
-        if user_liked:
-            blog.likes.remove(request.user)
-            liked = False
-        else:
-            blog.likes.add(request.user)
-            liked = True
+            if user_liked:
+                blog.likes.remove(request.user)
+                liked = False
+            else:
+                blog.likes.add(request.user)
+                liked = True
 
-        return JsonResponse({"liked": liked, "like_count": blog.likes.count()})
+            return JsonResponse(
+                {"success": True, "liked": liked, "like_count": blog.likes.count()}
+            )
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)}, status=400)
