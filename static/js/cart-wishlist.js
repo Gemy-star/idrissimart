@@ -121,9 +121,15 @@ function showNotification(message, type = 'success') {
 }
 
 /**
- * Add item to cart with AJAX
+ * Add item to cart with AJAX - only for authenticated users
  */
 async function addToCart(itemId, itemName = 'المنتج') {
+    // Check if user is authenticated
+    if (!window.isAuthenticated) {
+        showNotification('يجب تسجيل الدخول لإضافة المنتجات للسلة', 'warning');
+        return { success: false, message: 'يجب تسجيل الدخول' };
+    }
+
     try {
         const response = await fetch('/api/cart/add/', {
             method: 'POST',
@@ -229,9 +235,15 @@ async function removeFromCart(itemId, itemName = 'المنتج') {
 }
 
 /**
- * Add item to wishlist with AJAX
+ * Add item to wishlist with AJAX - only for authenticated users
  */
 async function addToWishlist(itemId, itemName = 'المنتج') {
+    // Check if user is authenticated
+    if (!window.isAuthenticated) {
+        showNotification('يجب تسجيل الدخول لإضافة المنتجات للمفضلة', 'warning');
+        return { success: false, message: 'يجب تسجيل الدخول' };
+    }
+
     try {
         const response = await fetch('/api/wishlist/add/', {
             method: 'POST',

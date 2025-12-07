@@ -1,0 +1,236 @@
+{% extends 'dashboard/base.html' %}
+{% load static i18n %}
+
+{% block publisher_title %}{% trans "إعلاناتي" %}{% endblock %}
+
+{% block publisher_content %}
+<div class="dashboard-header mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1><i class="fas fa-list"></i> {% trans "إعلاناتي" %}</h1>
+            <p class="text-muted">{% trans "إدارة جميع إعلاناتك" %}</p>
+        </div>
+        <a href="{% url 'main:ad_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> {% trans "إضافة إعلان جديد" %}
+        </a>
+    </div>
+</div>
+
+<!-- Statistics -->
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="stats-card">
+            <h3>{{ stats.total }}</h3>
+            <p>{% trans "الإجمالي" %}</p>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stats-card">
+            <h3 class="text-success">{{ stats.active }}</h3>
+            <p>{% trans "نشط" %}</p>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stats-card">
+            <h3 class="text-warning">{{ stats.pending }}</h3>
+            <p>{% trans "قيد المراجعة" %}</p>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stats-card">
+            <h3 class="text-danger">{{ stats.expired }}</h3>
+            <p>{% trans "منتهي" %}</p>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stats-card">
+            <h3>{{ stats.draft }}</h3>
+            <p>{% trans "مسودة" %}</p>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stats-card bg-gradient">
+            <h3>{{ ad_balance.available }}</h3>
+            <p>{% trans "رصيد متاح" %}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <input type="text" name="search" class="form-control" placeholder="{% trans 'بحث...' %}" value="{{ current_filters.search }}">
+            </div>
+            <div class="col-md-3">
+                <select name="status" class="form-control">
+                    <option value="">{% trans "كل الحالات" %}</option>
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if current_filters.status == value %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search"></i> {% trans "بحث" %}
+                </button>
+            </div>
+            <div class="col-md-3 text-end">
+                <a href="{% url 'main:publisher_upgrade_history' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-history"></i> {% trans "سجل الترقيات" %}
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Ads Grid -->
+<div class="row">
+    {% for ad in ads %}
+    <div class="col-md-4 mb-4">
+        <div class="card ad-card {% if ad.is_pinned %}border-primary{% elif ad.is_urgent %}border-danger{% elif ad.is_highlighted %}border-warning{% endif %}">
+            {% if ad.images.first %}
+            <img src="{{ ad.images.first.image.url }}" class="card-img-top" alt="{{ ad.title }}" style="height: 200px; object-fit: cover;">
+            {% else %}
+            <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                <i class="fas fa-image fa-3x text-muted"></i>
+            </div>
+            {% endif %}
+
+            <div class="card-body">
+                <h5 class="card-title">{{ ad.title }}</h5>
+                <p class="card-text text-muted">
+                    <i class="fas fa-tag"></i> {{ ad.price }} {{ ad.country.currency }}
+                </p>
+                <p class="card-text">
+                    <small class="text-muted">
+                        <i class="fas fa-eye"></i> {{ ad.views_count }} |
+                        <i class="fas fa-heart"></i> {{ ad.favorited_by.count }}
+                    </small>
+                </p>
+
+                <!-- Status Badge -->
+                <div class="mb-2">
+                    <span class="badge bg-{{ ad.status }}">{{ ad.get_status_display }}</span>
+                    {% if ad.is_highlighted %}
+                        <span class="badge bg-warning"><i class="fas fa-star"></i> مميز</span>
+                    {% endif %}
+                    {% if ad.is_urgent %}
+                        <span class="badge bg-danger"><i class="fas fa-bolt"></i> عاجل</span>
+                    {% endif %}
+                    {% if ad.is_pinned %}
+                        <span class="badge bg-primary"><i class="fas fa-thumbtack"></i> مثبت</span>
+                    {% endif %}
+                </div>
+
+                <!-- Actions -->
+                <div class="btn-group w-100" role="group">
+                    <a href="{% url 'main:publisher_ad_detail' ad.id %}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-eye"></i> {% trans "عرض" %}
+                    </a>
+                    <a href="{% url 'main:publisher_ad_update' ad.id %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-edit"></i> {% trans "تعديل" %}
+                    </a>
+                    {% if ad.status == 'expired' %}
+                    <form method="post" action="{% url 'main:publisher_renew_ad' ad.id %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-redo"></i> {% trans "تجديد" %}
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12 text-center py-5">
+        <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+        <h4>{% trans "لا توجد إعلانات" %}</h4>
+        <p class="text-muted">{% trans "ابدأ بإضافة إعلانك الأول" %}</p>
+        <a href="{% url 'main:ad_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> {% trans "إضافة إعلان" %}
+        </a>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if is_paginated %}
+<nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode }}">
+                {% trans "السابق" %}
+            </a>
+        </li>
+        {% endif %}
+
+        {% for num in page_obj.paginator.page_range %}
+        <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+            <a class="page-link" href="?page={{ num }}&{{ request.GET.urlencode }}">{{ num }}</a>
+        </li>
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode }}">
+                {% trans "التالي" %}
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+<style>
+    .stats-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .stats-card h3 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .stats-card.bg-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .ad-card {
+        transition: transform 0.2s;
+        height: 100%;
+    }
+
+    .ad-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .badge.bg-active {
+        background-color: #10b981 !important;
+    }
+
+    .badge.bg-pending {
+        background-color: #f59e0b !important;
+    }
+
+    .badge.bg-expired {
+        background-color: #ef4444 !important;
+    }
+
+    .badge.bg-draft {
+        background-color: #6b7280 !important;
+    }
+</style>
+{% endblock %}

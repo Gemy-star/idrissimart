@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.paginator import Paginator
 from django.utils import timezone
 from datetime import datetime, timedelta
@@ -36,6 +36,7 @@ from main.filters import ClassifiedAdFilter
 from main.forms import AdImageFormSet, ClassifiedAdForm, ContactForm
 from main.models import (
     AdFeature,
+    AdReport,
     Category,
     ClassifiedAd,
     AdPackage,
@@ -1393,10 +1394,11 @@ class AdDetailView(DetailView):
             from main.models import CategoryCustomField
 
             # Get custom fields for this category
-            category_fields = CategoryCustomField.objects.filter(
-                category=ad.category,
-                is_active=True
-            ).select_related('custom_field').order_by('order')
+            category_fields = (
+                CategoryCustomField.objects.filter(category=ad.category, is_active=True)
+                .select_related("custom_field")
+                .order_by("order")
+            )
 
             for cf in category_fields:
                 field = cf.custom_field
@@ -1476,8 +1478,10 @@ class AdCreateView(LoginRequiredMixin, CreateView):
         return context
 
     def get_form_kwargs(self):
-        """Pass the selected category to the form if available."""
+        """Pass the selected category and user to the form if available."""
         kwargs = super().get_form_kwargs()
+        # Pass the current user to the form for mobile verification
+        kwargs["user"] = self.request.user
         if "category" in self.request.GET:
             try:
                 category = Category.objects.get(pk=self.request.GET["category"])
@@ -1590,6 +1594,12 @@ class AdUpdateView(LoginRequiredMixin, UpdateView):
         )
 
         return context
+
+    def get_form_kwargs(self):
+        """Pass the user to the form for mobile verification."""
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
 
     def form_valid(self, form):
         context = self.get_context_data()
@@ -2251,7 +2261,10 @@ class PublisherDashboardView(PublisherRequiredMixin, ListView):
         if sort_by in valid_sorts:
             queryset = queryset.order_by(sort_by)
         else:
-            queryset = queryset.order_by("-created_at")
+            # Default: Sort by priority (pinned > urgent > highlighted > newest)
+            queryset = queryset.order_by(
+                "-is_pinned", "-is_urgent", "-is_highlighted", "-created_at"
+            )
 
         return queryset
 
@@ -2260,6 +2273,11 @@ class PublisherDashboardView(PublisherRequiredMixin, ListView):
 
         # Dashboard statistics
         user_ads = ClassifiedAd.objects.filter(user=self.request.user)
+
+        # Check and expire old upgrades
+        for ad in user_ads:
+            ad.check_and_expire_upgrades()
+
         context["dashboard_stats"] = {
             "total_ads": user_ads.count(),
             "active_ads": user_ads.filter(status=ClassifiedAd.AdStatus.ACTIVE).count(),
@@ -2269,8 +2287,31 @@ class PublisherDashboardView(PublisherRequiredMixin, ListView):
             "expired_ads": user_ads.filter(
                 status=ClassifiedAd.AdStatus.EXPIRED
             ).count(),
+            "draft_ads": user_ads.filter(status=ClassifiedAd.AdStatus.DRAFT).count(),
             "total_views": user_ads.aggregate(total=models.Sum("views_count"))["total"]
             or 0,
+            # Upgrade statistics
+            "highlighted_ads": user_ads.filter(is_highlighted=True).count(),
+            "urgent_ads": user_ads.filter(is_urgent=True).count(),
+            "pinned_ads": user_ads.filter(is_pinned=True).count(),
+        }
+
+        # Ad Balance - الرصيد الإعلاني
+        from main.models import UserPackage
+
+        active_packages = UserPackage.objects.filter(
+            user=self.request.user, expiry_date__gte=timezone.now(), ads_remaining__gt=0
+        )
+
+        total_ads = sum(pkg.total_ads() for pkg in active_packages)
+        used_ads = sum(pkg.ads_used for pkg in active_packages)
+        available_ads = sum(pkg.ads_remaining for pkg in active_packages)
+
+        context["ad_balance"] = {
+            "total": total_ads,
+            "used": used_ads,
+            "available": available_ads,
+            "active_packages": active_packages,
         }
 
         # Current filters for display
@@ -2758,11 +2799,12 @@ class AdminCategoryCustomFieldsView(SuperadminRequiredMixin, View):
             from main.models import CategoryCustomField, CustomFieldOption
 
             category = Category.objects.get(id=category_id)
-            category_fields = CategoryCustomField.objects.filter(
-                category=category
-            ).select_related("custom_field").prefetch_related(
-                "custom_field__field_options"
-            ).order_by("order")
+            category_fields = (
+                CategoryCustomField.objects.filter(category=category)
+                .select_related("custom_field")
+                .prefetch_related("custom_field__field_options")
+                .order_by("order")
+            )
 
             fields_data = []
             for cf in category_fields:
@@ -2776,17 +2818,21 @@ class AdminCategoryCustomFieldsView(SuperadminRequiredMixin, View):
                         .order_by("order")
                     )
 
-                fields_data.append({
-                    "id": field.id,
-                    "name": field.name,
-                    "label_ar": field.label_ar,
-                    "label_en": field.label_en,
-                    "field_type": field.field_type,
-                    "is_required": cf.is_required,  # From CategoryCustomField
-                    "options": ",".join(options) if options else "",  # Join for compatibility
-                    "order": cf.order,  # From CategoryCustomField
-                    "show_on_card": cf.show_on_card,  # Show on ad card
-                })
+                fields_data.append(
+                    {
+                        "id": field.id,
+                        "name": field.name,
+                        "label_ar": field.label_ar,
+                        "label_en": field.label_en,
+                        "field_type": field.field_type,
+                        "is_required": cf.is_required,  # From CategoryCustomField
+                        "options": (
+                            ",".join(options) if options else ""
+                        ),  # Join for compatibility
+                        "order": cf.order,  # From CategoryCustomField
+                        "show_on_card": cf.show_on_card,  # Show on ad card
+                    }
+                )
 
             return JsonResponse(
                 {
@@ -2826,7 +2872,7 @@ class AdminCategoryCustomFieldsView(SuperadminRequiredMixin, View):
                         "label_ar": field_data.get("name", ""),
                         "label_en": field_data.get("name", ""),
                         "field_type": field_data.get("type", "text"),
-                    }
+                    },
                 )
 
                 # If field already exists, update it
@@ -2852,7 +2898,9 @@ class AdminCategoryCustomFieldsView(SuperadminRequiredMixin, View):
                     CustomFieldOption.objects.filter(custom_field=field).delete()
 
                     # Create new options
-                    options_list = [opt.strip() for opt in options_str.split(",") if opt.strip()]
+                    options_list = [
+                        opt.strip() for opt in options_str.split(",") if opt.strip()
+                    ]
                     for opt_index, option_value in enumerate(options_list):
                         CustomFieldOption.objects.create(
                             custom_field=field,
@@ -2918,10 +2966,11 @@ class AdminCustomFieldsView(SuperadminRequiredMixin, ListView):
 
         # Get all fields with their category relationships
         from main.models import CategoryCustomField
-        context["category_fields"] = CategoryCustomField.objects.select_related(
-            "category", "custom_field"
-        ).prefetch_related("custom_field__field_options").order_by(
-            "category__name", "order"
+
+        context["category_fields"] = (
+            CategoryCustomField.objects.select_related("category", "custom_field")
+            .prefetch_related("custom_field__field_options")
+            .order_by("category__name", "order")
         )
         return context
 
@@ -2992,7 +3041,9 @@ class AdminCustomFieldSaveView(SuperadminRequiredMixin, View):
             field.is_active = request.POST.get("is_active") == "on"
             field.help_text = request.POST.get("help_text", field.help_text or "")
             field.placeholder = request.POST.get("placeholder", field.placeholder or "")
-            field.default_value = request.POST.get("default_value", field.default_value or "")
+            field.default_value = request.POST.get(
+                "default_value", field.default_value or ""
+            )
             field.save()
 
             # Handle category association
@@ -3007,7 +3058,7 @@ class AdminCustomFieldSaveView(SuperadminRequiredMixin, View):
                         "is_required": field.is_required,
                         "order": int(request.POST.get("order", 0)),
                         "is_active": True,
-                    }
+                    },
                 )
 
             # Handle options for select/radio/checkbox fields
@@ -3017,7 +3068,9 @@ class AdminCustomFieldSaveView(SuperadminRequiredMixin, View):
                 CustomFieldOption.objects.filter(custom_field=field).delete()
 
                 # Create new options
-                options_list = [opt.strip() for opt in options_str.split(",") if opt.strip()]
+                options_list = [
+                    opt.strip() for opt in options_str.split(",") if opt.strip()
+                ]
                 for index, option_value in enumerate(options_list):
                     CustomFieldOption.objects.create(
                         custom_field=field,
@@ -3512,11 +3565,12 @@ def admin_category_get(request, category_id):
                 "section_type": category.section_type,
                 "description": category.description or "",
                 "description_ar": category.description or "",  # Arabic description
-                "description_en": category.description or "",  # English description (same for now)
+                "description_en": category.description
+                or "",  # English description (same for now)
                 "icon": category.icon or "",
-                "color": getattr(category, 'color', '') or "",
-                "order": getattr(category, 'order', 0),
-                "is_active": getattr(category, 'is_active', True),
+                "color": getattr(category, "color", "") or "",
+                "order": getattr(category, "order", 0),
+                "is_active": getattr(category, "is_active", True),
                 "allow_cart": category.allow_cart,
                 "parent_id": category.parent.id if category.parent else None,
             }
@@ -3548,7 +3602,9 @@ def admin_category_save(request):
         name_en = request.POST.get("name_en", "")
         name_ar = request.POST.get("name_ar", "")
 
-        category.name = name_en or name_ar  # Use English name as primary, fallback to Arabic
+        category.name = (
+            name_en or name_ar
+        )  # Use English name as primary, fallback to Arabic
         category.name_ar = name_ar
 
         # Auto-generate slug if not provided or on new category
@@ -3557,10 +3613,16 @@ def admin_category_save(request):
             category.slug = provided_slug
         elif not category.id:  # New category
             # Generate unique slug
-            base_slug = slugify(name_en) if name_en else slugify(name_ar, allow_unicode=True)
+            base_slug = (
+                slugify(name_en) if name_en else slugify(name_ar, allow_unicode=True)
+            )
             slug = base_slug
             counter = 1
-            while Category.objects.filter(slug=slug).exclude(pk=category.id if category.id else None).exists():
+            while (
+                Category.objects.filter(slug=slug)
+                .exclude(pk=category.id if category.id else None)
+                .exists()
+            ):
                 slug = f"{base_slug}-{counter}"
                 counter += 1
             category.slug = slug
@@ -3570,19 +3632,27 @@ def admin_category_save(request):
         # Handle description - prefer description_ar if provided
         description_ar = request.POST.get("description_ar", "")
         description_en = request.POST.get("description_en", "")
-        category.description = description_ar or description_en or request.POST.get("description", "")
+        category.description = (
+            description_ar or description_en or request.POST.get("description", "")
+        )
 
         category.icon = request.POST.get("icon", "")
 
         # Handle optional fields with getattr/setattr for compatibility
-        if hasattr(category, 'color'):
+        if hasattr(category, "color"):
             category.color = request.POST.get("color", "")
-        if hasattr(category, 'order'):
+        if hasattr(category, "order"):
             category.order = int(request.POST.get("order", 0))
-        if hasattr(category, 'is_active'):
-            category.is_active = request.POST.get("is_active") == "on" or request.POST.get("is_active") == "true"
+        if hasattr(category, "is_active"):
+            category.is_active = (
+                request.POST.get("is_active") == "on"
+                or request.POST.get("is_active") == "true"
+            )
 
-        category.allow_cart = request.POST.get("allow_cart") == "on" or request.POST.get("allow_cart") == "true"
+        category.allow_cart = (
+            request.POST.get("allow_cart") == "on"
+            or request.POST.get("allow_cart") == "true"
+        )
 
         # Handle parent category
         parent_id = request.POST.get("parent")
@@ -3595,6 +3665,7 @@ def admin_category_save(request):
         country_code = request.POST.get("country")
         if country_code:
             from content.models import Country
+
             category.country = Country.objects.get(code=country_code)
         else:
             category.country = None
@@ -3611,6 +3682,7 @@ def admin_category_save(request):
 
     except Exception as e:
         import traceback
+
         error_trace = traceback.format_exc()
         print(f"Error saving category: {error_trace}")  # For debugging
         return JsonResponse(
@@ -3746,6 +3818,8 @@ def admin_user_update(request, user_id):
         last_name = request.POST.get("last_name", "").strip()
         email = request.POST.get("email", "").strip()
         phone = request.POST.get("phone", "").strip()
+        username = request.POST.get("username", "").strip()
+        password = request.POST.get("password", "").strip()
 
         # Validate email uniqueness
         if email and email != user_to_update.email:
@@ -3754,12 +3828,27 @@ def admin_user_update(request, user_id):
                     {"success": False, "message": _("البريد الإلكتروني مستخدم بالفعل.")}
                 )
 
-        # Update user
+        # Validate username uniqueness
+        if username and username != user_to_update.username:
+            if User.objects.filter(username=username).exclude(pk=user_id).exists():
+                return JsonResponse(
+                    {"success": False, "message": _("اسم المستخدم مستخدم بالفعل.")}
+                )
+
+        # Update user basic info
         user_to_update.first_name = first_name
         user_to_update.last_name = last_name
         user_to_update.email = email
         user_to_update.phone = phone
-        user_to_update.save(update_fields=["first_name", "last_name", "email", "phone"])
+
+        if username:
+            user_to_update.username = username
+
+        # Update password if provided
+        if password:
+            user_to_update.set_password(password)
+
+        user_to_update.save()
 
         return JsonResponse(
             {"success": True, "message": _("تم تحديث معلومات المستخدم بنجاح.")}
@@ -4474,21 +4563,14 @@ def dashboard_redirect(request):
     if user.is_superuser or user.is_staff:
         return redirect("main:admin_dashboard")
 
-    # Publisher profile type
+    # Both DEFAULT and PUBLISHER users go to publisher dashboard
     try:
-        if getattr(user, "profile_type", None) == "publisher":
+        if getattr(user, "profile_type", None) in ["default", "publisher"]:
             return redirect("main:my_ads")
     except Exception:
         pass
 
-    # Check if user has posted any ads
-    user_has_ads = ClassifiedAd.objects.filter(user=user).exists()
-
-    if user_has_ads:
-        # Redirect to publisher dashboard (their ads list)
-        return redirect("main:my_ads")
-
-    # Default redirect for users without ads
+    # Fallback for other cases
     return redirect("main:home")
 
 
@@ -5110,7 +5192,7 @@ class ChatWithPublisherView(LoginRequiredMixin, TemplateView):
             return redirect("main:ad_detail", pk=ad_id)
 
         # TODO: Get or create chat room
-        # from .models import ChatRoom
+        # from .models import ChatRoom, AdReport
         # context['chat_room'], created = ChatRoom.objects.get_or_create(
         #     ad=ad,
         #     client=self.request.user,
@@ -5791,3 +5873,51 @@ def publisher_delete_account(request):
             "redirect": reverse("main:home"),
         }
     )
+
+
+class AdminReportsManagementView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    """Admin view for managing user reports"""
+
+    model = AdReport
+    template_name = "admin_dashboard/user_reports.html"
+    context_object_name = "reports"
+    paginate_by = 20
+
+    def test_func(self):
+        """Only superusers can access"""
+        return self.request.user.is_superuser
+
+    def get_queryset(self):
+        queryset = (
+            AdReport.objects.all()
+            .select_related("reporter", "reported_ad", "reported_user", "reviewed_by")
+            .order_by("-created_at")
+        )
+
+        # Filter by status
+        status = self.request.GET.get("status")
+        if status:
+            queryset = queryset.filter(status=status)
+
+        # Filter by report type
+        report_type = self.request.GET.get("report_type")
+        if report_type:
+            queryset = queryset.filter(report_type=report_type)
+
+        # Search in description
+        search = self.request.GET.get("search")
+        if search:
+            queryset = queryset.filter(description__icontains=search)
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Add statistics
+        context["pending_count"] = AdReport.objects.filter(status="pending").count()
+        context["reviewing_count"] = AdReport.objects.filter(status="reviewing").count()
+        context["resolved_count"] = AdReport.objects.filter(status="resolved").count()
+        context["rejected_count"] = AdReport.objects.filter(status="rejected").count()
+
+        return context

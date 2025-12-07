@@ -9,6 +9,14 @@ urlpatterns = [
     re_path(
         r"^tag/(?P<tag_slug>[-\w]+)/$", BlogListView.as_view(), name="blog_list_by_tag"
     ),
-    path("<slug:slug>/like/", BlogLikeView.as_view(), name="blog_like"),
-    path("<slug:slug>/", BlogDetailView.as_view(), name="blog_detail"),
+    re_path(
+        r"^(?P<slug>[\w\-\u0600-\u06FF]+)/like/$",
+        BlogLikeView.as_view(),
+        name="blog_like",
+    ),
+    re_path(
+        r"^(?P<slug>[\w\-\u0600-\u06FF]+)/$",
+        BlogDetailView.as_view(),
+        name="blog_detail",
+    ),
 ]

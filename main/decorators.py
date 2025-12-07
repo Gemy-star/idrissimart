@@ -181,25 +181,16 @@ class PublisherRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
     login_url = reverse_lazy("main:login")
 
     def test_func(self):
-        """Check if user is publisher or has ads (auto-promote to publisher)"""
+        """Check if user can access publisher dashboard (DEFAULT and PUBLISHER users)"""
         user = self.request.user
 
         # Superadmins can access publisher dashboard
         if user.is_superuser:
             return True
 
-        # Users with PUBLISHER profile type
-        if user.profile_type == "publisher":
-            return True
-
-        # Auto-promote users who have created ads
-        from .models import ClassifiedAd
-
-        if ClassifiedAd.objects.filter(user=user).exists():
-            # Auto-upgrade to publisher if they have ads
-            if user.profile_type == "default":
-                user.profile_type = "publisher"
-                user.save(update_fields=["profile_type"])
+        # Both DEFAULT and PUBLISHER users can access
+        # Difference: DEFAULT users need admin approval for ads, PUBLISHER users don't
+        if user.profile_type in ["default", "publisher"]:
             return True
 
         return False
@@ -211,13 +202,12 @@ class PublisherRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
 
             return redirect_to_login(self.request.get_full_path(), self.login_url)
 
-        messages.warning(
+        # Should rarely happen now since DEFAULT users are allowed
+        messages.info(
             self.request,
-            _(
-                "لوحة الناشر متاحة فقط للمستخدمين الذين لديهم إعلانات. قم بإنشاء إعلانك الأول!"
-            ),
+            _("يمكنك الوصول إلى لوحة التحكم بعد تسجيل الدخول.")
         )
-        return redirect("main:ad_create")
+        return redirect("main:home")
 
 
 class SuperadminRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
@@ -308,24 +298,16 @@ def publisher_required(view_func):
         if user.is_superuser:
             return view_func(request, *args, **kwargs)
 
-        # Publisher profile type
-        if user.profile_type == "publisher":
+        # Both DEFAULT and PUBLISHER users can access publisher dashboard
+        # The only difference is ad approval and package limits
+        if user.profile_type in ["default", "publisher"]:
             return view_func(request, *args, **kwargs)
 
-        # Auto-promote if they have ads
-        from .models import ClassifiedAd
-
-        if ClassifiedAd.objects.filter(user=user).exists():
-            if user.profile_type == "default":
-                user.profile_type = "publisher"
-                user.save(update_fields=["profile_type"])
-            return view_func(request, *args, **kwargs)
-
-        # No permission
-        messages.warning(
-            request, _("لوحة الناشر متاحة فقط للمستخدمين الذين لديهم إعلانات.")
+        # No permission (should rarely happen)
+        messages.info(
+            request, _("يمكنك الوصول إلى لوحة التحكم بعد تسجيل الدخول.")
         )
-        return redirect("main:ad_create")
+        return redirect("main:home")
 
     return wrapper
 

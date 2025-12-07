@@ -126,6 +126,7 @@
                                     <th>{% trans "المستخدم" %}</th>
                                     <th>{% trans "البريد الإلكتروني" %}</th>
                                     <th>{% trans "الدور" %}</th>
+                                    <th>{% trans "العضوية" %}</th>
                                     <th>{% trans "الحالة" %}</th>
                                     <th>{% trans "تاريخ التسجيل" %}</th>
                                     <th>{% trans "إجراءات" %}</th>
@@ -138,14 +139,37 @@
                                         <div class="d-flex align-items-center">
                                             {% user_avatar user=user_obj size=40 css_class="rounded-circle me-3" %}
                                             <div>
-                                                <a href="#" class="fw-bold text-dark text-decoration-none">{{ user_obj.get_full_name|default:user_obj.username }}</a>
-                                                <div class="text-muted small">@{{ user_obj.username }}</div>
+                                                <a href="{% url 'main:admin_user_detail' user_obj.id %}" class="fw-bold text-dark text-decoration-none">
+                                                    {{ user_obj.get_full_name|default:user_obj.username }}
+                                                </a>
+                                                <div class="text-muted small">
+                                                    {% trans "في قائمة المستخدم يجب ان يظهر اسم المستخدم او ايميله المستخدم في الدخول" %}:
+                                                    @{{ user_obj.username }} | {{ user_obj.email }}
+                                                </div>
                                             </div>
                                         </div>
                                     </td>
                                     <td>{{ user_obj.email }}</td>
                                     <td>
                                         <span class="badge bg-light text-dark">{{ user_obj.get_profile_type_display }}</span>
+                                    </td>
+                                    <td>
+                                        {% with active_package=user_obj.userpackage_set.filter|first %}
+                                            {% if active_package %}
+                                                <span class="badge bg-success" title="{% trans 'الإجمالي' %}: {{ active_package.package.ads_limit }} | {% trans 'المستخدم' %}: {{ active_package.ads_used }} | {% trans 'المتاح' %}: {{ active_package.ads_remaining }}">
+                                                    <i class="fas fa-crown me-1"></i>
+                                                    {{ active_package.package.name }}
+                                                </span>
+                                                <div class="text-muted small mt-1">
+                                                    <i class="fas fa-chart-pie me-1"></i>
+                                                    {% trans "الاجمالي" %}: {{ active_package.package.ads_limit }} |
+                                                    {% trans "المستخدم" %}: {{ active_package.ads_used }} |
+                                                    {% trans "المتاح" %}: {{ active_package.ads_remaining }}
+                                                </div>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{% trans "بدون اشتراك" %}</span>
+                                            {% endif %}
+                                        {% endwith %}
                                     </td>
                                     <td>
                                         {% if user_obj.is_suspended %}
@@ -179,7 +203,7 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="6" class="text-center py-5">
+                                    <td colspan="7" class="text-center py-5">
                                         <i class="fas fa-users fa-3x text-muted mb-3"></i>
                                         <p class="text-muted">{% trans "لا يوجد مستخدمون يطابقون هذه المعايير." %}</p>
                                     </td>

@@ -89,19 +89,13 @@ class CustomLoginView(LoginView):
         if user.is_superuser or user.is_staff:
             return reverse_lazy("main:admin_dashboard")
 
-        # Publisher profile type
+        # Both DEFAULT and PUBLISHER users go to dashboard
         try:
-            if getattr(user, "profile_type", None) == "publisher":
-                return reverse_lazy("main:my_ads")
+            if getattr(user, "profile_type", None) in ["default", "publisher"]:
+                return reverse_lazy("main:dashboard")
         except Exception:
             # If user model doesn't expose profile_type for any reason, ignore
             pass
-
-        # Users who have created ads
-        from .models import ClassifiedAd
-
-        if ClassifiedAd.objects.filter(user=user).exists():
-            return reverse_lazy("main:my_ads")
 
         # Fallback
         return reverse_lazy("main:home")
@@ -114,7 +108,7 @@ class CustomLoginView(LoginView):
         if form.is_valid():
             return self.form_valid(form)
 
-        # If the form is invalid, we'll check if it's because of email-as-username
+        # If the form is invalid, we'll check if it's because of email-as-username or phone
         username = request.POST.get("username")
         password = request.POST.get("password")
 
@@ -124,6 +118,9 @@ class CustomLoginView(LoginView):
             is_email = True
         except Exception:
             is_email = False
+
+        # Check if the "username" is actually a phone number
+        is_phone = username.replace("+", "").replace(" ", "").replace("-", "").isdigit()
 
         if is_email:
             try:
@@ -137,6 +134,36 @@ class CustomLoginView(LoginView):
                     return redirect(self.get_success_url())
             except User.DoesNotExist:
                 pass  # Fall through to the default form_invalid
+        elif is_phone:
+            # إمكانية الدخول برقم الهاتف المسجل والمتحقق منه مسبقاً وكلمة السر
+            try:
+                # Clean phone number
+                clean_phone = (
+                    username.replace("+", "").replace(" ", "").replace("-", "")
+                )
+                # Try to find user by verified mobile number
+                user_obj = User.objects.get(mobile=clean_phone, is_mobile_verified=True)
+                # Authenticate with the found username
+                user = authenticate(
+                    request, username=user_obj.username, password=password
+                )
+                if user:
+                    login(request, user)
+                    return redirect(self.get_success_url())
+            except User.DoesNotExist:
+                # Try with phone field as well
+                try:
+                    user_obj = User.objects.get(
+                        phone=clean_phone, is_mobile_verified=True
+                    )
+                    user = authenticate(
+                        request, username=user_obj.username, password=password
+                    )
+                    if user:
+                        login(request, user)
+                        return redirect(self.get_success_url())
+                except User.DoesNotExist:
+                    pass  # Fall through to the default form_invalid
 
         return self.form_invalid(form)
 
@@ -285,7 +312,9 @@ class RegisterView(CreateView):
         )
 
     def post(self, request, *args, **kwargs):
+        # Prevent authenticated users from registering again
         if request.user.is_authenticated:
+            messages.warning(request, _("أنت مسجل بالفعل ولديك حساب نشط"))
             return redirect("main:home")
 
         from content.models import Country
@@ -311,10 +340,20 @@ class RegisterView(CreateView):
             phone = data.get("phone")
             country_code = request.POST.get("country_code", "SA").upper()
 
-            # Check if phone was verified in session
+            # MANDATORY: Check if phone was verified in session
             normalized_phone = normalize_phone_number(phone, country_code)
-            if not request.session.get(f"phone_verified_{normalized_phone}"):
-                messages.error(request, _("يجب التحقق من رقم الجوال قبل إنشاء الحساب"))
+            phone_verified = request.session.get(
+                f"phone_verified_{normalized_phone}", False
+            )
+
+            if not phone_verified:
+                messages.error(
+                    request,
+                    _(
+                        "التحقق من رقم الهاتف إلزامي. يرجى إكمال التحقق من شروط إكمال التسجيل"
+                    ),
+                )
+                form.add_error("phone", _("لم يتم التحقق من رقم الهاتف"))
                 return render(
                     request,
                     self.template_name,
@@ -375,16 +414,20 @@ class RegisterView(CreateView):
                     profile_type=data.get("profile_type"),
                 )
 
+            # Set country - جعل الدولة الافتراضية عند التسجيل مصر
+            country_code = data.get("country", "EG")  # Default to Egypt
+            user.country = country_code
+
             # Mark phone as verified
             user.is_mobile_verified = True
-            user.save(update_fields=["is_mobile_verified"])
+            user.save(update_fields=["is_mobile_verified", "country"])
 
             # Clear phone verification from session
             if f"phone_verified_{normalized_phone}" in request.session:
                 del request.session[f"phone_verified_{normalized_phone}"]
 
-            # Send email verification
-            send_email_verification(request, user)
+            # Send email verification (MANDATORY from registration completion conditions)
+            email_sent = send_email_verification(request, user)
 
             # Auto login after registration
             login(request, user)
@@ -392,10 +435,20 @@ class RegisterView(CreateView):
             messages.success(
                 request, _("مرحباً بك في إدريسي مارت! 🎉 تم إنشاء حسابك بنجاح")
             )
-            messages.info(
-                request,
-                _("تم إرسال رابط تأكيد إلى بريدك الإلكتروني. يرجى التحقق من بريدك."),
-            )
+
+            if email_sent:
+                messages.info(
+                    request,
+                    _(
+                        "تم إرسال رابط تأكيد إلى بريدك الإلكتروني. التحقق من البريد الإلكتروني إلزامي من شروط إكمال التسجيل."
+                    ),
+                )
+            else:
+                messages.warning(
+                    request,
+                    _("فشل إرسال رسالة التحقق. يمكنك طلب إعادة الإرسال من الإعدادات."),
+                )
+
             return redirect(self.success_url)
         else:
             # Add form errors to messages framework
@@ -455,6 +508,7 @@ def get_client_ip(request):
 def send_phone_verification_code(request):
     """
     Send verification code to phone number via SMS
+    إمكانية الدخول برقم الهاتف المسجل والتحقق منه مسبقاً وكاتبه اليه
     """
     try:
         data = json.loads(request.body)
@@ -525,6 +579,7 @@ def send_phone_verification_code(request):
 def verify_phone_code(request):
     """
     Verify the phone verification code entered by user
+    اليه الفرق عند التسجيل بين حساب غداء وعشاء ؟
     """
     try:
         data = json.loads(request.body)
@@ -612,15 +667,27 @@ def verify_phone_code(request):
 
 
 def password_reset_request(request):
+    """Fixed password reset view - نسيت كلمه المرور لا تعمل"""
     if request.method == "POST":
         password_reset_form = PasswordResetForm(request.POST)
         if password_reset_form.is_valid():
             email_address = password_reset_form.cleaned_data["email"]
-            associated_users = User.objects.filter(email__iexact=email_address)
+            associated_users = User.objects.filter(
+                email__iexact=email_address, is_active=True
+            )
+
             if associated_users.exists():
                 for user in associated_users:
+                    # Check if user is suspended - don't allow password reset for suspended accounts
+                    if user.is_suspended:
+                        messages.error(
+                            request,
+                            _("حسابك معلق. يرجى التواصل مع الدعم."),
+                        )
+                        continue
+
                     current_site = get_current_site(request)
-                    subject = "Password Reset Requested"
+                    subject = _("طلب إعادة تعيين كلمة المرور - Password Reset")
                     email_template_name = "password/password_reset_email.txt"
                     context = {
                         "email": user.email,
@@ -636,14 +703,34 @@ def password_reset_request(request):
                         send_mail(
                             subject,
                             email_body,
-                            "noreply@idrissimart.com",  # Use a no-reply address from your domain
+                            "noreply@idrissimart.com",
                             [user.email],
                             fail_silently=False,
                         )
+                        messages.success(
+                            request,
+                            _(
+                                "تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني"
+                            ),
+                        )
                     except BadHeaderError:
+                        messages.error(request, _("حدث خطأ. الرجاء المحاولة لاحقاً"))
                         return HttpResponse("Invalid header found.")
+                    except Exception as e:
+                        messages.error(
+                            request, _("فشل إرسال البريد. يرجى المحاولة لاحقاً")
+                        )
+            else:
+                # For security, show same message even if email doesn't exist
+                messages.success(
+                    request,
+                    _("إذا كان البريد مسجلاً، ستصلك رسالة إعادة تعيين كلمة المرور"),
+                )
+
             # Security: Always redirect to the 'done' page to prevent user enumeration.
             return redirect("main:password_reset_done")
+        else:
+            messages.error(request, _("يرجى التحقق من صحة البريد الإلكتروني"))
 
     password_reset_form = PasswordResetForm()
     return render(

@@ -1,0 +1,336 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "مراجعة الإعلانات المعلقة" %}{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    [data-theme='dark'] .stat-card {
+        background: #1e1e2e;
+    }
+
+    .stat-card h3 {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-card .value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1a202c;
+    }
+
+    [data-theme='dark'] .stat-card .value {
+        color: #e5e7eb;
+    }
+
+    .ad-table {
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    [data-theme='dark'] .ad-table {
+        background: #1e1e2e;
+    }
+
+    .ad-table table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .ad-table th {
+        background: #f3f4f6;
+        padding: 1rem;
+        text-align: right;
+        font-weight: 600;
+        color: #1a202c;
+    }
+
+    [data-theme='dark'] .ad-table th {
+        background: #151521;
+        color: #e5e7eb;
+    }
+
+    .ad-table td {
+        padding: 1rem;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    [data-theme='dark'] .ad-table td {
+        border-top-color: rgba(255,255,255,0.1);
+    }
+
+    .ad-thumbnail {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: 6px;
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .badge-pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .badge-upgrade {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .btn-success {
+        background: #10b981;
+        color: white;
+    }
+
+    .btn-success:hover {
+        background: #059669;
+    }
+
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #dc2626;
+    }
+
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #4b5563;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>{% trans "مراجعة الإعلانات المعلقة" %}</h1>
+    </div>
+
+    <!-- Statistics -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>{% trans "إجمالي المعلق" %}</h3>
+            <div class="value">{{ stats.total_pending }}</div>
+        </div>
+        <div class="stat-card">
+            <h3>{% trans "معلق اليوم" %}</h3>
+            <div class="value">{{ stats.today_pending }}</div>
+        </div>
+        <div class="stat-card">
+            <h3>{% trans "مستخدمين عاديين" %}</h3>
+            <div class="value">{{ stats.default_users }}</div>
+        </div>
+        <div class="stat-card">
+            <h3>{% trans "مع ترقيات" %}</h3>
+            <div class="value">{{ stats.with_upgrades }}</div>
+        </div>
+    </div>
+
+    <!-- Ads Table -->
+    <div class="ad-table">
+        <table>
+            <thead>
+                <tr>
+                    <th><input type="checkbox" id="select-all"></th>
+                    <th>{% trans "الصورة" %}</th>
+                    <th>{% trans "العنوان" %}</th>
+                    <th>{% trans "المستخدم" %}</th>
+                    <th>{% trans "الفئة" %}</th>
+                    <th>{% trans "السعر" %}</th>
+                    <th>{% trans "الحالة" %}</th>
+                    <th>{% trans "الترقيات" %}</th>
+                    <th>{% trans "الإجراءات" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ad in pending_ads %}
+                <tr>
+                    <td><input type="checkbox" class="ad-checkbox" value="{{ ad.id }}"></td>
+                    <td>
+                        {% if ad.images.first %}
+                            <img src="{{ ad.images.first.image.url }}" class="ad-thumbnail" alt="{{ ad.title }}">
+                        {% else %}
+                            <div class="ad-thumbnail" style="background: #e5e7eb;"></div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <strong>{{ ad.title }}</strong><br>
+                        <small>{{ ad.created_at|date:"Y-m-d H:i" }}</small>
+                    </td>
+                    <td>{{ ad.user.username }}</td>
+                    <td>{{ ad.category.name }}</td>
+                    <td>{{ ad.price }} {{ ad.country.currency }}</td>
+                    <td><span class="badge badge-pending">{{ ad.get_status_display }}</span></td>
+                    <td>
+                        {% if ad.is_highlighted %}<span class="badge badge-upgrade">{% trans "مميز" %}</span>{% endif %}
+                        {% if ad.is_urgent %}<span class="badge badge-upgrade">{% trans "عاجل" %}</span>{% endif %}
+                        {% if ad.is_pinned %}<span class="badge badge-upgrade">{% trans "مثبت" %}</span>{% endif %}
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <a href="{% url 'main:admin_ad_detail' ad.id %}" class="btn btn-secondary">{% trans "عرض" %}</a>
+                            <form method="post" action="{% url 'main:admin_approve_ad' ad.id %}" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-success">{% trans "موافقة" %}</button>
+                            </form>
+                            <button type="button" class="btn btn-danger" onclick="showRejectModal({{ ad.id }})">{% trans "رفض" %}</button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" style="text-align: center; padding: 2rem;">
+                        {% trans "لا توجد إعلانات معلقة" %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Bulk Actions -->
+    {% if pending_ads %}
+    <div class="mt-3">
+        <button type="button" class="btn btn-success" onclick="bulkApprove()">{% trans "موافقة مجمعة" %}</button>
+    </div>
+    {% endif %}
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">{% trans "السابق" %}</a>
+            </li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+            </li>
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">{% trans "التالي" %}</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<!-- Reject Modal -->
+<div id="rejectModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h2>{% trans "رفض الإعلان" %}</h2>
+        <form id="rejectForm" method="post">
+            {% csrf_token %}
+            <textarea name="reason" placeholder="{% trans 'سبب الرفض' %}" required style="width: 100%; padding: 10px; margin: 10px 0;"></textarea>
+            <div style="display: flex; gap: 10px;">
+                <button type="submit" class="btn btn-danger">{% trans "رفض" %}</button>
+                <button type="button" class="btn btn-secondary" onclick="closeRejectModal()">{% trans "إلغاء" %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Select all checkbox
+    document.getElementById('select-all').addEventListener('change', function() {
+        document.querySelectorAll('.ad-checkbox').forEach(cb => cb.checked = this.checked);
+    });
+
+    // Reject modal
+    function showRejectModal(adId) {
+        const modal = document.getElementById('rejectModal');
+        const form = document.getElementById('rejectForm');
+        form.action = `/admin/ads/${adId}/reject/`;
+        modal.style.display = 'flex';
+    }
+
+    function closeRejectModal() {
+        document.getElementById('rejectModal').style.display = 'none';
+    }
+
+    // Bulk approve
+    function bulkApprove() {
+        const checkedBoxes = document.querySelectorAll('.ad-checkbox:checked');
+        const adIds = Array.from(checkedBoxes).map(cb => cb.value);
+
+        if (adIds.length === 0) {
+            alert('{% trans "الرجاء تحديد إعلان واحد على الأقل" %}');
+            return;
+        }
+
+        if (!confirm(`{% trans "هل تريد الموافقة على" %} ${adIds.length} {% trans "إعلان؟" %}`)) {
+            return;
+        }
+
+        const formData = new FormData();
+        adIds.forEach(id => formData.append('ad_ids[]', id));
+
+        fetch('{% url "main:admin_bulk_approve_ads" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+            location.reload();
+        })
+        .catch(error => {
+            alert('{% trans "حدث خطأ" %}');
+        });
+    }
+</script>
+{% endblock %}

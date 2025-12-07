@@ -32,7 +32,7 @@ class UserManager(BaseUserManager):
         return user
 
     def create_user(self, username, email=None, password=None, **extra_fields):
-        """Create a regular user"""
+        """Create a standard user (default type, can upgrade via packages)"""
         extra_fields.setdefault("is_staff", False)
         extra_fields.setdefault("is_superuser", False)
         extra_fields.setdefault("profile_type", "default")
@@ -131,10 +131,7 @@ class User(AbstractUser):  # This model is correct, no changes needed here.
     """
 
     class ProfileType(models.TextChoices):
-        DEFAULT = "default", _("افتراضي - Default")
-        SERVICE = "service", _("خدمي - Service Provider")
-        MERCHANT = "merchant", _("تاجر - Merchant")
-        EDUCATIONAL = "educational", _("تعليمي - Educational")
+        DEFAULT = "default", _("قياسي - Standard")
         PUBLISHER = "publisher", _("ناشر - Publisher")
 
     class Rank(models.TextChoices):
@@ -525,39 +522,36 @@ class User(AbstractUser):  # This model is correct, no changes needed here.
     # Permission Check Methods
     def can_post_classified_ads(self):
         """
-        Default and Merchant users can post classified ads
+        All users (Default and Publisher) can post classified ads
         """
-        return self.profile_type in [
-            self.ProfileType.DEFAULT,
-            self.ProfileType.MERCHANT,
-        ]
+        return True
 
     def can_sell_products(self):
         """
-        Only Merchant users can sell products in the marketplace
+        Publishers can sell products in the marketplace
         """
-        return self.profile_type == self.ProfileType.MERCHANT
+        return self.profile_type == self.ProfileType.PUBLISHER
 
     def can_offer_services(self):
         """
-        Service providers can offer services
+        Publishers can offer services
         """
-        return self.profile_type == self.ProfileType.SERVICE
+        return self.profile_type == self.ProfileType.PUBLISHER
 
     def can_bid_on_service_requests(self):
         """
-        Service providers can bid on service requests
+        Verified publishers can bid on service requests
         """
         return (
-            self.profile_type == self.ProfileType.SERVICE
+            self.profile_type == self.ProfileType.PUBLISHER
             and self.verification_status == self.VerificationStatus.VERIFIED
         )
 
     def can_create_courses(self):
         """
-        Educational users can create training courses
+        Publishers can create training courses
         """
-        return self.profile_type == self.ProfileType.EDUCATIONAL
+        return self.profile_type == self.ProfileType.PUBLISHER
 
     def can_post_jobs(self):
         """
@@ -600,12 +594,8 @@ class User(AbstractUser):  # This model is correct, no changes needed here.
             "country",
         ]
 
-        if self.profile_type == self.ProfileType.SERVICE:
-            fields_to_check.extend(["specialization", "years_of_experience"])
-        elif self.profile_type == self.ProfileType.MERCHANT:
-            fields_to_check.extend(["company_name", "tax_number"])
-        elif self.profile_type == self.ProfileType.EDUCATIONAL:
-            fields_to_check.extend(["company_name", "certifications"])
+        if self.profile_type == self.ProfileType.PUBLISHER:
+            fields_to_check.extend(["company_name", "specialization"])
 
         filled_fields = sum(
             1 for field in fields_to_check if getattr(self, field, None)
@@ -616,11 +606,8 @@ class User(AbstractUser):  # This model is correct, no changes needed here.
         """
         Get the appropriate display name based on profile type
         """
-        if self.profile_type in [
-            self.ProfileType.MERCHANT,
-            self.ProfileType.EDUCATIONAL,
-        ]:
-            return self.company_name or self.username
+        if self.profile_type == self.ProfileType.PUBLISHER and self.company_name:
+            return self.company_name
         if self.first_name:
             return f"{self.first_name} {self.last_name}"
         return self.username
@@ -642,10 +629,9 @@ class User(AbstractUser):  # This model is correct, no changes needed here.
         """
         Check if user represents a company/organization
         """
-        return self.rank == self.Rank.COMPANY or self.profile_type in [
-            self.ProfileType.MERCHANT,
-            self.ProfileType.EDUCATIONAL,
-        ]
+        return self.rank == self.Rank.COMPANY or (
+            self.profile_type == self.ProfileType.PUBLISHER and self.company_name
+        )
 
     def can_perform_action(self, action):
         """
@@ -661,6 +647,35 @@ class User(AbstractUser):  # This model is correct, no changes needed here.
             "leave_review": self.can_leave_reviews(),
         }
         return permission_map.get(action, False)
+
+    def upgrade_to_publisher(self):
+        """
+        Upgrade user from default to publisher via package purchase
+        Allows users to publish more ads and access publisher features
+        Publishers can create ads that are automatically activated without admin approval
+        """
+        if self.profile_type == self.ProfileType.DEFAULT:
+            self.profile_type = self.ProfileType.PUBLISHER
+            self.save(update_fields=["profile_type"])
+
+            # Create notification about upgrade
+            Notification.objects.create(
+                user=self,
+                title=_("تمت ترقية حسابك!"),
+                message=_(
+                    "تم ترقية حسابك إلى ناشر بنجاح. إعلاناتك الآن تُفعّل تلقائياً بدون موافقة الإدارة!"
+                ),
+                notification_type=Notification.NotificationType.GENERAL,
+            )
+            return True
+        return False
+
+    def can_upgrade_profile(self):
+        """
+        Check if user can upgrade their profile type
+        Only default/standard users can upgrade via packages
+        """
+        return self.profile_type == self.ProfileType.DEFAULT
 
 
 class UserPermissionLog(models.Model):  # This model is correct, no changes needed here.
@@ -1169,11 +1184,12 @@ class ClassifiedAdManager(models.Manager):
         )
 
     def featured_for_country(self, country_code):
-        """Get featured ads for a specific country"""
+        """Get featured/upgraded ads for a specific country"""
         from django.utils import timezone
 
+        # Get ads with active upgrades (highlighted, urgent, or pinned)
         featured_ad_pks = (
-            AdFeature.objects.filter(
+            AdUpgradeHistory.objects.filter(
                 end_date__gte=timezone.now(),
                 is_active=True,
                 ad__country__code=country_code if country_code else "EG",
@@ -1182,8 +1198,44 @@ class ClassifiedAdManager(models.Manager):
             .distinct()
         )
 
+        return (
+            self.get_queryset()
+            .filter(pk__in=featured_ad_pks, status=self.model.AdStatus.ACTIVE)
+            .order_by("-is_pinned", "-is_urgent", "-is_highlighted", "-created_at")
+        )
+
+    def highlighted(self):
+        """Get highlighted ads"""
         return self.get_queryset().filter(
-            pk__in=featured_ad_pks, status=self.model.AdStatus.ACTIVE
+            is_highlighted=True, status=self.model.AdStatus.ACTIVE
+        )
+
+    def urgent(self):
+        """Get urgent ads"""
+        return self.get_queryset().filter(
+            is_urgent=True, status=self.model.AdStatus.ACTIVE
+        )
+
+    def pinned(self):
+        """Get pinned ads"""
+        return self.get_queryset().filter(
+            is_pinned=True, status=self.model.AdStatus.ACTIVE
+        )
+
+    def pending_review(self):
+        """Get ads pending admin review"""
+        return (
+            self.get_queryset()
+            .filter(status=self.model.AdStatus.PENDING, require_review=True)
+            .order_by("-created_at")
+        )
+
+    def draft_ads(self, user):
+        """Get user's draft ads"""
+        return (
+            self.get_queryset()
+            .filter(user=user, status=self.model.AdStatus.DRAFT)
+            .order_by("-updated_at")
         )
 
 
@@ -1205,6 +1257,13 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
         Category, on_delete=models.PROTECT, related_name="classified_ads"
     )
     title = models.CharField(max_length=255, verbose_name=_("عنوان الإعلان"))
+    slug = models.SlugField(
+        max_length=300,
+        unique=True,
+        blank=True,
+        verbose_name=_("الرابط الصديق لمحركات البحث"),
+        help_text=_("يتم إنشاؤه تلقائياً من عنوان الإعلان"),
+    )
     description = CKEditor5Field(verbose_name=_("وصف الإعلان"), config_name="default")
     price = models.DecimalField(
         max_digits=12, decimal_places=2, verbose_name=_("السعر")
@@ -1239,6 +1298,34 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
     )
     is_delivery_available = models.BooleanField(
         default=False, verbose_name=_("توفير التوصيل")
+    )
+
+    # Price Display Options
+    hide_price = models.BooleanField(
+        default=False,
+        verbose_name=_("إخفاء السعر"),
+        help_text=_("إخفاء السعر وإظهار زر 'الحصول على عرض سعر'"),
+    )
+    price_on_request = models.BooleanField(
+        default=False,
+        verbose_name=_("السعر عند الطلب"),
+        help_text=_("إظهار 'السعر عند الطلب' بدلاً من السعر الفعلي"),
+    )
+
+    # Rating
+    rating = models.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name=_("التقييم"),
+        help_text=_("تقييم الإعلان من 0 إلى 5"),
+        validators=[MinValueValidator(0), MaxValueValidator(5)],
+    )
+    rating_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("عدد التقييمات"),
+        help_text=_("عدد المستخدمين الذين قيموا هذا الإعلان"),
     )
 
     # Badge Features
@@ -1387,6 +1474,21 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
         return str(soup)
 
     def save(self, *args, **kwargs):
+        is_new = not self.pk
+
+        # Generate slug from title if not set
+        if not self.slug:
+            from django.utils.text import slugify
+
+            base_slug = slugify(self.title, allow_unicode=True)
+            slug = base_slug
+            counter = 1
+            # Ensure slug is unique
+            while ClassifiedAd.objects.filter(slug=slug).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            self.slug = slug
+
         if not self.expires_at:
             self.expires_at = timezone.now() + timezone.timedelta(days=30)
 
@@ -1405,14 +1507,27 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
                 )
             self.reservation_amount = calculated_amount
 
-        # Auto-approve for verified users if setting is enabled
-        if (
-            not self.pk
-            and self.user.verification_status == User.VerificationStatus.VERIFIED
-        ):
-            if not self.require_review:
+        # Auto-activate ads for PUBLISHER users, require approval for DEFAULT users
+        if is_new:  # New ad
+            # Check if draft status is explicitly set
+            if self.status == self.AdStatus.DRAFT:
+                # Keep as draft, don't change anything
+                pass
+            elif self.user.profile_type == User.ProfileType.PUBLISHER:
+                # Publishers get auto-activated ads
                 self.status = self.AdStatus.ACTIVE
                 self.reviewed_at = timezone.now()
+                self.require_review = False
+            elif self.user.profile_type == User.ProfileType.DEFAULT:
+                # Default users require admin approval
+                self.status = self.AdStatus.PENDING
+                self.require_review = True
+
+            # Staff/Superusers bypass approval
+            if self.user.is_staff or self.user.is_superuser:
+                self.status = self.AdStatus.ACTIVE
+                self.reviewed_at = timezone.now()
+                self.require_review = False
 
         super().save(*args, **kwargs)
 
@@ -1448,7 +1563,7 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
     def get_absolute_url(self):
         from django.urls import reverse
 
-        return reverse("main:ad_detail", kwargs={"pk": self.pk})
+        return reverse("main:ad_detail", kwargs={"slug": self.slug})
 
     def get_custom_fields_for_card(self):
         """Get custom fields that should be displayed on the ad card"""
@@ -1498,6 +1613,195 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
 
         return fields_to_display
 
+    def check_and_expire_upgrades(self):
+        """Check and deactivate expired upgrades"""
+        expired_upgrades = self.upgrade_history.filter(
+            is_active=True, end_date__lt=timezone.now()
+        )
+
+        for upgrade in expired_upgrades:
+            upgrade.deactivate()
+
+        return expired_upgrades.count()
+
+    def get_active_upgrades(self):
+        """Get list of active upgrades"""
+        return self.upgrade_history.filter(
+            is_active=True, end_date__gte=timezone.now()
+        ).order_by("-created_at")
+
+    def has_upgrade(self, upgrade_type):
+        """Check if ad has a specific active upgrade"""
+        return self.upgrade_history.filter(
+            upgrade_type=upgrade_type, is_active=True, end_date__gte=timezone.now()
+        ).exists()
+
+    def get_display_priority(self):
+        """Calculate display priority for sorting (higher = more important)"""
+        priority = 0
+
+        # Pinned ads get highest priority
+        if self.is_pinned:
+            priority += 1000
+
+        # Urgent ads get high priority
+        if self.is_urgent:
+            priority += 500
+
+        # Highlighted ads get medium priority
+        if self.is_highlighted:
+            priority += 250
+
+        # Publisher users get slight boost
+        if self.user.profile_type == User.ProfileType.PUBLISHER:
+            priority += 50
+
+        # Verified users get slight boost
+        if self.user.verification_status == User.VerificationStatus.VERIFIED:
+            priority += 25
+
+        return priority
+
+    def can_be_edited(self, user):
+        """Check if user can edit this ad"""
+        # Owner can edit
+        if self.user == user:
+            return True
+
+        # Staff/Superuser can edit
+        if user.is_staff or user.is_superuser:
+            return True
+
+        return False
+
+    def can_be_upgraded(self):
+        """Check if ad can be upgraded"""
+        # Only active or pending ads can be upgraded
+        return self.status in [self.AdStatus.ACTIVE, self.AdStatus.PENDING]
+
+    def approve(self, admin_user):
+        """Approve pending ad"""
+        if self.status == self.AdStatus.PENDING:
+            self.status = self.AdStatus.ACTIVE
+            self.reviewed_by = admin_user
+            self.reviewed_at = timezone.now()
+            self.require_review = False
+            self.save()
+            return True
+        return False
+
+    def reject(self, admin_user, reason=""):
+        """Reject pending ad"""
+        if self.status == self.AdStatus.PENDING:
+            self.status = self.AdStatus.REJECTED
+            self.reviewed_by = admin_user
+            self.reviewed_at = timezone.now()
+            if reason:
+                self.admin_notes = reason
+            self.save()
+            return True
+        return False
+
+
+class AdUpgradeHistory(models.Model):
+    """
+    تتبع تاريخ ترقيات الإعلانات
+    Track ad upgrade history for features like highlighted, urgent, pinned
+    """
+
+    class UpgradeType(models.TextChoices):
+        HIGHLIGHTED = "highlighted", _("مميز - Highlighted")
+        URGENT = "urgent", _("عاجل - Urgent")
+        PINNED = "pinned", _("مثبت - Pinned")
+
+    ad = models.ForeignKey(
+        ClassifiedAd, on_delete=models.CASCADE, related_name="upgrade_history"
+    )
+    upgrade_type = models.CharField(
+        max_length=20, choices=UpgradeType.choices, verbose_name=_("نوع الترقية")
+    )
+    price_paid = models.DecimalField(
+        max_digits=10, decimal_places=2, verbose_name=_("المبلغ المدفوع")
+    )
+    duration_days = models.IntegerField(verbose_name=_("المدة بالأيام"))
+    start_date = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ البدء"))
+    end_date = models.DateTimeField(verbose_name=_("تاريخ الانتهاء"))
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "ad_upgrade_history"
+        verbose_name = _("Ad Upgrade History")
+        verbose_name_plural = _("Ad Upgrade Histories")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.ad.title} - {self.get_upgrade_type_display()}"
+
+    def save(self, *args, **kwargs):
+        # Calculate end_date based on start_date and duration
+        if not self.end_date:
+            self.end_date = timezone.now() + timezone.timedelta(days=self.duration_days)
+
+        # Update the ad's upgrade flags
+        if self.is_active:
+            if self.upgrade_type == self.UpgradeType.HIGHLIGHTED:
+                self.ad.is_highlighted = True
+            elif self.upgrade_type == self.UpgradeType.URGENT:
+                self.ad.is_urgent = True
+            elif self.upgrade_type == self.UpgradeType.PINNED:
+                self.ad.is_pinned = True
+            self.ad.save()
+
+        super().save(*args, **kwargs)
+
+    def deactivate(self):
+        """Deactivate this upgrade and update the ad"""
+        self.is_active = False
+
+        # Remove the flag from ad if no other active upgrades exist
+        if self.upgrade_type == self.UpgradeType.HIGHLIGHTED:
+            if (
+                not AdUpgradeHistory.objects.filter(
+                    ad=self.ad,
+                    upgrade_type=self.UpgradeType.HIGHLIGHTED,
+                    is_active=True,
+                    end_date__gt=timezone.now(),
+                )
+                .exclude(pk=self.pk)
+                .exists()
+            ):
+                self.ad.is_highlighted = False
+
+        elif self.upgrade_type == self.UpgradeType.URGENT:
+            if (
+                not AdUpgradeHistory.objects.filter(
+                    ad=self.ad,
+                    upgrade_type=self.UpgradeType.URGENT,
+                    is_active=True,
+                    end_date__gt=timezone.now(),
+                )
+                .exclude(pk=self.pk)
+                .exists()
+            ):
+                self.ad.is_urgent = False
+
+        elif self.upgrade_type == self.UpgradeType.PINNED:
+            if (
+                not AdUpgradeHistory.objects.filter(
+                    ad=self.ad,
+                    upgrade_type=self.UpgradeType.PINNED,
+                    is_active=True,
+                    end_date__gt=timezone.now(),
+                )
+                .exclude(pk=self.pk)
+                .exists()
+            ):
+                self.ad.is_pinned = False
+
+        self.ad.save()
+        self.save()
+
 
 class AdImage(models.Model):  # This model is correct, no changes needed here.
     """Model for multiple ad images"""
@@ -1530,6 +1834,74 @@ class AdImage(models.Model):  # This model is correct, no changes needed here.
                 self.image = watermarked
 
         super().save(*args, **kwargs)
+
+
+class AdReview(models.Model):
+    """Model for ad reviews and ratings"""
+
+    ad = models.ForeignKey(
+        ClassifiedAd,
+        on_delete=models.CASCADE,
+        related_name="reviews",
+        verbose_name=_("الإعلان"),
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="ad_reviews",
+        verbose_name=_("المستخدم"),
+    )
+    rating = models.PositiveSmallIntegerField(
+        verbose_name=_("التقييم"),
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        help_text=_("تقييم من 1 إلى 5 نجوم"),
+    )
+    comment = models.TextField(
+        verbose_name=_("التعليق"), blank=True, help_text=_("تعليق اختياري")
+    )
+    is_approved = models.BooleanField(
+        default=True,
+        verbose_name=_("معتمد"),
+        help_text=_("يمكن للإدارة إخفاء التعليقات غير اللائقة"),
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True, verbose_name=_("تاريخ الإنشاء")
+    )
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("تاريخ التحديث"))
+
+    class Meta:
+        db_table = "ad_reviews"
+        verbose_name = _("تقييم إعلان")
+        verbose_name_plural = _("تقييمات الإعلانات")
+        ordering = ["-created_at"]
+        unique_together = ("ad", "user")  # One review per user per ad
+        indexes = [
+            models.Index(fields=["-created_at"]),
+            models.Index(fields=["ad", "is_approved"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.ad.title} ({self.rating}★)"
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+
+        # Update ad rating and count
+        if is_new or "rating" in (kwargs.get("update_fields") or []):
+            self.update_ad_rating()
+
+    def update_ad_rating(self):
+        """Update the ad's average rating and count"""
+        from django.db.models import Avg, Count
+
+        stats = self.ad.reviews.filter(is_approved=True).aggregate(
+            avg_rating=Avg("rating"), count=Count("id")
+        )
+
+        self.ad.rating = stats["avg_rating"]
+        self.ad.rating_count = stats["count"]
+        self.ad.save(update_fields=["rating", "rating_count"])
 
 
 class AdFeature(models.Model):  # This model is correct, no changes needed here.
@@ -1769,6 +2141,11 @@ class UserPackage(models.Model):  # This model is correct, no changes needed her
     purchase_date = models.DateTimeField(auto_now_add=True)
     expiry_date = models.DateTimeField()
     ads_remaining = models.PositiveIntegerField()
+    ads_used = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("الإعلانات المستخدمة"),
+        help_text=_("عدد الإعلانات التي تم استخدامها من هذه الباقة"),
+    )
 
     class Meta:
         db_table = "user_packages"
@@ -1796,13 +2173,38 @@ class UserPackage(models.Model):  # This model is correct, no changes needed her
         """Check if the package is still active and has ads remaining."""
         return self.expiry_date >= timezone.now() and self.ads_remaining > 0
 
+    def is_expired(self):
+        """Check if package has expired"""
+        return self.expiry_date < timezone.now()
+
+    def total_ads(self):
+        """Get total ads in package"""
+        return self.ads_used + self.ads_remaining
+
     def use_ad(self):
         """Decrement the ad count for the package."""
         if self.is_active():
             self.ads_remaining -= 1
-            self.save(update_fields=["ads_remaining"])
+            self.ads_used += 1
+            self.save(update_fields=["ads_remaining", "ads_used"])
             return True
         return False
+
+    def restore_ad(self):
+        """Restore an ad credit (e.g., when ad is deleted)"""
+        if self.ads_used > 0:
+            self.ads_remaining += 1
+            self.ads_used -= 1
+            self.save(update_fields=["ads_remaining", "ads_used"])
+            return True
+        return False
+
+    def get_usage_percentage(self):
+        """Get percentage of package used"""
+        total = self.total_ads()
+        if total == 0:
+            return 0
+        return (self.ads_used / total) * 100
 
 
 class SavedSearch(models.Model):  # This model is correct, no changes needed here.
@@ -1862,6 +2264,9 @@ class Notification(models.Model):  # This model is correct, no changes needed he
     message = models.TextField(verbose_name=_("الرسالة"))
     notification_type = models.CharField(
         max_length=20, choices=NotificationType.choices
+    )
+    link = models.URLField(
+        max_length=500, blank=True, null=True, verbose_name=_("الرابط")
     )
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -2610,4 +3015,140 @@ class NewsletterSubscriber(models.Model):
         """Mark subscriber as inactive"""
         self.is_active = False
         self.unsubscribed_at = timezone.now()
+        self.save()
+
+
+"""
+AdReport model - to be added to main/models.py
+"""
+
+
+class AdReport(models.Model):
+    """Model for reporting ads or users"""
+
+    class ReportType(models.TextChoices):
+        AD_CONTENT = "ad_content", _("محتوى إعلان غير لائق")
+        FRAUD = "fraud", _("احتيال أو نصب")
+        SPAM = "spam", _("إعلان متكرر أو سبام")
+        WRONG_CATEGORY = "wrong_category", _("قسم خاطئ")
+        USER_BEHAVIOR = "user_behavior", _("سلوك مستخدم غير لائق")
+        FAKE_INFO = "fake_info", _("معلومات مضللة")
+        OTHER = "other", _("أخرى")
+
+    class Status(models.TextChoices):
+        PENDING = "pending", _("قيد المراجعة")
+        REVIEWING = "reviewing", _("تحت المراجعة")
+        RESOLVED = "resolved", _("تم الحل")
+        REJECTED = "rejected", _("مرفوض")
+
+    # Report details
+    reporter = models.ForeignKey(
+        "User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reports_made",
+        verbose_name=_("المبلغ"),
+    )
+    report_type = models.CharField(
+        max_length=20, choices=ReportType.choices, verbose_name=_("نوع البلاغ")
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        verbose_name=_("الحالة"),
+    )
+
+    # What is being reported (either ad or user)
+    reported_ad = models.ForeignKey(
+        "ClassifiedAd",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="reports",
+        verbose_name=_("الإعلان المبلغ عنه"),
+    )
+    reported_user = models.ForeignKey(
+        "User",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="reports_received",
+        verbose_name=_("المستخدم المبلغ عنه"),
+    )
+
+    # Report content
+    description = models.TextField(
+        verbose_name=_("وصف البلاغ"), help_text=_("يرجى تقديم تفاصيل حول البلاغ")
+    )
+    evidence_url = models.URLField(
+        blank=True,
+        null=True,
+        verbose_name=_("رابط دليل"),
+        help_text=_("رابط لصورة أو دليل إضافي"),
+    )
+
+    # Admin notes
+    admin_notes = models.TextField(
+        blank=True, null=True, verbose_name=_("ملاحظات الإدارة")
+    )
+    reviewed_by = models.ForeignKey(
+        "User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reports_reviewed",
+        verbose_name=_("تمت المراجعة بواسطة"),
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(
+        auto_now_add=True, verbose_name=_("تاريخ الإنشاء")
+    )
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("تاريخ التحديث"))
+    resolved_at = models.DateTimeField(
+        null=True, blank=True, verbose_name=_("تاريخ الحل")
+    )
+
+    class Meta:
+        db_table = "ad_reports"
+        verbose_name = _("بلاغ")
+        verbose_name_plural = _("البلاغات")
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["-created_at"]),
+            models.Index(fields=["status"]),
+            models.Index(fields=["report_type"]),
+        ]
+
+    def __str__(self):
+        if self.reported_ad:
+            return f"بلاغ عن إعلان: {self.reported_ad.title}"
+        elif self.reported_user:
+            return f"بلاغ عن مستخدم: {self.reported_user.username}"
+        return f"بلاغ #{self.id}"
+
+    def clean(self):
+        """Ensure either ad or user is reported, not both"""
+        from django.core.exceptions import ValidationError
+
+        if not self.reported_ad and not self.reported_user:
+            raise ValidationError(_("يجب تحديد إعلان أو مستخدم للإبلاغ عنه"))
+        if self.reported_ad and self.reported_user:
+            raise ValidationError(_("لا يمكن الإبلاغ عن إعلان ومستخدم في نفس الوقت"))
+
+    def save(self, *args, **kwargs):
+        # Only call full_clean if validate parameter is True (default)
+        if kwargs.pop("validate", True):
+            self.full_clean()
+        super().save(*args, **kwargs)
+
+    def mark_as_resolved(self, admin_user, notes=""):
+        """Mark report as resolved"""
+        self.status = self.Status.RESOLVED
+        self.resolved_at = timezone.now()
+        self.reviewed_by = admin_user
+        if notes:
+            self.admin_notes = notes
         self.save()

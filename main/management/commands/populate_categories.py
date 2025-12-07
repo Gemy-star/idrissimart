@@ -57,7 +57,7 @@ class Command(BaseCommand):
 
     def create_category(self, cat_data, section_type, parent=None):
         """Recursively create categories and subcategories."""
-        base_slug = slugify(cat_data["name"])
+        base_slug = slugify(cat_data["name"], allow_unicode=True)
 
         # Build slug based on hierarchy (keeping it short)
         if parent:

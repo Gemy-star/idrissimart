@@ -1,0 +1,168 @@
+{% extends "dashboard/base.html" %}
+{% load static i18n idrissimart_tags %}
+
+{% block admin_title %}{% trans "تفاصيل التقييم" %}{% endblock %}
+
+{% block admin_content %}
+<!-- Set active navigation -->
+{% with active_nav='reviews' %}
+{% endwith %}
+
+<div class="review-detail-page">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="fas fa-star me-2"></i>{% trans "تفاصيل التقييم" %}
+        </h1>
+        <a href="{% url 'main:admin_reviews_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-right me-2"></i>{% trans "رجوع" %}
+        </a>
+    </div>
+
+    <div class="row">
+        <!-- Review Details -->
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">{% trans "معلومات التقييم" %}</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Rating -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">{% trans "التقييم" %}</label>
+                        <div class="rating-stars fs-3">
+                            {% for i in "12345" %}
+                                {% if forloop.counter <= review.rating %}
+                                    <i class="fas fa-star text-warning"></i>
+                                {% else %}
+                                    <i class="far fa-star text-warning"></i>
+                                {% endif %}
+                            {% endfor %}
+                            <span class="ms-2 fs-5">({{ review.rating }}/5)</span>
+                        </div>
+                    </div>
+
+                    <!-- Comment -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">{% trans "التعليق" %}</label>
+                        {% if review.comment %}
+                            <div class="p-3 bg-light rounded">
+                                {{ review.comment }}
+                            </div>
+                        {% else %}
+                            <p class="text-muted">{% trans "لا يوجد تعليق" %}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- User Info -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">{% trans "المستخدم" %}</label>
+                        <div class="d-flex align-items-center gap-3">
+                            {% user_avatar user=review.user size=50 css_class="rounded-circle" %}
+                            <div>
+                                <h6 class="mb-0">{{ review.user.get_display_name }}</h6>
+                                <small class="text-muted">{{ review.user.email }}</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ad Info -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">{% trans "الإعلان" %}</label>
+                        <div class="border rounded p-3">
+                            <h6>{{ review.ad.title }}</h6>
+                            <p class="text-muted mb-2">{{ review.ad.description|striptags|truncatewords:20 }}</p>
+                            <a href="{% url 'main:ad_detail' review.ad.slug %}" target="_blank" class="btn btn-sm btn-primary">
+                                <i class="fas fa-external-link-alt me-2"></i>{% trans "عرض الإعلان" %}
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Dates -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">{% trans "تاريخ الإنشاء" %}</label>
+                            <p>{{ review.created_at|date:"Y-m-d H:i" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">{% trans "آخر تحديث" %}</label>
+                            <p>{{ review.updated_at|date:"Y-m-d H:i" }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Status -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">{% trans "الحالة" %}</label>
+                        <div>
+                            {% if review.is_approved %}
+                                <span class="badge bg-success fs-6">
+                                    <i class="fas fa-check-circle me-1"></i>{% trans "معتمد" %}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-warning fs-6">
+                                    <i class="fas fa-clock me-1"></i>{% trans "بانتظار المراجعة" %}
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions Sidebar -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">{% trans "الإجراءات" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if not review.is_approved %}
+                        <form method="post" action="{% url 'main:admin_approve_review' review.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="fas fa-check me-2"></i>{% trans "قبول التقييم" %}
+                            </button>
+                        </form>
+                        {% else %}
+                        <form method="post" action="{% url 'main:admin_reject_review' review.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-warning w-100">
+                                <i class="fas fa-times me-2"></i>{% trans "رفض التقييم" %}
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        <form method="post" action="{% url 'main:admin_delete_review' review.id %}"
+                              onsubmit="return confirm('{% trans "هل أنت متأكد من حذف هذا التقييم؟" %}')">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger w-100">
+                                <i class="fas fa-trash me-2"></i>{% trans "حذف التقييم" %}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Info -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">{% trans "معلومات إضافية" %}</h6>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-6">{% trans "معرف التقييم" %}</dt>
+                        <dd class="col-sm-6">#{{ review.id }}</dd>
+
+                        <dt class="col-sm-6">{% trans "معرف الإعلان" %}</dt>
+                        <dd class="col-sm-6">#{{ review.ad.id }}</dd>
+
+                        <dt class="col-sm-6">{% trans "معرف المستخدم" %}</dt>
+                        <dd class="col-sm-6">#{{ review.user.id }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock admin_content %}

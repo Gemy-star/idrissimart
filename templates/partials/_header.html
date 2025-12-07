@@ -1,5 +1,10 @@
 {% load static i18n %}
 
+<script>
+    // Global authentication status for JavaScript
+    window.isAuthenticated = {% if request.user.is_authenticated %}true{% else %}false{% endif %};
+</script>
+
 <nav class="yojad-header sticky-top" id="mainNav">
     <!-- Top Navigation Bar -->
     <div class="top-nav-bar">
@@ -84,26 +89,24 @@
                                 </li>
                             </ul>
                         </div>
-                        <!-- Cart -->
+                        <!-- Cart (Only for authenticated users) -->
+                        {% if request.user.is_authenticated %}
                         <div class="header-cart-section">
-                            <a href="{% url 'main:cart_view' %}" class="header-action-btn position-relative" aria-label="{% trans 'السلة' %}">
+                            <a href="{% url "main:cart_view" %}" class="header-action-btn position-relative" aria-label="{% trans "السلة" %}">
                                 <i class="fas fa-shopping-cart"></i>
-                                {% if request.user.is_authenticated %}
-                                    <span class="cart-count badge-count">{{ cart_count|default:0 }}</span>
-                                {% endif %}
+                                <span class="cart-count badge-count">{{ cart_count|default:0 }}</span>
                             </a>
                         </div>
-                        <!-- Wishlist -->
+                        {% endif %}
+                        <!-- Wishlist (Only for authenticated users) -->
+                        {% if request.user.is_authenticated %}
                         <div class="header-wishlist-section">
-                            <a href="{% url 'main:wishlist_view' %}" class="header-action-btn position-relative" aria-label="{% trans 'المفضلة' %}">
+                            <a href="{% url "main:wishlist_view" %}" class="header-action-btn position-relative" aria-label="{% trans "المفضلة" %}">
                                 <i class="fas fa-heart"></i>
-                                {% if request.user.is_authenticated %}
-                                    <span class="wishlist-count badge-count">{{ wishlist_count|default:0 }}</span>
-                                {% else %}
-                                    <span class="wishlist-count badge-count guest-wishlist-count">0</span>
-                                {% endif %}
+                                <span class="wishlist-count badge-count">{{ wishlist_count|default:0 }}</span>
                             </a>
                         </div>
+                        {% endif %}
                         <!-- User Account -->
                         <div class="header-user-section dropdown">
                             {% if request.user.is_authenticated %}
@@ -113,86 +116,92 @@
                                    data-bs-toggle="dropdown"
                                    aria-expanded="false">
                                     <i class="fas fa-user-circle"></i>
+                                    <span class="badge bg-primary rounded-pill">{{ request.user.username }}</span>
                                 </a>
                                 <ul class="dropdown-menu dropdown-menu-end">
+                                    {% if request.user.is_staff %}
+                                    <!-- Admin/Staff Only Links -->
+                                    <li><h6 class="dropdown-header text-danger">{% trans "لوحة الإدارة" %}</h6></li>
+                                    <li><a class="dropdown-item" href="{% url 'main:admin_dashboard' %}"><i class="fas fa-shield-alt fa-fw me-2"></i>{% trans "لوحة الإدارة الرئيسية" %}</a></li>
+                                    <li><hr class="dropdown-divider"></li>
                                     <li>
-                                        <a class="dropdown-item" href="{% url 'main:dashboard' %}">
+                                        <a class="dropdown-item" href="{% url "main:reservation_management" %}">
+                                            <i class="fas fa-shopping-cart me-2 text-info"></i>{% trans "إدارة الحجوزات" %}
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{% url "main:admin_support_chats" %}">
+                                            <i class="fas fa-headset me-2 text-success"></i>{% trans "دعم العملاء" %}
+                                        </a>
+                                    </li>
+                                    {% else %}
+                                    <!-- Regular Users - Publisher Dashboard Links -->
+                                    <li>
+                                        <a class="dropdown-item" href="{% url "main:dashboard" %}">
                                             <i class="fas fa-tachometer-alt me-2 text-primary"></i>{% trans "لوحة التحكم" %}
                                         </a>
                                     </li>
                                     <li>
-                                        {% if request.user.profile_type != 'default' %}
-                                            <a class="dropdown-item" href="{% url 'main:publisher_chats' %}">
-                                                <i class="fas fa-comments me-2 text-success"></i>{% trans "رسائلي" %}
-                                            </a>
-                                        {% else %}
-                                            <a class="dropdown-item" href="{% url 'main:chat_list' %}">
-                                                <i class="fas fa-comments me-2 text-success"></i>{% trans "رسائلي" %}
-                                            </a>
-                                        {% endif %}
+                                        <a class="dropdown-item" href="{% url "main:publisher_chats" %}">
+                                            <i class="fas fa-comments me-2 text-success"></i>{% trans "رسائلي" %}
+                                        </a>
                                     </li>
                                     <li>
-                                        {% if request.user.profile_type != 'default' %}
-                                            <a class="dropdown-item" href="{% url 'main:publisher_notifications' %}">
-                                                <i class="fas fa-bell me-2 text-warning"></i>{% trans "الإشعارات" %}
-                                            </a>
-                                        {% else %}
-                                            <a class="dropdown-item" href="{% url 'main:notification_list' %}">
-                                                <i class="fas fa-bell me-2 text-warning"></i>{% trans "الإشعارات" %}
-                                            </a>
-                                        {% endif %}
+                                        <a class="dropdown-item" href="{% url "main:publisher_notifications" %}">
+                                            <i class="fas fa-bell me-2 text-warning"></i>{% trans "الإشعارات" %}
+                                        </a>
                                     </li>
-                                    {% if request.user.profile_type != 'default' %}
                                     <li>
-                                        <a class="dropdown-item" href="{% url 'main:my_ads' %}">
+                                        <a class="dropdown-item" href="{% url "main:my_ads" %}">
                                             <i class="fas fa-bullhorn me-2 text-info"></i>{% trans "إعلاناتي" %}
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="{% url 'main:packages_list' %}">
+                                        <a class="dropdown-item" href="{% url "main:packages_list" %}">
                                             <i class="fas fa-gift me-2 text-purple"></i>{% trans "باقات النشر" %}
                                         </a>
                                     </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{% url "main:publisher_settings" %}">
+                                            <i class="fas fa-cog me-2 text-secondary"></i>{% trans "الإعدادات" %}
+                                        </a>
+                                    </li>
+                                    {% if request.user.verification_status != 'verified' %}
+                                    <li>
+                                        <a class="dropdown-item" href="{% url "main:profile_verification" %}">
+                                            <i class="fas fa-shield-alt me-2 text-success"></i>{% trans "توثيق العضوية" %}
+                                            <span class="badge bg-warning text-dark ms-2">جديد</span>
+                                        </a>
+                                    </li>
                                     {% endif %}
                                     <li>
-                                        <a class="dropdown-item" href="{% url 'main:saved_searches' %}">
+                                        <a class="dropdown-item" href="{% url "main:saved_searches" %}">
                                             <i class="fas fa-bookmark me-2 text-secondary"></i>{% trans "عمليات البحث المحفوظة" %}
                                         </a>
                                     </li>
-                                    {% if request.user.is_superuser %}
-                                        <li>
-                                            <hr class="dropdown-divider">
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item" href="{% url 'main:admin_dashboard' %}">
-                                                <i class="fas fa-shield-alt me-2 text-danger"></i>{% trans "لوحة الإدارة الرئيسية" %}
-                                            </a>
-                                        </li>
                                     {% endif %}
-                                    {% if request.user.is_staff %}
-                                        <li>
-                                            <hr class="dropdown-divider">
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item" href="{% url 'main:reservation_management' %}">
-                                                <i class="fas fa-shopping-cart me-2 text-info"></i>{% trans "إدارة الحجوزات" %}
-                                            </a>
-                                        </li>
-                                    {% endif %}
+
+                                    <li><hr class="dropdown-divider"></li>
                                     <li>
-                                        <hr class="dropdown-divider">
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item text-danger" href="{% url 'main:logout' %}">{% trans "تسجيل الخروج" %}</a>
+                                        <a class="dropdown-item text-danger" href="{% url "main:logout" %}">
+                                            <i class="fas fa-sign-out-alt me-2"></i>{% trans "تسجيل الخروج" %}
+                                        </a>
                                     </li>
                                 </ul>
                             {% else %}
-                                <a class="header-action-btn" href="{% url 'main:login' %}">
-                                    <i class="fas fa-user"></i>
+                                <!-- Guest User - Show Login and Register Links -->
+                                <a class="header-action-btn" href="{% url "main:login" %}" title="{% trans "تسجيل الدخول" %}">
+                                    <i class="fas fa-sign-in-alt me-1"></i>
+                                    <span class="d-none d-md-inline">{% trans "دخول" %}</span>
+                                </a>
+                                <a class="header-action-btn btn-register" href="{% url "main:register" %}" title="{% trans "تسجيل عضوية جديدة" %}">
+                                    <i class="fas fa-user-plus me-1"></i>
+                                    <span class="d-none d-md-inline">{% trans "تسجيل" %}</span>
                                 </a>
                             {% endif %}
                         </div>
-                        <!-- Notification Bell -->
+                        <!-- Notification Bell (Only for authenticated users) -->
+                        {% if request.user.is_authenticated %}
                         <div class="header-notification-section dropdown">
                             <a href="#"
                                class="header-action-btn position-relative dropdown-toggle"
@@ -224,12 +233,13 @@
                                 </li>
                             </ul>
                         </div>
+                        {% endif %}
                         <!-- Theme Toggle -->
                         <div class="header-theme-section">
                             <button class="header-action-btn header-icon-btn header-theme-toggle"
                                     id="headerThemeToggle"
                                     type="button"
-                                    aria-label="{% trans 'تبديل المظهر' %}">
+                                    aria-label="{% trans "تبديل المظهر" %}">
                                 <i class="fas fa-sun theme-icon-light"></i>
                                 <i class="fas fa-moon theme-icon-dark"></i>
                             </button>
@@ -248,7 +258,7 @@
                                     id="desktopMenuDropdown"
                                     data-bs-toggle="dropdown"
                                     aria-expanded="false"
-                                    aria-label="{% trans 'More pages' %}">
+                                    aria-label="{% trans "More pages" %}">
                                 <i class="fas fa-ellipsis-h"></i>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end"
@@ -272,27 +282,21 @@
                         </div>
                     </div>
                 </div>
-                <!-- Mobile Cart & Wishlist (beside hamburger) -->
+                <!-- Mobile Cart & Wishlist (beside hamburger) - Only for authenticated users -->
+                {% if request.user.is_authenticated %}
                 <div class="mobile-header-actions d-lg-none">
                     <!-- Mobile Cart Button -->
-                    <a href="{% url 'main:cart_view' %}" class="mobile-header-btn position-relative" aria-label="{% trans 'السلة' %}">
+                    <a href="{% url "main:cart_view" %}" class="mobile-header-btn position-relative" aria-label="{% trans "السلة" %}">
                         <i class="fas fa-shopping-cart"></i>
-                        {% if request.user.is_authenticated %}
-                            <span class="mobile-header-badge cart-count">{{ cart_count|default:0 }}</span>
-                        {% else %}
-                            <span class="mobile-header-badge cart-count guest-cart-count">0</span>
-                        {% endif %}
+                        <span class="mobile-header-badge cart-count">{{ cart_count|default:0 }}</span>
                     </a>
                     <!-- Mobile Wishlist Button -->
-                    <a href="{% url 'main:wishlist_view' %}" class="mobile-header-btn position-relative" aria-label="{% trans 'المفضلة' %}">
+                    <a href="{% url "main:wishlist_view" %}" class="mobile-header-btn position-relative" aria-label="{% trans "المفضلة" %}">
                         <i class="fas fa-heart"></i>
-                        {% if request.user.is_authenticated %}
-                            <span class="mobile-header-badge wishlist-count">{{ wishlist_count|default:0 }}</span>
-                        {% else %}
-                            <span class="mobile-header-badge wishlist-count guest-wishlist-count">0</span>
-                        {% endif %}
+                        <span class="mobile-header-badge wishlist-count">{{ wishlist_count|default:0 }}</span>
                     </a>
                 </div>
+                {% endif %}
                 <!-- Hamburger (Mobile) -->
                 <button class="hamburger d-lg-none"
                         id="hamburgerBtn"
@@ -560,31 +564,25 @@
                     <i class="fas fa-envelope"></i><span>{% trans "اتصل بنا" %}</span>
                 </a>
             </li>
+            <!-- Cart & Wishlist Links - Only for authenticated users -->
+            {% if request.user.is_authenticated %}
             <li class="mobile-nav-divider"></li>
-            <!-- Cart & Wishlist Links -->
             <li>
-                <a href="{% url 'main:cart_view' %}" class="mobile-nav-link">
+                <a href="{% url "main:cart_view" %}" class="mobile-nav-link">
                     <i class="fas fa-shopping-cart"></i>
                     <span>{% trans "السلة" %}</span>
-                    {% if request.user.is_authenticated %}
-                        <span class="mobile-badge cart-count">{{ cart_count|default:0 }}</span>
-                    {% else %}
-                        <span class="mobile-badge cart-count guest-cart-count">0</span>
-                    {% endif %}
+                    <span class="mobile-badge cart-count">{{ cart_count|default:0 }}</span>
                 </a>
             </li>
             <li>
-                <a href="{% url 'main:wishlist_view' %}" class="mobile-nav-link">
+                <a href="{% url "main:wishlist_view" %}" class="mobile-nav-link">
                     <i class="fas fa-heart text-danger"></i>
                     <span>{% trans "المفضلة" %}</span>
-                    {% if request.user.is_authenticated %}
-                        <span class="mobile-badge wishlist-count">{{ wishlist_count|default:0 }}</span>
-                    {% else %}
-                        <span class="mobile-badge wishlist-count guest-wishlist-count">0</span>
-                    {% endif %}
+                    <span class="mobile-badge wishlist-count">{{ wishlist_count|default:0 }}</span>
                 </a>
             </li>
             <li class="mobile-nav-divider"></li>
+            {% endif %}
             {% if request.user.is_authenticated %}
                 <li>
                     <a href="{% url 'main:saved_searches' %}" class="mobile-nav-link">
@@ -612,7 +610,7 @@
                 </li>
             {% else %}
                 <li>
-                    <a href="{% url 'main:login' %}" class="mobile-nav-link highlight">
+                    <a href="{% url "main:login" %}" class="mobile-nav-link highlight">
                         <i class="fas fa-sign-in-alt"></i><span>{% trans "تسجيل الدخول" %}</span>
                     </a>
                 </li>

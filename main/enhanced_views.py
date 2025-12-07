@@ -139,34 +139,55 @@ def enhanced_ad_create(request):
 
 @login_required
 def packages_list(request):
-    """List available packages for users"""
+    """
+    List available packages for users
+    عدم ظهور باقات النشر للاعضاء غير الواقع الحجانية فقط وغيرها تكون مقفله بعد تأكيد الايميل
+    """
     # Get user's active packages
-    active_packages = UserPackage.objects.filter(
-        user=request.user, is_active=True, expiry_date__gt=timezone.now()
-    ).select_related("package")
+    active_packages = []
+    if request.user.is_authenticated:
+        active_packages = UserPackage.objects.filter(
+            user=request.user, is_active=True, expiry_date__gt=timezone.now()
+        ).select_related("package")
+
+    # Check if user has verified email
+    email_verified = False
+    if request.user.is_authenticated:
+        email_verified = getattr(request.user, "is_email_verified", False)
 
     # Get general packages (not category-specific)
-    general_packages = AdPackage.objects.filter(
-        category__isnull=True, is_active=True
-    ).order_by("price")
+    # If email is not verified, show only free packages
+    if email_verified or not request.user.is_authenticated:
+        general_packages = AdPackage.objects.filter(
+            category__isnull=True, is_active=True
+        ).order_by("price")
+    else:
+        # Only show free packages for non-verified users
+        general_packages = AdPackage.objects.filter(
+            category__isnull=True, is_active=True, price=0
+        ).order_by("price")
 
     # Get category-specific packages grouped by category
     category_packages = {}
-    categories_with_packages = Category.objects.filter(
-        adpackage__isnull=False, adpackage__is_active=True
-    ).distinct()
+    if email_verified or not request.user.is_authenticated:
+        categories_with_packages = Category.objects.filter(
+            adpackage__isnull=False, adpackage__is_active=True
+        ).distinct()
 
-    for category in categories_with_packages:
-        packages = AdPackage.objects.filter(category=category, is_active=True).order_by(
-            "price"
-        )
-        if packages.exists():
-            category_packages[category] = packages
+        for category in categories_with_packages:
+            packages = AdPackage.objects.filter(
+                category=category, is_active=True
+            ).order_by("price")
+            if packages.exists():
+                category_packages[category] = packages
 
     context = {
         "active_packages": active_packages,
         "general_packages": general_packages,
         "category_packages": category_packages,
+        "email_verified": email_verified,
+        "show_email_verification_warning": request.user.is_authenticated
+        and not email_verified,
     }
 
     return render(request, "classifieds/packages_list.html", context)

@@ -17,6 +17,48 @@
 
                 <!-- Statistics Cards -->
                 <div class="row mb-4">
+                    <!-- Ad Balance Card - الرصيد الإعلاني -->
+                    <div class="col-md-12 mb-3">
+                        <div class="stats-card ad-balance-card">
+                            <div class="row align-items-center">
+                                <div class="col-md-2 text-center">
+                                    <div class="stats-icon mb-2">
+                                        <i class="fas fa-wallet fa-3x text-primary"></i>
+                                    </div>
+                                    <h5 class="mb-0">{% trans "الرصيد الإعلاني" %}</h5>
+                                </div>
+                                <div class="col-md-2 text-center border-start">
+                                    <h3 class="mb-1 text-info">{{ ad_balance.total|default:0 }}</h3>
+                                    <p class="mb-0 text-muted">{% trans "الإجمالي" %}</p>
+                                </div>
+                                <div class="col-md-2 text-center border-start">
+                                    <h3 class="mb-1 text-danger">{{ ad_balance.used|default:0 }}</h3>
+                                    <p class="mb-0 text-muted">{% trans "المستخدم" %}</p>
+                                </div>
+                                <div class="col-md-2 text-center border-start">
+                                    <h3 class="mb-1 text-success">{{ ad_balance.available|default:0 }}</h3>
+                                    <p class="mb-0 text-muted">{% trans "المتاح" %}</p>
+                                </div>
+                                <div class="col-md-4 text-center border-start">
+                                    <div class="row">
+                                        <div class="col-4">
+                                            <h5 class="mb-1 text-warning">{{ dashboard_stats.highlighted_ads }}</h5>
+                                            <small class="text-muted"><i class="fas fa-star"></i> مميز</small>
+                                        </div>
+                                        <div class="col-4">
+                                            <h5 class="mb-1 text-danger">{{ dashboard_stats.urgent_ads }}</h5>
+                                            <small class="text-muted"><i class="fas fa-bolt"></i> عاجل</small>
+                                        </div>
+                                        <div class="col-4">
+                                            <h5 class="mb-1 text-success">{{ dashboard_stats.pinned_ads }}</h5>
+                                            <small class="text-muted"><i class="fas fa-thumbtack"></i> مثبت</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="col-md-3">
                         <div class="stats-card text-center">
                             <div class="stats-icon mb-2">
@@ -137,10 +179,14 @@
                             </div>
 
                             {% for ad in ads %}
-                                <div class="ad-card-dashboard" data-ad-id="{{ ad.pk }}">
+                                <div class="ad-card-dashboard
+                                    {% if ad.is_highlighted %}highlighted{% endif %}
+                                    {% if ad.is_urgent %}urgent{% endif %}
+                                    {% if ad.is_pinned %}pinned{% endif %}"
+                                    data-ad-id="{{ ad.pk }}">
                                     <div class="row g-0">
                                         <div class="col-md-3">
-                                            <div class="ad-image-wrapper" style="height: 200px; overflow: hidden;">
+                                            <div class="ad-image-wrapper" style="height: 200px; overflow: hidden; position: relative;">
                                                 {% if ad.images.first %}
                                                     <img src="{{ ad.images.first.image.url }}"
                                                          class="img-fluid w-100 h-100"
@@ -149,6 +195,27 @@
                                                     <div class="bg-light d-flex align-items-center justify-content-center h-100">
                                                         <i class="fas fa-image fa-3x text-muted"></i>
                                                     </div>
+                                                {% endif %}
+
+                                                <!-- Upgrade Badges Overlay -->
+                                                {% if ad.is_pinned or ad.is_urgent or ad.is_highlighted %}
+                                                <div class="upgrade-badges-overlay" style="position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 5px;">
+                                                    {% if ad.is_pinned %}
+                                                    <span class="badge bg-success">
+                                                        <i class="fas fa-thumbtack"></i> مثبت
+                                                    </span>
+                                                    {% endif %}
+                                                    {% if ad.is_urgent %}
+                                                    <span class="badge bg-danger">
+                                                        <i class="fas fa-bolt"></i> عاجل
+                                                    </span>
+                                                    {% endif %}
+                                                    {% if ad.is_highlighted %}
+                                                    <span class="badge bg-warning text-dark">
+                                                        <i class="fas fa-star"></i> مميز
+                                                    </span>
+                                                    {% endif %}
+                                                </div>
                                                 {% endif %}
                                             </div>
                                         </div>
@@ -173,15 +240,75 @@
                                                         </p>
                                                     </div>
                                                     <div class="col-md-6">
-                                                        <p class="text-primary fw-bold mb-1 fs-5">
-                                                            {{ ad.price }} {% trans "ريال" %}
+                                                        <!-- Price Display -->
+                                                        <p class="mb-1">
+                                                            {% if ad.hide_price %}
+                                                                <span class="badge bg-danger">
+                                                                    <i class="fas fa-eye-slash"></i> {% trans "السعر مخفي" %}
+                                                                </span>
+                                                            {% elif ad.price_on_request %}
+                                                                <span class="badge bg-warning text-dark">
+                                                                    <i class="fas fa-file-invoice-dollar"></i> {% trans "السعر عند الطلب" %}
+                                                                </span>
+                                                            {% else %}
+                                                                <span class="text-primary fw-bold fs-5">
+                                                                    {{ ad.price }} {% trans "ريال" %}
+                                                                </span>
+                                                                {% if ad.is_negotiable %}
+                                                                    <i class="fas fa-handshake text-success ms-1" title="{% trans 'قابل للتفاوض' %}"></i>
+                                                                {% endif %}
+                                                            {% endif %}
                                                         </p>
+
+                                                        <!-- Rating Display -->
+                                                        {% if ad.rating %}
+                                                        <p class="mb-1">
+                                                            <span class="rating-stars-publisher">
+                                                                {% with rating_int=ad.rating|floatformat:0|add:"0" %}
+                                                                {% for i in "12345" %}
+                                                                    {% if forloop.counter <= rating_int %}
+                                                                        <i class="fas fa-star"></i>
+                                                                    {% elif forloop.counter == rating_int|add:"1" and ad.rating|floatformat:1|slice:"-3:" != ".0" %}
+                                                                        <i class="fas fa-star-half-alt"></i>
+                                                                    {% else %}
+                                                                        <i class="far fa-star"></i>
+                                                                    {% endif %}
+                                                                {% endfor %}
+                                                                {% endwith %}
+                                                            </span>
+                                                            <strong class="text-warning">{{ ad.rating|floatformat:1 }}</strong>
+                                                            {% if ad.rating_count %}
+                                                                <small class="text-muted">({{ ad.rating_count }})</small>
+                                                            {% endif %}
+                                                        </p>
+                                                        {% endif %}
+
+                                                        <!-- Views -->
                                                         <p class="text-muted mb-1">
                                                             <i class="fas fa-eye me-1"></i>
                                                             {{ ad.views_count }} {% trans "مشاهدة" %}
                                                         </p>
                                                     </div>
                                                 </div>
+
+                                                <!-- Active Upgrades Display -->
+                                                {% with active_upgrades=ad.get_active_upgrades %}
+                                                {% if active_upgrades %}
+                                                <div class="active-upgrades-info mb-2 p-2 bg-light rounded">
+                                                    <small class="fw-bold text-success">
+                                                        <i class="fas fa-check-circle"></i> الترقيات النشطة:
+                                                    </small>
+                                                    <div class="d-flex gap-2 flex-wrap mt-1">
+                                                        {% for upgrade in active_upgrades %}
+                                                        <span class="badge bg-secondary">
+                                                            {{ upgrade.get_upgrade_type_display }}
+                                                            (ينتهي: {{ upgrade.end_date|date:"Y-m-d" }})
+                                                        </span>
+                                                        {% endfor %}
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                                {% endwith %}
 
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <div class="text-muted small">
@@ -207,6 +334,13 @@
                                                            title="{% trans 'تعديل' %}">
                                                             <i class="fas fa-edit"></i>
                                                         </a>
+                                                        {% if ad.can_be_upgraded %}
+                                                        <button class="btn-action btn-upgrade"
+                                                                data-action="upgrade-ad" data-ad-id="{{ ad.pk }}"
+                                                                title="{% trans 'ترقية الإعلان' %}">
+                                                            <i class="fas fa-arrow-up"></i>
+                                                        </button>
+                                                        {% endif %}
                                                         <button class="btn-action btn-toggle"
                                                                 data-action="toggle-ad-status" data-ad-id="{{ ad.pk }}"
                                                                 title="{% if ad.status == 'active' %}{% trans 'إخفاء' %}{% else %}{% trans 'إظهار' %}{% endif %}">

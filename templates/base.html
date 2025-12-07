@@ -17,6 +17,17 @@
         <meta name="keywords"
               content="{% trans 'إدريسي مارت، توظيف، دورات تدريبية، خدمات، منتجات' %}">
         <meta name="author" content="Idrisi Mart">
+
+        {% block extra_meta %}
+        <!-- Open Graph / Facebook -->
+        <meta property="og:type" content="website">
+        <meta property="og:site_name" content="{% trans 'إدريسي مارت' %}">
+        <meta property="og:locale" content="ar_AR">
+
+        <!-- Twitter Card -->
+        <meta name="twitter:card" content="summary_large_image">
+        {% endblock extra_meta %}
+
         <!-- Favicon -->
         <link rel="icon"
               type="image/png"
@@ -45,6 +56,8 @@
             <!-- Custom CSS -->
             <link id="pagestyle" href="{% static 'css/style.css' %}" rel="stylesheet">
             <link href="{% static 'css/yojad-header.css' %}" rel="stylesheet">
+            <!-- Ad Visual Distinction CSS -->
+            <link href="{% static 'css/ad-visual-distinction.css' %}" rel="stylesheet">
         {% endcompress %}
 
         {% block extra_css %}
@@ -97,6 +110,11 @@
         <button class="back-to-top" id="backToTop" aria-label="Back to top">
             <i class="fas fa-arrow-up"></i>
         </button>
+
+        <!-- Mobile Floating Post Ad Button -->
+        <a href="{% url 'main:ad_create' %}" class="mobile-post-ad-btn" aria-label="{% trans 'نشر إعلان' %}">
+            <i class="fas fa-plus"></i>
+        </a>
 
         <!-- Chatbot Widget -->
         {% include "chatbot/chatbot_widget.html" %}
@@ -729,6 +747,103 @@
                     });
                 }
             });
+
+            // ============================================
+            // Owner Ad Actions Functions
+            // ============================================
+
+            // Toggle Ad Visibility
+            window.toggleAdVisibility = async function(adId, button) {
+                if (!confirm('هل تريد تغيير حالة إظهار/إخفاء هذا الإعلان؟')) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/ads/${adId}/toggle-visibility/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        showToast(data.message || 'تم تغيير حالة الإعلان بنجاح', 'success');
+                        // Reload page to reflect changes
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        showToast(data.message || 'حدث خطأ', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    showToast('حدث خطأ في الاتصال', 'error');
+                }
+            };
+
+            // Mark Ad as Sold
+            window.markAdAsSold = async function(adId) {
+                if (!confirm('هل تريد تحديد هذا الإعلان كـ"تم البيع"؟')) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/ads/${adId}/mark-sold/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        showToast(data.message || 'تم تحديد الإعلان كـ"تم البيع"', 'success');
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        showToast(data.message || 'حدث خطأ', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    showToast('حدث خطأ في الاتصال', 'error');
+                }
+            };
+
+            // Confirm Delete Ad
+            window.confirmDeleteAd = function(adId, adTitle) {
+                if (confirm(`هل أنت متأكد من حذف الإعلان "${adTitle}"؟ هذا الإجراء لا يمكن التراجع عنه.`)) {
+                    deleteAd(adId);
+                }
+            };
+
+            // Delete Ad
+            async function deleteAd(adId) {
+                try {
+                    const response = await fetch(`/api/ads/${adId}/delete/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        showToast('تم حذف الإعلان بنجاح', 'success');
+                        setTimeout(() => {
+                            window.location.href = '/dashboard/publisher/';
+                        }, 1500);
+                    } else {
+                        showToast(data.message || 'حدث خطأ في حذف الإعلان', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    showToast('حدث خطأ في الاتصال', 'error');
+                }
+            }
         </script>
 
         {% block extra_js %}

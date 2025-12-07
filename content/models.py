@@ -182,8 +182,12 @@ class Blog(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.title)
-            # If slugify returns empty string (e.g., Arabic-only titles), use ID
+            from django.utils.text import slugify
+
+            # Try to create slug with Unicode support (for Arabic titles)
+            self.slug = slugify(self.title, allow_unicode=True)
+
+            # If slugify returns empty string, use UUID
             if not self.slug:
                 # For new objects without ID yet, use a temporary slug
                 if not self.pk:
@@ -236,3 +240,100 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"Comment by {self.author} on {self.blog}"
+
+
+class HomeSlider(models.Model):
+    """Model for homepage slider/carousel"""
+
+    title = models.CharField(max_length=200, verbose_name=_("العنوان - Title"))
+    title_ar = models.CharField(
+        max_length=200, blank=True, verbose_name=_("العنوان بالعربية")
+    )
+
+    subtitle = models.TextField(blank=True, verbose_name=_("العنوان الفرعي - Subtitle"))
+    subtitle_ar = models.TextField(
+        blank=True, verbose_name=_("العنوان الفرعي بالعربية")
+    )
+
+    description = CKEditor5Field(
+        blank=True,
+        verbose_name=_("الوصف - Description"),
+        config_name="default",
+    )
+    description_ar = CKEditor5Field(
+        blank=True, verbose_name=_("الوصف بالعربية"), config_name="default"
+    )
+
+    image = models.ImageField(
+        upload_to="homepage/slider/",
+        verbose_name=_("الصورة - Image"),
+        help_text=_("الحجم الموصى به: 1920x800 بكسل"),
+    )
+
+    button_text = models.CharField(
+        max_length=100, blank=True, verbose_name=_("نص الزر - Button Text")
+    )
+    button_text_ar = models.CharField(
+        max_length=100, blank=True, verbose_name=_("نص الزر بالعربية")
+    )
+
+    button_url = models.CharField(
+        max_length=500, blank=True, verbose_name=_("رابط الزر - Button URL")
+    )
+
+    background_color = models.CharField(
+        max_length=20,
+        default="#4B315E",
+        verbose_name=_("لون الخلفية"),
+        help_text=_("كود اللون hex مثل: #4B315E"),
+    )
+
+    text_color = models.CharField(
+        max_length=20,
+        default="#FFFFFF",
+        verbose_name=_("لون النص"),
+        help_text=_("كود اللون hex مثل: #FFFFFF"),
+    )
+
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط - Active"))
+
+    order = models.IntegerField(
+        default=0,
+        verbose_name=_("الترتيب - Order"),
+        help_text=_("يتم عرض الشرائح حسب الترتيب التصاعدي"),
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("شريحة الصفحة الرئيسية")
+        verbose_name_plural = _("شرائح الصفحة الرئيسية")
+        ordering = ["order", "-created_at"]
+
+    def __str__(self):
+        return self.title_ar or self.title
+
+    def get_title(self, language="ar"):
+        """Get title based on language"""
+        if language == "ar":
+            return self.title_ar or self.title
+        return self.title
+
+    def get_subtitle(self, language="ar"):
+        """Get subtitle based on language"""
+        if language == "ar":
+            return self.subtitle_ar or self.subtitle
+        return self.subtitle
+
+    def get_description(self, language="ar"):
+        """Get description based on language"""
+        if language == "ar":
+            return self.description_ar or self.description
+        return self.description
+
+    def get_button_text(self, language="ar"):
+        """Get button text based on language"""
+        if language == "ar":
+            return self.button_text_ar or self.button_text
+        return self.button_text

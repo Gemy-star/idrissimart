@@ -24,8 +24,8 @@ class Command(BaseCommand):
             self.stdout.write(f'ID: {blog.id}, Title: "{blog.title}"')
 
             if blog.title:
-                # Generate slug from title
-                new_slug = slugify(blog.title)
+                # Generate slug from title with Unicode support
+                new_slug = slugify(blog.title, allow_unicode=True)
                 if not new_slug:
                     # If title produces empty slug, use ID
                     new_slug = f"blog-{blog.id}"

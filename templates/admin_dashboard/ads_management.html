@@ -5,6 +5,17 @@
 
 {% block admin_extra_css %}
 <style>
+    /* Rating Stars Styling */
+    .rating-stars-small {
+        display: inline-flex;
+        gap: 2px;
+        font-size: 0.75rem;
+    }
+
+    .rating-stars-small i {
+        color: #f59e0b;
+    }
+
     /* Bootstrap modals automatically use global z-index from admin-dashboard.css */
     /* Modal backdrop: 10500, Modal: 10600, Modal dialog: 10700 */
         position: relative;
@@ -197,6 +208,7 @@
                                     <th>{% trans "الإعلان" %}</th>
                                     <th>{% trans "المستخدم" %}</th>
                                     <th>{% trans "السعر" %}</th>
+                                    <th>{% trans "التقييم" %}</th>
                                     <th>{% trans "الحالة" %}</th>
                                     <th>{% trans "تاريخ النشر" %}</th>
                                     <th>{% trans "إجراءات" %}</th>
@@ -221,7 +233,47 @@
                                         </div>
                                     </td>
                                     <td><a href="#">{{ ad.user.username }}</a></td>
-                                    <td>{{ ad.price|floatformat:2 }}</td>
+                                    <td>
+                                        {% if ad.hide_price %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-eye-slash"></i> {% trans "مخفي" %}
+                                            </span>
+                                        {% elif ad.price_on_request %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-file-invoice-dollar"></i> {% trans "عند الطلب" %}
+                                            </span>
+                                        {% else %}
+                                            <strong>{{ ad.price|floatformat:2 }}</strong>
+                                            {% if ad.is_negotiable %}
+                                                <i class="fas fa-handshake text-success ms-1" title="{% trans 'قابل للتفاوض' %}"></i>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if ad.rating %}
+                                            <div class="d-flex align-items-center">
+                                                <div class="rating-stars-small me-2">
+                                                    {% with rating_int=ad.rating|floatformat:0|add:"0" %}
+                                                    {% for i in "12345" %}
+                                                        {% if forloop.counter <= rating_int %}
+                                                            <i class="fas fa-star text-warning"></i>
+                                                        {% elif forloop.counter == rating_int|add:"1" and ad.rating|floatformat:1|slice:"-3:" != ".0" %}
+                                                            <i class="fas fa-star-half-alt text-warning"></i>
+                                                        {% else %}
+                                                            <i class="far fa-star text-warning"></i>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                    {% endwith %}
+                                                </div>
+                                                <span class="badge bg-warning text-dark">{{ ad.rating|floatformat:1 }}</span>
+                                                {% if ad.rating_count %}
+                                                    <small class="text-muted ms-1">({{ ad.rating_count }})</small>
+                                                {% endif %}
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         <span class="badge rounded-pill bg-light text-dark status-{{ ad.status }}">
                                             {{ ad.get_status_display }}
@@ -241,7 +293,7 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="6" class="text-center py-5">
+                                    <td colspan="7" class="text-center py-5">
                                         <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
                                         <p class="text-muted">{% trans "لا توجد إعلانات تطابق هذه المعايير." %}</p>
                                     </td>

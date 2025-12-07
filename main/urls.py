@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, re_path
 
 from . import views
 from . import auth_views
@@ -9,6 +9,14 @@ from . import enhanced_views
 from . import cart_wishlist_views
 from . import chat_views
 from . import blog_views
+from . import admin_ad_views
+from . import admin_content_views
+from . import publisher_views
+from . import review_views
+from . import admin_review_views
+from . import publisher_review_views
+from . import report_views
+from . import ad_actions_views
 from django.contrib.auth import views as dj_auth_views
 
 
@@ -78,14 +86,14 @@ urlpatterns = [
         name="password_reset_complete",
     ),
     # Temporary category detail URL (you can implement the view later)
-    path(
-        "category/<slug:slug>/",
+    re_path(
+        r"^category/(?P<slug>[\w\-\u0600-\u06FF]+)/$",
         views.CategoryDetailView.as_view(),
         name="category_detail",
     ),
     # Subcategory detail URL
-    path(
-        "subcategory/<slug:slug>/",
+    re_path(
+        r"^subcategory/(?P<slug>[\w\-\u0600-\u06FF]+)/$",
         views.SubcategoryDetailView.as_view(),
         name="subcategory_detail",
     ),
@@ -125,10 +133,22 @@ urlpatterns = [
         classifieds_views.ClassifiedAdCreateSuccessView.as_view(),
         name="ad_create_success",
     ),
+    # Reservations management (must come before ad_detail pattern)
     path(
-        "classifieds/<int:pk>/",
+        "classifieds/reservations/",
+        enhanced_views.reservation_management,
+        name="reservation_management",
+    ),
+    re_path(
+        r"^classifieds/(?P<slug>[\w\-\u0600-\u06FF]+)/$",
         classifieds_views.ClassifiedAdDetailView.as_view(),
         name="ad_detail",
+    ),
+    # Ad Review URL
+    path(
+        "classifieds/<int:ad_id>/review/",
+        review_views.submit_ad_review,
+        name="submit_ad_review",
     ),
     # Ad Upgrade URLs
     path(
@@ -328,11 +348,6 @@ urlpatterns = [
         "compare/",
         views.ComparisonView.as_view(),
         name="compare_ads",
-    ),
-    path(
-        "classifieds/reservations/",
-        enhanced_views.reservation_management,
-        name="reservation_management",
     ),
     # AJAX endpoints for enhanced features
     path(
@@ -556,6 +571,47 @@ urlpatterns = [
         views.AdminDashboardView.as_view(),
         name="admin_dashboard",
     ),
+    # Admin Reviews Management
+    path(
+        "admin/reviews/",
+        admin_review_views.admin_reviews_list,
+        name="admin_reviews_list",
+    ),
+    path(
+        "admin/reviews/<int:review_id>/",
+        admin_review_views.admin_review_detail,
+        name="admin_review_detail",
+    ),
+    path(
+        "admin/reviews/<int:review_id>/approve/",
+        admin_review_views.admin_approve_review,
+        name="admin_approve_review",
+    ),
+    path(
+        "admin/reviews/<int:review_id>/reject/",
+        admin_review_views.admin_reject_review,
+        name="admin_reject_review",
+    ),
+    path(
+        "admin/reviews/<int:review_id>/delete/",
+        admin_review_views.admin_delete_review,
+        name="admin_delete_review",
+    ),
+    path(
+        "admin/reviews/bulk/approve/",
+        admin_review_views.admin_bulk_approve_reviews,
+        name="admin_bulk_approve_reviews",
+    ),
+    path(
+        "admin/reviews/bulk/reject/",
+        admin_review_views.admin_bulk_reject_reviews,
+        name="admin_bulk_reject_reviews",
+    ),
+    path(
+        "admin/reviews/bulk/delete/",
+        admin_review_views.admin_bulk_delete_reviews,
+        name="admin_bulk_delete_reviews",
+    ),
     path(
         "admin/site-content/",
         enhanced_views.admin_site_content,
@@ -590,6 +646,32 @@ urlpatterns = [
         "admin/site-content/privacypage/edit/",
         enhanced_views.admin_edit_privacypage,
         name="admin_edit_privacypage",
+    ),
+    # Home Sliders Management
+    path(
+        "admin/home-sliders/",
+        admin_content_views.admin_home_sliders,
+        name="admin_home_sliders",
+    ),
+    path(
+        "admin/home-sliders/create/",
+        admin_content_views.admin_home_slider_create,
+        name="admin_home_slider_create",
+    ),
+    path(
+        "admin/home-sliders/<int:slider_id>/edit/",
+        admin_content_views.admin_home_slider_edit,
+        name="admin_home_slider_edit",
+    ),
+    path(
+        "admin/home-sliders/<int:slider_id>/delete/",
+        admin_content_views.admin_home_slider_delete,
+        name="admin_home_slider_delete",
+    ),
+    path(
+        "admin/home-sliders/<int:slider_id>/toggle/",
+        admin_content_views.admin_home_slider_toggle,
+        name="admin_home_slider_toggle",
     ),
     path(
         "admin/categories/",
@@ -899,5 +981,243 @@ urlpatterns = [
         "newsletter/unsubscribe/<str:email>/",
         views.newsletter_unsubscribe,
         name="newsletter_unsubscribe",
+    ),
+    # ============================================================================
+    # ADMIN AD MANAGEMENT - FULL CRUD OPERATIONS
+    # ============================================================================
+    # Admin Pending & All Ads Views
+    path(
+        "admin/ads/pending/",
+        admin_ad_views.AdminPendingAdsView.as_view(),
+        name="admin_pending_ads",
+    ),
+    path(
+        "admin/ads/all/",
+        admin_ad_views.AdminAllAdsView.as_view(),
+        name="admin_all_ads",
+    ),
+    # Admin Ad CRUD Operations
+    path(
+        "admin/ads/<int:ad_id>/",
+        admin_ad_views.AdminAdDetailView.as_view(),
+        name="admin_ad_detail",
+    ),
+    path(
+        "admin/ads/create/",
+        admin_ad_views.AdminAdCreateView.as_view(),
+        name="admin_ad_create",
+    ),
+    path(
+        "admin/ads/<int:ad_id>/edit/",
+        admin_ad_views.AdminAdUpdateView.as_view(),
+        name="admin_ad_update",
+    ),
+    path(
+        "admin/ads/<int:ad_id>/delete/",
+        admin_ad_views.AdminAdDeleteView.as_view(),
+        name="admin_ad_delete",
+    ),
+    # Admin Ad Actions
+    path(
+        "admin/ads/<int:ad_id>/approve/",
+        admin_ad_views.approve_ad_view,
+        name="admin_approve_ad",
+    ),
+    path(
+        "admin/ads/<int:ad_id>/reject/",
+        admin_ad_views.reject_ad_view,
+        name="admin_reject_ad",
+    ),
+    path(
+        "admin/ads/<int:ad_id>/quick-review/",
+        admin_ad_views.ad_quick_review_ajax,
+        name="admin_ad_quick_review",
+    ),
+    # Admin Bulk Actions for Ads
+    path(
+        "admin/ads/bulk-approve/",
+        admin_ad_views.bulk_approve_ads,
+        name="admin_bulk_approve_ads",
+    ),
+    path(
+        "admin/ads/bulk-delete/",
+        admin_ad_views.bulk_delete_ads,
+        name="admin_bulk_delete_ads",
+    ),
+    path(
+        "admin/ads/bulk-change-status/",
+        admin_ad_views.bulk_change_status,
+        name="admin_bulk_change_status",
+    ),
+    # ============================================================================
+    # ADMIN UPGRADE MANAGEMENT - FULL CRUD OPERATIONS
+    # ============================================================================
+    # Admin Upgrade History Views
+    path(
+        "admin/upgrades/",
+        admin_ad_views.AdminUpgradeHistoryListView.as_view(),
+        name="admin_upgrade_history",
+    ),
+    path(
+        "admin/upgrades/create/",
+        admin_ad_views.AdminUpgradeCreateView.as_view(),
+        name="admin_upgrade_create",
+    ),
+    path(
+        "admin/upgrades/<int:upgrade_id>/edit/",
+        admin_ad_views.AdminUpgradeUpdateView.as_view(),
+        name="admin_upgrade_update",
+    ),
+    path(
+        "admin/upgrades/<int:upgrade_id>/delete/",
+        admin_ad_views.AdminUpgradeDeleteView.as_view(),
+        name="admin_upgrade_delete",
+    ),
+    # Admin Upgrade Actions
+    path(
+        "admin/upgrades/<int:upgrade_id>/toggle/",
+        admin_ad_views.toggle_upgrade_status,
+        name="admin_toggle_upgrade",
+    ),
+    path(
+        "admin/upgrades/bulk-deactivate/",
+        admin_ad_views.bulk_deactivate_upgrades,
+        name="admin_bulk_deactivate_upgrades",
+    ),
+    # Extended Ad Management Actions
+    path(
+        "admin/ads/<int:ad_id>/suspend/",
+        admin_ad_views.admin_suspend_ad,
+        name="admin_suspend_ad",
+    ),
+    path(
+        "admin/ads/<int:ad_id>/activate/",
+        admin_ad_views.admin_activate_ad,
+        name="admin_activate_ad",
+    ),
+    path(
+        "admin/ads/<int:ad_id>/extend/",
+        admin_ad_views.admin_extend_ad,
+        name="admin_extend_ad",
+    ),
+    path(
+        "admin/ads/<int:ad_id>/toggle-featured/",
+        admin_ad_views.admin_toggle_featured,
+        name="admin_toggle_featured",
+    ),
+    path(
+        "admin/ads/<int:ad_id>/toggle-urgent/",
+        admin_ad_views.admin_toggle_urgent,
+        name="admin_toggle_urgent",
+    ),
+    path(
+        "admin/ads/<int:ad_id>/toggle-pinned/",
+        admin_ad_views.admin_toggle_pinned,
+        name="admin_toggle_pinned",
+    ),
+    path(
+        "admin/ads/<int:ad_id>/change-category/",
+        admin_ad_views.admin_change_ad_category,
+        name="admin_change_ad_category",
+    ),
+    path(
+        "admin/ads/bulk-actions/",
+        admin_ad_views.admin_bulk_actions,
+        name="admin_bulk_actions",
+    ),
+    # ============================================================================
+    # PUBLISHER AD MANAGEMENT - FULL CRUD OPERATIONS
+    # ============================================================================
+    # Publisher Ad Views
+    path(
+        "publisher/my-ads/",
+        publisher_views.PublisherMyAdsView.as_view(),
+        name="publisher_my_ads",
+    ),
+    path(
+        "publisher/ads/<int:ad_id>/",
+        publisher_views.PublisherAdDetailView.as_view(),
+        name="publisher_ad_detail",
+    ),
+    # Publisher Dashboard Stats
+    path(
+        "publisher/dashboard/stats/",
+        publisher_views.publisher_dashboard_stats_ajax,
+        name="publisher_dashboard_stats",
+    ),
+    # Publisher Reviews
+    path(
+        "publisher/reviews/",
+        publisher_review_views.publisher_reviews_list,
+        name="publisher_reviews_list",
+    ),
+    path(
+        "publisher/ads/<int:ad_id>/delete/",
+        publisher_views.PublisherAdDeleteView.as_view(),
+        name="publisher_ad_delete",
+    ),
+    # Publisher Ad Actions
+    path(
+        "publisher/ads/<int:ad_id>/renew/",
+        publisher_views.publisher_renew_ad,
+        name="publisher_renew_ad",
+    ),
+    path(
+        "publisher/ads/<int:ad_id>/change-status/",
+        publisher_views.publisher_change_ad_status,
+        name="publisher_change_ad_status",
+    ),
+    path(
+        "publisher/ads/<int:ad_id>/statistics/",
+        publisher_views.publisher_ad_statistics,
+        name="publisher_ad_statistics",
+    ),
+    # Publisher Upgrade Management
+    path(
+        "publisher/upgrades/",
+        publisher_views.PublisherUpgradeHistoryView.as_view(),
+        name="publisher_upgrade_history",
+    ),
+    path(
+        "publisher/upgrades/purchase/",
+        publisher_views.PublisherUpgradeCreateView.as_view(),
+        name="publisher_upgrade_purchase",
+    ),
+    path(
+        "publisher/upgrades/<int:upgrade_id>/cancel/",
+        publisher_views.publisher_cancel_upgrade,
+        name="publisher_cancel_upgrade",
+    ),
+    # Publisher Dashboard Stats
+    path(
+        "publisher/dashboard/stats/",
+        publisher_views.publisher_dashboard_stats_ajax,
+        name="publisher_dashboard_stats",
+    ),
+    # Report URLs
+    path("report/ad/<int:ad_id>/", report_views.report_ad, name="report_ad"),
+    path("report/user/<int:user_id>/", report_views.report_user, name="report_user"),
+    path("my-reports/", report_views.my_reports, name="my_reports"),
+    # Admin Reports Management
+    path(
+        "admin/user-reports/",
+        views.AdminReportsManagementView.as_view(),
+        name="admin_user_reports",
+    ),
+    # Ad Owner Actions API
+    path(
+        "api/ads/<int:ad_id>/toggle-visibility/",
+        ad_actions_views.toggle_ad_visibility,
+        name="toggle_ad_visibility",
+    ),
+    path(
+        "api/ads/<int:ad_id>/mark-sold/",
+        ad_actions_views.mark_ad_as_sold,
+        name="mark_ad_sold",
+    ),
+    path(
+        "api/ads/<int:ad_id>/delete/",
+        ad_actions_views.delete_ad,
+        name="delete_ad_api",
     ),
 ]

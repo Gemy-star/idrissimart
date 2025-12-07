@@ -16,8 +16,11 @@ from .models import (
     AdFeaturePrice,
     AdImage,
     AdPackage,
+    AdReport,
     AdReservation,
+    AdReview,
     AdTransaction,
+    AdUpgradeHistory,
     CartSettings,
     Category,
     CategoryCustomField,
@@ -27,6 +30,7 @@ from .models import (
     CustomFieldOption,
     NewsletterSubscriber,
     Notification,
+    Payment,
     SavedSearch,
     User,
     UserPackage,
@@ -109,6 +113,33 @@ class AdFeatureInline(admin.TabularInline):
     fields = ("feature_type", "end_date", "is_active")
 
 
+class AdUpgradeHistoryInline(admin.TabularInline):
+    """Inline for viewing ad upgrade history"""
+
+    model = AdUpgradeHistory
+    extra = 0
+    can_delete = False
+    readonly_fields = (
+        "upgrade_type",
+        "price_paid",
+        "duration_days",
+        "start_date",
+        "end_date",
+        "is_active",
+    )
+    fields = (
+        "upgrade_type",
+        "price_paid",
+        "duration_days",
+        "start_date",
+        "end_date",
+        "is_active",
+    )
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(ClassifiedAd)
 class ClassifiedAdAdmin(admin.ModelAdmin):
     list_display = (
@@ -116,6 +147,10 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
         "user",
         "category",
         "price",
+        "status",
+        "is_highlighted",
+        "is_urgent",
+        "is_pinned",
         "status",
         "is_hidden",
         "cart_enabled_by_admin",
@@ -134,12 +169,23 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
         "is_urgent",
         "is_highlighted",
         "is_pinned",
+        "hide_price",
+        "price_on_request",
     )
     search_fields = ("title", "description", "user__username")
     readonly_fields = ("created_at", "updated_at", "views_count", "reviewed_at")
-    inlines = [AdImageInline, AdFeatureInline]
+    inlines = [AdImageInline, AdFeatureInline, AdUpgradeHistoryInline]
     list_editable = ("status", "is_hidden")
-    actions = ["approve_ads", "reject_ads", "mark_as_pending"]
+    actions = [
+        "approve_ads",
+        "reject_ads",
+        "mark_as_pending",
+        "activate_upgrades_action",
+        "hide_prices",
+        "show_prices",
+        "set_price_on_request",
+        "unset_price_on_request",
+    ]
 
     formfield_overrides = {
         models.TextField: {"widget": CKEditor5Widget(config_name="admin")},
@@ -178,9 +224,55 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
 
     mark_as_pending.short_description = _("تعيين كـ قيد المراجعة")
 
+    def activate_upgrades_action(self, request, queryset):
+        """Check and expire old upgrades for selected ads"""
+        count = 0
+        for ad in queryset:
+            expired = ad.check_and_expire_upgrades()
+            count += expired
+        self.message_user(request, _(f"تم فحص الإعلانات وإلغاء {count} ترقية منتهية"))
+
+    activate_upgrades_action.short_description = _("فحص وتحديث الترقيات")
+
+    def hide_prices(self, request, queryset):
+        """Hide prices for selected ads"""
+        updated = queryset.update(hide_price=True, price_on_request=False)
+        self.message_user(request, _("{} إعلان تم إخفاء السعر فيه").format(updated))
+
+    hide_prices.short_description = _("إخفاء السعر (عرض 'اطلب عرض سعر')")
+
+    def show_prices(self, request, queryset):
+        """Show prices for selected ads"""
+        updated = queryset.update(hide_price=False, price_on_request=False)
+        self.message_user(request, _("{} إعلان تم إظهار السعر فيه").format(updated))
+
+    show_prices.short_description = _("إظهار السعر العادي")
+
+    def set_price_on_request(self, request, queryset):
+        """Set price on request for selected ads"""
+        updated = queryset.update(price_on_request=True, hide_price=False)
+        self.message_user(
+            request, _("{} إعلان تم تعيين 'السعر عند الطلب' فيه").format(updated)
+        )
+
+    set_price_on_request.short_description = _("تعيين 'السعر عند الطلب'")
+
+    def unset_price_on_request(self, request, queryset):
+        """Unset price on request for selected ads"""
+        updated = queryset.update(price_on_request=False)
+        self.message_user(
+            request, _("{} إعلان تم إلغاء 'السعر عند الطلب' فيه").format(updated)
+        )
+
+    unset_price_on_request.short_description = _("إلغاء 'السعر عند الطلب'")
+
     fieldsets = (
         ("Ad Information", {"fields": ("user", "category", "title", "description")}),
-        ("Pricing", {"fields": ("price", "is_negotiable")}),
+        (
+            "Pricing",
+            {"fields": ("price", "is_negotiable", "hide_price", "price_on_request")},
+        ),
+        ("Rating", {"fields": ("rating", "rating_count")}),
         ("Location", {"fields": ("country", "city", "address")}),
         (
             _("الظهور والتحكم - Visibility & Access"),
@@ -337,17 +429,269 @@ class UserPackageAdmin(admin.ModelAdmin):
         "purchase_date",
         "expiry_date",
         "ads_remaining",
+        "ads_used",
+        "usage_percentage",
         "is_active_status",
     )
     list_filter = ("package", "purchase_date", "expiry_date")
     search_fields = ("user__username", "user__email", "package__name")
-    readonly_fields = ("purchase_date", "expiry_date", "ads_remaining")
+    readonly_fields = ("purchase_date", "expiry_date", "ads_remaining", "ads_used")
+    date_hierarchy = "purchase_date"
 
     def is_active_status(self, obj):
         return obj.is_active()
 
     is_active_status.boolean = True
     is_active_status.short_description = _("نشطة")
+
+    def usage_percentage(self, obj):
+        return f"{obj.get_usage_percentage():.1f}%"
+
+    usage_percentage.short_description = _("نسبة الاستخدام")
+
+    fieldsets = (
+        (
+            _("معلومات الباقة"),
+            {"fields": ("user", "package", "payment")},
+        ),
+        (
+            _("الاستخدام"),
+            {"fields": ("ads_remaining", "ads_used")},
+        ),
+        (
+            _("التواريخ"),
+            {"fields": ("purchase_date", "expiry_date")},
+        ),
+    )
+
+
+@admin.register(AdUpgradeHistory)
+class AdUpgradeHistoryAdmin(admin.ModelAdmin):
+    """
+    إدارة تاريخ ترقيات الإعلانات
+    Admin for Ad Upgrade History
+    """
+
+    list_display = (
+        "ad",
+        "upgrade_type",
+        "price_paid",
+        "duration_days",
+        "start_date",
+        "end_date",
+        "is_active",
+        "days_remaining",
+    )
+    list_filter = (
+        "upgrade_type",
+        "is_active",
+        "start_date",
+        "end_date",
+    )
+    search_fields = (
+        "ad__title",
+        "ad__user__username",
+    )
+    readonly_fields = ("start_date", "created_at")
+    date_hierarchy = "start_date"
+    actions = ["deactivate_upgrades", "activate_upgrades"]
+
+    def days_remaining(self, obj):
+        """Calculate days remaining for active upgrades"""
+        if not obj.is_active:
+            return "-"
+
+        from django.utils import timezone
+
+        if obj.end_date > timezone.now():
+            delta = obj.end_date - timezone.now()
+            return f"{delta.days} يوم"
+        return "منتهي"
+
+    days_remaining.short_description = _("الأيام المتبقية")
+
+    def deactivate_upgrades(self, request, queryset):
+        """Deactivate selected upgrades"""
+        count = 0
+        for upgrade in queryset.filter(is_active=True):
+            upgrade.deactivate()
+            count += 1
+        self.message_user(request, _(f"تم إلغاء تفعيل {count} ترقية"))
+
+    deactivate_upgrades.short_description = _("إلغاء تفعيل الترقيات المحددة")
+
+    def activate_upgrades(self, request, queryset):
+        """Activate selected upgrades"""
+        from django.utils import timezone
+
+        updated = queryset.filter(end_date__gte=timezone.now()).update(is_active=True)
+        self.message_user(request, _(f"تم تفعيل {updated} ترقية"))
+
+    activate_upgrades.short_description = _("تفعيل الترقيات المحددة")
+
+    fieldsets = (
+        (
+            _("معلومات الترقية"),
+            {"fields": ("ad", "upgrade_type", "is_active")},
+        ),
+        (
+            _("التسعير والمدة"),
+            {"fields": ("price_paid", "duration_days")},
+        ),
+        (
+            _("التواريخ"),
+            {"fields": ("start_date", "end_date", "created_at")},
+        ),
+    )
+
+
+@admin.register(AdReview)
+class AdReviewAdmin(admin.ModelAdmin):
+    """
+    إدارة تقييمات الإعلانات
+    Admin for Ad Reviews
+    """
+
+    list_display = (
+        "ad",
+        "user",
+        "rating",
+        "is_approved",
+        "created_at",
+    )
+    list_filter = (
+        "rating",
+        "is_approved",
+        "created_at",
+    )
+    search_fields = (
+        "ad__title",
+        "user__username",
+        "user__email",
+        "comment",
+    )
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+    )
+    date_hierarchy = "created_at"
+    actions = ["approve_reviews", "disapprove_reviews"]
+
+    def approve_reviews(self, request, queryset):
+        """Approve selected reviews"""
+        updated = queryset.update(is_approved=True)
+        # Update ad ratings
+        for review in queryset:
+            review.update_ad_rating()
+        self.message_user(request, _(f"تم قبول {updated} تقييم"))
+
+    approve_reviews.short_description = _("قبول التقييمات المحددة")
+
+    def disapprove_reviews(self, request, queryset):
+        """Disapprove selected reviews"""
+        updated = queryset.update(is_approved=False)
+        # Update ad ratings
+        for review in queryset:
+            review.update_ad_rating()
+        self.message_user(request, _(f"تم رفض {updated} تقييم"))
+
+    disapprove_reviews.short_description = _("رفض التقييمات المحددة")
+
+    fieldsets = (
+        (
+            _("معلومات التقييم"),
+            {"fields": ("ad", "user", "rating", "is_approved")},
+        ),
+        (
+            _("التعليق"),
+            {"fields": ("comment",)},
+        ),
+        (
+            _("التواريخ"),
+            {"fields": ("created_at", "updated_at")},
+        ),
+    )
+
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    """
+    إدارة معاملات الدفع
+    Admin for Payment transactions
+    """
+
+    list_display = (
+        "user",
+        "provider",
+        "amount",
+        "currency",
+        "status",
+        "created_at",
+        "completed_at",
+    )
+    list_filter = (
+        "status",
+        "provider",
+        "currency",
+        "created_at",
+    )
+    search_fields = (
+        "user__username",
+        "user__email",
+        "provider_transaction_id",
+        "description",
+    )
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+        "completed_at",
+    )
+    date_hierarchy = "created_at"
+    actions = ["mark_as_completed", "mark_as_failed"]
+
+    def mark_as_completed(self, request, queryset):
+        """Mark payments as completed"""
+        from django.utils import timezone
+
+        updated = queryset.filter(status="pending").update(
+            status="completed", completed_at=timezone.now()
+        )
+        self.message_user(request, _(f"تم تحديد {updated} دفعة كمكتملة"))
+
+    mark_as_completed.short_description = _("تحديد كمكتملة")
+
+    def mark_as_failed(self, request, queryset):
+        """Mark payments as failed"""
+        updated = queryset.filter(status="pending").update(status="failed")
+        self.message_user(request, _(f"تم تحديد {updated} دفعة كفاشلة"))
+
+    mark_as_failed.short_description = _("تحديد كفاشلة")
+
+    fieldsets = (
+        (
+            _("معلومات الدفع"),
+            {"fields": ("user", "provider", "provider_transaction_id")},
+        ),
+        (
+            _("المبلغ"),
+            {"fields": ("amount", "currency")},
+        ),
+        (
+            _("الحالة والوصف"),
+            {"fields": ("status", "description")},
+        ),
+        (
+            _("البيانات الإضافية"),
+            {
+                "fields": ("metadata",),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            _("التواريخ"),
+            {"fields": ("created_at", "updated_at", "completed_at")},
+        ),
+    )
 
 
 @admin.register(SavedSearch)
@@ -805,3 +1149,80 @@ class NewsletterSubscriberAdmin(admin.ModelAdmin):
         return response
 
     export_emails.short_description = _("تصدير البريد الإلكتروني للمشتركين المحددين")
+
+
+@admin.register(AdReport)
+class AdReportAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "report_type",
+        "status",
+        "reporter",
+        "reported_ad",
+        "reported_user",
+        "created_at",
+        "reviewed_by",
+    )
+    list_filter = ("status", "report_type", "created_at")
+    search_fields = (
+        "description",
+        "reporter__username",
+        "reported_ad__title",
+        "reported_user__username",
+    )
+    readonly_fields = ("created_at", "updated_at", "resolved_at")
+    fieldsets = (
+        (
+            "معلومات البلاغ",
+            {
+                "fields": (
+                    "reporter",
+                    "report_type",
+                    "status",
+                )
+            },
+        ),
+        (
+            "المبلغ عنه",
+            {
+                "fields": (
+                    "reported_ad",
+                    "reported_user",
+                )
+            },
+        ),
+        (
+            "التفاصيل",
+            {
+                "fields": (
+                    "description",
+                    "evidence_url",
+                )
+            },
+        ),
+        (
+            "ملاحظات الإدارة",
+            {
+                "fields": (
+                    "admin_notes",
+                    "reviewed_by",
+                )
+            },
+        ),
+        (
+            "التواريخ",
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                    "resolved_at",
+                )
+            },
+        ),
+    )
+
+    def save_model(self, request, obj, form, change):
+        """Auto-set reviewed_by when status changes to resolved"""
+        if change and obj.status == "resolved" and not obj.reviewed_by:
+            obj.reviewed_by = request.user
+        super().save_model(request, obj, form, change)

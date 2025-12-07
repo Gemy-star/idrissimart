@@ -8,7 +8,9 @@ from django_recaptcha.fields import ReCaptchaField
 from django_recaptcha.widgets import ReCaptchaV2Checkbox
 
 from .models import (
+    AdReport,
     AdImage,
+    AdReview,
     ClassifiedAd,
     ContactMessage,
     User,
@@ -156,6 +158,14 @@ class ClassifiedAdForm(forms.ModelForm):
         self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
 
+        # Remove default empty label for category field
+        if "category" in self.fields:
+            self.fields["category"].empty_label = None
+
+        # Remove default empty label for country field
+        if "country" in self.fields:
+            self.fields["country"].empty_label = None
+
         # Initialize mobile number from user's profile
         if self.user and self.user.mobile:
             self.fields["mobile_number"].initial = self.user.mobile
@@ -268,10 +278,13 @@ class ClassifiedAdForm(forms.ModelForm):
 
         # Gather custom field data from POST data
         if instance.category:
-            category_fields = CategoryCustomField.objects.filter(
-                category=instance.category,
-                is_active=True
-            ).select_related('custom_field').order_by('order')
+            category_fields = (
+                CategoryCustomField.objects.filter(
+                    category=instance.category, is_active=True
+                )
+                .select_related("custom_field")
+                .order_by("order")
+            )
 
             for cf in category_fields:
                 field = cf.custom_field
@@ -488,13 +501,18 @@ class RegistrationForm(forms.Form):
         label=_("الدولة"),
         required=True,
         error_messages={
-            "required": _("يجب اختيار الدولة."),
+            "required": _(
+                "جعل الدولة الافتراضية : اعتبار التسجيل مصر. يجب اختيار الدولة."
+            ),
         },
     )
     phone = forms.CharField(
         label=_("رقم الجوال"),
         required=True,
         widget=forms.TextInput(attrs={"placeholder": _("مثال: 0501234567")}),
+        error_messages={
+            "required": _("رقم الهاتف مطلوب من شروط اكمال التسجيل."),
+        },
     )
     phone_verification_code = forms.CharField(
         label=_("رمز التحقق"),
@@ -513,7 +531,7 @@ class RegistrationForm(forms.Form):
         error_messages={"required": _("يجب الموافقة على الشروط والأحكام")},
     )
 
-    # Google reCAPTCHA
+    # Google reCAPTCHA - جوجل كابتشا لا تعمل fix
     captcha = ReCaptchaField(
         widget=ReCaptchaV2Checkbox(
             attrs={
@@ -522,7 +540,12 @@ class RegistrationForm(forms.Form):
             }
         ),
         error_messages={
-            "required": _("يرجى التحقق من أنك لست روبوت"),
+            "required": _(
+                "يرجى التحقق من أنك لست روبوت. التحقق من شروط اكمال التسجيل غير موجودة"
+            ),
+            "invalid": _(
+                "فشل التحقق من reCAPTCHA. جوجل كابتشا لا تعمل - يرجى المحاولة مرة أخرى"
+            ),
         },
     )
 
@@ -564,29 +587,18 @@ class RegistrationForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Build profile type choices based on settings
-        from constance import config
-
+        # Only allow DEFAULT profile type during registration
+        # Users can upgrade to PUBLISHER via package purchase
         profile_choices = [
-            (User.ProfileType.DEFAULT, _("مستخدم افتراضي - Default User")),
-            (User.ProfileType.PUBLISHER, _("ناشر - Publisher")),
+            (
+                User.ProfileType.DEFAULT,
+                _("قياسي - Standard"),
+            ),
         ]
 
-        # Add optional profile types based on settings
-        if getattr(config, "ENABLE_SERVICE_PROVIDER_REGISTRATION", False):
-            profile_choices.append(
-                (User.ProfileType.SERVICE, _("خدمي - Service Provider"))
-            )
-
-        if getattr(config, "ENABLE_MERCHANT_REGISTRATION", False):
-            profile_choices.append((User.ProfileType.MERCHANT, _("تاجر - Merchant")))
-
-        if getattr(config, "ENABLE_EDUCATIONAL_REGISTRATION", False):
-            profile_choices.append(
-                (User.ProfileType.EDUCATIONAL, _("تعليمي - Educational"))
-            )
-
         self.fields["profile_type"].choices = profile_choices
+        # Hide the profile type field since there's only one option
+        self.fields["profile_type"].widget = forms.HiddenInput()
 
     def clean_username(self):
         username = self.cleaned_data.get("username").lower()
@@ -658,7 +670,7 @@ class RegistrationForm(forms.Form):
         country_code = self.data.get("country_code", "SA").upper()
 
         if not phone:
-            raise ValidationError(_("رقم الجوال مطلوب"))
+            raise ValidationError(_("رقم الجوال مطلوب من شروط اكمال التسجيل"))
 
         # Validate format for the selected country
         if not validate_phone_number(phone, country_code):
@@ -677,11 +689,17 @@ class RegistrationForm(forms.Form):
         cleaned_data = super().clean()
         profile_type = cleaned_data.get("profile_type")
 
+        # Validate service provider requirements
         if profile_type == "service" and not cleaned_data.get("specialization"):
             self.add_error("specialization", _("التخصص مطلوب لمقدمي الخدمات."))
 
+        # Validate merchant requirements
         if profile_type == "merchant" and not cleaned_data.get("company_name"):
             self.add_error("company_name", _("اسم الشركة مطلوب للتجار."))
+
+        # Validate educational requirements
+        if profile_type == "educational" and not cleaned_data.get("company_name"):
+            self.add_error("company_name", _("اسم المؤسسة التعليمية مطلوب."))
 
         return cleaned_data
 
@@ -760,3 +778,73 @@ class SimpleEnhancedAdForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         kwargs.pop("user", None)  # إزالة المعامل غير المستخدم
         super().__init__(*args, **kwargs)
+
+
+class AdReportForm(forms.ModelForm):
+    """Form for reporting ads or users"""
+
+    class Meta:
+        model = AdReport
+        fields = ["report_type", "description", "evidence_url"]
+        widgets = {
+            "report_type": forms.Select(
+                attrs={
+                    "class": "form-control",
+                    "required": True,
+                }
+            ),
+            "description": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 5,
+                    "placeholder": _("يرجى تقديم تفاصيل حول البلاغ"),
+                    "required": True,
+                }
+            ),
+            "evidence_url": forms.URLInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": _("رابط لصورة أو دليل إضافي (اختياري)"),
+                }
+            ),
+        }
+        labels = {
+            "report_type": _("نوع البلاغ"),
+            "description": _("وصف البلاغ"),
+            "evidence_url": _("رابط دليل"),
+        }
+
+    def _post_clean(self):
+        """
+        Override _post_clean to skip model validation since we set
+        reported_ad/reported_user after form validation in the view
+        """
+        # Skip the model's full_clean() call
+        pass
+
+
+class AdReviewForm(forms.ModelForm):
+    """Form for submitting ad reviews"""
+
+    class Meta:
+        model = AdReview
+        fields = ["rating", "comment"]
+        widgets = {
+            "rating": forms.RadioSelect(
+                choices=[(i, f"{i} ★") for i in range(1, 6)],
+                attrs={
+                    "class": "rating-input",
+                },
+            ),
+            "comment": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 4,
+                    "placeholder": _("شاركنا رأيك في هذا الإعلان (اختياري)"),
+                }
+            ),
+        }
+        labels = {
+            "rating": _("التقييم"),
+            "comment": _("التعليق"),
+        }

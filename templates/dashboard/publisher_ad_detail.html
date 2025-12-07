@@ -1,0 +1,214 @@
+{% extends 'dashboard/base.html' %}
+{% load static i18n %}
+
+{% block publisher_title %}{{ ad.title }}{% endblock %}
+
+{% block publisher_content %}
+<div class="dashboard-header mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1>{{ ad.title }}</h1>
+            <p class="text-muted">
+                <span class="badge bg-{{ ad.status }}">{{ ad.get_status_display }}</span>
+                {% if ad.is_highlighted %}
+                    <span class="badge bg-warning"><i class="fas fa-star"></i> مميز</span>
+                {% endif %}
+                {% if ad.is_urgent %}
+                    <span class="badge bg-danger"><i class="fas fa-bolt"></i> عاجل</span>
+                {% endif %}
+                {% if ad.is_pinned %}
+                    <span class="badge bg-primary"><i class="fas fa-thumbtack"></i> مثبت</span>
+                {% endif %}
+            </p>
+        </div>
+        <div>
+            <a href="{% url 'main:publisher_my_ads' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-right"></i> {% trans "رجوع" %}
+            </a>
+            <a href="{% url 'main:publisher_ad_update' ad.id %}" class="btn btn-primary">
+                <i class="fas fa-edit"></i> {% trans "تعديل" %}
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="stats-card">
+            <i class="fas fa-eye fa-2x text-primary mb-2"></i>
+            <h3>{{ stats.total_views }}</h3>
+            <p>{% trans "المشاهدات" %}</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stats-card">
+            <i class="fas fa-heart fa-2x text-danger mb-2"></i>
+            <h3>{{ stats.total_favorites }}</h3>
+            <p>{% trans "المفضلة" %}</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stats-card">
+            <i class="fas fa-calendar fa-2x text-success mb-2"></i>
+            <h3>{{ stats.days_since_created }}</h3>
+            <p>{% trans "يوم منذ الإنشاء" %}</p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Main Content -->
+    <div class="col-md-8">
+        <!-- Images -->
+        {% if ad.images.all %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-images"></i> {% trans "الصور" %}</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for image in ad.images.all %}
+                    <div class="col-md-4 mb-3">
+                        <img src="{{ image.image.url }}" class="img-fluid rounded" alt="{{ ad.title }}">
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Description -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-align-right"></i> {% trans "الوصف" %}</h5>
+            </div>
+            <div class="card-body">
+                {{ ad.description|linebreaks }}
+            </div>
+        </div>
+
+        <!-- Upgrade History -->
+        {% if upgrade_history %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-history"></i> {% trans "سجل الترقيات" %}</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>{% trans "النوع" %}</th>
+                            <th>{% trans "المبلغ" %}</th>
+                            <th>{% trans "البداية" %}</th>
+                            <th>{% trans "النهاية" %}</th>
+                            <th>{% trans "الحالة" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for upgrade in upgrade_history %}
+                        <tr>
+                            <td>{{ upgrade.get_upgrade_type_display }}</td>
+                            <td>{{ upgrade.price_paid }} EGP</td>
+                            <td>{{ upgrade.start_date|date:"Y-m-d" }}</td>
+                            <td>{{ upgrade.end_date|date:"Y-m-d" }}</td>
+                            <td>
+                                {% if upgrade.is_active %}
+                                    <span class="badge bg-success">نشط</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">منتهي</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-md-4">
+        <!-- Details -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>{% trans "تفاصيل الإعلان" %}</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>{% trans "السعر:" %}</strong> {{ ad.price }} {{ ad.country.currency }}</p>
+                <p><strong>{% trans "الفئة:" %}</strong> {{ ad.category.name }}</p>
+                {% if ad.subcategory %}
+                <p><strong>{% trans "الفئة الفرعية:" %}</strong> {{ ad.subcategory.name }}</p>
+                {% endif %}
+                <p><strong>{% trans "الدولة:" %}</strong> {{ ad.country.name }}</p>
+                {% if ad.city %}
+                <p><strong>{% trans "المدينة:" %}</strong> {{ ad.city.name }}</p>
+                {% endif %}
+                <p><strong>{% trans "تاريخ الإنشاء:" %}</strong> {{ ad.created_at|date:"Y-m-d H:i" }}</p>
+            </div>
+        </div>
+
+        <!-- Upgrades -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>{% trans "الترقيات" %}</h5>
+            </div>
+            <div class="card-body">
+                {% if active_upgrades %}
+                    {% for upgrade in active_upgrades %}
+                    <div class="alert alert-info">
+                        <strong>{{ upgrade.get_upgrade_type_display }}</strong><br>
+                        <small>ينتهي في: {{ upgrade.end_date|date:"Y-m-d" }}</small>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">لا توجد ترقيات نشطة</p>
+                {% endif %}
+                <a href="{% url 'main:publisher_upgrade_purchase' %}?ad_id={{ ad.id }}" class="btn btn-primary w-100">
+                    <i class="fas fa-arrow-up"></i> {% trans "شراء ترقية" %}
+                </a>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="card">
+            <div class="card-header">
+                <h5>{% trans "إجراءات" %}</h5>
+            </div>
+            <div class="card-body">
+                <a href="{% url 'main:ad_detail' ad.id %}" class="btn btn-outline-primary w-100 mb-2" target="_blank">
+                    <i class="fas fa-external-link-alt"></i> {% trans "عرض في الموقع" %}
+                </a>
+                {% if ad.status == 'expired' %}
+                <form method="post" action="{% url 'main:publisher_renew_ad' ad.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success w-100 mb-2">
+                        <i class="fas fa-redo"></i> {% trans "تجديد الإعلان" %}
+                    </button>
+                </form>
+                {% endif %}
+                <a href="{% url 'main:publisher_ad_delete' ad.id %}" class="btn btn-danger w-100">
+                    <i class="fas fa-trash"></i> {% trans "حذف الإعلان" %}
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .stats-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .stats-card h3 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0;
+    }
+</style>
+{% endblock %}

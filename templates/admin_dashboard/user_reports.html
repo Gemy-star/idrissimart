@@ -1,0 +1,221 @@
+{% extends "admin_dashboard/base.html" %}
+{% load static i18n humanize %}
+
+{% block title %}{% trans "إدارة البلاغات" %} - {% trans "لوحة التحكم" %}{% endblock %}
+
+{% block admin_content %}
+<div class="admin-header">
+    <div class="admin-header-content">
+        <div>
+            <h1 class="admin-title">
+                <i class="fas fa-flag me-2"></i>
+                {% trans "إدارة البلاغات" %}
+            </h1>
+            <p class="admin-subtitle">{% trans "عرض ومراجعة البلاغات الواردة من المستخدمين" %}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card stat-warning">
+            <div class="stat-icon">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-details">
+                <h3 class="stat-value">{{ pending_count|default:0 }}</h3>
+                <p class="stat-label">{% trans "قيد المراجعة" %}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card stat-info">
+            <div class="stat-icon">
+                <i class="fas fa-eye"></i>
+            </div>
+            <div class="stat-details">
+                <h3 class="stat-value">{{ reviewing_count|default:0 }}</h3>
+                <p class="stat-label">{% trans "تحت المراجعة" %}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card stat-success">
+            <div class="stat-icon">
+                <i class="fas fa-check"></i>
+            </div>
+            <div class="stat-details">
+                <h3 class="stat-value">{{ resolved_count|default:0 }}</h3>
+                <p class="stat-label">{% trans "تم الحل" %}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card stat-danger">
+            <div class="stat-icon">
+                <i class="fas fa-times"></i>
+            </div>
+            <div class="stat-details">
+                <h3 class="stat-value">{{ rejected_count|default:0 }}</h3>
+                <p class="stat-label">{% trans "مرفوض" %}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="admin-content-card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">{% trans "الحالة" %}</label>
+                <select name="status" class="form-select">
+                    <option value="">{% trans "الكل" %}</option>
+                    <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>{% trans "قيد المراجعة" %}</option>
+                    <option value="reviewing" {% if request.GET.status == 'reviewing' %}selected{% endif %}>{% trans "تحت المراجعة" %}</option>
+                    <option value="resolved" {% if request.GET.status == 'resolved' %}selected{% endif %}>{% trans "تم الحل" %}</option>
+                    <option value="rejected" {% if request.GET.status == 'rejected' %}selected{% endif %}>{% trans "مرفوض" %}</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">{% trans "نوع البلاغ" %}</label>
+                <select name="report_type" class="form-select">
+                    <option value="">{% trans "الكل" %}</option>
+                    <option value="ad_content">{% trans "محتوى إعلان غير لائق" %}</option>
+                    <option value="fraud">{% trans "احتيال أو نصب" %}</option>
+                    <option value="spam">{% trans "إعلان متكرر أو سبام" %}</option>
+                    <option value="wrong_category">{% trans "قسم خاطئ" %}</option>
+                    <option value="user_behavior">{% trans "سلوك مستخدم غير لائق" %}</option>
+                    <option value="fake_info">{% trans "معلومات مضللة" %}</option>
+                    <option value="other">{% trans "أخرى" %}</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">{% trans "بحث" %}</label>
+                <input type="text" name="search" class="form-control" placeholder="{% trans 'ابحث في الوصف' %}" value="{{ request.GET.search }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search me-2"></i>
+                    {% trans "بحث" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Reports Table -->
+<div class="admin-content-card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-list me-2"></i>
+            {% trans "قائمة البلاغات" %}
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>{% trans "#" %}</th>
+                        <th>{% trans "نوع البلاغ" %}</th>
+                        <th>{% trans "المبلغ" %}</th>
+                        <th>{% trans "المبلغ عنه" %}</th>
+                        <th>{% trans "الوصف" %}</th>
+                        <th>{% trans "الحالة" %}</th>
+                        <th>{% trans "التاريخ" %}</th>
+                        <th>{% trans "إجراءات" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in reports %}
+                    <tr>
+                        <td>{{ report.id }}</td>
+                        <td>
+                            <span class="badge bg-info">
+                                {{ report.get_report_type_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if report.reporter %}
+                                {{ report.reporter.username }}
+                            {% else %}
+                                <span class="text-muted">{% trans "غير معروف" %}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if report.reported_ad %}
+                                <a href="{{ report.reported_ad.get_absolute_url }}" target="_blank">
+                                    {{ report.reported_ad.title|truncatewords:5 }}
+                                </a>
+                            {% elif report.reported_user %}
+                                {{ report.reported_user.username }}
+                            {% endif %}
+                        </td>
+                        <td>{{ report.description|truncatewords:10 }}</td>
+                        <td>
+                            {% if report.status == 'pending' %}
+                                <span class="badge bg-warning">{{ report.get_status_display }}</span>
+                            {% elif report.status == 'reviewing' %}
+                                <span class="badge bg-info">{{ report.get_status_display }}</span>
+                            {% elif report.status == 'resolved' %}
+                                <span class="badge bg-success">{{ report.get_status_display }}</span>
+                            {% else %}
+                                <span class="badge bg-danger">{{ report.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ report.created_at|date:"Y-m-d" }}</td>
+                        <td>
+                            <a href="{% url 'admin:main_adreport_change' report.id %}" class="btn btn-sm btn-primary" title="{% trans 'عرض التفاصيل' %}">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">
+                            <i class="fas fa-inbox fa-3x mb-3"></i>
+                            <p>{% trans "لا توجد بلاغات" %}</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <div class="card-footer">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mb-0">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{% trans "الأولى" %}</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{% trans "السابقة" %}</a>
+                </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">{{ page_obj.number }} {% trans "من" %} {{ page_obj.paginator.num_pages }}</span>
+                </li>
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{% trans "التالية" %}</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{% trans "الأخيرة" %}</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

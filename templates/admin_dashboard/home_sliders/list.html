@@ -1,0 +1,322 @@
+{% extends "admin_dashboard/base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "إدارة شرائح الصفحة الرئيسية" %} - {{ block.super }}{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+.slider-preview {
+    width: 100px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.color-badge {
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    border-radius: 4px;
+    border: 2px solid var(--border-color);
+    vertical-align: middle;
+}
+
+.slider-table {
+    background: var(--bg-primary);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.slider-table th {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-weight: 600;
+    padding: 15px;
+    text-align: right;
+}
+
+.slider-table td {
+    padding: 15px;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.badge-active {
+    background: #10b981;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.875rem;
+}
+
+.badge-inactive {
+    background: #6b7280;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.875rem;
+}
+
+.action-btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    margin: 0 2px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-edit {
+    background: #3b82f6;
+    color: white;
+}
+
+.btn-edit:hover {
+    background: #2563eb;
+}
+
+.btn-toggle {
+    background: #f59e0b;
+    color: white;
+}
+
+.btn-toggle:hover {
+    background: #d97706;
+}
+
+.btn-delete {
+    background: #ef4444;
+    color: white;
+}
+
+.btn-delete:hover {
+    background: #dc2626;
+}
+
+.stats-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+}
+
+.stats-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.stats-label {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-top: 5px;
+}
+
+.card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+}
+
+[data-theme='dark'] .card {
+    background: var(--bg-primary);
+    border-color: var(--border-color);
+}
+
+.page-link {
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
+    border-color: var(--border-color);
+}
+
+.page-link:hover {
+    color: var(--text-primary);
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+}
+
+.page-item.active .page-link {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+}
+
+[data-theme='dark'] .page-item.active .page-link {
+    background-color: #2563eb;
+    border-color: #2563eb;
+}
+
+/* Empty state icon */
+.empty-state-icon {
+    color: #9ca3af;
+}
+
+[data-theme='dark'] .empty-state-icon {
+    color: #6b7280;
+}
+
+/* Text muted - better visibility in both themes */
+.text-muted {
+    color: #6b7280 !important;
+}
+
+[data-theme='dark'] .text-muted {
+    color: #9ca3af !important;
+}
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-2">{% trans "إدارة شرائح الصفحة الرئيسية" %}</h1>
+            <p class="text-muted">{% trans "إدارة الشرائح المعروضة في الصفحة الرئيسية" %}</p>
+        </div>
+        <a href="{% url 'main:admin_home_slider_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>
+            {% trans "إضافة شريحة جديدة" %}
+        </a>
+    </div>
+
+    <!-- Stats -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="stats-card">
+                <div class="stats-number">{{ total_sliders }}</div>
+                <div class="stats-label">{% trans "إجمالي الشرائح" %}</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stats-card">
+                <div class="stats-number text-success">{{ active_sliders }}</div>
+                <div class="stats-label">{% trans "شرائح نشطة" %}</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stats-card">
+                <div class="stats-number text-muted">{{ inactive_sliders }}</div>
+                <div class="stats-label">{% trans "شرائح معطلة" %}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sliders Table -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table slider-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>{% trans "الصورة" %}</th>
+                            <th>{% trans "العنوان" %}</th>
+                            <th>{% trans "الترتيب" %}</th>
+                            <th>{% trans "الألوان" %}</th>
+                            <th>{% trans "الحالة" %}</th>
+                            <th>{% trans "الإجراءات" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for slider in sliders %}
+                        <tr>
+                            <td>
+                                {% if slider.image %}
+                                <img src="{{ slider.image.url }}" alt="{{ slider.title }}" class="slider-preview">
+                                {% else %}
+                                <span class="text-muted">{% trans "لا توجد صورة" %}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong>{{ slider.title_ar|default:slider.title }}</strong>
+                                {% if slider.subtitle or slider.subtitle_ar %}
+                                <br>
+                                <small class="text-muted">{{ slider.subtitle_ar|default:slider.subtitle|truncatewords:10 }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ slider.order }}</span>
+                            </td>
+                            <td>
+                                <span class="color-badge" style="background: {{ slider.background_color }};" title="{% trans 'لون الخلفية' %}"></span>
+                                <span class="color-badge ms-1" style="background: {{ slider.text_color }};" title="{% trans 'لون النص' %}"></span>
+                            </td>
+                            <td>
+                                {% if slider.is_active %}
+                                <span class="badge-active">{% trans "نشط" %}</span>
+                                {% else %}
+                                <span class="badge-inactive">{% trans "معطل" %}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'main:admin_home_slider_edit' slider.id %}"
+                                   class="action-btn btn-edit"
+                                   title="{% trans 'تعديل' %}">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+
+                                <a href="{% url 'main:admin_home_slider_toggle' slider.id %}"
+                                   class="action-btn btn-toggle"
+                                   onclick="return confirm('{% trans "هل تريد تغيير حالة هذه الشريحة؟" %}')"
+                                   title="{% trans 'تغيير الحالة' %}">
+                                    <i class="fas fa-toggle-{% if slider.is_active %}on{% else %}off{% endif %}"></i>
+                                </a>
+
+                                <form method="post"
+                                      action="{% url 'main:admin_home_slider_delete' slider.id %}"
+                                      style="display: inline;"
+                                      onsubmit="return confirm('{% trans "هل أنت متأكد من حذف هذه الشريحة؟" %}')">
+                                    {% csrf_token %}
+                                    <button type="submit" class="action-btn btn-delete" title="{% trans 'حذف' %}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5">
+                                <i class="fas fa-images fa-3x empty-state-icon mb-3"></i>
+                                <p class="text-muted">{% trans "لا توجد شرائح حتى الآن" %}</p>
+                                <a href="{% url 'main:admin_home_slider_create' %}" class="btn btn-primary">
+                                    {% trans "إضافة أول شريحة" %}
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if sliders.has_other_pages %}
+    <div class="mt-4">
+        <nav>
+            <ul class="pagination justify-content-center">
+                {% if sliders.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ sliders.previous_page_number }}">{% trans "السابق" %}</a>
+                </li>
+                {% endif %}
+
+                {% for num in sliders.paginator.page_range %}
+                <li class="page-item {% if sliders.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                </li>
+                {% endfor %}
+
+                {% if sliders.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ sliders.next_page_number %}">{% trans "التالي" %}</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

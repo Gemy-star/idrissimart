@@ -110,31 +110,71 @@ def send_ad_approval_notification(sender, instance, **kwargs):
 @receiver(post_save, sender=User)
 def assign_default_package_to_new_user(sender, instance, created, **kwargs):
     """
-    منح كل مستخدم جديد إعلان واحد مجاني
-    Give each new user one free ad - they must buy a package after using it
+    Assign default ad package to new DEFAULT users if it exists
+    DEFAULT users get the is_default package
+    PUBLISHER users don't need initial package (they purchase their own)
     """
-    if created:
+    if created and instance.profile_type == User.ProfileType.DEFAULT:
         try:
-            # Create a one-time free ad package for the new user
-            # This is not based on any AdPackage - it's a standalone gift
-            from datetime import timedelta
+            # Get the default ad package (is_default=True)
+            default_package = AdPackage.objects.filter(
+                is_default=True, is_active=True
+            ).first()
 
-            UserPackage.objects.create(
-                user=instance,
-                package=None,  # No associated package - this is a free gift
-                ads_remaining=1,  # Only 1 free ad
-                expiry_date=timezone.now() + timedelta(days=365),  # Valid for 1 year
-            )
+            if default_package:
+                # Assign the default package to the user
+                from datetime import timedelta
 
-            # Create welcome notification
-            Notification.objects.create(
-                user=instance,
-                title=_("مرحباً بك في إدريسي مارت!"),
-                message=_(
-                    "تم منحك إعلان واحد مجاني! بعد استخدامه، يمكنك شراء باقة لنشر المزيد من الإعلانات."
-                ),
-                notification_type=Notification.NotificationType.GENERAL,
-            )
+                UserPackage.objects.create(
+                    user=instance,
+                    package=default_package,
+                    ads_remaining=default_package.ad_count,  # Use ad_count field
+                    expiry_date=timezone.now()
+                    + timedelta(days=default_package.duration_days),
+                )
+
+                # Create welcome notification with package info
+                Notification.objects.create(
+                    user=instance,
+                    title=_("مرحباً بك في إدريسي مارت!"),
+                    message=_(
+                        "تم منحك باقة {package_name} مع {ad_count} إعلان مجاني! يمكنك الترقية إلى ناشر لنشر إعلانات بدون موافقة الإدارة."
+                    ).format(
+                        package_name=default_package.name,
+                        ad_count=default_package.ad_count,
+                    ),
+                    notification_type=Notification.NotificationType.GENERAL,
+                )
+
+                logger.info(
+                    f"Assigned default package '{default_package.name}' to user {instance.username}"
+                )
+            else:
+                # No default package found - create basic free entry
+                from datetime import timedelta
+
+                UserPackage.objects.create(
+                    user=instance,
+                    package=None,  # No package linked
+                    ads_remaining=1,  # 1 free ad as fallback
+                    expiry_date=timezone.now() + timedelta(days=365),
+                )
+
+                Notification.objects.create(
+                    user=instance,
+                    title=_("مرحباً بك في إدريسي مارت!"),
+                    message=_(
+                        "تم منحك إعلان واحد مجاني! يمكنك الترقية إلى ناشر أو شراء باقات لنشر المزيد من الإعلانات."
+                    ),
+                    notification_type=Notification.NotificationType.GENERAL,
+                )
+
+                logger.warning(
+                    f"No default package found. Created basic free ad for user {instance.username}"
+                )
+
         except Exception as e:
             # Log error but don't fail user registration
-            print(f"Error assigning free ad to user {instance.username}: {e}")
+            logger.error(
+                f"Error assigning default package to user {instance.username}: {e}"
+            )

@@ -1,0 +1,405 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "جميع الإعلانات" %}{% endblock %}
+
+{% block admin_extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard-ad-cards.css' %}">
+<style>
+    .filters-bar {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    [data-theme='dark'] .filters-bar {
+        background: #1e1e2e;
+    }
+
+    .filters-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .filter-group label {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #374151;
+    }
+
+    [data-theme='dark'] .filter-group label {
+        color: #e5e7eb;
+    }
+
+    .filter-group select,
+    .filter-group input {
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+    }
+
+    [data-theme='dark'] .filter-group select,
+    [data-theme='dark'] .filter-group input {
+        background: #151521;
+        border-color: rgba(255,255,255,0.1);
+        color: #e5e7eb;
+    }
+
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-box {
+        background: white;
+        padding: 1rem;
+        border-radius: 8px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    [data-theme='dark'] .stat-box {
+        background: #1e1e2e;
+    }
+
+    .stat-box .label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-box .value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1a202c;
+    }
+
+    [data-theme='dark'] .stat-box .value {
+        color: #e5e7eb;
+    }
+
+    .ads-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .bulk-actions {
+        background: white;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        display: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    [data-theme='dark'] .bulk-actions {
+        background: #1e1e2e;
+    }
+
+    .bulk-actions.active {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .btn-primary {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #2563eb;
+    }
+
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #dc2626;
+    }
+
+    .btn-success {
+        background: #10b981;
+        color: white;
+    }
+
+    .btn-success:hover {
+        background: #059669;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>{% trans "جميع الإعلانات" %}</h1>
+        <a href="{% url 'main:admin_ad_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> {% trans "إضافة إعلان جديد" %}
+        </a>
+    </div>
+
+    <!-- Statistics -->
+    <div class="stats-row">
+        <div class="stat-box">
+            <div class="label">{% trans "الإجمالي" %}</div>
+            <div class="value">{{ stats.total }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="label">{% trans "نشط" %}</div>
+            <div class="value">{{ stats.active }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="label">{% trans "معلق" %}</div>
+            <div class="value">{{ stats.pending }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="label">{% trans "منتهي" %}</div>
+            <div class="value">{{ stats.expired }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="label">{% trans "مميز" %}</div>
+            <div class="value">{{ stats.highlighted }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="label">{% trans "عاجل" %}</div>
+            <div class="value">{{ stats.urgent }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="label">{% trans "مثبت" %}</div>
+            <div class="value">{{ stats.pinned }}</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-bar">
+        <form method="get" id="filterForm">
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label>{% trans "الحالة" %}</label>
+                    <select name="status" onchange="document.getElementById('filterForm').submit()">
+                        <option value="">{% trans "الكل" %}</option>
+                        {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if current_filters.status == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>{% trans "الترقية" %}</label>
+                    <select name="upgrade" onchange="document.getElementById('filterForm').submit()">
+                        <option value="">{% trans "الكل" %}</option>
+                        <option value="highlighted" {% if current_filters.upgrade == 'highlighted' %}selected{% endif %}>{% trans "مميز" %}</option>
+                        <option value="urgent" {% if current_filters.upgrade == 'urgent' %}selected{% endif %}>{% trans "عاجل" %}</option>
+                        <option value="pinned" {% if current_filters.upgrade == 'pinned' %}selected{% endif %}>{% trans "مثبت" %}</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>{% trans "الترتيب" %}</label>
+                    <select name="sort" onchange="document.getElementById('filterForm').submit()">
+                        <option value="priority" {% if current_filters.sort == 'priority' %}selected{% endif %}>{% trans "حسب الأولوية" %}</option>
+                        <option value="-created_at" {% if current_filters.sort == '-created_at' %}selected{% endif %}>{% trans "الأحدث" %}</option>
+                        <option value="created_at" {% if current_filters.sort == 'created_at' %}selected{% endif %}>{% trans "الأقدم" %}</option>
+                        <option value="-price" {% if current_filters.sort == '-price' %}selected{% endif %}>{% trans "الأعلى سعراً" %}</option>
+                        <option value="price" {% if current_filters.sort == 'price' %}selected{% endif %}>{% trans "الأقل سعراً" %}</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>{% trans "البحث" %}</label>
+                    <input type="text" name="search" placeholder="{% trans 'ابحث...' %}" value="{{ current_filters.search }}">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-3">{% trans "تطبيق الفلاتر" %}</button>
+        </form>
+    </div>
+
+    <!-- Bulk Actions -->
+    <div class="bulk-actions" id="bulkActions">
+        <div>
+            <span id="selectedCount">0</span> {% trans "محدد" %}
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <select id="bulkStatusSelect" class="form-control" style="width: auto;">
+                <option value="">{% trans "تغيير الحالة" %}</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button type="button" class="btn btn-success" onclick="bulkChangeStatus()">{% trans "تطبيق" %}</button>
+            <button type="button" class="btn btn-danger" onclick="bulkDelete()">{% trans "حذف" %}</button>
+        </div>
+    </div>
+
+    <!-- Ads Grid -->
+    <div class="ads-grid">
+        {% for ad in ads %}
+        <div class="ad-card {% if ad.is_pinned %}ad-pinned{% elif ad.is_urgent %}ad-urgent{% elif ad.is_highlighted %}ad-highlighted{% endif %}">
+            <div class="ad-card-header">
+                <input type="checkbox" class="ad-checkbox" value="{{ ad.id }}">
+            </div>
+
+            {% if ad.images.first %}
+            <img src="{{ ad.images.first.image.url }}" class="ad-card-image" alt="{{ ad.title }}">
+            {% else %}
+            <div class="ad-card-image" style="background: #e5e7eb;"></div>
+            {% endif %}
+
+            <div class="ad-card-content">
+                <h3>{{ ad.title }}</h3>
+                <div class="ad-price">{{ ad.price }} {{ ad.country.currency }}</div>
+                <div class="ad-meta">
+                    <span><i class="fas fa-user"></i> {{ ad.user.username }}</span>
+                    <span><i class="fas fa-folder"></i> {{ ad.category.name }}</span>
+                </div>
+                <div class="ad-status">
+                    <span class="badge badge-{{ ad.status }}">{{ ad.get_status_display }}</span>
+                    {% if ad.is_highlighted %}<span class="badge badge-upgrade">{% trans "مميز" %}</span>{% endif %}
+                    {% if ad.is_urgent %}<span class="badge badge-upgrade">{% trans "عاجل" %}</span>{% endif %}
+                    {% if ad.is_pinned %}<span class="badge badge-upgrade">{% trans "مثبت" %}</span>{% endif %}
+                </div>
+            </div>
+
+            <div class="ad-card-footer">
+                <a href="{% url 'main:admin_ad_detail' ad.id %}" class="btn btn-sm btn-secondary">{% trans "عرض" %}</a>
+                <a href="{% url 'main:admin_ad_update' ad.id %}" class="btn btn-sm btn-primary">{% trans "تعديل" %}</a>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center p-5">
+            <p>{% trans "لا توجد إعلانات" %}</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode }}">{% trans "السابق" %}</a>
+            </li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}&{{ request.GET.urlencode }}">{{ num }}</a>
+            </li>
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode }}">{% trans "التالي" %}</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<script>
+    // Track selected checkboxes
+    document.querySelectorAll('.ad-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updateBulkActions);
+    });
+
+    function updateBulkActions() {
+        const checkedBoxes = document.querySelectorAll('.ad-checkbox:checked');
+        const bulkActions = document.getElementById('bulkActions');
+        const selectedCount = document.getElementById('selectedCount');
+
+        selectedCount.textContent = checkedBoxes.length;
+
+        if (checkedBoxes.length > 0) {
+            bulkActions.classList.add('active');
+        } else {
+            bulkActions.classList.remove('active');
+        }
+    }
+
+    function bulkChangeStatus() {
+        const checkedBoxes = document.querySelectorAll('.ad-checkbox:checked');
+        const adIds = Array.from(checkedBoxes).map(cb => cb.value);
+        const newStatus = document.getElementById('bulkStatusSelect').value;
+
+        if (!newStatus) {
+            alert('{% trans "الرجاء اختيار حالة" %}');
+            return;
+        }
+
+        if (!confirm(`{% trans "هل تريد تغيير حالة" %} ${adIds.length} {% trans "إعلان؟" %}`)) {
+            return;
+        }
+
+        const formData = new FormData();
+        adIds.forEach(id => formData.append('ad_ids[]', id));
+        formData.append('status', newStatus);
+
+        fetch('{% url "main:admin_bulk_change_status" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+            location.reload();
+        })
+        .catch(error => {
+            alert('{% trans "حدث خطأ" %}');
+        });
+    }
+
+    function bulkDelete() {
+        const checkedBoxes = document.querySelectorAll('.ad-checkbox:checked');
+        const adIds = Array.from(checkedBoxes).map(cb => cb.value);
+
+        if (!confirm(`{% trans "هل تريد حذف" %} ${adIds.length} {% trans "إعلان نهائياً؟" %}`)) {
+            return;
+        }
+
+        const formData = new FormData();
+        adIds.forEach(id => formData.append('ad_ids[]', id));
+
+        fetch('{% url "main:admin_bulk_delete_ads" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+            location.reload();
+        })
+        .catch(error => {
+            alert('{% trans "حدث خطأ" %}');
+        });
+    }
+</script>
+{% endblock %}

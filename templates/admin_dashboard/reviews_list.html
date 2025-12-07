@@ -1,0 +1,409 @@
+{% extends "admin_dashboard/base.html" %}
+{% load static i18n %}
+
+{% block admin_title %}{% trans "إدارة التقييمات" %}{% endblock admin_title %}
+
+{% block admin_content %}
+<!-- Set active navigation -->
+{% with active_nav='reviews' %}
+{% endwith %}
+
+<div class="admin-reviews-management">
+    <!-- Header -->
+    <div class="page-header mb-4">
+        <h1 class="mb-0">
+            <i class="fas fa-star me-2"></i>{% trans "إدارة التقييمات" %}
+        </h1>
+        <p class="text-muted mt-2">{% trans "عرض وإدارة جميع تقييمات الإعلانات" %}</p>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-icon bg-primary">
+                    <i class="fas fa-star"></i>
+                </div>
+                <div class="stats-content">
+                    <h3>{{ stats.total }}</h3>
+                    <p>{% trans "إجمالي التقييمات" %}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-icon bg-success">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stats-content">
+                    <h3>{{ stats.approved }}</h3>
+                    <p>{% trans "معتمدة" %}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-icon bg-warning">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stats-content">
+                    <h3>{{ stats.pending }}</h3>
+                    <p>{% trans "بانتظار المراجعة" %}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-icon bg-info">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="stats-content">
+                    <h3>{{ stats.average_rating|floatformat:1 }}</h3>
+                    <p>{% trans "متوسط التقييم" %}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters & Search -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">{% trans "البحث" %}</label>
+                    <input type="text" name="search" class="form-control"
+                           placeholder="{% trans 'بحث في التقييمات...' %}"
+                           value="{{ search|default:'' }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">{% trans "التقييم" %}</label>
+                    <select name="rating" class="form-select">
+                        <option value="">{% trans "الكل" %}</option>
+                        <option value="5" {% if rating_filter == '5' %}selected{% endif %}>5 ★</option>
+                        <option value="4" {% if rating_filter == '4' %}selected{% endif %}>4 ★</option>
+                        <option value="3" {% if rating_filter == '3' %}selected{% endif %}>3 ★</option>
+                        <option value="2" {% if rating_filter == '2' %}selected{% endif %}>2 ★</option>
+                        <option value="1" {% if rating_filter == '1' %}selected{% endif %}>1 ★</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">{% trans "الحالة" %}</label>
+                    <select name="status" class="form-select">
+                        <option value="">{% trans "الكل" %}</option>
+                        <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>{% trans "معتمد" %}</option>
+                        <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>{% trans "بانتظار المراجعة" %}</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter me-2"></i>{% trans "تصفية" %}
+                    </button>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <a href="{% url 'main:admin_reviews_list' %}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-redo me-2"></i>{% trans "إعادة تعيين" %}
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bulk Actions -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form id="bulkActionsForm" method="post">
+                {% csrf_token %}
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="button" class="btn btn-success" onclick="bulkApprove()">
+                        <i class="fas fa-check me-2"></i>{% trans "قبول المحدد" %}
+                    </button>
+                    <button type="button" class="btn btn-warning" onclick="bulkReject()">
+                        <i class="fas fa-times me-2"></i>{% trans "رفض المحدد" %}
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="bulkDelete()">
+                        <i class="fas fa-trash me-2"></i>{% trans "حذف المحدد" %}
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="selectAll()">
+                        <i class="fas fa-check-square me-2"></i>{% trans "تحديد الكل" %}
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="deselectAll()">
+                        <i class="far fa-square me-2"></i>{% trans "إلغاء التحديد" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Reviews List -->
+    <div class="card">
+        <div class="card-body">
+            {% if reviews %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th width="50">
+                                    <input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()">
+                                </th>
+                                <th>{% trans "الإعلان" %}</th>
+                                <th>{% trans "المستخدم" %}</th>
+                                <th>{% trans "التقييم" %}</th>
+                                <th>{% trans "التعليق" %}</th>
+                                <th>{% trans "التاريخ" %}</th>
+                                <th>{% trans "الحالة" %}</th>
+                                <th>{% trans "الإجراءات" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for review in reviews %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" class="review-checkbox" value="{{ review.id }}">
+                                </td>
+                                <td>
+                                    <a href="{% url 'main:ad_detail' review.ad.slug %}" target="_blank">
+                                        {{ review.ad.title|truncatewords:5 }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        {% load idrissimart_tags %}
+                                        {% user_avatar user=review.user size=30 css_class="rounded-circle" %}
+                                        <span>{{ review.user.get_display_name }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="rating-stars">
+                                        {% for i in "12345" %}
+                                            {% if forloop.counter <= review.rating %}
+                                                <i class="fas fa-star text-warning"></i>
+                                            {% else %}
+                                                <i class="far fa-star text-warning"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if review.comment %}
+                                        {{ review.comment|truncatewords:10 }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ review.created_at|date:"Y-m-d H:i" }}</td>
+                                <td>
+                                    {% if review.is_approved %}
+                                        <span class="badge bg-success">{% trans "معتمد" %}</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">{% trans "بانتظار المراجعة" %}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group">
+                                        <a href="{% url 'main:admin_review_detail' review.id %}"
+                                           class="btn btn-sm btn-info">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if not review.is_approved %}
+                                        <form method="post" action="{% url 'main:admin_approve_review' review.id %}" style="display: inline;">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-success" title="{% trans 'قبول' %}">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </form>
+                                        {% else %}
+                                        <form method="post" action="{% url 'main:admin_reject_review' review.id %}" style="display: inline;">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-warning" title="{% trans 'رفض' %}">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                        <form method="post" action="{% url 'main:admin_delete_review' review.id %}"
+                                              style="display: inline;"
+                                              onsubmit="return confirm('{% trans "هل أنت متأكد من حذف هذا التقييم؟" %}')">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if reviews.has_other_pages %}
+                <nav class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if reviews.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ reviews.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if rating_filter %}&rating={{ rating_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                                {% trans "السابق" %}
+                            </a>
+                        </li>
+                        {% endif %}
+
+                        {% for num in reviews.paginator.page_range %}
+                        <li class="page-item {% if reviews.number == num %}active{% endif %}">
+                            <a class="page-link" href="?page={{ num }}{% if search %}&search={{ search }}{% endif %}{% if rating_filter %}&rating={{ rating_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                                {{ num }}
+                            </a>
+                        </li>
+                        {% endfor %}
+
+                        {% if reviews.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ reviews.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if rating_filter %}&rating={{ rating_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                                {% trans "التالي" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-star fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">{% trans "لا توجد تقييمات" %}</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <style>
+        .stats-card {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.25rem;
+            background: var(--bg-secondary-light, #fff);
+            border-radius: 10px;
+            box-shadow: var(--shadow-card);
+            border: 1px solid var(--border-color);
+        }
+
+        .card {
+            background-color: var(--bg-secondary-light, #fff);
+            border: 1px solid var(--border-color);
+        }
+
+        .table {
+            color: var(--text-primary);
+        }
+        .stats-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--white-color);
+            font-size: 1.5rem;
+        }
+
+        .stats-content h3 {
+            margin: 0;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .stats-content p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .rating-stars {
+            white-space: nowrap;
+        }
+    </style>
+</div>
+{% endblock admin_content %}
+
+{% block admin_extra_js %}
+<script>
+function toggleSelectAll() {
+    const checkboxes = document.querySelectorAll('.review-checkbox');
+    const selectAll = document.getElementById('selectAllCheckbox').checked;
+    checkboxes.forEach(cb => cb.checked = selectAll);
+}
+
+function selectAll() {
+    document.querySelectorAll('.review-checkbox').forEach(cb => cb.checked = true);
+    document.getElementById('selectAllCheckbox').checked = true;
+}
+
+function deselectAll() {
+    document.querySelectorAll('.review-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('selectAllCheckbox').checked = false;
+}
+
+function getSelectedIds() {
+    return Array.from(document.querySelectorAll('.review-checkbox:checked')).map(cb => cb.value);
+}
+
+function bulkApprove() {
+    const ids = getSelectedIds();
+    if (ids.length === 0) {
+        alert('{% trans "يرجى تحديد تقييم واحد على الأقل" %}');
+        return;
+    }
+    const form = document.getElementById('bulkActionsForm');
+    form.action = '{% url "main:admin_bulk_approve_reviews" %}';
+    ids.forEach(id => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'review_ids';
+        input.value = id;
+        form.appendChild(input);
+    });
+    form.submit();
+}
+
+function bulkReject() {
+    const ids = getSelectedIds();
+    if (ids.length === 0) {
+        alert('{% trans "يرجى تحديد تقييم واحد على الأقل" %}');
+        return;
+    }
+    const form = document.getElementById('bulkActionsForm');
+    form.action = '{% url "main:admin_bulk_reject_reviews" %}';
+    ids.forEach(id => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'review_ids';
+        input.value = id;
+        form.appendChild(input);
+    });
+    form.submit();
+}
+
+function bulkDelete() {
+    const ids = getSelectedIds();
+    if (ids.length === 0) {
+        alert('{% trans "يرجى تحديد تقييم واحد على الأقل" %}');
+        return;
+    }
+    if (!confirm('{% trans "هل أنت متأكد من حذف التقييمات المحددة؟" %}')) {
+        return;
+    }
+    const form = document.getElementById('bulkActionsForm');
+    form.action = '{% url "main:admin_bulk_delete_reviews" %}';
+    ids.forEach(id => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'review_ids';
+        input.value = id;
+        form.appendChild(input);
+    });
+    form.submit();
+}
+</script>
+{% endblock admin_extra_js %}
+
+{% block admin_extra_css %}{% endblock admin_extra_css %}

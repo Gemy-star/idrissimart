@@ -1,0 +1,350 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+    .form-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        padding: 2rem;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    [data-theme='dark'] .form-container {
+        background: #1e1e2e;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #374151;
+    }
+
+    [data-theme='dark'] .form-group label {
+        color: #e5e7eb;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 1rem;
+    }
+
+    [data-theme='dark'] .form-group input,
+    [data-theme='dark'] .form-group select,
+    [data-theme='dark'] .form-group textarea {
+        background: #151521;
+        border-color: rgba(255,255,255,0.1);
+        color: #e5e7eb;
+    }
+
+    .form-group textarea {
+        min-height: 150px;
+        resize: vertical;
+    }
+
+    .form-group .helptext {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+
+    .form-group .errorlist {
+        list-style: none;
+        padding: 0;
+        margin: 0.5rem 0 0 0;
+    }
+
+    .form-group .errorlist li {
+        color: #ef4444;
+        font-size: 0.875rem;
+    }
+
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+        width: auto;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 2px solid #e5e7eb;
+    }
+
+    [data-theme='dark'] .form-actions {
+        border-top-color: rgba(255,255,255,0.1);
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #2563eb;
+    }
+
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #4b5563;
+    }
+
+    .upgrade-checkboxes {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .upgrade-checkbox {
+        padding: 1rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        transition: all 0.2s;
+    }
+
+    .upgrade-checkbox:hover {
+        border-color: #3b82f6;
+    }
+
+    .upgrade-checkbox input:checked + label {
+        color: #3b82f6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>{{ page_title }}</h1>
+        <a href="{% url 'main:admin_all_ads' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-right"></i> {% trans "رجوع" %}
+        </a>
+    </div>
+
+    <div class="form-container">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="{{ form.title.id_for_label }}">
+                    {{ form.title.label }} <span style="color: red;">*</span>
+                </label>
+                {{ form.title }}
+                {% if form.title.errors %}
+                    {{ form.title.errors }}
+                {% endif %}
+                {% if form.title.help_text %}
+                    <div class="helptext">{{ form.title.help_text }}</div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.description.id_for_label }}">
+                    {{ form.description.label }} <span style="color: red;">*</span>
+                </label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                    {{ form.description.errors }}
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.price.id_for_label }}">
+                    {{ form.price.label }} <span style="color: red;">*</span>
+                </label>
+                {{ form.price }}
+                {% if form.price.errors %}
+                    {{ form.price.errors }}
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.category.id_for_label }}">
+                    {{ form.category.label }} <span style="color: red;">*</span>
+                </label>
+                {{ form.category }}
+                {% if form.category.errors %}
+                    {{ form.category.errors }}
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.subcategory.id_for_label }}">
+                    {{ form.subcategory.label }}
+                </label>
+                {{ form.subcategory }}
+                {% if form.subcategory.errors %}
+                    {{ form.subcategory.errors }}
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.country.id_for_label }}">
+                    {{ form.country.label }} <span style="color: red;">*</span>
+                </label>
+                {{ form.country }}
+                {% if form.country.errors %}
+                    {{ form.country.errors }}
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.city.id_for_label }}">
+                    {{ form.city.label }}
+                </label>
+                {{ form.city }}
+                {% if form.city.errors %}
+                    {{ form.city.errors }}
+                {% endif %}
+            </div>
+
+            {% if form_action == 'create' %}
+            <div class="form-group">
+                <label for="{{ form.user.id_for_label }}">
+                    {{ form.user.label }} <span style="color: red;">*</span>
+                </label>
+                {{ form.user }}
+                {% if form.user.errors %}
+                    {{ form.user.errors }}
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="{{ form.status.id_for_label }}">
+                    {{ form.status.label }} <span style="color: red;">*</span>
+                </label>
+                {{ form.status }}
+                {% if form.status.errors %}
+                    {{ form.status.errors }}
+                {% endif %}
+            </div>
+
+            <h3 class="mt-4 mb-3">{% trans "الترقيات" %}</h3>
+
+            <div class="upgrade-checkboxes">
+                <div class="upgrade-checkbox">
+                    <div class="checkbox-group">
+                        {{ form.is_highlighted }}
+                        <label for="{{ form.is_highlighted.id_for_label }}">
+                            <i class="fas fa-star"></i> {{ form.is_highlighted.label }}
+                        </label>
+                    </div>
+                </div>
+
+                <div class="upgrade-checkbox">
+                    <div class="checkbox-group">
+                        {{ form.is_urgent }}
+                        <label for="{{ form.is_urgent.id_for_label }}">
+                            <i class="fas fa-bolt"></i> {{ form.is_urgent.label }}
+                        </label>
+                    </div>
+                </div>
+
+                <div class="upgrade-checkbox">
+                    <div class="checkbox-group">
+                        {{ form.is_pinned }}
+                        <label for="{{ form.is_pinned.id_for_label }}">
+                            <i class="fas fa-thumbtack"></i> {{ form.is_pinned.label }}
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i>
+                    {% if form_action == 'create' %}
+                        {% trans "إنشاء الإعلان" %}
+                    {% else %}
+                        {% trans "حفظ التعديلات" %}
+                    {% endif %}
+                </button>
+                <a href="{% url 'main:admin_all_ads' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> {% trans "إلغاء" %}
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Dynamic subcategory loading
+    document.getElementById('{{ form.category.id_for_label }}').addEventListener('change', function() {
+        const categoryId = this.value;
+        const subcategorySelect = document.getElementById('{{ form.subcategory.id_for_label }}');
+
+        if (!categoryId) {
+            subcategorySelect.innerHTML = '<option value="">---------</option>';
+            return;
+        }
+
+        fetch(`/ajax/subcategories/?category_id=${categoryId}`)
+            .then(response => response.json())
+            .then(data => {
+                subcategorySelect.innerHTML = '<option value="">---------</option>';
+                data.forEach(subcategory => {
+                    const option = document.createElement('option');
+                    option.value = subcategory.id;
+                    option.textContent = subcategory.name;
+                    subcategorySelect.appendChild(option);
+                });
+            });
+    });
+
+    // Dynamic city loading
+    document.getElementById('{{ form.country.id_for_label }}').addEventListener('change', function() {
+        const countryId = this.value;
+        const citySelect = document.getElementById('{{ form.city.id_for_label }}');
+
+        if (!categoryId) {
+            citySelect.innerHTML = '<option value="">---------</option>';
+            return;
+        }
+
+        // You can implement similar AJAX for cities
+    });
+</script>
+{% endblock %}

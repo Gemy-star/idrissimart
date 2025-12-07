@@ -1,0 +1,373 @@
+{% extends "admin_dashboard/base.html" %}
+{% load i18n static %}
+
+{% block title %}
+{% if action == 'create' %}
+    {% trans "إضافة شريحة جديدة" %}
+{% else %}
+    {% trans "تعديل الشريحة" %}
+{% endif %}
+- {{ block.super }}
+{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+.form-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 20px;
+}
+
+.form-section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    display: block;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+    background: var(--input-bg, #ffffff);
+    color: var(--text-primary);
+    transition: border-color 0.3s;
+}
+
+[data-theme='dark'] .form-control {
+    background: var(--input-bg, #2a2a3e);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+textarea.form-control {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.color-input-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.color-input {
+    width: 60px;
+    height: 40px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.image-preview {
+    max-width: 300px;
+    max-height: 150px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.help-text {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-top: 5px;
+}
+
+.form-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.form-check-input {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.btn-group-form {
+    display: flex;
+    gap: 10px;
+    margin-top: 30px;
+}
+
+.btn-primary-form {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    padding: 12px 30px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.3s;
+}
+
+.btn-primary-form:hover {
+    transform: translateY(-2px);
+}
+
+.btn-secondary-form {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 12px 30px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-secondary-form:hover {
+    background: var(--bg-hover);
+}
+
+[data-theme='dark'] .form-control {
+    background: var(--input-bg);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+[data-theme='dark'] .btn-secondary-form {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="mb-4">
+        <h1 class="h3 mb-2">
+            {% if action == 'create' %}
+                {% trans "إضافة شريحة جديدة" %}
+            {% else %}
+                {% trans "تعديل الشريحة" %}
+            {% endif %}
+        </h1>
+        <p class="text-muted">{% trans "املأ البيانات أدناه لإنشاء شريحة جديدة للصفحة الرئيسية" %}</p>
+    </div>
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <!-- Basic Info -->
+        <div class="form-card">
+            <h2 class="form-section-title">{% trans "المعلومات الأساسية" %}</h2>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">{% trans "العنوان (English)" %} *</label>
+                        <input type="text" name="title" class="form-control"
+                               value="{% if slider %}{{ slider.title }}{% endif %}"
+                               required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">{% trans "العنوان (عربي)" %} *</label>
+                        <input type="text" name="title_ar" class="form-control"
+                               value="{% if slider %}{{ slider.title_ar }}{% endif %}"
+                               required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">{% trans "العنوان الفرعي (English)" %}</label>
+                        <textarea name="subtitle" class="form-control" rows="3">{% if slider %}{{ slider.subtitle }}{% endif %}</textarea>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">{% trans "العنوان الفرعي (عربي)" %}</label>
+                        <textarea name="subtitle_ar" class="form-control" rows="3">{% if slider %}{{ slider.subtitle_ar }}{% endif %}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">{% trans "الوصف (English)" %}</label>
+                        <textarea name="description" class="form-control" rows="4">{% if slider %}{{ slider.description }}{% endif %}</textarea>
+                        <small class="help-text">{% trans "نص بسيط بدون تنسيق HTML" %}</small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">{% trans "الوصف (عربي)" %}</label>
+                        <textarea name="description_ar" class="form-control" rows="4">{% if slider %}{{ slider.description_ar }}{% endif %}</textarea>
+                        <small class="help-text">{% trans "نص بسيط بدون تنسيق HTML" %}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Image & Colors -->
+        <div class="form-card">
+            <h2 class="form-section-title">{% trans "الصورة والألوان" %}</h2>
+
+            <div class="form-group">
+                <label class="form-label">{% trans "صورة الشريحة" %} *</label>
+                <input type="file" name="image" class="form-control" accept="image/*"
+                       {% if not slider %}required{% endif %}
+                       onchange="previewImage(this)">
+                <small class="help-text">{% trans "الحجم الموصى به: 1920x800 بكسل" %}</small>
+
+                {% if slider and slider.image %}
+                <img src="{{ slider.image.url }}" alt="{{ slider.title }}" class="image-preview" id="imagePreview">
+                {% else %}
+                <img src="" alt="Preview" class="image-preview" id="imagePreview" style="display:none;">
+                {% endif %}
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">{% trans "لون الخلفية" %}</label>
+                        <div class="color-input-group">
+                            <input type="color" name="background_color" class="color-input"
+                                   value="{% if slider %}{{ slider.background_color }}{% else %}#4B315E{% endif %}">
+                            <input type="text" class="form-control"
+                                   value="{% if slider %}{{ slider.background_color }}{% else %}#4B315E{% endif %}"
+                                   readonly>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">{% trans "لون النص" %}</label>
+                        <div class="color-input-group">
+                            <input type="color" name="text_color" class="color-input"
+                                   value="{% if slider %}{{ slider.text_color }}{% else %}#FFFFFF{% endif %}">
+                            <input type="text" class="form-control"
+                                   value="{% if slider %}{{ slider.text_color }}{% else %}#FFFFFF{% endif %}"
+                                   readonly>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Button -->
+        <div class="form-card">
+            <h2 class="form-section-title">{% trans "زر الإجراء" %}</h2>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="form-label">{% trans "نص الزر (English)" %}</label>
+                        <input type="text" name="button_text" class="form-control"
+                               value="{% if slider %}{{ slider.button_text }}{% endif %}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="form-label">{% trans "نص الزر (عربي)" %}</label>
+                        <input type="text" name="button_text_ar" class="form-control"
+                               value="{% if slider %}{{ slider.button_text_ar }}{% endif %}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="form-label">{% trans "رابط الزر" %}</label>
+                        <input type="text" name="button_url" class="form-control"
+                               value="{% if slider %}{{ slider.button_url }}{% endif %}"
+                               placeholder="/classifieds/">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings -->
+        <div class="form-card">
+            <h2 class="form-section-title">{% trans "الإعدادات" %}</h2>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">{% trans "الترتيب" %}</label>
+                        <input type="number" name="order" class="form-control"
+                               value="{% if slider %}{{ slider.order }}{% else %}0{% endif %}"
+                               min="0">
+                        <small class="help-text">{% trans "يتم عرض الشرائح حسب الترتيب التصاعدي" %}</small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">{% trans "الحالة" %}</label>
+                        <div class="form-check">
+                            <input type="checkbox" name="is_active" class="form-check-input"
+                                   {% if not slider or slider.is_active %}checked{% endif %}>
+                            <label class="form-check-label">{% trans "نشط" %}</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="btn-group-form">
+            <button type="submit" class="btn-primary-form">
+                <i class="fas fa-save me-2"></i>
+                {% trans "حفظ" %}
+            </button>
+            <a href="{% url 'main:admin_home_sliders' %}" class="btn-secondary-form">
+                <i class="fas fa-times me-2"></i>
+                {% trans "إلغاء" %}
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block admin_extra_js %}
+<script>
+function previewImage(input) {
+    const preview = document.getElementById('imagePreview');
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+        }
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+// Sync color picker with text input
+document.querySelectorAll('input[type="color"]').forEach(colorInput => {
+    colorInput.addEventListener('change', function() {
+        this.nextElementSibling.value = this.value;
+    });
+});
+</script>
+{% endblock %}

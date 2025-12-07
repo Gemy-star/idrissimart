@@ -16,6 +16,7 @@ from .forms import AdImageFormSet, ClassifiedAdForm
 from .models import (
     AdImage,
     AdPackage,
+    AdReview,
     Category,
     ClassifiedAd,
     Notification,
@@ -348,16 +349,20 @@ class ClassifiedAdDetailView(DetailView):
     model = ClassifiedAd
     template_name = "classifieds/ad_detail.html"
     context_object_name = "ad"
+    slug_field = "slug"
+    slug_url_kwarg = "slug"
 
     def dispatch(self, request, *args, **kwargs):
         """Override dispatch to handle inactive ads gracefully."""
-        ad_id = self.kwargs.get(self.pk_url_kwarg)
+        ad_slug = self.kwargs.get(self.slug_url_kwarg)
 
         try:
             # First check if ad exists at all (including inactive ones)
             from .models import ClassifiedAd
 
-            ad = ClassifiedAd.objects.select_related("user", "category").get(pk=ad_id)
+            ad = ClassifiedAd.objects.select_related("user", "category").get(
+                slug=ad_slug
+            )
 
             # If ad is not active, show it with disabled actions
             if ad.status != ClassifiedAd.AdStatus.ACTIVE:
@@ -365,7 +370,7 @@ class ClassifiedAdDetailView(DetailView):
 
                 logger = logging.getLogger(__name__)
                 logger.info(
-                    f"ClassifiedAd {ad_id} is {ad.get_status_display()} - showing with disabled actions. IP: {request.META.get('REMOTE_ADDR', 'unknown')}"
+                    f"ClassifiedAd '{ad_slug}' is {ad.get_status_display()} - showing with disabled actions. IP: {request.META.get('REMOTE_ADDR', 'unknown')}"
                 )
 
                 # Set the object and render with inactive template
@@ -384,17 +389,17 @@ class ClassifiedAdDetailView(DetailView):
 
             logger = logging.getLogger(__name__)
             logger.info(
-                f"ClassifiedAd {ad_id} does not exist in database. IP: {request.META.get('REMOTE_ADDR', 'unknown')}"
+                f"ClassifiedAd '{ad_slug}' does not exist in database. IP: {request.META.get('REMOTE_ADDR', 'unknown')}"
             )
-            raise Http404(f"Classified ad with ID {ad_id} does not exist.")
+            raise Http404(f"Classified ad '{ad_slug}' does not exist.")
         except Exception as e:
             import logging
 
             logger = logging.getLogger(__name__)
             logger.error(
-                f"Error checking ClassifiedAd {ad_id}: {str(e)}", exc_info=True
+                f"Error checking ClassifiedAd '{ad_slug}': {str(e)}", exc_info=True
             )
-            raise Http404(f"Unable to access classified ad {ad_id}.")
+            raise Http404(f"Unable to access classified ad '{ad_slug}'.")
 
     def get_queryset(self):
         # We handle inactive ads in dispatch, so include all ads here
@@ -414,13 +419,11 @@ class ClassifiedAdDetailView(DetailView):
             import logging
 
             logger = logging.getLogger(__name__)
-            ad_id = self.kwargs.get(self.pk_url_kwarg)
+            ad_slug = self.kwargs.get(self.slug_url_kwarg)
             logger.info(
-                f"ClassifiedAd with ID {ad_id} does not exist or is not active. IP: {self.request.META.get('REMOTE_ADDR', 'unknown')}"
+                f"ClassifiedAd '{ad_slug}' does not exist or is not active. IP: {self.request.META.get('REMOTE_ADDR', 'unknown')}"
             )
-            raise Http404(
-                f"ClassifiedAd with ID {ad_id} does not exist or is not active."
-            )
+            raise Http404(f"ClassifiedAd '{ad_slug}' does not exist or is not active.")
         except Exception as e:
             import logging
 
@@ -470,6 +473,26 @@ class ClassifiedAdDetailView(DetailView):
         )
 
         context["related_ads"] = related_ads
+
+        # Add reviews for this ad (only approved reviews)
+        context["reviews"] = (
+            ad.reviews.filter(is_approved=True)
+            .select_related("user")
+            .order_by("-created_at")[:10]
+        )
+
+        # Check if current user has already reviewed
+        if self.request.user.is_authenticated:
+            user_review = ad.reviews.filter(user=self.request.user).first()
+            context["user_has_reviewed"] = user_review is not None
+            # Check if user has pending review
+            context["user_has_pending_review"] = (
+                user_review is not None and not user_review.is_approved
+            )
+        else:
+            context["user_has_reviewed"] = False
+            context["user_has_pending_review"] = False
+
         return context
 
 
@@ -589,6 +612,14 @@ class PackageListView(ListView):
             "category"
         )
 
+        # إذا كان المستخدم غير موثق، عرض الباقات المجانية فقط
+        # If user is not verified, show only free packages
+        if (
+            self.request.user.is_authenticated
+            and not self.request.user.is_email_verified
+        ):
+            all_packages = all_packages.filter(price=0)
+
         # Separate general packages (no category) from category-specific ones
         general_packages = all_packages.filter(category__isnull=True).order_by(
             "display_order", "-is_recommended", "price"
@@ -605,6 +636,13 @@ class PackageListView(ListView):
 
         context["general_packages"] = general_packages
         context["category_packages"] = category_packages
+
+        # إضافة معلومة إذا كان المستخدم غير موثق
+        if (
+            self.request.user.is_authenticated
+            and not self.request.user.is_email_verified
+        ):
+            context["show_verification_notice"] = True
 
         # If user is authenticated, get their active packages
         if self.request.user.is_authenticated:
@@ -1078,7 +1116,7 @@ class CategorySaveView(LoginRequiredMixin, View):
 
             # Auto-generate slugs if not provided
             if not slug:
-                base_slug = slugify(name_en or name_ar or name)
+                base_slug = slugify(name_en or name_ar or name, allow_unicode=True)
                 # Ensure uniqueness for new categories
                 if not category_id:
                     slug = base_slug
@@ -1100,7 +1138,7 @@ class CategorySaveView(LoginRequiredMixin, View):
 
             if not slug_ar:
                 # For Arabic, use Arabic name or fallback to regular slug
-                base_slug_ar = slugify(name_ar or name_en or name)
+                base_slug_ar = slugify(name_ar or name_en or name, allow_unicode=True)
                 if not category_id:
                     slug_ar = base_slug_ar if base_slug_ar else slug
                     counter = 1

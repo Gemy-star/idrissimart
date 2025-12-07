@@ -33,16 +33,14 @@ def get_country_filtered_ads(request, queryset):
 def format_ad_price(price, currency_symbol=None):
     """
     Format ad price with proper number formatting and currency symbol
+    Shows full price with thousands separator to display decimals
     """
     if not price:
         return ""
-    # Format with thousands separator
-    if price >= 1000000:
-        formatted = f"{price/1000000:.1f}M"
-    elif price >= 1000:
-        formatted = f"{price/1000:.0f}K"
-    else:
-        formatted = f"{price:,.0f}"
+
+    # Format with thousands separator and 2 decimal places
+    # This shows full price including fractions (e.g., 1,234.56)
+    formatted = f"{float(price):,.2f}"
 
     if currency_symbol:
         return f"{formatted} {currency_symbol}"

@@ -1,0 +1,429 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "سجل الترقيات" %}{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-box {
+        background: white;
+        padding: 1rem;
+        border-radius: 8px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    [data-theme='dark'] .stat-box {
+        background: #1e1e2e;
+    }
+
+    .stat-box .label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-box .value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1a202c;
+    }
+
+    [data-theme='dark'] .stat-box .value {
+        color: #e5e7eb;
+    }
+
+    .filters-bar {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    [data-theme='dark'] .filters-bar {
+        background: #1e1e2e;
+    }
+
+    .upgrade-table {
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    [data-theme='dark'] .upgrade-table {
+        background: #1e1e2e;
+    }
+
+    .upgrade-table table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .upgrade-table th {
+        background: #f3f4f6;
+        padding: 1rem;
+        text-align: right;
+        font-weight: 600;
+    }
+
+    [data-theme='dark'] .upgrade-table th {
+        background: #151521;
+    }
+
+    .upgrade-table td {
+        padding: 1rem;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    [data-theme='dark'] .upgrade-table td {
+        border-top-color: rgba(255,255,255,0.1);
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .badge-active {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .badge-expired {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .badge-highlighted {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .badge-urgent {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+    }
+
+    .badge-pinned {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-sm {
+        padding: 0.25rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .btn-primary {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .btn-success {
+        background: #10b981;
+        color: white;
+    }
+
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+    }
+
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .bulk-actions {
+        background: white;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        display: none;
+    }
+
+    [data-theme='dark'] .bulk-actions {
+        background: #1e1e2e;
+    }
+
+    .bulk-actions.active {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>{% trans "سجل الترقيات" %}</h1>
+        <a href="{% url 'main:admin_upgrade_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> {% trans "إضافة ترقية جديدة" %}
+        </a>
+    </div>
+
+    <!-- Statistics -->
+    <div class="stats-row">
+        <div class="stat-box">
+            <div class="label">{% trans "الإجمالي" %}</div>
+            <div class="value">{{ stats.total }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="label">{% trans "نشط" %}</div>
+            <div class="value">{{ stats.active }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="label">{% trans "منتهي" %}</div>
+            <div class="value">{{ stats.expired }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="label">{% trans "مميز" %}</div>
+            <div class="value">{{ stats.highlighted }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="label">{% trans "عاجل" %}</div>
+            <div class="value">{{ stats.urgent }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="label">{% trans "مثبت" %}</div>
+            <div class="value">{{ stats.pinned }}</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-bar">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label>{% trans "نوع الترقية" %}</label>
+                <select name="upgrade_type" class="form-control">
+                    <option value="">{% trans "الكل" %}</option>
+                    {% for value, label in upgrade_types %}
+                    <option value="{{ value }}" {% if current_filters.upgrade_type == value %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label>{% trans "الحالة" %}</label>
+                <select name="is_active" class="form-control">
+                    <option value="">{% trans "الكل" %}</option>
+                    <option value="true" {% if current_filters.is_active == 'true' %}selected{% endif %}>{% trans "نشط" %}</option>
+                    <option value="false" {% if current_filters.is_active == 'false' %}selected{% endif %}>{% trans "منتهي" %}</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label>{% trans "رقم الإعلان" %}</label>
+                <input type="number" name="ad_id" class="form-control" value="{{ current_filters.ad_id }}">
+            </div>
+            <div class="col-md-3">
+                <label>&nbsp;</label>
+                <button type="submit" class="btn btn-primary w-100">{% trans "تطبيق" %}</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Bulk Actions -->
+    <div class="bulk-actions" id="bulkActions">
+        <div>
+            <span id="selectedCount">0</span> {% trans "محدد" %}
+        </div>
+        <div>
+            <button type="button" class="btn btn-danger" onclick="bulkDeactivate()">
+                {% trans "إلغاء التفعيل" %}
+            </button>
+        </div>
+    </div>
+
+    <!-- Upgrades Table -->
+    <div class="upgrade-table">
+        <table>
+            <thead>
+                <tr>
+                    <th><input type="checkbox" id="select-all"></th>
+                    <th>{% trans "رقم الإعلان" %}</th>
+                    <th>{% trans "عنوان الإعلان" %}</th>
+                    <th>{% trans "نوع الترقية" %}</th>
+                    <th>{% trans "المبلغ" %}</th>
+                    <th>{% trans "المدة" %}</th>
+                    <th>{% trans "تاريخ البدء" %}</th>
+                    <th>{% trans "تاريخ الانتهاء" %}</th>
+                    <th>{% trans "الحالة" %}</th>
+                    <th>{% trans "الإجراءات" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for upgrade in upgrades %}
+                <tr>
+                    <td><input type="checkbox" class="upgrade-checkbox" value="{{ upgrade.id }}"></td>
+                    <td>{{ upgrade.ad.id }}</td>
+                    <td>
+                        <a href="{% url 'main:admin_ad_detail' upgrade.ad.id %}">{{ upgrade.ad.title }}</a>
+                    </td>
+                    <td>
+                        <span class="badge badge-{{ upgrade.upgrade_type|lower }}">
+                            {{ upgrade.get_upgrade_type_display }}
+                        </span>
+                    </td>
+                    <td>{{ upgrade.price_paid }} EGP</td>
+                    <td>{{ upgrade.duration_days }} {% trans "يوم" %}</td>
+                    <td>{{ upgrade.start_date|date:"Y-m-d" }}</td>
+                    <td>{{ upgrade.end_date|date:"Y-m-d" }}</td>
+                    <td>
+                        {% if upgrade.is_active %}
+                            <span class="badge badge-active">{% trans "نشط" %}</span>
+                        {% else %}
+                            <span class="badge badge-expired">{% trans "منتهي" %}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <a href="{% url 'main:admin_upgrade_update' upgrade.id %}" class="btn btn-sm btn-primary">
+                                {% trans "تعديل" %}
+                            </a>
+                            <button type="button" class="btn btn-sm btn-{% if upgrade.is_active %}danger{% else %}success{% endif %}"
+                                    onclick="toggleUpgrade({{ upgrade.id }})">
+                                {% if upgrade.is_active %}{% trans "إلغاء" %}{% else %}{% trans "تفعيل" %}{% endif %}
+                            </button>
+                            <a href="{% url 'main:admin_upgrade_delete' upgrade.id %}" class="btn btn-sm btn-secondary">
+                                {% trans "حذف" %}
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="10" style="text-align: center; padding: 2rem;">
+                        {% trans "لا توجد ترقيات" %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode }}">
+                    {% trans "السابق" %}
+                </a>
+            </li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}&{{ request.GET.urlencode }}">{{ num }}</a>
+            </li>
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode }}">
+                    {% trans "التالي" %}
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<script>
+    // Select all
+    document.getElementById('select-all').addEventListener('change', function() {
+        document.querySelectorAll('.upgrade-checkbox').forEach(cb => cb.checked = this.checked);
+        updateBulkActions();
+    });
+
+    document.querySelectorAll('.upgrade-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updateBulkActions);
+    });
+
+    function updateBulkActions() {
+        const checkedBoxes = document.querySelectorAll('.upgrade-checkbox:checked');
+        const bulkActions = document.getElementById('bulkActions');
+        const selectedCount = document.getElementById('selectedCount');
+
+        selectedCount.textContent = checkedBoxes.length;
+        bulkActions.classList.toggle('active', checkedBoxes.length > 0);
+    }
+
+    function toggleUpgrade(upgradeId) {
+        fetch(`/admin/upgrades/${upgradeId}/toggle/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+            location.reload();
+        })
+        .catch(error => {
+            alert('{% trans "حدث خطأ" %}');
+        });
+    }
+
+    function bulkDeactivate() {
+        const checkedBoxes = document.querySelectorAll('.upgrade-checkbox:checked');
+        const upgradeIds = Array.from(checkedBoxes).map(cb => cb.value);
+
+        if (!confirm(`{% trans "هل تريد إلغاء تفعيل" %} ${upgradeIds.length} {% trans "ترقية؟" %}`)) {
+            return;
+        }
+
+        const formData = new FormData();
+        upgradeIds.forEach(id => formData.append('upgrade_ids[]', id));
+
+        fetch('{% url "main:admin_bulk_deactivate_upgrades" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+            location.reload();
+        })
+        .catch(error => {
+            alert('{% trans "حدث خطأ" %}');
+        });
+    }
+</script>
+{% endblock %}

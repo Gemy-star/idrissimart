@@ -4,10 +4,49 @@
 
 {% block title %}
     {{ ad.title }} - {% trans "إعلانات مبوبة" %}
-
 {% endblock title %}
 
+{% block extra_meta %}
+{{ block.super }}
+<!-- Open Graph meta tags for better social sharing -->
+<meta property="og:type" content="product">
+<meta property="og:title" content="{{ ad.title }}">
+<meta property="og:description" content="{{ ad.description|striptags|truncatewords:30 }}">
+<meta property="og:url" content="{{ request.build_absolute_uri }}">
+{% if ad.images.first %}
+<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ ad.images.first.image.url }}">
+<meta property="og:image:secure_url" content="{{ request.scheme }}://{{ request.get_host }}{{ ad.images.first.image.url }}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="{{ ad.title }}">
+{% else %}
+<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'images/placeholder-ad.jpg' %}">
+{% endif %}
+
+<!-- Product specific meta tags -->
+{% if not ad.hide_price and not ad.price_on_request %}
+<meta property="product:price:amount" content="{{ ad.price }}">
+<meta property="product:price:currency" content="{{ ad.currency|default:'EGP' }}">
+{% endif %}
+<meta property="product:condition" content="{% if ad.custom_fields.condition == 'new' %}new{% else %}used{% endif %}">
+<meta property="product:availability" content="{% if ad.status == 'active' %}in stock{% else %}out of stock{% endif %}">
+
+<!-- Twitter Card meta tags -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ ad.title }}">
+<meta name="twitter:description" content="{{ ad.description|striptags|truncatewords:30 }}">
+{% if ad.images.first %}
+<meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{{ ad.images.first.image.url }}">
+{% endif %}
+
+<!-- Additional SEO meta tags -->
+<meta name="description" content="{{ ad.description|striptags|truncatewords:40 }}">
+<meta name="keywords" content="{{ ad.title }}, {{ ad.category.name }}, {{ ad.city }}, {% trans "إعلانات مبوبة" %}">
+<link rel="canonical" content="{{ request.build_absolute_uri }}">
+{% endblock extra_meta %}
+
 {% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/ad-card-enhancements.css' %}">
     <style>
         /* Price Card Hover Effect */
         .ad-details-card {
@@ -27,8 +66,363 @@
         .badge:hover {
             transform: scale(1.05);
         }
+
+        /* Rating Stars for Detail Page */
+        .rating-stars-detail {
+            display: inline-flex;
+            gap: 4px;
+            font-size: 1.25rem;
+        }
+
+        .rating-stars-detail i {
+            color: #fbbf24;
+        }
+
+        .rating-stars-detail .fa-star,
+        .rating-stars-detail .fa-star-half-alt {
+            color: #fbbf24;
+        }
+
+        .rating-stars-detail .far.fa-star {
+            color: #d1d5db;
+        }
+
+        .rating-value-detail {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-left: 8px;
+        }
+
+        .rating-count-detail {
+            font-size: 1rem;
+            color: var(--text-muted);
+        }
+
+        /* Category Badge for Detail Page */
+        .category-badge-detail {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 1rem;
+            box-shadow: 0 4px 12px rgba(75, 49, 94, 0.25);
+        }
+
+        /* Lightbox Styles */
+        .lightbox {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            animation: fadeIn 0.3s ease;
+            touch-action: pan-y pinch-zoom;
+        }
+
+        .lightbox.active {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .lightbox-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+            animation: zoomIn 0.3s ease;
+            touch-action: none;
+        }
+
+        .lightbox-content img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            max-height: 90vh;
+            transition: transform 0.3s ease;
+            cursor: grab;
+        }
+
+        .lightbox-content img:active {
+            cursor: grabbing;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 35px;
+            color: #fff;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 10000;
+            background: rgba(0, 0, 0, 0.5);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .lightbox-close:hover {
+            background: rgba(255, 96, 1, 0.8);
+            transform: scale(1.1);
+        }
+
+        .lightbox-prev,
+        .lightbox-next {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #fff;
+            font-size: 30px;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 15px 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            user-select: none;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lightbox-prev:hover,
+        .lightbox-next:hover {
+            background: rgba(255, 96, 1, 0.8);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .lightbox-prev {
+            left: 20px;
+        }
+
+        .lightbox-next {
+            right: 20px;
+        }
+
+        .lightbox-counter {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-size: 18px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-weight: 500;
+        }
+
+        /* Loading indicator for lightbox */
+        .lightbox-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 20px;
+            z-index: 10001;
+        }
+
+        /* Zoom indicators */
+        .lightbox-zoom-indicator {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .lightbox-zoom-indicator.visible {
+            opacity: 1;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes zoomIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        /* Star Rating Input */
+        .star-rating-input {
+            display: inline-flex;
+            flex-direction: row-reverse;
+            gap: 5px;
+        }
+
+        .star-rating-input input[type="radio"] {
+            display: none;
+        }
+
+        .star-rating-input .star-label i {
+            transition: all 0.2s ease;
+        }
+
+        .star-rating-input .star-label:hover i {
+            transform: scale(1.2);
+        }
+
+        /* Review Item */
+        .review-item {
+            transition: all 0.3s ease;
+        }
+
+        .review-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        /* Ad meta (date & views) */
+        .ad-meta-info {
+            gap: 0.75rem !important;
+        }
+
+        .ad-meta-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.45rem 0.9rem;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: rgba(var(--bg-rgb, 255, 255, 255), 0.9);
+            color: var(--text-color, #111827);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(var(--border-rgb, 148, 163, 184), 0.35);
+            backdrop-filter: blur(6px);
+            transition: all 0.2s ease;
+        }
+
+        /* Dark theme adaptation */
+        @media (prefers-color-scheme: dark) {
+            .ad-meta-pill {
+                background: rgba(var(--bg-rgb, 30, 41, 59), 0.9);
+                color: var(--text-color, #f1f5f9);
+                border-color: rgba(var(--border-rgb, 71, 85, 105), 0.5);
+                box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+            }
+        }
+
+        /* CSS variable based dark theme */
+        [data-theme="dark"] .ad-meta-pill,
+        .dark-theme .ad-meta-pill {
+            background: rgba(30, 41, 59, 0.9);
+            color: #f1f5f9;
+            border-color: rgba(71, 85, 105, 0.5);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+        }
+
+        .ad-meta-pill i {
+            font-size: 0.9rem;
+        }
+
+        .ad-meta-pill-label {
+            opacity: 0.8;
+            margin-inline-end: 0.25rem;
+        }
+
+        .ad-meta-pill-value {
+            font-weight: 700;
+            color: var(--primary-color, #4b315e);
+        }
+
+        /* Dark theme primary color adaptation */
+        @media (prefers-color-scheme: dark) {
+            .ad-meta-pill-value {
+                color: var(--primary-color, #8b5cf6);
+            }
+        }
+
+        [data-theme="dark"] .ad-meta-pill-value,
+        .dark-theme .ad-meta-pill-value {
+            color: #8b5cf6;
+        }
+
+        .ad-meta-pill.views {
+            background: linear-gradient(135deg, rgba(59,130,246,0.1), rgba(96,165,250,0.18));
+            border-color: rgba(59,130,246,0.3);
+        }
+
+        /* Dark theme views pill */
+        @media (prefers-color-scheme: dark) {
+            .ad-meta-pill.views {
+                background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(96,165,250,0.3));
+                border-color: rgba(59,130,246,0.5);
+            }
+        }
+
+        [data-theme="dark"] .ad-meta-pill.views,
+        .dark-theme .ad-meta-pill.views {
+            background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(96,165,250,0.3));
+            border-color: rgba(59,130,246,0.5);
+        }
+
+        .ad-meta-pill.date {
+            background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(45,212,191,0.16));
+            border-color: rgba(34,197,94,0.28);
+        }
+
+        /* Dark theme date pill */
+        @media (prefers-color-scheme: dark) {
+            .ad-meta-pill.date {
+                background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(45,212,191,0.25));
+                border-color: rgba(34,197,94,0.4);
+            }
+        }
+
+        [data-theme="dark"] .ad-meta-pill.date,
+        .dark-theme .ad-meta-pill.date {
+            background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(45,212,191,0.25));
+            border-color: rgba(34,197,94,0.4);
+        }
+
+        .ad-meta-pill:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        /* Dark theme hover effect */
+        @media (prefers-color-scheme: dark) {
+            .ad-meta-pill:hover {
+                box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+            }
+        }
+
+        [data-theme="dark"] .ad-meta-pill:hover,
+        .dark-theme .ad-meta-pill:hover {
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+        }
     </style>
-{% endblock %}
+{% endblock extra_css %}
 
 {% block content %}
     <section class="ad-detail-section py-5" style="background: var(--bg-primary);">
@@ -54,9 +448,59 @@
                         {% endif %}
 
                         <h1 class="ad-title-main mb-3" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; padding-right: 150px;" title="{{ ad.title }}">{{ ad.title }}</h1>
-                        <div class="ad-meta-info d-flex flex-wrap gap-3">
-                            <span class="badge bg-light text-dark"><i class="fas fa-clock me-1"></i> {% trans "نشر في" %}: {{ ad.created_at|date:"d M, Y" }}</span>
-                            <span class="badge bg-light text-dark"><i class="fas fa-eye me-1"></i> {{ ad.views_count }} {% trans "مشاهدة" %}</span>
+
+                        <!-- Main Category Badge -->
+                        {% if ad.category %}
+                        {% with main_category=ad.category.get_root %}
+                        <div class="mb-3">
+                            <span class="category-badge-detail">
+                                <i class="fas fa-tag"></i>
+                                <span>
+                                    {% if LANGUAGE_CODE == 'ar' and main_category.name_ar %}
+                                        {{ main_category.name_ar }}
+                                    {% else %}
+                                        {{ main_category.name }}
+                                    {% endif %}
+                                </span>
+                            </span>
+                        </div>
+                        {% endwith %}
+                        {% endif %}
+
+                        <!-- Rating Display -->
+                        {% if ad.rating %}
+                        <div class="mb-3">
+                            <div class="rating-stars-detail">
+                                {% with rating_int=ad.rating|floatformat:0|add:"0" %}
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= rating_int %}
+                                        <i class="fas fa-star"></i>
+                                    {% elif forloop.counter == rating_int|add:"1" and ad.rating|floatformat:1|slice:"-3:" != ".0" %}
+                                        <i class="fas fa-star-half-alt"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                {% endfor %}
+                                {% endwith %}
+                                <span class="rating-value-detail">{{ ad.rating|floatformat:1 }}</span>
+                                {% if ad.rating_count %}
+                                <span class="rating-count-detail">({{ ad.rating_count }} {% trans "تقييم" %})</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="ad-meta-info d-flex flex-wrap">
+                            <span class="ad-meta-pill date">
+                                <i class="fas fa-clock ms-1"></i>
+                                <span class="ad-meta-pill-label">{% trans "نشر في" %}</span>
+                                <span class="ad-meta-pill-value">{{ ad.created_at|date:"d M, Y" }}</span>
+                            </span>
+                            <span class="ad-meta-pill views">
+                                <i class="fas fa-eye ms-1"></i>
+                                <span class="ad-meta-pill-label">{% trans "المشاهدات" %}</span>
+                                <span class="ad-meta-pill-value">{{ ad.views_count }}</span>
+                            </span>
                             {% render_ad_badges ad %}
                         </div>
                     </div>
@@ -104,12 +548,14 @@
                                 {% for image in ad.images.all %}
                                     <div class="swiper-slide">
                                         <img src="{{ image.image.url }}"
-                                             alt="{{ ad.title }} - {% trans 'صورة' %} {{ forloop.counter }}">
+                                             alt="{{ ad.title }} - {% trans "صورة" %} {{ forloop.counter }}"
+                                             onclick="openLightbox({{ forloop.counter0 }})"
+                                             style="cursor: pointer;">
                                     </div>
                                 {% empty %}
                                     <div class="swiper-slide">
-                                        <img src="https://via.placeholder.com/800x600.png?text={% trans 'No Image' %}"
-                                             alt="{% trans 'No Image' %}">
+                                        <img src="https://via.placeholder.com/800x600.png?text={% trans "No Image" %}"
+                                             alt="{% trans "No Image" %}">
                                     </div>
                                 {% endfor %}
                             </div>
@@ -122,13 +568,21 @@
                                     {% for image in ad.images.all %}
                                         <div class="swiper-slide">
                                             <img src="{{ image.image.url }}"
-                                                 alt="{{ ad.title }} - {% trans 'صورة مصغرة' %} {{ forloop.counter }}">
+                                                 alt="{{ ad.title }} - {% trans "صورة مصغرة" %} {{ forloop.counter }}">
                                         </div>
                                     {% endfor %}
                                 </div>
                             </div>
                         {% endif %}
                     </div>
+                    <!-- Buyer Safety Note -->
+                    <div class="mb-4">
+                        <div class="buyer-safety-note" role="alert" style="display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 20px; border-radius: 10px; font-size: 0.875rem; font-weight: 600; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>{% trans "تحقق من المنتج قبل الدفع - لا تدفع مقدمًا" %}</span>
+                        </div>
+                    </div>
+
                     <!-- Ad Description Card -->
                     <div class="modern-card card ad-content-card mb-4 border-0 shadow-sm rounded-3" style="background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary)); backdrop-filter: blur(10px);">
                         <div class="card-header bg-transparent border-bottom-0 pb-2">
@@ -140,6 +594,65 @@
                             {% autoescape off %}
                             <p class="ad-description mb-0" style="line-height: 1.8; color: var(--text-primary);">{{ ad.get_safe_description }}</p>
                             {% endautoescape %}
+                        </div>
+                    </div>
+
+                    <!-- Social Share Card -->
+                    <div class="modern-card card ad-content-card mb-4 border-0 shadow-sm rounded-3" style="background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary)); backdrop-filter: blur(10px);">
+                        <div class="card-header bg-transparent border-bottom-0 pb-2">
+                            <h4 class="card-title-main mb-0" style="color: var(--primary-color); font-weight: 700;">
+                                <i class="fas fa-share-alt me-2"></i>{% trans "مشاركة الإعلان" %}
+                            </h4>
+                        </div>
+                        <div class="card-body pt-3">
+                            <div class="d-flex flex-wrap gap-2">
+                                <!-- Facebook Share -->
+                                <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri }}"
+                                   target="_blank"
+                                   class="btn btn-sm shadow-sm"
+                                   style="background: #1877f2; color: white; border-radius: 10px; padding: 8px 16px;">
+                                    <i class="fab fa-facebook-f me-2"></i>{% trans "فيسبوك" %}
+                                </a>
+
+                                <!-- Twitter Share -->
+                                <a href="https://twitter.com/intent/tweet?url={{ request.build_absolute_uri }}&text={{ ad.title|urlencode }}"
+                                   target="_blank"
+                                   class="btn btn-sm shadow-sm"
+                                   style="background: #1da1f2; color: white; border-radius: 10px; padding: 8px 16px;">
+                                    <i class="fab fa-twitter me-2"></i>{% trans "تويتر" %}
+                                </a>
+
+                                <!-- WhatsApp Share -->
+                                <a href="https://wa.me/?text={{ ad.title|urlencode }}%20{{ request.build_absolute_uri }}"
+                                   target="_blank"
+                                   class="btn btn-sm shadow-sm"
+                                   style="background: #25d366; color: white; border-radius: 10px; padding: 8px 16px;">
+                                    <i class="fab fa-whatsapp me-2"></i>{% trans "واتساب" %}
+                                </a>
+
+                                <!-- Telegram Share -->
+                                <a href="https://t.me/share/url?url={{ request.build_absolute_uri }}&text={{ ad.title|urlencode }}"
+                                   target="_blank"
+                                   class="btn btn-sm shadow-sm"
+                                   style="background: #0088cc; color: white; border-radius: 10px; padding: 8px 16px;">
+                                    <i class="fab fa-telegram-plane me-2"></i>{% trans "تيليجرام" %}
+                                </a>
+
+                                <!-- LinkedIn Share -->
+                                <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ request.build_absolute_uri }}"
+                                   target="_blank"
+                                   class="btn btn-sm shadow-sm"
+                                   style="background: #0077b5; color: white; border-radius: 10px; padding: 8px 16px;">
+                                    <i class="fab fa-linkedin-in me-2"></i>{% trans "لينكدإن" %}
+                                </a>
+
+                                <!-- Copy Link -->
+                                <button onclick="copyAdLink()"
+                                        class="btn btn-sm shadow-sm"
+                                        style="background: #6c757d; color: white; border-radius: 10px; padding: 8px 16px;">
+                                    <i class="fas fa-link me-2"></i>{% trans "نسخ الرابط" %}
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -186,18 +699,96 @@
                         </div>
                     {% endif %}
                     <!-- Reviews Card -->
-                    <div class="modern-card card ad-content-card border-0 shadow-sm rounded-3" style="background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary)); backdrop-filter: blur(10px);">
+                    <div class="modern-card card ad-content-card border-0 shadow-sm rounded-3" id="reviews-section" style="background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary)); backdrop-filter: blur(10px);">
                         <div class="card-header bg-transparent border-bottom-0 pb-2">
                             <h4 class="card-title-main mb-0" style="color: var(--secondary-color); font-weight: 700;">
                                 <i class="fas fa-star-half-alt me-2"></i>{% trans "التقييمات" %}
+                                {% if ad.rating_count %}
+                                    <span class="badge bg-primary ms-2">{{ ad.rating_count }}</span>
+                                {% endif %}
                             </h4>
                         </div>
                         <div class="card-body pt-3">
-                            {# Placeholder for reviews - to be implemented when review model is ready #}
-                            <div class="text-center py-4">
-                                <i class="fas fa-comments fa-3x text-muted mb-3"></i>
-                                <p class="text-muted">{% trans "لا توجد تقييمات لهذا الإعلان بعد." %}</p>
-                            </div>
+                            {% if request.user.is_authenticated and request.user != ad.user %}
+                                {% if user_has_pending_review %}
+                                    <!-- Pending Review Alert -->
+                                    <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+                                        <i class="fas fa-clock fa-2x me-3"></i>
+                                        <div>
+                                            <h6 class="alert-heading mb-1">{% trans "تقييمك بانتظار الموافقة" %}</h6>
+                                            <p class="mb-0">{% trans "شكراً لك! تم استلام تقييمك وسيظهر بعد موافقة المشرف." %}</p>
+                                        </div>
+                                    </div>
+                                {% elif not user_has_reviewed %}
+                                    <!-- Add Review Form -->
+                                    <div class="add-review-section mb-4 p-4 rounded-3" style="background: var(--bg-primary); border: 2px dashed var(--border-color);">
+                                        <h5 class="mb-3">{% trans "أضف تقييمك" %}</h5>
+                                        <form method="post" action="{% url 'main:submit_ad_review' ad.id %}" id="reviewForm">
+                                            {% csrf_token %}
+                                            <div class="mb-3">
+                                                <label class="form-label">{% trans "التقييم" %}</label>
+                                                <div class="star-rating-input d-flex gap-2">
+                                                    {% for i in "12345" %}
+                                                        <input type="radio" name="rating" value="{{ forloop.counter }}" id="star{{ forloop.counter }}" required>
+                                                        <label for="star{{ forloop.counter }}" class="star-label">
+                                                            <i class="far fa-star" style="font-size: 2rem; color: #fbbf24; cursor: pointer;"></i>
+                                                        </label>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="comment" class="form-label">{% trans "التعليق (اختياري)" %}</label>
+                                                <textarea name="comment" id="comment" class="form-control" rows="3" placeholder="{% trans "شاركنا رأيك في هذا الإعلان" %}"></textarea>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="fas fa-paper-plane me-2"></i>{% trans "إرسال التقييم" %}
+                                            </button>
+                                        </form>
+                                    </div>
+                                {% endif %}
+                            {% elif not request.user.is_authenticated %}
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    {% trans "يرجى" %} <a href="{% url 'main:login' %}?next={{ request.path }}">{% trans "تسجيل الدخول" %}</a> {% trans "لإضافة تقييم" %}
+                                </div>
+                            {% endif %}
+
+                            <!-- Reviews List -->
+                            {% if reviews %}
+                                <div class="reviews-list">
+                                    {% for review in reviews %}
+                                        <div class="review-item p-3 mb-3 rounded-3" style="background: var(--bg-primary); border: 1px solid var(--border-color);">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <div class="d-flex align-items-center gap-3">
+                                                    {% load idrissimart_tags %}
+                                                    {% user_avatar user=review.user size=40 css_class="rounded-circle" %}
+                                                    <div>
+                                                        <strong>{{ review.user.get_display_name }}</strong>
+                                                        <div class="review-stars">
+                                                            {% for i in "12345" %}
+                                                                {% if forloop.counter <= review.rating %}
+                                                                    <i class="fas fa-star" style="color: #fbbf24;"></i>
+                                                                {% else %}
+                                                                    <i class="far fa-star" style="color: #d1d5db;"></i>
+                                                                {% endif %}
+                                                            {% endfor %}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <small class="text-muted">{{ review.created_at|timesince }}</small>
+                                            </div>
+                                            {% if review.comment %}
+                                                <p class="mb-0 text-muted">{{ review.comment }}</p>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-center py-4">
+                                    <i class="fas fa-comments fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">{% trans "لا توجد تقييمات لهذا الإعلان بعد. كن أول من يقيّم!" %}</p>
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -207,41 +798,65 @@
                         <!-- Price Card -->
                         <div class="modern-card card ad-details-card mb-4 border-0 rounded-4" style="background: var(--bg-primary); box-shadow: 0 4px 20px rgba(75, 49, 94, 0.15); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: 2px solid var(--primary-color);">
                             <div class="card-body p-4">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <div class="price-section">
-                                        {% ad_price_formatted ad as formatted_price %}
-                                        {% if formatted_price %}
-                                            <span class="price-display" style="font-size: 2rem; font-weight: 900; color: var(--primary-color); text-shadow: 0 2px 4px rgba(75, 49, 94, 0.2);">
-                                                {{ formatted_price }}
-                                            </span>
-                                        {% else %}
-                                            <span class="price-display" style="font-size: 2rem; font-weight: 900; color: var(--primary-color); text-shadow: 0 2px 4px rgba(75, 49, 94, 0.2);">
-                                                {% if ad.price %}
-                                                    {{ ad.price }} {{ ad.currency|default:"ريال" }}
-                                                {% else %}
-                                                    {% trans "السعر غير محدد" %}
-                                                {% endif %}
-                                            </span>
-                                        {% endif %}
-
-                                        {% if ad.original_price and ad.original_price != ad.price %}
-                                            <div class="price-comparison mt-2">
-                                                <small class="text-decoration-line-through" style="color: var(--text-muted);">
-                                                    {{ ad.original_price }} {{ ad.currency|default:"ريال" }}
-                                                </small>
-                                                <span class="badge bg-danger ms-2">
-                                                    <i class="fas fa-percent me-1"></i>{% trans "خصم" %}
-                                                </span>
+                                {% if ad.hide_price or ad.price_on_request %}
+                                    <!-- Get Quote / Price on Request -->
+                                    <div class="ad-quote-box mb-3" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(240, 147, 251, 0.3);">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <div class="quote-icon" style="font-size: 2.5rem; color: white;">
+                                                <i class="fas fa-file-invoice-dollar"></i>
                                             </div>
+                                            <div class="quote-content flex-grow-1">
+                                                <h4 class="quote-text mb-2" style="color: white; font-weight: 700; margin: 0;">
+                                                    {% if ad.price_on_request %}
+                                                        {% trans "السعر عند الطلب" %}
+                                                    {% else %}
+                                                        {% trans "اطلب عرض سعر" %}
+                                                    {% endif %}
+                                                </h4>
+                                                <p class="mb-0" style="color: rgba(255, 255, 255, 0.9); font-size: 0.875rem;">
+                                                    {% trans "تواصل مع البائع للحصول على أفضل سعر" %}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <!-- Regular Price Display -->
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <div class="price-section">
+                                            {% ad_price_formatted ad as formatted_price %}
+                                            {% if formatted_price %}
+                                                <span class="price-display" style="font-size: 2rem; font-weight: 900; color: var(--primary-color); text-shadow: 0 2px 4px rgba(75, 49, 94, 0.2);">
+                                                    {{ formatted_price }}
+                                                </span>
+                                            {% else %}
+                                                <span class="price-display" style="font-size: 2rem; font-weight: 900; color: var(--primary-color); text-shadow: 0 2px 4px rgba(75, 49, 94, 0.2);">
+                                                    {% if ad.price %}
+                                                        {{ ad.price }} {{ ad.currency|default:"ريال" }}
+                                                    {% else %}
+                                                        {% trans "السعر غير محدد" %}
+                                                    {% endif %}
+                                                </span>
+                                            {% endif %}
+
+                                            {% if ad.original_price and ad.original_price != ad.price %}
+                                                <div class="price-comparison mt-2">
+                                                    <small class="text-decoration-line-through" style="color: var(--text-muted);">
+                                                        {{ ad.original_price }} {{ ad.currency|default:"ريال" }}
+                                                    </small>
+                                                    <span class="badge bg-danger ms-2">
+                                                        <i class="fas fa-percent me-1"></i>{% trans "خصم" %}
+                                                    </span>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+
+                                        {% if ad.is_negotiable %}
+                                            <span class="badge negotiable-badge" style="background: var(--secondary-color); color: white; padding: 8px 12px; border-radius: 20px; box-shadow: 0 2px 8px rgba(255, 96, 1, 0.3);">
+                                                <i class="fas fa-handshake me-1"></i>{% trans "قابل للتفاوض" %}
+                                            </span>
                                         {% endif %}
                                     </div>
-
-                                    {% if ad.is_negotiable %}
-                                        <span class="badge negotiable-badge" style="background: var(--secondary-color); color: white; padding: 8px 12px; border-radius: 20px; box-shadow: 0 2px 8px rgba(255, 96, 1, 0.3);">
-                                            <i class="fas fa-handshake me-1"></i>{% trans "قابل للتفاوض" %}
-                                        </span>
-                                    {% endif %}
-                                </div>
+                                {% endif %}
 
                                 <div class="ad-location d-flex align-items-center justify-content-between" style="color: var(--text-primary);">
                                     <div class="location-info">
@@ -394,6 +1009,18 @@
                                 {% endif %}
                             </div>
                         </div>
+
+                        <!-- Report Ad Card -->
+                        {% if request.user.is_authenticated and request.user != ad.user %}
+                        <div class="modern-card card ad-details-card mb-4 border-0 shadow-sm rounded-4" style="background: var(--bg-primary); backdrop-filter: blur(10px);">
+                            <div class="card-body text-center py-3">
+                                <a href="{% url 'main:report_ad' ad.id %}" class="report-btn d-inline-flex align-items-center gap-2" style="color: #94a3b8; text-decoration: none; font-size: 0.875rem; transition: all 0.3s ease; padding: 8px 16px; border-radius: 8px;">
+                                    <i class="fas fa-flag"></i>
+                                    <span>{% trans "إبلاغ عن هذا الإعلان" %}</span>
+                                </a>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -422,193 +1049,173 @@
         </div>
     </section>
 
+    <!-- Lightbox Modal -->
+    <div id="imageLightbox" class="lightbox" onclick="closeLightboxOnBackground(event)">
+        <div class="lightbox-zoom-indicator" id="zoomIndicator">
+            <i class="fas fa-search-plus me-1"></i>
+            <span id="zoomLevel">100%</span>
+        </div>
+        <span class="lightbox-close" onclick="closeLightbox()" title="{% trans "إغلاق" %}">×</span>
+        <span class="lightbox-prev" onclick="changeLightboxImage(-1)" title="{% trans "السابق" %}">‹</span>
+        <div class="lightbox-content">
+            <img id="lightboxImage" src="" alt="{% trans "صورة بالحجم الكامل" %}">
+            <div class="lightbox-loading" id="lightboxLoading" style="display: none;">
+                <i class="fas fa-spinner fa-spin"></i>
+            </div>
+        </div>
+        <span class="lightbox-next" onclick="changeLightboxImage(1)" title="{% trans "التالي" %}">›</span>
+        <div class="lightbox-counter">
+            <span id="lightboxCounter"></span>
+        </div>
+    </div>
+
 {% endblock content %}
 
 {% block extra_js %}
     <script>
-        // Handle cart and wishlist actions
-        window.handleCartWishlistAction = async function(button, event) {
-            event.preventDefault();
-            event.stopPropagation();
+        // Wait for DOM to be fully loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Lightbox functionality
+            let currentLightboxIndex = 0;
+            const lightboxImages = [
+                {% for image in ad.images.all %}
+                    {
+                        url: "{{ image.image.url }}",
+                        alt: "{{ ad.title }} - {% trans "صورة" %} {{ forloop.counter }}"
+                    }{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ];
 
-            const itemId = button.getAttribute('data-item-id');
-            const itemName = button.getAttribute('data-item-name');
-            const action = button.getAttribute('data-action');
-            const type = button.getAttribute('data-type');
+            // Debug: Check if images are loaded
+            console.log('Lightbox images:', lightboxImages);
+            console.log('Number of images:', lightboxImages.length);
 
-            if (!itemId) {
-                console.error('No item ID found');
-                return;
+            // Test lightbox functionality
+            if (lightboxImages.length === 0) {
+                console.warn('No images found for lightbox');
             }
 
-            // Disable button during request
-            button.disabled = true;
+            // Verify lightbox elements exist
+            const lightboxElement = document.getElementById('imageLightbox');
+            const lightboxImgElement = document.getElementById('lightboxImage');
+            console.log('Lightbox element found:', !!lightboxElement);
+            console.log('Lightbox image element found:', !!lightboxImgElement);
 
-            try {
-                let result;
+            function openLightbox(index) {
+                console.log('Opening lightbox with index:', index);
+                currentLightboxIndex = index;
+                const lightbox = document.getElementById('imageLightbox');
+                const lightboxImg = document.getElementById('lightboxImage');
+                const lightboxCounter = document.getElementById('lightboxCounter');
+                const loadingIndicator = document.getElementById('lightboxLoading');
 
-                if (type === 'cart') {
-                    if (action === 'add-to-cart') {
-                        result = await window.CartWishlist.addToCart(itemId, itemName);
-                        if (result && result.success) {
-                            button.setAttribute('data-action', 'remove-from-cart');
-                            const buttonText = button.querySelector('.button-text');
-                            if (buttonText) {
-                                buttonText.textContent = '{% trans "إزالة من السلة" %}';
-                            }
-                            // Ensure header counter is updated
-                            if (result.cart_count !== undefined && window.CartWishlist.updateCartCountInHeader) {
-                                window.CartWishlist.updateCartCountInHeader(result.cart_count);
-                            }
-                        }
-                    } else if (action === 'remove-from-cart') {
-                        result = await window.CartWishlist.removeFromCart(itemId, itemName);
-                        if (result && result.success) {
-                            button.setAttribute('data-action', 'add-to-cart');
-                            const buttonText = button.querySelector('.button-text');
-                            if (buttonText) {
-                                buttonText.textContent = '{% trans "إضافة للسلة" %}';
-                            }
-                            // Ensure header counter is updated
-                            if (result.cart_count !== undefined && window.CartWishlist.updateCartCountInHeader) {
-                                window.CartWishlist.updateCartCountInHeader(result.cart_count);
-                            }
-                        }
-                    }
-                } else if (type === 'wishlist') {
-                    if (action === 'add-to-wishlist') {
-                        result = await window.CartWishlist.addToWishlist(itemId, itemName);
-                        if (result && result.success) {
-                            button.setAttribute('data-action', 'remove-from-wishlist');
-                            const icon = button.querySelector('i');
-                            if (icon) {
-                                icon.classList.remove('far');
-                                icon.classList.add('fas');
-                            }
-                            const buttonText = button.querySelector('.button-text');
-                            if (buttonText) {
-                                buttonText.textContent = '{% trans "إزالة من المفضلة" %}';
-                            }
-                            // Ensure header counter is updated
-                            if (result.wishlist_count !== undefined && window.CartWishlist.updateWishlistCountInHeader) {
-                                window.CartWishlist.updateWishlistCountInHeader(result.wishlist_count);
-                            }
-                        }
-                    } else if (action === 'remove-from-wishlist') {
-                        result = await window.CartWishlist.removeFromWishlist(itemId, itemName);
-                        if (result && result.success) {
-                            button.setAttribute('data-action', 'add-to-wishlist');
-                            const icon = button.querySelector('i');
-                            if (icon) {
-                                icon.classList.remove('fas');
-                                icon.classList.add('far');
-                            }
-                            const buttonText = button.querySelector('.button-text');
-                            if (buttonText) {
-                                buttonText.textContent = '{% trans "إضافة للمفضلة" %}';
-                            }
-                            // Ensure header counter is updated
-                            if (result.wishlist_count !== undefined && window.CartWishlist.updateWishlistCountInHeader) {
-                                window.CartWishlist.updateWishlistCountInHeader(result.wishlist_count);
-                            }
-                        }
-                    }
+                if (lightboxImages.length > 0) {
+                    // Show loading indicator
+                    loadingIndicator.style.display = 'block';
+
+                    const imageUrl = lightboxImages[currentLightboxIndex].url;
+                    console.log('Loading image:', imageUrl);
+
+                    // Set image source directly without preloading for faster display
+                    lightboxImg.src = imageUrl;
+                    lightboxImg.alt = lightboxImages[currentLightboxIndex].alt;
+                    lightboxCounter.textContent = `${currentLightboxIndex + 1} / ${lightboxImages.length}`;
+
+                    // Show lightbox immediately
+                    lightbox.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+
+                    // Hide loading indicator after a short delay
+                    setTimeout(() => {
+                        loadingIndicator.style.display = 'none';
+                    }, 300);
+
+                    // Reset zoom
+                    currentScale = 1;
+                    lightboxImg.style.transform = 'scale(1)';
+                    updateZoomIndicator();
+                } else {
+                    console.error('No images found in lightboxImages array');
                 }
-            } catch (error) {
-                console.error('Error handling cart/wishlist action:', error);
-                if (window.CartWishlist && window.CartWishlist.showNotification) {
-                    window.CartWishlist.showNotification('{% trans "حدث خطأ، يرجى المحاولة مرة أخرى" %}', 'error');
-                }
-            } finally {
-                button.disabled = false;
             }
-        };
+
+            function closeLightbox() {
+                const lightbox = document.getElementById('imageLightbox');
+                lightbox.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+
+            function closeLightboxOnBackground(event) {
+                if (event.target.id === 'imageLightbox') {
+                    closeLightbox();
+                }
+            }
+
+            function changeLightboxImage(direction) {
+                currentLightboxIndex += direction;
+
+                if (currentLightboxIndex >= lightboxImages.length) {
+                    currentLightboxIndex = 0;
+                } else if (currentLightboxIndex < 0) {
+                    currentLightboxIndex = lightboxImages.length - 1;
+                }
+
+                const lightboxImg = document.getElementById('lightboxImage');
+                const lightboxCounter = document.getElementById('lightboxCounter');
+                const loadingIndicator = document.getElementById('lightboxLoading');
+
+                console.log('Changing to image:', currentLightboxIndex);
+
+                // Show loading indicator
+                loadingIndicator.style.display = 'block';
+
+                const imageUrl = lightboxImages[currentLightboxIndex].url;
+                console.log('Loading new image:', imageUrl);
+
+                // Set image source directly
+                lightboxImg.src = imageUrl;
+                lightboxImg.alt = lightboxImages[currentLightboxIndex].alt;
+                lightboxCounter.textContent = `${currentLightboxIndex + 1} / ${lightboxImages.length}`;
+
+                // Hide loading indicator after a short delay
+                setTimeout(() => {
+                    loadingIndicator.style.display = 'none';
+                }, 300);
+
+                // Reset zoom when changing images
+                currentScale = 1;
+                lightboxImg.style.transform = 'scale(1)';
+                updateZoomIndicator();
+            }
+
+            function updateZoomIndicator() {
+                const zoomIndicator = document.getElementById('zoomIndicator');
+                const zoomLevel = document.getElementById('zoomLevel');
+
+                if (currentScale > 1) {
+                    zoomIndicator.classList.add('visible');
+                    zoomLevel.textContent = `${Math.round(currentScale * 100)}%`;
+                } else {
+                    zoomIndicator.classList.remove('visible');
+                }
+            }
+
+            // Make functions globally accessible
+            window.openLightbox = openLightbox;
+            window.closeLightbox = closeLightbox;
+            window.changeLightboxImage = changeLightboxImage;
+            window.updateZoomIndicator = updateZoomIndicator;
+
+        }); // End DOMContentLoaded
+
+        // Fallback functions in case DOMContentLoaded doesn't work
+        function openLightbox(index) {
+            console.log('Fallback openLightbox called with index:', index);
+        }
+
+        function closeLightbox() {
+            console.log('Fallback closeLightbox called');
+        }
+
     </script>
-
-    {% if ad.images.count > 1 %}
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                var thumbsSwiper = new Swiper(".ad-thumbnails-swiper", {
-                    spaceBetween: 10,
-                    slidesPerView: 4,
-                    freeMode: true,
-                    watchSlidesProgress: true,
-                });
-
-                new Swiper(".ad-gallery-swiper", {
-                    spaceBetween: 10,
-                    navigation: {
-                        nextEl: ".swiper-button-next",
-                        prevEl: ".swiper-button-prev",
-                    },
-                    thumbs: {
-                        swiper: thumbsSwiper,
-                    },
-                });
-            });
-        </script>
-    {% endif %}
-
-    {% if related_ads %}
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                const relatedAdsSwiper = document.querySelector('.related-ads-swiper');
-                if (relatedAdsSwiper) {
-                    const relatedSlides = relatedAdsSwiper.querySelectorAll('.swiper-slide');
-                    const hasEnoughSlides = relatedSlides.length >= 3; // Need at least 3 for loop with slidesPerView
-
-                    new Swiper('.related-ads-swiper', {
-                        slidesPerView: 1,
-                        spaceBetween: 20,
-                        loop: hasEnoughSlides,
-                        pagination: {
-                            el: '.related-ads-pagination',
-                            clickable: true,
-                        },
-                        breakpoints: {
-                            768: { slidesPerView: 2 },
-                            1200: { slidesPerView: 3 }
-                        }
-                    });
-                }
-            });
-        </script>
-    {% endif %}
-
-    <!-- Floating Chat Button -->
-    {% if user.is_authenticated and user != ad.user %}
-    <div class="floating-chat-btn" style="position: fixed; bottom: 30px; left: 30px; z-index: 1000;">
-        <a href="{% url 'main:chat_with_publisher' ad.id %}"
-           class="btn btn-primary rounded-circle shadow-lg"
-           style="width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #4b315e, #3a2449); border: none; transition: all 0.3s ease;"
-           title="{% trans 'تواصل مع الناشر' %}"
-           onmouseover="this.style.transform='scale(1.1)'; this.style.boxShadow='0 8px 25px rgba(75, 49, 94, 0.4)';"
-           onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 15px rgba(0, 0, 0, 0.3)';">
-            <i class="fas fa-comment-dots" style="font-size: 1.5rem;"></i>
-        </a>
-        <div class="chat-tooltip" style="position: absolute; bottom: 70px; left: 0; background: var(--bg-primary); color: var(--text-primary); padding: 8px 12px; border-radius: 8px; white-space: nowrap; opacity: 0; transition: opacity 0.3s; pointer-events: none; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
-            {% trans "تواصل مع الناشر" %}
-        </div>
-    </div>
-    <style>
-        .floating-chat-btn:hover .chat-tooltip {
-            opacity: 1;
-        }
-
-        @media (max-width: 768px) {
-            .floating-chat-btn {
-                bottom: 20px;
-                left: 20px;
-            }
-            .floating-chat-btn a {
-                width: 50px;
-                height: 50px;
-            }
-            .floating-chat-btn i {
-                font-size: 1.2rem !important;
-            }
-        }
-    </style>
-    {% endif %}
-
 {% endblock extra_js %}

@@ -54,8 +54,9 @@ def get_or_create_wishlist(user):
 
 
 @require_POST
+@login_required
 def add_to_cart(request):
-    """Add item to cart via AJAX - supports both authenticated and guest users"""
+    """Add item to cart via AJAX - only for authenticated users"""
     try:
         ad_id = request.POST.get("item_id")
         if not ad_id:
@@ -77,37 +78,18 @@ def add_to_cart(request):
                 status=400,
             )
 
-        if request.user.is_authenticated:
-            # Authenticated user - use database cart
-            cart = get_or_create_cart(request.user)
-            cart_item, created = CartItem.objects.get_or_create(cart=cart, ad=ad)
+        # Authenticated user - use database cart
+        cart = get_or_create_cart(request.user)
+        cart_item, created = CartItem.objects.get_or_create(cart=cart, ad=ad)
 
-            if not created:
-                cart_item.quantity += 1
-                cart_item.save()
-                message = _("تم زيادة الكمية في السلة")
-            else:
-                message = _("تمت إضافة {} إلى السلة").format(ad.title)
-
-            cart_count = cart.get_items_count()
+        if not created:
+            cart_item.quantity += 1
+            cart_item.save()
+            message = _("تم زيادة الكمية في السلة")
         else:
-            # Guest user - use session cart
-            session_cart = get_session_cart(request)
-            ad_id_str = str(ad_id)
+            message = _("تمت إضافة {} إلى السلة").format(ad.title)
 
-            if ad_id_str in session_cart:
-                session_cart[ad_id_str]["quantity"] += 1
-                message = _("تم زيادة الكمية في السلة")
-            else:
-                session_cart[ad_id_str] = {
-                    "quantity": 1,
-                    "title": ad.title,
-                    "price": float(ad.price),
-                }
-                message = _("تمت إضافة {} إلى السلة").format(ad.title)
-
-            save_session_cart(request, session_cart)
-            cart_count = sum(item["quantity"] for item in session_cart.values())
+        cart_count = cart.get_items_count()
 
         return JsonResponse(
             {
@@ -129,8 +111,9 @@ def add_to_cart(request):
 
 
 @require_POST
+@login_required
 def remove_from_cart(request):
-    """Remove item from cart via AJAX - supports both authenticated and guest users"""
+    """Remove item from cart via AJAX - only for authenticated users"""
     try:
         ad_id = request.POST.get("item_id")
         if not ad_id:
@@ -138,28 +121,12 @@ def remove_from_cart(request):
                 {"success": False, "message": _("معرف الإعلان مفقود")}, status=400
             )
 
-        if request.user.is_authenticated:
-            # Authenticated user - use database cart
-            cart = get_or_create_cart(request.user)
-            cart_item = get_object_or_404(CartItem, cart=cart, ad_id=ad_id)
-            ad_title = cart_item.ad.title
-            cart_item.delete()
-            cart_count = cart.get_items_count()
-        else:
-            # Guest user - use session cart
-            session_cart = get_session_cart(request)
-            ad_id_str = str(ad_id)
-
-            if ad_id_str not in session_cart:
-                return JsonResponse(
-                    {"success": False, "message": _("العنصر غير موجود في السلة")},
-                    status=404,
-                )
-
-            ad_title = session_cart[ad_id_str].get("title", "العنصر")
-            del session_cart[ad_id_str]
-            save_session_cart(request, session_cart)
-            cart_count = sum(item["quantity"] for item in session_cart.values())
+        # Authenticated user - use database cart
+        cart = get_or_create_cart(request.user)
+        cart_item = get_object_or_404(CartItem, cart=cart, ad_id=ad_id)
+        ad_title = cart_item.ad.title
+        cart_item.delete()
+        cart_count = cart.get_items_count()
 
         return JsonResponse(
             {
@@ -181,8 +148,9 @@ def remove_from_cart(request):
 
 
 @require_POST
+@login_required
 def update_cart_quantity(request):
-    """Update cart item quantity via AJAX - supports both authenticated and guest users"""
+    """Update cart item quantity via AJAX - only for authenticated users"""
     try:
         ad_id = request.POST.get("item_id")
         quantity = request.POST.get("quantity")
@@ -199,52 +167,21 @@ def update_cart_quantity(request):
                 status=400,
             )
 
-        if request.user.is_authenticated:
-            # Authenticated user - use database cart
-            cart = get_or_create_cart(request.user)
-            cart_item = get_object_or_404(CartItem, cart=cart, ad_id=ad_id)
-            cart_item.quantity = quantity
-            cart_item.save()
+        # Authenticated user - use database cart
+        cart = get_or_create_cart(request.user)
+        cart_item = get_object_or_404(CartItem, cart=cart, ad_id=ad_id)
+        cart_item.quantity = quantity
+        cart_item.save()
 
-            return JsonResponse(
-                {
-                    "success": True,
-                    "message": _("تم تحديث الكمية"),
-                    "cart_count": cart.get_items_count(),
-                    "item_total": float(cart_item.get_total_price()),
-                    "cart_total": float(cart.get_total_amount()),
-                }
-            )
-        else:
-            # Guest user - use session cart
-            session_cart = get_session_cart(request)
-            ad_id_str = str(ad_id)
-
-            if ad_id_str not in session_cart:
-                return JsonResponse(
-                    {"success": False, "message": _("العنصر غير موجود في السلة")},
-                    status=404,
-                )
-
-            session_cart[ad_id_str]["quantity"] = quantity
-            save_session_cart(request, session_cart)
-
-            # Calculate totals
-            item_total = session_cart[ad_id_str]["price"] * quantity
-            cart_total = sum(
-                item["price"] * item["quantity"] for item in session_cart.values()
-            )
-            cart_count = sum(item["quantity"] for item in session_cart.values())
-
-            return JsonResponse(
-                {
-                    "success": True,
-                    "message": _("تم تحديث الكمية"),
-                    "cart_count": cart_count,
-                    "item_total": float(item_total),
-                    "cart_total": float(cart_total),
-                }
-            )
+        return JsonResponse(
+            {
+                "success": True,
+                "message": _("تم تحديث الكمية"),
+                "cart_count": cart.get_items_count(),
+                "item_total": float(cart_item.get_total_price()),
+                "cart_total": float(cart.get_total_amount()),
+            }
+        )
 
     except CartItem.DoesNotExist:
         return JsonResponse(
@@ -277,47 +214,14 @@ def get_cart_count_view(request):
         )
 
 
+@login_required
 def cart_view(request):
-    """Display cart page - supports both authenticated and guest users"""
-    if request.user.is_authenticated:
-        # Authenticated user - use database cart
-        cart = get_or_create_cart(request.user)
-        cart_items = cart.items.select_related("ad", "ad__user", "ad__category").all()
-        total_amount = cart.get_total_amount()
-        is_guest = False
-    else:
-        # Guest user - use session cart
-        session_cart = get_session_cart(request)
-
-        # Fetch ad objects for session cart
-        ad_ids = [int(ad_id) for ad_id in session_cart.keys()]
-        ads = (
-            ClassifiedAd.objects.filter(
-                id__in=ad_ids, status=ClassifiedAd.AdStatus.ACTIVE
-            )
-            .select_related("user", "category")
-            .prefetch_related("images")
-        )
-
-        # Build cart items with session data
-        cart_items = []
-        total_amount = 0
-        for ad in ads:
-            ad_id_str = str(ad.id)
-            if ad_id_str in session_cart:
-                quantity = session_cart[ad_id_str]["quantity"]
-                item_total = ad.price * quantity
-                cart_items.append(
-                    {
-                        "ad": ad,
-                        "quantity": quantity,
-                        "item_total": item_total,
-                    }
-                )
-                total_amount += item_total
-
-        cart = None
-        is_guest = True
+    """Display cart page - only for authenticated users"""
+    # Authenticated user - use database cart
+    cart = get_or_create_cart(request.user)
+    cart_items = cart.items.select_related("ad", "ad__user", "ad__category").all()
+    total_amount = cart.get_total_amount()
+    is_guest = False
 
     context = {
         "cart": cart,
@@ -517,22 +421,18 @@ def check_wishlist_status(request):
         )
 
 
+@login_required
 def wishlist_view(request):
-    """Display wishlist page for both authenticated users and guests"""
-
-    if request.user.is_authenticated:
-        wishlist = get_or_create_wishlist(request.user)
-        wishlist_items = wishlist.items.select_related(
-            "ad", "ad__user", "ad__category", "ad__country"
-        ).all()
-    else:
-        wishlist = None
-        wishlist_items = []
+    """Display wishlist page - only for authenticated users"""
+    wishlist = get_or_create_wishlist(request.user)
+    wishlist_items = wishlist.items.select_related(
+        "ad", "ad__user", "ad__category", "ad__country"
+    ).all()
 
     context = {
         "wishlist": wishlist,
         "wishlist_items": wishlist_items,
-        "is_guest": not request.user.is_authenticated,
+        "is_guest": False,
     }
 
     return render(request, "wishlist/wishlist.html", context)

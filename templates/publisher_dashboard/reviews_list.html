@@ -1,0 +1,280 @@
+{% extends "dashboard/base.html" %}
+{% load static i18n %}
+
+{% block publisher_title %}{% trans "تقييمات إعلاناتي" %}{% endblock publisher_title %}
+
+{% block publisher_content %}
+<!-- Set active navigation -->
+{% with "reviews" as active_nav %}
+{% endwith %}
+
+<div class="publisher-reviews-page">
+    <!-- Header -->
+    <div class="page-header mb-4">
+        <h1 class="mb-0">
+            <i class="fas fa-star me-2"></i>{% trans "تقييمات إعلاناتي" %}
+        </h1>
+        <p class="text-muted mt-2">{% trans "عرض جميع التقييمات التي حصلت عليها على إعلاناتك" %}</p>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-icon bg-primary">
+                    <i class="fas fa-star"></i>
+                </div>
+                <div class="stats-content">
+                    <h3>{{ stats.total }}</h3>
+                    <p>{% trans "إجمالي التقييمات" %}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-icon bg-success">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stats-content">
+                    <h3>{{ stats.approved }}</h3>
+                    <p>{% trans "تقييمات ظاهرة" %}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-icon bg-info">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="stats-content">
+                    <h3>{{ stats.average_rating|floatformat:1 }}</h3>
+                    <p>{% trans "متوسط التقييم" %}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-icon bg-warning">
+                    <i class="fas fa-bullhorn"></i>
+                </div>
+                <div class="stats-content">
+                    <h3>{{ stats.total_ads_with_reviews }}</h3>
+                    <p>{% trans "إعلانات مُقيّمة" %}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters & Search -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">{% trans "البحث" %}</label>
+                    <input type="text" name="search" class="form-control"
+                           placeholder="{% trans 'بحث في التقييمات...' %}"
+                           value="{{ search|default:'' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">{% trans "الإعلان" %}</label>
+                    <select name="ad" class="form-select">
+                        <option value="">{% trans "جميع الإعلانات" %}</option>
+                        {% for ad in user_ads %}
+                        <option value="{{ ad.id }}" {% if ad_filter == ad.id|stringformat:"s" %}selected{% endif %}>
+                            {{ ad.title|truncatewords:5 }} ({{ ad.reviews_count }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">{% trans "التقييم" %}</label>
+                    <select name="rating" class="form-select">
+                        <option value="">{% trans "الكل" %}</option>
+                        <option value="5" {% if rating_filter == '5' %}selected{% endif %}>5 ★</option>
+                        <option value="4" {% if rating_filter == '4' %}selected{% endif %}>4 ★</option>
+                        <option value="3" {% if rating_filter == '3' %}selected{% endif %}>3 ★</option>
+                        <option value="2" {% if rating_filter == '2' %}selected{% endif %}>2 ★</option>
+                        <option value="1" {% if rating_filter == '1' %}selected{% endif %}>1 ★</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary flex-grow-1">
+                        <i class="fas fa-filter me-2"></i>{% trans "تصفية" %}
+                    </button>
+                    <a href="{% url 'main:publisher_reviews_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-redo"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Reviews List -->
+    <div class="card">
+        <div class="card-body">
+            {% if reviews %}
+                <div class="reviews-list">
+                    {% for review in reviews %}
+                    <div class="review-item mb-3 p-3 border rounded">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <!-- Ad Title -->
+                                <div class="mb-2">
+                                    <a href="{% url 'main:ad_detail' review.ad.slug %}" target="_blank" class="text-decoration-none">
+                                        <h6 class="mb-0">
+                                            <i class="fas fa-bullhorn me-2 text-primary"></i>
+                                            {{ review.ad.title }}
+                                        </h6>
+                                    </a>
+                                </div>
+
+                                <!-- User Info -->
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    {% load idrissimart_tags %}
+                                    {% user_avatar user=review.user size=30 css_class="rounded-circle" %}
+                                    <span class="fw-bold">{{ review.user.get_display_name }}</span>
+                                    <span class="text-muted">•</span>
+                                    <span class="text-muted small">{{ review.created_at|date:"Y-m-d H:i" }}</span>
+                                </div>
+
+                                <!-- Rating -->
+                                <div class="rating-stars mb-2">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= review.rating %}
+                                            <i class="fas fa-star text-warning"></i>
+                                        {% else %}
+                                            <i class="far fa-star text-warning"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+
+                                <!-- Comment -->
+                                {% if review.comment %}
+                                <div class="review-comment p-2 bg-light rounded">
+                                    <p class="mb-0">{{ review.comment }}</p>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-4 text-end">
+                                <!-- Status Badge -->
+                                <div class="mb-3">
+                                    {% if review.is_approved %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check-circle me-1"></i>{% trans "ظاهر" %}
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-clock me-1"></i>{% trans "بانتظار الموافقة" %}
+                                        </span>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Actions -->
+                                <a href="{% url 'main:ad_detail' review.ad.slug %}#reviews"
+                                   target="_blank"
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-external-link-alt me-1"></i>
+                                    {% trans "عرض في الإعلان" %}
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Pagination -->
+                {% if reviews.has_other_pages %}
+                <nav class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if reviews.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ reviews.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if rating_filter %}&rating={{ rating_filter }}{% endif %}{% if ad_filter %}&ad={{ ad_filter }}{% endif %}">
+                                {% trans "السابق" %}
+                            </a>
+                        </li>
+                        {% endif %}
+
+                        {% for num in reviews.paginator.page_range %}
+                        <li class="page-item {% if reviews.number == num %}active{% endif %}">
+                            <a class="page-link" href="?page={{ num }}{% if search %}&search={{ search }}{% endif %}{% if rating_filter %}&rating={{ rating_filter }}{% endif %}{% if ad_filter %}&ad={{ ad_filter }}{% endif %}">
+                                {{ num }}
+                            </a>
+                        </li>
+                        {% endfor %}
+
+                        {% if reviews.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ reviews.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if rating_filter %}&rating={{ rating_filter }}{% endif %}{% if ad_filter %}&ad={{ ad_filter }}{% endif %}">
+                                {% trans "التالي" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-star fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">{% trans "لا توجد تقييمات بعد" %}</h5>
+                    <p class="text-muted">{% trans "ستظهر هنا التقييمات التي يضعها المستخدمون على إعلاناتك" %}</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock publisher_content %}
+
+<style>
+.stats-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.stats-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+}
+
+.stats-content h3 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.stats-content p {
+    margin: 0;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.rating-stars {
+    white-space: nowrap;
+}
+
+.review-item {
+    transition: all 0.3s ease;
+}
+
+.review-item:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.review-comment {
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+</style>
+{% endblock publisher_styles %}

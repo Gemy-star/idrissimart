@@ -117,6 +117,7 @@ TEMPLATES = [
                 "constance.context_processors.config",
                 # Custom context processors
                 "content.context_processors.countries",
+                "content.context_processors.home_sliders",
                 "content.context_processors.user_preferences",
                 "content.context_processors.header_categories",
                 "content.context_processors.notifications",

@@ -1,4 +1,4 @@
-from content.models import Country
+from content.models import Country, HomeSlider
 from main.models import Notification
 from constance import config
 
@@ -10,6 +10,13 @@ def countries(request):
     return {
         "countries": Country.objects.filter(is_active=True).order_by("order", "name")
     }
+
+
+def home_sliders(request):
+    """
+    Context processor to make home sliders available in templates
+    """
+    return {"home_sliders": HomeSlider.objects.filter(is_active=True).order_by("order")}
 
 
 def user_preferences(request):

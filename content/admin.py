@@ -9,6 +9,7 @@ from .models import (
     Blog,
     Comment,
     Country,
+    HomeSlider,
     SiteConfiguration,
     AboutPage,
     ContactPage,
@@ -70,6 +71,100 @@ class CountryAdmin(admin.ModelAdmin):
         self.message_user(request, f"تم إلغاء تفعيل {updated} دولة")
 
     deactivate_countries.short_description = "إلغاء تفعيل الدول المحددة"
+
+
+@admin.register(HomeSlider)
+class HomeSliderAdmin(admin.ModelAdmin):
+    list_display = [
+        "image_preview",
+        "title_display",
+        "is_active",
+        "order",
+        "created_at",
+    ]
+    list_filter = ["is_active", "created_at"]
+    search_fields = ["title", "title_ar", "subtitle", "subtitle_ar"]
+    list_editable = ["is_active", "order"]
+    ordering = ["order", "-created_at"]
+
+    fieldsets = (
+        (
+            "العنوان",
+            {
+                "fields": ("title", "title_ar"),
+            },
+        ),
+        (
+            "العنوان الفرعي",
+            {
+                "fields": ("subtitle", "subtitle_ar"),
+            },
+        ),
+        (
+            "الوصف",
+            {
+                "fields": ("description", "description_ar"),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "الصورة والألوان",
+            {
+                "fields": ("image", "background_color", "text_color"),
+            },
+        ),
+        (
+            "الزر",
+            {
+                "fields": ("button_text", "button_text_ar", "button_url"),
+            },
+        ),
+        (
+            "الإعدادات",
+            {
+                "fields": ("is_active", "order"),
+            },
+        ),
+    )
+
+    readonly_fields = ["created_at", "updated_at"]
+
+    formfield_overrides = {
+        models.TextField: {"widget": CKEditor5Widget(config_name="default")},
+    }
+
+    def image_preview(self, obj):
+        """Display image preview in admin list"""
+        if obj.image:
+            return format_html(
+                '<img src="{}" style="width: 100px; height: 50px; object-fit: cover; border-radius: 4px;" />',
+                obj.image.url,
+            )
+        return "-"
+
+    image_preview.short_description = "الصورة"
+
+    def title_display(self, obj):
+        """Display title with fallback"""
+        return obj.title_ar or obj.title
+
+    title_display.short_description = "العنوان"
+
+    actions = ["activate_slides", "deactivate_slides"]
+
+    def activate_slides(self, request, queryset):
+        """Activate selected slides"""
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f"تم تفعيل {updated} شريحة")
+
+    activate_slides.short_description = "تفعيل الشرائح المحددة"
+
+    def deactivate_slides(self, request, queryset):
+        """Deactivate selected slides"""
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f"تم إلغاء تفعيل {updated} شريحة")
+
+    deactivate_slides.short_description = "إلغاء تفعيل الشرائح المحددة"
 
 
 @admin.register(Blog)

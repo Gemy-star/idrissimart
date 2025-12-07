@@ -1,0 +1,322 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+    .form-container {
+        max-width: 700px;
+        margin: 0 auto;
+        background: white;
+        padding: 2rem;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    [data-theme='dark'] .form-container {
+        background: #1e1e2e;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #374151;
+    }
+
+    [data-theme='dark'] .form-group label {
+        color: #e5e7eb;
+    }
+
+    .form-group input,
+    .form-group select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+    }
+
+    [data-theme='dark'] .form-group input,
+    [data-theme='dark'] .form-group select {
+        background: #151521;
+        border-color: rgba(255,255,255,0.1);
+        color: #e5e7eb;
+    }
+
+    .upgrade-preview {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+    }
+
+    .upgrade-preview.urgent {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .upgrade-preview.pinned {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+
+    .upgrade-preview h3 {
+        margin-bottom: 1rem;
+    }
+
+    .upgrade-preview .details {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .upgrade-preview .detail-item strong {
+        display: block;
+        opacity: 0.8;
+        font-size: 0.875rem;
+    }
+
+    .upgrade-preview .detail-item span {
+        font-size: 1.25rem;
+        font-weight: 700;
+    }
+
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+        width: auto;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-block;
+        margin: 0 0.5rem 0 0;
+    }
+
+    .btn-primary {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+
+    .form-actions {
+        border-top: 2px solid #e5e7eb;
+        padding-top: 1.5rem;
+        margin-top: 2rem;
+    }
+
+    [data-theme='dark'] .form-actions {
+        border-top-color: rgba(255,255,255,0.1);
+    }
+
+    .info-box {
+        background: #dbeafe;
+        border-left: 4px solid #3b82f6;
+        padding: 1rem;
+        border-radius: 6px;
+        margin-bottom: 1.5rem;
+    }
+
+    [data-theme='dark'] .info-box {
+        background: rgba(59, 130, 246, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>{{ page_title }}</h1>
+        <a href="{% url 'main:admin_upgrade_history' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-right"></i> {% trans "رجوع" %}
+        </a>
+    </div>
+
+    <div class="form-container">
+        <div class="info-box">
+            <strong><i class="fas fa-info-circle"></i> {% trans "معلومة:" %}</strong>
+            {% trans "الترقيات تساعد الإعلانات على الظهور بشكل أفضل وجذب المزيد من الانتباه." %}
+        </div>
+
+        <form method="post" id="upgradeForm">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="{{ form.ad.id_for_label }}">
+                    {% trans "الإعلان" %} <span style="color: red;">*</span>
+                </label>
+                {{ form.ad }}
+                {% if form.ad.errors %}
+                    {{ form.ad.errors }}
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.upgrade_type.id_for_label }}">
+                    {% trans "نوع الترقية" %} <span style="color: red;">*</span>
+                </label>
+                {{ form.upgrade_type }}
+                {% if form.upgrade_type.errors %}
+                    {{ form.upgrade_type.errors }}
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.price_paid.id_for_label }}">
+                    {% trans "المبلغ المدفوع (EGP)" %} <span style="color: red;">*</span>
+                </label>
+                {{ form.price_paid }}
+                {% if form.price_paid.errors %}
+                    {{ form.price_paid.errors }}
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.duration_days.id_for_label }}">
+                    {% trans "مدة الترقية (أيام)" %} <span style="color: red;">*</span>
+                </label>
+                {{ form.duration_days }}
+                {% if form.duration_days.errors %}
+                    {{ form.duration_days.errors }}
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <div class="checkbox-group">
+                    {{ form.is_active }}
+                    <label for="{{ form.is_active.id_for_label }}">
+                        {{ form.is_active.label }}
+                    </label>
+                </div>
+                {% if form.is_active.help_text %}
+                    <small class="text-muted">{{ form.is_active.help_text }}</small>
+                {% endif %}
+            </div>
+
+            <!-- Preview -->
+            <div id="upgradePreview" class="upgrade-preview" style="display: none;">
+                <h3><i class="fas fa-eye"></i> {% trans "معاينة الترقية" %}</h3>
+                <div class="details">
+                    <div class="detail-item">
+                        <strong>{% trans "النوع" %}</strong>
+                        <span id="previewType">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <strong>{% trans "المبلغ" %}</strong>
+                        <span id="previewPrice">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <strong>{% trans "المدة" %}</strong>
+                        <span id="previewDuration">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <strong>{% trans "الحالة" %}</strong>
+                        <span id="previewStatus">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i>
+                    {% if form_action == 'create' %}
+                        {% trans "إنشاء الترقية" %}
+                    {% else %}
+                        {% trans "حفظ التعديلات" %}
+                    {% endif %}
+                </button>
+                <a href="{% url 'main:admin_upgrade_history' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> {% trans "إلغاء" %}
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Upgrade type prices and durations
+    const UPGRADE_DEFAULTS = {
+        'HIGHLIGHTED': { price: 50, duration: 30, nameAr: 'مميز' },
+        'URGENT': { price: 30, duration: 7, nameAr: 'عاجل' },
+        'PINNED': { price: 100, duration: 30, nameAr: 'مثبت' }
+    };
+
+    // Auto-fill price and duration
+    document.getElementById('{{ form.upgrade_type.id_for_label }}').addEventListener('change', function() {
+        const upgradeType = this.value;
+        const priceInput = document.getElementById('{{ form.price_paid.id_for_label }}');
+        const durationInput = document.getElementById('{{ form.duration_days.id_for_label }}');
+
+        if (upgradeType && UPGRADE_DEFAULTS[upgradeType]) {
+            priceInput.value = UPGRADE_DEFAULTS[upgradeType].price;
+            durationInput.value = UPGRADE_DEFAULTS[upgradeType].duration;
+        }
+
+        updatePreview();
+    });
+
+    // Update preview on input change
+    ['{{ form.upgrade_type.id_for_label }}', '{{ form.price_paid.id_for_label }}', '{{ form.duration_days.id_for_label }}', '{{ form.is_active.id_for_label }}'].forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener('change', updatePreview);
+            element.addEventListener('input', updatePreview);
+        }
+    });
+
+    function updatePreview() {
+        const upgradeType = document.getElementById('{{ form.upgrade_type.id_for_label }}').value;
+        const price = document.getElementById('{{ form.price_paid.id_for_label }}').value;
+        const duration = document.getElementById('{{ form.duration_days.id_for_label }}').value;
+        const isActive = document.getElementById('{{ form.is_active.id_for_label }}').checked;
+        const preview = document.getElementById('upgradePreview');
+
+        if (upgradeType && price && duration) {
+            preview.style.display = 'block';
+
+            // Update preview class
+            preview.className = 'upgrade-preview';
+            if (upgradeType === 'URGENT') preview.classList.add('urgent');
+            if (upgradeType === 'PINNED') preview.classList.add('pinned');
+
+            // Update preview content
+            document.getElementById('previewType').textContent = UPGRADE_DEFAULTS[upgradeType].nameAr;
+            document.getElementById('previewPrice').textContent = price + ' EGP';
+            document.getElementById('previewDuration').textContent = duration + ' {% trans "يوم" %}';
+            document.getElementById('previewStatus').textContent = isActive ? '{% trans "نشط" %}' : '{% trans "غير نشط" %}';
+        } else {
+            preview.style.display = 'none';
+        }
+    }
+
+    // Initialize preview if editing
+    {% if form_action == 'update' %}
+    updatePreview();
+    {% endif %}
+
+    // Pre-fill ad ID from URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const adId = urlParams.get('ad_id');
+    if (adId) {
+        document.getElementById('{{ form.ad.id_for_label }}').value = adId;
+    }
+</script>
+{% endblock %}

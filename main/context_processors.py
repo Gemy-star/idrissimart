@@ -11,7 +11,7 @@ from django.conf import settings
 def cart_wishlist_counts(request):
     """
     Add cart, wishlist counts, and user ad balance to the context for all templates
-    Supports both authenticated and guest users for cart
+    Only for authenticated users - guest users cannot access cart/wishlist
     """
     context = {
         "cart_count": 0,
@@ -203,16 +203,7 @@ def cart_wishlist_counts(request):
             context["unread_admin_notifications"] = 0
             context["unread_customer_notifications"] = 0
             context["unread_publisher_notifications"] = 0
-    else:
-        # Guest users - get cart count from session
-        try:
-            session_cart = request.session.get("cart", {})
-            context["cart_count"] = sum(
-                item["quantity"] for item in session_cart.values()
-            )
-        except Exception:
-            context["cart_count"] = 0
-
+    # Guest users get 0 counts since they cannot access cart/wishlist
     return context
 
 

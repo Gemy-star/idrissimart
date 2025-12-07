@@ -1,6 +1,10 @@
 {% load i18n static idrissimart_tags %}
 
-<article class="modern-ad-card">
+<article class="modern-ad-card
+    {% if ad.is_highlighted %}highlighted{% endif %}
+    {% if ad.is_urgent %}urgent{% endif %}
+    {% if ad.is_pinned %}pinned{% endif %}"
+    data-priority="{{ ad.get_display_priority }}">
     <!-- Image Section -->
     <div class="ad-image-container">
         <a href="{{ ad.get_absolute_url }}" class="ad-image-link" aria-label="{{ ad.title }}">
@@ -16,6 +20,26 @@
                 </div>
             {% endif %}
         </a>
+
+        <!-- Owner Actions Menu - Top Left -->
+        {% if user.is_authenticated and user == ad.user %}
+        <div class="ad-owner-actions" style="position: absolute; top: 10px; left: 10px; z-index: 10;">
+            <div class="dropdown">
+                <button class="btn btn-sm dropdown-toggle owner-actions-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="background: rgba(255, 255, 255, 0.95); border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); border-radius: 8px; padding: 6px 12px;">
+                    <i class="fas fa-cog"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-start" style="border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                    <li><a class="dropdown-item" href="{% url 'main:ad_update' ad.id %}"><i class="fas fa-edit me-2 text-primary"></i>{% trans "تعديل" %}</a></li>
+                    <li><a class="dropdown-item" href="{% url 'main:ad_upgrade_checkout' ad.id %}"><i class="fas fa-arrow-up me-2 text-success"></i>{% trans "ترقية" %}</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="toggleAdVisibility({{ ad.id }}, this)"><i class="fas fa-eye-slash me-2 text-warning"></i>{% trans "إخفاء/إظهار" %}</a></li>
+                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="markAdAsSold({{ ad.id }})"><i class="fas fa-check-circle me-2 text-info"></i>{% trans "تم البيع" %}</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-danger" href="javascript:void(0)" onclick="confirmDeleteAd({{ ad.id }}, '{{ ad.title|escapejs }}')"><i class="fas fa-trash me-2"></i>{% trans "حذف" %}</a></li>
+                </ul>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Badges Overlay - Top Priority Badges -->
         <div class="ad-badges-top">
@@ -45,39 +69,35 @@
 
         <!-- Stats Overlay - Bottom Right -->
         <div class="ad-info-overlay">
-            <div class="ad-stats-container">
-                <span class="ad-stat-item" title="{% trans 'Views' %}" aria-label="{{ ad.views_count|default:0 }} {% trans 'views' %}">
-                    <i class="fas fa-eye" aria-hidden="true"></i>
-                    <span>{{ ad.views_count|default:0 }}</span>
-                </span>
-            </div>
             <div class="ad-quick-actions">
                 <button class="quick-action-btn compare-btn"
                         data-ad-id="{{ ad.id }}"
-                        data-ad-image="{% if ad.images.first %}{{ ad.images.first.image.url }}{% else %}{% static 'images/placeholder-ad.jpg' %}{% endif %}"
+                        data-ad-image="{% if ad.images.first %}{{ ad.images.first.image.url }}{% else %}{% static "images/placeholder-ad.jpg" %}{% endif %}"
                         data-ad-title="{{ ad.title }}"
-                        title="{% trans 'Compare' %}">
+                        title="{% trans "Compare" %}">
                     <i class="fas fa-exchange-alt"></i>
                 </button>
-                <!-- Wishlist Button - Bottom Right (Available for all users) -->
-                <button class="ad-wishlist-btn wishlist-btn-card quick-action-btn"
+                <!-- Wishlist Button - Only for authenticated users -->
+                {% if request.user.is_authenticated %}
+                <button class="ad-wishlist-btn wishlist-btn-card quick-action-btn {% if ad.is_in_wishlist %}active{% endif %}"
                         data-ad-id="{{ ad.id }}"
                         data-ad-title="{{ ad.title }}"
-                        data-ad-image="{% if ad.images.first %}{{ ad.images.first.image.url }}{% else %}{% static 'images/placeholder-ad.jpg' %}{% endif %}"
+                        data-ad-image="{% if ad.images.first %}{{ ad.images.first.image.url }}{% else %}{% static "images/placeholder-ad.jpg" %}{% endif %}"
                         onclick="toggleWishlistCard({{ ad.id }}, this)"
-                        title="{% trans 'إضافة للمفضلة' %}"
-                        aria-label="{% trans 'إضافة للمفضلة' %}">
-                    <i class="far fa-heart"></i>
+                        title="{% if ad.is_in_wishlist %}{% trans "في المفضلة" %}{% else %}{% trans "إضافة للمفضلة" %}{% endif %}"
+                        aria-label="{% if ad.is_in_wishlist %}{% trans "في المفضلة" %}{% else %}{% trans "إضافة للمفضلة" %}{% endif %}">
+                    <i class="{% if ad.is_in_wishlist %}fas{% else %}far{% endif %} fa-heart"></i>
                 </button>
-                <!-- Cart Button (if cart enabled by admin) -->
-                {% if ad.cart_enabled_by_admin %}
-                <button class="ad-cart-btn cart-btn-card quick-action-btn"
+                {% endif %}
+                <!-- Cart Button (if cart enabled by admin) - Only for authenticated users -->
+                {% if ad.cart_enabled_by_admin and request.user.is_authenticated %}
+                <button class="ad-cart-btn cart-btn-card quick-action-btn {% if ad.is_in_cart %}active{% endif %}"
                         data-ad-id="{{ ad.id }}"
                         data-ad-title="{{ ad.title }}"
                         data-ad-price="{{ ad.price }}"
                         onclick="toggleCartCard({{ ad.id }}, this, '{{ ad.title|escapejs }}', {{ ad.price }})"
-                        title="{% trans 'إضافة للسلة' %}"
-                        aria-label="{% trans 'إضافة للسلة' %}">
+                        title="{% if ad.is_in_cart %}{% trans "في السلة" %}{% else %}{% trans "إضافة للسلة" %}{% endif %}"
+                        aria-label="{% if ad.is_in_cart %}{% trans "في السلة" %}{% else %}{% trans "إضافة للسلة" %}{% endif %}">
                     <i class="fas fa-shopping-cart"></i>
                 </button>
                 {% endif %}
@@ -87,18 +107,26 @@
 
     <!-- Content Section -->
     <div class="ad-content">
-        <!-- Category Badge -->
+        <!-- Safety Note for Buyers -->
+        <div class="buyer-safety-note" role="alert">
+            <i class="fas fa-shield-alt" aria-hidden="true"></i>
+            <span class="safety-tip">{% trans "تحقق من المنتج قبل الدفع" %}</span>
+        </div>
+
+        <!-- Category Badge - Show Main Category Only -->
         {% if ad.category %}
+        {% with main_category=ad.category.get_root %}
         <div class="ad-category-badge" role="status">
             <i class="fas fa-tag" aria-hidden="true"></i>
             <span>
-                {% if LANGUAGE_CODE == 'ar' and ad.category.name_ar %}
-                    {{ ad.category.name_ar }}
+                {% if LANGUAGE_CODE == 'ar' and main_category.name_ar %}
+                    {{ main_category.name_ar }}
                 {% else %}
-                    {{ ad.category.name }}
+                    {{ main_category.name }}
                 {% endif %}
             </span>
         </div>
+        {% endwith %}
         {% endif %}
 
         <!-- Title -->
@@ -129,6 +157,29 @@
                     </span>
                 {% endif %}
             </div>
+
+            <!-- Rating Display -->
+            {% if ad.rating %}
+            <div class="ad-rating-badge" title="{% trans 'Average Rating' %}">
+                <div class="rating-stars">
+                    {% with rating_int=ad.rating|floatformat:0|add:"0" %}
+                    {% for i in "12345" %}
+                        {% if forloop.counter <= rating_int %}
+                            <i class="fas fa-star" aria-hidden="true"></i>
+                        {% elif forloop.counter == rating_int|add:"1" and ad.rating|floatformat:1|slice:"-3:" != ".0" %}
+                            <i class="fas fa-star-half-alt" aria-hidden="true"></i>
+                        {% else %}
+                            <i class="far fa-star" aria-hidden="true"></i>
+                        {% endif %}
+                    {% endfor %}
+                    {% endwith %}
+                </div>
+                <span class="rating-value">{{ ad.rating|floatformat:1 }}</span>
+                {% if ad.rating_count %}
+                <span class="rating-count">({{ ad.rating_count }})</span>
+                {% endif %}
+            </div>
+            {% endif %}
 
             <!-- Cart Enabled Badge -->
             {% if ad.cart_enabled_by_admin %}
@@ -166,24 +217,47 @@
 
         <!-- Price Section -->
         <div class="ad-price-section">
-            <div class="ad-price-box">
-                <div class="price-header">
-                    <div class="price-label">
-                        <i class="fas fa-money-bill-wave" aria-hidden="true" role="img"></i>
-                        <span>السعر</span>
+            {% if ad.hide_price or ad.price_on_request %}
+                <!-- Get Quote / Price on Request -->
+                <div class="ad-quote-box">
+                    <div class="quote-icon">
+                        <i class="fas fa-file-invoice-dollar" aria-hidden="true"></i>
                     </div>
-                    {% if ad.is_negotiable %}
-                    <span class="price-negotiable-tag" title="{% trans 'Negotiable' %}" aria-label="{% trans 'Price is negotiable' %}">
-                        <i class="fas fa-handshake" aria-hidden="true" role="img"></i>
-                    </span>
-                    {% endif %}
+                    <div class="quote-content">
+                        <span class="quote-text">
+                            {% if ad.price_on_request %}
+                                {% trans "السعر عند الطلب" %}
+                            {% else %}
+                                {% trans "اطلب عرض سعر" %}
+                            {% endif %}
+                        </span>
+                        <a href="{{ ad.get_absolute_url }}" class="btn-get-quote">
+                            <i class="fas fa-envelope" aria-hidden="true"></i>
+                            {% trans "تواصل للسعر" %}
+                        </a>
+                    </div>
                 </div>
-                <div class="ad-price-main">
-                    {% ad_price_formatted ad as formatted_price %}
-                    <span class="price-amount">{{ formatted_price|default_if_none:ad.price }}</span>
-                    <span class="price-currency">{{ ad.currency|default:"جنيه" }}</span>
+            {% else %}
+                <!-- Regular Price Display -->
+                <div class="ad-price-box">
+                    <div class="price-header">
+                        <div class="price-label">
+                            <i class="fas fa-money-bill-wave" aria-hidden="true" role="img"></i>
+                            <span>السعر</span>
+                        </div>
+                        {% if ad.is_negotiable %}
+                        <span class="price-negotiable-tag" title="{% trans 'Negotiable' %}" aria-label="{% trans 'Price is negotiable' %}">
+                            <i class="fas fa-handshake" aria-hidden="true" role="img"></i>
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="ad-price-main">
+                        {% ad_price_formatted ad as formatted_price %}
+                        <span class="price-amount">{{ formatted_price|default_if_none:ad.price }}</span>
+                        <span class="price-currency">{{ ad.currency|default:"جنيه" }}</span>
+                    </div>
                 </div>
-            </div>
+            {% endif %}
         </div>
     </div>
 
