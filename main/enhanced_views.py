@@ -513,6 +513,9 @@ def delete_reservation(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 @staff_member_required
+@csrf_exempt
+@require_http_methods(["POST"])
+@staff_member_required
 def send_reservation_notification(request):
     """Send notification reminder for reservation"""
     try:

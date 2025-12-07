@@ -216,7 +216,7 @@
                                     </td>
                                     <td>
                                         <span class="fw-bold text-success">
-                                            {{ reservation.total_amount }} {{ reservation.ad.currency|default:"SAR" }}
+                                            {{ reservation.calculate_total_amount }} {{ reservation.ad.currency|default:selected_currency|default:"SAR" }}
                                         </span>
                                     </td>
                                     <td>
@@ -663,7 +663,8 @@ function exportReservations() {
 
 function sendNotification(reservationId, event) {
     if (event) event.preventDefault();
-    fetch('/ajax/send-reservation-notification/', {
+    const languageCode = '{{ LANGUAGE_CODE }}';
+    fetch(`/${languageCode}/ajax/send-reservation-notification/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -673,7 +674,12 @@ function sendNotification(reservationId, event) {
             'reservation_id': reservationId
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             showNotification(data.message, 'success');
@@ -711,8 +717,9 @@ function loadAddReservationData() {
         .then(data => {
             const adSelect = document.querySelector('#addReservationForm select[name="ad"]');
             adSelect.innerHTML = '<option value="">{% trans "اختر الإعلان" %}</option>';
+            const defaultCurrency = '{{ selected_currency|default:"SAR" }}';
             data.ads.forEach(ad => {
-                adSelect.innerHTML += `<option value="${ad.id}">${ad.title} - ${ad.price} ${ad.currency || 'SAR'}</option>`;
+                adSelect.innerHTML += `<option value="${ad.id}">${ad.title} - ${ad.price} ${ad.currency || defaultCurrency}</option>`;
             });
         });
 }
@@ -1190,9 +1197,14 @@ function getCookie(name) {
     .table tbody tr:nth-child(5) { animation-delay: 0.25s; }
 
     .table-hover tbody tr:hover {
-        background-color: rgba(13, 110, 253, 0.05);
+        background-color: rgba(13, 110, 253, 0.05) !important;
         transform: translateX(3px);
         box-shadow: -3px 0 0 0 rgba(13, 110, 253, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    .table-hover tbody tr:hover td {
+        background-color: transparent !important;
     }
 
     .table-light {
@@ -1215,8 +1227,13 @@ function getCookie(name) {
     }
 
     [data-theme='dark'] .table-hover tbody tr:hover {
-        background-color: rgba(107, 76, 122, 0.15);
+        background-color: rgba(107, 76, 122, 0.15) !important;
         box-shadow: -3px 0 0 0 rgba(107, 76, 122, 0.5);
+        transition: all 0.3s ease;
+    }
+
+    [data-theme='dark'] .table-hover tbody tr:hover td {
+        background-color: transparent !important;
     }
 
     [data-theme='dark'] .table thead th:hover {
@@ -1508,10 +1525,31 @@ function getCookie(name) {
         transform: rotate(90deg);
     }
 
+    /* Dropdown Button Fix */
+    .dropdown-toggle,
+    .btn-group .dropdown-toggle {
+        opacity: 1 !important;
+        transition: all 0.3s ease;
+    }
+
+    .dropdown-toggle:hover,
+    .btn-group .dropdown-toggle:hover,
+    .dropdown-toggle:focus,
+    .dropdown-toggle:active {
+        opacity: 1 !important;
+        background-color: rgba(0, 0, 0, 0.05) !important;
+    }
+
+    .btn-outline-secondary.dropdown-toggle:hover {
+        background-color: rgba(108, 117, 125, 0.1) !important;
+        border-color: #6c757d !important;
+    }
+
     /* Dropdown Styles - Light Theme */
     .dropdown-menu {
         animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        opacity: 1 !important;
     }
 
     .dropdown-item {
@@ -1535,6 +1573,12 @@ function getCookie(name) {
     [data-theme='dark'] .dropdown-menu {
         background-color: #1e1e2e;
         border-color: rgba(255, 255, 255, 0.1);
+        opacity: 1 !important;
+    }
+
+    [data-theme='dark'] .btn-outline-secondary.dropdown-toggle:hover {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        border-color: rgba(255, 255, 255, 0.3) !important;
     }
 
     [data-theme='dark'] .dropdown-item {

@@ -372,19 +372,29 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeRevenueChart();
     initializeTabs();
 
-    // Load user packages on page load
+    // Load user packages on page load (since it's the default active tab)
     loadUserPackages('all', 1);
 
-    // Load subscriptions when tab is clicked
+    // Add event listeners for tab switches
+    const packagesTab = document.getElementById('user-packages-tab');
     const subscriptionsTab = document.getElementById('user-subscriptions-tab');
-    if (subscriptionsTab) {
-        subscriptionsTab.addEventListener('shown.bs.tab', function() {
-            loadUserSubscriptions('all', 1);
+
+    if (packagesTab) {
+        packagesTab.addEventListener('show.bs.tab', function() {
+            if (!packagesLoaded) {
+                loadUserPackages('all', 1);
+            }
         });
     }
-});
 
-// Initialize Bootstrap Tabs
+    if (subscriptionsTab) {
+        subscriptionsTab.addEventListener('show.bs.tab', function() {
+            if (!subscriptionsLoaded) {
+                loadUserSubscriptions('all', 1);
+            }
+        });
+    }
+});// Initialize Bootstrap Tabs
 function initializeTabs() {
     const triggerTabList = document.querySelectorAll('#payments-nav-tab button[data-bs-toggle="tab"]');
     triggerTabList.forEach(triggerEl => {
@@ -657,10 +667,12 @@ function addNewPackage() {
 // User Packages Management
 let currentPackagesFilter = 'all';
 let currentPackagesPage = 1;
+let packagesLoaded = false;
 
 function loadUserPackages(status = 'all', page = 1) {
     currentPackagesFilter = status;
     currentPackagesPage = page;
+    packagesLoaded = true;
 
     const tbody = document.getElementById('userPackagesTable');
 
@@ -837,10 +849,12 @@ function addAdsToPackage(packageId) {
 // Subscriptions Management
 let currentSubscriptionsFilter = 'all';
 let currentSubscriptionsPage = 1;
+let subscriptionsLoaded = false;
 
 function loadUserSubscriptions(status = 'all', page = 1) {
     currentSubscriptionsFilter = status;
     currentSubscriptionsPage = page;
+    subscriptionsLoaded = true;
 
     const tbody = document.getElementById('subscriptionsTable');
 
