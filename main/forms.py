@@ -531,7 +531,7 @@ class RegistrationForm(forms.Form):
         error_messages={"required": _("يجب الموافقة على الشروط والأحكام")},
     )
 
-    # Google reCAPTCHA - جوجل كابتشا لا تعمل fix
+    # Google reCAPTCHA
     captcha = ReCaptchaField(
         widget=ReCaptchaV2Checkbox(
             attrs={
@@ -539,12 +539,11 @@ class RegistrationForm(forms.Form):
                 "data-size": "normal",
             }
         ),
+        label="",
         error_messages={
-            "required": _(
-                "يرجى التحقق من أنك لست روبوت. التحقق من شروط اكمال التسجيل غير موجودة"
-            ),
+            "required": _("⚠️ يرجى إكمال التحقق من reCAPTCHA للتأكد من أنك لست روبوت"),
             "invalid": _(
-                "فشل التحقق من reCAPTCHA. جوجل كابتشا لا تعمل - يرجى المحاولة مرة أخرى"
+                "❌ فشل التحقق من reCAPTCHA. يرجى المحاولة مرة أخرى أو تحديث الصفحة"
             ),
         },
     )
