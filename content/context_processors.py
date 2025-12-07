@@ -43,8 +43,16 @@ def user_preferences(request):
     """
     selected_country = request.session.get("selected_country", "EG")
 
+    # Get currency for selected country
+    try:
+        country = Country.objects.get(code=selected_country, is_active=True)
+        currency = country.currency or "SAR"
+    except Country.DoesNotExist:
+        currency = "SAR"  # Default to SAR if country not found
+
     return {
         "selected_country": selected_country,
+        "selected_currency": currency,
     }
 
 

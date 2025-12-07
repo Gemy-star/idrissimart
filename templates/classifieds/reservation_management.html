@@ -216,7 +216,7 @@
                                     </td>
                                     <td>
                                         <span class="fw-bold text-success">
-                                            {{ reservation.total_amount }} {% trans "ريال" %}
+                                            {{ reservation.total_amount }} {{ reservation.ad.currency|default:"SAR" }}
                                         </span>
                                     </td>
                                     <td>
@@ -270,23 +270,23 @@
                                             {% endif %}
 
                                             <div class="btn-group" role="group">
-                                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                                                     <i class="fas fa-ellipsis-v"></i>
                                                 </button>
-                                                <ul class="dropdown-menu">
+                                                <ul class="dropdown-menu dropdown-menu-end">
                                                     <li>
-                                                        <a class="dropdown-item" href="#" onclick="sendNotification({{ reservation.id }})">
+                                                        <a class="dropdown-item" href="#" onclick="sendNotification({{ reservation.id }}, event); return false;">
                                                             <i class="fas fa-bell me-2"></i>{% trans "إرسال تذكير" %}
                                                         </a>
                                                     </li>
                                                     <li>
-                                                        <a class="dropdown-item" href="#" onclick="printReservation({{ reservation.id }})">
+                                                        <a class="dropdown-item" href="#" onclick="printReservation({{ reservation.id }}, event); return false;">
                                                             <i class="fas fa-print me-2"></i>{% trans "طباعة" %}
                                                         </a>
                                                     </li>
                                                     <li><hr class="dropdown-divider"></li>
                                                     <li>
-                                                        <a class="dropdown-item text-danger" href="#" onclick="deleteReservation({{ reservation.id }})">
+                                                        <a class="dropdown-item text-danger" href="#" onclick="deleteReservation({{ reservation.id }}); return false;">
                                                             <i class="fas fa-trash me-2"></i>{% trans "حذف" %}
                                                         </a>
                                                     </li>
@@ -495,7 +495,7 @@ function closeModal(modalId) {
         if (modalId === 'confirmActionModal') {
             const confirmBtn = document.getElementById('confirmActionBtn');
             if (confirmBtn) {
-                confirmBtn.className = 'btn-warning';
+                confirmBtn.className = 'btn btn-warning';
             }
         }
     }
@@ -602,7 +602,7 @@ function deleteReservation(reservationId) {
 
     // Change button color for delete action
     const btn = document.getElementById('confirmActionBtn');
-    btn.className = 'btn-danger';
+    btn.className = 'btn btn-danger';
 
     openModal('confirmActionModal');
 }
@@ -661,7 +661,8 @@ function exportReservations() {
     window.open(`${window.location.pathname}?${params.toString()}`, '_blank');
 }
 
-function sendNotification(reservationId) {
+function sendNotification(reservationId, event) {
+    if (event) event.preventDefault();
     fetch('/ajax/send-reservation-notification/', {
         method: 'POST',
         headers: {
@@ -686,7 +687,8 @@ function sendNotification(reservationId) {
     });
 }
 
-function printReservation(reservationId) {
+function printReservation(reservationId, event) {
+    if (event) event.preventDefault();
     window.open(`/print/reservation/${reservationId}/`, '_blank');
 }
 
@@ -710,7 +712,7 @@ function loadAddReservationData() {
             const adSelect = document.querySelector('#addReservationForm select[name="ad"]');
             adSelect.innerHTML = '<option value="">{% trans "اختر الإعلان" %}</option>';
             data.ads.forEach(ad => {
-                adSelect.innerHTML += `<option value="${ad.id}">${ad.title} - ${ad.price} ريال</option>`;
+                adSelect.innerHTML += `<option value="${ad.id}">${ad.title} - ${ad.price} ${ad.currency || 'SAR'}</option>`;
             });
         });
 }
@@ -725,34 +727,39 @@ window.openModal = function(modalId) {
 };
 
 // Handle add reservation form submission
-document.getElementById('addReservationForm').addEventListener('submit', function(e) {
-    e.preventDefault();
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('addReservationForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
 
-    const formData = new FormData(this);
-    const data = Object.fromEntries(formData.entries());
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
 
-    fetch('/ajax/add-reservation/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken')
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification(data.message, 'success');
-            closeModal('addReservationModal');
-            setTimeout(() => location.reload(), 1500);
-        } else {
-            showNotification(data.error, 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showNotification('{% trans "حدث خطأ في إضافة الحجز" %}', 'error');
-    });
+            fetch('/ajax/add-reservation/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    closeModal('addReservationModal');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showNotification(data.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('{% trans "حدث خطأ في إضافة الحجز" %}', 'error');
+            });
+        });
+    }
 });
 
 function showNotification(message, type) {

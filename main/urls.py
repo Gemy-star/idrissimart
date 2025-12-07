@@ -795,6 +795,17 @@ urlpatterns = [
         views.admin_payment_transaction_detail,
         name="admin_payment_transaction_detail",
     ),
+    # AJAX endpoints for packages and subscriptions
+    path(
+        "admin/api/user-packages/",
+        views.admin_get_user_packages,
+        name="admin_get_user_packages",
+    ),
+    path(
+        "admin/api/user-subscriptions/",
+        views.admin_get_user_subscriptions,
+        name="admin_get_user_subscriptions",
+    ),
     # User Package Management
     path(
         "admin/user-packages/<int:package_id>/extend/",

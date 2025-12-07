@@ -3384,21 +3384,18 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
             "-date_joined"
         )[:20]
 
-        # User Packages - Get all user packages with related data
-        context["user_packages"] = (
-            UserPackage.objects.select_related("user", "package", "payment")
-            .order_by("-purchase_date")
-            .all()
-        )
+        # Don't load packages/subscriptions data directly - will be loaded via AJAX
+        context["user_packages"] = None  # Load via AJAX
+        context["user_subscriptions"] = None  # Load via AJAX
 
-        # User Subscriptions - Get all user subscriptions
-        from main.models import UserSubscription
-
-        context["user_subscriptions"] = (
-            UserSubscription.objects.select_related("user")
-            .order_by("-created_at")
-            .all()
-        )
+        # Get currency from selected country
+        selected_country = self.request.session.get("selected_country", "EG")
+        try:
+            from content.models import Country
+            country = Country.objects.get(code=selected_country, is_active=True)
+            context["currency"] = country.currency or "SAR"
+        except:
+            context["currency"] = "SAR"
 
         context["active_nav"] = "payments"
 
@@ -3492,6 +3489,122 @@ class AdminNotificationView(SuperadminRequiredMixin, ListView):
     # Removed auto-mark-as-read functionality
     # Admin viewing all notifications shouldn't mark them as read
     # Individual notifications can be marked as read by their owners
+
+
+@login_required
+def admin_get_user_packages(request):
+    """Get user packages data via AJAX"""
+    # Check if user is staff
+    if not request.user.is_staff:
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+
+    try:
+        status_filter = request.GET.get('status', 'all')
+        page = int(request.GET.get('page', 1))
+        per_page = 50
+
+        # Base queryset
+        packages = UserPackage.objects.select_related("user", "package").order_by("-purchase_date")
+
+        # Apply status filter
+        if status_filter == 'active':
+            packages = packages.filter(expiry_date__gte=timezone.now(), ads_remaining__gt=0)
+        elif status_filter == 'expired':
+            packages = packages.filter(Q(expiry_date__lt=timezone.now()) | Q(ads_remaining=0))
+
+        # Pagination
+        paginator = Paginator(packages, per_page)
+        packages_page = paginator.get_page(page)
+
+        # Serialize data
+        packages_data = []
+        for pkg in packages_page:
+            is_active = pkg.expiry_date >= timezone.now() and pkg.ads_remaining > 0
+            packages_data.append({
+                'id': pkg.id,
+                'user_username': pkg.user.username if pkg.user else 'N/A',
+                'user_email': pkg.user.email if pkg.user else 'N/A',
+                'package_name': pkg.package.name_ar if pkg.package else 'إعلان مجاني',
+                'package_type': pkg.package.name_ar if pkg.package else 'free',
+                'purchase_date': pkg.purchase_date.strftime('%d/%m/%Y %H:%M') if pkg.purchase_date else 'N/A',
+                'expiry_date': pkg.expiry_date.strftime('%d/%m/%Y %H:%M') if pkg.expiry_date else 'N/A',
+                'ads_remaining': pkg.ads_remaining,
+                'status': 'active' if is_active else 'expired',
+                'status_label': 'نشط' if is_active else 'منتهي',
+            })
+
+        return JsonResponse({
+            'success': True,
+            'packages': packages_data,
+            'total': paginator.count,
+            'page': page,
+            'total_pages': paginator.num_pages,
+            'has_next': packages_page.has_next(),
+            'has_previous': packages_page.has_previous(),
+        })
+
+    except Exception as e:
+        import traceback
+        return JsonResponse({"error": str(e), "traceback": traceback.format_exc()}, status=500)
+
+
+@login_required
+def admin_get_user_subscriptions(request):
+    """Get user subscriptions data via AJAX"""
+    # Check if user is staff
+    if not request.user.is_staff:
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+
+    try:
+        from main.models import UserSubscription
+
+        status_filter = request.GET.get('status', 'all')
+        page = int(request.GET.get('page', 1))
+        per_page = 50
+
+        # Base queryset
+        subscriptions = UserSubscription.objects.select_related("user").order_by("-created_at")
+
+        # Apply status filter
+        if status_filter == 'active':
+            subscriptions = subscriptions.filter(end_date__gte=timezone.now(), is_active=True)
+        elif status_filter == 'expired':
+            subscriptions = subscriptions.filter(Q(end_date__lt=timezone.now()) | Q(is_active=False))
+
+        # Pagination
+        paginator = Paginator(subscriptions, per_page)
+        subscriptions_page = paginator.get_page(page)
+
+        # Serialize data
+        subscriptions_data = []
+        for sub in subscriptions_page:
+            is_active = sub.end_date >= timezone.now() and sub.is_active
+            subscriptions_data.append({
+                'id': sub.id,
+                'user_username': sub.user.username if sub.user else 'N/A',
+                'user_email': sub.user.email if sub.user else 'N/A',
+                'package_type': sub.subscription_type,
+                'price': float(sub.price) if sub.price else 0,
+                'start_date': sub.start_date.strftime('%d/%m/%Y %H:%M') if sub.start_date else '',
+                'end_date': sub.end_date.strftime('%d/%m/%Y %H:%M') if sub.end_date else '',
+                'auto_renew': sub.auto_renew if hasattr(sub, 'auto_renew') else False,
+                'status': 'active' if is_active else 'expired',
+                'status_label': 'نشط' if is_active else 'منتهي',
+            })
+
+        return JsonResponse({
+            'success': True,
+            'subscriptions': subscriptions_data,
+            'total': paginator.count,
+            'page': page,
+            'total_pages': paginator.num_pages,
+            'has_next': subscriptions_page.has_next(),
+            'has_previous': subscriptions_page.has_previous(),
+        })
+
+    except Exception as e:
+        import traceback
+        return JsonResponse({"error": str(e), "traceback": traceback.format_exc()}, status=500)
 
 
 class AdminTranslationsView(SuperadminRequiredMixin, TemplateView):

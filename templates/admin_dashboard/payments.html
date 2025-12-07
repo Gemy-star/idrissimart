@@ -105,7 +105,7 @@
                     <i class="fas fa-dollar-sign"></i>
                 </div>
                 <div class="stat-content">
-                    <h3>{{ payment_stats.total_revenue }} {% trans "ريال" %}</h3>
+                    <h3>{{ payment_stats.total_revenue }} {{ selected_currency|default:"SAR" }}</h3>
                     <p>{% trans "إيرادات هذا الشهر" %}</p>
                 </div>
             </div>
@@ -178,7 +178,7 @@
                                 <td>#{{ transaction.id }}</td>
                                 <td>{{ transaction.user.username }}</td>
                                 <td>{{ transaction.get_provider_display }}</td>
-                                <td>{{ transaction.amount }} {% trans "ريال" %}</td>
+                                <td>{{ transaction.amount }} {{ selected_currency|default:"SAR" }}</td>
                                 <td>
                                     <span class="status-badge status-{{ transaction.status }}">
                                         {{ transaction.get_status_display }}
@@ -256,60 +256,14 @@
                                 </tr>
                             </thead>
                             <tbody id="userPackagesTable">
-                                {% if user_packages %}
-                                    {% for user_package in user_packages %}
-                                    <tr data-status="{% if user_package.is_active %}active{% else %}expired{% endif %}">
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <i class="fas fa-user-circle fa-2x text-muted me-2"></i>
-                                                <div>
-                                                    <div class="fw-bold">{{ user_package.user.username }}</div>
-                                                    <small class="text-muted">{{ user_package.user.email }}</small>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            {% if user_package.package %}
-                                                <span class="badge bg-info">{{ user_package.package.name }}</span>
-                                            {% else %}
-                                                <span class="badge bg-secondary">{% trans "إعلان مجاني" %}</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>{{ user_package.purchase_date|date:"d/m/Y H:i" }}</td>
-                                        <td>{{ user_package.expiry_date|date:"d/m/Y H:i" }}</td>
-                                        <td>
-                                            <span class="badge bg-primary">{{ user_package.ads_remaining }}</span>
-                                        </td>
-                                        <td>
-                                            {% if user_package.is_active %}
-                                                <span class="badge bg-success">{% trans "نشط" %}</span>
-                                            {% else %}
-                                                <span class="badge bg-danger">{% trans "منتهي" %}</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <button class="btn btn-outline-primary" onclick="viewUserPackage({{ user_package.id }})" title="{% trans 'عرض التفاصيل' %}">
-                                                    <i class="fas fa-eye"></i>
-                                                </button>
-                                                <button class="btn btn-outline-success" onclick="extendUserPackage({{ user_package.id }})" title="{% trans 'تمديد' %}">
-                                                    <i class="fas fa-clock"></i>
-                                                </button>
-                                                <button class="btn btn-outline-warning" onclick="addAdsToPackage({{ user_package.id }})" title="{% trans 'إضافة إعلانات' %}">
-                                                    <i class="fas fa-plus"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                {% else %}
                                 <tr>
-                                    <td colspan="7" class="text-center text-muted py-4">
-                                        <i class="fas fa-boxes fa-3x mb-3 d-block"></i>
-                                        {% trans "لا توجد باقات للمستخدمين بعد" %}
+                                    <td colspan="7" class="text-center py-4">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">{% trans "جاري التحميل..." %}</span>
+                                        </div>
+                                        <p class="mt-2 text-muted">{% trans "جاري تحميل البيانات..." %}</p>
                                     </td>
                                 </tr>
-                                {% endif %}
                             </tbody>
                         </table>
                     </div>
@@ -346,66 +300,14 @@
                                 </tr>
                             </thead>
                             <tbody id="subscriptionsTable">
-                                {% if user_subscriptions %}
-                                    {% for subscription in user_subscriptions %}
-                                    <tr data-status="{% if subscription.is_active %}active{% else %}expired{% endif %}">
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <i class="fas fa-user-circle fa-2x text-muted me-2"></i>
-                                                <div>
-                                                    <div class="fw-bold">{{ subscription.user.username }}</div>
-                                                    <small class="text-muted">{{ subscription.user.email }}</small>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-warning">{{ subscription.get_plan_display }}</span>
-                                        </td>
-                                        <td>{{ subscription.price }} {% trans "ريال" %}</td>
-                                        <td>{{ subscription.start_date|date:"d/m/Y" }}</td>
-                                        <td>{{ subscription.end_date|date:"d/m/Y" }}</td>
-                                        <td>
-                                            {% if subscription.auto_renew %}
-                                                <span class="badge bg-success">{% trans "نعم" %}</span>
-                                            {% else %}
-                                                <span class="badge bg-secondary">{% trans "لا" %}</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if subscription.is_active %}
-                                                <span class="badge bg-success">{% trans "نشط" %}</span>
-                                            {% else %}
-                                                <span class="badge bg-danger">{% trans "غير نشط" %}</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <button class="btn btn-outline-primary" onclick="viewSubscription({{ subscription.id }})" title="{% trans 'عرض التفاصيل' %}">
-                                                    <i class="fas fa-eye"></i>
-                                                </button>
-                                                <button class="btn btn-outline-success" onclick="extendSubscription({{ subscription.id }})" title="{% trans 'تمديد' %}">
-                                                    <i class="fas fa-clock"></i>
-                                                </button>
-                                                {% if subscription.is_active %}
-                                                <button class="btn btn-outline-danger" onclick="cancelSubscription({{ subscription.id }})" title="{% trans 'إلغاء' %}">
-                                                    <i class="fas fa-times"></i>
-                                                </button>
-                                                {% endif %}
-                                                <button class="btn btn-outline-warning" onclick="toggleAutoRenew({{ subscription.id }})" title="{% trans 'تبديل التجديد التلقائي' %}">
-                                                    <i class="fas fa-sync"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                {% else %}
                                 <tr>
-                                    <td colspan="8" class="text-center text-muted py-4">
-                                        <i class="fas fa-crown fa-3x mb-3 d-block"></i>
-                                        {% trans "لا توجد اشتراكات مميزة بعد" %}
+                                    <td colspan="8" class="text-center py-4">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">{% trans "جاري التحميل..." %}</span>
+                                        </div>
+                                        <p class="mt-2 text-muted">{% trans "جاري تحميل البيانات..." %}</p>
                                     </td>
                                 </tr>
-                                {% endif %}
                             </tbody>
                         </table>
                     </div>
@@ -436,7 +338,7 @@
                 </div>
                 <div class="card-body">
                     <div class="small text-muted mb-1">{% trans "متوسط قيمة المعاملة" %}</div>
-                    <div class="h5 mb-3">0 {% trans "ريال" %}</div>
+                    <div class="h5 mb-3">0 {{ selected_currency|default:"SAR" }}</div>
                     <div class="small text-muted mb-1">{% trans "أفضل باقة مبيعاً" %}</div>
                     <div class="h6 mb-3">{% trans "الباقة الذهبية" %}</div>
                     <div class="small text-muted mb-1">{% trans "معدل النمو الشهري" %}</div>
@@ -450,6 +352,10 @@
 {% block admin_extra_js %}
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+// Global variables
+const CURRENCY = '{{ selected_currency|default:"SAR" }}';
+const LANGUAGE_CODE = '{{ LANGUAGE_CODE }}';
+
 // URL patterns with language prefix
 const PAYMENT_URLS = {
     userPackageExtend: (id) => `{% url "main:admin_user_package_extend" 0 %}`.replace('/0/', `/${id}/`),
@@ -465,6 +371,17 @@ const PAYMENT_URLS = {
 document.addEventListener('DOMContentLoaded', function() {
     initializeRevenueChart();
     initializeTabs();
+
+    // Load user packages on page load
+    loadUserPackages('all', 1);
+
+    // Load subscriptions when tab is clicked
+    const subscriptionsTab = document.getElementById('user-subscriptions-tab');
+    if (subscriptionsTab) {
+        subscriptionsTab.addEventListener('shown.bs.tab', function() {
+            loadUserSubscriptions('all', 1);
+        });
+    }
 });
 
 // Initialize Bootstrap Tabs
@@ -490,7 +407,7 @@ function initializeRevenueChart() {
         data: {
             labels: monthlyData.map(item => item.month),
             datasets: [{
-                label: 'الإيرادات (ريال)',
+                label: 'الإيرادات (' + CURRENCY + ')',
                 data: monthlyData.map(item => item.revenue),
                 borderColor: '#4e73df',
                 backgroundColor: 'rgba(78, 115, 223, 0.1)',
@@ -507,7 +424,7 @@ function initializeRevenueChart() {
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return value + ' ريال';
+                            return value + ' ' + CURRENCY;
                         }
                     }
                 }
@@ -738,16 +655,108 @@ function addNewPackage() {
 }
 
 // User Packages Management
-function filterUserPackages(status) {
-    const rows = document.querySelectorAll('#userPackagesTable tr[data-status]');
+let currentPackagesFilter = 'all';
+let currentPackagesPage = 1;
 
-    rows.forEach(row => {
-        if (status === 'all' || row.dataset.status === status) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
-    });
+function loadUserPackages(status = 'all', page = 1) {
+    currentPackagesFilter = status;
+    currentPackagesPage = page;
+
+    const tbody = document.getElementById('userPackagesTable');
+
+    // Show loading
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="7" class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">{% trans "جاري التحميل..." %}</span>
+                </div>
+                <p class="mt-2 text-muted">{% trans "جاري تحميل البيانات..." %}</p>
+            </td>
+        </tr>
+    `;
+
+    fetch(`/${LANGUAGE_CODE}/admin/api/user-packages/?status=${status}&page=${page}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.packages.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">
+                                <i class="fas fa-boxes fa-3x mb-3 d-block"></i>
+                                {% trans "لا توجد باقات للمستخدمين بعد" %}
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    let html = '';
+                    data.packages.forEach(pkg => {
+                        const badgeClass = pkg.package_type === 'free' ? 'bg-secondary' : 'bg-info';
+                        const statusBadge = pkg.status === 'active' ?
+                            '<span class="badge bg-success">نشط</span>' :
+                            '<span class="badge bg-danger">منتهي</span>';
+
+                        html += `
+                            <tr data-status="${pkg.status}">
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-user-circle fa-2x text-muted me-2"></i>
+                                        <div>
+                                            <div class="fw-bold">${pkg.user_username}</div>
+                                            <small class="text-muted">${pkg.user_email}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><span class="badge ${badgeClass}">${pkg.package_name}</span></td>
+                                <td>${pkg.purchase_date}</td>
+                                <td>${pkg.expiry_date}</td>
+                                <td><span class="badge bg-primary">${pkg.ads_remaining}</span></td>
+                                <td>${statusBadge}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" onclick="viewUserPackage(${pkg.id})" title="{% trans 'عرض التفاصيل' %}">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-outline-success" onclick="extendUserPackage(${pkg.id})" title="{% trans 'تمديد' %}">
+                                            <i class="fas fa-clock"></i>
+                                        </button>
+                                        <button class="btn btn-outline-warning" onclick="addAdsToPackage(${pkg.id})" title="{% trans 'إضافة إعلانات' %}">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    tbody.innerHTML = html;
+                }
+            } else {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center text-danger py-4">
+                            <i class="fas fa-exclamation-triangle fa-3x mb-3 d-block"></i>
+                            {% trans "حدث خطأ في تحميل البيانات" %}
+                        </td>
+                    </tr>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center text-danger py-4">
+                        <i class="fas fa-exclamation-triangle fa-3x mb-3 d-block"></i>
+                        {% trans "حدث خطأ في الاتصال بالخادم" %}
+                    </td>
+                </tr>
+            `;
+        });
+}
+
+function filterUserPackages(status) {
+    loadUserPackages(status, 1);
 
     // Update active button
     document.querySelectorAll('#user-packages .btn-group .btn').forEach(btn => {
@@ -826,16 +835,116 @@ function addAdsToPackage(packageId) {
 }
 
 // Subscriptions Management
-function filterSubscriptions(status) {
-    const rows = document.querySelectorAll('#subscriptionsTable tr[data-status]');
+let currentSubscriptionsFilter = 'all';
+let currentSubscriptionsPage = 1;
 
-    rows.forEach(row => {
-        if (status === 'all' || row.dataset.status === status) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
-    });
+function loadUserSubscriptions(status = 'all', page = 1) {
+    currentSubscriptionsFilter = status;
+    currentSubscriptionsPage = page;
+
+    const tbody = document.getElementById('subscriptionsTable');
+
+    // Show loading
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="8" class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">{% trans "جاري التحميل..." %}</span>
+                </div>
+                <p class="mt-2 text-muted">{% trans "جاري تحميل البيانات..." %}</p>
+            </td>
+        </tr>
+    `;
+
+    fetch(`/${LANGUAGE_CODE}/admin/api/user-subscriptions/?status=${status}&page=${page}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.subscriptions.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">
+                                <i class="fas fa-crown fa-3x mb-3 d-block"></i>
+                                {% trans "لا توجد اشتراكات مميزة بعد" %}
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    let html = '';
+                    data.subscriptions.forEach(sub => {
+                        const statusBadge = sub.status === 'active' ?
+                            '<span class="badge bg-success">نشط</span>' :
+                            '<span class="badge bg-danger">غير نشط</span>';
+                        const autoRenewBadge = sub.auto_renew ?
+                            '<span class="badge bg-success">نعم</span>' :
+                            '<span class="badge bg-secondary">لا</span>';
+
+                        html += `
+                            <tr data-status="${sub.status}">
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-user-circle fa-2x text-muted me-2"></i>
+                                        <div>
+                                            <div class="fw-bold">${sub.user_username}</div>
+                                            <small class="text-muted">${sub.user_email}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><span class="badge bg-warning">${sub.package_type}</span></td>
+                                <td>${sub.price} ${CURRENCY}</td>
+                                <td>${sub.start_date}</td>
+                                <td>${sub.end_date}</td>
+                                <td>${autoRenewBadge}</td>
+                                <td>${statusBadge}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" onclick="viewSubscription(${sub.id})" title="{% trans 'عرض التفاصيل' %}">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-outline-success" onclick="extendSubscription(${sub.id})" title="{% trans 'تمديد' %}">
+                                            <i class="fas fa-clock"></i>
+                                        </button>
+                                        ${sub.status === 'active' ? `
+                                        <button class="btn btn-outline-danger" onclick="cancelSubscription(${sub.id})" title="{% trans 'إلغاء' %}">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                        ` : ''}
+                                        <button class="btn btn-outline-warning" onclick="toggleAutoRenew(${sub.id})" title="{% trans 'تبديل التجديد التلقائي' %}">
+                                            <i class="fas fa-sync"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    tbody.innerHTML = html;
+                }
+            } else {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center text-danger py-4">
+                            <i class="fas fa-exclamation-triangle fa-3x mb-3 d-block"></i>
+                            {% trans "حدث خطأ في تحميل البيانات" %}
+                        </td>
+                    </tr>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center text-danger py-4">
+                        <i class="fas fa-exclamation-triangle fa-3x mb-3 d-block"></i>
+                        {% trans "حدث خطأ في الاتصال بالخادم" %}
+                    </td>
+                </tr>
+            `;
+        });
+}
+
+function filterSubscriptions(status) {
+    loadUserSubscriptions(status, 1);
 
     // Update active button
     document.querySelectorAll('#user-subscriptions .btn-group .btn').forEach(btn => {
