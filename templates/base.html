@@ -427,105 +427,8 @@
                 }
             }
 
-            // Global wishlist functionality for ad cards
-            window.toggleWishlistCard = function(adId, button) {
-                const adTitle = button.dataset.adTitle;
-                const adImage = button.dataset.adImage;
-                const isActive = button.classList.contains('active');
-
-                // Check if user is authenticated (make it globally accessible)
-                window.isAuthenticated = {{ user.is_authenticated|yesno:"true,false" }};
-                const isAuthenticated = window.isAuthenticated;
-
-                if (isAuthenticated) {
-                    // Handle authenticated user with server request
-                    toggleWishlistServerGlobal(adId, adTitle, adImage, button, isActive);
-                } else {
-                    // Handle guest user with localStorage
-                    toggleWishlistGuestGlobal(adId, adTitle, adImage, button, isActive);
-                }
-            };
-
-            // Server-side wishlist toggle for authenticated users (global)
-            async function toggleWishlistServerGlobal(adId, adTitle, adImage, button, isActive) {
-                try {
-                    const action = isActive ? 'remove' : 'add';
-                    const response = await fetch(`/api/wishlist/${action}/`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                            'X-CSRFToken': getCookie('csrftoken')
-                        },
-                        body: `item_id=${adId}`
-                    });
-
-                    const data = await response.json();
-
-                    if (data.success) {
-                        updateWishlistButtonGlobal(button, !isActive);
-                        const message = isActive ?
-                            `تم إزالة ${adTitle} من المفضلة` :
-                            `تم إضافة ${adTitle} إلى المفضلة`;
-                        showWishlistNotificationGlobal(message, 'success');
-
-                        // Update wishlist count in header
-                        if (data.wishlist_count !== undefined) {
-                            updateHeaderWishlistCount(data.wishlist_count);
-                        }
-                    } else {
-                        showWishlistNotificationGlobal(data.message || 'حدث خطأ', 'error');
-                    }
-                } catch (error) {
-                    console.error('Wishlist error:', error);
-                    showWishlistNotificationGlobal('حدث خطأ في الاتصال', 'error');
-                }
-            }
-
-            // Client-side wishlist toggle for guest users (global)
-            function toggleWishlistGuestGlobal(adId, adTitle, adImage, button, isActive) {
-                let guestWishlist = JSON.parse(localStorage.getItem('guestWishlist') || '[]');
-
-                if (isActive) {
-                    // Remove from wishlist
-                    guestWishlist = guestWishlist.filter(item => item.id != adId);
-                    updateWishlistButtonGlobal(button, false);
-                    showWishlistNotificationGlobal(`تم إزالة ${adTitle} من المفضلة`, 'success');
-                } else {
-                    // Add to wishlist
-                    if (!guestWishlist.some(item => item.id == adId)) {
-                        guestWishlist.push({
-                            id: adId,
-                            title: adTitle,
-                            image: adImage,
-                            addedAt: new Date().toISOString()
-                        });
-                    }
-                    updateWishlistButtonGlobal(button, true);
-                    showWishlistNotificationGlobal(`تم إضافة ${adTitle} إلى المفضلة`, 'success');
-                }
-
-                localStorage.setItem('guestWishlist', JSON.stringify(guestWishlist));
-
-                // Update header wishlist count
-                updateHeaderWishlistCount(guestWishlist.length);
-            }
-
-            // Update wishlist button appearance (global)
-            function updateWishlistButtonGlobal(button, isActive) {
-                const icon = button.querySelector('i');
-
-                if (isActive) {
-                    button.classList.add('active');
-                    icon.classList.remove('far');
-                    icon.classList.add('fas');
-                    button.title = 'في المفضلة';
-                } else {
-                    button.classList.remove('active');
-                    icon.classList.remove('fas');
-                    icon.classList.add('far');
-                    button.title = 'إضافة للمفضلة';
-                }
-            }
+            // Note: toggleWishlistCard and toggleCartCard are defined in cart-wishlist.js
+            // This ensures a single source of truth for cart/wishlist functionality
 
             // General Toast Notification System
             function showToast(message, type = 'info') {
@@ -636,21 +539,10 @@
                 }
             }
 
-            // Update header wishlist count for guest users
-            function updateHeaderWishlistCount(count) {
-                document.querySelectorAll('.wishlist-count').forEach(element => {
-                    element.textContent = count;
-                });
-            }
+            // Note: updateHeaderWishlistCount, updateHeaderCartCount, and getCookie
+            // are now defined in cart-wishlist.js for consistency
 
-            // Update header cart count for guest users (placeholder for future cart functionality)
-            function updateHeaderCartCount(count) {
-                document.querySelectorAll('.cart-count').forEach(element => {
-                    element.textContent = count;
-                });
-            }
-
-            // Get CSRF token
+            // Get CSRF token (keep for other uses in base.html)
             function getCookie(name) {
                 let cookieValue = null;
                 if (document.cookie && document.cookie !== '') {
@@ -840,26 +732,12 @@
                 }
             }
 
-            // Debug: Log initial cart/wishlist counts on page load
+            // Initialize cart/wishlist on page load
             document.addEventListener('DOMContentLoaded', function() {
-                console.log('[INIT] Page loaded - Cart count:', document.querySelector('.cart-count')?.textContent);
-                console.log('[INIT] Page loaded - Wishlist count:', document.querySelector('.wishlist-count')?.textContent);
-                console.log('[INIT] User authenticated:', window.isAuthenticated);
-
-                // Log all cart and wishlist buttons and their states
-                document.querySelectorAll('.cart-btn-card').forEach(btn => {
-                    const adId = btn.dataset.adId;
-                    const isActive = btn.classList.contains('active');
-                    const inCart = btn.dataset.inCart;
-                    console.log(`[INIT] Cart button - Ad ${adId}: Active=${isActive}, Data=${inCart}`);
-                });
-
-                document.querySelectorAll('.wishlist-btn-card').forEach(btn => {
-                    const adId = btn.dataset.adId;
-                    const isActive = btn.classList.contains('active');
-                    const inWishlist = btn.dataset.inWishlist;
-                    console.log(`[INIT] Wishlist button - Ad ${adId}: Active=${isActive}, Data=${inWishlist}`);
-                });
+                console.log('[Cart/Wishlist] System initialized');
+                console.log('[Cart/Wishlist] User authenticated:', window.isAuthenticated);
+                console.log('[Cart/Wishlist] Cart count:', document.querySelector('.cart-count')?.textContent);
+                console.log('[Cart/Wishlist] Wishlist count:', document.querySelector('.wishlist-count')?.textContent);
             });
         </script>
 

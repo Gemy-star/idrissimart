@@ -1,5 +1,5 @@
 // ===========================
-// Cart & Wishlist Helper Functions with AJAX
+// Cart & Wishlist System - Clean Implementation
 // FILE: static/js/cart-wishlist.js
 // ===========================
 
@@ -24,37 +24,34 @@ function getCookie(name) {
 const csrftoken = getCookie('csrftoken');
 
 /**
- * Update badge count with animation
+ * Check if user is authenticated
  */
-function updateBadgeCount(type, count) {
-    const badge = document.querySelector(`.${type}-count`);
-    if (badge) {
-        // Animate the badge with GSAP if available
-        if (typeof gsap !== 'undefined') {
-            gsap.to(badge, {
-                scale: 1.5,
-                duration: 0.2,
-                onComplete: () => {
-                    badge.textContent = count;
-                    gsap.to(badge, {
-                        scale: 1,
-                        duration: 0.2
-                    });
-                }
-            });
-        } else {
-            // Fallback animation
-            badge.style.transform = 'scale(1.5)';
-            badge.textContent = count;
-            setTimeout(() => {
-                badge.style.transform = 'scale(1)';
-            }, 200);
-        }
-    }
+function isUserAuthenticated() {
+    return window.isAuthenticated === true;
 }
 
 /**
- * Show notification with custom message
+ * Update header count for cart or wishlist
+ */
+function updateHeaderCount(type, count) {
+    const selectors = {
+        'cart': '.cart-count',
+        'wishlist': '.wishlist-count'
+    };
+
+    const elements = document.querySelectorAll(selectors[type]);
+    elements.forEach(element => {
+        element.textContent = count;
+        // Add animation
+        element.style.transform = 'scale(1.3)';
+        setTimeout(() => {
+            element.style.transform = 'scale(1)';
+        }, 200);
+    });
+}
+
+/**
+ * Show notification toast
  */
 function showNotification(message, type = 'success') {
     const colors = {
@@ -86,55 +83,32 @@ function showNotification(message, type = 'success') {
         align-items: center;
         gap: 10px;
         max-width: 350px;
+        animation: slideInRight 0.3s ease;
     `;
 
     notification.innerHTML = `<span style="font-size: 1.2rem;">${icons[type]}</span> ${message}`;
-
     document.body.appendChild(notification);
 
-    // Animate in
-    if (typeof gsap !== 'undefined') {
-        gsap.from(notification, {
-            x: 400,
-            opacity: 0,
-            duration: 0.3,
-            ease: 'back.out(1.7)'
-        });
-
-        // Animate out and remove
-        setTimeout(() => {
-            gsap.to(notification, {
-                x: 400,
-                opacity: 0,
-                duration: 0.3,
-                onComplete: () => notification.remove()
-            });
-        }, 3000);
-    } else {
-        // Fallback animation
-        notification.style.animation = 'slideInRight 0.3s ease';
-        setTimeout(() => {
-            notification.style.animation = 'slideOutRight 0.3s ease';
-            setTimeout(() => notification.remove(), 300);
-        }, 3000);
-    }
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }
 
 /**
- * Add item to cart with AJAX - only for authenticated users
+ * Add item to cart
  */
 async function addToCart(itemId, itemName = 'المنتج') {
-    // Check if user is authenticated
-    if (!window.isAuthenticated) {
+    if (!isUserAuthenticated()) {
         showNotification('يجب تسجيل الدخول لإضافة المنتجات للسلة', 'error');
         setTimeout(() => {
             window.location.href = '/accounts/login/?next=' + encodeURIComponent(window.location.pathname);
         }, 1500);
-        return { success: false, message: 'يجب تسجيل الدخول' };
+        return { success: false };
     }
 
     try {
-        console.log('Adding to cart:', itemId);
         const response = await fetch('/api/cart/add/', {
             method: 'POST',
             headers: {
@@ -144,32 +118,19 @@ async function addToCart(itemId, itemName = 'المنتج') {
             body: `item_id=${itemId}`
         });
 
-        console.log('Response status:', response.status);
-
-        // Check if response is JSON before parsing
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            console.error('Non-JSON response received');
-            showNotification('حدث خطأ في الخادم', 'error');
-            return { success: false, error: 'Invalid response' };
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
-        console.log('Cart add response:', data);
 
         if (data.success) {
-            // Update cart count in header
-            if (data.cart_count !== undefined) {
-                updateCartCountInHeader(data.cart_count);
-            }
+            updateHeaderCount('cart', data.cart_count);
+            showNotification(data.message || `تمت إضافة ${itemName} إلى السلة`, 'success');
 
-            // Use server message if available
-            const message = data.message || `تمت إضافة ${itemName} إلى السلة`;
-            showNotification(message, 'success');
-
-            // Trigger custom event
+            // Dispatch event for other components to listen
             document.dispatchEvent(new CustomEvent('cartUpdated', {
-                detail: { count: data.cart_count, itemId: itemId }
+                detail: { action: 'add', itemId, count: data.cart_count }
             }));
         } else {
             showNotification(data.message || 'حدث خطأ', 'error');
@@ -184,9 +145,14 @@ async function addToCart(itemId, itemName = 'المنتج') {
 }
 
 /**
- * Remove item from cart with AJAX
+ * Remove item from cart
  */
 async function removeFromCart(itemId, itemName = 'المنتج') {
+    if (!isUserAuthenticated()) {
+        showNotification('يجب تسجيل الدخول', 'error');
+        return { success: false };
+    }
+
     try {
         const response = await fetch('/api/cart/remove/', {
             method: 'POST',
@@ -197,32 +163,19 @@ async function removeFromCart(itemId, itemName = 'المنتج') {
             body: `item_id=${itemId}`
         });
 
-        // Check if response is JSON before parsing
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            console.error('Non-JSON response received:', await response.text());
-            showNotification('يجب تسجيل الدخول أولاً', 'error');
-            // Redirect to login after 2 seconds
-            setTimeout(() => {
-                window.location.href = '/accounts/login/?next=' + encodeURIComponent(window.location.pathname);
-            }, 2000);
-            return { success: false, error: 'Not authenticated' };
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
 
         if (data.success) {
-            updateBadgeCount('cart', data.cart_count);
-            const message = data.message || `تمت إزالة ${itemName} من السلة`;
-            showNotification(message, 'success');
+            updateHeaderCount('cart', data.cart_count);
+            showNotification(data.message || `تمت إزالة ${itemName} من السلة`, 'success');
 
-            // Update cart count in header if available
-            if (data.cart_count !== undefined) {
-                updateCartCountInHeader(data.cart_count);
-            }
-
+            // Dispatch event
             document.dispatchEvent(new CustomEvent('cartUpdated', {
-                detail: { count: data.cart_count, itemId: itemId }
+                detail: { action: 'remove', itemId, count: data.cart_count }
             }));
         } else {
             showNotification(data.message || 'حدث خطأ', 'error');
@@ -237,20 +190,18 @@ async function removeFromCart(itemId, itemName = 'المنتج') {
 }
 
 /**
- * Add item to wishlist with AJAX - only for authenticated users
+ * Add item to wishlist
  */
 async function addToWishlist(itemId, itemName = 'المنتج') {
-    // Check if user is authenticated
-    if (!window.isAuthenticated) {
+    if (!isUserAuthenticated()) {
         showNotification('يجب تسجيل الدخول لإضافة المنتجات للمفضلة', 'error');
         setTimeout(() => {
             window.location.href = '/accounts/login/?next=' + encodeURIComponent(window.location.pathname);
         }, 1500);
-        return { success: false, message: 'يجب تسجيل الدخول' };
+        return { success: false };
     }
 
     try {
-        console.log('Adding to wishlist:', itemId);
         const response = await fetch('/api/wishlist/add/', {
             method: 'POST',
             headers: {
@@ -260,21 +211,19 @@ async function addToWishlist(itemId, itemName = 'المنتج') {
             body: `item_id=${itemId}`
         });
 
-        console.log('Response status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         const data = await response.json();
-        console.log('Wishlist add response:', data);
 
         if (data.success) {
-            // Update wishlist count in header
-            if (data.wishlist_count !== undefined) {
-                updateWishlistCountInHeader(data.wishlist_count);
-            }
+            updateHeaderCount('wishlist', data.wishlist_count);
+            showNotification(data.message || `تمت إضافة ${itemName} إلى المفضلة`, 'success');
 
-            const message = data.message || `تمت إضافة ${itemName} إلى المفضلة`;
-            showNotification(message, 'success');
-
+            // Dispatch event
             document.dispatchEvent(new CustomEvent('wishlistUpdated', {
-                detail: { count: data.wishlist_count, itemId: itemId }
+                detail: { action: 'add', itemId, count: data.wishlist_count }
             }));
         } else {
             showNotification(data.message || 'حدث خطأ', 'error');
@@ -289,11 +238,15 @@ async function addToWishlist(itemId, itemName = 'المنتج') {
 }
 
 /**
- * Remove item from wishlist with AJAX
+ * Remove item from wishlist
  */
 async function removeFromWishlist(itemId, itemName = 'المنتج') {
+    if (!isUserAuthenticated()) {
+        showNotification('يجب تسجيل الدخول', 'error');
+        return { success: false };
+    }
+
     try {
-        console.log('Removing from wishlist:', itemId);
         const response = await fetch('/api/wishlist/remove/', {
             method: 'POST',
             headers: {
@@ -303,21 +256,19 @@ async function removeFromWishlist(itemId, itemName = 'المنتج') {
             body: `item_id=${itemId}`
         });
 
-        console.log('Response status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         const data = await response.json();
-        console.log('Wishlist remove response:', data);
 
         if (data.success) {
-            // Update wishlist count in header
-            if (data.wishlist_count !== undefined) {
-                updateWishlistCountInHeader(data.wishlist_count);
-            }
+            updateHeaderCount('wishlist', data.wishlist_count);
+            showNotification(data.message || `تمت إزالة ${itemName} من المفضلة`, 'success');
 
-            const message = data.message || `تمت إزالة ${itemName} من المفضلة`;
-            showNotification(message, 'success');
-
+            // Dispatch event
             document.dispatchEvent(new CustomEvent('wishlistUpdated', {
-                detail: { count: data.wishlist_count, itemId: itemId }
+                detail: { action: 'remove', itemId, count: data.wishlist_count }
             }));
         } else {
             showNotification(data.message || 'حدث خطأ', 'error');
@@ -349,143 +300,85 @@ function toggleWishlistButton(button, isInWishlist) {
     }
 }
 
-/**
- * Initialize cart and wishlist buttons
- */
-function initializeCartWishlistButtons() {
-    // Cart buttons
-    document.querySelectorAll('[data-action="add-to-cart"]').forEach(button => {
-        button.addEventListener('click', async function(e) {
-            e.preventDefault();
-            const itemId = this.dataset.itemId;
-            const itemName = this.dataset.itemName || 'المنتج';
-
-            // Add loading state
-            this.disabled = true;
-            const originalHTML = this.innerHTML;
-            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-            await addToCart(itemId, itemName);
-
-            // Remove loading state
-            this.disabled = false;
-            this.innerHTML = originalHTML;
-        });
-    });
-
-    // Wishlist buttons
-    document.querySelectorAll('[data-action="toggle-wishlist"]').forEach(button => {
-        button.addEventListener('click', async function(e) {
-            e.preventDefault();
-            const itemId = this.dataset.itemId;
-            const itemName = this.dataset.itemName || 'المنتج';
-            const isInWishlist = this.classList.contains('active');
-
-            // Add animation
-            if (typeof gsap !== 'undefined') {
-                gsap.to(button, {
-                    scale: 1.3,
-                    duration: 0.2,
-                    yoyo: true,
-                    repeat: 1
-                });
-            }
-
-            if (isInWishlist) {
-                const result = await removeFromWishlist(itemId, itemName);
-                if (result.success) {
-                    toggleWishlistButton(button, false);
-                }
-            } else {
-                const result = await addToWishlist(itemId, itemName);
-                if (result.success) {
-                    toggleWishlistButton(button, true);
-                }
-            }
-        });
-    });
-}
-
-// Initialize on DOM ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeCartWishlistButtons);
-} else {
-    initializeCartWishlistButtons();
-}
-
-// Listen for custom events
+// Event listeners for dynamic content
 document.addEventListener('cartUpdated', (e) => {
     console.log('Cart updated:', e.detail);
+    // Refresh cart UI if on cart page
+    if (window.location.pathname.includes('/cart/')) {
+        location.reload();
+    }
 });
 
 document.addEventListener('wishlistUpdated', (e) => {
     console.log('Wishlist updated:', e.detail);
+    // Refresh wishlist UI if on wishlist page
+    if (window.location.pathname.includes('/wishlist/')) {
+        location.reload();
+    }
 });
 
 /**
- * Update cart count in header
- * @param {number} count - The cart count
+ * Toggle cart button (add/remove from cart)
  */
-function updateCartCountInHeader(count) {
-    const cartCountElements = document.querySelectorAll('.cart-count');
-    cartCountElements.forEach(el => {
-        el.textContent = count;
-    });
-}
-
-/**
- * Update wishlist count in header
- * @param {number} count - The wishlist count
- */
-function updateWishlistCountInHeader(count) {
-    const wishlistCountElements = document.querySelectorAll('.wishlist-count');
-    wishlistCountElements.forEach(el => {
-        el.textContent = count;
-    });
-}
-
-// Toggle cart function for ad cards (add/remove with visual feedback)
 async function toggleCartCard(adId, button, itemName = 'المنتج', price = 0) {
-    try {
-        const isActive = button.classList.contains('active');
+    const isInCart = button.classList.contains('active');
 
-        if (isActive) {
-            // Remove from cart
-            const result = await removeFromCart(adId);
-            if (result.success) {
-                button.classList.remove('active');
-                button.title = 'إضافة للسلة';
-                button.setAttribute('aria-label', 'إضافة للسلة');
-                showNotification(`تم إزالة ${itemName} من السلة`, 'success');
-            }
-        } else {
-            // Add to cart
-            const result = await addToCart(adId, itemName);
-            if (result.success) {
-                button.classList.add('active');
-                button.title = 'إزالة من السلة';
-                button.setAttribute('aria-label', 'إزالة من السلة');
-                showNotification(`تم إضافة ${itemName} للسلة`, 'success');
-            }
+    if (isInCart) {
+        const result = await removeFromCart(adId, itemName);
+        if (result.success) {
+            button.classList.remove('active');
+            button.title = 'إضافة للسلة';
+            button.setAttribute('aria-label', 'إضافة للسلة');
         }
-    } catch (error) {
-        console.error('Error toggling cart:', error);
-        showNotification('حدث خطأ في العملية', 'error');
+    } else {
+        const result = await addToCart(adId, itemName);
+        if (result.success) {
+            button.classList.add('active');
+            button.title = 'في السلة';
+            button.setAttribute('aria-label', 'في السلة');
+        }
     }
 }
 
-// Export functions for global use
-window.CartWishlist = {
-    addToCart,
-    removeFromCart,
-    addToWishlist,
-    removeFromWishlist,
-    updateBadgeCount,
-    showNotification,
-    updateCartCountInHeader,
-    updateWishlistCountInHeader
-};
+/**
+ * Toggle wishlist button (add/remove from wishlist)
+ */
+async function toggleWishlistCard(adId, button, itemName = 'المنتج') {
+    const isInWishlist = button.classList.contains('active');
+    const icon = button.querySelector('i');
 
-// Make toggleCartCard globally available
+    if (isInWishlist) {
+        const result = await removeFromWishlist(adId, itemName);
+        if (result.success) {
+            button.classList.remove('active');
+            if (icon) {
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+            }
+            button.title = 'إضافة للمفضلة';
+            button.setAttribute('aria-label', 'إضافة للمفضلة');
+        }
+    } else {
+        const result = await addToWishlist(adId, itemName);
+        if (result.success) {
+            button.classList.add('active');
+            if (icon) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+            }
+            button.title = 'في المفضلة';
+            button.setAttribute('aria-label', 'في المفضلة');
+        }
+    }
+}
+
+// Make functions globally available
+window.addToCart = addToCart;
+window.removeFromCart = removeFromCart;
+window.addToWishlist = addToWishlist;
+window.removeFromWishlist = removeFromWishlist;
 window.toggleCartCard = toggleCartCard;
+window.toggleWishlistCard = toggleWishlistCard;
+window.showNotification = showNotification;
+window.updateHeaderCount = updateHeaderCount;
 

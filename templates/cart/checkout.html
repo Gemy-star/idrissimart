@@ -291,8 +291,62 @@
                                         <span class="required">*</span>
                                         {% trans "رقم الهاتف" %}
                                     </label>
-                                    <input type="tel" name="phone" class="form-control"
-                                           value="{{ user.phone_number }}" required>
+                                    <div class="input-group">
+                                        <input type="tel"
+                                               name="phone"
+                                               id="checkoutPhone"
+                                               class="form-control"
+                                               value="{{ user.mobile|default:user.phone }}"
+                                               {% if user.is_mobile_verified %}readonly{% endif %}
+                                               required>
+                                        {% if user.is_mobile_verified %}
+                                            <button type="button"
+                                                    class="btn btn-outline-success"
+                                                    id="changePhoneBtn"
+                                                    onclick="enablePhoneChange()">
+                                                <i class="fas fa-check-circle me-1"></i>
+                                                {% trans "موثق" %}
+                                            </button>
+                                        {% else %}
+                                            <button type="button"
+                                                    class="btn btn-outline-primary"
+                                                    id="verifyPhoneBtn"
+                                                    onclick="sendVerificationCode()">
+                                                <i class="fas fa-shield-alt me-1"></i>
+                                                {% trans "توثيق" %}
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                    <small class="text-muted" id="phoneHint">
+                                        {% if user.is_mobile_verified %}
+                                            <i class="fas fa-info-circle"></i> {% trans "لتغيير الرقم، اضغط على زر موثق" %}
+                                        {% else %}
+                                            <i class="fas fa-exclamation-triangle text-warning"></i> {% trans "يجب توثيق رقم الهاتف قبل إتمام الطلب" %}
+                                        {% endif %}
+                                    </small>
+                                </div>
+
+                                <!-- Verification Code Input (hidden by default) -->
+                                <div class="form-group" id="verificationCodeGroup" style="display: none;">
+                                    <label class="form-label">
+                                        <span class="required">*</span>
+                                        {% trans "رمز التحقق" %}
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="text"
+                                               id="verificationCode"
+                                               class="form-control"
+                                               placeholder="{% trans 'أدخل رمز التحقق' %}"
+                                               maxlength="6">
+                                        <button type="button"
+                                                class="btn btn-primary"
+                                                onclick="verifyCode()">
+                                            <i class="fas fa-check"></i> {% trans "تأكيد" %}
+                                        </button>
+                                    </div>
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock"></i> {% trans "سينتهي الرمز في 10 دقائق" %}
+                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -392,7 +446,7 @@
                                    step="0.01"
                                    placeholder="{% trans 'أدخل المبلغ المدفوع' %}">
                             <small class="text-muted">
-                                {% trans "المبلغ الإجمالي:" %} <span id="totalForPartial">{{ cart.get_total_amount }}</span> {% trans "ريال" %}
+                                {% trans "المبلغ الإجمالي:" %} <span id="totalForPartial">{{ final_total|floatformat:"-2" }}</span> {{ selected_currency }}
                             </small>
                         </div>
                     </div>
@@ -422,8 +476,7 @@
 
                         <div class="order-item-details">
                             <div class="order-item-title">{{ item.ad.title }}</div>
-                            <div class="order-item-price">{{ item.ad.price }} {% trans "ر.س" %}</div>
-                            <div class="order-item-quantity">{% trans "الكمية:" %} {{ item.quantity }}</div>
+                            <div class="order-item-price">{{ item.ad.price|floatformat:"-2" }} {{ selected_currency }}</div>
                         </div>
                     </div>
                     {% endfor %}
@@ -432,15 +485,15 @@
                     <div class="order-summary">
                         <div class="summary-row">
                             <span>{% trans "المجموع الفرعي" %}</span>
-                            <span>{{ total_amount }} {% trans "ر.س" %}</span>
+                            <span>{{ total_amount|floatformat:"-2" }} {{ selected_currency }}</span>
                         </div>
                         <div class="summary-row">
                             <span>{% trans "رسوم التوصيل" %}</span>
-                            <span>{% trans "مجاناً" %}</span>
+                            <span>{{ delivery_fee|floatformat:"-2" }} {{ selected_currency }}</span>
                         </div>
                         <div class="summary-row total">
                             <span>{% trans "المجموع الكلي" %}</span>
-                            <span>{{ total_amount }} {% trans "ر.س" %}</span>
+                            <span>{{ final_total|floatformat:"-2" }} {{ selected_currency }}</span>
                         </div>
                     </div>
 
@@ -457,6 +510,105 @@
 
 {% block extra_js %}
 <script>
+let isPhoneVerified = {{ user.is_mobile_verified|yesno:"true,false" }};
+let originalPhone = "{{ user.mobile|default:user.phone }}";
+let currentPhone = originalPhone;
+
+function enablePhoneChange() {
+    const phoneInput = document.getElementById('checkoutPhone');
+    const changeBtn = document.getElementById('changePhoneBtn');
+    const hint = document.getElementById('phoneHint');
+
+    phoneInput.readOnly = false;
+    phoneInput.focus();
+    changeBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>{% trans "إرسال رمز" %}';
+    changeBtn.onclick = sendVerificationCode;
+    hint.innerHTML = '<i class="fas fa-info-circle"></i> {% trans "أدخل الرقم الجديد واضغط إرسال رمز" %}';
+    isPhoneVerified = false;
+}
+
+function sendVerificationCode() {
+    const phoneInput = document.getElementById('checkoutPhone');
+    const phone = phoneInput.value.trim();
+
+    if (!phone) {
+        alert('{% trans "يرجى إدخال رقم الهاتف" %}');
+        return;
+    }
+
+    currentPhone = phone;
+    const btn = document.getElementById('verifyPhoneBtn') || document.getElementById('changePhoneBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>{% trans "جاري الإرسال..." %}';
+
+    fetch('{% url "main:send_phone_code" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: `phone=${encodeURIComponent(phone)}&country_code={{ selected_country }}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('verificationCodeGroup').style.display = 'block';
+            document.getElementById('verificationCode').focus();
+            alert('{% trans "تم إرسال رمز التحقق إلى رقمك" %}');
+        } else {
+            alert(data.message || '{% trans "حدث خطأ في إرسال الرمز" %}');
+        }
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>{% trans "إرسال رمز" %}';
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('{% trans "حدث خطأ في إرسال الرمز" %}');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>{% trans "إرسال رمز" %}';
+    });
+}
+
+function verifyCode() {
+    const code = document.getElementById('verificationCode').value.trim();
+
+    if (!code) {
+        alert('{% trans "يرجى إدخال رمز التحقق" %}');
+        return;
+    }
+
+    fetch('{% url "main:verify_phone_code" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: `phone=${encodeURIComponent(currentPhone)}&code=${code}&country_code={{ selected_country }}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            isPhoneVerified = true;
+            document.getElementById('verificationCodeGroup').style.display = 'none';
+            document.getElementById('checkoutPhone').readOnly = true;
+
+            const verifyBtn = document.getElementById('verifyPhoneBtn') || document.getElementById('changePhoneBtn');
+            verifyBtn.className = 'btn btn-outline-success';
+            verifyBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i>{% trans "موثق" %}';
+            verifyBtn.onclick = enablePhoneChange;
+
+            document.getElementById('phoneHint').innerHTML = '<i class="fas fa-check-circle text-success"></i> {% trans "تم توثيق رقم الهاتف بنجاح" %}';
+            alert('{% trans "تم توثيق رقم الهاتف بنجاح" %}');
+        } else {
+            alert(data.message || '{% trans "رمز التحقق غير صحيح" %}');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('{% trans "حدث خطأ في التحقق" %}');
+    });
+}
+
 function selectPaymentMethod(method) {
     // Remove active class from all
     document.querySelectorAll('.payment-method').forEach(el => {
@@ -495,6 +647,13 @@ function placeOrder() {
         return;
     }
 
+    // Check phone verification
+    if (!isPhoneVerified) {
+        alert('{% trans "يجب توثيق رقم الهاتف قبل إتمام الطلب" %}');
+        document.getElementById('checkoutPhone').focus();
+        return;
+    }
+
     const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
 
     // Validate partial payment amount
@@ -512,9 +671,6 @@ function placeOrder() {
             return;
         }
     }
-
-    // Get payment method
-    const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
 
     // Disable button
     const btn = event.target;

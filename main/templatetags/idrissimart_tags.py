@@ -209,18 +209,17 @@ def phone_format(phone_number):
 
 @register.simple_tag
 def ad_price_formatted(ad):
-    """Format ad price with currency symbol"""
-    if not ad or not hasattr(ad, "price"):
-        return "غير محدد"
+    """Format ad price without currency symbol (currency is shown separately)"""
+    if not ad or not hasattr(ad, "price") or ad.price is None:
+        return None
 
     try:
-        from main.utils import format_ad_price
-
-        currency_symbol = get_currency_symbol(ad)
-        return format_ad_price(ad.price, currency_symbol)
+        # Return just the price number, no currency symbol
+        # Currency is displayed separately using {{ selected_currency }}
+        return float(ad.price)
     except Exception:
-        # Fallback formatting
-        return f"{ad.price:,.0f} ر.س"
+        # Fallback: return the price as-is
+        return ad.price
 
 
 @register.simple_tag

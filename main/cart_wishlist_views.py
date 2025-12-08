@@ -408,10 +408,31 @@ def checkout_view(request):
 
     total_amount = cart.get_total_amount()
 
+    # Calculate delivery fee from constance settings
+    from constance import config
+    from decimal import Decimal
+
+    delivery_fee_percentage = Decimal(str(config.DELIVERY_FEE_PERCENTAGE)) / 100
+    delivery_fee = total_amount * delivery_fee_percentage
+
+    # Apply min/max limits
+    delivery_fee_min = Decimal(str(config.DELIVERY_FEE_MIN))
+    delivery_fee_max = Decimal(str(config.DELIVERY_FEE_MAX))
+
+    if delivery_fee < delivery_fee_min:
+        delivery_fee = delivery_fee_min
+    elif delivery_fee > delivery_fee_max:
+        delivery_fee = delivery_fee_max
+
+    # Calculate final total
+    final_total = total_amount + delivery_fee
+
     context = {
         "cart": cart,
         "cart_items": cart_items,
         "total_amount": total_amount,
+        "delivery_fee": delivery_fee,
+        "final_total": final_total,
     }
 
     return render(request, "cart/checkout.html", context)

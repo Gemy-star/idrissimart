@@ -879,21 +879,51 @@
 </section>
 
 <div class="container pb-5">
-    <!-- Verification Notice for Unverified Users -->
-    {% if show_verification_notice %}
-        <div class="alert alert-warning alert-dismissible fade show" role="alert" data-aos="fade-down">
-            <div class="d-flex align-items-center">
-                <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
-                <div class="flex-grow-1">
-                    <h5 class="alert-heading mb-2">{% trans "تأكيد البريد الإلكتروني مطلوب" %}</h5>
-                    <p class="mb-2">{% trans "لعرض جميع الباقات المتاحة، يجب عليك تأكيد بريدك الإلكتروني أولاً. حالياً يمكنك فقط رؤية الباقات المجانية." %}</p>
-                    <a href="{% url 'main:profile_verification' %}" class="btn btn-warning btn-sm">
-                        <i class="fas fa-shield-alt me-2"></i>{% trans "تأكيد البريد الإلكتروني الآن" %}
-                    </a>
+    <!-- Verification Notices -->
+    {% if request.user.is_authenticated %}
+        <!-- Email Verification Notice -->
+        {% if not request.user.is_email_verified %}
+            <div class="alert alert-warning alert-dismissible fade show" role="alert" data-aos="fade-down">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-envelope fa-2x me-3"></i>
+                    <div class="flex-grow-1">
+                        <h5 class="alert-heading mb-2">{% trans "تأكيد البريد الإلكتروني مطلوب" %}</h5>
+                        <p class="mb-2">{% trans "لعرض جميع الباقات المتاحة، يجب عليك تأكيد بريدك الإلكتروني أولاً. حالياً يمكنك فقط رؤية الباقات المجانية." %}</p>
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'main:resend_email_verification' %}" class="btn btn-warning btn-sm">
+                                <i class="fas fa-paper-plane me-2"></i>{% trans "إرسال رابط التأكيد" %}
+                            </a>
+                            <a href="{% url 'main:publisher_settings' %}" class="btn btn-outline-warning btn-sm">
+                                <i class="fas fa-cog me-2"></i>{% trans "الإعدادات" %}
+                            </a>
+                        </div>
+                    </div>
                 </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
+        {% endif %}
+
+        <!-- Phone Verification Notice -->
+        {% if not request.user.is_mobile_verified %}
+            <div class="alert alert-info alert-dismissible fade show" role="alert" data-aos="fade-down">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-phone fa-2x me-3"></i>
+                    <div class="flex-grow-1">
+                        <h5 class="alert-heading mb-2">{% trans "تأكيد رقم الهاتف" %}</h5>
+                        <p class="mb-2">{% trans "لتفعيل جميع مميزات الموقع، يُنصح بتأكيد رقم هاتفك." %}</p>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-info btn-sm" onclick="sendPhoneVerificationCode()">
+                                <i class="fas fa-sms me-2"></i>{% trans "إرسال رمز التأكيد" %}
+                            </button>
+                            <a href="{% url 'main:publisher_settings' %}" class="btn btn-outline-info btn-sm">
+                                <i class="fas fa-cog me-2"></i>{% trans "الإعدادات" %}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endif %}
     {% endif %}
 
     <!-- Active Packages -->
@@ -1197,5 +1227,64 @@
         duration: 800,
         once: true
     });
+
+    // Phone Verification Function
+    async function sendPhoneVerificationCode() {
+        try {
+            const response = await fetch("{% url 'main:send_phone_code' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    phone: '{{ request.user.mobile|default:request.user.phone }}'
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Show verification code input modal/prompt
+                const code = prompt('{% trans "أدخل رمز التأكيد المرسل إلى هاتفك:" %}');
+
+                if (code) {
+                    await verifyPhoneCode(code);
+                }
+            } else {
+                alert(data.message || '{% trans "فشل إرسال رمز التأكيد" %}');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('{% trans "حدث خطأ. يرجى المحاولة مرة أخرى." %}');
+        }
+    }
+
+    async function verifyPhoneCode(code) {
+        try {
+            const response = await fetch("{% url 'main:verify_phone_code' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    code: code
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert('{% trans "تم تأكيد رقم الهاتف بنجاح!" %}');
+                location.reload();
+            } else {
+                alert(data.message || '{% trans "رمز التأكيد غير صحيح" %}');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('{% trans "حدث خطأ. يرجى المحاولة مرة أخرى." %}');
+        }
+    }
 </script>
 {% endblock extra_js %}

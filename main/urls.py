@@ -140,6 +140,17 @@ urlpatterns = [
         enhanced_views.reservation_management,
         name="reservation_management",
     ),
+    # Packages URLs (must come before ad_detail pattern)
+    path(
+        "classifieds/packages/",
+        classifieds_views.PackageListView.as_view(),
+        name="packages_list",
+    ),
+    path(
+        "classifieds/package/<int:package_id>/purchase/",
+        classifieds_views.PackagePurchaseView.as_view(),
+        name="package_purchase",
+    ),
     re_path(
         r"^classifieds/(?P<slug>[\w\-\u0600-\u06FF]+)/$",
         classifieds_views.ClassifiedAdDetailView.as_view(),
@@ -222,16 +233,6 @@ urlpatterns = [
         "ajax/subcategories/<int:category_id>/",
         views.get_subcategories_ajax,
         name="ajax_get_subcategories",
-    ),
-    path(
-        "classifieds/packages/",
-        classifieds_views.PackageListView.as_view(),
-        name="packages_list",
-    ),
-    path(
-        "classifieds/package/<int:package_id>/purchase/",
-        classifieds_views.PackagePurchaseView.as_view(),
-        name="package_purchase",
     ),
     # Admin Categories Management (AJAX endpoints)
     path(

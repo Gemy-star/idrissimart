@@ -50,7 +50,7 @@ def verified_user_required(view_func):
         if request.user.verification_status != "verified":
             warning_msg = _("يجب توثيق حسابك أولاً.")
             messages.warning(request, warning_msg)
-            return redirect("profile_verification")
+            return redirect("main:publisher_settings")
         return view_func(request, *args, **kwargs)
 
     return wrapper
@@ -203,10 +203,7 @@ class PublisherRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
             return redirect_to_login(self.request.get_full_path(), self.login_url)
 
         # Should rarely happen now since DEFAULT users are allowed
-        messages.info(
-            self.request,
-            _("يمكنك الوصول إلى لوحة التحكم بعد تسجيل الدخول.")
-        )
+        messages.info(self.request, _("يمكنك الوصول إلى لوحة التحكم بعد تسجيل الدخول."))
         return redirect("main:home")
 
 
@@ -271,7 +268,7 @@ class VerifiedPublisherMixin(PublisherRequiredMixin):
         messages.warning(
             self.request, _("هذه الميزة متاحة فقط للناشرين الموثقين. يرجى توثيق حسابك.")
         )
-        return redirect("main:profile_verification")
+        return redirect("main:publisher_settings")
 
 
 # ============================================
@@ -304,9 +301,7 @@ def publisher_required(view_func):
             return view_func(request, *args, **kwargs)
 
         # No permission (should rarely happen)
-        messages.info(
-            request, _("يمكنك الوصول إلى لوحة التحكم بعد تسجيل الدخول.")
-        )
+        messages.info(request, _("يمكنك الوصول إلى لوحة التحكم بعد تسجيل الدخول."))
         return redirect("main:home")
 
     return wrapper

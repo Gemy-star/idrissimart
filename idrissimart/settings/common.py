@@ -179,9 +179,17 @@ MEDIA_ROOT = BASE_DIR / "media"
 # =======================
 # Email Configuration
 # =======================
-EMAIL_BACKEND = "sendgrid_backend.SendGridBackend"
-SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
-SENDGRID_SANDBOX_MODE_IN_DEBUG = True
+# Use console backend for development if SendGrid is not configured
+try:
+    import sendgrid_backend
+
+    EMAIL_BACKEND = "sendgrid_backend.SendGridBackend"
+    SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
+    SENDGRID_SANDBOX_MODE_IN_DEBUG = True
+except ImportError:
+    # Fallback to console backend for development
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@idrissimart.com")
 EMAIL_HOST_USER = DEFAULT_FROM_EMAIL
 

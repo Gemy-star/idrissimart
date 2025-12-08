@@ -142,31 +142,14 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
-    }
-
-    .quantity-btn {
-        width: 35px;
-        height: 35px;
-        border: 2px solid #4b315e;
-        background: white;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-
-    .quantity-btn:hover {
-        background: #4b315e;
-        color: white;
+        color: #7f8c8d;
+        font-size: 0.95rem;
     }
 
     .quantity-value {
-        min-width: 40px;
-        text-align: center;
         font-weight: 600;
         font-size: 1.1rem;
+        color: #2c3e50;
     }
 
     .cart-item-remove {
@@ -341,24 +324,7 @@
                             <!-- Item Details -->
                             <div class="cart-item-details">
                                 <h3 class="cart-item-title">{{ item.ad.title }}</h3>
-                                <p class="cart-item-price">{{ item.ad.price }} {% trans "ر.س" %}</p>
-
-                                <!-- Quantity Control -->
-                                <div class="cart-item-quantity">
-                                    <button class="quantity-btn" onclick="decreaseQuantity({{ item.ad.id }}, {{ item.quantity }})">
-                                        <i class="fas fa-minus"></i>
-                                    </button>
-                                    <span class="quantity-value quantity-{{ item.ad.id }}">{{ item.quantity }}</span>
-                                    <button class="quantity-btn" onclick="increaseQuantity({{ item.ad.id }}, {{ item.quantity }})">
-                                        <i class="fas fa-plus"></i>
-                                    </button>
-                                </div>
-
-                                <!-- Item Total -->
-                                <p class="text-muted">
-                                    {% trans "المجموع:" %}
-                                    <strong class="item-total-{{ item.ad.id }}">{{ item.get_total_price }} {% trans "ر.س" %}</strong>
-                                </p>
+                                <p class="cart-item-price">{{ item.ad.price|floatformat:"-2" }} {{ selected_currency }}</p>
                             </div>
 
                             <!-- Remove Button -->
@@ -375,20 +341,20 @@
 
                     <div class="cart-summary-row">
                         <span>{% trans "المجموع الفرعي:" %}</span>
-                        <span>{{ total_amount }} {% trans "ر.س" %}</span>
+                        <span>{{ total_amount|floatformat:"-2" }} {{ selected_currency }}</span>
                     </div>
 
                     <div class="cart-summary-row">
                         <span>{% trans "الضريبة:" %}</span>
-                        <span>0 {% trans "ر.س" %}</span>
+                        <span>0 {{ selected_currency }}</span>
                     </div>
 
                     <div class="cart-summary-total">
                         <span>{% trans "الإجمالي:" %}</span>
-                        <span>{{ total_amount }} {% trans "ر.س" %}</span>
+                        <span>{{ total_amount|floatformat:"-2" }} {{ selected_currency }}</span>
                     </div>
 
-                    <button class="cart-checkout-btn" onclick="proceedToCheckout()">
+                    <button type="button" class="cart-checkout-btn" id="checkoutBtn">
                         <i class="fas fa-credit-card me-2"></i>
                         {% trans "إتمام عملية الشراء" %}
                     </button>
@@ -420,87 +386,31 @@
 
 {% block extra_js %}
 <script>
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
-
-const csrftoken = getCookie('csrftoken');
-
-async function updateCartQuantity(adId, newQuantity) {
+function proceedToCheckout() {
     try {
-        const response = await fetch('/api/cart/update-quantity/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': csrftoken
-            },
-            body: `item_id=${adId}&quantity=${newQuantity}`
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            // Update quantity display
-            const quantityElement = document.querySelector(`.quantity-${adId}`);
-            if (quantityElement) quantityElement.textContent = newQuantity;
-
-            // Update item total
-            const itemTotalElement = document.querySelector(`.item-total-${adId}`);
-            if (itemTotalElement && data.item_total) {
-                itemTotalElement.textContent = `${data.item_total} {% trans "ر.س" %}`;
-            }
-
-            // Update cart total
-            if (data.cart_total !== undefined) {
-                // Update subtotal
-                const subtotalElements = document.querySelectorAll('.cart-summary-row span:last-child');
-                subtotalElements.forEach(el => {
-                    el.textContent = `${data.cart_total} {% trans "ر.س" %}`;
-                });
-
-                // Update total
-                const totalElement = document.querySelector('.cart-summary-total span:last-child');
-                if (totalElement) {
-                    totalElement.textContent = `${data.cart_total} {% trans "ر.س" %}`;
-                }
-            }
-
-            // Update cart count badge
-            if (data.cart_count !== undefined) {
-                const cartBadge = document.querySelector('.cart-count');
-                if (cartBadge) cartBadge.textContent = data.cart_count;
-            }
-        } else {
-            alert(data.message || '{% trans "حدث خطأ" %}');
+        const checkoutBtn = document.getElementById('checkoutBtn');
+        if (checkoutBtn) {
+            checkoutBtn.disabled = true;
+            checkoutBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري التحميل..." %}';
         }
+
+        const checkoutUrl = "{% url 'main:checkout' %}";
+        console.log('Navigating to checkout:', checkoutUrl);
+
+        if (!checkoutUrl || checkoutUrl === '') {
+            throw new Error('Checkout URL is empty');
+        }
+
+        window.location.href = checkoutUrl;
     } catch (error) {
-        console.error('Error updating quantity:', error);
-        alert('{% trans "حدث خطأ في تحديث الكمية" %}');
-    }
-}
+        console.error('Error navigating to checkout:', error);
+        alert('{% trans "حدث خطأ في الانتقال إلى صفحة الدفع" %}');
 
-function increaseQuantity(adId, currentQuantity) {
-    updateCartQuantity(adId, currentQuantity + 1);
-}
-
-function decreaseQuantity(adId, currentQuantity) {
-    if (currentQuantity > 1) {
-        updateCartQuantity(adId, currentQuantity - 1);
-    } else {
-        // If quantity is 1, ask to remove
-        if (confirm('{% trans "هل تريد إزالة هذا المنتج من السلة؟" %}')) {
-            removeFromCart(adId);
+        // Re-enable button on error
+        const checkoutBtn = document.getElementById('checkoutBtn');
+        if (checkoutBtn) {
+            checkoutBtn.disabled = false;
+            checkoutBtn.innerHTML = '<i class="fas fa-credit-card me-2"></i>{% trans "إتمام عملية الشراء" %}';
         }
     }
 }
@@ -557,9 +467,13 @@ async function removeFromCart(adId) {
     }
 }
 
-function proceedToCheckout() {
-    window.location.href = "{% url 'main:checkout' %}";
-}
+// Attach checkout function to button
+document.addEventListener('DOMContentLoaded', function() {
+    const checkoutBtn = document.getElementById('checkoutBtn');
+    if (checkoutBtn) {
+        checkoutBtn.addEventListener('click', proceedToCheckout);
+    }
+});
 
 // Add transition styles
 const style = document.createElement('style');
