@@ -208,6 +208,29 @@ RECAPTCHA_SITE_KEY = RECAPTCHA_PUBLIC_KEY
 RECAPTCHA_SECRET_KEY = RECAPTCHA_PRIVATE_KEY
 
 # =======================
+# Cache Configuration
+# =======================
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": os.getenv("REDIS_URL", "redis://127.0.0.1:6379/1"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+        "KEY_PREFIX": "idrissimart",
+        "TIMEOUT": 300,  # 5 minutes default
+    },
+    # Fallback to database cache if Redis is not available
+    "fallback": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "cache_table",
+    },
+}
+
+# Cache time to live is 5 minutes by default
+CACHE_TTL = 60 * 5
+
+# =======================
 # Compressor
 # =======================
 

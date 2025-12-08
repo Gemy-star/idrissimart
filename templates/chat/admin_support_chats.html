@@ -507,11 +507,74 @@
                 <div class="tab-content-pane" id="unread-chats">
                     <div class="row">
                         <div class="col-12">
-                            <div class="alert alert-info">
-                                <i class="fas fa-info-circle me-2"></i>
-                                {% trans "قائمة المحادثات التي تحتوي على رسائل غير مقروءة" %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>{% trans "الناشر" %}</th>
+                                            <th>{% trans "آخر رسالة" %}</th>
+                                            <th>{% trans "الحالة" %}</th>
+                                            <th>{% trans "غير مقروءة" %}</th>
+                                            <th>{% trans "التاريخ" %}</th>
+                                            <th>{% trans "إجراءات" %}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for room in chat_rooms %}
+                                            {% with unread_count=room.messages.filter|default:0 %}
+                                            {% if room.has_unread_messages %}
+                                            <tr>
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="fas fa-user-circle fa-2x text-muted me-2"></i>
+                                                        <div>
+                                                            <div class="fw-bold">{{ room.publisher.get_display_name }}</div>
+                                                            <small class="text-muted">{{ room.publisher.email }}</small>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>{{ room.messages.last.message|truncatewords:8|default:"-" }}</td>
+                                                <td>
+                                                    {% if room.is_active %}
+                                                        <span class="badge bg-success">{% trans "نشطة" %}</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">{% trans "محلولة" %}</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-danger">{{ room.unread_count }}</span>
+                                                </td>
+                                                <td>{{ room.updated_at|date:"d/m/Y H:i" }}</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-primary" onclick="loadChat({{ room.id }})">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                    {% if room.is_active %}
+                                                    <button class="btn btn-sm btn-success" onclick="markAsResolved({{ room.id }})">
+                                                        <i class="fas fa-check"></i>
+                                                    </button>
+                                                    {% else %}
+                                                    <button class="btn btn-sm btn-warning" onclick="reopenChat({{ room.id }})">
+                                                        <i class="fas fa-redo"></i>
+                                                    </button>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                            {% endwith %}
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center py-4">
+                                                <div class="empty-state">
+                                                    <i class="fas fa-inbox"></i>
+                                                    <h5>{% trans "لا توجد رسائل غير مقروءة" %}</h5>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
                             </div>
-                            <!-- Similar table structure as active chats -->
                         </div>
                     </div>
                 </div>

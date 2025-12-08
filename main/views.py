@@ -1200,9 +1200,11 @@ class FAQView(TemplateView):
         context["config"] = config
 
         # Get all active FAQ categories with their FAQs
-        context["faq_categories"] = FAQCategory.objects.filter(
-            is_active=True
-        ).prefetch_related("faqs").order_by("order")
+        context["faq_categories"] = (
+            FAQCategory.objects.filter(is_active=True)
+            .prefetch_related("faqs")
+            .order_by("order")
+        )
 
         return context
 
@@ -3399,6 +3401,7 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
         selected_country = self.request.session.get("selected_country", "EG")
         try:
             from content.models import Country
+
             country = Country.objects.get(code=selected_country, is_active=True)
             context["currency"] = country.currency or "SAR"
         except:
@@ -3506,18 +3509,24 @@ def admin_get_user_packages(request):
         return JsonResponse({"error": "Unauthorized"}, status=403)
 
     try:
-        status_filter = request.GET.get('status', 'all')
-        page = int(request.GET.get('page', 1))
+        status_filter = request.GET.get("status", "all")
+        page = int(request.GET.get("page", 1))
         per_page = 50
 
         # Base queryset
-        packages = UserPackage.objects.select_related("user", "package").order_by("-purchase_date")
+        packages = UserPackage.objects.select_related("user", "package").order_by(
+            "-purchase_date"
+        )
 
         # Apply status filter
-        if status_filter == 'active':
-            packages = packages.filter(expiry_date__gte=timezone.now(), ads_remaining__gt=0)
-        elif status_filter == 'expired':
-            packages = packages.filter(Q(expiry_date__lt=timezone.now()) | Q(ads_remaining=0))
+        if status_filter == "active":
+            packages = packages.filter(
+                expiry_date__gte=timezone.now(), ads_remaining__gt=0
+            )
+        elif status_filter == "expired":
+            packages = packages.filter(
+                Q(expiry_date__lt=timezone.now()) | Q(ads_remaining=0)
+            )
 
         # Pagination
         paginator = Paginator(packages, per_page)
@@ -3527,32 +3536,47 @@ def admin_get_user_packages(request):
         packages_data = []
         for pkg in packages_page:
             is_active = pkg.expiry_date >= timezone.now() and pkg.ads_remaining > 0
-            packages_data.append({
-                'id': pkg.id,
-                'user_username': pkg.user.username if pkg.user else 'N/A',
-                'user_email': pkg.user.email if pkg.user else 'N/A',
-                'package_name': pkg.package.name if pkg.package else 'إعلان مجاني',
-                'package_type': pkg.package.name if pkg.package else 'free',
-                'purchase_date': pkg.purchase_date.strftime('%d/%m/%Y %H:%M') if pkg.purchase_date else 'N/A',
-                'expiry_date': pkg.expiry_date.strftime('%d/%m/%Y %H:%M') if pkg.expiry_date else 'N/A',
-                'ads_remaining': pkg.ads_remaining,
-                'status': 'active' if is_active else 'expired',
-                'status_label': 'نشط' if is_active else 'منتهي',
-            })
+            packages_data.append(
+                {
+                    "id": pkg.id,
+                    "user_username": pkg.user.username if pkg.user else "N/A",
+                    "user_email": pkg.user.email if pkg.user else "N/A",
+                    "package_name": pkg.package.name if pkg.package else "إعلان مجاني",
+                    "package_type": pkg.package.name if pkg.package else "free",
+                    "purchase_date": (
+                        pkg.purchase_date.strftime("%d/%m/%Y %H:%M")
+                        if pkg.purchase_date
+                        else "N/A"
+                    ),
+                    "expiry_date": (
+                        pkg.expiry_date.strftime("%d/%m/%Y %H:%M")
+                        if pkg.expiry_date
+                        else "N/A"
+                    ),
+                    "ads_remaining": pkg.ads_remaining,
+                    "status": "active" if is_active else "expired",
+                    "status_label": "نشط" if is_active else "منتهي",
+                }
+            )
 
-        return JsonResponse({
-            'success': True,
-            'packages': packages_data,
-            'total': paginator.count,
-            'page': page,
-            'total_pages': paginator.num_pages,
-            'has_next': packages_page.has_next(),
-            'has_previous': packages_page.has_previous(),
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "packages": packages_data,
+                "total": paginator.count,
+                "page": page,
+                "total_pages": paginator.num_pages,
+                "has_next": packages_page.has_next(),
+                "has_previous": packages_page.has_previous(),
+            }
+        )
 
     except Exception as e:
         import traceback
-        return JsonResponse({"error": str(e), "traceback": traceback.format_exc()}, status=500)
+
+        return JsonResponse(
+            {"error": str(e), "traceback": traceback.format_exc()}, status=500
+        )
 
 
 @login_required
@@ -3565,18 +3589,24 @@ def admin_get_user_subscriptions(request):
     try:
         from main.models import UserSubscription
 
-        status_filter = request.GET.get('status', 'all')
-        page = int(request.GET.get('page', 1))
+        status_filter = request.GET.get("status", "all")
+        page = int(request.GET.get("page", 1))
         per_page = 50
 
         # Base queryset
-        subscriptions = UserSubscription.objects.select_related("user").order_by("-created_at")
+        subscriptions = UserSubscription.objects.select_related("user").order_by(
+            "-created_at"
+        )
 
         # Apply status filter
-        if status_filter == 'active':
-            subscriptions = subscriptions.filter(end_date__gte=timezone.now(), is_active=True)
-        elif status_filter == 'expired':
-            subscriptions = subscriptions.filter(Q(end_date__lt=timezone.now()) | Q(is_active=False))
+        if status_filter == "active":
+            subscriptions = subscriptions.filter(
+                end_date__gte=timezone.now(), is_active=True
+            )
+        elif status_filter == "expired":
+            subscriptions = subscriptions.filter(
+                Q(end_date__lt=timezone.now()) | Q(is_active=False)
+            )
 
         # Pagination
         paginator = Paginator(subscriptions, per_page)
@@ -3586,32 +3616,47 @@ def admin_get_user_subscriptions(request):
         subscriptions_data = []
         for sub in subscriptions_page:
             is_active = sub.end_date >= timezone.now() and sub.is_active
-            subscriptions_data.append({
-                'id': sub.id,
-                'user_username': sub.user.username if sub.user else 'N/A',
-                'user_email': sub.user.email if sub.user else 'N/A',
-                'package_type': sub.subscription_type,
-                'price': float(sub.price) if sub.price else 0,
-                'start_date': sub.start_date.strftime('%d/%m/%Y %H:%M') if sub.start_date else '',
-                'end_date': sub.end_date.strftime('%d/%m/%Y %H:%M') if sub.end_date else '',
-                'auto_renew': sub.auto_renew if hasattr(sub, 'auto_renew') else False,
-                'status': 'active' if is_active else 'expired',
-                'status_label': 'نشط' if is_active else 'منتهي',
-            })
+            subscriptions_data.append(
+                {
+                    "id": sub.id,
+                    "user_username": sub.user.username if sub.user else "N/A",
+                    "user_email": sub.user.email if sub.user else "N/A",
+                    "package_type": sub.subscription_type,
+                    "price": float(sub.price) if sub.price else 0,
+                    "start_date": (
+                        sub.start_date.strftime("%d/%m/%Y %H:%M")
+                        if sub.start_date
+                        else ""
+                    ),
+                    "end_date": (
+                        sub.end_date.strftime("%d/%m/%Y %H:%M") if sub.end_date else ""
+                    ),
+                    "auto_renew": (
+                        sub.auto_renew if hasattr(sub, "auto_renew") else False
+                    ),
+                    "status": "active" if is_active else "expired",
+                    "status_label": "نشط" if is_active else "منتهي",
+                }
+            )
 
-        return JsonResponse({
-            'success': True,
-            'subscriptions': subscriptions_data,
-            'total': paginator.count,
-            'page': page,
-            'total_pages': paginator.num_pages,
-            'has_next': subscriptions_page.has_next(),
-            'has_previous': subscriptions_page.has_previous(),
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "subscriptions": subscriptions_data,
+                "total": paginator.count,
+                "page": page,
+                "total_pages": paginator.num_pages,
+                "has_next": subscriptions_page.has_next(),
+                "has_previous": subscriptions_page.has_previous(),
+            }
+        )
 
     except Exception as e:
         import traceback
-        return JsonResponse({"error": str(e), "traceback": traceback.format_exc()}, status=500)
+
+        return JsonResponse(
+            {"error": str(e), "traceback": traceback.format_exc()}, status=500
+        )
 
 
 class AdminTranslationsView(SuperadminRequiredMixin, TemplateView):
@@ -4313,35 +4358,38 @@ def admin_create_user(request):
     try:
         data = json.loads(request.body)
 
-        username = data.get('username', '').strip()
-        email = data.get('email', '').strip()
-        password = data.get('password', '').strip()
-        first_name = data.get('first_name', '').strip()
-        last_name = data.get('last_name', '').strip()
-        phone = data.get('phone', '').strip()
-        user_type = data.get('user_type', 'member')
-        is_verified = data.get('is_verified', False)
-        is_mobile_verified = data.get('is_mobile_verified', False)
+        username = data.get("username", "").strip()
+        email = data.get("email", "").strip()
+        password = data.get("password", "").strip()
+        first_name = data.get("first_name", "").strip()
+        last_name = data.get("last_name", "").strip()
+        phone = data.get("phone", "").strip()
+        user_type = data.get("user_type", "member")
+        is_verified = data.get("is_verified", False)
+        is_mobile_verified = data.get("is_mobile_verified", False)
 
         # Validation
         if not username or not email or not password:
-            return JsonResponse({
-                "success": False,
-                "message": _("اسم المستخدم والبريد الإلكتروني وكلمة المرور مطلوبة")
-            }, status=400)
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": _("اسم المستخدم والبريد الإلكتروني وكلمة المرور مطلوبة"),
+                },
+                status=400,
+            )
 
         # Check uniqueness
         if User.objects.filter(username=username).exists():
-            return JsonResponse({
-                "success": False,
-                "message": _("اسم المستخدم مستخدم بالفعل")
-            }, status=400)
+            return JsonResponse(
+                {"success": False, "message": _("اسم المستخدم مستخدم بالفعل")},
+                status=400,
+            )
 
         if User.objects.filter(email=email).exists():
-            return JsonResponse({
-                "success": False,
-                "message": _("البريد الإلكتروني مستخدم بالفعل")
-            }, status=400)
+            return JsonResponse(
+                {"success": False, "message": _("البريد الإلكتروني مستخدم بالفعل")},
+                status=400,
+            )
 
         # Create user
         user = User.objects.create_user(
@@ -4350,13 +4398,13 @@ def admin_create_user(request):
             password=password,
             first_name=first_name,
             last_name=last_name,
-            phone=phone
+            phone=phone,
         )
 
         # Set user type
-        if user_type == 'staff':
+        if user_type == "staff":
             user.is_staff = True
-        elif user_type == 'superuser':
+        elif user_type == "superuser":
             user.is_staff = True
             user.is_superuser = True
 
@@ -4370,17 +4418,18 @@ def admin_create_user(request):
 
         user.save()
 
-        return JsonResponse({
-            "success": True,
-            "message": _("تم إنشاء المستخدم '{}' بنجاح").format(username),
-            "user_id": user.id
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "message": _("تم إنشاء المستخدم '{}' بنجاح").format(username),
+                "user_id": user.id,
+            }
+        )
 
     except Exception as e:
-        return JsonResponse({
-            "success": False,
-            "message": _("حدث خطأ: {}").format(str(e))
-        }, status=500)
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500
+        )
 
 
 @superadmin_required
@@ -4394,20 +4443,26 @@ def admin_verify_user_email(request, user_id):
         if user.verification_status == User.VerificationStatus.VERIFIED:
             user.verification_status = User.VerificationStatus.UNVERIFIED
             user.verified_at = None
-            message = _("تم إلغاء توثيق البريد الإلكتروني للمستخدم '{}'").format(user.username)
+            message = _("تم إلغاء توثيق البريد الإلكتروني للمستخدم '{}'").format(
+                user.username
+            )
             verified = False
         else:
             user.verification_status = User.VerificationStatus.VERIFIED
             user.verified_at = timezone.now()
-            message = _("تم توثيق البريد الإلكتروني للمستخدم '{}'").format(user.username)
+            message = _("تم توثيق البريد الإلكتروني للمستخدم '{}'").format(
+                user.username
+            )
             verified = True
 
-        user.save(update_fields=['verification_status', 'verified_at'])
+        user.save(update_fields=["verification_status", "verified_at"])
 
         return JsonResponse({"success": True, "message": message, "verified": verified})
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500)
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500
+        )
 
 
 @superadmin_required
@@ -4425,12 +4480,20 @@ def admin_verify_user_phone(request, user_id):
         else:
             message = _("تم إلغاء توثيق رقم الهاتف للمستخدم '{}'").format(user.username)
 
-        user.save(update_fields=['is_mobile_verified'])
+        user.save(update_fields=["is_mobile_verified"])
 
-        return JsonResponse({"success": True, "message": message, "phone_verified": user.is_mobile_verified})
+        return JsonResponse(
+            {
+                "success": True,
+                "message": message,
+                "phone_verified": user.is_mobile_verified,
+            }
+        )
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500)
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500
+        )
 
 
 @superadmin_required
@@ -4441,49 +4504,63 @@ def admin_add_user_ad_balance(request, user_id):
         user = get_object_or_404(User, pk=user_id)
         data = json.loads(request.body)
 
-        amount = data.get('amount', 0)
-        note = data.get('note', '').strip()
+        amount = data.get("amount", 0)
+        note = data.get("note", "").strip()
 
         if amount <= 0:
-            return JsonResponse({"success": False, "message": _("يجب أن يكون المبلغ أكبر من صفر")}, status=400)
+            return JsonResponse(
+                {"success": False, "message": _("يجب أن يكون المبلغ أكبر من صفر")},
+                status=400,
+            )
 
         # Get or create user's active package
         from main.models import UserPackage
 
         # Try to get active package
-        active_package = user.ad_packages.filter(
-            expiry_date__gte=timezone.now()
-        ).order_by('-purchase_date').first()
+        active_package = (
+            user.ad_packages.filter(expiry_date__gte=timezone.now())
+            .order_by("-purchase_date")
+            .first()
+        )
 
         if active_package:
             # Add to existing package
             old_balance = active_package.ads_remaining
             active_package.ads_remaining += amount
-            active_package.save(update_fields=['ads_remaining'])
+            active_package.save(update_fields=["ads_remaining"])
             new_balance = active_package.ads_remaining
         else:
             # Create a new free package for the user
             from main.models import AdPackage
-            expiry_date = timezone.now() + timezone.timedelta(days=365)  # 1 year validity
+
+            expiry_date = timezone.now() + timezone.timedelta(
+                days=365
+            )  # 1 year validity
 
             active_package = UserPackage.objects.create(
                 user=user,
                 package=None,  # Free package
                 ads_remaining=amount,
-                expiry_date=expiry_date
+                expiry_date=expiry_date,
             )
             old_balance = 0
             new_balance = amount
 
-        return JsonResponse({
-            "success": True,
-            "message": _("تم إضافة {} إعلان إلى رصيد '{}'").format(amount, user.username),
-            "old_balance": old_balance,
-            "new_balance": new_balance
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "message": _("تم إضافة {} إعلان إلى رصيد '{}'").format(
+                    amount, user.username
+                ),
+                "old_balance": old_balance,
+                "new_balance": new_balance,
+            }
+        )
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500)
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500
+        )
 
 
 @superadmin_required
@@ -4494,21 +4571,31 @@ def admin_toggle_user_active(request, user_id):
         user = get_object_or_404(User, pk=user_id)
 
         if user.id == request.user.id:
-            return JsonResponse({"success": False, "message": _("لا يمكنك تعطيل حسابك الخاص")}, status=400)
+            return JsonResponse(
+                {"success": False, "message": _("لا يمكنك تعطيل حسابك الخاص")},
+                status=400,
+            )
 
         if user.is_superuser and user.id != request.user.id:
-            return JsonResponse({"success": False, "message": _("لا يمكن تعطيل مدير رئيسي آخر")}, status=403)
+            return JsonResponse(
+                {"success": False, "message": _("لا يمكن تعطيل مدير رئيسي آخر")},
+                status=403,
+            )
 
         user.is_active = not user.is_active
-        user.save(update_fields=['is_active'])
+        user.save(update_fields=["is_active"])
 
         status_text = _("تم تفعيل") if user.is_active else _("تم تعطيل")
         message = _("{} حساب المستخدم '{}'").format(status_text, user.username)
 
-        return JsonResponse({"success": True, "message": message, "is_active": user.is_active})
+        return JsonResponse(
+            {"success": True, "message": message, "is_active": user.is_active}
+        )
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500)
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500
+        )
 
 
 @superadmin_required
@@ -4519,16 +4606,19 @@ def admin_change_user_role(request, user_id):
         user = get_object_or_404(User, pk=user_id)
         data = json.loads(request.body)
 
-        new_role = data.get('role', 'member')
+        new_role = data.get("role", "member")
 
         if user.id == request.user.id:
-            return JsonResponse({"success": False, "message": _("لا يمكنك تغيير دورك الخاص")}, status=400)
+            return JsonResponse(
+                {"success": False, "message": _("لا يمكنك تغيير دورك الخاص")},
+                status=400,
+            )
 
-        if new_role == 'superuser':
+        if new_role == "superuser":
             user.is_staff = True
             user.is_superuser = True
             role_name = _("مدير رئيسي")
-        elif new_role == 'staff':
+        elif new_role == "staff":
             user.is_staff = True
             user.is_superuser = False
             role_name = _("موظف")
@@ -4537,12 +4627,22 @@ def admin_change_user_role(request, user_id):
             user.is_superuser = False
             role_name = _("عضو")
 
-        user.save(update_fields=['is_staff', 'is_superuser'])
+        user.save(update_fields=["is_staff", "is_superuser"])
 
-        return JsonResponse({"success": True, "message": _("تم تغيير دور '{}' إلى {}").format(user.username, role_name), "role": new_role})
+        return JsonResponse(
+            {
+                "success": True,
+                "message": _("تم تغيير دور '{}' إلى {}").format(
+                    user.username, role_name
+                ),
+                "role": new_role,
+            }
+        )
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500)
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500
+        )
 
 
 @superadmin_required
@@ -4579,21 +4679,24 @@ def admin_ad_toggle_cart(request, ad_id):
     try:
         ad = get_object_or_404(ClassifiedAd, pk=ad_id)
         ad.cart_enabled_by_admin = not ad.cart_enabled_by_admin
-        ad.save(update_fields=['cart_enabled_by_admin'])
+        ad.save(update_fields=["cart_enabled_by_admin"])
 
-        status_text = _("تم تفعيل السلة") if ad.cart_enabled_by_admin else _("تم إيقاف السلة")
+        status_text = (
+            _("تم تفعيل السلة") if ad.cart_enabled_by_admin else _("تم إيقاف السلة")
+        )
 
-        return JsonResponse({
-            "success": True,
-            "message": status_text,
-            "cart_enabled": ad.cart_enabled_by_admin
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "message": status_text,
+                "cart_enabled": ad.cart_enabled_by_admin,
+            }
+        )
 
     except Exception as e:
-        return JsonResponse({
-            "success": False,
-            "message": _("حدث خطأ: {error}").format(error=str(e))
-        })
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))}
+        )
 
 
 @superadmin_required
@@ -4603,26 +4706,21 @@ def admin_ad_mark_sold(request, ad_id):
     try:
         ad = get_object_or_404(ClassifiedAd, pk=ad_id)
 
-        if ad.status == 'SOLD':
-            ad.status = 'ACTIVE'
+        if ad.status == "SOLD":
+            ad.status = "ACTIVE"
             message = _("تم إلغاء وضع 'مباع'")
         else:
-            ad.status = 'SOLD'
+            ad.status = "SOLD"
             message = _("تم تحديد الإعلان كمباع")
 
-        ad.save(update_fields=['status'])
+        ad.save(update_fields=["status"])
 
-        return JsonResponse({
-            "success": True,
-            "message": message,
-            "status": ad.status
-        })
+        return JsonResponse({"success": True, "message": message, "status": ad.status})
 
     except Exception as e:
-        return JsonResponse({
-            "success": False,
-            "message": _("حدث خطأ: {error}").format(error=str(e))
-        })
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))}
+        )
 
 
 @superadmin_required
@@ -4632,26 +4730,21 @@ def admin_ad_suspend(request, ad_id):
     try:
         ad = get_object_or_404(ClassifiedAd, pk=ad_id)
 
-        if ad.status == 'SUSPENDED':
-            ad.status = 'ACTIVE'
+        if ad.status == "SUSPENDED":
+            ad.status = "ACTIVE"
             message = _("تم إلغاء تعليق الإعلان")
         else:
-            ad.status = 'SUSPENDED'
+            ad.status = "SUSPENDED"
             message = _("تم تعليق الإعلان")
 
-        ad.save(update_fields=['status'])
+        ad.save(update_fields=["status"])
 
-        return JsonResponse({
-            "success": True,
-            "message": message,
-            "status": ad.status
-        })
+        return JsonResponse({"success": True, "message": message, "status": ad.status})
 
     except Exception as e:
-        return JsonResponse({
-            "success": False,
-            "message": _("حدث خطأ: {error}").format(error=str(e))
-        })
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))}
+        )
 
 
 @superadmin_required
@@ -4661,18 +4754,14 @@ def admin_ad_boost(request, ad_id):
     try:
         ad = get_object_or_404(ClassifiedAd, pk=ad_id)
         ad.created_at = timezone.now()
-        ad.save(update_fields=['created_at'])
+        ad.save(update_fields=["created_at"])
 
-        return JsonResponse({
-            "success": True,
-            "message": _("تم ترويج الإعلان بنجاح")
-        })
+        return JsonResponse({"success": True, "message": _("تم ترويج الإعلان بنجاح")})
 
     except Exception as e:
-        return JsonResponse({
-            "success": False,
-            "message": _("حدث خطأ: {error}").format(error=str(e))
-        })
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))}
+        )
 
 
 @superadmin_required
@@ -4693,29 +4782,27 @@ def admin_ad_duplicate(request, ad_id):
             location=original_ad.location,
             contact_phone=original_ad.contact_phone,
             contact_email=original_ad.contact_email,
-            status='PENDING'
+            status="PENDING",
         )
 
         # Copy images
         for image in original_ad.images.all():
             from main.models import AdImage
-            AdImage.objects.create(
-                ad=new_ad,
-                image=image.image,
-                caption=image.caption
-            )
 
-        return JsonResponse({
-            "success": True,
-            "message": _("تم نسخ الإعلان بنجاح"),
-            "new_ad_id": new_ad.id
-        })
+            AdImage.objects.create(ad=new_ad, image=image.image, caption=image.caption)
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": _("تم نسخ الإعلان بنجاح"),
+                "new_ad_id": new_ad.id,
+            }
+        )
 
     except Exception as e:
-        return JsonResponse({
-            "success": False,
-            "message": _("حدث خطأ: {error}").format(error=str(e))
-        })
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))}
+        )
 
 
 @superadmin_required
@@ -4724,20 +4811,16 @@ def admin_ad_ban(request, ad_id):
     """Permanently ban ad"""
     try:
         ad = get_object_or_404(ClassifiedAd, pk=ad_id)
-        ad.status = 'BANNED'
+        ad.status = "BANNED"
         ad.is_hidden = True
-        ad.save(update_fields=['status', 'is_hidden'])
+        ad.save(update_fields=["status", "is_hidden"])
 
-        return JsonResponse({
-            "success": True,
-            "message": _("تم حظر الإعلان نهائياً")
-        })
+        return JsonResponse({"success": True, "message": _("تم حظر الإعلان نهائياً")})
 
     except Exception as e:
-        return JsonResponse({
-            "success": False,
-            "message": _("حدث خطأ: {error}").format(error=str(e))
-        })
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))}
+        )
 
 
 @superadmin_required
@@ -4748,27 +4831,22 @@ def admin_ad_change_category(request, ad_id):
         ad = get_object_or_404(ClassifiedAd, pk=ad_id)
         data = json.loads(request.body)
 
-        category_id = data.get('category_id')
+        category_id = data.get("category_id")
         if not category_id:
-            return JsonResponse({
-                "success": False,
-                "message": _("يرجى اختيار فئة")
-            })
+            return JsonResponse({"success": False, "message": _("يرجى اختيار فئة")})
 
         category = get_object_or_404(Category, pk=category_id)
         ad.category = category
-        ad.save(update_fields=['category'])
+        ad.save(update_fields=["category"])
 
-        return JsonResponse({
-            "success": True,
-            "message": _("تم تغيير القسم والفئة بنجاح")
-        })
+        return JsonResponse(
+            {"success": True, "message": _("تم تغيير القسم والفئة بنجاح")}
+        )
 
     except Exception as e:
-        return JsonResponse({
-            "success": False,
-            "message": _("حدث خطأ: {error}").format(error=str(e))
-        })
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))}
+        )
 
 
 @superadmin_required
@@ -4779,30 +4857,30 @@ def admin_ad_extend(request, ad_id):
         ad = get_object_or_404(ClassifiedAd, pk=ad_id)
         data = json.loads(request.body)
 
-        days = data.get('days', 30)
+        days = data.get("days", 30)
         if not isinstance(days, int) or days < 1 or days > 365:
-            return JsonResponse({
-                "success": False,
-                "message": _("عدد الأيام يجب أن يكون بين 1 و 365")
-            })
+            return JsonResponse(
+                {"success": False, "message": _("عدد الأيام يجب أن يكون بين 1 و 365")}
+            )
 
         if ad.expires_at:
             ad.expires_at = ad.expires_at + timedelta(days=days)
         else:
             ad.expires_at = timezone.now() + timedelta(days=days)
 
-        ad.save(update_fields=['expires_at'])
+        ad.save(update_fields=["expires_at"])
 
-        return JsonResponse({
-            "success": True,
-            "message": _("تم تمديد الإعلان لمدة {days} يوم").format(days=days)
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "message": _("تم تمديد الإعلان لمدة {days} يوم").format(days=days),
+            }
+        )
 
     except Exception as e:
-        return JsonResponse({
-            "success": False,
-            "message": _("حدث خطأ: {error}").format(error=str(e))
-        })
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))}
+        )
 
 
 @superadmin_required
@@ -4813,14 +4891,13 @@ def admin_contact_publisher(request, ad_id):
         ad = get_object_or_404(ClassifiedAd, pk=ad_id)
         data = json.loads(request.body)
 
-        subject = data.get('subject', '').strip()
-        message = data.get('message', '').strip()
+        subject = data.get("subject", "").strip()
+        message = data.get("message", "").strip()
 
         if not subject or not message:
-            return JsonResponse({
-                "success": False,
-                "message": _("الموضوع والرسالة مطلوبان")
-            })
+            return JsonResponse(
+                {"success": False, "message": _("الموضوع والرسالة مطلوبان")}
+            )
 
         # Send email if user has email
         if ad.user.email:
@@ -4846,21 +4923,18 @@ def admin_contact_publisher(request, ad_id):
                 fail_silently=False,
             )
 
-            return JsonResponse({
-                "success": True,
-                "message": _("تم إرسال الرسالة بنجاح")
-            })
+            return JsonResponse(
+                {"success": True, "message": _("تم إرسال الرسالة بنجاح")}
+            )
         else:
-            return JsonResponse({
-                "success": False,
-                "message": _("المستخدم ليس لديه بريد إلكتروني")
-            })
+            return JsonResponse(
+                {"success": False, "message": _("المستخدم ليس لديه بريد إلكتروني")}
+            )
 
     except Exception as e:
-        return JsonResponse({
-            "success": False,
-            "message": _("حدث خطأ: {error}").format(error=str(e))
-        })
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))}
+        )
 
 
 @superadmin_required
@@ -5472,7 +5546,7 @@ def ad_publisher_detail(request, ad_id):
     )
 
     # Get all active categories for the Change Category modal
-    categories = Category.objects.filter(is_active=True).order_by('name')
+    categories = Category.objects.filter(is_active=True).order_by("name")
 
     context = {
         "ad": ad,
@@ -5647,6 +5721,13 @@ class AdminSupportChatsView(SuperadminRequiredMixin, TemplateView):
             .prefetch_related("messages")
             .order_by("-updated_at")
         )
+
+        # Annotate each room with unread count
+        for room in chat_rooms:
+            room.unread_count = room.messages.filter(
+                is_read=False, sender__is_staff=False
+            ).count()
+            room.has_unread_messages = room.unread_count > 0
 
         context["chat_rooms"] = chat_rooms
 
