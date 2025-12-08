@@ -9,8 +9,8 @@
                 <div class="hero-slide" style="background-color: {{ slide.background_color }};">
                     <div class="container">
                         <div class="row align-items-center">
-                            <div class="col-lg-6 hero-content" style="color: {{ slide.text_color }};">
-                                <h1 class="hero-title" data-aos="fade-up">
+                            <div class="col-lg-6 hero-content" style="color: {{ slide.text_color }};" dir="{% if LANGUAGE_CODE == 'ar' %}rtl{% else %}ltr{% endif %}">
+                                <h1 class="hero-title" data-aos="fade-up" dir="{% if LANGUAGE_CODE == 'ar' %}rtl{% else %}ltr{% endif %}">
                                     {% if LANGUAGE_CODE == 'ar' %}
                                         {{ slide.title_ar|default:slide.title }}
                                     {% else %}
@@ -19,7 +19,7 @@
                                 </h1>
 
                 {% if slide.get_subtitle %}
-                <p class="hero-subtitle" data-aos="fade-up" data-aos-delay="100">
+                <p class="hero-subtitle" data-aos="fade-up" data-aos-delay="100" dir="{% if LANGUAGE_CODE == 'ar' %}rtl{% else %}ltr{% endif %}">
                     {% if LANGUAGE_CODE == 'ar' %}
                         {{ slide.subtitle_ar|default:slide.subtitle|clean_html }}
                     {% else %}
@@ -27,7 +27,7 @@
                     {% endif %}
                 </p>
                 {% endif %}                                {% if slide.get_description %}
-                                <div class="hero-description" data-aos="fade-up" data-aos-delay="200">
+                                <div class="hero-description" data-aos="fade-up" data-aos-delay="200" dir="{% if LANGUAGE_CODE == 'ar' %}rtl{% else %}ltr{% endif %}">
                                     {% if LANGUAGE_CODE == 'ar' %}
                                         {{ slide.description_ar|striptags|safe }}
                                     {% else %}
@@ -97,21 +97,21 @@
 
 .heroSwiper {
     width: 100%;
-    height: fit-content;
-    max-height: 600px;
+    height: 600px;
+    min-height: 550px;
 }
 
 @media (max-width: 991px) {
     .heroSwiper {
-        height: fit-content;
-        max-height: 550px;
+        height: 500px;
+        min-height: 450px;
     }
 }
 
 @media (max-width: 768px) {
     .heroSwiper {
-        height: fit-content;
-        max-height: 500px;
+        height: auto;
+        min-height: 450px;
     }
 }
 
@@ -119,10 +119,11 @@
     height: 100%;
     min-height: 600px;
     position: relative;
-    padding: 80px 0;
+    padding: 60px 0;
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-purple) 100%);
     display: flex;
     align-items: center;
+    overflow: hidden;
 }
 
 [data-theme='dark'] .hero-slide {
@@ -159,6 +160,31 @@
 .hero-content {
     z-index: 2;
     position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* RTL/LTR text alignment using flexbox */
+.hero-content[dir="rtl"] {
+    align-items: flex-end;
+}
+
+.hero-content[dir="rtl"] .hero-title,
+.hero-content[dir="rtl"] .hero-subtitle,
+.hero-content[dir="rtl"] .hero-description {
+    text-align: right;
+    width: 100%;
+}
+
+.hero-content[dir="ltr"] {
+    align-items: flex-start;
+}
+
+.hero-content[dir="ltr"] .hero-title,
+.hero-content[dir="ltr"] .hero-subtitle,
+.hero-content[dir="ltr"] .hero-description {
+    text-align: left;
+    width: 100%;
 }
 
 .hero-title {
@@ -167,6 +193,7 @@
     margin-bottom: 1.5rem;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
     color: var(--white-color);
+    display: block;
 }
 
 .hero-subtitle {
@@ -176,6 +203,7 @@
     opacity: 0.95;
     line-height: 1.8;
     color: var(--white-color);
+    display: block;
 }
 
 .hero-description {
@@ -192,9 +220,20 @@
 
 .hero-description ul,
 .hero-description ol {
-    padding-left: 20px;
     margin-bottom: 10px;
     color: var(--white-color);
+}
+
+.hero-description[dir="ltr"] ul,
+.hero-description[dir="ltr"] ol {
+    padding-left: 20px;
+    padding-right: 0;
+}
+
+.hero-description[dir="rtl"] ul,
+.hero-description[dir="rtl"] ol {
+    padding-right: 20px;
+    padding-left: 0;
 }
 
 .hero-description li {
@@ -216,6 +255,27 @@
 
 .hero-actions {
     margin-top: 30px;
+    display: flex !important;
+    width: 100%;
+}
+
+/* RTL/LTR button alignment - align button to direction */
+.hero-content[dir="rtl"] .hero-actions {
+    justify-content: flex-end !important;
+}
+
+.hero-content[dir="ltr"] .hero-actions {
+    justify-content: flex-start !important;
+}
+
+.hero-content[dir="rtl"] .btn-hero {
+    margin-right: 0;
+    margin-left: auto;
+}
+
+.hero-content[dir="ltr"] .btn-hero {
+    margin-left: 0;
+    margin-right: auto;
 }
 
 .btn-hero {
@@ -359,7 +419,7 @@
 /* Responsive */
 @media (max-width: 991px) {
     .hero-slide {
-        min-height: 550px;
+        min-height: 600px;
         padding: 60px 0;
     }
 
@@ -374,9 +434,33 @@
     .hero-image {
         margin-top: 40px;
     }
+}
 
+/* Mobile/Tablet centering only */
+@media (max-width: 991px) {
     .hero-content {
         text-align: center;
+        align-items: center !important;
+    }
+
+    .hero-content[dir="rtl"] .hero-title,
+    .hero-content[dir="rtl"] .hero-subtitle,
+    .hero-content[dir="rtl"] .hero-description,
+    .hero-content[dir="ltr"] .hero-title,
+    .hero-content[dir="ltr"] .hero-subtitle,
+    .hero-content[dir="ltr"] .hero-description {
+        text-align: center;
+    }
+
+    .hero-content[dir="rtl"],
+    .hero-content[dir="ltr"] {
+        align-items: center !important;
+    }
+
+    /* Center buttons on mobile */
+    .hero-content[dir="rtl"] .hero-actions,
+    .hero-content[dir="ltr"] .hero-actions {
+        justify-content: center !important;
     }
 }
 
@@ -404,6 +488,14 @@
     .btn-hero {
         padding: 10px 20px;
         font-size: 1rem;
+        width: auto;
+    }
+
+    /* Center buttons on tablet */
+    .hero-content[dir="rtl"] .hero-actions,
+    .hero-content[dir="ltr"] .hero-actions {
+        justify-content: center !important;
+        width: 100%;
     }
 
     .swiper-button-next,
@@ -442,6 +534,13 @@
     .btn-hero {
         padding: 8px 16px;
         font-size: 0.9rem;
+        width: 100%;
+        max-width: 280px;
+        justify-content: center;
+    }
+
+    .hero-actions {
+        width: 100%;
     }
 }
 </style>

@@ -23,16 +23,24 @@ def cart_wishlist_counts(request):
     if request.user.is_authenticated:
         try:
             # Get or create cart
-            cart, _ = Cart.objects.get_or_create(user=request.user)
+            cart, created = Cart.objects.get_or_create(user=request.user)
             context["cart_count"] = cart.get_items_count()
-        except Exception:
+            print(
+                f"[CONTEXT_PROCESSOR] User: {request.user}, Cart: {cart.id}, Count: {context['cart_count']}, Created: {created}"
+            )
+        except Exception as e:
+            print(f"[CONTEXT_PROCESSOR] Error getting cart: {e}")
             context["cart_count"] = 0
 
         try:
             # Get or create wishlist
-            wishlist, _ = Wishlist.objects.get_or_create(user=request.user)
+            wishlist, created = Wishlist.objects.get_or_create(user=request.user)
             context["wishlist_count"] = wishlist.get_items_count()
-        except Exception:
+            print(
+                f"[CONTEXT_PROCESSOR] User: {request.user}, Wishlist: {wishlist.id}, Count: {context['wishlist_count']}, Created: {created}"
+            )
+        except Exception as e:
+            print(f"[CONTEXT_PROCESSOR] Error getting wishlist: {e}")
             context["wishlist_count"] = 0
 
         # Get user's ad balance (ads_remaining)

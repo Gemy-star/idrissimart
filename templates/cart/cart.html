@@ -326,7 +326,7 @@
                 <!-- Cart Items -->
                 <div class="cart-items">
                     {% for item in cart_items %}
-                        <div class="cart-item" data-item-id="{% if is_guest %}{{ item.ad.id }}{% else %}{{ item.id }}{% endif %}">
+                        <div class="cart-item" data-item-id="{{ item.ad.id }}">
                             <!-- Item Image -->
                             {% if item.ad.images.first %}
                                 <img src="{{ item.ad.images.first.image.url }}"
@@ -345,11 +345,11 @@
 
                                 <!-- Quantity Control -->
                                 <div class="cart-item-quantity">
-                                    <button class="quantity-btn" onclick="updateQuantity({{ item.ad.id }}, -1)">
+                                    <button class="quantity-btn" onclick="decreaseQuantity({{ item.ad.id }}, {{ item.quantity }})">
                                         <i class="fas fa-minus"></i>
                                     </button>
-                                    <span class="quantity-value">{% if is_guest %}{{ item.quantity }}{% else %}{{ item.quantity }}{% endif %}</span>
-                                    <button class="quantity-btn" onclick="updateQuantity({{ item.ad.id }}, 1)">
+                                    <span class="quantity-value quantity-{{ item.ad.id }}">{{ item.quantity }}</span>
+                                    <button class="quantity-btn" onclick="increaseQuantity({{ item.ad.id }}, {{ item.quantity }})">
                                         <i class="fas fa-plus"></i>
                                     </button>
                                 </div>
@@ -357,7 +357,7 @@
                                 <!-- Item Total -->
                                 <p class="text-muted">
                                     {% trans "المجموع:" %}
-                                    <strong>{% if is_guest %}{{ item.item_total }}{% else %}{{ item.get_total }}{% endif %} {% trans "ر.س" %}</strong>
+                                    <strong class="item-total-{{ item.ad.id }}">{{ item.get_total_price }} {% trans "ر.س" %}</strong>
                                 </p>
                             </div>
 
@@ -435,65 +435,139 @@ function getCookie(name) {
     return cookieValue;
 }
 
-function updateQuantity(adId, change) {
-    const lang = document.documentElement.lang || 'ar';
-    const formData = new FormData();
-    formData.append('ad_id', adId);
-    formData.append('action', change > 0 ? 'add' : 'remove');
+const csrftoken = getCookie('csrftoken');
 
-    fetch(`/${lang}/cart/update/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken'),
-        },
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
+async function updateCartQuantity(adId, newQuantity) {
+    try {
+        const response = await fetch('/api/cart/update-quantity/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrftoken
+            },
+            body: `item_id=${adId}&quantity=${newQuantity}`
+        });
+
+        const data = await response.json();
+
         if (data.success) {
-            location.reload();
+            // Update quantity display
+            const quantityElement = document.querySelector(`.quantity-${adId}`);
+            if (quantityElement) quantityElement.textContent = newQuantity;
+
+            // Update item total
+            const itemTotalElement = document.querySelector(`.item-total-${adId}`);
+            if (itemTotalElement && data.item_total) {
+                itemTotalElement.textContent = `${data.item_total} {% trans "ر.س" %}`;
+            }
+
+            // Update cart total
+            if (data.cart_total !== undefined) {
+                // Update subtotal
+                const subtotalElements = document.querySelectorAll('.cart-summary-row span:last-child');
+                subtotalElements.forEach(el => {
+                    el.textContent = `${data.cart_total} {% trans "ر.س" %}`;
+                });
+
+                // Update total
+                const totalElement = document.querySelector('.cart-summary-total span:last-child');
+                if (totalElement) {
+                    totalElement.textContent = `${data.cart_total} {% trans "ر.س" %}`;
+                }
+            }
+
+            // Update cart count badge
+            if (data.cart_count !== undefined) {
+                const cartBadge = document.querySelector('.cart-count');
+                if (cartBadge) cartBadge.textContent = data.cart_count;
+            }
         } else {
-            showToast(data.message || '{% trans "حدث خطأ" %}', 'error');
+            alert(data.message || '{% trans "حدث خطأ" %}');
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showToast('{% trans "حدث خطأ" %}', 'error');
-    });
+    } catch (error) {
+        console.error('Error updating quantity:', error);
+        alert('{% trans "حدث خطأ في تحديث الكمية" %}');
+    }
 }
 
-function removeFromCart(adId) {
+function increaseQuantity(adId, currentQuantity) {
+    updateCartQuantity(adId, currentQuantity + 1);
+}
+
+function decreaseQuantity(adId, currentQuantity) {
+    if (currentQuantity > 1) {
+        updateCartQuantity(adId, currentQuantity - 1);
+    } else {
+        // If quantity is 1, ask to remove
+        if (confirm('{% trans "هل تريد إزالة هذا المنتج من السلة؟" %}')) {
+            removeFromCart(adId);
+        }
+    }
+}
+
+async function removeFromCart(adId) {
     if (!confirm('{% trans "هل أنت متأكد من إزالة هذا المنتج؟" %}')) {
         return;
     }
 
-    const lang = document.documentElement.lang || 'ar';
-    const formData = new FormData();
-    formData.append('ad_id', adId);
+    try {
+        const response = await fetch('/api/cart/remove/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrftoken
+            },
+            body: `item_id=${adId}`
+        });
 
-    fetch(`/${lang}/cart/remove/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken'),
-        },
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
+        const data = await response.json();
+
         if (data.success) {
-            location.reload();
+            // Remove item from DOM
+            const itemElement = document.querySelector(`[data-item-id="${adId}"]`);
+            if (itemElement) {
+                itemElement.style.opacity = '0';
+                itemElement.style.transform = 'translateX(100px)';
+                setTimeout(() => {
+                    itemElement.remove();
+                    // Check if cart is empty
+                    const remainingItems = document.querySelectorAll('.cart-item');
+                    if (remainingItems.length === 0) {
+                        location.reload();
+                    }
+                }, 300);
+            }
+
+            // Update cart count
+            if (data.cart_count !== undefined) {
+                const cartBadge = document.querySelector('.cart-count');
+                if (cartBadge) cartBadge.textContent = data.cart_count;
+
+                const cartCountBadge = document.querySelector('.cart-count-badge');
+                if (cartCountBadge) {
+                    cartCountBadge.innerHTML = `<i class="fas fa-box"></i> ${data.cart_count} {% trans "منتج" %}`;
+                }
+            }
         } else {
-            showToast(data.message || '{% trans "حدث خطأ" %}', 'error');
+            alert(data.message || '{% trans "حدث خطأ" %}');
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showToast('{% trans "حدث خطأ" %}', 'error');
-    });
+    } catch (error) {
+        console.error('Error removing from cart:', error);
+        alert('{% trans "حدث خطأ في إزالة المنتج" %}');
+    }
 }
 
 function proceedToCheckout() {
     window.location.href = "{% url 'main:checkout' %}";
 }
+
+// Add transition styles
+const style = document.createElement('style');
+style.textContent = `
+    .cart-item {
+        transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+`;
+document.head.appendChild(style);
 </script>
 {% endblock %}

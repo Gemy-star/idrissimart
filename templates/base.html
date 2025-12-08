@@ -433,8 +433,9 @@
                 const adImage = button.dataset.adImage;
                 const isActive = button.classList.contains('active');
 
-                // Check if user is authenticated
-                const isAuthenticated = {{ user.is_authenticated|yesno:"true,false" }};
+                // Check if user is authenticated (make it globally accessible)
+                window.isAuthenticated = {{ user.is_authenticated|yesno:"true,false" }};
+                const isAuthenticated = window.isAuthenticated;
 
                 if (isAuthenticated) {
                     // Handle authenticated user with server request
@@ -466,6 +467,11 @@
                             `تم إزالة ${adTitle} من المفضلة` :
                             `تم إضافة ${adTitle} إلى المفضلة`;
                         showWishlistNotificationGlobal(message, 'success');
+
+                        // Update wishlist count in header
+                        if (data.wishlist_count !== undefined) {
+                            updateHeaderWishlistCount(data.wishlist_count);
+                        }
                     } else {
                         showWishlistNotificationGlobal(data.message || 'حدث خطأ', 'error');
                     }
@@ -612,7 +618,7 @@
 
             // Initialize global wishlist buttons
             function initializeGlobalWishlistButtons() {
-                const isAuthenticated = {{ user.is_authenticated|yesno:"true,false" }};
+                const isAuthenticated = window.isAuthenticated || {{ user.is_authenticated|yesno:"true,false" }};
 
                 if (!isAuthenticated) {
                     // For guest users, check localStorage and update button states
@@ -632,27 +638,15 @@
 
             // Update header wishlist count for guest users
             function updateHeaderWishlistCount(count) {
-                document.querySelectorAll('.guest-wishlist-count').forEach(element => {
+                document.querySelectorAll('.wishlist-count').forEach(element => {
                     element.textContent = count;
-                    // Show/hide badge based on count
-                    if (count > 0) {
-                        element.style.display = 'inline-block';
-                    } else {
-                        element.style.display = 'none';
-                    }
                 });
             }
 
             // Update header cart count for guest users (placeholder for future cart functionality)
             function updateHeaderCartCount(count) {
-                document.querySelectorAll('.guest-cart-count').forEach(element => {
+                document.querySelectorAll('.cart-count').forEach(element => {
                     element.textContent = count;
-                    // Show/hide badge based on count
-                    if (count > 0) {
-                        element.style.display = 'inline-block';
-                    } else {
-                        element.style.display = 'none';
-                    }
                 });
             }
 
@@ -845,6 +839,28 @@
                     showToast('حدث خطأ في الاتصال', 'error');
                 }
             }
+
+            // Debug: Log initial cart/wishlist counts on page load
+            document.addEventListener('DOMContentLoaded', function() {
+                console.log('[INIT] Page loaded - Cart count:', document.querySelector('.cart-count')?.textContent);
+                console.log('[INIT] Page loaded - Wishlist count:', document.querySelector('.wishlist-count')?.textContent);
+                console.log('[INIT] User authenticated:', window.isAuthenticated);
+
+                // Log all cart and wishlist buttons and their states
+                document.querySelectorAll('.cart-btn-card').forEach(btn => {
+                    const adId = btn.dataset.adId;
+                    const isActive = btn.classList.contains('active');
+                    const inCart = btn.dataset.inCart;
+                    console.log(`[INIT] Cart button - Ad ${adId}: Active=${isActive}, Data=${inCart}`);
+                });
+
+                document.querySelectorAll('.wishlist-btn-card').forEach(btn => {
+                    const adId = btn.dataset.adId;
+                    const isActive = btn.classList.contains('active');
+                    const inWishlist = btn.dataset.inWishlist;
+                    console.log(`[INIT] Wishlist button - Ad ${adId}: Active=${isActive}, Data=${inWishlist}`);
+                });
+            });
         </script>
 
         {% block extra_js %}

@@ -91,3 +91,29 @@ def notifications(request):
             "latest_notifications": unread_notifications[:5],
         }
     return {}
+
+
+def cart_wishlist_counts(request):
+    """
+    Context processor to add cart and wishlist counts to all templates
+    """
+    if request.user.is_authenticated:
+        from main.models import Cart, Wishlist
+
+        # Get or create cart
+        cart, _ = Cart.objects.get_or_create(user=request.user)
+        cart_count = cart.get_items_count()
+
+        # Get or create wishlist
+        wishlist, _ = Wishlist.objects.get_or_create(user=request.user)
+        wishlist_count = wishlist.get_items_count()
+
+        return {
+            "cart_count": cart_count,
+            "wishlist_count": wishlist_count,
+        }
+
+    return {
+        "cart_count": 0,
+        "wishlist_count": 0,
+    }

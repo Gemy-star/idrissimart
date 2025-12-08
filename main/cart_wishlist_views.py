@@ -58,8 +58,15 @@ def get_or_create_wishlist(user):
 @login_required
 def add_to_cart(request):
     """Add item to cart via AJAX - only for authenticated users"""
+    # Debug logging
+    print(
+        f"[ADD_TO_CART] User: {request.user}, Authenticated: {request.user.is_authenticated}"
+    )
+
     try:
         ad_id = request.POST.get("item_id")
+        print(f"[ADD_TO_CART] Ad ID: {ad_id}")
+
         if not ad_id:
             return JsonResponse(
                 {"success": False, "message": _("معرف الإعلان مفقود")}, status=400
@@ -81,16 +88,24 @@ def add_to_cart(request):
 
         # Authenticated user - use database cart
         cart = get_or_create_cart(request.user)
+        print(f"[ADD_TO_CART] Cart: {cart.id}, User: {cart.user_id}")
+
         cart_item, created = CartItem.objects.get_or_create(cart=cart, ad=ad)
+        print(
+            f"[ADD_TO_CART] CartItem: {cart_item.id}, Created: {created}, Quantity: {cart_item.quantity}"
+        )
 
         if not created:
             cart_item.quantity += 1
             cart_item.save()
+            print(f"[ADD_TO_CART] Updated quantity to: {cart_item.quantity}")
             message = _("تم زيادة الكمية في السلة")
         else:
+            print(f"[ADD_TO_CART] Created new cart item")
             message = _("تمت إضافة {} إلى السلة").format(ad.title)
 
         cart_count = cart.get_items_count()
+        print(f"[ADD_TO_CART] Final cart count: {cart_count}")
 
         return JsonResponse(
             {
@@ -411,8 +426,15 @@ def checkout_view(request):
 @require_POST
 def add_to_wishlist(request):
     """Add item to wishlist via AJAX"""
+    # Debug logging
+    print(
+        f"[ADD_TO_WISHLIST] User: {request.user}, Authenticated: {request.user.is_authenticated}"
+    )
+
     try:
         ad_id = request.POST.get("item_id")
+        print(f"[ADD_TO_WISHLIST] Ad ID: {ad_id}")
+
         if not ad_id:
             return JsonResponse(
                 {"success": False, "message": _("معرف الإعلان مفقود")}, status=400
@@ -422,22 +444,29 @@ def add_to_wishlist(request):
             ClassifiedAd, id=ad_id, status=ClassifiedAd.AdStatus.ACTIVE
         )
         wishlist = get_or_create_wishlist(request.user)
+        print(f"[ADD_TO_WISHLIST] Wishlist: {wishlist.id}, User: {wishlist.user_id}")
 
         # Try to create wishlist item
         try:
             wishlist_item = WishlistItem.objects.create(wishlist=wishlist, ad=ad)
+            print(f"[ADD_TO_WISHLIST] Created wishlist item: {wishlist_item.id}")
+
+            wishlist_count = wishlist.get_items_count()
+            print(f"[ADD_TO_WISHLIST] Final wishlist count: {wishlist_count}")
+
             message = _("تمت إضافة {} إلى المفضلة").format(ad.title)
             return JsonResponse(
                 {
                     "success": True,
                     "message": message,
-                    "wishlist_count": wishlist.get_items_count(),
+                    "wishlist_count": wishlist_count,
                     "item_id": ad_id,
                     "is_in_wishlist": True,
                 }
             )
         except IntegrityError:
             # Item already in wishlist
+            print(f"[ADD_TO_WISHLIST] Item already in wishlist")
             return JsonResponse(
                 {
                     "success": False,

@@ -442,3 +442,46 @@ def get_item(mapping, key):
         return mapping.get(key, "")
     except Exception:
         return ""
+
+
+# ======================
+# CART AND WISHLIST CHECKS
+# ======================
+
+
+@register.simple_tag(takes_context=True)
+def is_in_cart(context, ad_id):
+    """
+    Check if an ad is in the user's cart.
+    Usage: {% is_in_cart ad.id as in_cart %}
+    """
+    request = context.get("request")
+    if not request or not request.user.is_authenticated:
+        return False
+
+    try:
+        from main.models import Cart, CartItem
+
+        cart, _ = Cart.objects.get_or_create(user=request.user)
+        return CartItem.objects.filter(cart=cart, ad_id=ad_id).exists()
+    except Exception:
+        return False
+
+
+@register.simple_tag(takes_context=True)
+def is_in_wishlist(context, ad_id):
+    """
+    Check if an ad is in the user's wishlist.
+    Usage: {% is_in_wishlist ad.id as in_wishlist %}
+    """
+    request = context.get("request")
+    if not request or not request.user.is_authenticated:
+        return False
+
+    try:
+        from main.models import Wishlist, WishlistItem
+
+        wishlist, _ = Wishlist.objects.get_or_create(user=request.user)
+        return WishlistItem.objects.filter(wishlist=wishlist, ad_id=ad_id).exists()
+    except Exception:
+        return False

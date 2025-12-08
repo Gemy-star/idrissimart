@@ -126,11 +126,15 @@ function showNotification(message, type = 'success') {
 async function addToCart(itemId, itemName = 'المنتج') {
     // Check if user is authenticated
     if (!window.isAuthenticated) {
-        showNotification('يجب تسجيل الدخول لإضافة المنتجات للسلة', 'warning');
+        showNotification('يجب تسجيل الدخول لإضافة المنتجات للسلة', 'error');
+        setTimeout(() => {
+            window.location.href = '/accounts/login/?next=' + encodeURIComponent(window.location.pathname);
+        }, 1500);
         return { success: false, message: 'يجب تسجيل الدخول' };
     }
 
     try {
+        console.log('Adding to cart:', itemId);
         const response = await fetch('/api/cart/add/', {
             method: 'POST',
             headers: {
@@ -140,30 +144,28 @@ async function addToCart(itemId, itemName = 'المنتج') {
             body: `item_id=${itemId}`
         });
 
+        console.log('Response status:', response.status);
+
         // Check if response is JSON before parsing
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
-            console.error('Non-JSON response received:', await response.text());
-            showNotification('يجب تسجيل الدخول أولاً', 'error');
-            // Redirect to login after 2 seconds
-            setTimeout(() => {
-                window.location.href = '/accounts/login/?next=' + encodeURIComponent(window.location.pathname);
-            }, 2000);
-            return { success: false, error: 'Not authenticated' };
+            console.error('Non-JSON response received');
+            showNotification('حدث خطأ في الخادم', 'error');
+            return { success: false, error: 'Invalid response' };
         }
 
         const data = await response.json();
+        console.log('Cart add response:', data);
 
         if (data.success) {
-            updateBadgeCount('cart', data.cart_count);
-            // Use server message if available, otherwise fallback
-            const message = data.message || `تمت إضافة ${itemName} إلى السلة`;
-            showNotification(message, 'success');
-
-            // Update cart count in header if available
+            // Update cart count in header
             if (data.cart_count !== undefined) {
                 updateCartCountInHeader(data.cart_count);
             }
+
+            // Use server message if available
+            const message = data.message || `تمت إضافة ${itemName} إلى السلة`;
+            showNotification(message, 'success');
 
             // Trigger custom event
             document.dispatchEvent(new CustomEvent('cartUpdated', {
@@ -240,11 +242,15 @@ async function removeFromCart(itemId, itemName = 'المنتج') {
 async function addToWishlist(itemId, itemName = 'المنتج') {
     // Check if user is authenticated
     if (!window.isAuthenticated) {
-        showNotification('يجب تسجيل الدخول لإضافة المنتجات للمفضلة', 'warning');
+        showNotification('يجب تسجيل الدخول لإضافة المنتجات للمفضلة', 'error');
+        setTimeout(() => {
+            window.location.href = '/accounts/login/?next=' + encodeURIComponent(window.location.pathname);
+        }, 1500);
         return { success: false, message: 'يجب تسجيل الدخول' };
     }
 
     try {
+        console.log('Adding to wishlist:', itemId);
         const response = await fetch('/api/wishlist/add/', {
             method: 'POST',
             headers: {
@@ -254,17 +260,18 @@ async function addToWishlist(itemId, itemName = 'المنتج') {
             body: `item_id=${itemId}`
         });
 
+        console.log('Response status:', response.status);
         const data = await response.json();
+        console.log('Wishlist add response:', data);
 
         if (data.success) {
-            updateBadgeCount('wishlist', data.wishlist_count);
-            const message = data.message || `تمت إضافة ${itemName} إلى المفضلة`;
-            showNotification(message, 'success');
-
-             // Update wishlist count in header if available
+            // Update wishlist count in header
             if (data.wishlist_count !== undefined) {
                 updateWishlistCountInHeader(data.wishlist_count);
             }
+
+            const message = data.message || `تمت إضافة ${itemName} إلى المفضلة`;
+            showNotification(message, 'success');
 
             document.dispatchEvent(new CustomEvent('wishlistUpdated', {
                 detail: { count: data.wishlist_count, itemId: itemId }
@@ -286,6 +293,7 @@ async function addToWishlist(itemId, itemName = 'المنتج') {
  */
 async function removeFromWishlist(itemId, itemName = 'المنتج') {
     try {
+        console.log('Removing from wishlist:', itemId);
         const response = await fetch('/api/wishlist/remove/', {
             method: 'POST',
             headers: {
@@ -295,17 +303,18 @@ async function removeFromWishlist(itemId, itemName = 'المنتج') {
             body: `item_id=${itemId}`
         });
 
+        console.log('Response status:', response.status);
         const data = await response.json();
+        console.log('Wishlist remove response:', data);
 
         if (data.success) {
-            updateBadgeCount('wishlist', data.wishlist_count);
-            const message = data.message || `تمت إزالة ${itemName} من المفضلة`;
-            showNotification(message, 'success');
-
-            // Update wishlist count in header if available
+            // Update wishlist count in header
             if (data.wishlist_count !== undefined) {
                 updateWishlistCountInHeader(data.wishlist_count);
             }
+
+            const message = data.message || `تمت إزالة ${itemName} من المفضلة`;
+            showNotification(message, 'success');
 
             document.dispatchEvent(new CustomEvent('wishlistUpdated', {
                 detail: { count: data.wishlist_count, itemId: itemId }

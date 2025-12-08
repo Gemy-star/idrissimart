@@ -1119,6 +1119,8 @@ urlpatterns = [
         name="wishlist_status",
     ),
     path("wishlist/", cart_wishlist_views.wishlist_view, name="wishlist_view"),
+    # Bulk Ads API for Guest Wishlist
+    path("api/ads/bulk/", cart_wishlist_views.get_bulk_ads, name="get_bulk_ads"),
     # Chat URLs - User to User Messaging
     path("chat/", chat_views.chat_list, name="chat_list"),
     path("chat/room/<int:room_id>/", chat_views.chat_room, name="chat_room"),

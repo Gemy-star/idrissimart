@@ -1,5 +1,10 @@
 {% load i18n static idrissimart_tags %}
 
+{% is_in_cart ad.id as ad_in_cart %}
+{% is_in_wishlist ad.id as ad_in_wishlist %}
+
+<!-- Debug: Ad {{ ad.id }} - In Cart: {{ ad_in_cart }}, In Wishlist: {{ ad_in_wishlist }} -->
+
 <article class="modern-ad-card
     {% if ad.is_highlighted %}highlighted{% endif %}
     {% if ad.is_urgent %}urgent{% endif %}
@@ -79,25 +84,27 @@
                 </button>
                 <!-- Wishlist Button - Only for authenticated users -->
                 {% if request.user.is_authenticated %}
-                <button class="ad-wishlist-btn wishlist-btn-card quick-action-btn {% if ad.is_in_wishlist %}active{% endif %}"
+                <button class="ad-wishlist-btn wishlist-btn-card quick-action-btn {% if ad_in_wishlist %}active{% endif %}"
                         data-ad-id="{{ ad.id }}"
                         data-ad-title="{{ ad.title }}"
                         data-ad-image="{% if ad.images.first %}{{ ad.images.first.image.url }}{% else %}{% static "images/placeholder-ad.jpg" %}{% endif %}"
+                        data-in-wishlist="{{ ad_in_wishlist|yesno:'true,false' }}"
                         onclick="toggleWishlistCard({{ ad.id }}, this)"
-                        title="{% if ad.is_in_wishlist %}{% trans "في المفضلة" %}{% else %}{% trans "إضافة للمفضلة" %}{% endif %}"
-                        aria-label="{% if ad.is_in_wishlist %}{% trans "في المفضلة" %}{% else %}{% trans "إضافة للمفضلة" %}{% endif %}">
-                    <i class="{% if ad.is_in_wishlist %}fas{% else %}far{% endif %} fa-heart"></i>
+                        title="{% if ad_in_wishlist %}{% trans "في المفضلة" %}{% else %}{% trans "إضافة للمفضلة" %}{% endif %}"
+                        aria-label="{% if ad_in_wishlist %}{% trans "في المفضلة" %}{% else %}{% trans "إضافة للمفضلة" %}{% endif %}">
+                    <i class="{% if ad_in_wishlist %}fas{% else %}far{% endif %} fa-heart"></i>
                 </button>
                 {% endif %}
                 <!-- Cart Button (if cart enabled by admin) - Only for authenticated users -->
                 {% if ad.cart_enabled_by_admin and request.user.is_authenticated %}
-                <button class="ad-cart-btn cart-btn-card quick-action-btn {% if ad.is_in_cart %}active{% endif %}"
+                <button class="ad-cart-btn cart-btn-card quick-action-btn {% if ad_in_cart %}active{% endif %}"
                         data-ad-id="{{ ad.id }}"
                         data-ad-title="{{ ad.title }}"
                         data-ad-price="{{ ad.price }}"
+                        data-in-cart="{{ ad_in_cart|yesno:'true,false' }}"
                         onclick="toggleCartCard({{ ad.id }}, this, '{{ ad.title|escapejs }}', {{ ad.price }})"
-                        title="{% if ad.is_in_cart %}{% trans "في السلة" %}{% else %}{% trans "إضافة للسلة" %}{% endif %}"
-                        aria-label="{% if ad.is_in_cart %}{% trans "في السلة" %}{% else %}{% trans "إضافة للسلة" %}{% endif %}">
+                        title="{% if ad_in_cart %}{% trans "في السلة" %}{% else %}{% trans "إضافة للسلة" %}{% endif %}"
+                        aria-label="{% if ad_in_cart %}{% trans "في السلة" %}{% else %}{% trans "إضافة للسلة" %}{% endif %}">
                     <i class="fas fa-shopping-cart"></i>
                 </button>
                 {% endif %}

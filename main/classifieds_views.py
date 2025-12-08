@@ -469,7 +469,7 @@ class ClassifiedAdDetailView(DetailView):
             )
             .select_related("user")
             .prefetch_related("images", "features")
-            .order_by("-relevance_score", "-created_at")[:3]
+            .order_by("-relevance_score", "-created_at")[:12]
         )
 
         context["related_ads"] = related_ads
