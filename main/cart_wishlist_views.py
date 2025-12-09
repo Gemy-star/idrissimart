@@ -105,14 +105,20 @@ def add_to_cart(request):
             message = _("تمت إضافة {} إلى السلة").format(ad.title)
 
         cart_count = cart.get_items_count()
-        print(f"[ADD_TO_CART] Final cart count: {cart_count}")
+        wishlist = get_or_create_wishlist(request.user)
+        wishlist_count = wishlist.get_items_count()
+        print(
+            f"[ADD_TO_CART] Final cart count: {cart_count}, wishlist count: {wishlist_count}"
+        )
 
         return JsonResponse(
             {
                 "success": True,
                 "message": message,
                 "cart_count": cart_count,
+                "wishlist_count": wishlist_count,
                 "item_id": ad_id,
+                "is_in_cart": True,
             }
         )
 
@@ -143,13 +149,17 @@ def remove_from_cart(request):
         ad_title = cart_item.ad.title
         cart_item.delete()
         cart_count = cart.get_items_count()
+        wishlist = get_or_create_wishlist(request.user)
+        wishlist_count = wishlist.get_items_count()
 
         return JsonResponse(
             {
                 "success": True,
                 "message": _("تمت إزالة {} من السلة").format(ad_title),
                 "cart_count": cart_count,
+                "wishlist_count": wishlist_count,
                 "item_id": ad_id,
+                "is_in_cart": False,
             }
         )
 
@@ -537,7 +547,11 @@ def add_to_wishlist(request):
             print(f"[ADD_TO_WISHLIST] Created wishlist item: {wishlist_item.id}")
 
             wishlist_count = wishlist.get_items_count()
-            print(f"[ADD_TO_WISHLIST] Final wishlist count: {wishlist_count}")
+            cart = get_or_create_cart(request.user)
+            cart_count = cart.get_items_count()
+            print(
+                f"[ADD_TO_WISHLIST] Final wishlist count: {wishlist_count}, cart count: {cart_count}"
+            )
 
             message = _("تمت إضافة {} إلى المفضلة").format(ad.title)
             return JsonResponse(
@@ -545,6 +559,7 @@ def add_to_wishlist(request):
                     "success": True,
                     "message": message,
                     "wishlist_count": wishlist_count,
+                    "cart_count": cart_count,
                     "item_id": ad_id,
                     "is_in_wishlist": True,
                 }
@@ -587,12 +602,16 @@ def remove_from_wishlist(request):
 
         ad_title = wishlist_item.ad.title
         wishlist_item.delete()
+        wishlist_count = wishlist.get_items_count()
+        cart = get_or_create_cart(request.user)
+        cart_count = cart.get_items_count()
 
         return JsonResponse(
             {
                 "success": True,
                 "message": _("تمت إزالة {} من المفضلة").format(ad_title),
-                "wishlist_count": wishlist.get_items_count(),
+                "wishlist_count": wishlist_count,
+                "cart_count": cart_count,
                 "item_id": ad_id,
                 "is_in_wishlist": False,
             }

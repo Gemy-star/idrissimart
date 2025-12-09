@@ -125,7 +125,13 @@ async function addToCart(itemId, itemName = 'المنتج') {
         const data = await response.json();
 
         if (data.success) {
-            updateHeaderCount('cart', data.cart_count);
+            // Update both counts if provided
+            if (data.cart_count !== undefined) {
+                updateHeaderCount('cart', data.cart_count);
+            }
+            if (data.wishlist_count !== undefined) {
+                updateHeaderCount('wishlist', data.wishlist_count);
+            }
             showNotification(data.message || `تمت إضافة ${itemName} إلى السلة`, 'success');
 
             // Dispatch event for other components to listen
@@ -170,7 +176,13 @@ async function removeFromCart(itemId, itemName = 'المنتج') {
         const data = await response.json();
 
         if (data.success) {
-            updateHeaderCount('cart', data.cart_count);
+            // Update both counts if provided
+            if (data.cart_count !== undefined) {
+                updateHeaderCount('cart', data.cart_count);
+            }
+            if (data.wishlist_count !== undefined) {
+                updateHeaderCount('wishlist', data.wishlist_count);
+            }
             showNotification(data.message || `تمت إزالة ${itemName} من السلة`, 'success');
 
             // Dispatch event
@@ -218,7 +230,13 @@ async function addToWishlist(itemId, itemName = 'المنتج') {
         const data = await response.json();
 
         if (data.success) {
-            updateHeaderCount('wishlist', data.wishlist_count);
+            // Update both counts if provided
+            if (data.wishlist_count !== undefined) {
+                updateHeaderCount('wishlist', data.wishlist_count);
+            }
+            if (data.cart_count !== undefined) {
+                updateHeaderCount('cart', data.cart_count);
+            }
             showNotification(data.message || `تمت إضافة ${itemName} إلى المفضلة`, 'success');
 
             // Dispatch event
@@ -263,7 +281,13 @@ async function removeFromWishlist(itemId, itemName = 'المنتج') {
         const data = await response.json();
 
         if (data.success) {
-            updateHeaderCount('wishlist', data.wishlist_count);
+            // Update both counts if provided
+            if (data.wishlist_count !== undefined) {
+                updateHeaderCount('wishlist', data.wishlist_count);
+            }
+            if (data.cart_count !== undefined) {
+                updateHeaderCount('cart', data.cart_count);
+            }
             showNotification(data.message || `تمت إزالة ${itemName} من المفضلة`, 'success');
 
             // Dispatch event
@@ -300,9 +324,89 @@ function toggleWishlistButton(button, isInWishlist) {
     }
 }
 
+/**
+ * Sync cart/wishlist button states with database
+ * Call this on page load to ensure buttons reflect actual DB state
+ */
+async function syncButtonStates() {
+    if (!isUserAuthenticated()) return;
+
+    // Sync cart buttons - check all possible selectors
+    const cartButtons = document.querySelectorAll('button.cart-btn-card[data-ad-id], button.ad-cart-btn[data-ad-id], button.add-to-cart-btn[data-ad-id]');
+    cartButtons.forEach(button => {
+        const adId = button.dataset.adId;
+        if (adId) {
+            // Check data-in-cart attribute (from template)
+            const isInCart = button.dataset.inCart === 'true';
+
+            // Ensure button state matches database state from template
+            if (isInCart) {
+                button.classList.add('active');
+                button.dataset.inCart = 'true';
+                button.title = 'في السلة';
+                button.setAttribute('aria-label', 'في السلة');
+            } else {
+                button.classList.remove('active');
+                button.dataset.inCart = 'false';
+                button.title = 'إضافة للسلة';
+                button.setAttribute('aria-label', 'إضافة للسلة');
+            }
+        }
+    });
+
+    // Sync wishlist buttons - check all possible selectors
+    const wishlistButtons = document.querySelectorAll('button.wishlist-btn-card[data-ad-id], button.ad-wishlist-btn[data-ad-id], button.wishlist-btn[data-ad-id]');
+    wishlistButtons.forEach(button => {
+        const adId = button.dataset.adId;
+        if (adId) {
+            // Check data-in-wishlist attribute (from template)
+            const isInWishlist = button.dataset.inWishlist === 'true';
+            const icon = button.querySelector('i');
+
+            // Ensure button state matches database state from template
+            if (isInWishlist) {
+                button.classList.add('active');
+                button.dataset.inWishlist = 'true';
+                if (icon) {
+                    icon.classList.remove('far');
+                    icon.classList.add('fas');
+                }
+                button.title = 'في المفضلة';
+                button.setAttribute('aria-label', 'في المفضلة');
+            } else {
+                button.classList.remove('active');
+                button.dataset.inWishlist = 'false';
+                if (icon) {
+                    icon.classList.remove('fas');
+                    icon.classList.add('far');
+                }
+                button.title = 'إضافة للمفضلة';
+                button.setAttribute('aria-label', 'إضافة للمفضلة');
+            }
+        }
+    });
+}
+
 // Event listeners for dynamic content
 document.addEventListener('cartUpdated', (e) => {
     console.log('Cart updated:', e.detail);
+
+    // Update all cart buttons for this ad
+    const adId = e.detail.itemId;
+    const isInCart = e.detail.action === 'add';
+
+    document.querySelectorAll(`[data-ad-id="${adId}"].cart-btn-card, [data-ad-id="${adId}"].ad-cart-btn`).forEach(btn => {
+        if (isInCart) {
+            btn.classList.add('active');
+            btn.title = 'في السلة';
+            btn.setAttribute('aria-label', 'في السلة');
+        } else {
+            btn.classList.remove('active');
+            btn.title = 'إضافة للسلة';
+            btn.setAttribute('aria-label', 'إضافة للسلة');
+        }
+    });
+
     // Refresh cart UI if on cart page
     if (window.location.pathname.includes('/cart/')) {
         location.reload();
@@ -311,32 +415,102 @@ document.addEventListener('cartUpdated', (e) => {
 
 document.addEventListener('wishlistUpdated', (e) => {
     console.log('Wishlist updated:', e.detail);
+
+    // Update all wishlist buttons for this ad
+    const adId = e.detail.itemId;
+    const isInWishlist = e.detail.action === 'add';
+
+    document.querySelectorAll(`[data-ad-id="${adId}"].wishlist-btn-card, [data-ad-id="${adId}"].ad-wishlist-btn`).forEach(btn => {
+        const icon = btn.querySelector('i');
+        if (isInWishlist) {
+            btn.classList.add('active');
+            if (icon) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+            }
+            btn.title = 'في المفضلة';
+            btn.setAttribute('aria-label', 'في المفضلة');
+        } else {
+            btn.classList.remove('active');
+            if (icon) {
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+            }
+            btn.title = 'إضافة للمفضلة';
+            btn.setAttribute('aria-label', 'إضافة للمفضلة');
+        }
+    });
+
     // Refresh wishlist UI if on wishlist page
     if (window.location.pathname.includes('/wishlist/')) {
         location.reload();
     }
 });
 
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', syncButtonStates);
+
 /**
  * Toggle cart button (add/remove from cart)
  */
 async function toggleCartCard(adId, button, itemName = 'المنتج', price = 0) {
-    const isInCart = button.classList.contains('active');
+    // Check data attribute first, fallback to class
+    const isInCart = button.dataset.inCart === 'true' || button.classList.contains('active');
 
-    if (isInCart) {
-        const result = await removeFromCart(adId, itemName);
-        if (result.success) {
-            button.classList.remove('active');
-            button.title = 'إضافة للسلة';
-            button.setAttribute('aria-label', 'إضافة للسلة');
+    // Disable button during request
+    button.disabled = true;
+
+    try {
+        let result;
+        if (isInCart) {
+            result = await removeFromCart(adId, itemName);
+        } else {
+            result = await addToCart(adId, itemName);
         }
-    } else {
-        const result = await addToCart(adId, itemName);
-        if (result.success) {
-            button.classList.add('active');
-            button.title = 'في السلة';
-            button.setAttribute('aria-label', 'في السلة');
+
+        if (result && result.success) {
+            const newState = !isInCart;
+
+            // Update all cart buttons for this ad (in case there are multiple)
+            const allCartButtons = document.querySelectorAll(`button.cart-btn-card[data-ad-id="${adId}"], button.ad-cart-btn[data-ad-id="${adId}"], button.add-to-cart-btn[data-ad-id="${adId}"]`);
+            allCartButtons.forEach(btn => {
+                if (newState) {
+                    // Added to cart
+                    btn.classList.add('active');
+                    btn.dataset.inCart = 'true';
+                    if (btn.dataset.isInCart !== undefined) {
+                        btn.dataset.isInCart = 'true';
+                    }
+                    btn.title = 'في السلة';
+                    btn.setAttribute('aria-label', 'في السلة');
+
+                    // Update button text if it has .button-text span
+                    const buttonText = btn.querySelector('.button-text');
+                    if (buttonText) {
+                        buttonText.textContent = 'إزالة من السلة';
+                    }
+                } else {
+                    // Removed from cart
+                    btn.classList.remove('active');
+                    btn.dataset.inCart = 'false';
+                    if (btn.dataset.isInCart !== undefined) {
+                        btn.dataset.isInCart = 'false';
+                    }
+                    btn.title = 'إضافة للسلة';
+                    btn.setAttribute('aria-label', 'إضافة للسلة');
+
+                    // Update button text if it has .button-text span
+                    const buttonText = btn.querySelector('.button-text');
+                    if (buttonText) {
+                        buttonText.textContent = 'إضافة للسلة';
+                    }
+                }
+            });
         }
+    } catch (error) {
+        console.error('Error toggling cart:', error);
+    } finally {
+        button.disabled = false;
     }
 }
 
@@ -344,31 +518,73 @@ async function toggleCartCard(adId, button, itemName = 'المنتج', price = 0
  * Toggle wishlist button (add/remove from wishlist)
  */
 async function toggleWishlistCard(adId, button, itemName = 'المنتج') {
-    const isInWishlist = button.classList.contains('active');
+    // Check data attribute first, fallback to class
+    const isInWishlist = button.dataset.inWishlist === 'true' || button.classList.contains('active');
     const icon = button.querySelector('i');
 
-    if (isInWishlist) {
-        const result = await removeFromWishlist(adId, itemName);
-        if (result.success) {
-            button.classList.remove('active');
-            if (icon) {
-                icon.classList.remove('fas');
-                icon.classList.add('far');
-            }
-            button.title = 'إضافة للمفضلة';
-            button.setAttribute('aria-label', 'إضافة للمفضلة');
+    // Disable button during request
+    button.disabled = true;
+
+    try {
+        let result;
+        if (isInWishlist) {
+            result = await removeFromWishlist(adId, itemName);
+        } else {
+            result = await addToWishlist(adId, itemName);
         }
-    } else {
-        const result = await addToWishlist(adId, itemName);
-        if (result.success) {
-            button.classList.add('active');
-            if (icon) {
-                icon.classList.remove('far');
-                icon.classList.add('fas');
-            }
-            button.title = 'في المفضلة';
-            button.setAttribute('aria-label', 'في المفضلة');
+
+        if (result && result.success) {
+            const newState = !isInWishlist;
+
+            // Update all wishlist buttons for this ad (in case there are multiple)
+            const allWishlistButtons = document.querySelectorAll(`button.wishlist-btn-card[data-ad-id="${adId}"], button.ad-wishlist-btn[data-ad-id="${adId}"], button.wishlist-btn[data-ad-id="${adId}"]`);
+            allWishlistButtons.forEach(btn => {
+                const btnIcon = btn.querySelector('i');
+                if (newState) {
+                    // Added to wishlist
+                    btn.classList.add('active');
+                    btn.dataset.inWishlist = 'true';
+                    if (btn.dataset.isInWishlist !== undefined) {
+                        btn.dataset.isInWishlist = 'true';
+                    }
+                    if (btnIcon) {
+                        btnIcon.classList.remove('far');
+                        btnIcon.classList.add('fas');
+                    }
+                    btn.title = 'في المفضلة';
+                    btn.setAttribute('aria-label', 'في المفضلة');
+
+                    // Update button text if it has .button-text span
+                    const buttonText = btn.querySelector('.button-text');
+                    if (buttonText) {
+                        buttonText.textContent = 'إزالة من المفضلة';
+                    }
+                } else {
+                    // Removed from wishlist
+                    btn.classList.remove('active');
+                    btn.dataset.inWishlist = 'false';
+                    if (btn.dataset.isInWishlist !== undefined) {
+                        btn.dataset.isInWishlist = 'false';
+                    }
+                    if (btnIcon) {
+                        btnIcon.classList.remove('fas');
+                        btnIcon.classList.add('far');
+                    }
+                    btn.title = 'إضافة للمفضلة';
+                    btn.setAttribute('aria-label', 'إضافة للمفضلة');
+
+                    // Update button text if it has .button-text span
+                    const buttonText = btn.querySelector('.button-text');
+                    if (buttonText) {
+                        buttonText.textContent = 'إضافة للمفضلة';
+                    }
+                }
+            });
         }
+    } catch (error) {
+        console.error('Error toggling wishlist:', error);
+    } finally {
+        button.disabled = false;
     }
 }
 
@@ -381,4 +597,53 @@ window.toggleCartCard = toggleCartCard;
 window.toggleWishlistCard = toggleWishlistCard;
 window.showNotification = showNotification;
 window.updateHeaderCount = updateHeaderCount;
+window.syncButtonStates = syncButtonStates;
+
+// Aliases for compatibility
+window.updateCartCountInHeader = (count) => updateHeaderCount('cart', count);
+window.updateWishlistCountInHeader = (count) => updateHeaderCount('wishlist', count);
+
+/**
+ * Fetch current cart and wishlist counts from server
+ * Useful for ensuring counts are in sync with database
+ */
+async function refreshCountsFromServer() {
+    if (!isUserAuthenticated()) return;
+
+    try {
+        // Fetch cart count
+        const cartResponse = await fetch('/api/cart/count/', {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': csrftoken
+            }
+        });
+
+        if (cartResponse.ok) {
+            const cartData = await cartResponse.json();
+            if (cartData.success && cartData.cart_count !== undefined) {
+                updateHeaderCount('cart', cartData.cart_count);
+            }
+        }
+
+        // Fetch wishlist count
+        const wishlistResponse = await fetch('/api/wishlist/count/', {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': csrftoken
+            }
+        });
+
+        if (wishlistResponse.ok) {
+            const wishlistData = await wishlistResponse.json();
+            if (wishlistData.success && wishlistData.wishlist_count !== undefined) {
+                updateHeaderCount('wishlist', wishlistData.wishlist_count);
+            }
+        }
+    } catch (error) {
+        console.error('Error refreshing counts from server:', error);
+    }
+}
+
+window.refreshCountsFromServer = refreshCountsFromServer;
 

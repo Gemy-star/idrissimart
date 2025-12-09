@@ -595,17 +595,24 @@
 
     const startTime = Date.now();
 
-    window.addEventListener('load', () => {
+    const hidePreloader = () => {
       const elapsedTime = Date.now() - startTime;
-      // Ensure the loader is visible for at least 1000ms (1 second)
-      const remainingTime = Math.max(0, 1000 - elapsedTime);
+      // Ensure the loader is visible for at least 800ms
+      const remainingTime = Math.max(0, 800 - elapsedTime);
 
       setTimeout(() => {
         preloader.classList.add('loader-hidden');
         // Remove loading class to show content
         document.body.classList.remove('loading');
       }, remainingTime);
-    });
+    };
+
+    // Check if page is already loaded
+    if (document.readyState === 'complete') {
+      hidePreloader();
+    } else {
+      window.addEventListener('load', hidePreloader);
+    }
 
     console.log('✓ Preloader initialized');
   }

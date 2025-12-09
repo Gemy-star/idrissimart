@@ -328,7 +328,7 @@
                             </div>
 
                             <!-- Remove Button -->
-                            <button class="cart-item-remove" onclick="removeFromCart({{ item.ad.id }})">
+                            <button class="cart-item-remove" onclick="removeFromCartPage({{ item.ad.id }})">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -415,24 +415,16 @@ function proceedToCheckout() {
     }
 }
 
-async function removeFromCart(adId) {
+async function removeFromCartPage(adId) {
     if (!confirm('{% trans "هل أنت متأكد من إزالة هذا المنتج؟" %}')) {
         return;
     }
 
-    try {
-        const response = await fetch('/api/cart/remove/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': csrftoken
-            },
-            body: `item_id=${adId}`
-        });
+    // Use the global removeFromCart function
+    if (typeof window.removeFromCart === 'function') {
+        const result = await window.removeFromCart(adId);
 
-        const data = await response.json();
-
-        if (data.success) {
+        if (result && result.success) {
             // Remove item from DOM
             const itemElement = document.querySelector(`[data-item-id="${adId}"]`);
             if (itemElement) {
@@ -448,22 +440,14 @@ async function removeFromCart(adId) {
                 }, 300);
             }
 
-            // Update cart count
-            if (data.cart_count !== undefined) {
-                const cartBadge = document.querySelector('.cart-count');
-                if (cartBadge) cartBadge.textContent = data.cart_count;
-
+            // Update cart count badge
+            if (result.cart_count !== undefined) {
                 const cartCountBadge = document.querySelector('.cart-count-badge');
                 if (cartCountBadge) {
-                    cartCountBadge.innerHTML = `<i class="fas fa-box"></i> ${data.cart_count} {% trans "منتج" %}`;
+                    cartCountBadge.innerHTML = `<i class="fas fa-box"></i> ${result.cart_count} {% trans "منتج" %}`;
                 }
             }
-        } else {
-            alert(data.message || '{% trans "حدث خطأ" %}');
         }
-    } catch (error) {
-        console.error('Error removing from cart:', error);
-        alert('{% trans "حدث خطأ في إزالة المنتج" %}');
     }
 }
 
