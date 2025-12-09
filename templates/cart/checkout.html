@@ -364,11 +364,32 @@
                                 <div class="form-group">
                                     <label class="form-label">
                                         <span class="required">*</span>
-                                        {% trans "المدينة" %}
+                                        {% trans "الدولة" %}
                                     </label>
-                                    <input type="text" name="city" class="form-control" required>
+                                    <select name="country" id="checkout-country" class="form-control" required>
+                                        <option value="">{% trans "اختر الدولة" %}</option>
+                                        {% for country in countries %}
+                                        <option value="{{ country.code }}" {% if country.code == selected_country %}selected{% endif %}>
+                                            {{ country.flag_emoji }} {{ country.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
                                 </div>
                             </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        <span class="required">*</span>
+                                        {% trans "المدينة" %}
+                                    </label>
+                                    <select name="city" id="checkout-city" class="form-control" required>
+                                        <option value="">{% trans "اختر الدولة أولاً" %}</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label class="form-label">
@@ -431,6 +452,30 @@
                     <div id="onlinePaymentNote" style="display: none;" class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
                         {% trans "سيتم تحويلك لبوابة الدفع الإلكتروني لإتمام العملية" %}
+
+                        <div class="mt-3">
+                            <label class="form-label fw-bold">{% trans "اختر طريقة الدفع:" %}</label>
+                            <div class="payment-options">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="payment_option" id="paymentDefault" value="default" checked>
+                                    <label class="form-check-label" for="paymentDefault">
+                                        <i class="fas fa-credit-card me-2"></i>{% trans "الدفع الإلكتروني (الافتراضي)" %}
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="payment_option" id="paymentVisa" value="visa">
+                                    <label class="form-check-label" for="paymentVisa">
+                                        <i class="fab fa-cc-visa me-2 text-primary"></i>{% trans "فيزا" %}
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="payment_option" id="paymentMastercard" value="mastercard">
+                                    <label class="form-check-label" for="paymentMastercard">
+                                        <i class="fab fa-cc-mastercard me-2 text-warning"></i>{% trans "ماستركارد" %}
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div id="partialPaymentNote" style="display: none;" class="alert alert-warning">
@@ -509,7 +554,32 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/dynamic-cities.js' %}"></script>
 <script>
+// Initialize dynamic cities for checkout form
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize the dynamic cities system
+    initializeDynamicCities('checkout-country', 'checkout-city');
+
+    // The initializeDynamicCities function will automatically load cities
+    // for the selected country ({{ selected_country }})
+
+    // Pre-select user's city if available
+    {% if user_city %}
+    setTimeout(function() {
+        const citySelect = document.getElementById('checkout-city');
+        if (citySelect && !citySelect.disabled) {
+            const cityOption = Array.from(citySelect.options).find(
+                option => option.value === "{{ user_city }}"
+            );
+            if (cityOption) {
+                citySelect.value = "{{ user_city }}";
+            }
+        }
+    }, 600);
+    {% endif %}
+});
+
 let isPhoneVerified = {{ user.is_mobile_verified|yesno:"true,false" }};
 let originalPhone = "{{ user.mobile|default:user.phone }}";
 let currentPhone = originalPhone;
@@ -532,7 +602,7 @@ function sendVerificationCode() {
     const phone = phoneInput.value.trim();
 
     if (!phone) {
-        alert('{% trans "يرجى إدخال رقم الهاتف" %}');
+        showToast('{% trans "يرجى إدخال رقم الهاتف" %}', 'warning');
         return;
     }
 
@@ -556,14 +626,14 @@ function sendVerificationCode() {
             document.getElementById('verificationCode').focus();
             alert('{% trans "تم إرسال رمز التحقق إلى رقمك" %}');
         } else {
-            alert(data.message || '{% trans "حدث خطأ في إرسال الرمز" %}');
+            showToast(data.message || '{% trans "حدث خطأ في إرسال الرمز" %}', 'error');
         }
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>{% trans "إرسال رمز" %}';
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('{% trans "حدث خطأ في إرسال الرمز" %}');
+        showToast('{% trans "حدث خطأ في إرسال الرمز" %}', 'error');
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>{% trans "إرسال رمز" %}';
     });
@@ -573,7 +643,7 @@ function verifyCode() {
     const code = document.getElementById('verificationCode').value.trim();
 
     if (!code) {
-        alert('{% trans "يرجى إدخال رمز التحقق" %}');
+        showToast('{% trans "يرجى إدخال رمز التحقق" %}', 'warning');
         return;
     }
 
@@ -600,12 +670,12 @@ function verifyCode() {
             document.getElementById('phoneHint').innerHTML = '<i class="fas fa-check-circle text-success"></i> {% trans "تم توثيق رقم الهاتف بنجاح" %}';
             alert('{% trans "تم توثيق رقم الهاتف بنجاح" %}');
         } else {
-            alert(data.message || '{% trans "رمز التحقق غير صحيح" %}');
+            showToast(data.message || '{% trans "رمز التحقق غير صحيح" %}', 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('{% trans "حدث خطأ في التحقق" %}');
+        showToast('{% trans "حدث خطأ في التحقق" %}', 'error');
     });
 }
 
@@ -662,12 +732,12 @@ function placeOrder() {
         const totalAmount = parseFloat(document.getElementById('totalForPartial').textContent);
 
         if (!paidAmount || paidAmount <= 0) {
-            alert('{% trans "يرجى إدخال المبلغ المدفوع" %}');
+            showToast('{% trans "يرجى إدخال المبلغ المدفوع" %}', 'warning');
             return;
         }
 
         if (paidAmount > totalAmount) {
-            alert('{% trans "المبلغ المدفوع لا يمكن أن يكون أكبر من المبلغ الإجمالي" %}');
+            showToast('{% trans "المبلغ المدفوع لا يمكن أن يكون أكبر من المبلغ الإجمالي" %}', 'warning');
             return;
         }
     }
@@ -694,7 +764,7 @@ function placeOrder() {
     .then(data => {
         if (data.success) {
             // Show success message
-            alert('{% trans "تم تأكيد الطلب بنجاح!" %}');
+            showToast('{% trans "تم تأكيد الطلب بنجاح!" %}', 'success');
 
             // Redirect based on payment method
             if (paymentMethod === 'online' && data.payment_url) {
@@ -703,14 +773,14 @@ function placeOrder() {
                 window.location.href = data.redirect_url || "{% url 'main:home' %}";
             }
         } else {
-            alert(data.error || '{% trans "حدث خطأ" %}');
+            showToast(data.error || '{% trans "حدث خطأ" %}', 'error');
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-check-circle me-2"></i>{% trans "تأكيد الطلب" %}';
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('{% trans "حدث خطأ في معالجة الطلب" %}');
+        showToast('{% trans "حدث خطأ في معالجة الطلب" %}', 'error');
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-check-circle me-2"></i>{% trans "تأكيد الطلب" %}';
     });
@@ -748,6 +818,61 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Error checking partial payment eligibility:', error);
     });
 });
+
+// Toast notifications
+function showToast(message, type = 'info') {
+    const iconClass = type === 'success' ? 'fa-check-circle' :
+                      type === 'error' ? 'fa-exclamation-circle' :
+                      type === 'warning' ? 'fa-exclamation-triangle' :
+                      'fa-info-circle';
+
+    const bgClass = type === 'success' ? 'bg-success' :
+                    type === 'error' ? 'bg-danger' :
+                    type === 'warning' ? 'bg-warning' :
+                    'bg-info';
+
+    // Create toast container if it doesn't exist
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastContainer.style.zIndex = '9999';
+        document.body.appendChild(toastContainer);
+    }
+
+    // Create toast element
+    const toastId = 'toast-' + Date.now();
+    const toastEl = document.createElement('div');
+    toastEl.id = toastId;
+    toastEl.className = `toast align-items-center text-white ${bgClass} border-0`;
+    toastEl.setAttribute('role', 'alert');
+    toastEl.setAttribute('aria-live', 'assertive');
+    toastEl.setAttribute('aria-atomic', 'true');
+
+    toastEl.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="fas ${iconClass} me-2"></i>${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    `;
+
+    toastContainer.appendChild(toastEl);
+
+    // Initialize and show toast
+    const toast = new bootstrap.Toast(toastEl, {
+        autohide: true,
+        delay: 4000
+    });
+
+    toast.show();
+
+    // Remove toast element after it's hidden
+    toastEl.addEventListener('hidden.bs.toast', () => {
+        toastEl.remove();
+    });
+}
 </script>
 {% endblock %}
 

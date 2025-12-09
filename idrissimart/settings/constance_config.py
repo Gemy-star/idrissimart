@@ -167,6 +167,20 @@ CONSTANCE_CONFIG = {
         "إدريسي مارت",
         _("SendGrid From Name"),
     ),
+    # Google reCAPTCHA v2 Settings
+    "RECAPTCHA_SITE_KEY": (
+        "6LcUMSYsAAAAAGKWlIEtHtmD7ecT5U1Vi3B098dD",
+        _("Google reCAPTCHA Site Key (Public)"),
+    ),
+    "RECAPTCHA_SECRET_KEY": (
+        "6LcUMSYsAAAAAARBEdYizpNQTn9SbrZWutEkfuPq",
+        _("Google reCAPTCHA Secret Key (Private)"),
+    ),
+    "RECAPTCHA_ENABLED": (
+        True,
+        _("Enable reCAPTCHA verification on forms"),
+        bool,
+    ),
     "SENDGRID_ENABLED": (
         True,
         _("Enable SendGrid email service"),
@@ -461,6 +475,11 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "SENDGRID_API_KEY",
         "SENDGRID_FROM_EMAIL",
         "SENDGRID_FROM_NAME",
+    ),
+    "Security & Verification - reCAPTCHA": (
+        "RECAPTCHA_ENABLED",
+        "RECAPTCHA_SITE_KEY",
+        "RECAPTCHA_SECRET_KEY",
     ),
     "SMS Settings - Twilio": (
         "TWILIO_ENABLED",

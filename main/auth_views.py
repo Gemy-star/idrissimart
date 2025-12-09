@@ -278,7 +278,10 @@ class RegisterView(CreateView):
     model = User
     form_class = RegistrationForm
     template_name = "pages/register.html"
-    success_url = reverse_lazy("main:home")
+
+    def get_success_url(self):
+        """Redirect to dashboard after registration (publisher dashboard for default users)"""
+        return reverse_lazy("main:dashboard")
 
     def get(self, request, *args, **kwargs):
         if request.user.is_authenticated:
@@ -451,10 +454,22 @@ class RegisterView(CreateView):
 
             return redirect(self.success_url)
         else:
-            # Add form errors to messages framework
+            # Add form errors to messages framework for debugging
+            error_details = []
             for field, errors in form.errors.items():
                 for error in errors:
-                    messages.error(request, f"{form.fields[field].label}: {error}")
+                    field_label = (
+                        form.fields.get(field).label if field in form.fields else field
+                    )
+                    error_details.append(f"{field_label}: {error}")
+                    messages.error(request, f"{field_label}: {error}")
+
+            # Log errors for debugging
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(f"Registration form validation failed: {error_details}")
+
             messages.error(request, _("يرجى تصحيح الأخطاء أدناه والمحاولة مرة أخرى."))
             return render(
                 request,
@@ -530,11 +545,35 @@ def send_phone_verification_code(request):
         # Normalize phone number based on country
         normalized_phone = normalize_phone_number(phone, country_code)
 
-        # Check if phone already registered
-        if User.objects.filter(phone=normalized_phone).exists():
-            return JsonResponse(
-                {"success": False, "message": _("رقم الجوال مسجل مسبقاً")}, status=400
+        # Check if phone already registered (but allow if it's the current user's phone)
+        if request.user.is_authenticated:
+            # For authenticated users, check if phone is already verified
+            if request.user.is_mobile_verified and (
+                request.user.mobile == normalized_phone
+                or request.user.phone == normalized_phone
+            ):
+                return JsonResponse(
+                    {"success": False, "message": _("رقم الهاتف موثق بالفعل")},
+                    status=400,
+                )
+            # Check if phone belongs to another user
+            existing_user = (
+                User.objects.filter(phone=normalized_phone)
+                .exclude(id=request.user.id)
+                .first()
             )
+            if existing_user:
+                return JsonResponse(
+                    {"success": False, "message": _("رقم الجوال مسجل مسبقاً")},
+                    status=400,
+                )
+        else:
+            # For non-authenticated users (registration), check if phone already exists
+            if User.objects.filter(phone=normalized_phone).exists():
+                return JsonResponse(
+                    {"success": False, "message": _("رقم الجوال مسجل مسبقاً")},
+                    status=400,
+                )
 
         # Generate verification code
         code = generate_verification_code()

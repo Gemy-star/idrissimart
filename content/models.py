@@ -33,6 +33,7 @@ class Country(models.Model):
         max_length=10, blank=True, verbose_name=_("كود الهاتف")
     )
     currency = models.CharField(max_length=10, blank=True, verbose_name=_("العملة"))
+    cities = models.JSONField(default=list, blank=True, verbose_name=_("المدن"))
     is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
     order = models.IntegerField(default=0, verbose_name=_("الترتيب"))
     created_at = models.DateTimeField(auto_now_add=True)

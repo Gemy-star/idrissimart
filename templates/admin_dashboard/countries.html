@@ -1,0 +1,820 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n %}
+
+{% block title %}
+    {% trans "إدارة الدول - لوحة تحكم المدير" %}
+{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+    /* ============================================
+       CSS VARIABLES FOR THEME MANAGEMENT
+       ============================================ */
+    :root {
+        --countries-modal-bg: #ffffff;
+        --countries-modal-border: transparent;
+        --countries-text-primary: #1a202c;
+        --countries-text-secondary: #6c757d;
+        --countries-border-light: #f3f4f6;
+        --countries-border-color: #dee2e6;
+        --countries-bg-hover: #f8f9fa;
+        --countries-shadow-light: rgba(0, 0, 0, 0.1);
+        --countries-shadow-medium: rgba(0, 0, 0, 0.3);
+        --countries-accent: #4b315e;
+        --countries-accent-hover: #6b4c7a;
+        --countries-table-bg: #ffffff;
+        --countries-table-header-bg: #f8f9fa;
+    }
+
+    [data-theme='dark'] {
+        --countries-modal-bg: #2d3748;
+        --countries-modal-border: rgba(255, 255, 255, 0.1);
+        --countries-text-primary: #f7fafc;
+        --countries-text-secondary: #cbd5e0;
+        --countries-border-light: rgba(255, 255, 255, 0.1);
+        --countries-border-color: rgba(255, 255, 255, 0.1);
+        --countries-bg-hover: rgba(255, 255, 255, 0.05);
+        --countries-shadow-light: rgba(0, 0, 0, 0.4);
+        --countries-shadow-medium: rgba(0, 0, 0, 0.3);
+        --countries-accent: #a78bbd;
+        --countries-accent-hover: #b99dc9;
+        --countries-table-bg: #2d3748;
+        --countries-table-header-bg: rgba(255, 255, 255, 0.05);
+    }
+
+    /* ============================================
+       MODAL STYLING
+       ============================================ */
+    .modal-content {
+        background: var(--countries-modal-bg);
+        border: 1px solid var(--countries-modal-border);
+        border-radius: 16px;
+        box-shadow: 0 20px 60px var(--countries-shadow-medium);
+        color: var(--countries-text-primary);
+    }
+
+    .modal-header {
+        padding: 1.5rem;
+        border-bottom: 2px solid var(--countries-border-light);
+    }
+
+    .modal-header h5 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--countries-accent);
+        margin: 0;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid var(--countries-border-light);
+    }
+
+    .btn-close {
+        filter: var(--bs-btn-close-white-filter);
+    }
+
+    /* ============================================
+       TABLE STYLING
+       ============================================ */
+    .countries-table {
+        background: var(--countries-table-bg);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px var(--countries-shadow-light);
+    }
+
+    .countries-table thead {
+        background: var(--countries-table-header-bg);
+    }
+
+    .countries-table thead th {
+        color: var(--countries-text-primary);
+        font-weight: 600;
+        border-bottom: 2px solid var(--countries-border-light);
+        padding: 1rem;
+    }
+
+    .countries-table tbody tr {
+        border-bottom: 1px solid var(--countries-border-color);
+        transition: background-color 0.2s;
+    }
+
+    .countries-table tbody tr:hover {
+        background: var(--countries-bg-hover);
+    }
+
+    .countries-table tbody td {
+        color: var(--countries-text-primary);
+        padding: 1rem;
+        vertical-align: middle;
+    }
+
+    .country-flag {
+        font-size: 2rem;
+        line-height: 1;
+    }
+
+    .country-name {
+        font-weight: 600;
+        margin: 0;
+        color: var(--countries-text-primary);
+    }
+
+    .country-code {
+        font-size: 0.875rem;
+        color: var(--countries-text-secondary);
+        margin: 0;
+    }
+
+    .cities-count-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+    }
+
+    .action-buttons .btn {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    /* ============================================
+       FORM STYLING
+       ============================================ */
+    .form-label {
+        color: var(--countries-text-primary);
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control {
+        background: var(--countries-modal-bg);
+        border: 1px solid var(--countries-border-color);
+        color: var(--countries-text-primary);
+        border-radius: 8px;
+        padding: 0.625rem 0.875rem;
+    }
+
+    .form-control:focus {
+        background: var(--countries-modal-bg);
+        border-color: var(--countries-accent);
+        color: var(--countries-text-primary);
+        box-shadow: 0 0 0 0.25rem rgba(75, 49, 94, 0.25);
+    }
+
+    [data-theme='dark'] .form-control:focus {
+        box-shadow: 0 0 0 0.25rem rgba(167, 139, 189, 0.25);
+    }
+
+    .form-control::placeholder {
+        color: var(--countries-text-secondary);
+        opacity: 0.6;
+    }
+
+    /* Cities Textarea */
+    #citiesTextarea {
+        font-family: 'Courier New', monospace;
+        font-size: 0.875rem;
+        min-height: 200px;
+    }
+
+    .cities-help-text {
+        font-size: 0.875rem;
+        color: var(--countries-text-secondary);
+        margin-top: 0.5rem;
+    }
+
+    /* ============================================
+       TOAST NOTIFICATIONS
+       ============================================ */
+    .toast-container {
+        z-index: 11000;
+    }
+
+    .toast {
+        border-radius: 12px;
+        box-shadow: 0 4px 12px var(--countries-shadow-light);
+    }
+
+    .toast-body {
+        padding: 1rem;
+        font-weight: 500;
+    }
+
+    /* ============================================
+       UTILITY CLASSES
+       ============================================ */
+    .text-muted {
+        color: var(--countries-text-secondary) !important;
+    }
+
+    .badge {
+        font-weight: 500;
+        padding: 0.375rem 0.75rem;
+        border-radius: 8px;
+    }
+
+    /* Empty state */
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+        color: var(--countries-text-secondary);
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="container">
+    <div class="admin-content-card mb-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-globe me-2"></i>
+                    {% trans "إدارة الدول" %}
+                </h4>
+                <button class="btn btn-primary" id="addCountryBtn">
+                    <i class="fas fa-plus me-2"></i>
+                    {% trans "إضافة دولة جديدة" %}
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if countries %}
+                <div class="table-responsive">
+                    <table class="table countries-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">{% trans "العلم" %}</th>
+                                <th>{% trans "اسم الدولة" %}</th>
+                                <th>{% trans "الكود" %}</th>
+                                <th>{% trans "كود الهاتف" %}</th>
+                                <th>{% trans "العملة" %}</th>
+                                <th>{% trans "عدد المدن" %}</th>
+                                <th>{% trans "الحالة" %}</th>
+                                <th class="text-end">{% trans "الإجراءات" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody id="countriesTableBody">
+                            {% for country in countries %}
+                            <tr data-country-id="{{ country.id }}">
+                                <td class="text-center">
+                                    <span class="country-flag">{{ country.flag_emoji }}</span>
+                                </td>
+                                <td>
+                                    <p class="country-name">
+                                        {% if LANGUAGE_CODE == 'ar' %}
+                                            {{ country.name }}
+                                        {% else %}
+                                            {{ country.name_en }}
+                                        {% endif %}
+                                    </p>
+                                    <p class="country-code">
+                                        {% if LANGUAGE_CODE == 'ar' %}
+                                            {{ country.name_en }}
+                                        {% else %}
+                                            {{ country.name }}
+                                        {% endif %}
+                                    </p>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ country.code }}</span>
+                                </td>
+                                <td>
+                                    <span class="text-muted">{{ country.phone_code }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ country.currency }}</span>
+                                </td>
+                                <td>
+                                    <span class="cities-count-badge {% if country.cities %}bg-success{% else %}bg-warning{% endif %} text-white">
+                                        <i class="fas fa-city"></i>
+                                        {{ country.cities|length|default:0 }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if country.is_active %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>
+                                            {% trans "نشط" %}
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-times me-1"></i>
+                                            {% trans "غير نشط" %}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn btn-sm btn-outline-primary edit-country-btn"
+                                                data-country-id="{{ country.id }}"
+                                                data-bs-toggle="tooltip"
+                                                title="{% trans 'تعديل' %}">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-{% if country.is_active %}warning{% else %}success{% endif %} toggle-active-btn"
+                                                data-country-id="{{ country.id }}"
+                                                data-is-active="{{ country.is_active|lower }}"
+                                                data-bs-toggle="tooltip"
+                                                title="{% if country.is_active %}{% trans 'تعطيل' %}{% else %}{% trans 'تفعيل' %}{% endif %}">
+                                            <i class="fas fa-{% if country.is_active %}ban{% else %}check{% endif %}"></i>
+                                        </button>
+                                        {% if country.cities %}
+                                        <button class="btn btn-sm btn-outline-info populate-cities-btn"
+                                                data-country-id="{{ country.id }}"
+                                                data-bs-toggle="tooltip"
+                                                title="{% trans 'إعادة تحميل المدن' %}">
+                                            <i class="fas fa-sync"></i>
+                                        </button>
+                                        {% endif %}
+                                        <button class="btn btn-sm btn-outline-danger delete-country-btn"
+                                                data-country-id="{{ country.id }}"
+                                                data-country-name="{% if LANGUAGE_CODE == 'ar' %}{{ country.name }}{% else %}{{ country.name_en }}{% endif %}"
+                                                data-bs-toggle="tooltip"
+                                                title="{% trans 'حذف' %}">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-globe"></i>
+                    <h5>{% trans "لا توجد دول مضافة بعد" %}</h5>
+                    <p class="text-muted">{% trans "ابدأ بإضافة دولة جديدة من الزر أعلاه" %}</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container position-fixed top-0 end-0 p-3" id="toastContainer"></div>
+
+{% endblock %}
+
+{% block modals %}
+<!-- Add/Edit Country Modal -->
+<div class="modal fade" id="countryModal" tabindex="-1" aria-labelledby="countryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="countryModalLabel">
+                    <i class="fas fa-globe me-2"></i>
+                    <span id="modalTitle">{% trans "إضافة دولة" %}</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="countryForm">
+                    <input type="hidden" id="countryId" name="id">
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="nameAr" class="form-label">{% trans "اسم الدولة (عربي)" %} <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="nameAr" name="name" required placeholder="{% trans 'مثال: السعودية' %}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="nameEn" class="form-label">{% trans "اسم الدولة (English)" %} <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="nameEn" name="name_en" required placeholder="{% trans 'Example: Saudi Arabia' %}">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="code" class="form-label">{% trans "كود الدولة" %} <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control text-uppercase" id="code" name="code" required maxlength="3" placeholder="{% trans 'SA' %}">
+                            <small class="text-muted">{% trans "كود ISO من حرفين" %}</small>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="phoneCode" class="form-label">{% trans "كود الهاتف" %} <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="phoneCode" name="phone_code" required placeholder="{% trans '+966' %}">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="currency" class="form-label">{% trans "العملة" %} <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control text-uppercase" id="currency" name="currency" required maxlength="3" placeholder="{% trans 'SAR' %}">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="flagEmoji" class="form-label">{% trans "علم الدولة (إيموجي)" %}</label>
+                            <input type="text" class="form-control" id="flagEmoji" name="flag_emoji" placeholder="🇸🇦">
+                            <small class="text-muted">{% trans "يمكنك نسخ الإيموجي من الإنترنت" %}</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="order" class="form-label">{% trans "الترتيب" %}</label>
+                            <input type="number" class="form-control" id="order" name="order" value="0" min="0">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="citiesTextarea" class="form-label">{% trans "المدن" %}</label>
+                        <textarea class="form-control" id="citiesTextarea" name="cities" rows="8" placeholder='["الرياض", "جدة", "مكة المكرمة"]'></textarea>
+                        <div class="cities-help-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            {% trans "أدخل المدن كقائمة JSON، مثل:" %} <code>["الرياض", "جدة", "مكة المكرمة"]</code>
+                            <br>
+                            <small>{% trans "يمكنك ترك هذا الحقل فارغاً واستخدام زر 'إعادة تحميل المدن' لاحقاً" %}</small>
+                        </div>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="isActive" name="is_active" checked>
+                        <label class="form-check-label" for="isActive">
+                            {% trans "نشط" %}
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>
+                    {% trans "إلغاء" %}
+                </button>
+                <button type="button" class="btn btn-primary" id="saveCountryBtn">
+                    <i class="fas fa-save me-2"></i>
+                    {% trans "حفظ" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteConfirmModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    {% trans "تأكيد الحذف" %}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">
+                    {% trans "هل أنت متأكد من حذف الدولة" %} <strong id="deleteCountryName"></strong>؟
+                </p>
+                <p class="text-danger mt-2 mb-0">
+                    <i class="fas fa-exclamation-circle me-1"></i>
+                    {% trans "لا يمكن التراجع عن هذا الإجراء!" %}
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    {% trans "إلغاء" %}
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash me-2"></i>
+                    {% trans "حذف" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ============================================
+// CONFIGURATION
+// ============================================
+const URLS = {
+    save: "{% url 'main:admin_country_save' %}",
+    get: (id) => `{% url 'main:admin_country_get' 0 %}`.replace('/0/', `/${id}/`),
+    delete: (id) => `{% url 'main:admin_country_delete' 0 %}`.replace('/0/', `/${id}/`),
+    toggleActive: (id) => `{% url 'main:admin_country_toggle_active' 0 %}`.replace('/0/', `/${id}/`),
+    populateCities: (id) => `{% url 'main:admin_country_populate_cities' 0 %}`.replace('/0/', `/${id}/`),
+};
+
+const MESSAGES = {
+    saveSuccess: "{% trans 'تم حفظ الدولة بنجاح' %}",
+    saveError: "{% trans 'حدث خطأ أثناء حفظ الدولة' %}",
+    deleteSuccess: "{% trans 'تم حذف الدولة بنجاح' %}",
+    deleteError: "{% trans 'حدث خطأ أثناء حذف الدولة' %}",
+    toggleSuccess: "{% trans 'تم تغيير حالة الدولة بنجاح' %}",
+    toggleError: "{% trans 'حدث خطأ أثناء تغيير حالة الدولة' %}",
+    populateSuccess: "{% trans 'تم إعادة تحميل المدن بنجاح' %}",
+    populateError: "{% trans 'حدث خطأ أثناء إعادة تحميل المدن' %}",
+    invalidJson: "{% trans 'صيغة JSON غير صحيحة للمدن' %}",
+};
+
+// ============================================
+// UTILITY FUNCTIONS
+// ============================================
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showToast(message, type = 'info', duration = 5000) {
+    const toastContainer = document.getElementById('toastContainer');
+    const toastId = 'toast-' + Date.now();
+    const bgClass = type === 'success' ? 'bg-success' :
+                   type === 'error' ? 'bg-danger' :
+                   type === 'warning' ? 'bg-warning' : 'bg-info';
+
+    const toastHTML = `
+        <div id="${toastId}" class="toast align-items-center ${bgClass} text-white border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    `;
+
+    toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement, { delay: duration });
+    toast.show();
+
+    toastElement.addEventListener('hidden.bs.toast', function () {
+        this.remove();
+    });
+}
+
+// ============================================
+// MODAL MANAGEMENT
+// ============================================
+const countryModal = new bootstrap.Modal(document.getElementById('countryModal'));
+const deleteConfirmModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+let currentDeleteId = null;
+
+function openAddModal() {
+    document.getElementById('modalTitle').textContent = "{% trans 'إضافة دولة' %}";
+    document.getElementById('countryForm').reset();
+    document.getElementById('countryId').value = '';
+    document.getElementById('isActive').checked = true;
+    countryModal.show();
+}
+
+function openEditModal(countryId) {
+    document.getElementById('modalTitle').textContent = "{% trans 'تعديل الدولة' %}";
+
+    fetch(URLS.get(countryId), {
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const country = data.data;
+            document.getElementById('countryId').value = country.id;
+            document.getElementById('nameAr').value = country.name;
+            document.getElementById('nameEn').value = country.name_en;
+            document.getElementById('code').value = country.code;
+            document.getElementById('phoneCode').value = country.phone_code;
+            document.getElementById('currency').value = country.currency;
+            document.getElementById('flagEmoji').value = country.flag_emoji || '';
+            document.getElementById('order').value = country.order || 0;
+            document.getElementById('citiesTextarea').value = JSON.stringify(country.cities || [], null, 2);
+            document.getElementById('isActive').checked = country.is_active;
+            countryModal.show();
+        } else {
+            showToast(data.message || MESSAGES.saveError, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast(MESSAGES.saveError, 'error');
+    });
+}
+
+function openDeleteModal(countryId, countryName) {
+    currentDeleteId = countryId;
+    document.getElementById('deleteCountryName').textContent = countryName;
+    deleteConfirmModal.show();
+}
+
+// ============================================
+// CRUD OPERATIONS
+// ============================================
+function saveCountry() {
+    const form = document.getElementById('countryForm');
+    const formData = new FormData(form);
+
+    // Validate cities JSON
+    const citiesText = document.getElementById('citiesTextarea').value.trim();
+    if (citiesText) {
+        try {
+            const citiesArray = JSON.parse(citiesText);
+            if (!Array.isArray(citiesArray)) {
+                showToast(MESSAGES.invalidJson, 'error');
+                return;
+            }
+        } catch (e) {
+            showToast(MESSAGES.invalidJson, 'error');
+            return;
+        }
+    }
+
+    // Convert FormData to JSON
+    const data = {};
+    formData.forEach((value, key) => {
+        if (key === 'cities') {
+            data[key] = citiesText ? JSON.parse(citiesText) : [];
+        } else if (key === 'is_active') {
+            data[key] = document.getElementById('isActive').checked;
+        } else if (key === 'code') {
+            data[key] = value.toUpperCase();
+        } else {
+            data[key] = value;
+        }
+    });
+
+    fetch(URLS.save, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(MESSAGES.saveSuccess, 'success');
+            countryModal.hide();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.message || MESSAGES.saveError, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast(MESSAGES.saveError, 'error');
+    });
+}
+
+function deleteCountry() {
+    if (!currentDeleteId) return;
+
+    fetch(URLS.delete(currentDeleteId), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(MESSAGES.deleteSuccess, 'success');
+            deleteConfirmModal.hide();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.message || MESSAGES.deleteError, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast(MESSAGES.deleteError, 'error');
+    });
+}
+
+function toggleActive(countryId) {
+    fetch(URLS.toggleActive(countryId), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(MESSAGES.toggleSuccess, 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.message || MESSAGES.toggleError, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast(MESSAGES.toggleError, 'error');
+    });
+}
+
+function populateCities(countryId) {
+    showToast("{% trans 'جاري تحميل المدن...' %}", 'info');
+
+    fetch(URLS.populateCities(countryId), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(MESSAGES.populateSuccess, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast(data.message || MESSAGES.populateError, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast(MESSAGES.populateError, 'error');
+    });
+}
+
+// ============================================
+// EVENT LISTENERS
+// ============================================
+document.addEventListener('DOMContentLoaded', function() {
+    // Add Country Button
+    document.getElementById('addCountryBtn').addEventListener('click', openAddModal);
+
+    // Save Country Button
+    document.getElementById('saveCountryBtn').addEventListener('click', saveCountry);
+
+    // Confirm Delete Button
+    document.getElementById('confirmDeleteBtn').addEventListener('click', deleteCountry);
+
+    // Edit Buttons
+    document.querySelectorAll('.edit-country-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const countryId = this.getAttribute('data-country-id');
+            openEditModal(countryId);
+        });
+    });
+
+    // Delete Buttons
+    document.querySelectorAll('.delete-country-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const countryId = this.getAttribute('data-country-id');
+            const countryName = this.getAttribute('data-country-name');
+            openDeleteModal(countryId, countryName);
+        });
+    });
+
+    // Toggle Active Buttons
+    document.querySelectorAll('.toggle-active-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const countryId = this.getAttribute('data-country-id');
+            toggleActive(countryId);
+        });
+    });
+
+    // Populate Cities Buttons
+    document.querySelectorAll('.populate-cities-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const countryId = this.getAttribute('data-country-id');
+            populateCities(countryId);
+        });
+    });
+
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Auto-uppercase code and currency fields
+    document.getElementById('code').addEventListener('input', function() {
+        this.value = this.value.toUpperCase();
+    });
+    document.getElementById('currency').addEventListener('input', function() {
+        this.value = this.value.toUpperCase();
+    });
+});
+</script>
+{% endblock %}

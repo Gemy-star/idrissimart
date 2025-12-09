@@ -150,3 +150,24 @@ class BlogLikeView(LoginRequiredMixin, View):
             )
         except Exception as e:
             return JsonResponse({"success": False, "error": str(e)}, status=400)
+
+
+def get_cities(request, country_code):
+    """
+    AJAX endpoint to get cities for a specific country
+    """
+    from .models import Country
+
+    try:
+        country = Country.objects.get(code=country_code.upper(), is_active=True)
+        return JsonResponse(
+            {
+                "success": True,
+                "cities": country.cities or [],
+                "country_name": country.name,
+            }
+        )
+    except Country.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "error": "Country not found"}, status=404
+        )

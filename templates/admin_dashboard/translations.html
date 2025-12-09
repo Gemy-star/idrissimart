@@ -549,6 +549,44 @@
     </div>
 {% endblock %}
 
+{% block modals %}
+<!-- Update Translations Confirmation Modal -->
+<div class="modal fade" id="updateConfirmModal" tabindex="-1" aria-labelledby="updateConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="updateConfirmModalLabel">
+                    <i class="fas fa-sync-alt me-2"></i>
+                    {% trans "تأكيد التحديث" %}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">
+                    {% trans "هل تريد تحديث ملفات الترجمة؟ قد يستغرق هذا بعض الوقت." %}
+                </p>
+                <p class="text-warning mt-2 mb-0">
+                    <i class="fas fa-clock me-1"></i>
+                    {% trans "قد تستغرق هذه العملية بضع دقائق." %}
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    {% trans "إلغاء" %}
+                </button>
+                <button type="button" class="btn btn-primary" id="confirmUpdateBtn">
+                    <i class="fas fa-sync-alt me-2"></i>
+                    {% trans "تحديث" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 10500;"></div>
+{% endblock %}
+
 {% block admin_extra_js %}
 <script>
     // URL patterns with language prefix
@@ -557,22 +595,73 @@
         save: (lang) => `{% url "main:admin_translations_save" "LANG" %}`.replace('LANG', lang)
     };
 
-    // Note: Rosetta has X-Frame-Options set to DENY, so it opens in a new window
-
-    function updateTranslations() {
-        if (confirm('{% trans "هل تريد تحديث ملفات الترجمة؟ قد يستغرق هذا بعض الوقت." %}')) {
-            // Show loading notification
-            showNotification('{% trans "جاري تحديث الترجمات..." %}', 'info');
-
-            // In production, this would make an AJAX call to compile translations
-            setTimeout(() => {
-                showNotification('{% trans "تم تحديث الترجمات بنجاح" %}', 'success');
-            }, 2000);
+    // Toast notification function
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
         }
+        return cookieValue;
     }
 
+    function showToast(message, type = 'info', duration = 5000) {
+        const toastContainer = document.getElementById('toastContainer');
+        const toastId = 'toast-' + Date.now();
+        const bgClass = type === 'success' ? 'bg-success' :
+                       type === 'error' ? 'bg-danger' :
+                       type === 'warning' ? 'bg-warning' : 'bg-info';
+
+        const toastHTML = `
+            <div id="${toastId}" class="toast align-items-center ${bgClass} text-white border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        `;
+
+        toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+        const toastElement = document.getElementById(toastId);
+        const toast = new bootstrap.Toast(toastElement, { delay: duration });
+        toast.show();
+
+        toastElement.addEventListener('hidden.bs.toast', function () {
+            this.remove();
+        });
+    }
+
+    // Note: Rosetta has X-Frame-Options set to DENY, so it opens in a new window
+    const updateConfirmModal = new bootstrap.Modal(document.getElementById('updateConfirmModal'));
+
+    function updateTranslations() {
+        updateConfirmModal.show();
+    }
+
+    // Handle update confirmation
+    document.getElementById('confirmUpdateBtn').addEventListener('click', function() {
+        updateConfirmModal.hide();
+
+        // Show loading notification
+        showToast('{% trans "جاري تحديث الترجمات..." %}', 'info');
+
+        // In production, this would make an AJAX call to compile translations
+        setTimeout(() => {
+            showToast('{% trans "تم تحديث الترجمات بنجاح" %}', 'success');
+        }, 2000);
+    });
+
     function showAutoTranslateInfo() {
-        showNotification('{% trans "الترجمة التلقائية متاحة من خلال واجهة Rosetta. يمكنك استخدام خدمات الترجمة الآلية لترجمة النصوص تلقائياً، ثم مراجعتها وتحسينها يدوياً." %}', 'info');
+        showToast('{% trans "الترجمة التلقائية متاحة من خلال واجهة Rosetta. يمكنك استخدام خدمات الترجمة الآلية لترجمة النصوص تلقائياً، ثم مراجعتها وتحسينها يدوياً." %}', 'info', 7000);
     }
 
     // Inline Translation Editor Functions
@@ -709,7 +798,7 @@
         });
 
         if (updates.length === 0) {
-            showNotification('{% trans "لا توجد تغييرات للحفظ" %}', 'info');
+            showToast('{% trans "لا توجد تغييرات للحفظ" %}', 'info');
             return;
         }
 
@@ -726,16 +815,16 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                showNotification(`{% trans "تم حفظ" %} ${updates.length} {% trans "ترجمة بنجاح" %}`, 'success');
+                showToast(`{% trans "تم حفظ" %} ${updates.length} {% trans "ترجمة بنجاح" %}`, 'success');
                 // Reload stats
                 loadTranslationStats();
             } else {
-                showNotification(data.message || '{% trans "فشل الحفظ" %}', 'error');
+                showToast(data.message || '{% trans "فشل الحفظ" %}', 'error');
             }
         })
         .catch(error => {
             console.error('Error saving translations:', error);
-            showNotification('{% trans "حدث خطأ أثناء الحفظ" %}', 'error');
+            showToast('{% trans "حدث خطأ أثناء الحفظ" %}', 'error');
         });
     }
 
@@ -753,29 +842,7 @@
         return div.innerHTML;
     }
 
-    // Toast notification (already defined in base, but adding fallback)
-    if (typeof showNotification !== 'function') {
-        window.showNotification = function(message, type = 'success') {
-            const notification = document.createElement('div');
-            const typeClass = type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info';
-            const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle';
-            notification.className = `alert alert-${typeClass} position-fixed`;
-            notification.style.cssText = 'top: 20px; right: 20px; z-index: 10800; min-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
-            notification.innerHTML = `
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-${icon} me-2"></i>
-                    <span>${message}</span>
-                </div>
-            `;
-            document.body.appendChild(notification);
-
-            setTimeout(() => {
-                notification.style.opacity = '0';
-                notification.style.transition = 'opacity 0.3s ease';
-                setTimeout(() => notification.remove(), 300);
-            }, 3000);
-        };
-    }
+    // Translation stats and other functions
 
     // Simulate loading translation stats
     document.addEventListener('DOMContentLoaded', function() {

@@ -907,6 +907,37 @@ urlpatterns = [
         views.AdminCategoriesView.as_view(),
         name="admin_categories",
     ),
+    # Admin Countries Management
+    path(
+        "admin/countries/",
+        views.AdminCountriesView.as_view(),
+        name="admin_countries",
+    ),
+    path(
+        "admin/countries/<int:country_id>/",
+        views.admin_country_get,
+        name="admin_country_get",
+    ),
+    path(
+        "admin/countries/save/",
+        views.admin_country_save,
+        name="admin_country_save",
+    ),
+    path(
+        "admin/countries/<int:country_id>/delete/",
+        views.admin_country_delete,
+        name="admin_country_delete",
+    ),
+    path(
+        "admin/countries/<int:country_id>/toggle-active/",
+        views.admin_country_toggle_active,
+        name="admin_country_toggle_active",
+    ),
+    path(
+        "admin/countries/<int:country_id>/populate-cities/",
+        views.admin_country_populate_cities,
+        name="admin_country_populate_cities",
+    ),
     path(
         "admin/ads/",
         views.AdminAdsManagementView.as_view(),

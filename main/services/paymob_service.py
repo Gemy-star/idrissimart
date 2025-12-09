@@ -261,6 +261,7 @@ class PaymobService:
         order_id: str,
         billing_data: Dict,
         items: list = None,
+        integration_id: str = None,
     ) -> Tuple[bool, Optional[str], Optional[str]]:
         """
         Process a complete payment flow
@@ -270,6 +271,7 @@ class PaymobService:
             order_id: Your order ID
             billing_data: Customer billing information
             items: Order items
+            integration_id: Optional specific integration ID (Visa, Mastercard, etc.)
 
         Returns:
             Tuple of (success, payment_url, error_message)
@@ -305,6 +307,7 @@ class PaymobService:
                 order_id=paymob_order_id,
                 amount_cents=amount_cents,
                 billing_data=billing_data,
+                integration_id=integration_id,
             )
 
             if not payment_key:

@@ -1,11 +1,13 @@
 from django.urls import path, re_path
 
-from .views import BlogDetailView, BlogLikeView, BlogListView
+from .views import BlogDetailView, BlogLikeView, BlogListView, get_cities
 
 app_name = "content"
 
 urlpatterns = [
     path("", BlogListView.as_view(), name="blog_list"),
+    # Cities API endpoint
+    path("api/cities/<str:country_code>/", get_cities, name="get_cities"),
     # Tag filter MUST come before blog detail to avoid conflicts (supports Arabic)
     re_path(
         r"^tag/(?P<tag_slug>[\w\-\u0600-\u06FF]+)/$",

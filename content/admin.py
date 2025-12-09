@@ -2,6 +2,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.db import models
+from django.forms import JSONField, Textarea
 from django_ckeditor_5.widgets import CKEditor5Widget
 from solo.admin import SingletonModelAdmin
 
@@ -29,6 +30,7 @@ class CountryAdmin(admin.ModelAdmin):
         "code",
         "phone_code",
         "currency",
+        "cities_count",
         "is_active",
         "order",
     ]
@@ -37,6 +39,15 @@ class CountryAdmin(admin.ModelAdmin):
     list_editable = ["is_active", "order"]
     ordering = ["order", "name"]
 
+    # Use a better widget for JSON field
+    formfield_overrides = {
+        models.JSONField: {
+            "widget": Textarea(
+                attrs={"rows": 10, "cols": 80, "style": "font-family: monospace;"}
+            )
+        },
+    }
+
     fieldsets = (
         ("معلومات أساسية", {"fields": ("name", "name_en", "code", "flag_emoji")}),
         (
@@ -44,12 +55,52 @@ class CountryAdmin(admin.ModelAdmin):
             {"fields": ("phone_code", "currency", "order", "is_active")},
         ),
         (
+            "المدن",
+            {
+                "fields": ("cities",),
+                "description": "قائمة المدن بصيغة JSON. استخدم الأمر populate_cities لملء البيانات تلقائياً أو استخدم الإجراء 'تحديث المدن' من القائمة أعلاه.",
+            },
+        ),
+        (
             "التواريخ",
             {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
         ),
     )
 
+    def cities_count(self, obj):
+        """Display number of cities for this country"""
+        if obj.cities:
+            return f"{len(obj.cities)} مدينة"
+        return "0 مدينة"
+
+    cities_count.short_description = "عدد المدن"
+
     readonly_fields = ["created_at", "updated_at"]
+
+    actions = ["populate_cities_action"]
+
+    def populate_cities_action(self, request, queryset):
+        """Admin action to populate cities for selected countries"""
+        from django.core.management import call_command
+        from io import StringIO
+
+        updated = 0
+        for country in queryset:
+            if country.code in ["SA", "EG", "AE", "KW", "QA", "BH"]:
+                # Trigger the populate_cities command
+                out = StringIO()
+                call_command("populate_cities", stdout=out)
+                updated += 1
+
+        if updated > 0:
+            self.message_user(request, f"تم تحديث المدن لـ {updated} دولة بنجاح")
+        else:
+            self.message_user(
+                request,
+                "لم يتم تحديث أي دولة. تأكد من تحديد دول مدعومة (SA, EG, AE, KW, QA, BH)",
+            )
+
+    populate_cities_action.short_description = "تحديث المدن للدول المحددة"
 
     def flag_display(self, obj):
         """Display flag emoji in admin list"""

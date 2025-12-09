@@ -2738,6 +2738,205 @@ class AdminCategoriesView(SuperadminRequiredMixin, TemplateView):
         return context
 
 
+class AdminCountriesView(SuperadminRequiredMixin, TemplateView):
+    """
+    Admin interface for managing countries
+    Restricted to superusers only
+    """
+
+    template_name = "admin_dashboard/countries.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["countries"] = Country.objects.all().order_by("order", "name")
+        context["active_nav"] = "countries"
+        return context
+
+
+@superadmin_required
+def admin_country_get(request, country_id):
+    """Get country data for editing"""
+    try:
+        country = Country.objects.get(id=country_id)
+        return JsonResponse(
+            {
+                "success": True,
+                "data": {
+                    "id": country.id,
+                    "name": country.name,
+                    "name_en": country.name_en,
+                    "code": country.code,
+                    "flag_emoji": country.flag_emoji,
+                    "phone_code": country.phone_code,
+                    "currency": country.currency,
+                    "cities": country.cities or [],
+                    "is_active": country.is_active,
+                    "order": country.order,
+                },
+            }
+        )
+    except Country.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "message": "الدولة غير موجودة"}, status=404
+        )
+
+
+@superadmin_required
+@require_http_methods(["POST"])
+def admin_country_save(request):
+    """Create or update a country"""
+    try:
+        data = json.loads(request.body)
+        country_id = data.get("id")
+
+        # Prepare country data
+        country_data = {
+            "name": data.get("name"),
+            "name_en": data.get("name_en"),
+            "code": data.get("code").upper(),
+            "flag_emoji": data.get("flag_emoji", ""),
+            "phone_code": data.get("phone_code"),
+            "currency": data.get("currency"),
+            "cities": data.get("cities", []),
+            "is_active": data.get("is_active", True),
+            "order": data.get("order", 0),
+        }
+
+        if country_id:
+            # Update existing country
+            country = Country.objects.get(id=country_id)
+            for key, value in country_data.items():
+                setattr(country, key, value)
+            country.save()
+            message = f"تم تحديث {country.name} بنجاح"
+        else:
+            # Create new country
+            country = Country.objects.create(**country_data)
+            message = f"تم إضافة {country.name} بنجاح"
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": message,
+                "country": {
+                    "id": country.id,
+                    "name": country.name,
+                    "name_en": country.name_en,
+                    "code": country.code,
+                    "flag_emoji": country.flag_emoji,
+                    "phone_code": country.phone_code,
+                    "currency": country.currency,
+                    "cities_count": len(country.cities) if country.cities else 0,
+                    "is_active": country.is_active,
+                    "order": country.order,
+                },
+            }
+        )
+    except Country.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "message": "الدولة غير موجودة"}, status=404
+        )
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "message": f"حدث خطأ: {str(e)}"}, status=400
+        )
+
+
+@superadmin_required
+@require_http_methods(["POST"])
+def admin_country_delete(request, country_id):
+    """Delete a country"""
+    try:
+        country = Country.objects.get(id=country_id)
+        country_name = country.name
+
+        # Check if country is being used
+        ads_count = ClassifiedAd.objects.filter(country=country).count()
+        if ads_count > 0:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": f"لا يمكن حذف {country_name} لأنه يحتوي على {ads_count} إعلان",
+                },
+                status=400,
+            )
+
+        country.delete()
+        return JsonResponse(
+            {"success": True, "message": f"تم حذف {country_name} بنجاح"}
+        )
+    except Country.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "message": "الدولة غير موجودة"}, status=404
+        )
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "message": f"حدث خطأ: {str(e)}"}, status=400
+        )
+
+
+@superadmin_required
+@require_http_methods(["POST"])
+def admin_country_toggle_active(request, country_id):
+    """Toggle country active status"""
+    try:
+        country = Country.objects.get(id=country_id)
+        country.is_active = not country.is_active
+        country.save()
+
+        status = "مفعّلة" if country.is_active else "معطّلة"
+        return JsonResponse(
+            {
+                "success": True,
+                "message": f"{country.name} الآن {status}",
+                "is_active": country.is_active,
+            }
+        )
+    except Country.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "message": "الدولة غير موجودة"}, status=404
+        )
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "message": f"حدث خطأ: {str(e)}"}, status=400
+        )
+
+
+@superadmin_required
+@require_http_methods(["POST"])
+def admin_country_populate_cities(request, country_id):
+    """Populate cities for a specific country"""
+    try:
+        from django.core.management import call_command
+        from io import StringIO
+
+        country = Country.objects.get(id=country_id)
+
+        # Run the populate_cities command
+        out = StringIO()
+        call_command("populate_cities", stdout=out)
+
+        # Refresh from database
+        country.refresh_from_db()
+
+        cities_count = len(country.cities) if country.cities else 0
+        return JsonResponse(
+            {
+                "success": True,
+                "message": f"تم تحديث {cities_count} مدينة لـ{country.name}",
+                "cities_count": cities_count,
+            }
+        )
+    except Country.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "message": "الدولة غير موجودة"}, status=404
+        )
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "message": f"حدث خطأ: {str(e)}"}, status=400
+        )
+
+
 class AdminAdsManagementView(SuperadminRequiredMixin, ListView):
     """
     Admin interface for comprehensive ads management with tabs

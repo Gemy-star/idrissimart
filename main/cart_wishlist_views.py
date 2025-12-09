@@ -386,22 +386,75 @@ def checkout_view(request):
                     OrderItem.objects.create(
                         order=order,
                         ad=cart_item.ad,
-                        quantity=cart_item.quantity,
                         price=cart_item.ad.price,
                     )
 
                 # Clear cart
                 cart_items.delete()
 
-            # Return success response
-            return JsonResponse(
-                {
-                    "success": True,
-                    "message": _("تم تأكيد الطلب بنجاح"),
-                    "order_id": order.id,
-                    "redirect_url": f"/{request.LANGUAGE_CODE}/",
+            # Prepare response
+            response_data = {
+                "success": True,
+                "message": _("تم تأكيد الطلب بنجاح"),
+                "order_id": order.id,
+                "redirect_url": f"/{request.LANGUAGE_CODE}/",
+            }
+
+            # Handle online payment
+            if payment_method == "online":
+                from main.services.paymob_service import PaymobService
+                from constance import config
+
+                # Get payment option (card type)
+                payment_option = request.POST.get("payment_option", "default")
+
+                # Prepare billing data
+                billing_data = {
+                    "first_name": full_name.split()[0] if full_name else "Customer",
+                    "last_name": (
+                        " ".join(full_name.split()[1:])
+                        if len(full_name.split()) > 1
+                        else "User"
+                    ),
+                    "phone_number": phone,
+                    "email": request.user.email or f"{request.user.id}@idrissimart.com",
+                    "street": address,
+                    "city": city,
+                    "country": "EG",
+                    "postal_code": postal_code or "00000",
                 }
-            )
+
+                # Determine integration ID based on payment option
+                integration_id = None
+                if payment_option == "visa" and config.PAYMOB_VISA_INTEGRATION_ID:
+                    integration_id = config.PAYMOB_VISA_INTEGRATION_ID
+                elif (
+                    payment_option == "mastercard"
+                    and config.PAYMOB_MASTERCARD_INTEGRATION_ID
+                ):
+                    integration_id = config.PAYMOB_MASTERCARD_INTEGRATION_ID
+                # else use default integration ID from PaymobService
+
+                # Process payment with specific integration ID
+                success, payment_url, error = PaymobService.process_payment(
+                    amount=total_amount,
+                    order_id=str(order.order_number),
+                    billing_data=billing_data,
+                    integration_id=integration_id,
+                )
+
+                if success and payment_url:
+                    response_data["payment_url"] = payment_url
+                else:
+                    # Payment URL generation failed, but order is created
+                    response_data["message"] = _(
+                        "تم إنشاء الطلب ولكن حدث خطأ في إنشاء رابط الدفع"
+                    )
+                    if error:
+                        response_data["payment_error"] = error
+
+            # Return success response
+            return JsonResponse(response_data)
 
         except Exception as e:
             return JsonResponse({"success": False, "error": str(e)}, status=400)
@@ -410,7 +463,6 @@ def checkout_view(request):
 
     # Calculate delivery fee from constance settings
     from constance import config
-    from decimal import Decimal
 
     delivery_fee_percentage = Decimal(str(config.DELIVERY_FEE_PERCENTAGE)) / 100
     delivery_fee = total_amount * delivery_fee_percentage
@@ -427,12 +479,24 @@ def checkout_view(request):
     # Calculate final total
     final_total = total_amount + delivery_fee
 
+    # Get countries for city selection
+    from content.models import Country
+
+    countries = Country.objects.filter(is_active=True).order_by("order", "name")
+
+    # Get user's saved city if available
+    user_city = None
+    if request.user.is_authenticated:
+        user_city = getattr(request.user, "city", None)
+
     context = {
         "cart": cart,
         "cart_items": cart_items,
         "total_amount": total_amount,
         "delivery_fee": delivery_fee,
         "final_total": final_total,
+        "countries": countries,
+        "user_city": user_city,
     }
 
     return render(request, "cart/checkout.html", context)

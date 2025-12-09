@@ -27,6 +27,49 @@
                 <!-- Hidden profile type field - all new users are DEFAULT/Standard -->
                 {{ form.profile_type }}
 
+                <!-- Display Form Errors -->
+                {% if form.errors %}
+                <div class="alert alert-danger mb-4 border-0 shadow-sm" role="alert">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="flex-shrink-0">
+                            <div class="rounded-circle bg-danger bg-opacity-10 p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-exclamation-triangle text-danger" style="font-size: 1.2rem;"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h6 class="alert-heading mb-2 fw-bold text-danger">
+                                <i class="fas fa-times-circle me-1"></i>
+                                {% trans "يرجى تصحيح الأخطاء التالية:" %}
+                            </h6>
+                            <ul class="mb-0 ps-3">
+                                {% for field, errors in form.errors.items %}
+                                    {% for error in errors %}
+                                        <li class="small">
+                                            {% if field != '__all__' %}
+                                                <strong>
+                                                    {% if field == 'username' %}{% trans "اسم المستخدم" %}
+                                                    {% elif field == 'email' %}{% trans "البريد الإلكتروني" %}
+                                                    {% elif field == 'phone' %}{% trans "رقم الهاتف" %}
+                                                    {% elif field == 'password' %}{% trans "كلمة المرور" %}
+                                                    {% elif field == 'password2' %}{% trans "تأكيد كلمة المرور" %}
+                                                    {% elif field == 'first_name' %}{% trans "الاسم الأول" %}
+                                                    {% elif field == 'last_name' %}{% trans "الاسم الأخير" %}
+                                                    {% elif field == 'country' %}{% trans "الدولة" %}
+                                                    {% elif field == 'captcha' %}{% trans "التحقق الأمني" %}
+                                                    {% elif field == 'terms_accepted' %}{% trans "الشروط والأحكام" %}
+                                                    {% else %}{{ field }}{% endif %}:
+                                                </strong>
+                                            {% endif %}
+                                            {{ error }}
+                                        </li>
+                                    {% endfor %}
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
                 <!-- Info message about account type -->
                 <div class="alert alert-primary mb-4 border-0 shadow-sm" role="alert" style="background: linear-gradient(135deg, rgba(13, 110, 253, 0.1) 0%, rgba(13, 110, 253, 0.05) 100%); border-right: 4px solid var(--primary-color) !important;">
                     <div class="d-flex align-items-start gap-3">
@@ -296,13 +339,13 @@
                                required
                                minlength="8"
                                oninput="checkPasswordStrength(this.value)" />
-                        <i class="fas fa-lock"></i>
                         <button type="button"
                                 class="password-toggle"
                                 onclick="togglePassword('password')"
                                 aria-label="{% trans 'إظهار/إخفاء كلمة المرور' %}">
                             <i class="fas fa-eye" id="password-icon"></i>
                         </button>
+                        <i class="fas fa-lock"></i>
                     </div>
                     <div class="password-strength">
                         <div class="password-strength-bar" id="password-strength-bar"></div>
@@ -323,13 +366,13 @@
                                placeholder="{% trans 'أعد إدخال كلمة المرور' %}"
                                required
                                minlength="8" />
-                        <i class="fas fa-lock"></i>
                         <button type="button"
                                 class="password-toggle"
                                 onclick="togglePassword('password2')"
                                 aria-label="{% trans 'إظهار/إخفاء كلمة المرور' %}">
                             <i class="fas fa-eye" id="password2-icon"></i>
                         </button>
+                        <i class="fas fa-lock"></i>
                     </div>
                 </div>
                 <!-- Terms & Conditions -->
@@ -436,6 +479,15 @@
             submitBtn.disabled = true
         })
 
+        // Reset button state on page load (in case of form errors)
+        document.addEventListener('DOMContentLoaded', function() {
+            const submitBtn = document.querySelector('#registerForm button[type="submit"]')
+            if (submitBtn) {
+                submitBtn.classList.remove('loading')
+                submitBtn.disabled = false
+            }
+        })
+
         // Toggle extra fields depending on profile type
         function updateExtraFields() {
             const selected = document.querySelector('input[name="profile_type"]:checked').value
@@ -519,6 +571,9 @@
                     showToast(data.message, 'success');
                     // Show verification code input
                     document.getElementById('verificationCodeGroup').style.display = 'block';
+                    // Re-enable button and update text
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '<i class="fas fa-redo me-1"></i> {% trans "إعادة إرسال الرمز" %}';
                     // Start countdown (10 minutes = 600 seconds)
                     startCountdown(600);
                 } else {
@@ -579,11 +634,19 @@
                     showToast(data.message, 'success');
                     // Show success status
                     statusSpan.innerHTML = '<i class="fas fa-check-circle text-success"></i> <span class="text-success">{% trans "تم التحقق بنجاح" %}</span>';
-                    // Disable inputs
-                    phoneInput.disabled = true;
-                    countrySelect.disabled = true;
-                    codeInput.disabled = true;
+                    // Update button to show verified state
+                    verifyBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> {% trans "تم التحقق بنجاح" %}';
+                    verifyBtn.classList.remove('btn-success');
+                    verifyBtn.classList.add('btn-success');
                     verifyBtn.disabled = true;
+                    // Make inputs readonly instead of disabled so values are submitted
+                    phoneInput.readOnly = true;
+                    phoneInput.style.backgroundColor = 'var(--bg-secondary)';
+                    phoneInput.style.cursor = 'not-allowed';
+                    countrySelect.disabled = true;
+                    codeInput.readOnly = true;
+                    codeInput.style.backgroundColor = 'var(--bg-secondary)';
+                    codeInput.style.cursor = 'not-allowed';
                     document.getElementById('sendCodeBtn').disabled = true;
                     // Stop countdown
                     if (countdownInterval) {

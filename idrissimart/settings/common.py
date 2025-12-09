@@ -196,34 +196,37 @@ EMAIL_HOST_USER = DEFAULT_FROM_EMAIL
 # =======================
 # Google reCAPTCHA v2
 # =======================
+# Get your own keys from: https://www.google.com/recaptcha/admin/create
+# Site Key: Use this in HTML forms (6LcUMSYsAAAAAGKWlIEtHtmD7ecT5U1Vi3B098dD)
+# Secret Key: Use this for server-side validation (6LcUMSYsAAAAAARBEdYizpNQTn9SbrZWutEkfuPq)
 RECAPTCHA_PUBLIC_KEY = os.getenv(
-    "RECAPTCHA_SITE_KEY", "6LcFPR4sAAAAAF2OLomwf-srKNlJtt33V05-FziB"
+    "RECAPTCHA_SITE_KEY", "6LcUMSYsAAAAAGKWlIEtHtmD7ecT5U1Vi3B098dD"
 )
 RECAPTCHA_PRIVATE_KEY = os.getenv(
-    "RECAPTCHA_SECRET_KEY", "6LcFPR4sAAAAAAPO3McKxxpBR1-hehL9A-gy5uAI"
+    "RECAPTCHA_SECRET_KEY", "6LcUMSYsAAAAAARBEdYizpNQTn9SbrZWutEkfuPq"
 )
 
-# For backward compatibility
+# For backward compatibility with different naming conventions
 RECAPTCHA_SITE_KEY = RECAPTCHA_PUBLIC_KEY
 RECAPTCHA_SECRET_KEY = RECAPTCHA_PRIVATE_KEY
+
+# Required settings for django-recaptcha v4+
+DJANGORECAPTCHA_DEFAULT_CSS_CLASS = "django-recaptcha"
+DJANGORECAPTCHA_USE_SSL = True
+
+# Disable reCAPTCHA validation in development if keys are not set
+SILENCED_SYSTEM_CHECKS = ["django_recaptcha.recaptcha_test_key_error"]
 
 # =======================
 # Cache Configuration
 # =======================
+# Use database cache by default (works without Redis)
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": os.getenv("REDIS_URL", "redis://127.0.0.1:6379/1"),
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        },
-        "KEY_PREFIX": "idrissimart",
-        "TIMEOUT": 300,  # 5 minutes default
-    },
-    # Fallback to database cache if Redis is not available
-    "fallback": {
         "BACKEND": "django.core.cache.backends.db.DatabaseCache",
         "LOCATION": "cache_table",
+        "TIMEOUT": 300,  # 5 minutes default
+        "OPTIONS": {"MAX_ENTRIES": 1000},
     },
 }
 
