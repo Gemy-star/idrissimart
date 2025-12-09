@@ -12,6 +12,13 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <!-- DNS Prefetch and Preconnect for faster loading -->
+        <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+        <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+        <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
         <meta name="description"
               content="{% trans 'إدريسي مارت - منصة شاملة تجمع كافة الخدمات والمنتجات في مكان واحد' %}">
         <meta name="keywords"
@@ -40,18 +47,43 @@
 
             {% endblock title %}
         </title>
+        <!-- Preload Font Awesome CSS with high priority -->
+        <link rel="preload"
+              href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
+              as="style">
+
+        <!-- Preload Font Awesome webfonts for icons -->
+        <link rel="preload"
+              href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/webfonts/fa-solid-900.woff2"
+              as="font"
+              type="font/woff2"
+              crossorigin="anonymous">
+        <link rel="preload"
+              href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/webfonts/fa-regular-400.woff2"
+              as="font"
+              type="font/woff2"
+              crossorigin="anonymous">
+
+        <noscript>
+            <link rel="stylesheet"
+                  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+        </noscript>
+
         <!-- Bootstrap CSS (Local) -->
         <link id="bootstrap-css"
               rel="stylesheet"
               href="{% static 'bootstrap/css/bootstrap.rtl.min.css' %}">
         <!-- Swiper CSS (Local) -->
         <link rel="stylesheet" href="{% static 'swiper/swiper-bundle.min.css' %}">
-        <!-- Font Awesome -->
+        <!-- Font Awesome - Eager Load -->
         <link rel="stylesheet"
-              href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+              href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
+              crossorigin="anonymous"
+              referrerpolicy="no-referrer">
         <!-- Google Fonts - Cairo -->
         <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap"
-              rel="stylesheet">
+              rel="stylesheet"
+              crossorigin="anonymous">
         {% compress css %}
             <!-- Custom CSS -->
             <link id="pagestyle" href="{% static 'css/style.css' %}?v=2.2" rel="stylesheet">
@@ -63,6 +95,56 @@
         {% block extra_css %}
 
         {% endblock extra_css %}
+
+        <!-- Font Awesome Loader Script -->
+        <script>
+            // Ensure Font Awesome loads before displaying preloader
+            (function() {
+                'use strict';
+
+                // Initially hide preloader
+                const preloader = document.getElementById('preloader');
+                if (preloader) {
+                    preloader.style.visibility = 'hidden';
+                }
+
+                // Function to check if Font Awesome is loaded
+                function isFontAwesomeLoaded() {
+                    const testElement = document.createElement('i');
+                    testElement.className = 'fas fa-check';
+                    testElement.style.position = 'absolute';
+                    testElement.style.visibility = 'hidden';
+                    document.body.appendChild(testElement);
+
+                    const computed = window.getComputedStyle(testElement);
+                    const loaded = computed.fontFamily.indexOf('Font Awesome') !== -1;
+
+                    document.body.removeChild(testElement);
+                    return loaded;
+                }
+
+                // Wait for Font Awesome to load
+                function waitForFontAwesome() {
+                    if (isFontAwesomeLoaded()) {
+                        // Font Awesome is loaded, show preloader
+                        if (preloader) {
+                            preloader.style.visibility = 'visible';
+                            document.body.classList.add('loading');
+                        }
+                    } else {
+                        // Check again in 50ms
+                        setTimeout(waitForFontAwesome, 50);
+                    }
+                }
+
+                // Start checking when DOM is ready
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', waitForFontAwesome);
+                } else {
+                    waitForFontAwesome();
+                }
+            })();
+        </script>
     </head>
     <body>
         {% include "partials/_pre_loader.html" %}
