@@ -372,8 +372,10 @@ def checkout_view(request):
                         paid_amount = total_amount
                     else:
                         payment_status = "partial"
-                elif payment_method == "cod":
-                    payment_status = "unpaid"
+                elif payment_method in ["cod", "instapay"]:
+                    payment_status = (
+                        "unpaid"  # InstaPay is offline, will be confirmed manually
+                    )
 
                 # Create order
                 order = Order.objects.create(
@@ -499,6 +501,11 @@ def checkout_view(request):
     if request.user.is_authenticated:
         user_city = getattr(request.user, "city", None)
 
+    # Get site configuration for InstaPay QR code
+    from content.site_config import SiteConfiguration
+
+    site_config = SiteConfiguration.get_solo()
+
     context = {
         "cart": cart,
         "cart_items": cart_items,
@@ -507,6 +514,8 @@ def checkout_view(request):
         "final_total": final_total,
         "countries": countries,
         "user_city": user_city,
+        "site_config": site_config,
+        "config": config,
     }
 
     return render(request, "cart/checkout.html", context)

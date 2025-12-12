@@ -40,6 +40,52 @@ class SiteConfiguration(SingletonModel):
         verbose_name=_("نص حقوق النشر"),
     )
 
+    # Verification Settings
+    require_email_verification = models.BooleanField(
+        default=False,
+        verbose_name=_("التحقق من البريد الإلكتروني إلزامي"),
+        help_text=_(
+            "إذا كان مفعلاً، يجب على المستخدمين تأكيد بريدهم الإلكتروني أثناء التسجيل"
+        ),
+    )
+
+    require_phone_verification = models.BooleanField(
+        default=False,
+        verbose_name=_("التحقق من رقم الهاتف إلزامي"),
+        help_text=_("إذا كان مفعلاً، يجب على المستخدمين تأكيد رقم هاتفهم أثناء التسجيل"),
+    )
+
+    require_verification_for_services = models.BooleanField(
+        default=False,
+        verbose_name=_("التحقق مطلوب لاستخدام الخدمات"),
+        help_text=_(
+            "إذا كان مفعلاً، يجب التحقق من الحساب لاستخدام خدمات الموقع (نشر إعلانات، إضافة للسلة، إلخ)"
+        ),
+    )
+
+    verification_services_message = models.TextField(
+        default="يجب التحقق من حسابك لاستخدام هذه الخدمة",
+        verbose_name=_("رسالة التحقق للخدمات"),
+        help_text=_(
+            "الرسالة التي تظهر للمستخدمين غير المتحققين عند محاولة استخدام الخدمات"
+        ),
+    )
+    verification_services_message_ar = models.TextField(
+        default="يجب التحقق من حسابك لاستخدام هذه الخدمة",
+        verbose_name=_("رسالة التحقق للخدمات بالعربية"),
+    )
+
+    # Payment Settings - InstaPay QR Code
+    instapay_qr_code = models.ImageField(
+        upload_to="payment/instapay/",
+        blank=True,
+        null=True,
+        verbose_name=_("رمز QR لـ InstaPay"),
+        help_text=_(
+            "قم برفع صورة رمز QR الخاص بحساب InstaPay للدفع غير المتصل بالإنترنت"
+        ),
+    )
+
     class Meta:
         verbose_name = _("إعدادات الموقع")
         verbose_name_plural = _("إعدادات الموقع")

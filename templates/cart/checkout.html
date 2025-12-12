@@ -428,6 +428,7 @@
                             </div>
                         </div>
 
+                        {% if config.ALLOW_ONLINE_PAYMENT %}
                         <div class="payment-method" onclick="selectPaymentMethod('online')">
                             <input type="radio" name="payment_method" value="online">
                             <div class="payment-method-icon">
@@ -437,6 +438,19 @@
                                 {% trans "الدفع الإلكتروني" %}
                             </div>
                         </div>
+                        {% endif %}
+
+                        {% if site_config.instapay_qr_code %}
+                        <div class="payment-method" onclick="selectPaymentMethod('instapay')">
+                            <input type="radio" name="payment_method" value="instapay">
+                            <div class="payment-method-icon">
+                                <i class="fas fa-qrcode"></i>
+                            </div>
+                            <div class="payment-method-label">
+                                {% trans "InstaPay (QR)" %}
+                            </div>
+                        </div>
+                        {% endif %}
 
                         <div class="payment-method" id="partialPaymentMethod" onclick="selectPaymentMethod('partial')">
                             <input type="radio" name="payment_method" value="partial" id="partialPaymentRadio">
@@ -449,6 +463,7 @@
                         </div>
                     </div>
 
+                    {% if config.ALLOW_ONLINE_PAYMENT %}
                     <div id="onlinePaymentNote" style="display: none;" class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
                         {% trans "سيتم تحويلك لبوابة الدفع الإلكتروني لإتمام العملية" %}
@@ -477,6 +492,25 @@
                             </div>
                         </div>
                     </div>
+                    {% endif %}
+
+                    {% if site_config.instapay_qr_code %}
+                    <div id="instapayPaymentNote" style="display: none;" class="alert alert-info">
+                        <div class="text-center">
+                            <i class="fas fa-qrcode me-2"></i>
+                            <h5>{% trans "الدفع عبر InstaPay" %}</h5>
+                            <p class="mb-3">{% trans "قم بمسح رمز QR باستخدام تطبيق البنك الخاص بك" %}</p>
+                            <img src="{{ site_config.instapay_qr_code.url }}"
+                                 alt="InstaPay QR Code"
+                                 class="img-fluid"
+                                 style="max-width: 300px; border: 2px solid #4b315e; border-radius: 10px; padding: 10px;">
+                            <p class="mt-3 small text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                {% trans "بعد إتمام الدفع، سيتم تأكيد الطلب تلقائياً. يمكنك تتبع حالة الطلب من لوحة التحكم." %}
+                            </p>
+                        </div>
+                    </div>
+                    {% endif %}
 
                     <div id="partialPaymentNote" style="display: none;" class="alert alert-warning">
                         <i class="fas fa-info-circle me-2"></i>
@@ -692,19 +726,23 @@ function selectPaymentMethod(method) {
     // Check radio
     document.querySelector(`input[value="${method}"]`).checked = true;
 
-    // Show/hide online payment note
+    // Show/hide payment notes
     const onlineNote = document.getElementById('onlinePaymentNote');
+    const instapayNote = document.getElementById('instapayPaymentNote');
     const partialNote = document.getElementById('partialPaymentNote');
 
-    if (method === 'online') {
+    // Hide all notes first
+    if (onlineNote) onlineNote.style.display = 'none';
+    if (instapayNote) instapayNote.style.display = 'none';
+    if (partialNote) partialNote.style.display = 'none';
+
+    // Show relevant note
+    if (method === 'online' && onlineNote) {
         onlineNote.style.display = 'block';
-        partialNote.style.display = 'none';
-    } else if (method === 'partial') {
-        onlineNote.style.display = 'none';
+    } else if (method === 'instapay' && instapayNote) {
+        instapayNote.style.display = 'block';
+    } else if (method === 'partial' && partialNote) {
         partialNote.style.display = 'block';
-    } else {
-        onlineNote.style.display = 'none';
-        partialNote.style.display = 'none';
     }
 }
 

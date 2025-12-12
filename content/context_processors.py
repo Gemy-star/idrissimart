@@ -2,6 +2,7 @@ from content.models import Country, HomeSlider
 from main.models import Notification
 from constance import config
 from django.db import models
+from content.verification_utils import get_verification_requirements
 
 
 def countries(request):
@@ -116,4 +117,13 @@ def cart_wishlist_counts(request):
     return {
         "cart_count": 0,
         "wishlist_count": 0,
+    }
+
+
+def verification_settings(request):
+    """
+    Context processor to add verification requirements to all templates
+    """
+    return {
+        "verification_requirements": get_verification_requirements(),
     }

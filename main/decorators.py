@@ -7,6 +7,7 @@ from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
+from content.verification_utils import user_can_use_services
 
 
 def profile_type_required(*allowed_types):
@@ -50,6 +51,29 @@ def verified_user_required(view_func):
         if request.user.verification_status != "verified":
             warning_msg = _("يجب توثيق حسابك أولاً.")
             messages.warning(request, warning_msg)
+            return redirect("main:publisher_settings")
+        return view_func(request, *args, **kwargs)
+
+    return wrapper
+
+
+def verification_required_for_services(view_func):
+    """
+    Decorator to check if user can use services based on verification requirements
+    Only enforces verification if enabled in site configuration
+
+    Usage:
+    @verification_required_for_services
+    def my_view(request):
+        pass
+    """
+
+    @wraps(view_func)
+    @login_required
+    def wrapper(request, *args, **kwargs):
+        can_use, message = user_can_use_services(request.user)
+        if not can_use:
+            messages.warning(request, message)
             return redirect("main:publisher_settings")
         return view_func(request, *args, **kwargs)
 

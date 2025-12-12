@@ -645,7 +645,16 @@ class RegistrationForm(forms.Form):
             self.fields["captcha"].required = False
 
     def clean_username(self):
+        from main.blocked_words import is_username_allowed
+
         username = self.cleaned_data.get("username").lower()
+
+        # Check for blocked words
+        is_allowed, error_message = is_username_allowed(username)
+        if not is_allowed:
+            raise ValidationError(error_message)
+
+        # Check if username already exists
         if User.objects.filter(username=username).exists():
             raise ValidationError(_("اسم المستخدم مستخدم من قبل. يرجى اختيار اسم آخر."))
         return username

@@ -154,6 +154,12 @@ CONSTANCE_CONFIG = {
         "EGP",
         _("Paymob payment currency"),
     ),
+    # Payment General Settings
+    "ALLOW_ONLINE_PAYMENT": (
+        True,
+        _("Enable online payment option in checkout"),
+        bool,
+    ),
     # Email Settings - SendGrid
     "SENDGRID_API_KEY": (
         os.getenv("SENDGRID_API_KEY", ""),
@@ -470,6 +476,7 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "PAYMOB_MASTERCARD_INTEGRATION_ID",
         "PAYMOB_VISA_INTEGRATION_ID",
     ),
+    "Payment General Settings": ("ALLOW_ONLINE_PAYMENT",),
     "Email Settings - SendGrid": (
         "SENDGRID_ENABLED",
         "SENDGRID_API_KEY",

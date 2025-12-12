@@ -30,6 +30,10 @@ from .utils import (
     validate_phone_number,
     normalize_phone_number,
 )
+from content.verification_utils import (
+    is_email_verification_required,
+    is_phone_verification_required,
+)
 
 
 class CustomLoginView(LoginView):
@@ -343,29 +347,33 @@ class RegisterView(CreateView):
             phone = data.get("phone")
             country_code = request.POST.get("country_code", "SA").upper()
 
-            # MANDATORY: Check if phone was verified in session
-            normalized_phone = normalize_phone_number(phone, country_code)
-            phone_verified = request.session.get(
-                f"phone_verified_{normalized_phone}", False
-            )
+            # Check if phone verification is required
+            phone_verification_required = is_phone_verification_required()
 
-            if not phone_verified:
-                messages.error(
-                    request,
-                    _(
-                        "التحقق من رقم الهاتف إلزامي. يرجى إكمال التحقق من شروط إكمال التسجيل"
-                    ),
+            # CONDITIONAL: Check if phone was verified in session (only if required)
+            if phone_verification_required:
+                normalized_phone = normalize_phone_number(phone, country_code)
+                phone_verified = request.session.get(
+                    f"phone_verified_{normalized_phone}", False
                 )
-                form.add_error("phone", _("لم يتم التحقق من رقم الهاتف"))
-                return render(
-                    request,
-                    self.template_name,
-                    {
-                        "form": form,
-                        "countries": countries,
-                        "profile_type_settings": profile_type_settings,
-                    },
-                )
+
+                if not phone_verified:
+                    messages.error(
+                        request,
+                        _(
+                            "التحقق من رقم الهاتف إلزامي. يرجى إكمال التحقق من شروط إكمال التسجيل"
+                        ),
+                    )
+                    form.add_error("phone", _("لم يتم التحقق من رقم الهاتف"))
+                    return render(
+                        request,
+                        self.template_name,
+                        {
+                            "form": form,
+                            "countries": countries,
+                            "profile_type_settings": profile_type_settings,
+                        },
+                    )
 
             if profile_type == "service":
                 user = User.objects.create_service_provider(
@@ -421,16 +429,22 @@ class RegisterView(CreateView):
             country_code = data.get("country", "EG")  # Default to Egypt
             user.country = country_code
 
-            # Mark phone as verified
-            user.is_mobile_verified = True
+            # Mark phone as verified if verification was required and completed
+            if phone_verification_required:
+                user.is_mobile_verified = True
+
             user.save(update_fields=["is_mobile_verified", "country"])
 
-            # Clear phone verification from session
-            if f"phone_verified_{normalized_phone}" in request.session:
-                del request.session[f"phone_verified_{normalized_phone}"]
+            # Clear phone verification from session if it was required
+            if phone_verification_required:
+                normalized_phone = normalize_phone_number(phone, country_code)
+                if f"phone_verified_{normalized_phone}" in request.session:
+                    del request.session[f"phone_verified_{normalized_phone}"]
 
-            # Send email verification (MANDATORY from registration completion conditions)
-            email_sent = send_email_verification(request, user)
+            # Send email verification (CONDITIONAL based on settings)
+            email_verification_required = is_email_verification_required()
+            if email_verification_required:
+                email_sent = send_email_verification(request, user)
 
             # Auto login after registration
             login(request, user)
@@ -439,18 +453,21 @@ class RegisterView(CreateView):
                 request, _("مرحباً بك في إدريسي مارت! 🎉 تم إنشاء حسابك بنجاح")
             )
 
-            if email_sent:
-                messages.info(
-                    request,
-                    _(
-                        "تم إرسال رابط تأكيد إلى بريدك الإلكتروني. التحقق من البريد الإلكتروني إلزامي من شروط إكمال التسجيل."
-                    ),
-                )
-            else:
-                messages.warning(
-                    request,
-                    _("فشل إرسال رسالة التحقق. يمكنك طلب إعادة الإرسال من الإعدادات."),
-                )
+            if email_verification_required:
+                if email_sent:
+                    messages.info(
+                        request,
+                        _(
+                            "تم إرسال رابط تأكيد إلى بريدك الإلكتروني. التحقق من البريد الإلكتروني إلزامي من شروط إكمال التسجيل."
+                        ),
+                    )
+                else:
+                    messages.warning(
+                        request,
+                        _(
+                            "فشل إرسال رسالة التحقق. يمكنك طلب إعادة الإرسال من الإعدادات."
+                        ),
+                    )
 
             return redirect(self.success_url)
         else:

@@ -90,8 +90,8 @@ class HomeView(TemplateView):
         # Fetch latest and featured ads based on selected country
         latest_ads = ClassifiedAd.objects.active_for_country(selected_country).order_by(
             "-created_at"
-        )[:6]
-        featured_ads = ClassifiedAd.objects.featured_for_country(selected_country)[:6]
+        )
+        featured_ads = ClassifiedAd.objects.featured_for_country(selected_country)
 
         # Get cart and wishlist items from session for current user
         cart_items = self.request.session.get("cart", [])

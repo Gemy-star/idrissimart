@@ -121,6 +121,7 @@ TEMPLATES = [
                 "content.context_processors.user_preferences",
                 "content.context_processors.header_categories",
                 "content.context_processors.notifications",
+                "content.context_processors.verification_settings",
                 "main.context_processors.cart_wishlist_counts",
                 "main.context_processors.recaptcha_keys",
             ],

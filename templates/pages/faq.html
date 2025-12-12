@@ -9,23 +9,125 @@
 
 {% block extra_css %}
 <style>
-
     .faq-section {
         padding: 3rem 0;
     }
 
-    .faq-category {
-        margin-bottom: 3rem;
+    .faq-sidebar {
+        position: sticky;
+        top: 100px;
+        max-height: calc(100vh - 120px);
+        overflow-y: auto;
+        padding: 1.5rem;
+        background: var(--bg-primary);
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     }
 
-    .faq-category-title {
-        font-size: 1.8rem;
+    .faq-sidebar-title {
+        font-size: 1.3rem;
         font-weight: 700;
         color: var(--primary-color);
         margin-bottom: 1.5rem;
-        padding-bottom: 0.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--secondary-color);
+    }
+
+    .faq-category-nav {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .faq-category-nav-item {
+        margin-bottom: 0.5rem;
+    }
+
+    .faq-category-link {
+        display: flex;
+        align-items: center;
+        padding: 0.875rem 1rem;
+        color: var(--text-primary);
+        text-decoration: none;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+        font-weight: 500;
+        border: 1px solid transparent;
+    }
+
+    .faq-category-link:hover {
+        background: linear-gradient(135deg, rgba(107, 76, 122, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
+        color: var(--primary-color);
+        transform: translateX(-5px);
+    }
+
+    .faq-category-link.active {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        color: white;
+        border-color: var(--primary-color);
+        box-shadow: 0 4px 12px rgba(107, 76, 122, 0.3);
+    }
+
+    .faq-category-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 35px;
+        height: 35px;
+        background: var(--secondary-color);
+        color: white;
+        border-radius: 8px;
+        margin-left: 0.75rem;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+    }
+
+    .faq-category-link.active .faq-category-icon {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .faq-content-area {
+        padding: 1.5rem;
+        background: var(--bg-primary);
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        min-height: 600px;
+    }
+
+    .faq-category-section {
+        display: none;
+    }
+
+    .faq-category-section.active {
+        display: block;
+        animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .faq-category-header {
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
         border-bottom: 3px solid var(--secondary-color);
-        display: inline-block;
+    }
+
+    .faq-category-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        display: flex;
+        align-items: center;
+        margin: 0;
+    }
+
+    .faq-category-title .faq-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.5rem;
+        margin-left: 1rem;
     }
 
     .faq-accordion .accordion-item {
@@ -91,6 +193,12 @@
         font-size: 1rem;
     }
 
+    /* Dark Theme */
+    [data-theme="dark"] .faq-sidebar,
+    [data-theme="dark"] .faq-content-area {
+        background-color: var(--bg-secondary);
+    }
+
     [data-theme="dark"] .faq-accordion .accordion-button {
         background-color: var(--bg-secondary);
         color: var(--text-primary);
@@ -101,9 +209,13 @@
         color: var(--text-secondary);
     }
 
+    /* Mobile Responsive */
     @media (max-width: 768px) {
-        .faq-hero h1 {
-            font-size: 2rem;
+        .faq-sidebar {
+            position: relative;
+            top: 0;
+            max-height: none;
+            margin-bottom: 2rem;
         }
 
         .faq-category-title {
@@ -112,6 +224,11 @@
 
         .faq-accordion .accordion-button {
             font-size: 1rem;
+            padding: 1rem;
+        }
+
+        .faq-category-link {
+            padding: 0.75rem 0.875rem;
         }
     }
 </style>
@@ -131,48 +248,93 @@
     <!-- FAQ Content Section -->
     <section class="faq-section">
         <div class="container">
-            {% for category in faq_categories %}
-            <!-- {{ category.name }} -->
-            <div class="faq-category">
-                <h2 class="faq-category-title">
-                    <i class="{{ category.icon }} faq-icon"></i>
-                    {% if LANGUAGE_CODE == 'ar' and category.name_ar %}
-                        {{ category.name_ar }}
-                    {% else %}
-                        {{ category.name }}
-                    {% endif %}
-                </h2>
-                <div class="accordion faq-accordion" id="faqCat{{ category.id }}">
-                    {% for faq in category.faqs.all %}
-                    {% if faq.is_active %}
-                    <div class="accordion-item">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
-                                    type="button"
-                                    data-bs-toggle="collapse"
-                                    data-bs-target="#faq{{ faq.id }}">
-                                {% if LANGUAGE_CODE == 'ar' and faq.question_ar %}
-                                    {{ faq.question_ar }}
-                                {% else %}
-                                    {{ faq.question_en|default:faq.question_ar }}
+            <div class="row">
+                <!-- Sidebar with Categories -->
+                <div class="col-lg-3 col-md-4">
+                    <div class="faq-sidebar">
+                        <h3 class="faq-sidebar-title">
+                            <i class="fas fa-list-ul me-2"></i>{% trans "الفئات" %}
+                        </h3>
+                        <ul class="faq-category-nav">
+                            {% for category in faq_categories %}
+                            <li class="faq-category-nav-item">
+                                <a href="#"
+                                   class="faq-category-link {% if forloop.first %}active{% endif %}"
+                                   data-category="category{{ category.id }}"
+                                   onclick="showCategory(event, 'category{{ category.id }}')">
+                                    <span class="faq-category-icon">
+                                        <i class="{{ category.icon }}"></i>
+                                    </span>
+                                    <span>
+                                        {% if LANGUAGE_CODE == 'ar' and category.name_ar %}
+                                            {{ category.name_ar }}
+                                        {% else %}
+                                            {{ category.name }}
+                                        {% endif %}
+                                    </span>
+                                </a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Content Area -->
+                <div class="col-lg-9 col-md-8">
+                    <div class="faq-content-area">
+                        {% for category in faq_categories %}
+                        <div class="faq-category-section {% if forloop.first %}active{% endif %}" id="category{{ category.id }}">
+                            <!-- Category Header -->
+                            <div class="faq-category-header">
+                                <h2 class="faq-category-title">
+                                    <span class="faq-icon">
+                                        <i class="{{ category.icon }}"></i>
+                                    </span>
+                                    {% if LANGUAGE_CODE == 'ar' and category.name_ar %}
+                                        {{ category.name_ar }}
+                                    {% else %}
+                                        {{ category.name }}
+                                    {% endif %}
+                                </h2>
+                            </div>
+
+                            <!-- FAQs Accordion -->
+                            <div class="accordion faq-accordion" id="faqAccordion{{ category.id }}">
+                                {% for faq in category.faqs.all %}
+                                {% if faq.is_active %}
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
+                                                type="button"
+                                                data-bs-toggle="collapse"
+                                                data-bs-target="#faq{{ faq.id }}">
+                                            {% if LANGUAGE_CODE == 'ar' and faq.question_ar %}
+                                                {{ faq.question_ar }}
+                                            {% else %}
+                                                {{ faq.question_en|default:faq.question_ar }}
+                                            {% endif %}
+                                        </button>
+                                    </h2>
+                                    <div id="faq{{ faq.id }}"
+                                         class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+                                         data-bs-parent="#faqAccordion{{ category.id }}">
+                                        <div class="accordion-body">
+                                            {% if LANGUAGE_CODE == 'ar' and faq.answer_ar %}
+                                                {{ faq.answer_ar|safe }}
+                                            {% else %}
+                                                {{ faq.answer_en|default:faq.answer_ar|safe }}
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
                                 {% endif %}
-                            </button>
-                        </h2>
-                        <div id="faq{{ faq.id }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" data-bs-parent="#faqCat{{ category.id }}">
-                            <div class="accordion-body">
-                                {% if LANGUAGE_CODE == 'ar' and faq.answer_ar %}
-                                    {{ faq.answer_ar|linebreaks }}
-                                {% else %}
-                                    {{ faq.answer_en|default:faq.answer_ar|linebreaks }}
-                                {% endif %}
+                                {% endfor %}
                             </div>
                         </div>
+                        {% endfor %}
                     </div>
-                    {% endif %}
-                    {% endfor %}
                 </div>
             </div>
-            {% endfor %}
 
             <!-- Still have questions? -->
             <div class="text-center mt-5 p-5" style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 15px;">
@@ -184,4 +346,35 @@
             </div>
         </div>
     </section>
+
+    <!-- JavaScript for Category Switching -->
+    <script>
+        function showCategory(event, categoryId) {
+            event.preventDefault();
+
+            // Hide all category sections
+            document.querySelectorAll('.faq-category-section').forEach(section => {
+                section.classList.remove('active');
+            });
+
+            // Remove active class from all links
+            document.querySelectorAll('.faq-category-link').forEach(link => {
+                link.classList.remove('active');
+            });
+
+            // Show selected category section
+            document.getElementById(categoryId).classList.add('active');
+
+            // Add active class to clicked link
+            event.currentTarget.classList.add('active');
+
+            // Scroll to top of content area on mobile
+            if (window.innerWidth < 768) {
+                document.querySelector('.faq-content-area').scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        }
+    </script>
 {% endblock %}

@@ -364,6 +364,26 @@ class SiteConfigurationAdmin(SingletonModelAdmin):
                 )
             },
         ),
+        (
+            "إعدادات التحقق من الحسابات",
+            {
+                "fields": (
+                    "require_email_verification",
+                    "require_phone_verification",
+                    "require_verification_for_services",
+                    "verification_services_message",
+                    "verification_services_message_ar",
+                ),
+                "description": "إعدادات التحقق من البريد الإلكتروني ورقم الهاتف أثناء التسجيل وعند استخدام خدمات الموقع",
+            },
+        ),
+        (
+            "إعدادات الدفع - InstaPay",
+            {
+                "fields": ("instapay_qr_code",),
+                "description": "قم برفع صورة رمز QR الخاص بحساب InstaPay لتفعيل خيار الدفع عبر InstaPay في صفحة الدفع",
+            },
+        ),
     )
 
     formfield_overrides = {
