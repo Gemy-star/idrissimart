@@ -98,10 +98,10 @@ class BlogDetailView(SingleObjectMixin, FormView):
             tags__in=tag_ids, is_published=True
         ).exclude(id=post.id)
 
-        # Order by the number of shared tags, then by date, and limit to 3
+        # Order by the number of shared tags, then by date, and limit to 6
         context["related_posts"] = related_posts.annotate(
             same_tags=Count("tags")
-        ).order_by("-same_tags", "-published_date")[:3]
+        ).order_by("-same_tags", "-published_date")[:6]
 
         # Add social share URLs
         full_url = self.request.build_absolute_uri(post.get_absolute_url())
