@@ -885,7 +885,11 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             // ========== Multi-Step Form Logic ==========
-            let currentStep = 1;
+            // Check if we're editing (has form.instance.pk)
+            const isEditMode = {% if form.instance.pk %}true{% else %}false{% endif %};
+
+            // Start from step 2 when editing (skip category selection)
+            let currentStep = isEditMode ? 2 : 1;
             const totalSteps = 5;
             const formSteps = document.querySelectorAll('.form-step');
             const stepItems = document.querySelectorAll('.step-item');
@@ -894,6 +898,19 @@
             const submitBtn = document.getElementById('submitBtn');
             const stepsProgress = document.querySelector('.steps-progress');
             const adForm = document.getElementById('adForm');
+
+            // Hide step 1 in edit mode
+            if (isEditMode) {
+                const step1 = document.querySelector('[data-step="1"]');
+                if (step1 && step1.classList.contains('form-step')) {
+                    step1.style.display = 'none';
+                }
+                // Also hide step 1 in progress indicators
+                const step1Item = document.querySelector('.step-item[data-step="1"]');
+                if (step1Item) {
+                    step1Item.style.display = 'none';
+                }
+            }
 
             function showStep(step) {
                 formSteps.forEach((formStep, index) => {
@@ -1040,7 +1057,8 @@
             });
 
             prevBtn.addEventListener('click', function() {
-                if (currentStep > 1) {
+                const minStep = isEditMode ? 2 : 1;  // Can't go below step 2 when editing
+                if (currentStep > minStep) {
                     currentStep--;
                     showStep(currentStep);
                 }
@@ -1049,7 +1067,10 @@
             stepItems.forEach((item, index) => {
                 item.addEventListener('click', function() {
                     const stepNumber = index + 1;
-                    if (stepNumber < currentStep || stepNumber === 1) {
+                    const minStep = isEditMode ? 2 : 1;
+
+                    // Can't click on step 1 when editing, and can only go backwards
+                    if (stepNumber >= minStep && stepNumber < currentStep || stepNumber === minStep) {
                         currentStep = stepNumber;
                         showStep(currentStep);
                     }

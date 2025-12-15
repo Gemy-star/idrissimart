@@ -62,6 +62,11 @@ class PublisherMyAdsView(PublisherRequiredMixin, ListView):
         if status:
             queryset = queryset.filter(status=status)
 
+        # Filter for resubmitted ads
+        resubmitted = self.request.GET.get("resubmitted")
+        if resubmitted == "true":
+            queryset = queryset.filter(is_resubmitted=True)
+
         search = self.request.GET.get("search")
         if search:
             queryset = queryset.filter(
@@ -79,6 +84,7 @@ class PublisherMyAdsView(PublisherRequiredMixin, ListView):
             "total": user_ads.count(),
             "active": user_ads.filter(status="active").count(),
             "pending": user_ads.filter(status="pending").count(),
+            "resubmitted": user_ads.filter(status="pending", is_resubmitted=True).count(),
             "expired": user_ads.filter(status="expired").count(),
             "draft": user_ads.filter(status="draft").count(),
             "highlighted": user_ads.filter(is_highlighted=True).count(),
@@ -470,3 +476,165 @@ def publisher_dashboard_stats_ajax(request):
     }
 
     return JsonResponse(stats)
+
+
+# ============================================================================
+# EXPIRED ADS & RENEWAL
+# ============================================================================
+
+
+class PublisherExpiredAdsView(PublisherRequiredMixin, ListView):
+    """
+    View expired ads with renewal options
+    """
+
+    model = ClassifiedAd
+    template_name = "dashboard/expired_ads.html"
+    context_object_name = "expired_ads"
+    paginate_by = 20
+
+    def get_queryset(self):
+        # Get only expired ads or ads expiring soon
+        queryset = (
+            ClassifiedAd.objects.filter(user=self.request.user)
+            .select_related("category", "country")
+            .prefetch_related("images")
+        )
+
+        # Filter for expired or expiring soon
+        queryset = queryset.filter(
+            Q(status=ClassifiedAd.AdStatus.EXPIRED)
+            | Q(
+                status=ClassifiedAd.AdStatus.ACTIVE,
+                expires_at__isnull=False,
+                expires_at__lte=timezone.now() + timedelta(days=7),
+            )
+        ).order_by("expires_at")
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Count expired vs expiring soon
+        expired_count = (
+            self.get_queryset().filter(status=ClassifiedAd.AdStatus.EXPIRED).count()
+        )
+        expiring_soon_count = (
+            self.get_queryset().filter(status=ClassifiedAd.AdStatus.ACTIVE).count()
+        )
+
+        context["stats"] = {
+            "expired": expired_count,
+            "expiring_soon": expiring_soon_count,
+            "total": expired_count + expiring_soon_count,
+        }
+
+        return context
+
+
+@publisher_required
+def publisher_renew_ad_options(request, ad_id):
+    """
+    Show renewal options for an ad
+    """
+    ad = get_object_or_404(ClassifiedAd, pk=ad_id, user=request.user)
+
+    # Check if ad can be renewed
+    if not ad.can_be_renewed():
+        messages.error(request, "هذا الإعلان لا يمكن تجديده في الوقت الحالي.")
+        return redirect("main:publisher_my_ads")
+
+    # Get renewal options
+    renewal_options = ad.get_renewal_options()
+
+    context = {
+        "ad": ad,
+        "renewal_options": renewal_options,
+        "days_left": ad.days_until_expiry(),
+        "is_expired": ad.is_expired(),
+    }
+
+    return render(request, "dashboard/renew_ad_options.html", context)
+
+
+@publisher_required
+@require_POST
+def publisher_process_renewal(request, ad_id):
+    """
+    Process ad renewal with selected option
+    """
+    ad = get_object_or_404(ClassifiedAd, pk=ad_id, user=request.user)
+
+    # Check if ad can be renewed
+    if not ad.can_be_renewed():
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "هذا الإعلان لا يمكن تجديده في الوقت الحالي.",
+            },
+            status=400,
+        )
+
+    # Get selected renewal type
+    renewal_type = request.POST.get("renewal_type")
+    renew_upgrades = request.POST.get("renew_upgrades") == "true"
+
+    # Get renewal options
+    renewal_options = ad.get_renewal_options()
+    selected_option = next(
+        (opt for opt in renewal_options if opt["type"] == renewal_type), None
+    )
+
+    if not selected_option:
+        return JsonResponse(
+            {"success": False, "message": "خيار التجديد غير صالح."}, status=400
+        )
+
+    # Check if payment required
+    if selected_option["price"] > 0:
+        # For paid renewals, create payment intent or redirect to payment
+        # This is a placeholder - implement payment logic here
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "يتطلب هذا الخيار الدفع. سيتم توجيهك لصفحة الدفع.",
+                "requires_payment": True,
+                "amount": float(selected_option["price"]),
+                "payment_url": f"/payments/renew-ad/{ad_id}/?type={renewal_type}",
+            }
+        )
+
+    # Process free renewal
+    success = ad.renew(
+        duration_days=selected_option["duration_days"],
+        is_free=True,
+        renew_upgrades=renew_upgrades,
+    )
+
+    if success:
+        # Create notification
+        Notification.objects.create(
+            user=request.user,
+            notification_type="ad_renewed",
+            message_ar=f'تم تجديد إعلانك "{ad.title}" بنجاح لمدة {selected_option["duration_days"]} يوم.',
+            message_en=f'Your ad "{ad.title}" has been renewed for {selected_option["duration_days"]} days.',
+            related_ad=ad,
+        )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": f'تم تجديد الإعلان بنجاح لمدة {selected_option["duration_days"]} يوم!',
+                "new_expiry": ad.expires_at.strftime("%Y-%m-%d"),
+                "redirect_url": reverse_lazy("main:publisher_my_ads"),
+            }
+        )
+    else:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "حدث خطأ أثناء تجديد الإعلان. يرجى المحاولة مرة أخرى.",
+            },
+            status=500,
+        )

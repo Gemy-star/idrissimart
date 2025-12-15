@@ -392,6 +392,13 @@ class User(AbstractUser):  # This model is correct, no changes needed here.
         verbose_name=_("سبب التعليق"),
     )
 
+    # Notification Preferences
+    email_notifications = models.BooleanField(
+        default=True,
+        verbose_name=_("إشعارات البريد الإلكتروني"),
+        help_text=_("تلقي إشعارات حول الإعلانات والرسائل عبر البريد الإلكتروني"),
+    )
+
     # Timestamps
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -1194,8 +1201,16 @@ class ClassifiedAdManager(models.Manager):
         return self.get_queryset().filter(country__code=country_code)
 
     def active(self):
-        """Get only active ads"""
-        return self.get_queryset().filter(status=self.model.AdStatus.ACTIVE)
+        """Get only active ads that haven't expired"""
+        from django.utils import timezone
+        from django.db.models import Q
+
+        # Filter active ads that either have no expiry or haven't expired yet
+        return (
+            self.get_queryset()
+            .filter(status=self.model.AdStatus.ACTIVE)
+            .filter(Q(expires_at__isnull=True) | Q(expires_at__gt=timezone.now()))
+        )
 
     def active_for_country(self, country_code):
         """Get active ads for a specific country"""
@@ -1251,6 +1266,37 @@ class ClassifiedAdManager(models.Manager):
             .filter(status=self.model.AdStatus.PENDING, require_review=True)
             .order_by("-created_at")
         )
+
+    def expired_ads(self, user=None):
+        """Get expired ads, optionally filtered by user"""
+        from django.utils import timezone
+
+        queryset = self.get_queryset().filter(status=self.model.AdStatus.EXPIRED)
+
+        if user:
+            queryset = queryset.filter(user=user)
+
+        return queryset.order_by("-expires_at")
+
+    def expiring_soon(self, days=3, user=None):
+        """Get ads expiring within specified days"""
+        from django.utils import timezone
+        from datetime import timedelta
+
+        now = timezone.now()
+        expiry_threshold = now + timedelta(days=days)
+
+        queryset = self.get_queryset().filter(
+            status=self.model.AdStatus.ACTIVE,
+            expires_at__isnull=False,
+            expires_at__gt=now,
+            expires_at__lte=expiry_threshold,
+        )
+
+        if user:
+            queryset = queryset.filter(user=user)
+
+        return queryset.order_by("expires_at")
 
     def draft_ads(self, user):
         """Get user's draft ads"""
@@ -1445,6 +1491,11 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
     )
     admin_notes = CKEditor5Field(
         blank=True, verbose_name=_("ملاحظات الإدارة"), config_name="admin"
+    )
+    is_resubmitted = models.BooleanField(
+        default=False,
+        verbose_name=_("معاد إرساله"),
+        help_text=_("الإعلان تم تعديله ويحتاج مراجعة مجدداً"),
     )
 
     # Status and Timestamps
@@ -1703,6 +1754,129 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
 
         return False
 
+    def is_expired(self):
+        """Check if ad has expired"""
+        if not self.expires_at:
+            return False
+        return timezone.now() >= self.expires_at
+
+    def days_until_expiry(self):
+        """Get number of days until expiry"""
+        if not self.expires_at:
+            return None
+        delta = self.expires_at - timezone.now()
+        return delta.days if delta.days > 0 else 0
+
+    def can_be_renewed(self):
+        """Check if ad can be renewed"""
+        # Only expired or soon-to-expire ads can be renewed
+        if self.status == self.AdStatus.REJECTED:
+            return False
+        if self.status == self.AdStatus.SOLD:
+            return False
+
+        # Can renew if expired or expiring within 7 days
+        if self.is_expired():
+            return True
+
+        days_left = self.days_until_expiry()
+        if days_left is not None and days_left <= 7:
+            return True
+
+        return False
+
+    def get_renewal_options(self):
+        """Get available renewal options based on user type and ad status"""
+        options = []
+
+        # Free renewal option (30 days)
+        options.append({
+            'type': 'free',
+            'duration_days': 30,
+            'price': Decimal('0.00'),
+            'name': _('تجديد مجاني'),
+            'name_en': 'Free Renewal',
+            'description': _('تجديد الإعلان لمدة 30 يوم مجاناً'),
+            'description_en': 'Renew ad for 30 days free',
+        })
+
+        # Paid renewal options
+        options.append({
+            'type': 'paid_60',
+            'duration_days': 60,
+            'price': Decimal('50.00'),
+            'name': _('تجديد 60 يوم'),
+            'name_en': '60 Days Renewal',
+            'description': _('تجديد الإعلان لمدة 60 يوم'),
+            'description_en': 'Renew ad for 60 days',
+        })
+
+        options.append({
+            'type': 'paid_90',
+            'duration_days': 90,
+            'price': Decimal('100.00'),
+            'name': _('تجديد 90 يوم'),
+            'name_en': '90 Days Renewal',
+            'description': _('تجديد الإعلان لمدة 90 يوم'),
+            'description_en': 'Renew ad for 90 days',
+        })
+
+        # Featured renewal with upgrades
+        options.append({
+            'type': 'featured_30',
+            'duration_days': 30,
+            'price': Decimal('150.00'),
+            'name': _('تجديد مميز 30 يوم'),
+            'name_en': 'Featured Renewal 30 Days',
+            'description': _('تجديد مع تمييز لمدة 30 يوم'),
+            'description_en': 'Renew with featured status for 30 days',
+            'includes_highlight': True,
+        })
+
+        return options
+
+    def renew(self, duration_days=30, is_free=True, renew_upgrades=False):
+        """
+        Renew the ad for specified duration
+
+        Args:
+            duration_days: Number of days to extend
+            is_free: Whether this is a free renewal
+            renew_upgrades: Whether to renew existing upgrades
+
+        Returns:
+            bool: True if renewal was successful
+        """
+        from datetime import timedelta
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        try:
+            # Set new expiry date
+            new_expiry = timezone.now() + timedelta(days=duration_days)
+            self.expires_at = new_expiry
+
+            # Reactivate if expired
+            if self.status == self.AdStatus.EXPIRED:
+                self.status = self.AdStatus.ACTIVE
+
+            self.save()
+
+            # Optionally renew upgrades
+            if renew_upgrades:
+                active_upgrades = self.get_active_upgrades()
+                for upgrade in active_upgrades:
+                    upgrade.end_date = new_expiry
+                    upgrade.save()
+
+            logger.info(f"Ad {self.id} renewed for {duration_days} days. New expiry: {new_expiry}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error renewing ad {self.id}: {str(e)}")
+            return False
+
     def can_be_upgraded(self):
         """Check if ad can be upgraded"""
         # Only active or pending ads can be upgraded
@@ -1730,6 +1904,73 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
             self.save()
             return True
         return False
+
+    def can_be_renewed(self):
+        """Check if ad can be renewed"""
+        # Expired ads can be renewed
+        # Active ads close to expiry can also be renewed
+        return self.status in [self.AdStatus.EXPIRED, self.AdStatus.ACTIVE]
+
+    def is_expiring_soon(self, days=3):
+        """Check if ad is expiring within specified days"""
+        if not self.expires_at:
+            return False
+
+        from datetime import timedelta
+
+        expiry_threshold = timezone.now() + timedelta(days=days)
+
+        return (
+            self.status == self.AdStatus.ACTIVE
+            and self.expires_at <= expiry_threshold
+            and self.expires_at > timezone.now()
+        )
+
+    def renew_ad(self, duration_days=30, free=False):
+        """
+        Renew the ad for specified duration
+
+        Args:
+            duration_days (int): Number of days to renew for
+            free (bool): Whether this is a free renewal
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        from datetime import timedelta
+
+        # Calculate new expiry date
+        if self.expires_at and self.expires_at > timezone.now():
+            # Extend from current expiry
+            new_expiry = self.expires_at + timedelta(days=duration_days)
+        else:
+            # Set new expiry from now
+            new_expiry = timezone.now() + timedelta(days=duration_days)
+
+        # Update ad
+        old_status = self.status
+        self.expires_at = new_expiry
+
+        # If expired, reactivate
+        if self.status == self.AdStatus.EXPIRED:
+            self.status = self.AdStatus.ACTIVE
+
+        self.save(update_fields=["expires_at", "status", "updated_at"])
+
+        # Create notification
+        from main.models import Notification
+
+        Notification.objects.create(
+            user=self.user,
+            title=_("تم تجديد إعلانك"),
+            message=_('تم تجديد إعلانك "{}" لمدة {} يوم إضافي. سينتهي في {}.').format(
+                self.title, duration_days, new_expiry.strftime("%Y-%m-%d")
+            ),
+            notification_type="ad_renewed",
+            link=f"/classifieds/{self.id}/",
+        )
+
+        return True
 
 
 class AdUpgradeHistory(models.Model):
@@ -3334,10 +3575,10 @@ class FAQ(models.Model):
         max_length=500, verbose_name=_("السؤال بالعربية"), blank=True
     )
     answer = CKEditor5Field(
-        verbose_name=_("الإجابة - Answer"), config_name="extends", blank=True
+        verbose_name=_("الإجابة - Answer"), config_name="extends", blank=True, null=True
     )
     answer_ar = CKEditor5Field(
-        verbose_name=_("الإجابة بالعربية"), config_name="extends", blank=True
+        verbose_name=_("الإجابة بالعربية"), config_name="extends", blank=True, null=True
     )
     order = models.PositiveIntegerField(default=0, verbose_name=_("الترتيب - Order"))
     is_active = models.BooleanField(default=True, verbose_name=_("نشط - Active"))

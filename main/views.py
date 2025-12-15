@@ -1209,6 +1209,31 @@ class FAQView(TemplateView):
         return context
 
 
+@require_http_methods(["POST"])
+def faq_increment_views(request, faq_id):
+    """Increment FAQ views count via AJAX"""
+    try:
+        from main.models import FAQ
+
+        faq = FAQ.objects.get(id=faq_id, is_active=True)
+        faq.increment_views()
+
+        return JsonResponse({
+            "success": True,
+            "views_count": faq.views_count
+        })
+    except FAQ.DoesNotExist:
+        return JsonResponse({
+            "success": False,
+            "error": "FAQ not found"
+        }, status=404)
+    except Exception as e:
+        return JsonResponse({
+            "success": False,
+            "error": str(e)
+        }, status=500)
+
+
 class PrivacyPolicyView(TemplateView):
     """Privacy policy page view"""
 
@@ -2293,6 +2318,9 @@ class PublisherDashboardView(PublisherRequiredMixin, ListView):
             "pending_ads": user_ads.filter(
                 status=ClassifiedAd.AdStatus.PENDING
             ).count(),
+            "resubmitted_ads": user_ads.filter(
+                status=ClassifiedAd.AdStatus.PENDING, is_resubmitted=True
+            ).count(),
             "expired_ads": user_ads.filter(
                 status=ClassifiedAd.AdStatus.EXPIRED
             ).count(),
@@ -2966,9 +2994,8 @@ class AdminAdsManagementView(SuperadminRequiredMixin, ListView):
         elif status == "hidden":
             queryset = queryset.filter(is_hidden=True)
         elif status == "cart":
-            queryset = queryset.filter(
-                Q(allow_cart=True) & Q(cart_enabled_by_admin=True)
-            )
+            # Show ads where cart is enabled by admin (regardless of allow_cart)
+            queryset = queryset.filter(cart_enabled_by_admin=True)
 
         if search_query:
             queryset = queryset.filter(
@@ -2987,9 +3014,7 @@ class AdminAdsManagementView(SuperadminRequiredMixin, ListView):
             "pending": ClassifiedAd.objects.filter(status="pending").count(),
             "expired": ClassifiedAd.objects.filter(status="expired").count(),
             "hidden": ClassifiedAd.objects.filter(is_hidden=True).count(),
-            "cart": ClassifiedAd.objects.filter(
-                Q(allow_cart=True) & Q(cart_enabled_by_admin=True)
-            ).count(),
+            "cart": ClassifiedAd.objects.filter(cart_enabled_by_admin=True).count(),
         }
         context["current_tab"] = self.request.GET.get("tab", "active")
         context["search_query"] = self.request.GET.get("search", "")
@@ -6963,7 +6988,9 @@ def publisher_update_notifications(request):
     user = request.user
 
     try:
-        user.email_notifications = request.POST.get("email_notifications") == "true"
+        # Handle both 'true' string and checkbox 'on' value
+        email_notif_value = request.POST.get("email_notifications", "false")
+        user.email_notifications = email_notif_value in ["true", "True", "on", "1"]
         user.save()
 
         return JsonResponse(
@@ -7065,31 +7092,48 @@ def publisher_update_email(request):
 @require_POST
 def publisher_delete_account(request):
     """Delete publisher account (soft delete)"""
-    user = request.user
-    password = request.POST.get("password", "")
+    try:
+        user = request.user
+        password = request.POST.get("password", "")
 
-    # Verify password
-    if not user.check_password(password):
+        # Check if user is authenticated
+        if not user.is_authenticated:
+            return JsonResponse(
+                {"success": False, "message": _("يجب تسجيل الدخول أولاً")}, status=401
+            )
+
+        # Verify password
+        if not password:
+            return JsonResponse(
+                {"success": False, "message": _("يرجى إدخال كلمة المرور")}, status=400
+            )
+
+        if not user.check_password(password):
+            return JsonResponse(
+                {"success": False, "message": _("كلمة المرور غير صحيحة")}, status=400
+            )
+
+        # Deactivate user account
+        user.is_active = False
+        user.save()
+
+        # Log out the user
+        from django.contrib.auth import logout
+
+        logout(request)
+
         return JsonResponse(
-            {"success": False, "message": _("كلمة المرور غير صحيحة")}, status=400
+            {
+                "success": True,
+                "message": _("تم حذف الحساب بنجاح"),
+                "redirect": reverse("main:home"),
+            }
         )
-
-    # Deactivate user account
-    user.is_active = False
-    user.save()
-
-    # Log out the user
-    from django.contrib.auth import logout
-
-    logout(request)
-
-    return JsonResponse(
-        {
-            "success": True,
-            "message": _("تم حذف الحساب بنجاح"),
-            "redirect": reverse("main:home"),
-        }
-    )
+    except Exception as e:
+        logger.error(f"Error deleting account: {str(e)}")
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ أثناء حذف الحساب")}, status=500
+        )
 
 
 class AdminReportsManagementView(LoginRequiredMixin, UserPassesTestMixin, ListView):

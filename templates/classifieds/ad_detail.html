@@ -1633,61 +1633,79 @@
 {% block extra_js %}
     <!-- Initialize Swiper for Image Gallery -->
     <script>
-        // Initialize Ad Gallery Swiper
-        const thumbnailsSwiper = new Swiper('.ad-thumbnails-swiper', {
-            spaceBetween: 10,
-            slidesPerView: 4,
-            freeMode: true,
-            watchSlidesProgress: true,
-            breakpoints: {
-                320: {
-                    slidesPerView: 3,
-                    spaceBetween: 5
-                },
-                480: {
-                    slidesPerView: 4,
-                    spaceBetween: 8
-                },
-                768: {
-                    slidesPerView: 4,
-                    spaceBetween: 10
-                }
-            }
-        });
+        // Wait for DOM to be ready before initializing Swiper
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if gallery elements exist
+            const galleryContainer = document.querySelector('.ad-gallery-swiper');
+            const thumbnailsContainer = document.querySelector('.ad-thumbnails-swiper');
 
-        const gallerySwiper = new Swiper('.ad-gallery-swiper', {
-            spaceBetween: 10,
-            navigation: {
-                nextEl: '.swiper-button-next',
-                prevEl: '.swiper-button-prev',
-            },
-            thumbs: {
-                swiper: thumbnailsSwiper,
-            },
-            loop: {{ ad.images.count|default:0 }} > 1,
-            autoplay: {
-                delay: 5000,
-                disableOnInteraction: false,
-            },
-            effect: 'fade',
-            fadeEffect: {
-                crossFade: true
-            },
-            touchEventsTarget: 'container',
-            touchRatio: 1,
-            touchAngle: 45,
-            grabCursor: true,
-            simulateTouch: true,
-            shortSwipes: true,
-            longSwipes: true,
-            longSwipesRatio: 0.5,
-            longSwipesMs: 300,
-            followFinger: true,
-            threshold: 5,
-            touchMoveStopPropagation: false,
-            touchStartPreventDefault: false,
-            touchStartForcePreventDefault: false,
-            touchReleaseOnEdges: false,
+            if (!galleryContainer) {
+                console.log('Gallery container not found');
+                return;
+            }
+
+            // Initialize Thumbnails Swiper first (if exists)
+            let thumbnailsSwiper = null;
+            if (thumbnailsContainer) {
+                thumbnailsSwiper = new Swiper('.ad-thumbnails-swiper', {
+                    spaceBetween: 10,
+                    slidesPerView: 4,
+                    freeMode: true,
+                    watchSlidesProgress: true,
+                    breakpoints: {
+                        320: {
+                            slidesPerView: 3,
+                            spaceBetween: 5
+                        },
+                        480: {
+                            slidesPerView: 4,
+                            spaceBetween: 8
+                        },
+                        768: {
+                            slidesPerView: 4,
+                            spaceBetween: 10
+                        }
+                    }
+                });
+            }
+
+            // Initialize Main Gallery Swiper
+            const gallerySwiper = new Swiper('.ad-gallery-swiper', {
+                spaceBetween: 10,
+                navigation: {
+                    nextEl: '.swiper-button-next',
+                    prevEl: '.swiper-button-prev',
+                },
+                thumbs: thumbnailsSwiper ? {
+                    swiper: thumbnailsSwiper,
+                } : undefined,
+                loop: {% if ad.images.count > 1 %}true{% else %}false{% endif %},
+                autoplay: {% if ad.images.count > 1 %}{
+                    delay: 5000,
+                    disableOnInteraction: false,
+                }{% else %}false{% endif %},
+                effect: 'fade',
+                fadeEffect: {
+                    crossFade: true
+                },
+                touchEventsTarget: 'container',
+                touchRatio: 1,
+                touchAngle: 45,
+                grabCursor: true,
+                simulateTouch: true,
+                shortSwipes: true,
+                longSwipes: true,
+                longSwipesRatio: 0.5,
+                longSwipesMs: 300,
+                followFinger: true,
+                threshold: 5,
+                touchMoveStopPropagation: false,
+                touchStartPreventDefault: false,
+                touchStartForcePreventDefault: false,
+                touchReleaseOnEdges: false,
+            });
+
+            console.log('Gallery Swiper initialized successfully');
         });
 
         // Initialize Related Products Swiper - Wait for DOM

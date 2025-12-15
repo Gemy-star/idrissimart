@@ -28,6 +28,11 @@ urlpatterns = [
     path("about/", views.AboutView.as_view(), name="about"),
     path("contact/", views.ContactView.as_view(), name="contact"),
     path("faq/", views.FAQView.as_view(), name="faq"),
+    path(
+        "faq/<int:faq_id>/increment-views/",
+        views.faq_increment_views,
+        name="faq_increment_views",
+    ),
     path("privacy/", views.PrivacyPolicyView.as_view(), name="privacy"),
     path("terms/", views.TermsConditionsView.as_view(), name="terms"),
     path(
@@ -1446,11 +1451,27 @@ urlpatterns = [
         publisher_views.PublisherAdDeleteView.as_view(),
         name="publisher_ad_delete",
     ),
+    # Publisher Expired Ads
+    path(
+        "publisher/expired-ads/",
+        publisher_views.PublisherExpiredAdsView.as_view(),
+        name="publisher_expired_ads",
+    ),
     # Publisher Ad Actions
     path(
         "publisher/ads/<int:ad_id>/renew/",
         publisher_views.publisher_renew_ad,
         name="publisher_renew_ad",
+    ),
+    path(
+        "publisher/ads/<int:ad_id>/renew-options/",
+        publisher_views.publisher_renew_ad_options,
+        name="publisher_renew_ad_options",
+    ),
+    path(
+        "publisher/ads/<int:ad_id>/process-renewal/",
+        publisher_views.publisher_process_renewal,
+        name="publisher_process_renewal",
     ),
     path(
         "publisher/ads/<int:ad_id>/change-status/",

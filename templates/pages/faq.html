@@ -308,10 +308,10 @@
                                                 type="button"
                                                 data-bs-toggle="collapse"
                                                 data-bs-target="#faq{{ faq.id }}">
-                                            {% if LANGUAGE_CODE == 'ar' and faq.question_ar %}
-                                                {{ faq.question_ar }}
+                                            {% if LANGUAGE_CODE == 'ar' %}
+                                                {{ faq.question_ar|default:faq.question }}
                                             {% else %}
-                                                {{ faq.question_en|default:faq.question_ar }}
+                                                {{ faq.question }}
                                             {% endif %}
                                         </button>
                                     </h2>
@@ -319,10 +319,10 @@
                                          class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
                                          data-bs-parent="#faqAccordion{{ category.id }}">
                                         <div class="accordion-body">
-                                            {% if LANGUAGE_CODE == 'ar' and faq.answer_ar %}
-                                                {{ faq.answer_ar|safe }}
+                                            {% if LANGUAGE_CODE == 'ar' %}
+                                                {{ faq.answer_ar|default:faq.answer|safe }}
                                             {% else %}
-                                                {{ faq.answer_en|default:faq.answer_ar|safe }}
+                                                {{ faq.answer|safe }}
                                             {% endif %}
                                         </div>
                                     </div>
@@ -349,6 +349,9 @@
 
     <!-- JavaScript for Category Switching -->
     <script>
+        // Global function to increment FAQ view (shared between scripts)
+        window.incrementFAQViewGlobal = null;
+
         function showCategory(event, categoryId) {
             event.preventDefault();
 
@@ -363,10 +366,20 @@
             });
 
             // Show selected category section
-            document.getElementById(categoryId).classList.add('active');
+            const selectedSection = document.getElementById(categoryId);
+            selectedSection.classList.add('active');
 
             // Add active class to clicked link
             event.currentTarget.classList.add('active');
+
+            // Track the first opened FAQ in the newly displayed category
+            if (window.incrementFAQViewGlobal) {
+                const firstOpenFaq = selectedSection.querySelector('.accordion-collapse.show');
+                if (firstOpenFaq) {
+                    const faqId = firstOpenFaq.id.replace('faq', '');
+                    window.incrementFAQViewGlobal(faqId);
+                }
+            }
 
             // Scroll to top of content area on mobile
             if (window.innerWidth < 768) {
@@ -376,5 +389,72 @@
                 });
             }
         }
+
+        // Track FAQ views when accordion is opened
+        document.addEventListener('DOMContentLoaded', function() {
+            const viewedFAQs = new Set(); // Track which FAQs have been viewed
+
+            // Helper function to get CSRF token
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+
+            // Function to increment FAQ view
+            function incrementFAQView(faqId) {
+                if (!viewedFAQs.has(faqId)) {
+                    viewedFAQs.add(faqId);
+
+                    // Send AJAX request to increment views
+                    fetch(`/faq/${faqId}/increment-views/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                            'Content-Type': 'application/json'
+                        }
+                    }).catch(error => {
+                        console.error('Error incrementing FAQ views:', error);
+                    });
+                }
+            }
+
+            // Make function available globally for category switching
+            window.incrementFAQViewGlobal = incrementFAQView;
+
+            // Track clicks on accordion buttons
+            const accordionButtons = document.querySelectorAll('.accordion-button');
+            accordionButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Get the FAQ ID from the data-bs-target attribute
+                    const target = this.getAttribute('data-bs-target');
+                    const faqId = target.replace('#faq', ''); // Extract ID from #faqXX
+
+                    // Only increment if this FAQ is currently collapsed (about to be opened)
+                    if (this.classList.contains('collapsed')) {
+                        incrementFAQView(faqId);
+                    }
+                });
+            });
+
+            // Track initially opened FAQs (first FAQ in active category)
+            const activeCategorySection = document.querySelector('.faq-category-section.active');
+            if (activeCategorySection) {
+                const firstOpenFaq = activeCategorySection.querySelector('.accordion-collapse.show');
+                if (firstOpenFaq) {
+                    const faqId = firstOpenFaq.id.replace('faq', '');
+                    incrementFAQView(faqId);
+                }
+            }
+        });
     </script>
 {% endblock %}

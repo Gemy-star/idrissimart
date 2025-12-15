@@ -1,0 +1,279 @@
+{% extends 'dashboard/base.html' %}
+{% load static i18n %}
+
+{% block publisher_title %}{% trans "تجديد الإعلان" %}{% endblock %}
+
+{% block publisher_content %}
+<div class="dashboard-header mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1><i class="fas fa-sync-alt"></i> {% trans "تجديد الإعلان" %}</h1>
+            <p class="text-muted">{% trans "اختر خطة التجديد المناسبة لك" %}</p>
+        </div>
+        <a href="{% url 'main:publisher_expired_ads' %}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-right"></i> {% trans "العودة" %}
+        </a>
+    </div>
+</div>
+
+<!-- Ad Preview -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="fas fa-ad"></i> {% trans "الإعلان المراد تجديده" %}</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                {% if ad.images.first %}
+                <img src="{{ ad.images.first.image.url }}" class="img-fluid rounded" alt="{{ ad.title }}" style="height: 150px; width: 100%; object-fit: cover;">
+                {% else %}
+                <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 150px;">
+                    <i class="fas fa-image fa-3x text-muted"></i>
+                </div>
+                {% endif %}
+            </div>
+            <div class="col-md-9">
+                <h4>{{ ad.title }}</h4>
+                <p class="text-muted mb-2">{{ ad.description|striptags|truncatechars:150 }}</p>
+
+                <div class="row">
+                    <div class="col-md-4">
+                        <strong>{% trans "السعر:" %}</strong>
+                        <span class="text-primary">{{ ad.price }} {% trans "ج.م" %}</span>
+                    </div>
+                    <div class="col-md-4">
+                        <strong>{% trans "المشاهدات:" %}</strong>
+                        <span class="badge bg-info">{{ ad.views_count }}</span>
+                    </div>
+                    <div class="col-md-4">
+                        {% if is_expired %}
+                        <strong class="text-danger">{% trans "الحالة:" %}</strong>
+                        <span class="badge bg-danger">{% trans "منتهي" %}</span>
+                        {% else %}
+                        <strong class="text-warning">{% trans "باقي:" %}</strong>
+                        <span class="badge bg-warning">{{ days_left }} {% trans "يوم" %}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Renewal Options -->
+<h3 class="mb-4"><i class="fas fa-gift"></i> {% trans "اختر خطة التجديد" %}</h3>
+
+<div class="row">
+    {% for option in renewal_options %}
+    <div class="col-md-6 mb-4">
+        <div class="card pricing-card {% if option.type == 'free' %}border-success{% elif option.type == 'featured_30' %}border-warning featured-option{% endif %}" data-option-type="{{ option.type }}">
+            <div class="card-header text-center {% if option.type == 'free' %}bg-success text-white{% elif option.type == 'featured_30' %}bg-warning text-dark{% else %}bg-primary text-white{% endif %}">
+                <h4 class="mb-0">{{ option.name }}</h4>
+                {% if option.type == 'free' %}
+                <span class="badge bg-light text-success">{% trans "مجاني" %}</span>
+                {% elif option.type == 'featured_30' %}
+                <span class="badge bg-light text-warning">{% trans "الأكثر شعبية" %}</span>
+                {% endif %}
+            </div>
+
+            <div class="card-body text-center">
+                <div class="price-tag mb-3">
+                    {% if option.price == 0 %}
+                    <h2 class="text-success">{% trans "مجاناً" %}</h2>
+                    {% else %}
+                    <h2>{{ option.price }} <small>{% trans "ج.م" %}</small></h2>
+                    {% endif %}
+                </div>
+
+                <div class="duration-tag mb-3">
+                    <i class="fas fa-calendar-alt"></i>
+                    <strong>{{ option.duration_days }}</strong> {% trans "يوم" %}
+                </div>
+
+                <p class="text-muted">{{ option.description }}</p>
+
+                {% if option.includes_highlight %}
+                <div class="features-list mb-3">
+                    <p class="text-success mb-1">
+                        <i class="fas fa-check-circle"></i> {% trans "تمييز الإعلان" %}
+                    </p>
+                    <p class="text-success mb-1">
+                        <i class="fas fa-check-circle"></i> {% trans "ظهور أولوية" %}
+                    </p>
+                    <p class="text-success mb-1">
+                        <i class="fas fa-check-circle"></i> {% trans "مشاهدات أعلى" %}
+                    </p>
+                </div>
+                {% endif %}
+
+                <button type="button" class="btn {% if option.type == 'free' %}btn-success{% elif option.type == 'featured_30' %}btn-warning{% else %}btn-primary{% endif %} btn-lg w-100 renew-btn"
+                        data-option-type="{{ option.type }}"
+                        data-duration="{{ option.duration_days }}"
+                        data-price="{{ option.price }}"
+                        data-name="{{ option.name }}">
+                    <i class="fas fa-sync-alt"></i>
+                    {% if option.price == 0 %}
+                    {% trans "تجديد مجاني" %}
+                    {% else %}
+                    {% trans "تجديد الآن" %}
+                    {% endif %}
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Upgrade Renewal Option -->
+<div class="card bg-light mb-4">
+    <div class="card-body">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="renewUpgrades" name="renew_upgrades">
+            <label class="form-check-label" for="renewUpgrades">
+                <strong>{% trans "تجديد التمييزات أيضاً" %}</strong>
+                <p class="text-muted mb-0 small">
+                    {% trans "إذا كان لديك تمييزات نشطة (تمييز/عاجل/مثبت)، سيتم تجديدها مع الإعلان" %}
+                </p>
+            </label>
+        </div>
+    </div>
+</div>
+
+<!-- Info Box -->
+<div class="card border-info">
+    <div class="card-body">
+        <h5 class="text-info"><i class="fas fa-info-circle"></i> {% trans "معلومات هامة" %}</h5>
+        <ul class="mb-0">
+            <li>{% trans "بعد التجديد، سيكون إعلانك نشطاً فوراً" %}</li>
+            <li>{% trans "يمكنك تجديد الإعلان أكثر من مرة" %}</li>
+            <li>{% trans "التجديد المجاني متاح مرة واحدة كل 30 يوم" %}</li>
+            <li>{% trans "الخطط المدفوعة تعطي مدة أطول ومميزات إضافية" %}</li>
+        </ul>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.pricing-card {
+    transition: transform 0.3s, box-shadow 0.3s;
+    border-width: 2px;
+}
+
+.pricing-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+}
+
+.featured-option {
+    position: relative;
+    border-width: 3px !important;
+}
+
+.featured-option::before {
+    content: "⭐";
+    position: absolute;
+    top: -15px;
+    right: 15px;
+    font-size: 2rem;
+}
+
+.price-tag h2 {
+    font-size: 2.5rem;
+    font-weight: bold;
+}
+
+.duration-tag {
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 5px;
+}
+
+.features-list {
+    text-align: left;
+    padding-left: 20px;
+}
+
+.renew-btn {
+    font-size: 1.1rem;
+    padding: 12px;
+    border-radius: 8px;
+    transition: all 0.3s;
+}
+
+.renew-btn:hover {
+    transform: scale(1.05);
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const renewButtons = document.querySelectorAll('.renew-btn');
+    const renewUpgradesCheckbox = document.getElementById('renewUpgrades');
+
+    renewButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const optionType = this.dataset.optionType;
+            const duration = this.dataset.duration;
+            const price = parseFloat(this.dataset.price);
+            const name = this.dataset.name;
+            const renewUpgrades = renewUpgradesCheckbox.checked;
+
+            // Confirm renewal
+            const message = price > 0
+                ? `{% trans "هل تريد تجديد الإعلان بـ" %} ${name} (${price} {% trans "ج.م" %})؟`
+                : `{% trans "هل تريد تجديد الإعلان مجاناً لمدة" %} ${duration} {% trans "يوم" %}؟`;
+
+            if (!confirm(message)) {
+                return;
+            }
+
+            // Disable button
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري التجديد..." %}';
+
+            // Send renewal request
+            const formData = new FormData();
+            formData.append('renewal_type', optionType);
+            formData.append('renew_upgrades', renewUpgrades);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            fetch('{% url "main:publisher_process_renewal" ad.id %}', {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    alert(data.message);
+
+                    // Redirect
+                    if (data.redirect_url) {
+                        window.location.href = data.redirect_url;
+                    }
+                } else if (data.requires_payment) {
+                    // Redirect to payment page
+                    alert(data.message);
+                    window.location.href = data.payment_url;
+                } else {
+                    alert(data.message);
+                    this.disabled = false;
+                    this.innerHTML = `<i class="fas fa-sync-alt"></i> ${price > 0 ? '{% trans "تجديد الآن" %}' : '{% trans "تجديد مجاني" %}'}`;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('{% trans "حدث خطأ. يرجى المحاولة مرة أخرى." %}');
+                this.disabled = false;
+                this.innerHTML = `<i class="fas fa-sync-alt"></i> ${price > 0 ? '{% trans "تجديد الآن" %}' : '{% trans "تجديد مجاني" %}'}`;
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

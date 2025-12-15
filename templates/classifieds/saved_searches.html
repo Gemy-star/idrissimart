@@ -34,33 +34,25 @@
                                         <small class="text-muted">{% trans "حفظ في" %}: {{ search.created_at|date:"d M, Y" }}</small>
                                     </div>
                                     <div class="d-flex align-items-center mt-2 mt-md-0 gap-2">
-                                        {% if search.email_notifications %}
-                                            <form action="{% url 'main:saved_searches' %}"
-                                                  method="post"
-                                                  class="d-inline-flex align-items-center">
-                                                {% csrf_token %}
-                                                <input type="hidden" name="search_id" value="{{ search.pk }}">
-                                                <div class="form-check form-switch">
-                                                    <input class="form-check-input"
-                                                           type="checkbox"
-                                                           role="switch"
-                                                           id="notify-{{ search.pk }}"
-                                                           name="email_notifications"
-                                                           checked
-                                                           onchange="this.form.submit()">
-                                                    <label class="form-check-label" for="notify-{{ search.pk }}">{% trans "الإشعارات" %}</label>
-                                                </div>
-                                            </form>
-                                        {% else %}
-                                            <form action="{% url 'main:saved_searches' %}"
-                                                  method="post"
-                                                  class="d-inline">
-                                                {% csrf_token %}
-                                                <input type="hidden" name="search_id" value="{{ search.pk }}">
-                                                <input type="hidden" name="email_notifications" value="on">
-                                                <button type="submit" class="btn btn-sm btn-outline-success">{% trans "إعادة الاشتراك" %}</button>
-                                            </form>
-                                        {% endif %}
+                                        <!-- Email Notifications Toggle -->
+                                        <form action="{% url 'main:saved_searches' %}"
+                                              method="post"
+                                              class="d-inline-flex align-items-center notification-toggle-form">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="search_id" value="{{ search.pk }}">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input"
+                                                       type="checkbox"
+                                                       role="switch"
+                                                       id="notify-{{ search.pk }}"
+                                                       name="email_notifications"
+                                                       {% if search.email_notifications %}checked{% endif %}
+                                                       onchange="this.form.submit()">
+                                                <label class="form-check-label" for="notify-{{ search.pk }}">
+                                                    {% trans "الإشعارات" %}
+                                                </label>
+                                            </div>
+                                        </form>
                                         <a href="{{ search.get_absolute_url }}"
                                            class="btn btn-sm btn-outline-primary">
                                             <i class="fas fa-search me-1"></i> {% trans "عرض النتائج" %}
@@ -99,4 +91,27 @@
 {% endblock publisher_content %}
 
 {% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add visual feedback when toggling email notifications
+    const notificationForms = document.querySelectorAll('.notification-toggle-form');
+
+    notificationForms.forEach(form => {
+        const checkbox = form.querySelector('input[type="checkbox"]');
+
+        if (checkbox) {
+            checkbox.addEventListener('change', function() {
+                // Add a loading state to prevent multiple submissions
+                this.disabled = true;
+                const label = form.querySelector('label');
+                const originalText = label.textContent;
+                label.textContent = '{% trans "جاري الحفظ..." %}';
+
+                // Submit the form
+                form.submit();
+            });
+        }
+    });
+});
+</script>
 {% endblock %}

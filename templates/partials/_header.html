@@ -152,11 +152,6 @@
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="{% url "main:publisher_notifications" %}">
-                                            <i class="fas fa-bell me-2 text-warning"></i>{% trans "الإشعارات" %}
-                                        </a>
-                                    </li>
-                                    <li>
                                         <a class="dropdown-item" href="{% url "main:my_ads" %}">
                                             <i class="fas fa-bullhorn me-2 text-info"></i>{% trans "إعلاناتي" %}
                                         </a>
@@ -207,40 +202,6 @@
                                 </div>
                             {% endif %}
                         </div>
-                        <!-- Notification Bell (Only for authenticated users) -->
-                        {% if request.user.is_authenticated %}
-                        <div class="header-notification-section dropdown">
-                            <a href="#"
-                               class="header-action-btn position-relative dropdown-toggle"
-                               role="button"
-                               data-bs-toggle="dropdown"
-                               aria-expanded="false">
-                                <i class="fas fa-bell"></i>
-                                {% if unread_notifications_count > 0 %}
-                                    <span class="notification-badge">{{ unread_notifications_count }}</span>
-                                {% endif %}
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end notification-dropdown">
-                                <li class="notification-header">
-                                    <h6>{% trans "الإشعارات" %}</h6>
-                                </li>
-                                {% for notification in latest_notifications %}
-                                    <li>
-                                        <a class="dropdown-item notification-item"
-                                           href="{{ notification.link|default:'#' }}">
-                                            <p class="mb-0">{{ notification.message }}</p>
-                                            <small class="text-muted">{{ notification.created_at|timesince }} {% trans "ago" %}</small>
-                                        </a>
-                                    </li>
-                                {% empty %}
-                                    <li class="text-center p-3 text-muted">{% trans "لا توجد إشعارات جديدة" %}</li>
-                                {% endfor %}
-                                <li class="notification-footer">
-                                    <a href="{% url 'main:notification_list' %}">{% trans "عرض كل الإشعارات" %}</a>
-                                </li>
-                            </ul>
-                        </div>
-                        {% endif %}
                         <!-- Theme Toggle -->
                         <div class="header-theme-section">
                             <button class="header-action-btn header-icon-btn header-theme-toggle"
@@ -460,16 +421,6 @@
                     <!-- Subcategories List -->
                     <div class="subcategories-list" id="subcategoriesList">
                         <!-- Subcategories will be loaded here dynamically -->
-                    </div>
-                    <!-- Sub-subcategories container -->
-                    <div class="sub-subcategories-section" id="subSubcategoriesSection" style="display: none;">
-                        <div class="sub-subcategories-header">
-                            <h6 class="sub-subcategories-title">الفئات الفرعية الثانوية</h6>
-                            <span class="parent-subcategory-name" id="parentSubcategoryName"></span>
-                        </div>
-                        <div class="sub-subcategories-grid" id="subSubcategoriesList">
-                            <!-- Sub-subcategories will be loaded here -->
-                        </div>
                     </div>
                     <div class="subcategories-footer">
                         <a href="#" class="view-all-link" id="viewAllSubcategories">
@@ -749,20 +700,12 @@
         globalThis.showSubcategories = function(categoryId) {
             currentCategoryId = categoryId;
             subcategoriesDropdown.classList.add('show');
-
-            // Hide sub-subcategories when showing new subcategories
-            const subSubSection = document.getElementById('subSubcategoriesSection');
-            subSubSection.style.display = 'none';
         };
 
         // Hide subcategories dropdown
         globalThis.hideSubcategories = function() {
             subcategoriesDropdown.classList.remove('show');
             currentCategoryId = null;
-
-            // Hide sub-subcategories too
-            const subSubSection = document.getElementById('subSubcategoriesSection');
-            subSubSection.style.display = 'none';
         };
 
         // Load subcategories
@@ -790,13 +733,11 @@
                                 <div class="subcategory-item"
                                      data-subcategory-id="${subcat.id}"
                                      data-subcategory-url="${subcat.url}"
-                                     data-has-children="${subcat.has_children}"
-                                     onclick="handleSubcategoryClick(this, ${subcat.id}, '${subcat.url}', ${subcat.has_children}, '${subcat.name_ar || subcat.name}')">
+                                     onclick="globalThis.location.href='${subcat.url}'">
                                     <div class="subcategory-icon">
                                         <i class="${subcat.icon || 'fas fa-folder'}"></i>
                                     </div>
                                     <span class="subcategory-name">${subcat.name_ar || subcat.name}</span>
-                                    ${subcat.has_children ? '<i class="fas fa-chevron-right subcategory-expand"></i>' : ''}
                                 </div>
                             `).join('');
 
@@ -819,51 +760,9 @@
 
         // Handle subcategory click
         globalThis.handleSubcategoryClick = function(element, subcategoryId, url, hasChildren, subcategoryName) {
-            if (hasChildren) {
-                // Load sub-subcategories
-                loadSubSubcategories(subcategoryId, subcategoryName);
-            } else {
-                // Navigate to subcategory page
-                globalThis.location.href = url;
-            }
+            // Navigate to subcategory page
+            globalThis.location.href = url;
         };
-
-        // Load sub-subcategories
-        function loadSubSubcategories(subcategoryId, subcategoryName) {
-            const subSubSection = document.getElementById('subSubcategoriesSection');
-            const parentSubcategoryName = document.getElementById('parentSubcategoryName');
-            const subSubcategoriesList = document.getElementById('subSubcategoriesList');
-
-            parentSubcategoryName.textContent = subcategoryName;
-            subSubcategoriesList.innerHTML = '<div class="loading-item"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
-            subSubSection.style.display = 'block';
-
-            fetch(`/ajax/subcategories/${subcategoryId}/`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        subSubcategoriesList.innerHTML = '<div class="error-item">خطأ في تحميل الفئات</div>';
-                        return;
-                    }
-
-                    if (data.subcategories && data.subcategories.length > 0) {
-                        subSubcategoriesList.innerHTML = data.subcategories.map(subSubcat => `
-                            <div class="sub-subcategory-item" onclick="globalThis.location.href='${subSubcat.url}'">
-                                <div class="sub-subcategory-icon">
-                                    <i class="${subSubcat.icon || 'fas fa-folder'}"></i>
-                                </div>
-                                <span class="sub-subcategory-name">${subSubcat.name_ar || subSubcat.name}</span>
-                            </div>
-                        `).join('');
-                    } else {
-                        subSubcategoriesList.innerHTML = '<div class="empty-item">لا توجد فئات فرعية إضافية</div>';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading sub-subcategories:', error);
-                    subSubcategoriesList.innerHTML = '<div class="error-item">خطأ في الاتصال</div>';
-                });
-        }
 
         // Close subcategories when clicking outside
         document.addEventListener('click', function(e) {

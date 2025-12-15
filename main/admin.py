@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext_lazy as _
+from django.utils.html import format_html
 from django.db import models
 from mptt.admin import MPTTModelAdmin
 from django_ckeditor_5.widgets import CKEditor5Widget
@@ -153,10 +154,10 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
         "category",
         "price",
         "status",
+        "is_resubmitted",
         "is_highlighted",
         "is_urgent",
         "is_pinned",
-        "status",
         "is_hidden",
         "cart_enabled_by_admin",
         "created_at",
@@ -164,6 +165,7 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
     )
     list_filter = (
         "status",
+        "is_resubmitted",
         "category",
         "is_hidden",
         "visibility_type",
@@ -186,6 +188,9 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
         "reject_ads",
         "mark_as_pending",
         "activate_upgrades_action",
+        "renew_ads_30_days",
+        "renew_ads_60_days",
+        "renew_ads_90_days",
         "hide_prices",
         "show_prices",
         "set_price_on_request",
@@ -204,6 +209,7 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
             status=ClassifiedAd.AdStatus.ACTIVE,
             reviewed_by=request.user,
             reviewed_at=timezone.now(),
+            is_resubmitted=False,
         )
         self.message_user(request, _("{} إعلان تم قبوله بنجاح").format(updated))
 
@@ -271,6 +277,96 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
 
     unset_price_on_request.short_description = _("إلغاء 'السعر عند الطلب'")
 
+    def renew_ads_30_days(self, request, queryset):
+        """Renew selected ads for 30 days"""
+        from django.utils import timezone
+        from datetime import timedelta
+
+        now = timezone.now()
+        future_date = now + timedelta(days=30)
+
+        # Update expiration date and ensure status is active
+        updated = queryset.update(
+            expires_at=future_date,
+            status=ClassifiedAd.AdStatus.ACTIVE
+        )
+
+        self.message_user(
+            request,
+            _("{} إعلان تم تجديده لمدة 30 يوم (تنتهي في {})").format(
+                updated, future_date.strftime('%Y-%m-%d')
+            )
+        )
+
+    renew_ads_30_days.short_description = _("تجديد الإعلانات لمدة 30 يوم")
+
+    def renew_ads_60_days(self, request, queryset):
+        """Renew selected ads for 60 days"""
+        from django.utils import timezone
+        from datetime import timedelta
+
+        now = timezone.now()
+        future_date = now + timedelta(days=60)
+
+        updated = queryset.update(
+            expires_at=future_date,
+            status=ClassifiedAd.AdStatus.ACTIVE
+        )
+
+        self.message_user(
+            request,
+            _("{} إعلان تم تجديده لمدة 60 يوم (تنتهي في {})").format(
+                updated, future_date.strftime('%Y-%m-%d')
+            )
+        )
+
+    renew_ads_60_days.short_description = _("تجديد الإعلانات لمدة 60 يوم")
+
+    def renew_ads_90_days(self, request, queryset):
+        """Renew selected ads for 90 days"""
+        from django.utils import timezone
+        from datetime import timedelta
+
+        now = timezone.now()
+        future_date = now + timedelta(days=90)
+
+        updated = queryset.update(
+            expires_at=future_date,
+            status=ClassifiedAd.AdStatus.ACTIVE
+        )
+
+        self.message_user(
+            request,
+            _("{} إعلان تم تجديده لمدة 90 يوم (تنتهي في {})").format(
+                updated, future_date.strftime('%Y-%m-%d')
+            )
+        )
+
+    renew_ads_90_days.short_description = _("تجديد الإعلانات لمدة 90 يوم")
+
+    def get_list_display(self, request):
+        """Add custom display method for resubmitted ads"""
+        list_display = list(super().get_list_display(request))
+        # Replace is_resubmitted with custom colored display
+        if "is_resubmitted" in list_display:
+            idx = list_display.index("is_resubmitted")
+            list_display[idx] = "resubmitted_badge"
+        return tuple(list_display)
+
+    def resubmitted_badge(self, obj):
+        """Display colored badge for resubmitted ads"""
+        if obj.is_resubmitted:
+            return format_html(
+                '<span style="background-color: #ff9800; color: white; padding: 3px 10px; border-radius: 3px; font-weight: bold;">'
+                '<i class="fas fa-redo"></i> معاد إرساله'
+                '</span>'
+            )
+        return format_html(
+            '<span style="color: #999;">-</span>'
+        )
+    resubmitted_badge.short_description = _("حالة الإرسال")
+    resubmitted_badge.admin_order_field = "is_resubmitted"
+
     fieldsets = (
         ("Ad Information", {"fields": ("user", "category", "title", "description")}),
         (
@@ -322,6 +418,7 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "status",
+                    "is_resubmitted",
                     "reviewed_by",
                     "reviewed_at",
                     "admin_notes",

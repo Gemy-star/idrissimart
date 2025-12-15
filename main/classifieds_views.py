@@ -84,6 +84,30 @@ class MyClassifiedAdsView(LoginRequiredMixin, ListView):
         return context
 
 
+class ExpiredAdsView(LoginRequiredMixin, ListView):
+    """View to list user's expired classified ads."""
+
+    model = ClassifiedAd
+    template_name = "classifieds/expired_ads_list.html"
+    context_object_name = "ads"
+    paginate_by = 20
+
+    def get_queryset(self):
+        return ClassifiedAd.objects.expired_ads(user=self.request.user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["active_nav"] = "expired_ads"
+        context["page_title"] = _("إعلاناتي المنتهية")
+
+        # Add expiring soon ads
+        context["expiring_soon"] = ClassifiedAd.objects.expiring_soon(
+            days=3, user=self.request.user
+        )[:5]
+
+        return context
+
+
 class PublisherReportsView(LoginRequiredMixin, ListView):
     """View to display publisher reports and analytics."""
 
@@ -300,13 +324,16 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
                 self.request.POST,
                 self.request.FILES,
                 instance=self.object,
-                prefix="images",
             )
         else:
-            # Limit extra forms to 5
-            AdImageFormSet.extra = 5 - self.object.images.count()
+            # Calculate extra forms needed
+            existing_images = self.object.images.count()
+            extra_forms = max(0, 5 - existing_images)
+
             context["image_formset"] = AdImageFormSet(
-                instance=self.object, prefix="images", queryset=self.object.images.all()
+                instance=self.object,
+                queryset=self.object.images.all(),
+                extra=extra_forms,
             )
         context["ad_categories"] = Category.objects.filter(
             section_type=Category.SectionType.CLASSIFIED,
@@ -320,11 +347,42 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
         image_formset = context["image_formset"]
 
         if form.is_valid() and image_formset.is_valid():
+            # Determine if updated ad needs re-approval
+            # Skip re-approval if:
+            # 1. User is staff, OR
+            # 2. User is verified (trusted user)
+            needs_approval = False
+            original_status = self.object.status
+
+            if not self.request.user.is_staff and not self.request.user.is_verified:
+                # Non-verified users need re-approval if ad was active
+                if self.object.status == ClassifiedAd.AdStatus.ACTIVE:
+                    needs_approval = True
+                    # Mark as pending and set is_resubmitted flag
+                    form.instance.status = ClassifiedAd.AdStatus.PENDING
+                    form.instance.is_resubmitted = True
+
             self.object = form.save()
+            image_formset.instance = self.object
             image_formset.save()
-            messages.success(self.request, _("تم تحديث الإعلان بنجاح!"))
+
+            if needs_approval:
+                messages.info(
+                    self.request,
+                    _("سيتم مراجعة التعديلات من قبل الإدارة قبل نشرها.")
+                )
+            else:
+                messages.success(self.request, _("تم تحديث إعلانك بنجاح!"))
+
             return redirect(self.get_success_url())
         else:
+            # Add formset errors to messages for debugging
+            if not image_formset.is_valid():
+                for error in image_formset.errors:
+                    if error:
+                        messages.error(self.request, str(error))
+                for error in image_formset.non_form_errors():
+                    messages.error(self.request, str(error))
             return self.render_to_response(self.get_context_data(form=form))
 
 
@@ -544,9 +602,31 @@ class UserSavedSearchesView(LoginRequiredMixin, ListView):
         search_id = request.POST.get("search_id")
         if search_id:
             search = get_object_or_404(SavedSearch, pk=search_id, user=request.user)
-            search.email_notifications = "email_notifications" in request.POST
+
+            # Check if email_notifications checkbox is checked
+            # If checkbox is checked, it will be in POST data with value "on"
+            # If checkbox is unchecked, it won't be in POST data at all
+            email_notifications_enabled = "email_notifications" in request.POST
+
+            # Save the updated preference
+            search.email_notifications = email_notifications_enabled
             search.save(update_fields=["email_notifications"])
-            messages.success(request, _("تم تحديث تفضيلات الإشعارات بنجاح."))
+
+            # Log for debugging
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.info(
+                f"SavedSearch {search_id} email_notifications updated to: {email_notifications_enabled}"
+            )
+
+            status_text = _("مفعلة") if email_notifications_enabled else _("معطلة")
+            messages.success(
+                request,
+                _("تم تحديث تفضيلات الإشعارات بنجاح. الإشعارات الآن: {}").format(
+                    status_text
+                ),
+            )
         return redirect("main:saved_searches")
 
 

@@ -77,23 +77,35 @@ pymysql.version_info = (1, 4, 6, "final", 0)
 pymysql.install_as_MySQLdb()
 
 # =======================
-# Django-Q2 Settings for MariaDB Production
+# Django-Q2 Settings with Redis
 # =======================
-# Override Q_CLUSTER settings for MariaDB compatibility
 Q_CLUSTER = {
-    "name": "idrissimart_q_prod",
-    "workers": 2,  # Reduced for production stability
-    "recycle": 500,
-    "timeout": 120,  # Task timeout in seconds
-    "retry": 180,  # Retry timeout must be larger than timeout (120s)
+    "name": "idrissimart",
+    "workers": 4,
+    "timeout": 90,
+    "retry": 120,
+    "redis": {
+        "host": os.getenv("REDIS_HOST", "127.0.0.1"),
+        "port": int(os.getenv("REDIS_PORT", 6379)),
+        "db": int(os.getenv("REDIS_DB", 0)),
+        "password": os.getenv("REDIS_PASSWORD", None),
+        "socket_timeout": 5,
+        "charset": "utf-8",
+        "errors": "strict",
+        "unix_socket_path": None,
+    },
     "compress": True,
-    "save_limit": 100,  # Reduced to save database space
-    "queue_limit": 200,
+    "save_limit": 250,
+    "queue_limit": 500,
     "cpu_affinity": 1,
     "label": "Django Q Production",
-    "orm": "default",
     "sync": False,  # Ensure async execution in production
-    "catch_up": False,  # Don't catch up missed schedules on restart
+    "catch_up": True,  # Catch up missed schedules on restart
+    "orm": "default",  # Still use ORM for task results storage
+    "recycle": 500,
+    "bulk": 10,
+    "max_attempts": 1,
+    "attempt_count": 1,
 }
 
 # =======================

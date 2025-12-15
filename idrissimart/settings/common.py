@@ -395,6 +395,8 @@ CKEDITOR_5_CONFIGS = {
             "tableRow",
             "mergeTableCells",
             "|",
+            "specialCharacters",
+            "|",
             "undo",
             "redo",
         ],
@@ -451,6 +453,9 @@ CKEDITOR_5_CONFIGS = {
                     "class": "ck-heading_heading3",
                 },
             ]
+        },
+        "specialCharacters": {
+            "includeEmoji": True,
         },
     },
     "admin": {
@@ -519,6 +524,8 @@ CKEDITOR_5_CONFIGS = {
                 "highlight",
                 "removeFormat",
                 "findAndReplace",
+                "|",
+                "specialCharacters",
                 "|",
                 "undo",
                 "redo",
@@ -637,6 +644,9 @@ CKEDITOR_5_CONFIGS = {
         },
         "fontColor": {"colors": customColorPalette},
         "fontBackgroundColor": {"colors": customColorPalette},
+        "specialCharacters": {
+            "includeEmoji": True,
+        },
     },
     "extends": {
         "blockToolbar": [
@@ -683,6 +693,8 @@ CKEDITOR_5_CONFIGS = {
             "mediaEmbed",
             "removeFormat",
             "insertTable",
+            "|",
+            "specialCharacters",
         ],
         "image": {
             "toolbar": [
@@ -738,6 +750,10 @@ CKEDITOR_5_CONFIGS = {
                 },
             ]
         },
+        "specialCharacters": {
+            "includeEmoji": True,
+        },
+        "language": "ar",
     },
 }
 

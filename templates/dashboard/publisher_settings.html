@@ -591,9 +591,16 @@
                 </ul>
                 <form id="deleteAccountForm">
                     {% csrf_token %}
-                    <div class="form-group">
-                        <label class="form-label">{% trans "أدخل كلمة المرور للتأكيد" %}</label>
-                        <input type="password" class="form-control" name="password" required>
+                    <div class="form-group mb-3">
+                        <label class="form-label">{% trans "أدخل كلمة المرور للتأكيد" %}<span class="text-danger">*</span></label>
+                        <input type="password"
+                               class="form-control"
+                               name="password"
+                               id="deleteAccountPassword"
+                               placeholder="{% trans 'كلمة المرور' %}"
+                               required
+                               autocomplete="current-password">
+                        <small class="form-text text-muted">{% trans "يرجى إدخال كلمة المرور الخاصة بك لتأكيد الحذف" %}</small>
                     </div>
                 </form>
             </div>
@@ -646,6 +653,20 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             alert(message);
         }
+    }
+
+    // Reset delete account modal on hide
+    const deleteAccountModal = document.getElementById('deleteAccountModal');
+    if (deleteAccountModal) {
+        deleteAccountModal.addEventListener('hidden.bs.modal', function () {
+            const form = document.getElementById('deleteAccountForm');
+            const confirmBtn = document.getElementById('confirmDeleteBtn');
+            if (form) form.reset();
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="fas fa-trash-alt me-2"></i>{% trans "حذف الحساب نهائياً" %}';
+            }
+        });
     }
 
     // Avatar upload preview
@@ -720,8 +741,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const emailNotificationsToggle = document.getElementById('emailNotifications');
     if (emailNotificationsToggle) {
         emailNotificationsToggle.addEventListener('change', function() {
+            const isChecked = this.checked;
             const formData = new FormData();
-            formData.append('email_notifications', this.checked);
+            // Send 'true' or 'false' string instead of boolean
+            formData.append('email_notifications', isChecked ? 'true' : 'false');
             formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
 
             fetch('{% url "main:publisher_update_notifications" %}', {
@@ -801,26 +824,55 @@ document.addEventListener('DOMContentLoaded', function() {
     if (confirmDeleteBtn) {
         confirmDeleteBtn.addEventListener('click', function() {
             const form = document.getElementById('deleteAccountForm');
-            const formData = new FormData(form);
+            const passwordInput = form.querySelector('input[name="password"]');
+
+            if (!passwordInput.value) {
+                showToast('{% trans "يرجى إدخال كلمة المرور" %}', 'error');
+                return;
+            }
 
             if (confirm('{% trans "هل أنت متأكد تماماً؟ هذا الإجراء لا يمكن التراجع عنه!" %}')) {
+                const formData = new FormData(form);
+
+                // Disable button to prevent multiple clicks
+                confirmDeleteBtn.disabled = true;
+                confirmDeleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري الحذف..." %}';
+
                 fetch('{% url "main:publisher_delete_account" %}', {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    credentials: 'same-origin'
                 })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(data => {
+                            throw new Error(data.message || '{% trans "حدث خطأ" %}');
+                        });
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.success) {
                         showToast(data.message, 'success');
+                        // Close modal
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('deleteAccountModal'));
+                        if (modal) modal.hide();
+
+                        // Redirect after delay
                         setTimeout(() => {
                             window.location.href = data.redirect;
                         }, 1500);
                     } else {
                         showToast(data.message, 'error');
+                        confirmDeleteBtn.disabled = false;
+                        confirmDeleteBtn.innerHTML = '<i class="fas fa-trash-alt me-2"></i>{% trans "حذف الحساب نهائياً" %}';
                     }
                 })
                 .catch(error => {
-                    showToast('{% trans "حدث خطأ" %}', 'error');
+                    console.error('Error:', error);
+                    showToast(error.message || '{% trans "حدث خطأ" %}', 'error');
+                    confirmDeleteBtn.disabled = false;
+                    confirmDeleteBtn.innerHTML = '<i class="fas fa-trash-alt me-2"></i>{% trans "حذف الحساب نهائياً" %}';
                 });
             }
         });
