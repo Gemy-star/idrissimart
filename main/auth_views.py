@@ -7,7 +7,7 @@ from django.contrib.auth.views import LoginView
 from django.contrib.sites.shortcuts import get_current_site
 from django.core.mail import EmailMultiAlternatives, send_mail, BadHeaderError
 from django.core.validators import validate_email
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, HttpResponseRedirect
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy
@@ -140,7 +140,7 @@ class CustomLoginView(LoginView):
                 )
                 if user:
                     login(request, user)
-                    return redirect(self.get_success_url())
+                    return HttpResponseRedirect(self.get_success_url())
             except User.DoesNotExist:
                 pass  # Fall through to the default form_invalid
         elif is_phone:
@@ -158,7 +158,7 @@ class CustomLoginView(LoginView):
                 )
                 if user:
                     login(request, user)
-                    return redirect(self.get_success_url())
+                    return HttpResponseRedirect(self.get_success_url())
             except User.DoesNotExist:
                 # Try with phone field as well
                 try:
@@ -170,7 +170,7 @@ class CustomLoginView(LoginView):
                     )
                     if user:
                         login(request, user)
-                        return redirect(self.get_success_url())
+                        return HttpResponseRedirect(self.get_success_url())
                 except User.DoesNotExist:
                     pass  # Fall through to the default form_invalid
 
@@ -217,10 +217,14 @@ class CustomLoginView(LoginView):
         if user.is_superuser:
             messages.success(
                 self.request,
-                _(f"مرحباً بك في لوحة الإدارة، {user.get_display_name()}! 👨‍💼"),
+                _("مرحباً بك في لوحة الإدارة، %(name)s! 👨‍💼")
+                % {"name": user.get_display_name()},
             )
         else:
-            messages.success(self.request, _(f"مرحباً بك {user.get_display_name()}! 🎉"))
+            messages.success(
+                self.request,
+                _("مرحباً بك %(name)s! 🎉") % {"name": user.get_display_name()},
+            )
 
         return super().form_valid(form)
 

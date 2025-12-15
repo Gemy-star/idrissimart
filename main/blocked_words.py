@@ -160,6 +160,8 @@ def contains_blocked_word(text, check_offensive=True, check_reserved=True):
     # Check reserved words
     if check_reserved:
         for word in RESERVED_WORDS:
+            if not word:  # Skip None or empty values
+                continue
             word_normalized = word.lower().replace(" ", "")
             if word_normalized in text_normalized:
                 return True, f"الاسم يحتوي على كلمة محجوزة: {word}"
@@ -167,6 +169,8 @@ def contains_blocked_word(text, check_offensive=True, check_reserved=True):
     # Check offensive words
     if check_offensive:
         for word in OFFENSIVE_WORDS:
+            if not word:  # Skip None or empty values
+                continue
             word_normalized = word.lower().replace(" ", "")
             if word_normalized in text_normalized:
                 return True, "الاسم يحتوي على كلمة غير لائقة"

@@ -535,17 +535,31 @@ class User(AbstractUser):  # This model is correct, no changes needed here.
 
         super().clean()
 
-        # Validate username for blocked words
+        # Validate username for blocked words only when creating or changing username
         if self.username:
-            is_allowed, error_message = is_username_allowed(self.username)
-            if not is_allowed:
-                raise ValidationError({"username": error_message})
+            # Check if this is a new user or username is being changed
+            should_validate = (
+                self.pk is None  # New user
+                or self._state.adding  # Being added
+                or (
+                    hasattr(self, "_changed_fields")
+                    and self._changed_fields
+                    and "username" in self._changed_fields
+                )  # Username changed
+            )
+
+            if should_validate or self.pk is None:  # Always validate for new users
+                is_allowed, error_message = is_username_allowed(self.username)
+                if not is_allowed:
+                    raise ValidationError({"username": error_message})
 
     def save(self, *args, **kwargs):
         """
-        Override save to call clean()
+        Override save to call clean() only when necessary
         """
-        self.full_clean()
+        # Only run full validation on new records or when update_fields is not specified
+        if self.pk is None or "update_fields" not in kwargs:
+            self.full_clean()
         super().save(*args, **kwargs)
 
     # Permission Check Methods
@@ -1790,48 +1804,56 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
         options = []
 
         # Free renewal option (30 days)
-        options.append({
-            'type': 'free',
-            'duration_days': 30,
-            'price': Decimal('0.00'),
-            'name': _('تجديد مجاني'),
-            'name_en': 'Free Renewal',
-            'description': _('تجديد الإعلان لمدة 30 يوم مجاناً'),
-            'description_en': 'Renew ad for 30 days free',
-        })
+        options.append(
+            {
+                "type": "free",
+                "duration_days": 30,
+                "price": Decimal("0.00"),
+                "name": _("تجديد مجاني"),
+                "name_en": "Free Renewal",
+                "description": _("تجديد الإعلان لمدة 30 يوم مجاناً"),
+                "description_en": "Renew ad for 30 days free",
+            }
+        )
 
         # Paid renewal options
-        options.append({
-            'type': 'paid_60',
-            'duration_days': 60,
-            'price': Decimal('50.00'),
-            'name': _('تجديد 60 يوم'),
-            'name_en': '60 Days Renewal',
-            'description': _('تجديد الإعلان لمدة 60 يوم'),
-            'description_en': 'Renew ad for 60 days',
-        })
+        options.append(
+            {
+                "type": "paid_60",
+                "duration_days": 60,
+                "price": Decimal("50.00"),
+                "name": _("تجديد 60 يوم"),
+                "name_en": "60 Days Renewal",
+                "description": _("تجديد الإعلان لمدة 60 يوم"),
+                "description_en": "Renew ad for 60 days",
+            }
+        )
 
-        options.append({
-            'type': 'paid_90',
-            'duration_days': 90,
-            'price': Decimal('100.00'),
-            'name': _('تجديد 90 يوم'),
-            'name_en': '90 Days Renewal',
-            'description': _('تجديد الإعلان لمدة 90 يوم'),
-            'description_en': 'Renew ad for 90 days',
-        })
+        options.append(
+            {
+                "type": "paid_90",
+                "duration_days": 90,
+                "price": Decimal("100.00"),
+                "name": _("تجديد 90 يوم"),
+                "name_en": "90 Days Renewal",
+                "description": _("تجديد الإعلان لمدة 90 يوم"),
+                "description_en": "Renew ad for 90 days",
+            }
+        )
 
         # Featured renewal with upgrades
-        options.append({
-            'type': 'featured_30',
-            'duration_days': 30,
-            'price': Decimal('150.00'),
-            'name': _('تجديد مميز 30 يوم'),
-            'name_en': 'Featured Renewal 30 Days',
-            'description': _('تجديد مع تمييز لمدة 30 يوم'),
-            'description_en': 'Renew with featured status for 30 days',
-            'includes_highlight': True,
-        })
+        options.append(
+            {
+                "type": "featured_30",
+                "duration_days": 30,
+                "price": Decimal("150.00"),
+                "name": _("تجديد مميز 30 يوم"),
+                "name_en": "Featured Renewal 30 Days",
+                "description": _("تجديد مع تمييز لمدة 30 يوم"),
+                "description_en": "Renew with featured status for 30 days",
+                "includes_highlight": True,
+            }
+        )
 
         return options
 
@@ -1870,7 +1892,9 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
                     upgrade.end_date = new_expiry
                     upgrade.save()
 
-            logger.info(f"Ad {self.id} renewed for {duration_days} days. New expiry: {new_expiry}")
+            logger.info(
+                f"Ad {self.id} renewed for {duration_days} days. New expiry: {new_expiry}"
+            )
             return True
 
         except Exception as e:
