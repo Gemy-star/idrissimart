@@ -71,7 +71,6 @@ class CustomLoginView(LoginView):
         if next_url:
             # Validate the next URL to prevent open redirect vulnerabilities
             from django.utils.http import url_has_allowed_host_and_scheme
-            from django.core.exceptions import ValidationError
 
             try:
                 # Additional validation: ensure URL doesn't contain dangerous patterns
@@ -83,7 +82,7 @@ class CustomLoginView(LoginView):
                     # Ensure it's not a logout URL to prevent redirect loops
                     if not next_url.startswith("/logout"):
                         return next_url
-            except (ValidationError, ValueError):
+            except Exception:
                 # If validation fails, fall through to role-based redirect
                 pass
 
@@ -91,18 +90,24 @@ class CustomLoginView(LoginView):
 
         # Admins
         if user.is_superuser or user.is_staff:
-            return reverse_lazy("main:admin_dashboard")
+            from django.urls import reverse
+
+            return reverse("main:admin_dashboard")
 
         # Both DEFAULT and PUBLISHER users go to dashboard
         try:
             if getattr(user, "profile_type", None) in ["default", "publisher"]:
-                return reverse_lazy("main:dashboard")
+                from django.urls import reverse
+
+                return reverse("main:dashboard")
         except Exception:
             # If user model doesn't expose profile_type for any reason, ignore
             pass
 
         # Fallback
-        return reverse_lazy("main:home")
+        from django.urls import reverse
+
+        return reverse("main:home")
 
     def post(self, request, *args, **kwargs):
         """
