@@ -1774,6 +1774,13 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Lightbox functionality
             let currentLightboxIndex = 0;
+            let currentScale = 1;
+            let currentX = 0;
+            let currentY = 0;
+            let isDragging = false;
+            let startX = 0;
+            let startY = 0;
+
             const lightboxImages = [
                 {% for image in ad.images.all %}
                     {
@@ -1797,6 +1804,112 @@
             const lightboxImgElement = document.getElementById('lightboxImage');
             console.log('Lightbox element found:', !!lightboxElement);
             console.log('Lightbox image element found:', !!lightboxImgElement);
+
+            // Add zoom functionality
+            if (lightboxImgElement) {
+                // Mouse wheel zoom
+                lightboxImgElement.addEventListener('wheel', function(e) {
+                    e.preventDefault();
+                    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                    currentScale = Math.max(1, Math.min(4, currentScale + delta));
+                    updateImageTransform();
+                    updateZoomIndicator();
+                });
+
+                // Double click to zoom in/out
+                lightboxImgElement.addEventListener('dblclick', function(e) {
+                    if (currentScale === 1) {
+                        currentScale = 2;
+                    } else {
+                        currentScale = 1;
+                        currentX = 0;
+                        currentY = 0;
+                    }
+                    updateImageTransform();
+                    updateZoomIndicator();
+                });
+
+                // Touch pinch-to-zoom
+                let initialDistance = 0;
+                let initialScale = 1;
+
+                lightboxImgElement.addEventListener('touchstart', function(e) {
+                    if (e.touches.length === 2) {
+                        e.preventDefault();
+                        initialDistance = getDistance(e.touches[0], e.touches[1]);
+                        initialScale = currentScale;
+                    } else if (e.touches.length === 1 && currentScale > 1) {
+                        isDragging = true;
+                        startX = e.touches[0].clientX - currentX;
+                        startY = e.touches[0].clientY - currentY;
+                    }
+                });
+
+                lightboxImgElement.addEventListener('touchmove', function(e) {
+                    if (e.touches.length === 2) {
+                        e.preventDefault();
+                        const distance = getDistance(e.touches[0], e.touches[1]);
+                        currentScale = Math.max(1, Math.min(4, initialScale * (distance / initialDistance)));
+                        updateImageTransform();
+                        updateZoomIndicator();
+                    } else if (isDragging && e.touches.length === 1) {
+                        e.preventDefault();
+                        currentX = e.touches[0].clientX - startX;
+                        currentY = e.touches[0].clientY - startY;
+                        updateImageTransform();
+                    }
+                });
+
+                lightboxImgElement.addEventListener('touchend', function(e) {
+                    isDragging = false;
+                    if (currentScale === 1) {
+                        currentX = 0;
+                        currentY = 0;
+                        updateImageTransform();
+                    }
+                });
+
+                // Mouse drag when zoomed
+                lightboxImgElement.addEventListener('mousedown', function(e) {
+                    if (currentScale > 1) {
+                        e.preventDefault();
+                        isDragging = true;
+                        startX = e.clientX - currentX;
+                        startY = e.clientY - currentY;
+                        lightboxImgElement.style.cursor = 'grabbing';
+                    }
+                });
+
+                document.addEventListener('mousemove', function(e) {
+                    if (isDragging) {
+                        e.preventDefault();
+                        currentX = e.clientX - startX;
+                        currentY = e.clientY - startY;
+                        updateImageTransform();
+                    }
+                });
+
+                document.addEventListener('mouseup', function() {
+                    if (isDragging) {
+                        isDragging = false;
+                        lightboxImgElement.style.cursor = currentScale > 1 ? 'grab' : 'zoom-in';
+                    }
+                });
+            }
+
+            function getDistance(touch1, touch2) {
+                const dx = touch1.clientX - touch2.clientX;
+                const dy = touch1.clientY - touch2.clientY;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+
+            function updateImageTransform() {
+                const lightboxImg = document.getElementById('lightboxImage');
+                if (lightboxImg) {
+                    lightboxImg.style.transform = `translate(${currentX}px, ${currentY}px) scale(${currentScale})`;
+                    lightboxImg.style.cursor = currentScale > 1 ? 'grab' : 'zoom-in';
+                }
+            }
 
             function openLightbox(index) {
                 console.log('Opening lightbox with index:', index);
@@ -1829,7 +1942,10 @@
 
                     // Reset zoom
                     currentScale = 1;
+                    currentX = 0;
+                    currentY = 0;
                     lightboxImg.style.transform = 'scale(1)';
+                    lightboxImg.style.cursor = 'zoom-in';
                     updateZoomIndicator();
                 } else {
                     console.error('No images found in lightboxImages array');
@@ -1881,7 +1997,10 @@
 
                 // Reset zoom when changing images
                 currentScale = 1;
+                currentX = 0;
+                currentY = 0;
                 lightboxImg.style.transform = 'scale(1)';
+                lightboxImg.style.cursor = 'zoom-in';
                 updateZoomIndicator();
             }
 
