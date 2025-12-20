@@ -2212,6 +2212,18 @@ class ComparisonView(TemplateView):
             if prices:
                 context["min_compare_price"] = min(prices)
 
+            # Get wishlist ad IDs for authenticated users
+            if self.request.user.is_authenticated:
+                from main.models import Wishlist
+                try:
+                    wishlist = Wishlist.objects.get(user=self.request.user)
+                    wishlist_ad_ids = list(wishlist.items.values_list('ad_id', flat=True))
+                    context["wishlist_ad_ids"] = wishlist_ad_ids
+                except Wishlist.DoesNotExist:
+                    context["wishlist_ad_ids"] = []
+            else:
+                context["wishlist_ad_ids"] = []
+
             # Increment view count for each ad being compared
             # Use F() expression to avoid race conditions
             from django.db.models import F
@@ -2221,6 +2233,7 @@ class ComparisonView(TemplateView):
             )
         else:
             context["ads_to_compare"] = []
+            context["wishlist_ad_ids"] = []
 
         context["page_title"] = _("مقارنة الإعلانات")
         return context
