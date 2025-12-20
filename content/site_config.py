@@ -75,15 +75,63 @@ class SiteConfiguration(SingletonModel):
         verbose_name=_("رسالة التحقق للخدمات بالعربية"),
     )
 
-    # Payment Settings - InstaPay QR Code
+    # Payment Settings - Online & Offline
+    allow_online_payment = models.BooleanField(
+        default=True,
+        verbose_name=_("السماح بالدفع الإلكتروني"),
+        help_text=_("تفعيل/تعطيل طرق الدفع الإلكتروني (PayMob, etc.)"),
+    )
+
+    allow_offline_payment = models.BooleanField(
+        default=True,
+        verbose_name=_("السماح بالدفع اليدوي"),
+        help_text=_("تفعيل/تعطيل الدفع اليدوي عبر InstaPay أو المحفظة"),
+    )
+
+    # InstaPay Settings
     instapay_qr_code = models.ImageField(
         upload_to="payment/instapay/",
         blank=True,
         null=True,
         verbose_name=_("رمز QR لـ InstaPay"),
+        help_text=_("قم برفع صورة رمز QR الخاص بحساب InstaPay للدفع اليدوي"),
+    )
+
+    instapay_phone = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name=_("رقم هاتف InstaPay"),
+        help_text=_("رقم الهاتف المسجل في InstaPay"),
+    )
+
+    # Wallet Payment Link
+    wallet_payment_link = models.URLField(
+        max_length=500,
+        blank=True,
+        verbose_name=_("رابط المحفظة الإلكترونية"),
         help_text=_(
-            "قم برفع صورة رمز QR الخاص بحساب InstaPay للدفع غير المتصل بالإنترنت"
+            "رابط للدفع عبر المحفظة الإلكترونية (Vodafone Cash, Orange Money, etc.)"
         ),
+    )
+
+    wallet_phone = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name=_("رقم المحفظة الإلكترونية"),
+        help_text=_("رقم الهاتف المسجل في المحفظة"),
+    )
+
+    # Offline Payment Instructions
+    offline_payment_instructions = models.TextField(
+        blank=True,
+        verbose_name=_("تعليمات الدفع اليدوي"),
+        help_text=_("تعليمات للعملاء حول كيفية إتمام الدفع اليدوي"),
+    )
+
+    offline_payment_instructions_ar = models.TextField(
+        blank=True,
+        verbose_name=_("تعليمات الدفع اليدوي بالعربية"),
+        default="1. قم بمسح رمز QR أو استخدم رابط المحفظة\n2. أرسل المبلغ المطلوب\n3. احتفظ بإيصال التحويل\n4. سيتم تفعيل الخدمة خلال 24 ساعة",
     )
 
     class Meta:

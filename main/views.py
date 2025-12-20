@@ -1218,20 +1218,11 @@ def faq_increment_views(request, faq_id):
         faq = FAQ.objects.get(id=faq_id, is_active=True)
         faq.increment_views()
 
-        return JsonResponse({
-            "success": True,
-            "views_count": faq.views_count
-        })
+        return JsonResponse({"success": True, "views_count": faq.views_count})
     except FAQ.DoesNotExist:
-        return JsonResponse({
-            "success": False,
-            "error": "FAQ not found"
-        }, status=404)
+        return JsonResponse({"success": False, "error": "FAQ not found"}, status=404)
     except Exception as e:
-        return JsonResponse({
-            "success": False,
-            "error": str(e)
-        }, status=500)
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 
 class PrivacyPolicyView(TemplateView):
@@ -1303,10 +1294,14 @@ def add_to_cart(request):
     )
 
 
+# OLD SESSION-BASED IMPLEMENTATION - DEPRECATED
+# This has been replaced by database-backed cart/wishlist in cart_wishlist_views.py
+# Keeping here for reference only - DO NOT USE
+"""
 @login_required
 @require_POST
 def add_to_wishlist(request):
-    """Add item to wishlist"""
+    \"\"\"Add item to wishlist - OLD SESSION-BASED VERSION - DEPRECATED\"\"\"
     item_id = request.POST.get("item_id")
 
     if not item_id:
@@ -1332,6 +1327,7 @@ def add_to_wishlist(request):
     return JsonResponse(
         {"success": False, "message": _("العنصر موجود بالفعل في قائمة الرغبات")}
     )
+"""
 
 
 @login_required

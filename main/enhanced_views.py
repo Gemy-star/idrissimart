@@ -123,6 +123,11 @@ def packages_list(request):
     List available packages for users
     عدم ظهور باقات النشر للاعضاء غير الواقع الحجانية فقط وغيرها تكون مقفله بعد تأكيد الايميل
     """
+    # Get site configuration
+    from content.site_config import SiteConfiguration
+
+    site_config = SiteConfiguration.get_solo()
+
     # Get user's active packages
     active_packages = []
     if request.user.is_authenticated:
@@ -130,26 +135,42 @@ def packages_list(request):
             user=request.user, is_active=True, expiry_date__gt=timezone.now()
         ).select_related("package")
 
-    # Check if user has verified email
-    email_verified = False
+    # Check if user has verified email and phone
+    email_verified = True  # Default to True if verification not required
+    phone_verified = True  # Default to True if verification not required
+
     if request.user.is_authenticated:
-        email_verified = getattr(request.user, "is_email_verified", False)
+        # Only check email verification if it's required in site config
+        if site_config.require_email_verification:
+            email_verified = getattr(request.user, "is_email_verified", False)
+
+        # Only check phone verification if it's required in site config
+        if site_config.require_phone_verification:
+            phone_verified = getattr(request.user, "is_phone_verified", False)
+
+    # User is considered verified if all required verifications are complete
+    user_fully_verified = email_verified and phone_verified
+
+    # Determine if we should show all packages or only free ones
+    # Show all packages if:
+    # 1. User is not authenticated (guest users see all packages)
+    # 2. User is authenticated AND fully verified
+    show_all_packages = not request.user.is_authenticated or user_fully_verified
 
     # Get general packages (not category-specific)
-    # If email is not verified, show only free packages
-    if email_verified or not request.user.is_authenticated:
+    if show_all_packages:
         general_packages = AdPackage.objects.filter(
             category__isnull=True, is_active=True
         ).order_by("price")
     else:
-        # Only show free packages for non-verified users
+        # Only show free packages for authenticated but non-verified users
         general_packages = AdPackage.objects.filter(
             category__isnull=True, is_active=True, price=0
         ).order_by("price")
 
     # Get category-specific packages grouped by category
     category_packages = {}
-    if email_verified or not request.user.is_authenticated:
+    if show_all_packages:
         categories_with_packages = Category.objects.filter(
             adpackage__isnull=False, adpackage__is_active=True
         ).distinct()
@@ -166,8 +187,15 @@ def packages_list(request):
         "general_packages": general_packages,
         "category_packages": category_packages,
         "email_verified": email_verified,
+        "phone_verified": phone_verified,
+        "user_fully_verified": user_fully_verified,
         "show_email_verification_warning": request.user.is_authenticated
+        and site_config.require_email_verification
         and not email_verified,
+        "show_phone_verification_warning": request.user.is_authenticated
+        and site_config.require_phone_verification
+        and not phone_verified,
+        "site_config": site_config,
     }
 
     return render(request, "classifieds/packages_list.html", context)

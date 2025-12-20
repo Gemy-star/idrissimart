@@ -260,6 +260,24 @@
         display: none;
     }
 
+    /* Offline Payment Styling */
+    .offline-payment-section {
+        background: var(--bg-secondary);
+        border: 2px dashed var(--border-color);
+        border-radius: 15px;
+        padding: 1.5rem;
+    }
+
+    .offline-payment-card {
+        background: var(--bg-primary);
+        transition: all 0.3s ease;
+    }
+
+    .offline-payment-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
     /* Responsive Design */
     @media (max-width: 768px) {
         .payment-header h2 {
@@ -402,6 +420,99 @@
                                     </div>
                                 {% endfor %}
                             </div>
+
+                            <!-- Offline Payment Section -->
+                            {% if site_config.allow_offline_payment %}
+                            <div class="offline-payment-section mt-4">
+                                <h5 class="mb-3">
+                                    <i class="fas fa-money-bill-wave me-2"></i>
+                                    {% trans "الدفع اليدوي" %}
+                                </h5>
+
+                                <div class="row g-3">
+                                    <!-- InstaPay QR Code -->
+                                    {% if site_config.instapay_qr_code %}
+                                    <div class="col-md-6">
+                                        <div class="offline-payment-card p-4 border rounded">
+                                            <h6 class="mb-3">
+                                                <i class="fas fa-qrcode me-2 text-primary"></i>
+                                                {% trans "الدفع عبر InstaPay" %}
+                                            </h6>
+                                            <div class="text-center mb-3">
+                                                <img src="{{ site_config.instapay_qr_code.url }}"
+                                                     alt="InstaPay QR Code"
+                                                     class="img-fluid"
+                                                     style="max-width: 250px; border: 2px solid #e5e7eb; border-radius: 10px; padding: 10px;">
+                                            </div>
+                                            {% if site_config.instapay_phone %}
+                                            <p class="text-center mb-0">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-phone me-1"></i>
+                                                    {{ site_config.instapay_phone }}
+                                                </small>
+                                            </p>
+                                            {% endif %}
+                                            <div class="d-grid mt-3">
+                                                <button type="button" class="btn btn-outline-primary" onclick="downloadQR('{{ site_config.instapay_qr_code.url }}')">
+                                                    <i class="fas fa-download me-2"></i>
+                                                    {% trans "تحميل رمز QR" %}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Wallet Payment Link -->
+                                    {% if site_config.wallet_payment_link %}
+                                    <div class="col-md-6">
+                                        <div class="offline-payment-card p-4 border rounded">
+                                            <h6 class="mb-3">
+                                                <i class="fas fa-wallet me-2 text-success"></i>
+                                                {% trans "الدفع عبر المحفظة الإلكترونية" %}
+                                            </h6>
+                                            <div class="text-center mb-3">
+                                                <i class="fas fa-mobile-alt fa-5x text-muted" style="opacity: 0.3;"></i>
+                                            </div>
+                                            {% if site_config.wallet_phone %}
+                                            <p class="text-center mb-3">
+                                                <strong>
+                                                    <i class="fas fa-phone me-1"></i>
+                                                    {{ site_config.wallet_phone }}
+                                                </strong>
+                                            </p>
+                                            {% endif %}
+                                            <div class="d-grid">
+                                                <a href="{{ site_config.wallet_payment_link }}"
+                                                   target="_blank"
+                                                   class="btn btn-success">
+                                                    <i class="fas fa-external-link-alt me-2"></i>
+                                                    {% trans "افتح رابط المحفظة" %}
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Offline Payment Instructions -->
+                                {% if site_config.offline_payment_instructions_ar %}
+                                <div class="alert alert-info mt-4">
+                                    <h6 class="alert-heading">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        {% trans "تعليمات الدفع اليدوي" %}
+                                    </h6>
+                                    <div class="small" style="white-space: pre-line;">{{ site_config.offline_payment_instructions_ar }}</div>
+                                </div>
+                                {% endif %}
+
+                                <div class="alert alert-warning mt-3">
+                                    <small>
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        {% trans "ملاحظة: بعد إتمام الدفع، يرجى التواصل مع الدعم وإرسال إيصال التحويل للتأكيد." %}
+                                    </small>
+                                </div>
+                            </div>
+                            {% endif %}
 
                             {% if not package %}
                                 <!-- Custom Amount for General Payments -->
@@ -553,6 +664,16 @@ document.addEventListener('DOMContentLoaded', function() {
         payButton.querySelector('.button-text').style.display = 'inline';
         payButton.querySelector('.loading-spinner').style.display = 'none';
     }
+
+    // Download QR Code function
+    window.downloadQR = function(qrUrl) {
+        const link = document.createElement('a');
+        link.href = qrUrl;
+        link.download = 'instapay-qr-code.png';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 });
 </script>
 {% endblock %}

@@ -169,6 +169,11 @@
                                             <span class="badge bg-secondary">{% trans "مسترد" %}</span>
                                         {% else %}
                                             <span class="badge bg-danger">{% trans "غير مدفوع" %}</span>
+                                            {% if order.payment_method == 'bank_transfer' and order.payment_status == 'pending' %}
+                                                <button class="btn btn-sm btn-success mt-1" onclick="confirmOrderPayment({{ order.id }})">
+                                                    <i class="fas fa-check"></i> {% trans "تأكيد الدفع" %}
+                                                </button>
+                                            {% endif %}
                                         {% endif %}
                                     </td>
                                     <td>
@@ -249,4 +254,73 @@
             </div>
         </div>
     </div>
+{% endblock %}
+
+{% block admin_extra_js %}
+<script>
+function confirmOrderPayment(orderId) {
+    // Prompt for transaction reference
+    const transactionRef = prompt('{% trans "أدخل رقم معاملة الحوالة البنكية:" %}');
+    if (!transactionRef || transactionRef.trim() === '') {
+        alert('{% trans "رقم المعاملة مطلوب" %}');
+        return;
+    }
+
+    // Prompt for admin notes
+    const adminNotes = prompt('{% trans "ملاحظات إدارية (اختياري):" %}');
+
+    // Confirm action
+    if (!confirm('{% trans "هل أنت متأكد من تأكيد استلام الدفع لهذا الطلب؟" %}')) {
+        return;
+    }
+
+    // Send request to backend
+    fetch('{% url "main:confirm_offline_order_payment" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            order_id: orderId,
+            transaction_reference: transactionRef.trim(),
+            admin_notes: adminNotes ? adminNotes.trim() : ''
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message || '{% trans "تم تأكيد الدفع بنجاح" %}');
+            location.reload();
+        } else {
+            alert('{% trans "خطأ" %}: ' + (data.message || '{% trans "حدث خطأ أثناء تأكيد الدفع" %}'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('{% trans "حدث خطأ أثناء الاتصال بالخادم" %}');
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function confirmDelete(event, message) {
+    if (!confirm(message)) {
+        event.preventDefault();
+    }
+}
+</script>
 {% endblock %}

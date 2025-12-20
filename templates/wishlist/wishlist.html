@@ -298,6 +298,12 @@
                     <span>{% trans "إعلاناتك المفضلة المحفوظة في حسابك" %}</span>
                 {% endif %}
             </p>
+            {% if wishlist_items and not is_guest %}
+            <button onclick="clearAllWishlist()" class="btn btn-outline-danger mt-3">
+                <i class="fas fa-trash-alt me-2"></i>
+                {% trans "مسح المفضلة بالكامل" %}
+            </button>
+            {% endif %}
         </div>
 
         {% if not is_guest %}
@@ -600,8 +606,17 @@
         });
     }
 
-    function clearGuestWishlist() {
-        if (confirm('{% trans "هل أنت متأكد من حذف جميع العناصر من المفضلة؟" %}')) {
+    async function clearGuestWishlist() {
+        const confirmed = await showConfirmModal({
+            title: '{% trans "مسح المفضلة" %}',
+            message: '{% trans "هل أنت متأكد من حذف جميع العناصر من المفضلة؟ لا يمكن التراجع عن هذا الإجراء." %}',
+            confirmText: '{% trans "نعم، احذف الكل" %}',
+            cancelText: '{% trans "إلغاء" %}',
+            confirmClass: 'btn-danger',
+            icon: 'fas fa-heart-broken'
+        });
+
+        if (confirmed) {
             localStorage.removeItem('guestWishlist');
             loadGuestWishlist();
 
@@ -610,7 +625,7 @@
                 updateHeaderWishlistCount(0);
             }
 
-            showNotification('{% trans "تم مسح المفضلة بنجاح" %}', 'success');
+            showToast('{% trans "تم مسح المفضلة بنجاح" %}', 'success');
         }
     }
 
@@ -708,4 +723,43 @@
         }
     }
 </style>
+
+<script>
+async function clearAllWishlist() {
+    const confirmed = await showConfirmModal({
+        title: '{% trans "مسح المفضلة" %}',
+        message: '{% trans "هل أنت متأكد من مسح جميع العناصر من المفضلة؟ لا يمكن التراجع عن هذا الإجراء." %}',
+        confirmText: '{% trans "نعم، امسح الكل" %}',
+        cancelText: '{% trans "إلغاء" %}',
+        confirmClass: 'btn-danger',
+        icon: 'fas fa-heart-broken'
+    });
+
+    if (!confirmed) {
+        return;
+    }
+
+    fetch('/api/wishlist/clear/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('{% trans "تم مسح المفضلة بنجاح" %}', 'success');
+            setTimeout(() => window.location.reload(), 500);
+        } else {
+            showToast(data.message || '{% trans "حدث خطأ" %}', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('{% trans "حدث خطأ في مسح المفضلة" %}', 'error');
+    });
+}
+</script>
 {% endblock %}

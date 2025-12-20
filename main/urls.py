@@ -11,7 +11,7 @@ from . import chat_views
 from . import blog_views
 from . import admin_ad_views
 from . import admin_content_views
-from . import admin_orders_views
+from . import admin_orders_views, offline_payment_views
 from . import publisher_views
 from . import review_views
 from . import admin_review_views
@@ -963,6 +963,22 @@ urlpatterns = [
         views.admin_payment_transaction_detail,
         name="admin_payment_transaction_detail",
     ),
+    # Offline Payment Management
+    path(
+        "admin/payments/confirm-offline/",
+        offline_payment_views.confirm_offline_payment,
+        name="confirm_offline_payment",
+    ),
+    path(
+        "admin/payments/reject-offline/",
+        offline_payment_views.reject_offline_payment,
+        name="reject_offline_payment",
+    ),
+    path(
+        "admin/orders/confirm-payment/",
+        offline_payment_views.confirm_offline_order_payment,
+        name="confirm_offline_order_payment",
+    ),
     # AJAX endpoints for packages and subscriptions
     path(
         "admin/api/user-packages/",
@@ -1128,6 +1144,11 @@ urlpatterns = [
     path("api/cart/count/", cart_wishlist_views.get_cart_count_view, name="cart_count"),
     path("cart/", cart_wishlist_views.cart_view, name="cart_view"),
     path("checkout/", cart_wishlist_views.checkout_view, name="checkout"),
+    path(
+        "order/success/<int:order_id>/",
+        cart_wishlist_views.order_success_view,
+        name="order_success",
+    ),
     path(
         "api/cart/check-partial-payment/",
         cart_wishlist_views.check_partial_payment_eligibility,

@@ -336,16 +336,43 @@ def admin_edit_homepage(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_edit_siteconfig(request):
-    """Edit site configuration"""
+    """Edit site configuration with all fields"""
     site_config = SiteConfiguration.get_solo()
 
     if request.method == "POST":
         try:
+            # SEO Fields
             site_config.meta_keywords = request.POST.get("meta_keywords", "")
             site_config.meta_keywords_ar = request.POST.get("meta_keywords_ar", "")
+
+            # Footer Content
             site_config.footer_text = request.POST.get("footer_text", "")
             site_config.footer_text_ar = request.POST.get("footer_text_ar", "")
             site_config.copyright_text = request.POST.get("copyright_text", "")
+
+            # Verification Settings
+            site_config.require_email_verification = request.POST.get("require_email_verification") == "on"
+            site_config.require_phone_verification = request.POST.get("require_phone_verification") == "on"
+            site_config.require_verification_for_services = request.POST.get("require_verification_for_services") == "on"
+            site_config.verification_services_message = request.POST.get("verification_services_message", "")
+            site_config.verification_services_message_ar = request.POST.get("verification_services_message_ar", "")
+
+            # Payment Settings
+            site_config.allow_online_payment = request.POST.get("allow_online_payment") == "on"
+            site_config.allow_offline_payment = request.POST.get("allow_offline_payment") == "on"
+
+            # InstaPay Settings
+            if "instapay_qr_code" in request.FILES:
+                site_config.instapay_qr_code = request.FILES["instapay_qr_code"]
+            site_config.instapay_phone = request.POST.get("instapay_phone", "")
+
+            # Wallet Settings
+            site_config.wallet_payment_link = request.POST.get("wallet_payment_link", "")
+            site_config.wallet_phone = request.POST.get("wallet_phone", "")
+
+            # Offline Payment Instructions
+            site_config.offline_payment_instructions = request.POST.get("offline_payment_instructions", "")
+            site_config.offline_payment_instructions_ar = request.POST.get("offline_payment_instructions_ar", "")
 
             site_config.save()
 
@@ -357,6 +384,8 @@ def admin_edit_siteconfig(request):
 
     context = {
         "site_config": site_config,
+        "active_nav": "site_content",
+        "page_title": _("تعديل إعدادات الموقع"),
     }
 
     return render(request, "admin_dashboard/edit_siteconfig.html", context)

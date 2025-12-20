@@ -10,7 +10,7 @@ from django.core.validators import validate_email
 from django.http import HttpResponse, JsonResponse, HttpResponseRedirect
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.utils.translation import gettext_lazy as _
@@ -294,7 +294,7 @@ class RegisterView(CreateView):
 
     def get_success_url(self):
         """Redirect to dashboard after registration (publisher dashboard for default users)"""
-        return reverse_lazy("main:dashboard")
+        return reverse("main:dashboard")
 
     def get(self, request, *args, **kwargs):
         if request.user.is_authenticated:
@@ -317,6 +317,9 @@ class RegisterView(CreateView):
             ),
         }
 
+        # Check if phone verification is required
+        phone_verification_required = is_phone_verification_required()
+
         return render(
             request,
             self.template_name,
@@ -324,6 +327,7 @@ class RegisterView(CreateView):
                 "form": form,
                 "countries": countries,
                 "profile_type_settings": profile_type_settings,
+                "phone_verification_required": phone_verification_required,
             },
         )
 
@@ -381,6 +385,7 @@ class RegisterView(CreateView):
                             "form": form,
                             "countries": countries,
                             "profile_type_settings": profile_type_settings,
+                            "phone_verification_required": phone_verification_required,
                         },
                     )
 
@@ -478,7 +483,7 @@ class RegisterView(CreateView):
                         ),
                     )
 
-            return redirect(self.success_url)
+            return HttpResponseRedirect(self.get_success_url())
         else:
             # Add form errors to messages framework for debugging
             error_details = []
@@ -497,6 +502,10 @@ class RegisterView(CreateView):
             logger.error(f"Registration form validation failed: {error_details}")
 
             messages.error(request, _("يرجى تصحيح الأخطاء أدناه والمحاولة مرة أخرى."))
+
+            # Check if phone verification is required for error case
+            phone_verification_required = is_phone_verification_required()
+
             return render(
                 request,
                 self.template_name,
@@ -504,6 +513,7 @@ class RegisterView(CreateView):
                     "form": form,
                     "countries": countries,
                     "profile_type_settings": profile_type_settings,
+                    "phone_verification_required": phone_verification_required,
                 },
             )
 

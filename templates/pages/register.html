@@ -164,7 +164,9 @@
                 <div class="form-group">
                     <label class="form-label">
                         {% trans "رقم الجوال" %}
+                        {% if phone_verification_required %}
                         <span class="required">*</span>
+                        {% endif %}
                     </label>
                     <div class="form-control-wrapper">
                         <div class="input-group">
@@ -175,11 +177,12 @@
                                    class="form-control"
                                    placeholder="{% trans 'مثال: 501234567' %}"
                                    value="{{ form_data.phone|default:'' }}"
-                                   required />
+                                   {% if phone_verification_required %}required{% endif %} />
                         </div>
                         <input type="hidden" id="country_code" name="country_code" value="SA" />
                     </div>
                     <span class="form-helper" id="phone-helper">{% trans "أدخل رقم الجوال بدون الصفر أو كود الدولة" %}</span>
+                    {% if phone_verification_required %}
                     <div class="d-flex gap-2 mt-2">
                         <button type="button"
                                 id="sendCodeBtn"
@@ -190,9 +193,11 @@
                         </button>
                         <span id="countdown" class="text-muted small align-self-center" style="display: none;"></span>
                     </div>
+                    {% endif %}
                 </div>
 
                 <!-- Verification Code -->
+                {% if phone_verification_required %}
                 <div class="form-group" id="verificationCodeGroup" style="display: none;">
                     <label class="form-label">
                         {% trans "رمز التحقق" %}
@@ -219,6 +224,7 @@
                         <span id="verificationStatus" class="align-self-center"></span>
                     </div>
                 </div>
+                {% endif %}
                 <!-- Extra fields for selected profile types -->
                 <div id="extra_fields_container">
                     <!-- Merchant fields -->
@@ -678,8 +684,9 @@
         // Modify form submission to check phone verification and reCAPTCHA
         const originalSubmitHandler = document.getElementById('registerForm').onsubmit;
         document.getElementById('registerForm').addEventListener('submit', function(e) {
-            // Check phone verification
-            if (!phoneVerified) {
+            // Check phone verification only if it's required
+            const phoneVerificationRequired = {{ phone_verification_required|lower }};
+            if (phoneVerificationRequired && !phoneVerified) {
                 e.preventDefault();
                 showToast('{% trans "يجب التحقق من رقم الجوال قبل إنشاء الحساب" %}', 'warning');
                 document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'center' });

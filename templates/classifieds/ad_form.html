@@ -683,8 +683,28 @@
                                         <div class="form-text">{% trans "اكتب وصفاً واضحاً ومفصلاً عن المنتج أو الخدمة" %}</div>
                                     </div>
 
-                                    <!-- Dynamic Custom Fields -->
-                                    <div id="custom-fields-container" class="row"></div>
+                                    <!-- Dynamic Custom Fields (Rendered by Django) -->
+                                    <div id="custom-fields-container" class="row">
+                                        {% for field in form %}
+                                            {% if field.name.startswith('custom_') %}
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="{{ field.id_for_label }}" class="form-label">
+                                                        {{ field.label }}
+                                                        {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+                                                    </label>
+                                                    {{ field }}
+                                                    {% if field.help_text %}
+                                                        <div class="form-text">{{ field.help_text }}</div>
+                                                    {% endif %}
+                                                    {% if field.errors %}
+                                                        <div class="invalid-feedback d-block">
+                                                            {{ field.errors|join:", " }}
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
                                 </div>
 
                                 <!-- Step 3: Price -->
@@ -1258,173 +1278,49 @@
             {% endif %}
 
             // ========== Custom Fields Logic ==========
-            const categorySelect = document.getElementById('{{ form.category.id_for_label }}');
-            const customFieldsContainer = document.getElementById('custom-fields-container');
-            const initialCustomValues = {{ form.instance.custom_fields|default:"{}" |safe }};
+            // Custom fields are rendered server-side by Django
+            // When category changes in create mode, we need to reload the form to show custom fields
 
-            // Translation mapping for field labels
-            const fieldTranslations = {
-                'brand': '{% trans "الماركة" %}',
-                'Brand': '{% trans "الماركة" %}',
-                'model': '{% trans "الموديل" %}',
-                'Model': '{% trans "الموديل" %}',
-                'model_year': '{% trans "سنة الصنع" %}',
-                'Model Year': '{% trans "سنة الصنع" %}',
-                'condition': '{% trans "الحالة" %}',
-                'Condition': '{% trans "الحالة" %}',
-                'warranty_included': '{% trans "يتضمن ضمان" %}',
-                'Warranty Included': '{% trans "يتضمن ضمان" %}',
-                'warranty': '{% trans "الضمان" %}',
-                'Warranty': '{% trans "الضمان" %}',
-                'purchase_date': '{% trans "تاريخ الشراء" %}',
-                'Purchase Date': '{% trans "تاريخ الشراء" %}',
-                'color': '{% trans "اللون" %}',
-                'Color': '{% trans "اللون" %}',
-                'size': '{% trans "المقاس" %}',
-                'Size': '{% trans "المقاس" %}',
-                'material': '{% trans "المادة" %}',
-                'Material': '{% trans "المادة" %}',
-                'mileage': '{% trans "المسافة المقطوعة" %}',
-                'Mileage': '{% trans "المسافة المقطوعة" %}',
-                'fuel_type': '{% trans "نوع الوقود" %}',
-                'Fuel Type': '{% trans "نوع الوقود" %}',
-                'transmission': '{% trans "ناقل الحركة" %}',
-                'Transmission': '{% trans "ناقل الحركة" %}',
-                'engine_capacity': '{% trans "سعة المحرك" %}',
-                'Engine Capacity': '{% trans "سعة المحرك" %}',
-                'year': '{% trans "السنة" %}',
-                'Year': '{% trans "السنة" %}',
-                'usage': '{% trans "الاستخدام" %}',
-                'Usage': '{% trans "الاستخدام" %}',
-                'age': '{% trans "العمر" %}',
-                'Age': '{% trans "العمر" %}',
-                'New': '{% trans "جديد" %}',
-                'Used': '{% trans "مستعمل" %}',
-                'Like New': '{% trans "كالجديد" %}',
-                'Good': '{% trans "جيد" %}',
-                'Fair': '{% trans "متوسط" %}',
-                'Excellent': '{% trans "ممتاز" %}',
-                'Yes': '{% trans "نعم" %}',
-                'No': '{% trans "لا" %}',
-                '---------': '{% trans "---------" %}'
+            // Store the currently selected category to detect changes
+            let currentCategoryId = hiddenCategoryInput.value;
+
+            // Monitor category changes
+            const checkCategoryChange = () => {
+                const newCategoryId = hiddenCategoryInput.value;
+                if (newCategoryId && newCategoryId !== currentCategoryId) {
+                    // Category changed, show message to user
+                    const customFieldsContainer = document.getElementById('custom-fields-container');
+                    if (customFieldsContainer && customFieldsContainer.children.length === 0) {
+                        // No custom fields loaded yet
+                        customFieldsContainer.innerHTML = `
+                            <div class="col-12">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    {% trans "يتم تحميل الحقول المخصصة..." %}
+                                </div>
+                            </div>
+                        `;
+
+                        // Auto-submit form data via AJAX to get custom fields
+                        // Or show a message that custom fields will appear after continuing
+                        setTimeout(() => {
+                            customFieldsContainer.innerHTML = `
+                                <div class="col-12">
+                                    <div class="alert alert-success">
+                                        <i class="fas fa-check-circle me-2"></i>
+                                        {% trans "سيتم عرض الحقول المخصصة الإضافية في الخطوة التالية إن وجدت" %}
+                                    </div>
+                                </div>
+                            `;
+                        }, 1000);
+                    }
+                }
             };
 
-            function translateLabel(label) {
-                // Check if translation exists
-                if (fieldTranslations[label]) {
-                    return fieldTranslations[label];
-                }
-                // Return original label if no translation found
-                return label;
-            }
-
-            function generateFieldHtml(fieldSchema) {
-                const fieldName = fieldSchema.name;
-                const fieldLabel = translateLabel(fieldSchema.label || fieldName);
-                const fieldType = fieldSchema.type || 'text';
-                const isRequired = fieldSchema.required || false;
-                const validation = fieldSchema.validation || {};
-                const initialValue = initialCustomValues[fieldName] || '';
-
-                let fieldHtml = `<div class="col-md-6 mb-3">
-                    <label for="id_${fieldName}" class="form-label">${fieldLabel}${isRequired ? '<span class="text-danger">*</span>' : ''}</label>`;
-
-                if (fieldType === 'select') {
-                    fieldHtml += `<select name="${fieldName}" id="id_${fieldName}" class="form-select" ${isRequired ? 'required' : ''}>`;
-                    fieldHtml += `<option value="">${translateLabel('---------')}</option>`;
-                    fieldSchema.options.forEach(opt => {
-                        const selected = initialValue === opt ? ' selected' : '';
-                        const translatedOpt = translateLabel(opt);
-                        fieldHtml += `<option value="${opt}"${selected}>${translatedOpt}</option>`;
-                    });
-                    fieldHtml += `</select>`;
-                } else if (fieldType === 'checkbox') {
-                    const isChecked = initialValue === true || initialValue === 'true' ? ' checked' : '';
-                    fieldHtml = `<div class="col-md-6 mb-3 d-flex align-items-center">
-                        <div class="form-check">
-                            <input type="checkbox" name="${fieldName}" id="id_${fieldName}" class="form-check-input" ${isChecked}>
-                            <label for="id_${fieldName}" class="form-check-label">${fieldLabel}</label>
-                        </div>
-                    </div>`;
-                    return fieldHtml;
-                } else if (fieldType === 'date') {
-                    const minDate = validation.min_date ? `min="${validation.min_date}"` : '';
-                    const maxDate = validation.max_date ? `max="${validation.max_date}"` : '';
-                    fieldHtml += `<input type="date" name="${fieldName}" id="id_${fieldName}" class="form-control" value="${initialValue}" ${isRequired ? 'required' : ''} ${minDate} ${maxDate}>`;
-                } else if (fieldType === 'number') {
-                    const minVal = validation.min_value !== undefined ? `min="${validation.min_value}"` : '';
-                    const maxVal = validation.max_value !== undefined ? `max="${validation.max_value}"` : '';
-                    fieldHtml += `<input type="number" name="${fieldName}" id="id_${fieldName}" class="form-control" value="${initialValue}" ${isRequired ? 'required' : ''} ${minVal} ${maxVal}>`;
-                } else {
-                    fieldHtml += `<input type="text" name="${fieldName}" id="id_${fieldName}" class="form-control" value="${initialValue}" ${isRequired ? 'required' : ''}>`;
-                }
-
-                fieldHtml += `</div>`;
-                return fieldHtml;
-            }
-
-            function updateCustomFields() {
-                customFieldsContainer.innerHTML = '';
-
-                const categoryId = hiddenCategoryInput.value;
-                if (!categoryId) return;
-
-                let customFieldsData = null;
-
-                // Priority: sub-subcategory > subcategory > main category
-                // Check if it's from sub-subcategory (Level 3)
-                if (subSubcategorySelect.value) {
-                    const selectedSubSubOption = subSubcategorySelect.options[subSubcategorySelect.selectedIndex];
-                    if (selectedSubSubOption && selectedSubSubOption.dataset.customFields) {
-                        try {
-                            customFieldsData = JSON.parse(selectedSubSubOption.dataset.customFields);
-                            console.log("Using sub-subcategory custom fields");
-                        } catch (e) {
-                            console.error("Error parsing sub-subcategory custom fields:", e);
-                        }
-                    }
-                }
-                // Check if it's from subcategory (Level 2)
-                else if (subcategorySelect.value) {
-                    const selectedSubOption = subcategorySelect.options[subcategorySelect.selectedIndex];
-                    if (selectedSubOption && selectedSubOption.dataset.customFields) {
-                        try {
-                            customFieldsData = JSON.parse(selectedSubOption.dataset.customFields);
-                            console.log("Using subcategory custom fields");
-                        } catch (e) {
-                            console.error("Error parsing subcategory custom fields:", e);
-                        }
-                    }
-                }
-                // Get from main category (Level 1)
-                else {
-                    const selectedMainOption = mainCategorySelect.options[mainCategorySelect.selectedIndex];
-                    if (selectedMainOption && selectedMainOption.dataset.customFields) {
-                        try {
-                            customFieldsData = JSON.parse(selectedMainOption.dataset.customFields);
-                            console.log("Using main category custom fields");
-                        } catch (e) {
-                            console.error("Error parsing main category custom fields:", e);
-                        }
-                    }
-                }
-
-                // Render custom fields
-                if (customFieldsData && Array.isArray(customFieldsData)) {
-                    customFieldsData.forEach(fieldSchema => {
-                        customFieldsContainer.innerHTML += generateFieldHtml(fieldSchema);
-                    });
-                    console.log(`Rendered ${customFieldsData.length} custom fields`);
-                } else {
-                    console.log("No custom fields to render");
-                }
-            }
-
-            // Remove old event listener
-            // categorySelect.addEventListener('change', updateCustomFields);
-            if (hiddenCategoryInput.value) {
-                setTimeout(() => updateCustomFields(), 200);
-            }
+            // Listen for category selection changes
+            mainCategorySelect.addEventListener('change', checkCategoryChange);
+            subcategorySelect.addEventListener('change', checkCategoryChange);
+            subSubcategorySelect.addEventListener('change', checkCategoryChange);
 
             // ========== Mobile Verification Logic ==========
             const mobileInput = document.getElementById('{{ form.mobile_number.id_for_label }}');

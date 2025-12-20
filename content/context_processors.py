@@ -3,6 +3,7 @@ from main.models import Notification
 from constance import config
 from django.db import models
 from content.verification_utils import get_verification_requirements
+from content.site_config import SiteConfiguration
 
 
 def countries(request):
@@ -102,12 +103,20 @@ def cart_wishlist_counts(request):
         from main.models import Cart, Wishlist
 
         # Get or create cart
-        cart, _ = Cart.objects.get_or_create(user=request.user)
+        cart, created = Cart.objects.get_or_create(user=request.user)
         cart_count = cart.get_items_count()
 
+        # Debug logging
+        print(f"[CONTEXT_PROCESSOR] User: {request.user.username}")
+        print(f"[CONTEXT_PROCESSOR] Cart ID: {cart.id}, Created: {created}")
+        print(f"[CONTEXT_PROCESSOR] Cart count: {cart_count}")
+
         # Get or create wishlist
-        wishlist, _ = Wishlist.objects.get_or_create(user=request.user)
+        wishlist, created = Wishlist.objects.get_or_create(user=request.user)
         wishlist_count = wishlist.get_items_count()
+
+        print(f"[CONTEXT_PROCESSOR] Wishlist ID: {wishlist.id}, Created: {created}")
+        print(f"[CONTEXT_PROCESSOR] Wishlist count: {wishlist_count}")
 
         return {
             "cart_count": cart_count,
@@ -126,4 +135,13 @@ def verification_settings(request):
     """
     return {
         "verification_requirements": get_verification_requirements(),
+    }
+
+
+def site_configuration(request):
+    """
+    Context processor to add site configuration to all templates
+    """
+    return {
+        "site_config": SiteConfiguration.get_solo(),
     }

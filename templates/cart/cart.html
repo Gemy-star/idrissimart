@@ -302,6 +302,12 @@
                     <span>{% trans "سلة التسوق فارغة" %}</span>
                 {% endif %}
             </p>
+            {% if cart_items %}
+            <button onclick="clearAllCart()" class="btn btn-outline-danger mt-3">
+                <i class="fas fa-trash-alt me-2"></i>
+                {% trans "مسح السلة بالكامل" %}
+            </button>
+            {% endif %}
         </div>
 
         {% if cart_items %}
@@ -404,7 +410,7 @@ function proceedToCheckout() {
         window.location.href = checkoutUrl;
     } catch (error) {
         console.error('Error navigating to checkout:', error);
-        alert('{% trans "حدث خطأ في الانتقال إلى صفحة الدفع" %}');
+        showToast('{% trans "حدث خطأ في الانتقال إلى صفحة الدفع" %}', 'error');
 
         // Re-enable button on error
         const checkoutBtn = document.getElementById('checkoutBtn');
@@ -416,7 +422,16 @@ function proceedToCheckout() {
 }
 
 async function removeFromCartPage(adId) {
-    if (!confirm('{% trans "هل أنت متأكد من إزالة هذا المنتج؟" %}')) {
+    const confirmed = await showConfirmModal({
+        title: '{% trans "إزالة من السلة" %}',
+        message: '{% trans "هل أنت متأكد من إزالة هذا المنتج من السلة؟" %}',
+        confirmText: '{% trans "نعم، احذف" %}',
+        cancelText: '{% trans "إلغاء" %}',
+        confirmClass: 'btn-danger',
+        icon: 'fas fa-trash-alt'
+    });
+
+    if (!confirmed) {
         return;
     }
 
@@ -467,5 +482,42 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+async function clearAllCart() {
+    const confirmed = await showConfirmModal({
+        title: '{% trans "مسح السلة" %}',
+        message: '{% trans "هل أنت متأكد من مسح جميع العناصر من السلة؟ لا يمكن التراجع عن هذا الإجراء." %}',
+        confirmText: '{% trans "نعم، امسح الكل" %}',
+        cancelText: '{% trans "إلغاء" %}',
+        confirmClass: 'btn-danger',
+        icon: 'fas fa-trash-alt'
+    });
+
+    if (!confirmed) {
+        return;
+    }
+
+    fetch('/api/cart/clear/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('{% trans "تم مسح السلة بنجاح" %}', 'success');
+            setTimeout(() => window.location.reload(), 500);
+        } else {
+            showToast(data.message || '{% trans "حدث خطأ" %}', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('{% trans "حدث خطأ في مسح السلة" %}', 'error');
+    });
+}
 </script>
 {% endblock %}

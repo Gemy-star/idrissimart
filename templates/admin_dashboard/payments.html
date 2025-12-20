@@ -48,13 +48,26 @@
 
     /* Ensure tab content is visible */
     .tab-content > .tab-pane {
-        display: none;
+        display: none !important;
     }
     .tab-content > .tab-pane.active {
-        display: block;
+        display: block !important;
     }
     .tab-content > .tab-pane.show {
-        display: block;
+        display: block !important;
+    }
+    .tab-content > .tab-pane.active.show {
+        display: block !important;
+    }
+
+    /* Force hide subscriptions tab initially */
+    #user-subscriptions:not(.active):not(.show) {
+        display: none !important;
+    }
+
+    /* Force show packages tab initially */
+    #user-packages.active.show {
+        display: block !important;
     }
 
     /* Dark mode table fix */
@@ -186,9 +199,19 @@
                                 </td>
                                 <td>{{ transaction.created_at|date:"d/m/Y H:i" }}</td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-primary" onclick="viewTransaction({{ transaction.id }})">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" onclick="viewTransaction({{ transaction.id }})">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        {% if transaction.provider == 'bank_transfer' and transaction.status == 'pending' %}
+                                        <button class="btn btn-success" onclick="confirmOfflinePayment({{ transaction.id }})" title="{% trans 'تأكيد الدفع' %}">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        <button class="btn btn-danger" onclick="rejectOfflinePayment({{ transaction.id }})" title="{% trans 'رفض الدفع' %}">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -206,112 +229,106 @@
         </div>
     </div>
 
-    <!-- Packages & Subscriptions Tabs -->
+    <!-- User Packages Section -->
     <div class="admin-content-card mb-4">
-        <div class="card-header">
-            <ul class="nav nav-tabs card-header-tabs" id="packages-subscriptions-tabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="user-packages-tab" data-bs-toggle="tab" data-bs-target="#user-packages" type="button" role="tab">
-                        <i class="fas fa-boxes me-2"></i>
-                        {% trans "باقات الإعلانات" %}
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="user-subscriptions-tab" data-bs-toggle="tab" data-bs-target="#user-subscriptions" type="button" role="tab">
-                        <i class="fas fa-crown me-2"></i>
-                        {% trans "الاشتراكات المميزة" %}
-                    </button>
-                </li>
-            </ul>
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-boxes me-2"></i>
+                {% trans "باقات الإعلانات" %}
+            </h5>
         </div>
         <div class="card-body">
-            <div class="tab-content" id="packages-subscriptions-content">
-                <!-- User Packages Tab -->
-                <div class="tab-pane fade show active" id="user-packages" role="tabpanel">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="mb-0">{% trans "باقات المستخدمين" %}</h5>
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-primary active" onclick="filterUserPackages('all')">
-                                {% trans "الكل" %}
-                            </button>
-                            <button class="btn btn-outline-success" onclick="filterUserPackages('active')">
-                                {% trans "نشط" %}
-                            </button>
-                            <button class="btn btn-outline-danger" onclick="filterUserPackages('expired')">
-                                {% trans "منتهي" %}
-                            </button>
-                        </div>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>{% trans "المستخدم" %}</th>
-                                    <th>{% trans "الباقة" %}</th>
-                                    <th>{% trans "تاريخ الشراء" %}</th>
-                                    <th>{% trans "تاريخ الانتهاء" %}</th>
-                                    <th>{% trans "الإعلانات المتبقية" %}</th>
-                                    <th>{% trans "الحالة" %}</th>
-                                    <th>{% trans "إجراءات" %}</th>
-                                </tr>
-                            </thead>
-                            <tbody id="userPackagesTable">
-                                <tr>
-                                    <td colspan="7" class="text-center py-4">
-                                        <div class="spinner-border text-primary" role="status">
-                                            <span class="visually-hidden">{% trans "جاري التحميل..." %}</span>
-                                        </div>
-                                        <p class="mt-2 text-muted">{% trans "جاري تحميل البيانات..." %}</p>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="mb-0">{% trans "باقات المستخدمين" %}</h6>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary active" onclick="filterUserPackages('all')">
+                        {% trans "الكل" %}
+                    </button>
+                    <button class="btn btn-outline-success" onclick="filterUserPackages('active')">
+                        {% trans "نشط" %}
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="filterUserPackages('expired')">
+                        {% trans "منتهي" %}
+                    </button>
                 </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>{% trans "المستخدم" %}</th>
+                            <th>{% trans "الباقة" %}</th>
+                            <th>{% trans "تاريخ الشراء" %}</th>
+                            <th>{% trans "تاريخ الانتهاء" %}</th>
+                            <th>{% trans "الإعلانات المتبقية" %}</th>
+                            <th>{% trans "الحالة" %}</th>
+                            <th>{% trans "إجراءات" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userPackagesTable">
+                        <tr>
+                            <td colspan="7" class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">{% trans "جاري التحميل..." %}</span>
+                                </div>
+                                <p class="mt-2 text-muted">{% trans "جاري تحميل البيانات..." %}</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-                <!-- User Subscriptions Tab -->
-                <div class="tab-pane fade" id="user-subscriptions" role="tabpanel">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="mb-0">{% trans "الاشتراكات المميزة" %}</h5>
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-primary active" onclick="filterSubscriptions('all')">
-                                {% trans "الكل" %}
-                            </button>
-                            <button class="btn btn-outline-success" onclick="filterSubscriptions('active')">
-                                {% trans "نشط" %}
-                            </button>
-                            <button class="btn btn-outline-danger" onclick="filterSubscriptions('expired')">
-                                {% trans "منتهي" %}
-                            </button>
-                        </div>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>{% trans "المستخدم" %}</th>
-                                    <th>{% trans "نوع الباقة" %}</th>
-                                    <th>{% trans "السعر" %}</th>
-                                    <th>{% trans "تاريخ البدء" %}</th>
-                                    <th>{% trans "تاريخ الانتهاء" %}</th>
-                                    <th>{% trans "التجديد التلقائي" %}</th>
-                                    <th>{% trans "الحالة" %}</th>
-                                    <th>{% trans "إجراءات" %}</th>
-                                </tr>
-                            </thead>
-                            <tbody id="subscriptionsTable">
-                                <tr>
-                                    <td colspan="8" class="text-center py-4">
-                                        <div class="spinner-border text-primary" role="status">
-                                            <span class="visually-hidden">{% trans "جاري التحميل..." %}</span>
-                                        </div>
-                                        <p class="mt-2 text-muted">{% trans "جاري تحميل البيانات..." %}</p>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+    <!-- User Subscriptions Section -->
+    <div class="admin-content-card mb-4">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0">
+                <i class="fas fa-crown me-2"></i>
+                {% trans "الاشتراكات المميزة" %}
+            </h5>
+        </div>
+        <div class="card-body">
+            <div id="user-subscriptions">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="mb-0">{% trans "الاشتراكات المميزة" %}</h6>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary active" onclick="filterSubscriptions('all')">
+                        {% trans "الكل" %}
+                    </button>
+                    <button class="btn btn-outline-success" onclick="filterSubscriptions('active')">
+                        {% trans "نشط" %}
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="filterSubscriptions('expired')">
+                        {% trans "منتهي" %}
+                    </button>
                 </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>{% trans "المستخدم" %}</th>
+                            <th>{% trans "نوع الباقة" %}</th>
+                            <th>{% trans "السعر" %}</th>
+                            <th>{% trans "تاريخ البدء" %}</th>
+                            <th>{% trans "تاريخ الانتهاء" %}</th>
+                            <th>{% trans "التجديد التلقائي" %}</th>
+                            <th>{% trans "الحالة" %}</th>
+                            <th>{% trans "إجراءات" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody id="subscriptionsTable">
+                        <tr>
+                            <td colspan="8" class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">{% trans "جاري التحميل..." %}</span>
+                                </div>
+                                <p class="mt-2 text-muted">{% trans "جاري تحميل البيانات..." %}</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -349,12 +366,276 @@
     </div>
 {% endblock %}
 
+{% block modals %}
+    <!-- Alert Modal -->
+    <div class="modal fade" id="alertModal" tabindex="-1" aria-labelledby="alertModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header" id="alertModalHeader">
+                    <h5 class="modal-title" id="alertModalLabel">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <span id="alertModalTitle">{% trans "إشعار" %}</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="alertModalBody">
+                    <!-- Message will be inserted here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">{% trans "حسناً" %}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title" id="confirmModalLabel">
+                        <i class="fas fa-question-circle me-2"></i>
+                        <span id="confirmModalTitle">{% trans "تأكيد" %}</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="confirmModalBody">
+                    <!-- Message will be inserted here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="button" class="btn btn-primary" id="confirmModalBtn">{% trans "تأكيد" %}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Input Modal -->
+    <div class="modal fade" id="inputModal" tabindex="-1" aria-labelledby="inputModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="inputModalLabel">
+                        <i class="fas fa-edit me-2"></i>
+                        <span id="inputModalTitle">{% trans "إدخال البيانات" %}</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <label for="inputModalField" class="form-label" id="inputModalMessage"></label>
+                    <input type="text" class="form-control" id="inputModalField" placeholder="">
+                    <div class="invalid-feedback" id="inputModalError"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="button" class="btn btn-primary" id="inputModalBtn">{% trans "تأكيد" %}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
 {% block admin_extra_js %}
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
 // Global variables
 const CURRENCY = '{{ selected_currency|default:"SAR" }}';
 const LANGUAGE_CODE = '{{ LANGUAGE_CODE }}';
+
+// Alert Modal Helper Function
+function showAlertModal(message, type = 'info', title = '') {
+    try {
+        const modalElement = document.getElementById('alertModal');
+        if (!modalElement) {
+            console.error('Alert modal element not found');
+            alert(message);
+            return;
+        }
+
+        const modalBody = document.getElementById('alertModalBody');
+        const modalTitle = document.getElementById('alertModalTitle');
+        const modalHeader = document.getElementById('alertModalHeader');
+
+        // Dispose of any existing modal instance
+        const existingModal = bootstrap.Modal.getInstance(modalElement);
+        if (existingModal) {
+            existingModal.dispose();
+        }
+
+        // Create new modal instance
+        const modal = new bootstrap.Modal(modalElement, {
+            backdrop: 'static',
+            keyboard: true
+        });
+
+    // Set message
+    modalBody.innerHTML = message;
+
+    // Set title and icon based on type
+    if (type === 'success') {
+        modalTitle.innerHTML = '<i class="fas fa-check-circle me-2"></i>' + (title || '{% trans "نجح" %}');
+        modalHeader.className = 'modal-header bg-success text-white';
+    } else if (type === 'error') {
+        modalTitle.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + (title || '{% trans "خطأ" %}');
+        modalHeader.className = 'modal-header bg-danger text-white';
+    } else if (type === 'warning') {
+        modalTitle.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>' + (title || '{% trans "تحذير" %}');
+        modalHeader.className = 'modal-header bg-warning text-dark';
+    } else {
+        modalTitle.innerHTML = '<i class="fas fa-info-circle me-2"></i>' + (title || '{% trans "إشعار" %}');
+        modalHeader.className = 'modal-header bg-info text-white';
+    }
+
+    modal.show();
+    } catch (error) {
+        console.error('Error showing alert modal:', error);
+        alert(message);
+    }
+}
+
+// Confirmation Modal Helper Function
+function showConfirmModal(message, onConfirm, title = '') {
+    try {
+        const modalElement = document.getElementById('confirmModal');
+        if (!modalElement) {
+            console.error('Confirm modal element not found');
+            if (confirm(message)) {
+                if (typeof onConfirm === 'function') {
+                    onConfirm();
+                }
+            }
+            return;
+        }
+
+        const modalBody = document.getElementById('confirmModalBody');
+        const modalTitle = document.getElementById('confirmModalTitle');
+        const confirmBtn = document.getElementById('confirmModalBtn');
+
+        // Dispose of any existing modal instance
+        const existingModal = bootstrap.Modal.getInstance(modalElement);
+        if (existingModal) {
+            existingModal.dispose();
+        }
+
+        // Create new modal instance
+        const modal = new bootstrap.Modal(modalElement, {
+            backdrop: 'static',
+            keyboard: false
+        });
+
+    // Set message
+    modalBody.innerHTML = message;
+
+    // Set title
+    if (title) {
+        modalTitle.textContent = title;
+    } else {
+        modalTitle.textContent = '{% trans "تأكيد" %}';
+    }
+
+    // Remove any existing event listeners by cloning the button
+    const newConfirmBtn = confirmBtn.cloneNode(true);
+    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+
+    // Add click event for confirmation
+    newConfirmBtn.addEventListener('click', function() {
+        modal.hide();
+        if (typeof onConfirm === 'function') {
+            onConfirm();
+        }
+    });
+
+    modal.show();
+    } catch (error) {
+        console.error('Error showing confirm modal:', error);
+        if (confirm(message)) {
+            if (typeof onConfirm === 'function') {
+                onConfirm();
+            }
+        }
+    }
+}
+
+// Input Modal Helper Function
+function showInputModal(message, onConfirm, title = '', defaultValue = '', placeholder = '', validateFn = null) {
+    try {
+        const modalElement = document.getElementById('inputModal');
+        if (!modalElement) {
+            console.error('Input modal element not found');
+            alert('خطأ: لم يتم العثور على نافذة الإدخال');
+            return;
+        }
+
+        const modalMessage = document.getElementById('inputModalMessage');
+        const modalTitle = document.getElementById('inputModalTitle');
+        const inputField = document.getElementById('inputModalField');
+        const confirmBtn = document.getElementById('inputModalBtn');
+        const errorDiv = document.getElementById('inputModalError');
+
+        // Dispose of any existing modal instance
+        const existingModal = bootstrap.Modal.getInstance(modalElement);
+        if (existingModal) {
+            existingModal.dispose();
+        }
+
+        // Create new modal instance
+        const modal = new bootstrap.Modal(modalElement, {
+            backdrop: 'static',
+            keyboard: false
+        });
+
+    // Set message and title
+    modalMessage.textContent = message;
+    if (title) {
+        modalTitle.textContent = title;
+    } else {
+        modalTitle.textContent = '{% trans "إدخال البيانات" %}';
+    }
+
+    // Set default value and placeholder
+    inputField.value = defaultValue;
+    inputField.placeholder = placeholder;
+    inputField.classList.remove('is-invalid');
+    errorDiv.textContent = '';
+
+    // Remove any existing event listeners by cloning the button
+    const newConfirmBtn = confirmBtn.cloneNode(true);
+    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+
+    // Focus on input when modal is shown
+    modalElement.addEventListener('shown.bs.modal', function() {
+        inputField.focus();
+    }, { once: true });
+
+    // Add click event for confirmation
+    newConfirmBtn.addEventListener('click', function() {
+        const value = inputField.value.trim();
+
+        // Validate if validation function provided
+        if (validateFn && !validateFn(value)) {
+            inputField.classList.add('is-invalid');
+            return;
+        }
+
+        modal.hide();
+        if (typeof onConfirm === 'function') {
+            onConfirm(value);
+        }
+    });
+
+    // Allow Enter key to submit
+    inputField.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            newConfirmBtn.click();
+        }
+    });
+
+    modal.show();
+    } catch (error) {
+        console.error('Error showing input modal:', error);
+        alert('حدث خطأ في عرض النافذة: ' + error.message);
+    }
+}
 
 // URL patterns with language prefix
 const PAYMENT_URLS = {
@@ -370,43 +651,13 @@ const PAYMENT_URLS = {
 // Initialize page
 document.addEventListener('DOMContentLoaded', function() {
     initializeRevenueChart();
-    initializeTabs();
 
-    // Load user packages on page load (since it's the default active tab)
+    // Load both sections on page load
     loadUserPackages('all', 1);
+    loadUserSubscriptions('all', 1);
+});
 
-    // Add event listeners for tab switches
-    const packagesTab = document.getElementById('user-packages-tab');
-    const subscriptionsTab = document.getElementById('user-subscriptions-tab');
-
-    if (packagesTab) {
-        packagesTab.addEventListener('show.bs.tab', function() {
-            if (!packagesLoaded) {
-                loadUserPackages('all', 1);
-            }
-        });
-    }
-
-    if (subscriptionsTab) {
-        subscriptionsTab.addEventListener('show.bs.tab', function() {
-            if (!subscriptionsLoaded) {
-                loadUserSubscriptions('all', 1);
-            }
-        });
-    }
-});// Initialize Bootstrap Tabs
-function initializeTabs() {
-    const triggerTabList = document.querySelectorAll('#payments-nav-tab button[data-bs-toggle="tab"]');
-    triggerTabList.forEach(triggerEl => {
-        const tabTrigger = new bootstrap.Tab(triggerEl);
-
-        triggerEl.addEventListener('click', event => {
-            event.preventDefault();
-            tabTrigger.show();
-        });
-    });
-}
-
+// Revenue Chart
 // Revenue Chart
 function initializeRevenueChart() {
     const ctx = document.getElementById('revenueChart').getContext('2d');
@@ -630,7 +881,7 @@ function editPackage(packageId) {
 }
 
 function togglePackage(packageId) {
-    if (confirm('هل أنت متأكد من تغيير حالة الباقة؟')) {
+    showConfirmModal('هل أنت متأكد من تغيير حالة الباقة؟', function() {
         fetch(PAYMENT_URLS.packageToggle(packageId), {
             method: 'POST',
             headers: {
@@ -646,17 +897,17 @@ function togglePackage(packageId) {
         })
         .then(data => {
             if (data.success) {
-                alert(data.message);
-                location.reload();
+                showAlertModal(data.message, 'success');
+                setTimeout(() => location.reload(), 1500);
             } else {
-                alert(data.error || '{% trans "حدث خطأ" %}');
+                showAlertModal(data.error || '{% trans "حدث خطأ" %}', 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('{% trans "حدث خطأ في الاتصال بالخادم" %}');
+            showAlertModal('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
         });
-    }
+    });
 }
 
 function addNewPackage() {
@@ -778,14 +1029,186 @@ function filterUserPackages(status) {
 }
 
 function viewUserPackage(packageId) {
-    // TODO: Open user package details modal
-    console.log('View user package:', packageId);
+    console.log('viewUserPackage called with ID:', packageId);
+
+    // Find the package in already loaded data
+    const packageRow = document.querySelector(`tr[data-status] button[onclick*="viewUserPackage(${packageId})"]`);
+    if (!packageRow) {
+        showAlertModal('{% trans "حدث خطأ في تحميل تفاصيل الباقة" %}', 'error');
+        return;
+    }
+
+    // Extract data from the row
+    const row = packageRow.closest('tr');
+    const cells = row.querySelectorAll('td');
+
+    const pkg = {
+        id: packageId,
+        user_username: cells[0].querySelector('.fw-bold').textContent.trim(),
+        user_email: cells[0].querySelector('.text-muted').textContent.trim(),
+        package_name: cells[1].querySelector('.badge').textContent.trim(),
+        package_type: cells[1].querySelector('.badge').classList.contains('bg-secondary') ? 'free' : 'paid',
+        purchase_date: cells[2].textContent.trim(),
+        expiry_date: cells[3].textContent.trim(),
+        ads_remaining: cells[4].querySelector('.badge').textContent.trim(),
+        status: row.dataset.status
+    };
+
+    showUserPackageModal(pkg);
 }
 
+function showUserPackageModal(pkg) {
+    const statusBadge = pkg.status === 'active'
+        ? '<span class="badge bg-success">{% trans "نشط" %}</span>'
+        : '<span class="badge bg-danger">{% trans "منتهي" %}</span>';
+
+    const packageTypeBadge = pkg.package_type === 'free'
+        ? '<span class="badge bg-secondary">{% trans "مجاني" %}</span>'
+        : '<span class="badge bg-info">{% trans "مدفوع" %}</span>';
+
+    const modalHTML = `
+        <div class="modal fade" id="packageDetailModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-box me-2"></i>
+                            {% trans "تفاصيل باقة المستخدم" %} #${pkg.id}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <h6 class="border-bottom pb-2 mb-3">
+                                    <i class="fas fa-user me-2"></i>
+                                    {% trans "معلومات المستخدم" %}
+                                </h6>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small">{% trans "اسم المستخدم" %}</label>
+                                <p class="fw-bold mb-2">${pkg.user_username}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small">{% trans "البريد الإلكتروني" %}</label>
+                                <p class="mb-2">${pkg.user_email}</p>
+                            </div>
+
+                            <div class="col-12 mt-4">
+                                <h6 class="border-bottom pb-2 mb-3">
+                                    <i class="fas fa-box me-2"></i>
+                                    {% trans "معلومات الباقة" %}
+                                </h6>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small">{% trans "اسم الباقة" %}</label>
+                                <p class="fw-bold mb-2">${pkg.package_name}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small">{% trans "نوع الباقة" %}</label>
+                                <p class="mb-2">${packageTypeBadge}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small">{% trans "الحالة" %}</label>
+                                <p class="mb-2">${statusBadge}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small">{% trans "الإعلانات المتبقية" %}</label>
+                                <p class="mb-2">
+                                    <span class="badge bg-primary fs-6">${pkg.ads_remaining}</span>
+                                    <span class="text-muted small">{% trans "من" %} ${pkg.ads_limit || '∞'}</span>
+                                </p>
+                            </div>
+
+                            <div class="col-12 mt-4">
+                                <h6 class="border-bottom pb-2 mb-3">
+                                    <i class="fas fa-calendar me-2"></i>
+                                    {% trans "التواريخ" %}
+                                </h6>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small">{% trans "تاريخ الشراء" %}</label>
+                                <p class="mb-2">
+                                    <i class="fas fa-calendar-plus text-success me-1"></i>
+                                    ${pkg.purchase_date}
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small">{% trans "تاريخ الانتهاء" %}</label>
+                                <p class="mb-2">
+                                    <i class="fas fa-calendar-times ${pkg.status === 'expired' ? 'text-danger' : 'text-warning'} me-1"></i>
+                                    ${pkg.expiry_date}
+                                </p>
+                            </div>
+
+                            ${pkg.payment_amount ? `
+                            <div class="col-12 mt-4">
+                                <h6 class="border-bottom pb-2 mb-3">
+                                    <i class="fas fa-dollar-sign me-2"></i>
+                                    {% trans "معلومات الدفع" %}
+                                </h6>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small">{% trans "المبلغ المدفوع" %}</label>
+                                <p class="fw-bold text-success mb-2">${pkg.payment_amount} ${CURRENCY}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small">{% trans "طريقة الدفع" %}</label>
+                                <p class="mb-2">${pkg.payment_method || '-'}</p>
+                            </div>
+                            ` : ''}
+
+                            ${pkg.notes ? `
+                            <div class="col-12 mt-4">
+                                <label class="form-label text-muted small">{% trans "ملاحظات" %}</label>
+                                <p class="border rounded p-3 bg-light mb-2">${pkg.notes}</p>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1"></i> {% trans "إغلاق" %}
+                        </button>
+                        ${pkg.status === 'active' ? `
+                        <button type="button" class="btn btn-success" onclick="extendUserPackage(${pkg.id}); bootstrap.Modal.getInstance(document.getElementById('packageDetailModal')).hide();">
+                            <i class="fas fa-clock me-1"></i> {% trans "تمديد" %}
+                        </button>
+                        <button type="button" class="btn btn-warning" onclick="addAdsToPackage(${pkg.id}); bootstrap.Modal.getInstance(document.getElementById('packageDetailModal')).hide();">
+                            <i class="fas fa-plus me-1"></i> {% trans "إضافة إعلانات" %}
+                        </button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal if any
+    const existingModal = document.getElementById('packageDetailModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('packageDetailModal'));
+    modal.show();
+
+    // Clean up on close
+    document.getElementById('packageDetailModal').addEventListener('hidden.bs.modal', function () {
+        this.remove();
+    });
+}
+
+// Package Management Functions
 function extendUserPackage(packageId) {
-    const days = prompt('{% trans "كم يوماً تريد تمديد الباقة؟" %}', '30');
-    if (days && !isNaN(days)) {
-        fetch(PAYMENT_URLS.userPackageExtend(packageId), {
+    showInputModal(
+        '{% trans "كم يوماً تريد تمديد الباقة؟" %}',
+        function(days) {
+            fetch(PAYMENT_URLS.userPackageExtend(packageId), {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken'),
@@ -801,23 +1224,35 @@ function extendUserPackage(packageId) {
         })
         .then(data => {
             if (data.success) {
-                alert('{% trans "تم تمديد الباقة بنجاح" %}');
-                location.reload();
+                showAlertModal('{% trans "تم تمديد الباقة بنجاح" %}', 'success');
+                setTimeout(() => location.reload(), 1500);
             } else {
-                alert(data.error || '{% trans "حدث خطأ" %}');
+                showAlertModal(data.error || '{% trans "حدث خطأ" %}', 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('{% trans "حدث خطأ في الاتصال بالخادم" %}');
+            showAlertModal('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
         });
-    }
+        },
+        '{% trans "تمديد الباقة" %}',
+        '30',
+        '{% trans "عدد الأيام" %}',
+        function(value) {
+            if (!value || isNaN(value) || parseInt(value) <= 0) {
+                document.getElementById('inputModalError').textContent = '{% trans "يجب إدخال رقم صحيح أكبر من صفر" %}';
+                return false;
+            }
+            return true;
+        }
+    );
 }
 
 function addAdsToPackage(packageId) {
-    const count = prompt('{% trans "كم إعلان تريد إضافته؟" %}', '5');
-    if (count && !isNaN(count)) {
-        fetch(PAYMENT_URLS.userPackageAddAds(packageId), {
+    showInputModal(
+        '{% trans "كم إعلان تريد إضافته؟" %}',
+        function(count) {
+            fetch(PAYMENT_URLS.userPackageAddAds(packageId), {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken'),
@@ -833,17 +1268,28 @@ function addAdsToPackage(packageId) {
         })
         .then(data => {
             if (data.success) {
-                alert('{% trans "تم إضافة الإعلانات بنجاح" %}');
-                location.reload();
+                showAlertModal('{% trans "تم إضافة الإعلانات بنجاح" %}', 'success');
+                setTimeout(() => location.reload(), 1500);
             } else {
-                alert(data.error || '{% trans "حدث خطأ" %}');
+                showAlertModal(data.error || '{% trans "حدث خطأ" %}', 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('{% trans "حدث خطأ في الاتصال بالخادم" %}');
+            showAlertModal('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
         });
-    }
+        },
+        '{% trans "إضافة إعلانات" %}',
+        '5',
+        '{% trans "عدد الإعلانات" %}',
+        function(value) {
+            if (!value || isNaN(value) || parseInt(value) <= 0) {
+                document.getElementById('inputModalError').textContent = '{% trans "يجب إدخال رقم صحيح أكبر من صفر" %}';
+                return false;
+            }
+            return true;
+        }
+    );
 }
 
 // Subscriptions Management
@@ -973,9 +1419,10 @@ function viewSubscription(subscriptionId) {
 }
 
 function extendSubscription(subscriptionId) {
-    const days = prompt('{% trans "كم يوماً تريد تمديد الاشتراك؟" %}', '30');
-    if (days && !isNaN(days)) {
-        fetch(PAYMENT_URLS.subscriptionExtend(subscriptionId), {
+    showInputModal(
+        '{% trans "كم يوماً تريد تمديد الاشتراك؟" %}',
+        function(days) {
+            fetch(PAYMENT_URLS.subscriptionExtend(subscriptionId), {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken'),
@@ -991,21 +1438,32 @@ function extendSubscription(subscriptionId) {
         })
         .then(data => {
             if (data.success) {
-                alert('{% trans "تم تمديد الاشتراك بنجاح" %}');
-                location.reload();
+                showAlertModal('{% trans "تم تمديد الاشتراك بنجاح" %}', 'success');
+                setTimeout(() => location.reload(), 1500);
             } else {
-                alert(data.error || '{% trans "حدث خطأ" %}');
+                showAlertModal(data.error || '{% trans "حدث خطأ" %}', 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('{% trans "حدث خطأ في الاتصال بالخادم" %}');
+            showAlertModal('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
         });
-    }
+        },
+        '{% trans "تمديد الاشتراك" %}',
+        '30',
+        '{% trans "عدد الأيام" %}',
+        function(value) {
+            if (!value || isNaN(value) || parseInt(value) <= 0) {
+                document.getElementById('inputModalError').textContent = '{% trans "يجب إدخال رقم صحيح أكبر من صفر" %}';
+                return false;
+            }
+            return true;
+        }
+    );
 }
 
 function cancelSubscription(subscriptionId) {
-    if (confirm('{% trans "هل أنت متأكد من إلغاء هذا الاشتراك؟" %}')) {
+    showConfirmModal('{% trans "هل أنت متأكد من إلغاء هذا الاشتراك؟" %}', function() {
         fetch(PAYMENT_URLS.subscriptionCancel(subscriptionId), {
             method: 'POST',
             headers: {
@@ -1020,17 +1478,17 @@ function cancelSubscription(subscriptionId) {
         })
         .then(data => {
             if (data.success) {
-                alert('{% trans "تم إلغاء الاشتراك بنجاح" %}');
-                location.reload();
+                showAlertModal('{% trans "تم إلغاء الاشتراك بنجاح" %}', 'success');
+                setTimeout(() => location.reload(), 1500);
             } else {
-                alert(data.error || '{% trans "حدث خطأ" %}');
+                showAlertModal(data.error || '{% trans "حدث خطأ" %}', 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('{% trans "حدث خطأ في الاتصال بالخادم" %}');
+            showAlertModal('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
         });
-    }
+    });
 }
 
 function toggleAutoRenew(subscriptionId) {
@@ -1048,15 +1506,15 @@ function toggleAutoRenew(subscriptionId) {
     })
     .then(data => {
         if (data.success) {
-            alert('{% trans "تم تحديث إعدادات التجديد التلقائي" %}');
-            location.reload();
+            showAlertModal('{% trans "تم تحديث إعدادات التجديد التلقائي" %}', 'success');
+            setTimeout(() => location.reload(), 1500);
         } else {
-            alert(data.error || '{% trans "حدث خطأ" %}');
+            showAlertModal(data.error || '{% trans "حدث خطأ" %}', 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('{% trans "حدث خطأ في الاتصال بالخادم" %}');
+        showAlertModal('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
     });
 }
 
@@ -1077,7 +1535,7 @@ function extendMembership(memberId) {
 }
 
 function cancelMembership(memberId) {
-    if (confirm('هل أنت متأكد من إلغاء العضوية المميزة؟')) {
+    showConfirmModal('هل أنت متأكد من إلغاء العضوية المميزة؟', function() {
         fetch(PAYMENT_URLS.memberCancel(memberId), {
             method: 'POST',
             headers: {
@@ -1092,17 +1550,17 @@ function cancelMembership(memberId) {
         })
         .then(data => {
             if (data.success) {
-                alert(data.message);
-                location.reload();
+                showAlertModal(data.message, 'success');
+                setTimeout(() => location.reload(), 1500);
             } else {
-                alert(data.error || '{% trans "حدث خطأ" %}');
+                showAlertModal(data.error || '{% trans "حدث خطأ" %}', 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('{% trans "حدث خطأ في الاتصال بالخادم" %}');
+            showAlertModal('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
         });
-    }
+    });
 }
 
 // Reports
@@ -1126,5 +1584,100 @@ function getCookie(name) {
     }
     return cookieValue;
 }
+
+// Offline Payment Handlers
+function confirmOfflinePayment(paymentId) {
+    // First modal: Get transaction reference
+    showInputModal(
+        '{% trans "أدخل رقم المرجع للتحويل البنكي (اختياري):" %}',
+        function(transactionRef) {
+            // Second modal: Get admin notes
+            showInputModal(
+                '{% trans "ملاحظات الإدارة (اختياري):" %}',
+                function(adminNotes) {
+                    // Confirmation modal
+                    showConfirmModal('{% trans "هل أنت متأكد من تأكيد هذه الدفعة؟" %}', function() {
+        fetch('{% url "main:confirm_offline_payment" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                payment_id: paymentId,
+                transaction_reference: transactionRef || '',
+                admin_notes: adminNotes || ''
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlertModal('{% trans "تم تأكيد الدفعة بنجاح" %}', 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showAlertModal(data.error || '{% trans "حدث خطأ أثناء تأكيد الدفعة" %}', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlertModal('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
+        });
+                    });
+                },
+                '{% trans "ملاحظات الإدارة" %}',
+                '',
+                '{% trans "أدخل ملاحظات (اختياري)" %}'
+            );
+        },
+        '{% trans "رقم المرجع" %}',
+        '',
+        '{% trans "أدخل رقم المرجع (اختياري)" %}'
+    );
+}
+
+function rejectOfflinePayment(paymentId) {
+    showInputModal(
+        '{% trans "سبب رفض الدفعة:" %}',
+        function(rejectionReason) {
+            showConfirmModal('{% trans "هل أنت متأكد من رفض هذه الدفعة؟" %}', function() {
+        fetch('{% url "main:reject_offline_payment" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                payment_id: paymentId,
+                rejection_reason: rejectionReason
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlertModal('{% trans "تم رفض الدفعة" %}', 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showAlertModal(data.error || '{% trans "حدث خطأ أثناء رفض الدفعة" %}', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlertModal('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
+        });
+            });
+        },
+        '{% trans "رفض الدفعة" %}',
+        '',
+        '{% trans "سبب الرفض" %}',
+        function(value) {
+            if (!value || value.trim() === '') {
+                document.getElementById('inputModalError').textContent = '{% trans "يجب إدخال سبب الرفض" %}';
+                return false;
+            }
+            return true;
+        }
+    );
+}
+
 </script>
 {% endblock %}

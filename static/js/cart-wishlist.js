@@ -100,6 +100,9 @@ function showNotification(message, type = 'success') {
  * Add item to cart
  */
 async function addToCart(itemId, itemName = 'المنتج') {
+    console.log('[addToCart] Called with itemId:', itemId, 'itemName:', itemName);
+    console.log('[addToCart] isUserAuthenticated:', isUserAuthenticated());
+
     if (!isUserAuthenticated()) {
         showNotification('يجب تسجيل الدخول لإضافة المنتجات للسلة', 'error');
         setTimeout(() => {
@@ -109,6 +112,7 @@ async function addToCart(itemId, itemName = 'المنتج') {
     }
 
     try {
+        console.log('[addToCart] Sending request to /api/cart/add/');
         const response = await fetch('/api/cart/add/', {
             method: 'POST',
             headers: {
@@ -154,12 +158,15 @@ async function addToCart(itemId, itemName = 'المنتج') {
  * Remove item from cart
  */
 async function removeFromCart(itemId, itemName = 'المنتج') {
+    console.log('[removeFromCart] Called with itemId:', itemId);
+
     if (!isUserAuthenticated()) {
         showNotification('يجب تسجيل الدخول', 'error');
         return { success: false };
     }
 
     try {
+        console.log('[removeFromCart] Sending request to /api/cart/remove/');
         const response = await fetch('/api/cart/remove/', {
             method: 'POST',
             headers: {
@@ -205,6 +212,9 @@ async function removeFromCart(itemId, itemName = 'المنتج') {
  * Add item to wishlist
  */
 async function addToWishlist(itemId, itemName = 'المنتج') {
+    console.log('[addToWishlist] Called with itemId:', itemId, 'itemName:', itemName);
+    console.log('[addToWishlist] isUserAuthenticated:', isUserAuthenticated());
+
     if (!isUserAuthenticated()) {
         showNotification('يجب تسجيل الدخول لإضافة المنتجات للمفضلة', 'error');
         setTimeout(() => {
@@ -214,6 +224,7 @@ async function addToWishlist(itemId, itemName = 'المنتج') {
     }
 
     try {
+        console.log('[addToWishlist] Sending request to /api/wishlist/add/');
         const response = await fetch('/api/wishlist/add/', {
             method: 'POST',
             headers: {
@@ -223,11 +234,14 @@ async function addToWishlist(itemId, itemName = 'المنتج') {
             body: `item_id=${itemId}`
         });
 
+        console.log('[addToWishlist] Response status:', response.status);
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
+        console.log('[addToWishlist] Response data:', data);
 
         if (data.success) {
             // Update both counts if provided
@@ -259,12 +273,15 @@ async function addToWishlist(itemId, itemName = 'المنتج') {
  * Remove item from wishlist
  */
 async function removeFromWishlist(itemId, itemName = 'المنتج') {
+    console.log('[removeFromWishlist] Called with itemId:', itemId);
+
     if (!isUserAuthenticated()) {
         showNotification('يجب تسجيل الدخول', 'error');
         return { success: false };
     }
 
     try {
+        console.log('[removeFromWishlist] Sending request to /api/wishlist/remove/');
         const response = await fetch('/api/wishlist/remove/', {
             method: 'POST',
             headers: {
@@ -274,11 +291,14 @@ async function removeFromWishlist(itemId, itemName = 'المنتج') {
             body: `item_id=${itemId}`
         });
 
+        console.log('[removeFromWishlist] Response status:', response.status);
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
+        console.log('[removeFromWishlist] Response data:', data);
 
         if (data.success) {
             // Update both counts if provided
@@ -441,9 +461,39 @@ document.addEventListener('wishlistUpdated', (e) => {
         }
     });
 
-    // Refresh wishlist UI if on wishlist page
+    // On wishlist page, remove item card when removed from wishlist
     if (window.location.pathname.includes('/wishlist/')) {
-        location.reload();
+        if (e.detail.action === 'remove') {
+            // Find and remove the ad card
+            const adCards = document.querySelectorAll('.modern-ad-card, .wishlist-item, .ad-card');
+            adCards.forEach(card => {
+                // Check if this card contains the ad being removed
+                const cardAdId = card.querySelector(`[data-ad-id="${adId}"]`)?.dataset.adId;
+                if (cardAdId == adId || card.dataset.adId == adId) {
+                    card.style.transition = 'all 0.3s ease';
+                    card.style.opacity = '0';
+                    card.style.transform = 'scale(0.8)';
+                    setTimeout(() => {
+                        card.remove();
+
+                        // Check if wishlist is now empty
+                        const remainingItems = document.querySelectorAll('.modern-ad-card, .wishlist-item, .ad-card').length;
+                        if (remainingItems === 0) {
+                            location.reload(); // Reload to show empty state
+                        }
+                    }, 300);
+                }
+            });
+
+            // Update count badge if it exists
+            const countBadge = document.querySelector('.wishlist-count-badge span');
+            if (countBadge && e.detail.count !== undefined) {
+                countBadge.textContent = `${e.detail.count} عنصر`;
+            }
+        } else {
+            // Item added to wishlist while on wishlist page - reload to show it
+            location.reload();
+        }
     }
 });
 

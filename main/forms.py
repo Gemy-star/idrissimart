@@ -218,38 +218,58 @@ class ClassifiedAdForm(forms.ModelForm):
 
     def add_custom_fields(self, category):
         """
-        Adds form fields based on the category's custom_field_schema, including validation.
-        Custom fields are rendered by JavaScript, so we set required=False here to avoid
-        server-side validation conflicts. Client-side validation is handled in the template.
+        Adds form fields based on the CategoryCustomField database model.
+        This method adds Django form fields that will be rendered in the template.
         """
-        schema = category.custom_field_schema or []
+        from main.models import CategoryCustomField
 
-        for field_schema in schema:
-            field_name = field_schema.get("name")
-            if not field_name:
-                continue
+        # Get all active custom fields for this category
+        category_fields = (
+            CategoryCustomField.objects.filter(
+                category=category, is_active=True
+            )
+            .select_related("custom_field")
+            .order_by("order")
+        )
 
-            field_label = field_schema.get("label", field_name)
-            field_type = field_schema.get("type", "text")
-            # Custom fields are handled by JavaScript, so we don't enforce required on Django side
-            required = False
-            options = field_schema.get("options", [])
-            validation_rules = field_schema.get("validation", {})
+        for cf in category_fields:
+            field = cf.custom_field
+            field_name = f"custom_{field.name}"
+            field_label = field.label_ar or field.name
+            field_type = field.field_type
+            is_required = cf.is_required  # Use the category-specific requirement
 
             field_kwargs = {
                 "label": field_label,
-                "required": required,
+                "required": is_required,
+                "help_text": field.help_text or "",
             }
-            widget_attrs = {"class": "form-control"}
+            widget_attrs = {
+                "class": "form-control",
+                "placeholder": field.placeholder or "",
+            }
 
-            if field_type == "select":
-                field_kwargs["choices"] = [("", "---------")] + [
-                    (opt, opt) for opt in options
+            # Handle different field types
+            if field_type == "select" or field_type == "radio":
+                # Get options from CustomFieldOption model
+                options = field.field_options.filter(is_active=True).order_by("order")
+                choices = [("", "---------")] + [
+                    (opt.value, opt.label_ar) for opt in options
                 ]
                 widget_attrs["class"] = "form-select"
-                self.fields[field_name] = forms.ChoiceField(
-                    **field_kwargs, widget=forms.Select(attrs=widget_attrs)
-                )
+
+                if field_type == "radio":
+                    self.fields[field_name] = forms.ChoiceField(
+                        **field_kwargs,
+                        choices=choices,
+                        widget=forms.RadioSelect()
+                    )
+                else:
+                    self.fields[field_name] = forms.ChoiceField(
+                        **field_kwargs,
+                        choices=choices,
+                        widget=forms.Select(attrs=widget_attrs)
+                    )
 
             elif field_type == "checkbox":
                 widget_attrs["class"] = "form-check-input"
@@ -263,36 +283,64 @@ class ClassifiedAdForm(forms.ModelForm):
                     **field_kwargs, widget=forms.DateInput(attrs=widget_attrs)
                 )
 
+            elif field_type == "datetime":
+                widget_attrs["type"] = "datetime-local"
+                self.fields[field_name] = forms.DateTimeField(
+                    **field_kwargs, widget=forms.DateTimeInput(attrs=widget_attrs)
+                )
+
+            elif field_type == "time":
+                widget_attrs["type"] = "time"
+                self.fields[field_name] = forms.TimeField(
+                    **field_kwargs, widget=forms.TimeInput(attrs=widget_attrs)
+                )
+
             elif field_type == "number":
-                field_kwargs.update(
-                    {
-                        "min_value": validation_rules.get("min_value"),
-                        "max_value": validation_rules.get("max_value"),
-                    }
+                widget_attrs.update({
+                    "min": field.min_value if field.min_value is not None else "",
+                    "max": field.max_value if field.max_value is not None else "",
+                    "step": "any",
+                })
+                self.fields[field_name] = forms.DecimalField(
+                    **field_kwargs,
+                    min_value=field.min_value,
+                    max_value=field.max_value,
+                    widget=forms.NumberInput(attrs=widget_attrs)
                 )
-                widget_attrs.update(
-                    {
-                        "min": validation_rules.get("min_value"),
-                        "max": validation_rules.get("max_value"),
-                    }
+
+            elif field_type == "email":
+                widget_attrs["type"] = "email"
+                self.fields[field_name] = forms.EmailField(
+                    **field_kwargs, widget=forms.EmailInput(attrs=widget_attrs)
                 )
-                self.fields[field_name] = forms.IntegerField(
-                    **field_kwargs, widget=forms.NumberInput(attrs=widget_attrs)
+
+            elif field_type == "url":
+                widget_attrs["type"] = "url"
+                self.fields[field_name] = forms.URLField(
+                    **field_kwargs, widget=forms.URLInput(attrs=widget_attrs)
+                )
+
+            elif field_type == "phone":
+                widget_attrs["type"] = "tel"
+                self.fields[field_name] = forms.CharField(
+                    **field_kwargs, widget=forms.TextInput(attrs=widget_attrs)
+                )
+
+            elif field_type == "textarea":
+                widget_attrs["class"] = "form-control"
+                widget_attrs["rows"] = 4
+                self.fields[field_name] = forms.CharField(
+                    **field_kwargs, widget=forms.Textarea(attrs=widget_attrs)
                 )
 
             else:  # Default to text
-                field_kwargs.update(
-                    {
-                        "min_length": validation_rules.get("min_length"),
-                        "max_length": validation_rules.get("max_length"),
-                    }
-                )
-                widget_attrs.update(
-                    {
-                        "minlength": validation_rules.get("min_length"),
-                        "maxlength": validation_rules.get("max_length"),
-                    }
-                )
+                if field.min_length:
+                    field_kwargs["min_length"] = field.min_length
+                    widget_attrs["minlength"] = field.min_length
+                if field.max_length:
+                    field_kwargs["max_length"] = field.max_length
+                    widget_attrs["maxlength"] = field.max_length
+
                 self.fields[field_name] = forms.CharField(
                     **field_kwargs, widget=forms.TextInput(attrs=widget_attrs)
                 )
@@ -537,7 +585,7 @@ class RegistrationForm(forms.Form):
     )
     phone = forms.CharField(
         label=_("رقم الجوال"),
-        required=True,
+        required=False,  # Will be conditionally required in clean_phone
         widget=forms.TextInput(attrs={"placeholder": _("مثال: 0501234567")}),
         error_messages={
             "required": _("رقم الهاتف مطلوب من شروط اكمال التسجيل."),
@@ -718,6 +766,7 @@ class RegistrationForm(forms.Form):
 
     def clean_phone(self):
         from .utils import validate_phone_number, normalize_phone_number
+        from content.verification_utils import is_phone_verification_required
 
         phone = self.cleaned_data.get("phone")
         # Get country code from either country_code field or country field
@@ -726,8 +775,16 @@ class RegistrationForm(forms.Form):
         )
         country_code = country_code.upper()
 
-        if not phone:
+        # Check if phone verification is required
+        phone_verification_required = is_phone_verification_required()
+
+        # Only require phone if phone verification is enabled
+        if phone_verification_required and not phone:
             raise ValidationError(_("رقم الجوال مطلوب من شروط اكمال التسجيل"))
+
+        # If phone is not provided and not required, return None
+        if not phone:
+            return None
 
         # Validate format for the selected country
         if not validate_phone_number(phone, country_code):
@@ -927,3 +984,248 @@ class AdReviewForm(forms.ModelForm):
             "rating": _("التقييم"),
             "comment": _("التعليق"),
         }
+
+
+class AdminClassifiedAdForm(forms.ModelForm):
+    """Form for admins to create/edit classified ads with custom fields support."""
+
+    class Meta:
+        model = ClassifiedAd
+        fields = [
+            "title",
+            "description",
+            "price",
+            "category",
+            "country",
+            "city",
+            "user",
+            "status",
+            "is_highlighted",
+            "is_urgent",
+            "is_pinned",
+        ]
+        widgets = {
+            "title": forms.TextInput(attrs={"class": "form-control"}),
+            "description": CKEditor5Widget(config_name="default"),
+            "price": forms.NumberInput(attrs={"class": "form-control"}),
+            "category": forms.Select(attrs={"class": "form-select"}),
+            "country": forms.Select(attrs={"class": "form-select"}),
+            "city": forms.Select(attrs={"class": "form-select"}),
+            "user": forms.Select(attrs={"class": "form-select"}),
+            "status": forms.Select(attrs={"class": "form-select"}),
+            "is_highlighted": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "is_urgent": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "is_pinned": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Set up city field choices dynamically
+        if "city" in self.fields:
+            from content.models import Country
+
+            # Convert city field to ChoiceField
+            self.fields["city"] = forms.ChoiceField(
+                required=False,
+                label=_("المدينة"),
+                widget=forms.Select(attrs={"class": "form-select", "id": "id_city"}),
+                choices=[("", _("اختر المدينة"))],
+            )
+
+            # If we have a country in the data or instance, populate cities
+            country = None
+            if "country" in self.data:
+                try:
+                    country = Country.objects.get(pk=self.data.get("country"))
+                except (Country.DoesNotExist, ValueError):
+                    pass
+            elif self.instance and self.instance.pk and self.instance.country:
+                country = self.instance.country
+
+            if country and country.cities:
+                city_choices = [("", _("اختر المدينة"))] + [
+                    (city, city) for city in country.cities
+                ]
+                self.fields["city"].choices = city_choices
+
+        # Add custom fields based on selected category
+        category = None
+        if "category" in self.data:
+            try:
+                category = Category.objects.get(pk=self.data.get("category"))
+            except (Category.DoesNotExist, ValueError):
+                pass
+        elif self.instance and self.instance.pk:
+            category = self.instance.category
+
+        if category:
+            self._add_custom_fields(category)
+
+        # Set initial values for custom fields if editing
+        if self.instance and self.instance.pk and self.instance.custom_fields:
+            for field_name, value in self.instance.custom_fields.items():
+                if field_name in self.fields:
+                    self.fields[field_name].initial = value
+
+    def _add_custom_fields(self, category):
+        """
+        Adds form fields based on the CategoryCustomField database model.
+        Similar to ClassifiedAdForm.add_custom_fields() but for admin use.
+        """
+        from main.models import CategoryCustomField
+
+        # Get all active custom fields for this category
+        category_fields = (
+            CategoryCustomField.objects.filter(
+                category=category, is_active=True
+            )
+            .select_related("custom_field")
+            .order_by("order")
+        )
+
+        for cf in category_fields:
+            field = cf.custom_field
+            field_name = f"custom_{field.name}"
+            field_label = field.label_ar or field.name
+            field_type = field.field_type
+            is_required = cf.is_required
+
+            field_kwargs = {
+                "label": field_label,
+                "required": is_required,
+                "help_text": field.help_text or "",
+            }
+            widget_attrs = {
+                "class": "form-control",
+                "placeholder": field.placeholder or "",
+            }
+
+            # Handle different field types (same as ClassifiedAdForm)
+            if field_type == "select" or field_type == "radio":
+                options = field.field_options.filter(is_active=True).order_by("order")
+                choices = [("", "---------")] + [
+                    (opt.value, opt.label_ar) for opt in options
+                ]
+                widget_attrs["class"] = "form-select"
+
+                if field_type == "radio":
+                    self.fields[field_name] = forms.ChoiceField(
+                        **field_kwargs,
+                        choices=choices,
+                        widget=forms.RadioSelect()
+                    )
+                else:
+                    self.fields[field_name] = forms.ChoiceField(
+                        **field_kwargs,
+                        choices=choices,
+                        widget=forms.Select(attrs=widget_attrs)
+                    )
+
+            elif field_type == "checkbox":
+                widget_attrs["class"] = "form-check-input"
+                self.fields[field_name] = forms.BooleanField(
+                    **field_kwargs, widget=forms.CheckboxInput(attrs=widget_attrs)
+                )
+
+            elif field_type == "date":
+                widget_attrs["type"] = "date"
+                self.fields[field_name] = forms.DateField(
+                    **field_kwargs, widget=forms.DateInput(attrs=widget_attrs)
+                )
+
+            elif field_type == "number":
+                widget_attrs.update({
+                    "min": field.min_value if field.min_value is not None else "",
+                    "max": field.max_value if field.max_value is not None else "",
+                })
+                self.fields[field_name] = forms.DecimalField(
+                    **field_kwargs,
+                    min_value=field.min_value,
+                    max_value=field.max_value,
+                    widget=forms.NumberInput(attrs=widget_attrs)
+                )
+
+            elif field_type == "email":
+                widget_attrs["type"] = "email"
+                self.fields[field_name] = forms.EmailField(
+                    **field_kwargs, widget=forms.EmailInput(attrs=widget_attrs)
+                )
+
+            elif field_type == "url":
+                widget_attrs["type"] = "url"
+                self.fields[field_name] = forms.URLField(
+                    **field_kwargs, widget=forms.URLInput(attrs=widget_attrs)
+                )
+
+            elif field_type == "phone":
+                widget_attrs["type"] = "tel"
+                self.fields[field_name] = forms.CharField(
+                    **field_kwargs, widget=forms.TextInput(attrs=widget_attrs)
+                )
+
+            elif field_type == "textarea":
+                widget_attrs["class"] = "form-control"
+                widget_attrs["rows"] = 4
+                self.fields[field_name] = forms.CharField(
+                    **field_kwargs, widget=forms.Textarea(attrs=widget_attrs)
+                )
+
+            else:  # Default to text
+                if field.min_length:
+                    field_kwargs["min_length"] = field.min_length
+                    widget_attrs["minlength"] = field.min_length
+                if field.max_length:
+                    field_kwargs["max_length"] = field.max_length
+                    widget_attrs["maxlength"] = field.max_length
+
+                self.fields[field_name] = forms.CharField(
+                    **field_kwargs, widget=forms.TextInput(attrs=widget_attrs)
+                )
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        from main.models import CategoryCustomField
+
+        # Ensure custom_fields is a dict
+        if not isinstance(instance.custom_fields, dict):
+            instance.custom_fields = {}
+
+        # Gather custom field data from POST data
+        if instance.category:
+            category_fields = (
+                CategoryCustomField.objects.filter(
+                    category=instance.category, is_active=True
+                )
+                .select_related("custom_field")
+                .order_by("order")
+            )
+
+            for cf in category_fields:
+                field = cf.custom_field
+                field_name = f"custom_{field.name}"
+
+                # Get value from cleaned_data if available, otherwise from data dict
+                if field_name in self.cleaned_data:
+                    value = self.cleaned_data[field_name]
+                elif self.data and field_name in self.data:
+                    value = self.data.get(field_name)
+                    # Handle checkbox fields
+                    if field.field_type == "checkbox":
+                        value = value == "on" or value == "true" or value == True
+                else:
+                    continue
+
+                # Skip empty values for non-required fields
+                if not value and value != False and value != 0:
+                    continue
+
+                # Convert date objects to strings for JSON serialization
+                if hasattr(value, "isoformat"):
+                    value = value.isoformat()
+
+                instance.custom_fields[field_name] = value
+
+        if commit:
+            instance.save()
+        return instance

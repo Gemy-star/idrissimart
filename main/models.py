@@ -538,13 +538,13 @@ class User(AbstractUser):  # This model is correct, no changes needed here.
         # Validate username for blocked words only when creating or changing username
         if self.username:
             # Check if this is a new user or username is being changed
+            changed_fields = getattr(self, "_changed_fields", None)
+
             should_validate = (
                 self.pk is None  # New user
                 or self._state.adding  # Being added
                 or (
-                    hasattr(self, "_changed_fields")
-                    and self._changed_fields
-                    and "username" in self._changed_fields
+                    changed_fields is not None and "username" in changed_fields
                 )  # Username changed
             )
 
@@ -3008,6 +3008,7 @@ class Order(models.Model):
         ("cod", _("الدفع عند الاستلام")),
         ("online", _("الدفع الإلكتروني")),
         ("instapay", _("InstaPay")),
+        ("wallet", _("محفظة إلكترونية")),
         ("partial", _("دفع جزئي")),
     ]
 
@@ -3059,6 +3060,13 @@ class Order(models.Model):
     )
     remaining_amount = models.DecimalField(
         max_digits=10, decimal_places=2, default=0, verbose_name=_("المبلغ المتبقي")
+    )
+    transaction_photo = models.ImageField(
+        upload_to="orders/transaction_photos/",
+        null=True,
+        blank=True,
+        verbose_name=_("صورة إيصال التحويل"),
+        help_text=_("صورة إيصال الدفع عبر InstaPay أو المحفظة الإلكترونية"),
     )
     status = models.CharField(
         max_length=20,

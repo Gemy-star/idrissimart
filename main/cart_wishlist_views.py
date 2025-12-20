@@ -362,20 +362,33 @@ def checkout_view(request):
 
             # Create order atomically
             with transaction.atomic():
+                # Get site config to check offline payment settings
+                from content.models import SiteConfiguration
+
+                site_config = SiteConfiguration.get_solo()
+
                 # Determine payment status
                 payment_status = "unpaid"
                 if payment_method == "online":
-                    payment_status = "unpaid"  # Will be updated after payment gateway
+                    # If offline payment is enabled and has transaction photo, treat as offline
+                    if site_config.allow_offline_payment and request.FILES.get(
+                        "transaction_photo"
+                    ):
+                        payment_status = (
+                            "unpaid"  # Will be confirmed manually after reviewing photo
+                        )
+                    else:
+                        payment_status = (
+                            "unpaid"  # Will be updated after payment gateway
+                        )
                 elif payment_method == "partial" and paid_amount:
                     if paid_amount >= total_amount:
                         payment_status = "paid"
                         paid_amount = total_amount
                     else:
                         payment_status = "partial"
-                elif payment_method in ["cod", "instapay"]:
-                    payment_status = (
-                        "unpaid"  # InstaPay is offline, will be confirmed manually
-                    )
+                elif payment_method in ["cod", "instapay", "wallet"]:
+                    payment_status = "unpaid"  # InstaPay and wallet are offline, will be confirmed manually
 
                 # Create order
                 order = Order.objects.create(
@@ -393,6 +406,15 @@ def checkout_view(request):
                     status="pending",
                 )
 
+                # Handle transaction photo for offline payments
+                if payment_method in [
+                    "instapay",
+                    "wallet",
+                    "online",
+                ] and request.FILES.get("transaction_photo"):
+                    order.transaction_photo = request.FILES.get("transaction_photo")
+                    order.save(update_fields=["transaction_photo"])
+
                 # Create order items
                 for cart_item in cart_items:
                     OrderItem.objects.create(
@@ -409,11 +431,14 @@ def checkout_view(request):
                 "success": True,
                 "message": _("تم تأكيد الطلب بنجاح"),
                 "order_id": order.id,
-                "redirect_url": f"/{request.LANGUAGE_CODE}/",
+                "redirect_url": f"/{request.LANGUAGE_CODE}/order/success/{order.id}/",
             }
 
             # Handle online payment
-            if payment_method == "online":
+            if payment_method == "online" and not (
+                site_config.allow_offline_payment
+                and request.FILES.get("transaction_photo")
+            ):
                 from main.services.paymob_service import PaymobService
                 from constance import config
 
@@ -531,9 +556,14 @@ def checkout_view(request):
 def add_to_wishlist(request):
     """Add item to wishlist via AJAX"""
     # Debug logging
+    print(f"\n{'='*60}")
+    print(f"[ADD_TO_WISHLIST] CALLED!")
     print(
         f"[ADD_TO_WISHLIST] User: {request.user}, Authenticated: {request.user.is_authenticated}"
     )
+    print(f"[ADD_TO_WISHLIST] User ID: {request.user.id}")
+    print(f"[ADD_TO_WISHLIST] Username: {request.user.username}")
+    print(f"{'='*60}\n")
 
     try:
         ad_id = request.POST.get("item_id")
@@ -740,6 +770,12 @@ def wishlist_view(request):
         "ad", "ad__user", "ad__category", "ad__country"
     ).all()
 
+    # Debug output
+    print(f"[WISHLIST_VIEW] User: {request.user.username}")
+    print(f"[WISHLIST_VIEW] Wishlist ID: {wishlist.id}")
+    print(f"[WISHLIST_VIEW] Items count: {wishlist_items.count()}")
+    print(f"[WISHLIST_VIEW] get_items_count(): {wishlist.get_items_count()}")
+
     context = {
         "wishlist": wishlist,
         "wishlist_items": wishlist_items,
@@ -809,3 +845,70 @@ def get_bulk_ads(request):
         return JsonResponse({"success": False, "message": "Invalid JSON"}, status=400)
     except Exception as e:
         return JsonResponse({"success": False, "message": str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def clear_cart(request):
+    """Clear all items from cart"""
+    try:
+        cart = get_or_create_cart(request.user)
+        cart.items.all().delete()
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": _("تم مسح السلة بنجاح"),
+                "cart_count": 0,
+            }
+        )
+    except Exception as e:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": str(e),
+            },
+            status=500,
+        )
+
+
+@login_required
+@require_POST
+def clear_wishlist(request):
+    """Clear all items from wishlist"""
+    try:
+        wishlist = get_or_create_wishlist(request.user)
+        wishlist.items.all().delete()
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": _("تم مسح المفضلة بنجاح"),
+                "wishlist_count": 0,
+            }
+        )
+    except Exception as e:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": str(e),
+            },
+            status=500,
+        )
+
+
+@login_required
+def order_success_view(request, order_id):
+    """Order success page"""
+    from main.models import Order
+
+    try:
+        order = get_object_or_404(Order, id=order_id, user=request.user)
+
+        context = {
+            "order": order,
+        }
+
+        return render(request, "cart/order_success.html", context)
+    except Exception as e:
+        return redirect("main:home")

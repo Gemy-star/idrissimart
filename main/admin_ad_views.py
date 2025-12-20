@@ -299,26 +299,18 @@ class AdminAdDetailView(SuperadminRequiredMixin, DetailView):
 
 class AdminAdCreateView(SuperadminRequiredMixin, CreateView):
     """
-    Admin view to create a new ad
+    Admin view to create a new ad with custom fields support
     """
 
     model = ClassifiedAd
     template_name = "admin_dashboard/ad_form.html"
-    fields = [
-        "title",
-        "description",
-        "price",
-        "category",
-        "subcategory",
-        "country",
-        "city",
-        "user",
-        "status",
-        "is_highlighted",
-        "is_urgent",
-        "is_pinned",
-    ]
+    form_class = None  # Will be set dynamically
     success_url = reverse_lazy("main:admin_all_ads")
+
+    def get_form_class(self):
+        """Use the AdminClassifiedAdForm that supports custom fields"""
+        from main.forms import AdminClassifiedAdForm
+        return AdminClassifiedAdForm
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -336,25 +328,18 @@ class AdminAdCreateView(SuperadminRequiredMixin, CreateView):
 
 class AdminAdUpdateView(SuperadminRequiredMixin, UpdateView):
     """
-    Admin view to update an existing ad
+    Admin view to update an existing ad with custom fields support
     """
 
     model = ClassifiedAd
     template_name = "admin_dashboard/ad_form.html"
-    fields = [
-        "title",
-        "description",
-        "price",
-        "category",
-        "subcategory",
-        "country",
-        "city",
-        "status",
-        "is_highlighted",
-        "is_urgent",
-        "is_pinned",
-    ]
+    form_class = None  # Will be set dynamically
     pk_url_kwarg = "ad_id"
+
+    def get_form_class(self):
+        """Use the AdminClassifiedAdForm that supports custom fields"""
+        from main.forms import AdminClassifiedAdForm
+        return AdminClassifiedAdForm
 
     def get_success_url(self):
         return reverse_lazy("main:admin_ad_detail", kwargs={"ad_id": self.object.pk})

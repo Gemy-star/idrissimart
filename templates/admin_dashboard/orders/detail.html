@@ -120,10 +120,26 @@
                                     <span class="badge bg-info">{% trans "عند الاستلام" %}</span>
                                 {% elif order.payment_method == 'partial' %}
                                     <span class="badge bg-warning">{% trans "دفع جزئي" %}</span>
+                                {% elif order.payment_method == 'instapay' %}
+                                    <span class="badge bg-purple">{% trans "InstaPay" %}</span>
+                                {% elif order.payment_method == 'wallet' %}
+                                    <span class="badge bg-success">{% trans "محفظة إلكترونية" %}</span>
                                 {% else %}
                                     <span class="badge bg-primary">{% trans "إلكتروني" %}</span>
                                 {% endif %}
                             </p>
+                            {% if order.transaction_photo %}
+                            <p class="mb-2">
+                                <strong>{% trans "صورة إيصال التحويل:" %}</strong>
+                                <br>
+                                <a href="{{ order.transaction_photo.url }}" target="_blank" class="btn btn-sm btn-outline-primary mt-2">
+                                    <i class="fas fa-image me-1"></i> {% trans "عرض الصورة" %}
+                                </a>
+                                <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="document.getElementById('transactionPhotoModal').style.display='block'">
+                                    <i class="fas fa-expand me-1"></i> {% trans "تكبير" %}
+                                </button>
+                            </p>
+                            {% endif %}
                             <p class="mb-2">
                                 <strong>{% trans "حالة الدفع:" %}</strong>
                                 {% if order.payment_status == 'paid' %}
@@ -324,4 +340,16 @@
             </div>
         </div>
     </div>
+
+<!-- Transaction Photo Modal -->
+{% if order.transaction_photo %}
+<div id="transactionPhotoModal" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.9);" onclick="this.style.display='none'">
+    <span style="position:absolute; top:20px; right:35px; color:#f1f1f1; font-size:40px; font-weight:bold; cursor:pointer;" onclick="document.getElementById('transactionPhotoModal').style.display='none'">&times;</span>
+    <img src="{{ order.transaction_photo.url }}" style="margin:auto; display:block; max-width:90%; max-height:90%; margin-top:50px; border-radius:10px;">
+    <div style="text-align:center; color:#ccc; padding:20px; font-size:18px;">
+        {% trans "صورة إيصال التحويل - الطلب" %} #{{ order.order_number }}
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}
