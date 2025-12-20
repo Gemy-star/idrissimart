@@ -669,16 +669,71 @@ def admin_edit_siteconfig(request):
                 "footer_text",
                 "footer_text_ar",
                 "copyright_text",
+                "require_email_verification",
+                "require_phone_verification",
+                "require_verification_for_services",
+                "verification_services_message",
+                "verification_services_message_ar",
+                "allow_online_payment",
+                "allow_offline_payment",
+                "instapay_qr_code",
+                "instapay_phone",
+                "wallet_payment_link",
+                "wallet_phone",
+                "offline_payment_instructions",
+                "offline_payment_instructions_ar",
             ]
             widgets = {
+                "meta_keywords": forms.TextInput(
+                    attrs={
+                        "class": "form-control",
+                        "placeholder": "keyword1, keyword2, keyword3",
+                    }
+                ),
+                "meta_keywords_ar": forms.TextInput(
+                    attrs={
+                        "class": "form-control",
+                        "placeholder": "كلمة1، كلمة2، كلمة3",
+                    }
+                ),
                 "footer_text": CKEditor5Widget(config_name="default"),
                 "footer_text_ar": CKEditor5Widget(config_name="default"),
+                "copyright_text": forms.TextInput(
+                    attrs={
+                        "class": "form-control",
+                        "placeholder": "© 2024 إدريسي مارت. جميع الحقوق محفوظة.",
+                    }
+                ),
+                "verification_services_message": forms.Textarea(
+                    attrs={"class": "form-control", "rows": 2}
+                ),
+                "verification_services_message_ar": forms.Textarea(
+                    attrs={"class": "form-control", "rows": 2}
+                ),
+                "instapay_phone": forms.TextInput(
+                    attrs={"class": "form-control", "placeholder": "01XXXXXXXXX"}
+                ),
+                "wallet_payment_link": forms.URLInput(
+                    attrs={"class": "form-control", "placeholder": "https://..."}
+                ),
+                "wallet_phone": forms.TextInput(
+                    attrs={"class": "form-control", "placeholder": "01XXXXXXXXX"}
+                ),
+                "offline_payment_instructions": forms.Textarea(
+                    attrs={"class": "form-control", "rows": 6}
+                ),
+                "offline_payment_instructions_ar": forms.Textarea(
+                    attrs={"class": "form-control", "rows": 6}
+                ),
+                "instapay_qr_code": forms.FileInput(
+                    attrs={"class": "form-control", "accept": "image/*"}
+                ),
             }
 
     site_config = SiteConfiguration.get_solo()
 
     if request.method == "POST":
-        form = SiteConfigForm(request.POST, instance=site_config)
+        form = SiteConfigForm(request.POST, request.FILES, instance=site_config)
         if form.is_valid():
             form.save()
             messages.success(request, _("تم تحديث إعدادات الموقع بنجاح"))
@@ -689,6 +744,7 @@ def admin_edit_siteconfig(request):
     context = {
         "active_nav": "site_content",
         "form": form,
+        "site_config": site_config,
         "page_title": _("تحرير إعدادات الموقع"),
     }
 
