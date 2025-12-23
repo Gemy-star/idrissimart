@@ -134,6 +134,39 @@ class SiteConfiguration(SingletonModel):
         default="1. قم بمسح رمز QR أو استخدم رابط المحفظة\n2. أرسل المبلغ المطلوب\n3. احتفظ بإيصال التحويل\n4. سيتم تفعيل الخدمة خلال 24 ساعة",
     )
 
+    # Ad Posting & Feature Pricing
+    ad_base_fee = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name=_("رسوم نشر الإعلان الأساسية"),
+        help_text=_("رسوم نشر إعلان عادي (0 = مجاني)"),
+    )
+
+    featured_ad_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=50,
+        verbose_name=_("سعر الإعلان المميز"),
+        help_text=_("رسوم جعل الإعلان مميزاً (Highlighted)"),
+    )
+
+    urgent_ad_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=30,
+        verbose_name=_("سعر الإعلان العاجل"),
+        help_text=_("رسوم إضافة علامة عاجل للإعلان"),
+    )
+
+    pinned_ad_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=100,
+        verbose_name=_("سعر تثبيت الإعلان"),
+        help_text=_("رسوم تثبيت الإعلان في أعلى القائمة"),
+    )
+
     class Meta:
         verbose_name = _("إعدادات الموقع")
         verbose_name_plural = _("إعدادات الموقع")

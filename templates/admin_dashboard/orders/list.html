@@ -49,10 +49,135 @@
     border-color: var(--bs-primary);
     color: var(--bs-body-color);
 }
+
+/* Statistics Cards */
+.border-left-primary {
+    border-left: 4px solid #4e73df !important;
+}
+
+.border-left-success {
+    border-left: 4px solid #1cc88a !important;
+}
+
+.border-left-info {
+    border-left: 4px solid #36b9cc !important;
+}
+
+.border-left-warning {
+    border-left: 4px solid #f6c23e !important;
+}
+
+.border-left-danger {
+    border-left: 4px solid #e74a3b !important;
+}
+
+.text-gray-300 {
+    color: #dddfeb !important;
+}
+
+.text-gray-800 {
+    color: #5a5c69 !important;
+}
+
+.text-xs {
+    font-size: 0.7rem;
+}
+
+[data-bs-theme="dark"] .text-gray-800 {
+    color: #e3e6ea !important;
+}
+
+[data-bs-theme="dark"] .text-gray-300 {
+    color: #6c757d !important;
+}
 </style>
 {% endblock %}
 
 {% block admin_content %}
+<!-- Order Statistics -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            {% trans "إجمالي الطلبات" %}
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_orders }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-shopping-cart fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            {% trans "قيد الانتظار" %}
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ pending_orders }}</div>
+                        <small class="text-muted">
+                            <i class="fas fa-cogs"></i> {{ processing_orders }} {% trans "قيد المعالجة" %}
+                        </small>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-clock fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            {% trans "تم التسليم" %}
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ delivered_orders }}</div>
+                        <small class="text-muted">
+                            <i class="fas fa-shipping-fast"></i> {{ shipped_orders }} {% trans "تم الشحن" %}
+                        </small>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            {% trans "إجمالي الإيرادات" %}
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_revenue|floatformat:2 }} {{ currency_symbol }}</div>
+                        <small class="text-danger">
+                            <i class="fas fa-ban"></i> {{ cancelled_orders }} {% trans "ملغي" %}
+                        </small>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row mb-4">
     <div class="col-12">
         <div class="card shadow-sm">
@@ -200,6 +325,29 @@
                                             <a href="{% url 'main:admin_order_detail' order.id %}" class="btn btn-sm btn-info" title="{% trans 'عرض التفاصيل' %}">
                                                 <i class="fas fa-eye"></i>
                                             </a>
+                                            {% if order.transaction_photo %}
+                                            <button class="btn btn-sm btn-primary" onclick="viewOrderPhoto('{{ order.transaction_photo.url }}')" title="{% trans 'عرض صورة الإيصال' %}">
+                                                <i class="fas fa-image"></i>
+                                            </button>
+                                            {% endif %}
+                                            {% if order.status == 'pending' %}
+                                            <button class="btn btn-sm btn-success" onclick="updateOrderStatus({{ order.id }}, 'processing')" title="{% trans 'بدء المعالجة' %}">
+                                                <i class="fas fa-play"></i>
+                                            </button>
+                                            {% elif order.status == 'processing' %}
+                                            <button class="btn btn-sm btn-primary" onclick="updateOrderStatus({{ order.id }}, 'shipped')" title="{% trans 'تم الشحن' %}">
+                                                <i class="fas fa-shipping-fast"></i>
+                                            </button>
+                                            {% elif order.status == 'shipped' %}
+                                            <button class="btn btn-sm btn-success" onclick="updateOrderStatus({{ order.id }}, 'delivered')" title="{% trans 'تم التسليم' %}">
+                                                <i class="fas fa-check-circle"></i>
+                                            </button>
+                                            {% endif %}
+                                            {% if order.status in 'pending,processing' %}
+                                            <button class="btn btn-sm btn-warning" onclick="updateOrderStatus({{ order.id }}, 'cancelled')" title="{% trans 'إلغاء' %}">
+                                                <i class="fas fa-ban"></i>
+                                            </button>
+                                            {% endif %}
                                             <a href="{% url 'main:admin_order_delete' order.id %}" class="btn btn-sm btn-danger" onclick="confirmDelete(event, '{% trans "هل أنت متأكد من حذف هذا الطلب؟" %}')" title="{% trans 'حذف' %}">
                                                 <i class="fas fa-trash"></i>
                                             </a>
@@ -321,6 +469,94 @@ function confirmDelete(event, message) {
     if (!confirm(message)) {
         event.preventDefault();
     }
+}
+
+// View Order Photo Modal
+function viewOrderPhoto(photoUrl) {
+    const modalHTML = `
+        <div class="modal fade" id="orderPhotoModal" tabindex="-1">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-image me-2"></i>
+                            {% trans "صورة إيصال الدفع" %}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                        <img src="${photoUrl}" class="img-fluid" alt="{% trans 'إيصال الدفع' %}" style="max-height: 70vh; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        <div class="mt-3">
+                            <a href="${photoUrl}" target="_blank" class="btn btn-primary">
+                                <i class="fas fa-external-link-alt me-1"></i>
+                                {% trans "فتح في نافذة جديدة" %}
+                            </a>
+                            <a href="${photoUrl}" download class="btn btn-secondary">
+                                <i class="fas fa-download me-1"></i>
+                                {% trans "تحميل" %}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal if any
+    const existingModal = document.getElementById('orderPhotoModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('orderPhotoModal'));
+    modal.show();
+
+    // Clean up on close
+    document.getElementById('orderPhotoModal').addEventListener('hidden.bs.modal', function () {
+        this.remove();
+    });
+}
+
+// Update Order Status
+function updateOrderStatus(orderId, newStatus) {
+    const statusMessages = {
+        'processing': '{% trans "هل تريد بدء معالجة هذا الطلب؟" %}',
+        'shipped': '{% trans "هل تريد تحديث الطلب إلى تم الشحن؟" %}',
+        'delivered': '{% trans "هل تريد تحديث الطلب إلى تم التسليم؟" %}',
+        'cancelled': '{% trans "هل أنت متأكد من إلغاء هذا الطلب؟" %}'
+    };
+
+    const message = statusMessages[newStatus] || '{% trans "هل تريد تحديث حالة الطلب؟" %}';
+
+    if (!confirm(message)) {
+        return;
+    }
+
+    // Create form and submit
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `{% url 'main:admin_order_update_status' 0 %}`.replace('/0/', `/${orderId}/`);
+
+    // Add CSRF token
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'csrfmiddlewaretoken';
+    csrfInput.value = getCookie('csrftoken');
+    form.appendChild(csrfInput);
+
+    // Add status input
+    const statusInput = document.createElement('input');
+    statusInput.type = 'hidden';
+    statusInput.name = 'status';
+    statusInput.value = newStatus;
+    form.appendChild(statusInput);
+
+    document.body.appendChild(form);
+    form.submit();
 }
 </script>
 {% endblock %}

@@ -46,6 +46,39 @@
     .status-pending { background-color: #fff3cd; color: #856404; }
     .status-failed { background-color: #f8d7da; color: #721c24; }
 
+    /* Statistics Cards */
+    .border-left-primary {
+        border-left: 4px solid #4e73df !important;
+    }
+
+    .border-left-success {
+        border-left: 4px solid #1cc88a !important;
+    }
+
+    .border-left-info {
+        border-left: 4px solid #36b9cc !important;
+    }
+
+    .border-left-warning {
+        border-left: 4px solid #f6c23e !important;
+    }
+
+    .border-left-danger {
+        border-left: 4px solid #e74a3b !important;
+    }
+
+    .text-gray-300 {
+        color: #dddfeb !important;
+    }
+
+    .text-gray-800 {
+        color: #5a5c69 !important;
+    }
+
+    .text-xs {
+        font-size: 0.7rem;
+    }
+
     /* Ensure tab content is visible */
     .tab-content > .tab-pane {
         display: none !important;
@@ -108,6 +141,9 @@
                 <div class="stat-content">
                     <h3>{{ payment_stats.total_transactions }}</h3>
                     <p>{% trans "إجمالي المعاملات" %}</p>
+                    <small class="text-muted">
+                        <i class="fas fa-check-circle text-success"></i> {{ payment_stats.completed_transactions }} {% trans "مكتملة" %}
+                    </small>
                 </div>
             </div>
         </div>
@@ -115,11 +151,14 @@
         <div class="col-lg-3 col-md-6 mb-3">
             <div class="admin-stat-card stat-success">
                 <div class="stat-icon">
-                    <i class="fas fa-dollar-sign"></i>
+                    <i class="fas fa-chart-line"></i>
                 </div>
                 <div class="stat-content">
-                    <h3>{{ payment_stats.total_revenue }} {{ selected_currency|default:"SAR" }}</h3>
-                    <p>{% trans "إيرادات هذا الشهر" %}</p>
+                    <h3>{{ payment_stats.total_revenue|floatformat:2 }} {{ currency|default:"SAR" }}</h3>
+                    <p>{% trans "إجمالي الإيرادات" %}</p>
+                    <small class="text-muted">
+                        {% trans "الشهر:" %} {{ payment_stats.monthly_revenue|floatformat:2 }} {{ currency|default:"SAR" }}
+                    </small>
                 </div>
             </div>
         </div>
@@ -130,8 +169,12 @@
                     <i class="fas fa-crown"></i>
                 </div>
                 <div class="stat-content">
-                    <h3>{{ payment_stats.premium_members }}</h3>
-                    <p>{% trans "الأعضاء المميزون" %}</p>
+                    <h3>{{ payment_stats.active_premium_members }}</h3>
+                    <p>{% trans "الأعضاء المميزون النشطون" %}</p>
+                    <small class="text-muted">
+                        {% trans "إجمالي:" %} {{ payment_stats.premium_members }} |
+                        <span class="text-danger">{% trans "منتهي:" %} {{ payment_stats.expired_premium_members }}</span>
+                    </small>
                 </div>
             </div>
         </div>
@@ -144,6 +187,73 @@
                 <div class="stat-content">
                     <h3>{{ payment_stats.pending_payments }}</h3>
                     <p>{% trans "مدفوعات معلقة" %}</p>
+                    <small class="text-muted">
+                        <span class="text-danger"><i class="fas fa-times-circle"></i> {{ payment_stats.failed_payments }} {% trans "فاشلة" %}</span> |
+                        <span class="text-secondary"><i class="fas fa-undo"></i> {{ payment_stats.refunded_payments }} {% trans "مستردة" %}</span>
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Revenue Stats Row -->
+    <div class="row mb-4">
+        <div class="col-lg-4 col-md-4 mb-3">
+            <div class="card border-left-primary shadow-sm h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                {% trans "إيرادات اليوم" %}
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ payment_stats.today_revenue|floatformat:2 }} {{ currency|default:"SAR" }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar-day fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-4 mb-3">
+            <div class="card border-left-success shadow-sm h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                {% trans "إيرادات الأسبوع" %}
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ payment_stats.weekly_revenue|floatformat:2 }} {{ currency|default:"SAR" }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar-week fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-4 mb-3">
+            <div class="card border-left-info shadow-sm h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                {% trans "إيرادات الشهر" %}
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ payment_stats.monthly_revenue|floatformat:2 }} {{ currency|default:"SAR" }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar-alt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -199,16 +309,26 @@
                                 </td>
                                 <td>{{ transaction.created_at|date:"d/m/Y H:i" }}</td>
                                 <td>
-                                    <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-outline-primary" onclick="viewTransaction({{ transaction.id }})">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button class="btn btn-outline-primary" onclick="viewTransaction({{ transaction.id }})" title="{% trans 'عرض التفاصيل' %}">
                                             <i class="fas fa-eye"></i>
                                         </button>
+                                        {% if transaction.metadata and transaction.metadata.transaction_photo %}
+                                        <button class="btn btn-outline-info" onclick="viewTransactionPhoto('{{ transaction.metadata.transaction_photo }}')" title="{% trans 'عرض صورة الإيصال' %}">
+                                            <i class="fas fa-image"></i>
+                                        </button>
+                                        {% endif %}
                                         {% if transaction.provider == 'bank_transfer' and transaction.status == 'pending' %}
                                         <button class="btn btn-success" onclick="confirmOfflinePayment({{ transaction.id }})" title="{% trans 'تأكيد الدفع' %}">
                                             <i class="fas fa-check"></i>
                                         </button>
                                         <button class="btn btn-danger" onclick="rejectOfflinePayment({{ transaction.id }})" title="{% trans 'رفض الدفع' %}">
                                             <i class="fas fa-times"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% if transaction.status == 'completed' %}
+                                        <button class="btn btn-outline-secondary" onclick="refundPayment({{ transaction.id }})" title="{% trans 'استرداد' %}">
+                                            <i class="fas fa-undo"></i>
                                         </button>
                                         {% endif %}
                                     </div>
@@ -1672,6 +1792,100 @@ function rejectOfflinePayment(paymentId) {
         function(value) {
             if (!value || value.trim() === '') {
                 document.getElementById('inputModalError').textContent = '{% trans "يجب إدخال سبب الرفض" %}';
+                return false;
+            }
+            return true;
+        }
+    );
+}
+
+// View Transaction Photo Modal
+function viewTransactionPhoto(photoUrl) {
+    const modalHTML = `
+        <div class="modal fade" id="photoModal" tabindex="-1">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-image me-2"></i>
+                            {% trans "صورة إيصال الدفع" %}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                        <img src="${photoUrl}" class="img-fluid" alt="{% trans 'إيصال الدفع' %}" style="max-height: 70vh; border-radius: 8px;">
+                        <div class="mt-3">
+                            <a href="${photoUrl}" target="_blank" class="btn btn-primary">
+                                <i class="fas fa-external-link-alt me-1"></i>
+                                {% trans "فتح في نافذة جديدة" %}
+                            </a>
+                            <a href="${photoUrl}" download class="btn btn-secondary">
+                                <i class="fas fa-download me-1"></i>
+                                {% trans "تحميل" %}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal if any
+    const existingModal = document.getElementById('photoModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('photoModal'));
+    modal.show();
+
+    // Clean up on close
+    document.getElementById('photoModal').addEventListener('hidden.bs.modal', function () {
+        this.remove();
+    });
+}
+
+// Refund Payment
+function refundPayment(paymentId) {
+    showInputModal(
+        '{% trans "سبب الاسترداد:" %}',
+        function(refundReason) {
+            showConfirmModal('{% trans "هل أنت متأكد من استرداد هذه الدفعة؟" %}', function() {
+                fetch(`/${LANGUAGE_CODE}/admin/payment/${paymentId}/refund/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        refund_reason: refundReason
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlertModal('{% trans "تم استرداد الدفعة بنجاح" %}', 'success');
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        showAlertModal(data.error || '{% trans "حدث خطأ أثناء استرداد الدفعة" %}', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlertModal('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
+                });
+            });
+        },
+        '{% trans "استرداد الدفعة" %}',
+        '',
+        '{% trans "سبب الاسترداد" %}',
+        function(value) {
+            if (!value || value.trim() === '') {
+                document.getElementById('inputModalError').textContent = '{% trans "يجب إدخال سبب الاسترداد" %}';
                 return false;
             }
             return true;

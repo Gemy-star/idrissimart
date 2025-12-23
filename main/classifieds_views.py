@@ -8,6 +8,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.utils.translation import gettext as _
+from django.views.decorators.http import require_http_methods
 from django.views.generic import CreateView, DetailView, ListView, UpdateView, View
 from django_filters.views import FilterView
 
@@ -79,6 +80,26 @@ class MyClassifiedAdsView(LoginRequiredMixin, ListView):
             "highlighted_ads": user_ads.filter(is_highlighted=True).count(),
             "pinned_ads": user_ads.filter(is_pinned=True).count(),
             "urgent_ads": user_ads.filter(is_urgent=True).count(),
+        }
+
+        # Add user package information
+        from django.utils import timezone
+
+        active_packages = (
+            UserPackage.objects.filter(
+                user=self.request.user, expiry_date__gt=timezone.now()
+            )
+            .select_related("package")
+            .order_by("-expiry_date")
+        )
+
+        # Calculate total ads remaining from all active packages
+        total_ads_remaining = sum(pkg.ads_remaining for pkg in active_packages)
+
+        context["package_info"] = {
+            "total_ads_remaining": total_ads_remaining,
+            "active_packages": active_packages,
+            "has_active_package": active_packages.exists(),
         }
 
         return context
@@ -268,11 +289,90 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             parent__isnull=True,  # Only root categories
         ).prefetch_related("subcategories")
         context["active_nav"] = "create_ad"
+
+        # Add site configuration for pricing
+        from content.models import SiteConfiguration
+
+        context["site_config"] = SiteConfiguration.get_solo()
+
         return context
 
     def form_valid(self, form):
+        from content.models import SiteConfiguration
+        from decimal import Decimal
+
+        site_config = SiteConfiguration.get_solo()
         form.instance.user = self.request.user
 
+        # Get selected features from POST data
+        feature_highlighted = self.request.POST.get("feature_highlighted") == "on"
+        feature_urgent = self.request.POST.get("feature_urgent") == "on"
+        feature_pinned = self.request.POST.get("feature_pinned") == "on"
+
+        # Calculate total cost
+        features_cost = Decimal("0.00")
+        if feature_highlighted:
+            features_cost += Decimal(str(site_config.featured_ad_price))
+        if feature_urgent:
+            features_cost += Decimal(str(site_config.urgent_ad_price))
+        if feature_pinned:
+            features_cost += Decimal(str(site_config.pinned_ad_price))
+
+        # Check if user has free ads
+        active_package = (
+            UserPackage.objects.filter(
+                user=self.request.user,
+                ads_remaining__gt=0,
+                expiry_date__gte=timezone.now(),
+            )
+            .order_by("expiry_date")
+            .first()
+        )
+
+        # Determine base fee
+        base_fee = Decimal("0.00")
+        if not active_package:
+            base_fee = Decimal(str(site_config.ad_base_fee))
+
+        total_cost = base_fee + features_cost
+
+        # If there's a cost, redirect to payment
+        if total_cost > 0:
+            # Save the ad as draft first
+            form.instance.status = ClassifiedAd.AdStatus.DRAFT
+
+            context = self.get_context_data()
+            image_formset = context["image_formset"]
+
+            if form.is_valid() and image_formset.is_valid():
+                self.object = form.save()
+                image_formset.instance = self.object
+                image_formset.save()
+
+                # Store ad ID and features in session
+                self.request.session["pending_ad_id"] = self.object.pk
+                self.request.session["ad_features"] = {
+                    "highlighted": feature_highlighted,
+                    "urgent": feature_urgent,
+                    "pinned": feature_pinned,
+                }
+                self.request.session["ad_payment_amount"] = str(total_cost)
+                self.request.session["ad_base_fee"] = str(base_fee)
+                self.request.session["ad_features_cost"] = str(features_cost)
+
+                messages.info(
+                    self.request,
+                    _("يرجى إتمام الدفع لنشر إعلانك. المبلغ المطلوب: {} ج.م").format(
+                        total_cost
+                    ),
+                )
+
+                # Redirect to payment page
+                return redirect("main:ad_payment", ad_id=self.object.pk)
+            else:
+                return self.render_to_response(self.get_context_data(form=form))
+
+        # Free ad (no cost)
         # Auto-approve ads for verified users
         if self.request.user.verification_status == User.VerificationStatus.VERIFIED:
             form.instance.status = ClassifiedAd.AdStatus.ACTIVE
@@ -283,6 +383,12 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             form.instance.status = ClassifiedAd.AdStatus.PENDING
             messages.info(self.request, _("تم إرسال إعلانك للمراجعة وسيتم نشره قريباً."))
 
+        # Apply features if selected (for free ads with features)
+        form.instance.is_highlighted = feature_highlighted
+        form.instance.is_urgent = feature_urgent
+        form.instance.is_pinned = feature_pinned
+        form.instance.features_price = features_cost
+
         context = self.get_context_data()
         image_formset = context["image_formset"]
 
@@ -291,12 +397,7 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             image_formset.instance = self.object
             image_formset.save()
 
-            # Decrement ad count from user's package
-            active_package = (
-                UserPackage.objects.filter(user=self.request.user, ads_remaining__gt=0)
-                .order_by("expiry_date")
-                .first()
-            )
+            # Decrement ad count from user's package if they have one
             if active_package:
                 active_package.use_ad()
 
@@ -368,8 +469,7 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
 
             if needs_approval:
                 messages.info(
-                    self.request,
-                    _("سيتم مراجعة التعديلات من قبل الإدارة قبل نشرها.")
+                    self.request, _("سيتم مراجعة التعديلات من قبل الإدارة قبل نشرها.")
                 )
             else:
                 messages.success(self.request, _("تم تحديث إعلانك بنجاح!"))
@@ -692,14 +792,6 @@ class PackageListView(ListView):
             "category"
         )
 
-        # إذا كان المستخدم غير موثق، عرض الباقات المجانية فقط
-        # If user is not verified, show only free packages
-        if (
-            self.request.user.is_authenticated
-            and not self.request.user.is_email_verified
-        ):
-            all_packages = all_packages.filter(price=0)
-
         # Separate general packages (no category) from category-specific ones
         general_packages = all_packages.filter(category__isnull=True).order_by(
             "display_order", "-is_recommended", "price"
@@ -716,13 +808,6 @@ class PackageListView(ListView):
 
         context["general_packages"] = general_packages
         context["category_packages"] = category_packages
-
-        # إضافة معلومة إذا كان المستخدم غير موثق
-        if (
-            self.request.user.is_authenticated
-            and not self.request.user.is_email_verified
-        ):
-            context["show_verification_notice"] = True
 
         # If user is authenticated, get their active packages
         if self.request.user.is_authenticated:
@@ -776,10 +861,10 @@ class PackagePurchaseView(LoginRequiredMixin, View):
             )
             return redirect("main:my_ads")
         else:
-            # Redirect to payment gateway
-            # TODO: Integrate with payment gateway
-            messages.info(request, _("سيتم تحويلك إلى بوابة الدفع لإتمام عملية الشراء"))
-            return redirect("main:packages_list")
+            # Store package info in session and redirect to checkout
+            request.session["package_checkout_id"] = package.id
+            request.session["package_checkout_amount"] = str(package.price)
+            return redirect("main:package_checkout", package_id=package.id)
 
     def get(self, request, package_id):
         # Show package purchase confirmation page
@@ -1549,3 +1634,63 @@ class AdUpgradeProcessView(LoginRequiredMixin, View):
 
         # Redirect to payment page with payment ID
         return redirect("main:payment_page_upgrade", payment_id=payment.pk)
+
+
+@require_http_methods(["GET"])
+def get_category_custom_fields(request, category_id):
+    """
+    AJAX endpoint to fetch custom fields for a specific category.
+    Returns HTML for the custom fields to be injected into the form.
+    """
+    from django.template.loader import render_to_string
+    from .models import CategoryCustomField, Category
+
+    try:
+        category = Category.objects.get(pk=category_id, is_active=True)
+
+        # Get all active custom fields for this category
+        category_fields = (
+            CategoryCustomField.objects.filter(category=category, is_active=True)
+            .select_related("custom_field")
+            .order_by("order")
+        )
+
+        if not category_fields.exists():
+            return JsonResponse({"success": True, "html": "", "has_fields": False})
+
+        # Build form fields dynamically
+        fields_html = []
+        for cf in category_fields:
+            field = cf.custom_field
+            field_name = f"custom_{field.name}"
+            field_label = field.label_ar or field.name
+            field_type = field.field_type
+            is_required = cf.is_required
+
+            # Create field HTML based on type
+            field_html = render_to_string(
+                "classifieds/partials/custom_field.html",
+                {
+                    "field_name": field_name,
+                    "field_label": field_label,
+                    "field_type": field_type,
+                    "is_required": is_required,
+                    "help_text": field.help_text or "",
+                    "placeholder": field.placeholder or "",
+                    "field_options": (
+                        field.field_options.filter(is_active=True).order_by("order")
+                        if field_type in ["select", "radio", "checkbox"]
+                        else []
+                    ),
+                },
+            )
+            fields_html.append(field_html)
+
+        return JsonResponse(
+            {"success": True, "html": "".join(fields_html), "has_fields": True}
+        )
+
+    except Category.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "error": "Category not found"}, status=404
+        )

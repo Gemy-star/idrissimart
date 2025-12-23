@@ -326,3 +326,352 @@ def payment_page_upgrade(request, payment_id):
     }
 
     return render(request, "payments/payment_page.html", context)
+
+
+@login_required
+def ad_payment(request, ad_id):
+    """Payment page for new ad with features"""
+    from .models import ClassifiedAd
+    from content.models import SiteConfiguration
+
+    ad = get_object_or_404(ClassifiedAd, id=ad_id, user=request.user)
+    site_config = SiteConfiguration.get_solo()
+
+    # Get payment details from session
+    total_amount = Decimal(request.session.get("ad_payment_amount", "0"))
+    base_fee = Decimal(request.session.get("ad_base_fee", "0"))
+    features_cost = Decimal(request.session.get("ad_features_cost", "0"))
+    features = request.session.get("ad_features", {})
+
+    # If ad is already active or no payment needed, redirect
+    if ad.status == ClassifiedAd.AdStatus.ACTIVE or total_amount == 0:
+        messages.info(request, _("هذا الإعلان نشط بالفعل أو لا يحتاج إلى دفع"))
+        return redirect("main:ad_detail", pk=ad.pk, slug=ad.slug)
+
+    if request.method == "POST":
+        payment_method = request.POST.get("payment_method")
+
+        if payment_method == "offline":
+            # Handle offline payment with receipt
+            receipt = request.FILES.get("payment_receipt")
+
+            if not receipt:
+                messages.error(request, _("يرجى رفع إيصال الدفع"))
+                return render(
+                    request,
+                    "payments/ad_payment.html",
+                    {
+                        "ad": ad,
+                        "total_amount": total_amount,
+                        "base_fee": base_fee,
+                        "features_cost": features_cost,
+                        "features": features,
+                        "site_config": site_config,
+                    },
+                )
+
+            # Create payment record
+            payment = Payment.objects.create(
+                user=request.user,
+                provider=Payment.PaymentProvider.BANK_TRANSFER,
+                amount=total_amount,
+                currency="EGP",
+                status=Payment.PaymentStatus.PENDING,
+                description=f"دفع إعلان: {ad.title}",
+                offline_payment_receipt=receipt,
+                metadata={
+                    "ad_id": ad.id,
+                    "features": features,
+                    "base_fee": str(base_fee),
+                    "features_cost": str(features_cost),
+                },
+            )
+
+            messages.success(
+                request,
+                _("تم استلام طلب الدفع. سيتم مراجعته خلال 24 ساعة وتفعيل إعلانك."),
+            )
+
+            # Clear session
+            for key in [
+                "pending_ad_id",
+                "ad_features",
+                "ad_payment_amount",
+                "ad_base_fee",
+                "ad_features_cost",
+            ]:
+                request.session.pop(key, None)
+
+            return redirect("main:my_ads")
+
+        elif payment_method in ["paymob", "paypal"]:
+            # Create payment record for online payment
+            payment = Payment.objects.create(
+                user=request.user,
+                provider=(
+                    Payment.PaymentProvider.PAYMOB
+                    if payment_method == "paymob"
+                    else Payment.PaymentProvider.PAYPAL
+                ),
+                amount=total_amount,
+                currency="EGP",
+                status=Payment.PaymentStatus.PENDING,
+                description=f"دفع إعلان: {ad.title}",
+                metadata={
+                    "ad_id": ad.id,
+                    "features": features,
+                    "base_fee": str(base_fee),
+                    "features_cost": str(features_cost),
+                },
+            )
+
+            # Redirect to online payment gateway
+            # This would integrate with your existing payment service
+            messages.info(request, _("جاري تحويلك إلى بوابة الدفع..."))
+            return redirect("main:payment_page")  # Adjust to your payment page
+
+    context = {
+        "ad": ad,
+        "total_amount": total_amount,
+        "base_fee": base_fee,
+        "features_cost": features_cost,
+        "features": features,
+        "site_config": site_config,
+    }
+
+    return render(request, "payments/ad_payment.html", context)
+
+
+@login_required
+@require_POST
+def confirm_ad_payment(request, payment_id):
+    """Admin confirms offline ad payment"""
+    from .models import ClassifiedAd, User
+
+    if not request.user.is_staff:
+        return JsonResponse({"success": False, "message": "Unauthorized"}, status=403)
+
+    payment = get_object_or_404(Payment, id=payment_id)
+    ad_id = payment.metadata.get("ad_id")
+    features = payment.metadata.get("features", {})
+
+    if not ad_id:
+        return JsonResponse({"success": False, "message": "Invalid payment data"})
+
+    ad = get_object_or_404(ClassifiedAd, id=ad_id)
+
+    # Apply features
+    ad.is_highlighted = features.get("highlighted", False)
+    ad.is_urgent = features.get("urgent", False)
+    ad.is_pinned = features.get("pinned", False)
+    ad.features_price = Decimal(payment.metadata.get("features_cost", "0"))
+
+    # Activate ad
+    if ad.user.verification_status == User.VerificationStatus.VERIFIED:
+        ad.status = ClassifiedAd.AdStatus.ACTIVE
+    else:
+        ad.status = ClassifiedAd.AdStatus.PENDING
+
+    ad.save()
+
+    # Mark payment as completed
+    payment.mark_completed()
+
+    # Send notification to user
+    from .models import Notification
+
+    Notification.objects.create(
+        user=ad.user,
+        notification_type=Notification.NotificationType.GENERAL,
+        title=_("تم تأكيد الدفع"),
+        message=_("تم تأكيد دفع إعلانك {} وتم تفعيله.").format(ad.title),
+        link=ad.get_absolute_url(),
+    )
+
+    return JsonResponse(
+        {"success": True, "message": _("تم تأكيد الدفع وتفعيل الإعلان")}
+    )
+
+
+@login_required
+def package_checkout(request, package_id):
+    """Checkout page for package purchase with offline/online payment options"""
+    from content.models import SiteConfiguration
+
+    package = get_object_or_404(AdPackage, id=package_id, is_active=True)
+    site_config = SiteConfiguration.get_solo()
+
+    # Verify package is in session
+    session_package_id = request.session.get("package_checkout_id")
+    if not session_package_id or int(session_package_id) != package.id:
+        messages.error(request, _("جلسة الدفع غير صالحة. يرجى المحاولة مرة أخرى."))
+        return redirect("main:packages_list")
+
+    total_amount = package.price
+
+    if request.method == "POST":
+        payment_method = request.POST.get("payment_method")
+
+        if payment_method in ["offline", "instapay", "wallet"]:
+            # Handle offline payment methods with receipt
+            receipt = request.FILES.get("payment_receipt")
+
+            if not receipt:
+                messages.error(request, _("يرجى رفع إيصال الدفع"))
+                return render(
+                    request,
+                    "payments/package_checkout.html",
+                    {
+                        "package": package,
+                        "total_amount": total_amount,
+                        "site_config": site_config,
+                        "allow_offline_payment": allow_offline_payment,
+                        "offline_payment_instructions": offline_payment_instructions,
+                    },
+                )
+
+            # Create payment record
+            payment = Payment.objects.create(
+                user=request.user,
+                provider=Payment.PaymentProvider.BANK_TRANSFER,
+                amount=total_amount,
+                currency="EGP",
+                status=Payment.PaymentStatus.PENDING,
+                description=f"شراء باقة: {package.name} ({payment_method})",
+                offline_payment_receipt=receipt,
+                metadata={
+                    "package_id": package.id,
+                    "package_name": package.name,
+                    "ad_count": package.ad_count,
+                    "duration_days": package.duration_days,
+                    "payment_method": payment_method,
+                },
+            )
+
+            messages.success(
+                request,
+                _("تم استلام طلب الدفع. سيتم مراجعته خلال 24 ساعة وتفعيل باقتك."),
+            )
+
+            # Clear session
+            request.session.pop("package_checkout_id", None)
+            request.session.pop("package_checkout_amount", None)
+
+            return redirect("main:my_ads")
+
+        elif payment_method in ["paymob", "paypal", "card", "wallet", "instapay"]:
+            # Determine provider based on payment method
+            if payment_method == "paypal":
+                provider = Payment.PaymentProvider.PAYPAL
+            elif payment_method in ["paymob", "card", "wallet", "instapay"]:
+                provider = Payment.PaymentProvider.PAYMOB
+            else:
+                provider = Payment.PaymentProvider.PAYMOB
+
+            # Create payment record for online payment
+            payment = Payment.objects.create(
+                user=request.user,
+                provider=provider,
+                amount=total_amount,
+                currency="EGP",
+                status=Payment.PaymentStatus.PENDING,
+                description=f"شراء باقة: {package.name}",
+                metadata={
+                    "package_id": package.id,
+                    "package_name": package.name,
+                    "ad_count": package.ad_count,
+                    "duration_days": package.duration_days,
+                    "payment_method": payment_method,
+                },
+            )
+
+            # Initialize payment service
+            payment_service = PaymentService()
+
+            # Prepare user data
+            user_data = {
+                "email": request.user.email,
+                "first_name": request.user.first_name or request.user.username,
+                "last_name": request.user.last_name or "",
+                "phone": getattr(request.user, "mobile", "")
+                or getattr(request.user, "phone", ""),
+            }
+
+            # Create payment with provider
+            result = payment_service.create_payment(
+                payment_method,
+                float(total_amount),
+                "EGP",
+                f"شراء باقة: {package.name}",
+                user_data,
+                payment_id=payment.id,
+            )
+
+            if result["success"]:
+                payment.transaction_id = result.get("transaction_id")
+                payment.payment_url = result.get("payment_url")
+                payment.save()
+
+                # Clear session
+                request.session.pop("package_checkout_id", None)
+                request.session.pop("package_checkout_amount", None)
+
+                # Redirect to payment gateway
+                return redirect(result["payment_url"])
+            else:
+                payment.status = Payment.PaymentStatus.FAILED
+                payment.save()
+                messages.error(
+                    request, _("فشل إنشاء الدفع: {}").format(result.get("message"))
+                )
+
+    context = {
+        "package": package,
+        "total_amount": total_amount,
+        "site_config": site_config,
+        "allow_offline_payment": site_config.allow_offline_payment,
+        "offline_payment_instructions": site_config.offline_payment_instructions,
+    }
+
+    return render(request, "payments/package_checkout.html", context)
+
+
+@login_required
+@require_POST
+def confirm_package_payment(request, payment_id):
+    """Admin confirms offline package payment"""
+    if not request.user.is_staff:
+        return JsonResponse({"success": False, "message": "Unauthorized"}, status=403)
+
+    payment = get_object_or_404(Payment, id=payment_id)
+    package_id = payment.metadata.get("package_id")
+
+    if not package_id:
+        return JsonResponse({"success": False, "message": "Invalid payment data"})
+
+    package = get_object_or_404(AdPackage, id=package_id)
+
+    # Create user package
+    user_package = UserPackage.objects.create(
+        user=payment.user,
+        package=package,
+        ads_remaining=package.ad_count,
+        expiry_date=timezone.now() + timedelta(days=package.duration_days),
+    )
+
+    # Mark payment as completed
+    payment.mark_completed()
+
+    # Send notification to user
+    from .models import Notification
+
+    Notification.objects.create(
+        user=payment.user,
+        notification_type=Notification.NotificationType.GENERAL,
+        title=_("تم تأكيد الدفع"),
+        message=_("تم تأكيد دفع باقة {} وإضافة {} إعلانات إلى رصيدك.").format(
+            package.name, package.ad_count
+        ),
+    )
+
+    return JsonResponse({"success": True, "message": _("تم تأكيد الدفع وتفعيل الباقة")})

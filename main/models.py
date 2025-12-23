@@ -1227,11 +1227,18 @@ class ClassifiedAdManager(models.Manager):
         )
 
     def active_for_country(self, country_code):
-        """Get active ads for a specific country"""
-        return (
+        """Get active ads for a specific country, ordered with featured ads first"""
+        queryset = (
             self.active().filter(country__code=country_code)
             if country_code
             else self.active()
+        )
+        # Order by: pinned first, then urgent, then highlighted, then by date
+        return queryset.order_by(
+            "-is_pinned",
+            "-is_urgent",
+            "-is_highlighted",
+            "-created_at"
         )
 
     def featured_for_country(self, country_code):
@@ -2382,6 +2389,16 @@ class Payment(models.Model):
     metadata = models.JSONField(
         default=dict, blank=True, verbose_name=_("بيانات إضافية - Metadata")
     )
+
+    # Offline Payment Receipt
+    offline_payment_receipt = models.ImageField(
+        upload_to="payment_receipts/",
+        blank=True,
+        null=True,
+        verbose_name=_("إيصال الدفع اليدوي"),
+        help_text=_("صورة الإيصال أو لقطة شاشة للتحويل"),
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(

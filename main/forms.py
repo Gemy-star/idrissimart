@@ -158,6 +158,13 @@ class ClassifiedAdForm(forms.ModelForm):
         self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
 
+        # Update mobile number help text based on verification settings
+        from content.site_config import SiteConfiguration
+        site_config = SiteConfiguration.get_solo()
+        if not site_config.require_phone_verification:
+            # If phone verification is disabled, remove the verification mention
+            self.fields["mobile_number"].help_text = _("رقم الجوال للتواصل")
+
         # Remove default empty label for category field
         if "category" in self.fields:
             self.fields["category"].empty_label = None

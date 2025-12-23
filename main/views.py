@@ -841,7 +841,7 @@ class CategoryDetailView(FilterView):
         return queryset
 
     def apply_sorting(self, queryset):
-        """تطبيق الترتيب"""
+        """تطبيق الترتيب - إعلانات مميزة أولاً"""
         sort_option = self.request.GET.get("sort", "-created_at")
 
         valid_sorts = [
@@ -854,10 +854,16 @@ class CategoryDetailView(FilterView):
             "-title",  # العنوان ي-أ
         ]
 
-        if sort_option in valid_sorts:
-            queryset = queryset.order_by(sort_option)
-        else:
-            queryset = queryset.order_by("-created_at")
+        if sort_option not in valid_sorts:
+            sort_option = "-created_at"
+
+        # Always prioritize featured ads (pinned, urgent, highlighted) first
+        queryset = queryset.order_by(
+            "-is_pinned",
+            "-is_urgent",
+            "-is_highlighted",
+            sort_option
+        )
 
         return queryset
 
@@ -1093,7 +1099,7 @@ class SubcategoryDetailView(FilterView):
         return queryset
 
     def apply_sorting(self, queryset):
-        """تطبيق الترتيب"""
+        """تطبيق الترتيب - إعلانات مميزة أولاً"""
         sort_by = self.request.GET.get("sort", "-created_at")
         valid_sorts = [
             "price",
@@ -1105,8 +1111,17 @@ class SubcategoryDetailView(FilterView):
             "title",
             "-title",
         ]
-        if sort_by in valid_sorts:
-            queryset = queryset.order_by(sort_by)
+
+        if sort_by not in valid_sorts:
+            sort_by = "-created_at"
+
+        # Always prioritize featured ads (pinned, urgent, highlighted) first
+        queryset = queryset.order_by(
+            "-is_pinned",
+            "-is_urgent",
+            "-is_highlighted",
+            sort_by
+        )
 
         return queryset
 
@@ -1491,12 +1506,11 @@ class AdCreateView(LoginRequiredMixin, CreateView):
         else:
             context["image_formset"] = AdImageFormSet()
 
-        # Add mobile verification setting
-        from constance import config
+        # Add mobile verification setting from site_config
+        from content.site_config import SiteConfiguration
 
-        context["mobile_verification_enabled"] = getattr(
-            config, "ENABLE_MOBILE_VERIFICATION", True
-        )
+        site_config = SiteConfiguration.get_solo()
+        context["mobile_verification_enabled"] = site_config.require_phone_verification
 
         # Add countries list
         from content.models import Country
@@ -1609,12 +1623,11 @@ class AdUpdateView(LoginRequiredMixin, UpdateView):
         else:
             context["image_formset"] = AdImageFormSet(instance=self.object)
 
-        # Add mobile verification setting
-        from constance import config
+        # Add mobile verification setting from site_config
+        from content.site_config import SiteConfiguration
 
-        context["mobile_verification_enabled"] = getattr(
-            config, "ENABLE_MOBILE_VERIFICATION", True
-        )
+        site_config = SiteConfiguration.get_solo()
+        context["mobile_verification_enabled"] = site_config.require_phone_verification
 
         # Add countries list
         from content.models import Country
@@ -3508,12 +3521,12 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
         pending_payments = Payment.objects.filter(
             status=Payment.PaymentStatus.PENDING
         ).count()
-
-        # Debug: Print payment counts
-        print(f"DEBUG - Total payments: {total_payments}")
-        print(f"DEBUG - Completed payments: {completed_payments.count()}")
-        print(f"DEBUG - Total revenue: {total_revenue}")
-        print(f"DEBUG - Pending payments: {pending_payments}")
+        failed_payments = Payment.objects.filter(
+            status=Payment.PaymentStatus.FAILED
+        ).count()
+        refunded_payments = Payment.objects.filter(
+            status=Payment.PaymentStatus.REFUNDED
+        ).count()
 
         # Calculate monthly revenue (current month)
         current_month_start = timezone.now().replace(
@@ -3526,19 +3539,47 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
             or 0
         )
 
+        # Weekly revenue (last 7 days)
+        week_ago = timezone.now() - timedelta(days=7)
+        weekly_revenue = (
+            completed_payments.filter(completed_at__gte=week_ago).aggregate(
+                total=Sum("amount")
+            )["total"]
+            or 0
+        )
+
+        # Today's revenue
+        today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_revenue = (
+            completed_payments.filter(completed_at__gte=today_start).aggregate(
+                total=Sum("amount")
+            )["total"]
+            or 0
+        )
+
         # Premium members statistics
         total_premium_members = User.objects.filter(is_premium=True).count()
         today = timezone.now().date()
         active_premium_members = User.objects.filter(
             is_premium=True, subscription_end__gte=today
         ).count()
+        expired_premium_members = User.objects.filter(
+            is_premium=True, subscription_end__lt=today
+        ).count()
 
         context["payment_stats"] = {
             "total_transactions": total_payments,
+            "completed_transactions": completed_payments.count(),
             "total_revenue": total_revenue,
+            "monthly_revenue": monthly_revenue,
+            "weekly_revenue": weekly_revenue,
+            "today_revenue": today_revenue,
             "premium_members": total_premium_members,
-            "pending_payments": pending_payments,
             "active_premium_members": active_premium_members,
+            "expired_premium_members": expired_premium_members,
+            "pending_payments": pending_payments,
+            "failed_payments": failed_payments,
+            "refunded_payments": refunded_payments,
         }
 
         # Recent transactions

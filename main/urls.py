@@ -125,6 +125,11 @@ urlpatterns = [
         name="ad_create",
     ),
     path(
+        "classifieds/category/<int:category_id>/custom-fields/",
+        classifieds_views.get_category_custom_fields,
+        name="get_category_custom_fields",
+    ),
+    path(
         "classifieds/<int:pk>/edit/",
         classifieds_views.ClassifiedAdUpdateView.as_view(),
         name="ad_update",
@@ -592,6 +597,26 @@ urlpatterns = [
         "payment/upgrade/<int:payment_id>/",
         payment_views.payment_page_upgrade,
         name="payment_page_upgrade",
+    ),
+    path(
+        "payment/ad/<int:ad_id>/",
+        payment_views.ad_payment,
+        name="ad_payment",
+    ),
+    path(
+        "payment/ad/confirm/<int:payment_id>/",
+        payment_views.confirm_ad_payment,
+        name="confirm_ad_payment",
+    ),
+    path(
+        "payment/package/<int:package_id>/",
+        payment_views.package_checkout,
+        name="package_checkout",
+    ),
+    path(
+        "payment/package/confirm/<int:payment_id>/",
+        payment_views.confirm_package_payment,
+        name="confirm_package_payment",
     ),
     path(
         "payment/create/",

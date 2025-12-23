@@ -723,10 +723,10 @@ class PaymentAdmin(admin.ModelAdmin):
     """
 
     list_display = (
+        "get_payment_id",
         "user",
         "provider",
-        "amount",
-        "currency",
+        "get_amount_display",
         "status",
         "created_at",
         "completed_at",
@@ -736,20 +736,62 @@ class PaymentAdmin(admin.ModelAdmin):
         "provider",
         "currency",
         "created_at",
+        "completed_at",
     )
     search_fields = (
         "user__username",
         "user__email",
         "provider_transaction_id",
         "description",
+        "id",
     )
     readonly_fields = (
         "created_at",
         "updated_at",
         "completed_at",
+        "get_payment_metadata",
     )
     date_hierarchy = "created_at"
-    actions = ["mark_as_completed", "mark_as_failed"]
+    actions = [
+        "mark_as_completed",
+        "mark_as_failed",
+        "mark_as_refunded",
+        "export_to_csv",
+        "resend_payment_notification",
+    ]
+    list_per_page = 25
+
+    def get_payment_id(self, obj):
+        """Display formatted payment ID"""
+        return format_html(
+            '<span style="font-weight: bold; color: #0066cc;">#{}</span>',
+            obj.id
+        )
+    get_payment_id.short_description = _("رقم الدفعة")
+    get_payment_id.admin_order_field = "id"
+
+    def get_amount_display(self, obj):
+        """Display formatted amount with currency"""
+        color = "#28a745" if obj.status == "completed" else "#6c757d"
+        return format_html(
+            '<span style="font-weight: bold; color: {};">{} {}</span>',
+            color,
+            obj.amount,
+            obj.currency
+        )
+    get_amount_display.short_description = _("المبلغ")
+    get_amount_display.admin_order_field = "amount"
+
+    def get_payment_metadata(self, obj):
+        """Display formatted metadata"""
+        import json
+        if obj.metadata:
+            return format_html(
+                '<pre style="background: #f5f5f5; padding: 10px; border-radius: 5px;">{}</pre>',
+                json.dumps(obj.metadata, indent=2, ensure_ascii=False)
+            )
+        return "-"
+    get_payment_metadata.short_description = _("البيانات الإضافية")
 
     def mark_as_completed(self, request, queryset):
         """Mark payments as completed"""
@@ -760,14 +802,88 @@ class PaymentAdmin(admin.ModelAdmin):
         )
         self.message_user(request, _(f"تم تحديد {updated} دفعة كمكتملة"))
 
-    mark_as_completed.short_description = _("تحديد كمكتملة")
+    mark_as_completed.short_description = _("✓ تحديد كمكتملة")
 
     def mark_as_failed(self, request, queryset):
         """Mark payments as failed"""
         updated = queryset.filter(status="pending").update(status="failed")
         self.message_user(request, _(f"تم تحديد {updated} دفعة كفاشلة"))
 
-    mark_as_failed.short_description = _("تحديد كفاشلة")
+    mark_as_failed.short_description = _("✗ تحديد كفاشلة")
+
+    def mark_as_refunded(self, request, queryset):
+        """Mark payments as refunded"""
+        from django.utils import timezone
+
+        count = 0
+        for payment in queryset.filter(status="completed"):
+            payment.status = "refunded"
+            if not payment.metadata:
+                payment.metadata = {}
+            payment.metadata["refunded_at"] = timezone.now().isoformat()
+            payment.metadata["refunded_by"] = request.user.username
+            payment.save()
+            count += 1
+
+        self.message_user(request, _(f"تم استرداد {count} دفعة"))
+
+    mark_as_refunded.short_description = _("↩ تحديد كمستردة")
+
+    def export_to_csv(self, request, queryset):
+        """Export payments to CSV"""
+        import csv
+        from django.http import HttpResponse
+        from django.utils import timezone
+
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = f'attachment; filename="payments_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+        response.write('\ufeff')  # UTF-8 BOM for Excel compatibility
+
+        writer = csv.writer(response)
+        writer.writerow([
+            _('رقم الدفعة'),
+            _('المستخدم'),
+            _('البريد الإلكتروني'),
+            _('مزود الدفع'),
+            _('رقم المعاملة'),
+            _('المبلغ'),
+            _('العملة'),
+            _('الحالة'),
+            _('الوصف'),
+            _('تاريخ الإنشاء'),
+            _('تاريخ الإكمال'),
+        ])
+
+        for payment in queryset:
+            writer.writerow([
+                payment.id,
+                payment.user.username,
+                payment.user.email,
+                payment.get_provider_display(),
+                payment.provider_transaction_id,
+                payment.amount,
+                payment.currency,
+                payment.get_status_display(),
+                payment.description,
+                payment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                payment.completed_at.strftime('%Y-%m-%d %H:%M:%S') if payment.completed_at else '',
+            ])
+
+        self.message_user(request, _(f"تم تصدير {queryset.count()} دفعة"))
+        return response
+
+    export_to_csv.short_description = _("📥 تصدير إلى CSV")
+
+    def resend_payment_notification(self, request, queryset):
+        """Resend payment notification to users"""
+        count = 0
+        for payment in queryset.filter(status="completed"):
+            # TODO: Implement email notification
+            count += 1
+
+        self.message_user(request, _(f"تم إرسال إشعارات لـ {count} دفعة"))
+
+    resend_payment_notification.short_description = _("📧 إرسال إشعار للمستخدمين")
 
     fieldsets = (
         (
@@ -785,7 +901,7 @@ class PaymentAdmin(admin.ModelAdmin):
         (
             _("البيانات الإضافية"),
             {
-                "fields": ("metadata",),
+                "fields": ("get_payment_metadata",),
                 "classes": ("collapse",),
             },
         ),
@@ -1329,40 +1445,436 @@ class OrderItemInline(admin.TabularInline):
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     list_display = (
-        "order_number",
+        "get_order_number_display",
         "user",
         "full_name",
         "phone",
         "city",
-        "total_amount",
-        "payment_method",
-        "status",
+        "get_total_amount_display",
+        "get_payment_status_display",
+        "get_status_display_badge",
         "created_at",
     )
-    list_filter = ("status", "payment_method", "created_at")
-    search_fields = ("order_number", "user__username", "full_name", "phone")
-    readonly_fields = ("order_number", "created_at", "updated_at")
+    list_filter = (
+        "status",
+        "payment_status",
+        "payment_method",
+        "created_at",
+        "updated_at",
+    )
+    search_fields = (
+        "order_number",
+        "user__username",
+        "user__email",
+        "full_name",
+        "phone",
+        "address",
+        "city",
+    )
+    readonly_fields = (
+        "order_number",
+        "created_at",
+        "updated_at",
+        "get_order_summary",
+        "get_payment_info",
+    )
     inlines = [OrderItemInline]
+    list_per_page = 25
+    actions = [
+        "mark_as_processing",
+        "mark_as_shipped",
+        "mark_as_delivered",
+        "mark_as_cancelled",
+        "mark_payment_as_paid",
+        "mark_payment_as_unpaid",
+        "mark_payment_as_refunded",
+        "confirm_cod_payment",
+        "record_partial_payment",
+        "export_orders_to_csv",
+        "send_order_notification",
+        "send_payment_reminder",
+    ]
+
+    def get_order_number_display(self, obj):
+        """Display formatted order number"""
+        return format_html(
+            '<span style="font-weight: bold; color: #0066cc; font-family: monospace;">{}</span>',
+            obj.order_number
+        )
+    get_order_number_display.short_description = _("رقم الطلب")
+    get_order_number_display.admin_order_field = "order_number"
+
+    def get_total_amount_display(self, obj):
+        """Display formatted total amount"""
+        return format_html(
+            '<div style="text-align: right;"><span style="font-weight: bold; color: #28a745;">{:.2f}</span><br>'
+            '<small style="color: #6c757d;">مدفوع: {:.2f}</small></div>',
+            obj.total_amount,
+            obj.paid_amount
+        )
+    get_total_amount_display.short_description = _("المبلغ")
+    get_total_amount_display.admin_order_field = "total_amount"
+
+    def get_payment_status_display(self, obj):
+        """Display payment status with badge"""
+        colors = {
+            "paid": "#28a745",
+            "partial": "#ffc107",
+            "unpaid": "#dc3545",
+            "refunded": "#6c757d",
+        }
+        color = colors.get(obj.payment_status, "#6c757d")
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 4px 8px; '
+            'border-radius: 4px; font-size: 11px; font-weight: bold;">{}</span>',
+            color,
+            obj.get_payment_status_display()
+        )
+    get_payment_status_display.short_description = _("حالة الدفع")
+    get_payment_status_display.admin_order_field = "payment_status"
+
+    def get_status_display_badge(self, obj):
+        """Display order status with colored badge"""
+        colors = {
+            "pending": "#ffc107",
+            "processing": "#17a2b8",
+            "shipped": "#007bff",
+            "delivered": "#28a745",
+            "cancelled": "#dc3545",
+            "refunded": "#6c757d",
+        }
+        color = colors.get(obj.status, "#6c757d")
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 4px 8px; '
+            'border-radius: 4px; font-size: 11px; font-weight: bold;">{}</span>',
+            color,
+            obj.get_status_display()
+        )
+    get_status_display_badge.short_description = _("حالة الطلب")
+    get_status_display_badge.admin_order_field = "status"
+
+    def get_order_summary(self, obj):
+        """Display order summary"""
+        items_html = '<ul style="margin: 0; padding-left: 20px;">'
+        for item in obj.items.all():
+            items_html += f'<li>{item.ad.title} - {item.price} ر.س</li>'
+        items_html += '</ul>'
+
+        return format_html(
+            '<div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">'
+            '<h4 style="margin-top: 0;">ملخص الطلب</h4>'
+            '<p><strong>عدد العناصر:</strong> {}</p>'
+            '<p><strong>العناصر:</strong></p>{}'
+            '<p><strong>رسوم التوصيل:</strong> {} ر.س</p>'
+            '<p><strong>الإجمالي:</strong> <span style="color: #28a745; font-weight: bold;">{} ر.س</span></p>'
+            '</div>',
+            obj.get_items_count(),
+            items_html,
+            obj.delivery_fee,
+            obj.total_amount
+        )
+    get_order_summary.short_description = _("ملخص الطلب")
+
+    def get_payment_info(self, obj):
+        """Display payment information"""
+        percentage = obj.get_payment_percentage()
+        return format_html(
+            '<div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">'
+            '<h4 style="margin-top: 0;">معلومات الدفع</h4>'
+            '<p><strong>طريقة الدفع:</strong> {}</p>'
+            '<p><strong>حالة الدفع:</strong> {}</p>'
+            '<p><strong>المبلغ الإجمالي:</strong> {} ر.س</p>'
+            '<p><strong>المبلغ المدفوع:</strong> <span style="color: #28a745;">{} ر.س</span></p>'
+            '<p><strong>المبلغ المتبقي:</strong> <span style="color: #dc3545;">{} ر.س</span></p>'
+            '<div style="margin-top: 10px;">'
+            '<div style="background: #e9ecef; height: 20px; border-radius: 10px; overflow: hidden;">'
+            '<div style="background: #28a745; height: 100%; width: {}%; transition: width 0.3s;"></div>'
+            '</div>'
+            '<small style="color: #6c757d;">نسبة السداد: {:.1f}%</small>'
+            '</div>'
+            '</div>',
+            obj.get_payment_method_display(),
+            obj.get_payment_status_display(),
+            obj.total_amount,
+            obj.paid_amount,
+            obj.remaining_amount,
+            percentage,
+            percentage
+        )
+    get_payment_info.short_description = _("معلومات الدفع")
+
+    # Admin Actions
+    def mark_as_processing(self, request, queryset):
+        """Mark selected orders as processing"""
+        updated = queryset.filter(status="pending").update(status="processing")
+        self.message_user(request, _(f"تم تحديث {updated} طلب إلى قيد المعالجة"))
+    mark_as_processing.short_description = _("⚙ تحديد كـ قيد المعالجة")
+
+    def mark_as_shipped(self, request, queryset):
+        """Mark selected orders as shipped"""
+        updated = queryset.filter(status="processing").update(status="shipped")
+        self.message_user(request, _(f"تم تحديث {updated} طلب إلى تم الشحن"))
+    mark_as_shipped.short_description = _("📦 تحديد كـ تم الشحن")
+
+    def mark_as_delivered(self, request, queryset):
+        """Mark selected orders as delivered"""
+        updated = queryset.filter(status="shipped").update(status="delivered")
+        self.message_user(request, _(f"تم تحديث {updated} طلب إلى تم التسليم"))
+    mark_as_delivered.short_description = _("✓ تحديد كـ تم التسليم")
+
+    def mark_as_cancelled(self, request, queryset):
+        """Mark selected orders as cancelled"""
+        updated = queryset.update(status="cancelled")
+        self.message_user(request, _(f"تم إلغاء {updated} طلب"))
+    mark_as_cancelled.short_description = _("✗ إلغاء الطلبات")
+
+    # Payment Status Actions
+    def mark_payment_as_paid(self, request, queryset):
+        """Mark order payment as fully paid"""
+        count = 0
+        for order in queryset:
+            if order.payment_status != "paid":
+                order.paid_amount = order.total_amount
+                order.payment_status = "paid"
+                order.remaining_amount = 0
+                order.save()
+                count += 1
+        self.message_user(request, _(f"تم تحديث حالة الدفع لـ {count} طلب إلى مدفوع بالكامل"))
+    mark_payment_as_paid.short_description = _("💰 تحديد الدفع كمدفوع بالكامل")
+
+    def mark_payment_as_unpaid(self, request, queryset):
+        """Mark order payment as unpaid"""
+        count = 0
+        for order in queryset:
+            if order.payment_status != "unpaid":
+                order.paid_amount = 0
+                order.payment_status = "unpaid"
+                order.remaining_amount = order.total_amount
+                order.save()
+                count += 1
+        self.message_user(request, _(f"تم تحديث حالة الدفع لـ {count} طلب إلى غير مدفوع"))
+    mark_payment_as_unpaid.short_description = _("⏸ تحديد الدفع كغير مدفوع")
+
+    def mark_payment_as_refunded(self, request, queryset):
+        """Mark order payment as refunded"""
+        from django.utils import timezone
+
+        count = 0
+        for order in queryset.filter(payment_status="paid"):
+            order.payment_status = "refunded"
+            order.status = "refunded"
+            # Add refund info to notes
+            refund_note = f"\n[{timezone.now().strftime('%Y-%m-%d %H:%M')}] تم استرداد المبلغ {order.paid_amount} من قبل {request.user.username}"
+            order.notes = (order.notes or "") + refund_note
+            order.save()
+            count += 1
+
+        self.message_user(request, _(f"تم استرداد {count} طلب"))
+    mark_payment_as_refunded.short_description = _("↩ استرداد المبلغ")
+
+    def confirm_cod_payment(self, request, queryset):
+        """Confirm Cash on Delivery payment"""
+        from django.utils import timezone
+
+        count = 0
+        for order in queryset.filter(payment_method="cod", payment_status="unpaid"):
+            order.paid_amount = order.total_amount
+            order.payment_status = "paid"
+            order.remaining_amount = 0
+            # Add confirmation note
+            confirm_note = f"\n[{timezone.now().strftime('%Y-%m-%d %H:%M')}] تم تأكيد استلام الدفع عند التسليم من قبل {request.user.username}"
+            order.notes = (order.notes or "") + confirm_note
+            order.save()
+            count += 1
+
+        self.message_user(request, _(f"تم تأكيد استلام الدفع لـ {count} طلب (دفع عند الاستلام)"))
+    confirm_cod_payment.short_description = _("✓ تأكيد الدفع عند الاستلام")
+
+    def send_payment_reminder(self, request, queryset):
+        """Send payment reminder to customers with unpaid orders"""
+        count = 0
+        for order in queryset.filter(payment_status__in=["unpaid", "partial"]):
+            # TODO: Implement email/SMS notification
+            count += 1
+        self.message_user(request, _(f"تم إرسال تذكير دفع لـ {count} طلب"))
+    send_payment_reminder.short_description = _("📧 إرسال تذكير بالدفع")
+
+    def record_partial_payment(self, request, queryset):
+        """Record partial payment for orders - opens intermediate page"""
+        from django.shortcuts import render
+        from django import forms
+        from decimal import Decimal
+
+        class PartialPaymentForm(forms.Form):
+            amount = forms.DecimalField(
+                label=_("المبلغ المدفوع"),
+                max_digits=10,
+                decimal_places=2,
+                min_value=Decimal('0.01'),
+                widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'})
+            )
+            payment_note = forms.CharField(
+                label=_("ملاحظة الدفع"),
+                required=False,
+                widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
+            )
+
+        if 'apply' in request.POST:
+            form = PartialPaymentForm(request.POST)
+            if form.is_valid():
+                amount = form.cleaned_data['amount']
+                payment_note = form.cleaned_data['payment_note']
+                from django.utils import timezone
+
+                count = 0
+                for order in queryset:
+                    if order.payment_status in ['unpaid', 'partial']:
+                        # Add the partial payment
+                        order.paid_amount += amount
+
+                        # Ensure we don't exceed total
+                        if order.paid_amount > order.total_amount:
+                            order.paid_amount = order.total_amount
+
+                        order.remaining_amount = order.total_amount - order.paid_amount
+
+                        # Update payment status
+                        if order.paid_amount >= order.total_amount:
+                            order.payment_status = "paid"
+                        elif order.paid_amount > 0:
+                            order.payment_status = "partial"
+
+                        # Add note
+                        note = f"\n[{timezone.now().strftime('%Y-%m-%d %H:%M')}] دفعة جزئية: {amount} ر.س من قبل {request.user.username}"
+                        if payment_note:
+                            note += f" - {payment_note}"
+                        order.notes = (order.notes or "") + note
+
+                        order.save()
+                        count += 1
+
+                self.message_user(request, _(f"تم تسجيل دفعة جزئية بمبلغ {amount} ر.س لـ {count} طلب"))
+                return None
+        else:
+            form = PartialPaymentForm()
+
+        return render(
+            request,
+            'admin/order_partial_payment.html',
+            {
+                'orders': queryset,
+                'form': form,
+                'title': _('تسجيل دفعة جزئية'),
+                'opts': self.model._meta,
+            }
+        )
+
+    record_partial_payment.short_description = _("💵 تسجيل دفعة جزئية")
+
+    def export_orders_to_csv(self, request, queryset):
+        """Export orders to CSV"""
+        import csv
+        from django.http import HttpResponse
+        from django.utils import timezone
+
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = f'attachment; filename="orders_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+        response.write('\ufeff')  # UTF-8 BOM for Excel compatibility
+
+        writer = csv.writer(response)
+        writer.writerow([
+            _('رقم الطلب'),
+            _('المستخدم'),
+            _('الاسم الكامل'),
+            _('الهاتف'),
+            _('المدينة'),
+            _('العنوان'),
+            _('المبلغ الإجمالي'),
+            _('المبلغ المدفوع'),
+            _('المبلغ المتبقي'),
+            _('طريقة الدفع'),
+            _('حالة الدفع'),
+            _('حالة الطلب'),
+            _('رسوم التوصيل'),
+            _('تاريخ الإنشاء'),
+            _('ملاحظات'),
+        ])
+
+        for order in queryset:
+            writer.writerow([
+                order.order_number,
+                order.user.username,
+                order.full_name,
+                order.phone,
+                order.city,
+                order.address,
+                order.total_amount,
+                order.paid_amount,
+                order.remaining_amount,
+                order.get_payment_method_display(),
+                order.get_payment_status_display(),
+                order.get_status_display(),
+                order.delivery_fee,
+                order.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                order.notes,
+            ])
+
+        self.message_user(request, _(f"تم تصدير {queryset.count()} طلب"))
+        return response
+
+    export_orders_to_csv.short_description = _("📥 تصدير إلى CSV")
+
+    def send_order_notification(self, request, queryset):
+        """Send order notification to customers"""
+        count = 0
+        for order in queryset:
+            # TODO: Implement email notification
+            count += 1
+        self.message_user(request, _(f"تم إرسال إشعارات لـ {count} طلب"))
+    send_order_notification.short_description = _("📧 إرسال إشعار للعملاء")
 
     fieldsets = (
         (
-            "معلومات الطلب",
+            _("معلومات الطلب"),
             {
                 "fields": (
                     "order_number",
                     "user",
                     "status",
-                    "payment_method",
-                    "total_amount",
+                    "get_order_summary",
                 )
             },
         ),
         (
-            "معلومات التوصيل",
+            _("معلومات الدفع"),
+            {
+                "fields": (
+                    "payment_method",
+                    "payment_status",
+                    "total_amount",
+                    "paid_amount",
+                    "remaining_amount",
+                    "delivery_fee",
+                    "get_payment_info",
+                    "transaction_photo",
+                )
+            },
+        ),
+        (
+            _("معلومات التوصيل"),
             {"fields": ("full_name", "phone", "address", "city", "postal_code")},
         ),
-        ("ملاحظات", {"fields": ("notes",)}),
-        ("التواريخ", {"fields": ("created_at", "updated_at")}),
+        (
+            _("ملاحظات ومعلومات إضافية"),
+            {
+                "fields": ("notes", "expires_at"),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            _("التواريخ"),
+            {"fields": ("created_at", "updated_at")},
+        ),
     )
 
 

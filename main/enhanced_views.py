@@ -682,6 +682,10 @@ def admin_edit_siteconfig(request):
                 "wallet_phone",
                 "offline_payment_instructions",
                 "offline_payment_instructions_ar",
+                "ad_base_fee",
+                "featured_ad_price",
+                "urgent_ad_price",
+                "pinned_ad_price",
             ]
             widgets = {
                 "meta_keywords": forms.TextInput(
@@ -727,6 +731,18 @@ def admin_edit_siteconfig(request):
                 ),
                 "instapay_qr_code": forms.FileInput(
                     attrs={"class": "form-control", "accept": "image/*"}
+                ),
+                "ad_base_fee": forms.NumberInput(
+                    attrs={"class": "form-control", "step": "0.01", "min": "0"}
+                ),
+                "featured_ad_price": forms.NumberInput(
+                    attrs={"class": "form-control", "step": "0.01", "min": "0"}
+                ),
+                "urgent_ad_price": forms.NumberInput(
+                    attrs={"class": "form-control", "step": "0.01", "min": "0"}
+                ),
+                "pinned_ad_price": forms.NumberInput(
+                    attrs={"class": "form-control", "step": "0.01", "min": "0"}
                 ),
             }
 

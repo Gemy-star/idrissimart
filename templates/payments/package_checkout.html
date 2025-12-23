@@ -1,0 +1,394 @@
+{% extends "base.html" %}
+{% load static i18n %}
+
+{% block title %}{% trans "إتمام الشراء" %} - {{ package.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .payment-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .payment-card {
+        background: var(--bg-primary, #ffffff);
+        border-radius: 16px;
+        padding: 30px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+    }
+
+    [data-theme='dark'] .payment-card {
+        background: var(--card-bg, #2d3748);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .payment-method-card {
+        border: 2px solid var(--border-color, #dee2e6);
+        border-radius: 12px;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-bottom: 15px;
+    }
+
+    .payment-method-card:hover {
+        border-color: var(--primary-color, #6b4c7a);
+        box-shadow: 0 4px 15px rgba(107, 76, 122, 0.2);
+    }
+
+    .payment-method-card.selected {
+        border-color: var(--primary-color, #6b4c7a);
+        background: rgba(107, 76, 122, 0.05);
+    }
+
+    [data-theme='dark'] .payment-method-card {
+        background: rgba(255, 255, 255, 0.03);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    [data-theme='dark'] .payment-method-card.selected {
+        background: rgba(107, 76, 122, 0.15);
+        border-color: var(--accent-purple, #a78bbd);
+    }
+
+    .package-summary {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-purple, #6B4C7A) 100%);
+        padding: 30px;
+        border-radius: 16px;
+        color: white;
+        margin-bottom: 20px;
+    }
+
+    .package-feature {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+        color: white;
+    }
+
+    .package-feature i {
+        margin-left: 10px;
+        color: rgba(255, 255, 255, 0.8);
+    }
+
+    .total-amount {
+        font-size: 2rem;
+        font-weight: bold;
+        color: white;
+        text-align: center;
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        margin-top: 20px;
+    }
+
+    .qr-code-img {
+        max-width: 300px;
+        margin: 20px auto;
+        display: block;
+    }
+
+    .offline-instructions {
+        background: var(--bg-secondary, #f8f9fa);
+        padding: 20px;
+        border-radius: 12px;
+        margin: 20px 0;
+    }
+
+    [data-theme='dark'] .offline-instructions {
+        background: rgba(255, 255, 255, 0.05);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="page-hero">
+    <div class="container">
+        <div class="hero-content-center">
+            <h1 class="page-title">{% trans "إتمام الشراء" %}</h1>
+            <p class="page-subtitle">{% trans "اختر طريقة الدفع المناسبة لك" %}</p>
+        </div>
+    </div>
+</section>
+
+<section class="payment-section py-5">
+    <div class="container">
+        <div class="payment-container">
+            <!-- Package Summary -->
+            <div class="package-summary">
+                <h3 class="mb-4">
+                    <i class="fas fa-box-open me-2"></i>
+                    {{ package.name }}
+                </h3>
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="package-feature">
+                            <i class="fas fa-ad"></i>
+                            <span>{{ package.ad_count }} {% trans "إعلان" %}</span>
+                        </div>
+                        <div class="package-feature">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>{% trans "صالحة لمدة" %} {{ package.duration_days }} {% trans "يوم" %}</span>
+                        </div>
+                        {% if package.category %}
+                        <div class="package-feature">
+                            <i class="fas fa-tag"></i>
+                            <span>{% trans "خاصة بقسم:" %} {{ package.category.name_ar|default:package.category.name }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        <div class="total-amount">
+                            {{ total_amount }} {% trans "ج.م" %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Methods -->
+            <div class="payment-card">
+                <h3 class="mb-4">
+                    <i class="fas fa-credit-card me-2"></i>
+                    {% trans "طرق الدفع" %}
+                </h3>
+
+                <form method="post" enctype="multipart/form-data" id="paymentForm">
+                    {% csrf_token %}
+
+                    {% if allow_offline_payment %}
+                    <!-- Offline Payment Options Only -->
+                    <!-- Instapay -->
+                    <div class="payment-method-card" data-payment="instapay" onclick="selectPaymentMethod('instapay')">
+                        <div class="d-flex align-items-center">
+                            <input type="radio" name="payment_method" value="instapay" id="instapay" style="margin-left: 15px;">
+                            <div class="flex-grow-1">
+                                <h5 class="mb-1">
+                                    <i class="fas fa-mobile-alt me-2 text-primary"></i>
+                                    {% trans "إنستا باي" %}
+                                </h5>
+                                <p class="text-muted small mb-0">{% trans "الدفع عبر إنستا باي وإرفاق إيصال الدفع" %}</p>
+                            </div>
+                        </div>
+
+                        <div id="instapayDetails" style="display: none;" class="mt-3">
+                            {% if offline_payment_instructions %}
+                            <div class="offline-instructions">
+                                <h6 class="mb-3">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    {% trans "تعليمات الدفع" %}
+                                </h6>
+                                {{ offline_payment_instructions|safe }}
+                            </div>
+                            {% endif %}
+
+                            {% if site_config.qr_code %}
+                            <div class="text-center">
+                                <h6 class="mb-3">{% trans "امسح الكود للدفع" %}</h6>
+                                <img src="{{ site_config.qr_code.url }}" alt="QR Code" class="qr-code-img">
+                            </div>
+                            {% endif %}
+
+                            <div class="mb-3">
+                                <label for="instapay_receipt" class="form-label">
+                                    <i class="fas fa-receipt me-2"></i>
+                                    {% trans "إيصال الدفع" %} <span class="text-danger">*</span>
+                                </label>
+                                <input type="file" class="form-control payment-receipt" id="instapay_receipt" name="payment_receipt" accept="image/*,.pdf">
+                                <small class="form-text text-muted">
+                                    {% trans "يرجى رفع صورة أو ملف PDF للإيصال" %}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Wallet -->
+                    <div class="payment-method-card" data-payment="wallet" onclick="selectPaymentMethod('wallet')">
+                        <div class="d-flex align-items-center">
+                            <input type="radio" name="payment_method" value="wallet" id="wallet" style="margin-left: 15px;">
+                            <div class="flex-grow-1">
+                                <h5 class="mb-1">
+                                    <i class="fas fa-wallet me-2 text-success"></i>
+                                    {% trans "محفظة إلكترونية" %}
+                                </h5>
+                                <p class="text-muted small mb-0">{% trans "الدفع عبر المحفظة الإلكترونية وإرفاق إيصال الدفع" %}</p>
+                            </div>
+                        </div>
+
+                        <div id="walletDetails" style="display: none;" class="mt-3">
+                            {% if offline_payment_instructions %}
+                            <div class="offline-instructions">
+                                <h6 class="mb-3">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    {% trans "تعليمات الدفع" %}
+                                </h6>
+                                {{ offline_payment_instructions|safe }}
+                            </div>
+                            {% endif %}
+
+                            {% if site_config.qr_code %}
+                            <div class="text-center">
+                                <h6 class="mb-3">{% trans "امسح الكود للدفع" %}</h6>
+                                <img src="{{ site_config.qr_code.url }}" alt="QR Code" class="qr-code-img">
+                            </div>
+                            {% endif %}
+
+                            <div class="mb-3">
+                                <label for="wallet_receipt" class="form-label">
+                                    <i class="fas fa-receipt me-2"></i>
+                                    {% trans "إيصال الدفع" %} <span class="text-danger">*</span>
+                                </label>
+                                <input type="file" class="form-control payment-receipt" id="wallet_receipt" name="payment_receipt" accept="image/*,.pdf">
+                                <small class="form-text text-muted">
+                                    {% trans "يرجى رفع صورة أو ملف PDF للإيصال" %}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% else %}
+                    <!-- Online Payment Options Only -->
+                    <!-- Card Payment -->
+                    <div class="payment-method-card" data-payment="card" onclick="selectPaymentMethod('card')">
+                        <div class="d-flex align-items-center">
+                            <input type="radio" name="payment_method" value="card" id="card" style="margin-left: 15px;">
+                            <div class="flex-grow-1">
+                                <h5 class="mb-1">
+                                    <i class="fas fa-credit-card me-2 text-info"></i>
+                                    {% trans "بطاقة ائتمانية" %}
+                                </h5>
+                                <p class="text-muted small mb-0">{% trans "الدفع عبر البطاقة الائتمانية" %}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PayMob -->
+                    <div class="payment-method-card" data-payment="paymob" onclick="selectPaymentMethod('paymob')">
+                        <div class="d-flex align-items-center">
+                            <input type="radio" name="payment_method" value="paymob" id="paymob" style="margin-left: 15px;">
+                            <div class="flex-grow-1">
+                                <h5 class="mb-1">
+                                    <i class="fas fa-money-check-alt me-2 text-success"></i>
+                                    {% trans "PayMob" %}
+                                </h5>
+                                <p class="text-muted small mb-0">{% trans "الدفع عبر PayMob" %}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PayPal -->
+                    <div class="payment-method-card" data-payment="paypal" onclick="selectPaymentMethod('paypal')">
+                        <div class="d-flex align-items-center">
+                            <input type="radio" name="payment_method" value="paypal" id="paypal" style="margin-left: 15px;">
+                            <div class="flex-grow-1">
+                                <h5 class="mb-1">
+                                    <i class="fab fa-paypal me-2 text-primary"></i>
+                                    {% trans "PayPal" %}
+                                </h5>
+                                <p class="text-muted small mb-0">{% trans "الدفع عبر PayPal" %}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                            <i class="fas fa-check-circle me-2"></i>
+                            {% trans "إتمام الشراء" %}
+                        </button>
+                        <a href="{% url 'main:packages_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-right me-2"></i>
+                            {% trans "العودة للباقات" %}
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function selectPaymentMethod(method) {
+        // Remove selected class from all cards
+        document.querySelectorAll('.payment-method-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+
+        // Add selected class to clicked card
+        event.currentTarget.classList.add('selected');
+
+        // Hide all offline payment details
+        const instapayDetails = document.getElementById('instapayDetails');
+        const walletDetails = document.getElementById('walletDetails');
+
+        // Hide all receipt fields first and make them not required
+        document.querySelectorAll('.payment-receipt').forEach(field => {
+            field.required = false;
+        });
+
+        // Handle each payment method
+        if (method === 'instapay') {
+            if (instapayDetails) {
+                instapayDetails.style.display = 'block';
+                document.getElementById('instapay_receipt').required = true;
+            }
+            if (walletDetails) walletDetails.style.display = 'none';
+            document.getElementById('instapay').checked = true;
+        } else if (method === 'wallet') {
+            if (walletDetails) {
+                walletDetails.style.display = 'block';
+                document.getElementById('wallet_receipt').required = true;
+            }
+            if (instapayDetails) instapayDetails.style.display = 'none';
+            document.getElementById('wallet').checked = true;
+        } else if (method === 'card') {
+            if (instapayDetails) instapayDetails.style.display = 'none';
+            if (walletDetails) walletDetails.style.display = 'none';
+            document.getElementById('card').checked = true;
+        } else if (method === 'paymob') {
+            if (instapayDetails) instapayDetails.style.display = 'none';
+            if (walletDetails) walletDetails.style.display = 'none';
+            document.getElementById('paymob').checked = true;
+        } else if (method === 'paypal') {
+            if (instapayDetails) instapayDetails.style.display = 'none';
+            if (walletDetails) walletDetails.style.display = 'none';
+            document.getElementById('paypal').checked = true;
+        }
+    }
+
+    // Form validation
+    document.getElementById('paymentForm').addEventListener('submit', function(e) {
+        const selectedMethod = document.querySelector('input[name="payment_method"]:checked');
+
+        if (!selectedMethod) {
+            e.preventDefault();
+            alert('{% trans "يرجى اختيار طريقة الدفع" %}');
+            return false;
+        }
+
+        // Check for receipt if it's instapay or wallet
+        if (selectedMethod.value === 'instapay') {
+            const receipt = document.getElementById('instapay_receipt').files[0];
+            if (!receipt) {
+                e.preventDefault();
+                alert('{% trans "يرجى رفع إيصال الدفع" %}');
+                return false;
+            }
+        } else if (selectedMethod.value === 'wallet') {
+            const receipt = document.getElementById('wallet_receipt').files[0];
+            if (!receipt) {
+                e.preventDefault();
+                alert('{% trans "يرجى رفع إيصال الدفع" %}');
+                return false;
+            }
+        }
+
+        // Disable submit button to prevent double submission
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري المعالجة..." %}';
+    });
+</script>
+{% endblock %}

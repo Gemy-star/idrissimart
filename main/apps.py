@@ -7,4 +7,4 @@ class MainConfig(AppConfig):
 
     def ready(self):
         # Import and connect signals
-        pass
+        import main.signals  # noqa: F401

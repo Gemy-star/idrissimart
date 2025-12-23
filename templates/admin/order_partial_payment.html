@@ -1,0 +1,107 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+.order-summary {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+}
+.order-summary h4 {
+    margin-top: 0;
+    color: #495057;
+}
+.order-item {
+    padding: 10px;
+    border-bottom: 1px solid #dee2e6;
+}
+.order-item:last-child {
+    border-bottom: none;
+}
+.payment-info {
+    background: #fff;
+    padding: 15px;
+    border: 2px solid #007bff;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+.payment-info .total {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #28a745;
+}
+.payment-info .remaining {
+    font-size: 1.2rem;
+    color: #dc3545;
+}
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:main_order_changelist' %}">{% trans 'Orders' %}</a>
+    &rsaquo; {% trans 'Record Partial Payment' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+
+<div class="payment-info">
+    <h3>{% trans "ملخص الطلبات المحددة" %}</h3>
+    <p><strong>{% trans "عدد الطلبات:" %}</strong> {{ orders|length }}</p>
+    <p class="text-muted">{% trans "سيتم إضافة المبلغ المدخل إلى كل طلب محدد" %}</p>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+
+    <div class="form-row">
+        <div class="form-group col-12">
+            <h3>{% trans "تفاصيل الدفعة" %}</h3>
+        </div>
+
+        <div class="form-group col-md-6">
+            <label for="{{ form.amount.id_for_label }}">{{ form.amount.label }}</label>
+            {{ form.amount }}
+            {% if form.amount.errors %}
+                <div class="alert alert-danger">{{ form.amount.errors }}</div>
+            {% endif %}
+            <small class="form-text text-muted">{% trans "أدخل المبلغ المدفوع بالريال السعودي" %}</small>
+        </div>
+
+        <div class="form-group col-md-12">
+            <label for="{{ form.payment_note.id_for_label }}">{{ form.payment_note.label }}</label>
+            {{ form.payment_note }}
+            {% if form.payment_note.errors %}
+                <div class="alert alert-danger">{{ form.payment_note.errors }}</div>
+            {% endif %}
+            <small class="form-text text-muted">{% trans "ملاحظة اختيارية عن الدفعة (مثل: رقم الحوالة، طريقة الدفع، إلخ)" %}</small>
+        </div>
+    </div>
+
+    <h3 class="mt-4">{% trans "الطلبات المحددة" %}</h3>
+    <div class="order-summary">
+        {% for order in orders %}
+        <div class="order-item">
+            <strong>{{ order.order_number }}</strong> - {{ order.full_name }}
+            <br>
+            <span class="text-muted">
+                {% trans "الإجمالي:" %} {{ order.total_amount }} ر.س |
+                {% trans "المدفوع:" %} <span class="text-success">{{ order.paid_amount }} ر.س</span> |
+                {% trans "المتبقي:" %} <span class="text-danger">{{ order.remaining_amount }} ر.س</span>
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="submit-row">
+        <input type="submit" value="{% trans 'تسجيل الدفعة' %}" class="default" name="apply">
+        <a href="{% url 'admin:main_order_changelist' %}" class="button cancel-link">{% trans 'إلغاء' %}</a>
+    </div>
+</form>
+{% endblock %}

@@ -171,3 +171,35 @@ def get_cities(request, country_code):
         return JsonResponse(
             {"success": False, "error": "Country not found"}, status=404
         )
+
+
+def get_cities_by_id(request, country_id):
+    """
+    AJAX endpoint to get cities for a specific country by ID
+    """
+    from .models import Country
+
+    try:
+        country = Country.objects.get(id=country_id, is_active=True)
+
+        # Format cities as list of objects with name property
+        cities = []
+        if country.cities:
+            if isinstance(country.cities, list):
+                for city in country.cities:
+                    if isinstance(city, dict):
+                        cities.append(city)
+                    else:
+                        cities.append({"name": str(city)})
+
+        return JsonResponse(
+            {
+                "success": True,
+                "cities": cities,
+                "country_name": country.name,
+            }
+        )
+    except Country.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "error": "Country not found"}, status=404
+        )

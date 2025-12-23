@@ -70,7 +70,11 @@ class ClassifiedAdFilter(django_filters.FilterSet):
     # Feature-based filtering
     is_negotiable = django_filters.BooleanFilter(label=_("قابل للتفاوض"))
     is_delivery_available = django_filters.BooleanFilter(label=_("التوصيل متاح"))
-    is_featured = django_filters.BooleanFilter(label=_("إعلانات مميزة"))
+    is_featured = django_filters.BooleanFilter(
+        field_name="is_highlighted", label=_("إعلانات مميزة")
+    )
+    is_urgent = django_filters.BooleanFilter(label=_("إعلانات عاجلة"))
+    is_pinned = django_filters.BooleanFilter(label=_("إعلانات مثبتة"))
 
     # Verification filtering
     verified_only = django_filters.BooleanFilter(
@@ -91,7 +95,9 @@ class ClassifiedAdFilter(django_filters.FilterSet):
             ("views_count", "least_viewed"),
             ("title", "title_asc"),
             ("-title", "title_desc"),
-            ("-is_featured", "featured_first"),
+            ("-is_pinned", "pinned_first"),
+            ("-is_urgent", "urgent_first"),
+            ("-is_highlighted", "featured_first"),
         ),
         field_labels={
             "newest": _("الأحدث"),
@@ -102,6 +108,8 @@ class ClassifiedAdFilter(django_filters.FilterSet):
             "least_viewed": _("الأقل مشاهدة"),
             "title_asc": _("العنوان (أ-ي)"),
             "title_desc": _("العنوان (ي-أ)"),
+            "pinned_first": _("المثبتة أولاً"),
+            "urgent_first": _("العاجلة أولاً"),
             "featured_first": _("المميزة أولاً"),
         },
         label=_("ترتيب حسب"),
@@ -149,6 +157,8 @@ class ClassifiedAdFilter(django_filters.FilterSet):
             "is_negotiable",
             "is_delivery_available",
             "is_featured",
+            "is_urgent",
+            "is_pinned",
             "verified_only",
             "company_only",
             "order_by",
