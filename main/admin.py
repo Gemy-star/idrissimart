@@ -158,6 +158,7 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
         "is_highlighted",
         "is_urgent",
         "is_pinned",
+        "contact_for_price",
         "is_hidden",
         "cart_enabled_by_admin",
         "created_at",
@@ -176,6 +177,7 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
         "is_urgent",
         "is_highlighted",
         "is_pinned",
+        "contact_for_price",
         "hide_price",
         "price_on_request",
     )
@@ -406,6 +408,7 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
                     "is_urgent",
                     "is_highlighted",
                     "is_pinned",
+                    "contact_for_price",
                     "video_url",
                     "video_file",
                     "is_cart_enabled",

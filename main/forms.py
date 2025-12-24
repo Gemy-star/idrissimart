@@ -1010,6 +1010,7 @@ class AdminClassifiedAdForm(forms.ModelForm):
             "is_highlighted",
             "is_urgent",
             "is_pinned",
+            "contact_for_price",
         ]
         widgets = {
             "title": forms.TextInput(attrs={"class": "form-control"}),
@@ -1023,6 +1024,7 @@ class AdminClassifiedAdForm(forms.ModelForm):
             "is_highlighted": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "is_urgent": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "is_pinned": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "contact_for_price": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
 
     def __init__(self, *args, **kwargs):

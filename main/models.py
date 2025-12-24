@@ -1428,6 +1428,11 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
     is_urgent = models.BooleanField(default=False, verbose_name=_("إعلان عاجل"))
     is_highlighted = models.BooleanField(default=False, verbose_name=_("إعلان مميز"))
     is_pinned = models.BooleanField(default=False, verbose_name=_("إعلان مثبت"))
+    contact_for_price = models.BooleanField(
+        default=False,
+        verbose_name=_("تواصل ليصلك عرض سعر"),
+        help_text=_("إظهار 'تواصل ليصلك عرض سعر' بدلاً من السعر (ميزة مدفوعة)"),
+    )
 
     # Visibility and Access Control
     class VisibilityType(models.TextChoices):
@@ -2213,6 +2218,7 @@ class AdFeature(models.Model):  # This model is correct, no changes needed here.
         TOP_SEARCH = "top_search", _("أعلى نتائج البحث - Top Search")
         FEATURED_SECTION = "featured_section", _("قسم مميز - Featured Section")
         VIDEO = "video", _("إضافة فيديو - Video")
+        CONTACT_FOR_PRICE = "contact_for_price", _("تواصل ليصلك عرض سعر - Contact for Price")
 
     ad = models.ForeignKey(
         ClassifiedAd, on_delete=models.CASCADE, related_name="features"
@@ -2290,6 +2296,13 @@ class AdPackage(models.Model):
         default=0,
         verbose_name=_("سعر التمييز"),
         help_text=_("سعر إضافي لتمييز الإعلان"),
+    )
+    feature_contact_for_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name=_("سعر ميزة 'تواصل ليصلك عرض سعر'"),
+        help_text=_("سعر إضافي لإخفاء السعر وعرض زر 'تواصل ليصلك عرض سعر'"),
     )
 
     # Status flags - خطة نشطة او لا - موصي بها او لا

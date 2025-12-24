@@ -223,8 +223,7 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
 
     def dispatch(self, request, *args, **kwargs):
         """
-        Check user's ad balance before allowing ad creation.
-        If ads_remaining = 0, redirect to packages page.
+        Allow users to create ads - payment will be handled at the end.
         """
         # First check if user is authenticated
         if not request.user.is_authenticated:
@@ -238,7 +237,7 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
 
         user = request.user
 
-        # Check if user has any active package with remaining ads
+        # Check if user has any active package with remaining ads (for display only)
         active_package = (
             UserPackage.objects.filter(
                 user=user,
@@ -249,16 +248,11 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             .first()
         )
 
-        if not active_package:
-            # User has no balance (ads_remaining = 0) or no active package
-            messages.warning(
-                request,
-                _("يجب الاشتراك في باقة لتتمكن من نشر إعلان. رصيدك الحالي = 0"),
-            )
-            return redirect("main:packages_list")
-
-        # Store remaining ads count in session for display
-        request.session["ads_remaining"] = active_package.ads_remaining
+        # Store remaining ads count in session for display (if available)
+        if active_package:
+            request.session["ads_remaining"] = active_package.ads_remaining
+        else:
+            request.session["ads_remaining"] = 0
 
         return super().dispatch(request, *args, **kwargs)
 
@@ -308,8 +302,9 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         feature_highlighted = self.request.POST.get("feature_highlighted") == "on"
         feature_urgent = self.request.POST.get("feature_urgent") == "on"
         feature_pinned = self.request.POST.get("feature_pinned") == "on"
+        feature_contact_for_price = self.request.POST.get("feature_contact_for_price") == "on"
 
-        # Calculate total cost
+        # Calculate features cost
         features_cost = Decimal("0.00")
         if feature_highlighted:
             features_cost += Decimal(str(site_config.featured_ad_price))
@@ -317,8 +312,20 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             features_cost += Decimal(str(site_config.urgent_ad_price))
         if feature_pinned:
             features_cost += Decimal(str(site_config.pinned_ad_price))
+        if feature_contact_for_price:
+            # Get the price from the user's active package or use default
+            active_package = (
+                UserPackage.objects.filter(
+                    user=self.request.user,
+                    expiry_date__gte=timezone.now(),
+                )
+                .order_by("expiry_date")
+                .first()
+            )
+            if active_package and active_package.package:
+                features_cost += Decimal(str(active_package.package.feature_contact_for_price))
 
-        # Check if user has free ads
+        # Check if user has free ads in package
         active_package = (
             UserPackage.objects.filter(
                 user=self.request.user,
@@ -329,65 +336,17 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             .first()
         )
 
-        # Determine base fee
+        # Determine base fee (publishing cost)
         base_fee = Decimal("0.00")
         if not active_package:
+            # No package, user must pay base fee
             base_fee = Decimal(str(site_config.ad_base_fee))
 
+        # Total cost = base publishing fee + features cost
         total_cost = base_fee + features_cost
 
-        # If there's a cost, redirect to payment
-        if total_cost > 0:
-            # Save the ad as draft first
-            form.instance.status = ClassifiedAd.AdStatus.DRAFT
-
-            context = self.get_context_data()
-            image_formset = context["image_formset"]
-
-            if form.is_valid() and image_formset.is_valid():
-                self.object = form.save()
-                image_formset.instance = self.object
-                image_formset.save()
-
-                # Store ad ID and features in session
-                self.request.session["pending_ad_id"] = self.object.pk
-                self.request.session["ad_features"] = {
-                    "highlighted": feature_highlighted,
-                    "urgent": feature_urgent,
-                    "pinned": feature_pinned,
-                }
-                self.request.session["ad_payment_amount"] = str(total_cost)
-                self.request.session["ad_base_fee"] = str(base_fee)
-                self.request.session["ad_features_cost"] = str(features_cost)
-
-                messages.info(
-                    self.request,
-                    _("يرجى إتمام الدفع لنشر إعلانك. المبلغ المطلوب: {} ج.م").format(
-                        total_cost
-                    ),
-                )
-
-                # Redirect to payment page
-                return redirect("main:ad_payment", ad_id=self.object.pk)
-            else:
-                return self.render_to_response(self.get_context_data(form=form))
-
-        # Free ad (no cost)
-        # Auto-approve ads for verified users
-        if self.request.user.verification_status == User.VerificationStatus.VERIFIED:
-            form.instance.status = ClassifiedAd.AdStatus.ACTIVE
-            messages.success(
-                self.request, _("إعلانك نشط الآن لأنه تم التحقق من حسابك.")
-            )
-        else:
-            form.instance.status = ClassifiedAd.AdStatus.PENDING
-            messages.info(self.request, _("تم إرسال إعلانك للمراجعة وسيتم نشره قريباً."))
-
-        # Apply features if selected (for free ads with features)
-        form.instance.is_highlighted = feature_highlighted
-        form.instance.is_urgent = feature_urgent
-        form.instance.is_pinned = feature_pinned
-        form.instance.features_price = features_cost
+        # Always save ad as DRAFT first
+        form.instance.status = ClassifiedAd.AdStatus.DRAFT
 
         context = self.get_context_data()
         image_formset = context["image_formset"]
@@ -397,11 +356,54 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             image_formset.instance = self.object
             image_formset.save()
 
-            # Decrement ad count from user's package if they have one
-            if active_package:
-                active_package.use_ad()
+            # Store ad ID and features in session
+            self.request.session["pending_ad_id"] = self.object.pk
+            self.request.session["ad_features"] = {
+                "highlighted": feature_highlighted,
+                "urgent": feature_urgent,
+                "pinned": feature_pinned,
+                "contact_for_price": feature_contact_for_price,
+            }
+            self.request.session["ad_payment_amount"] = str(total_cost)
+            self.request.session["ad_base_fee"] = str(base_fee)
+            self.request.session["ad_features_cost"] = str(features_cost)
+            self.request.session["has_active_package"] = active_package is not None
 
-            return redirect("main:ad_create_success", pk=self.object.pk)
+            if total_cost > 0:
+                # There's a cost - redirect to payment
+                messages.info(
+                    self.request,
+                    _("يرجى إتمام الدفع لنشر إعلانك. المبلغ المطلوب: {} ج.م").format(
+                        total_cost
+                    ),
+                )
+                # Redirect to payment page
+                return redirect("main:ad_payment", ad_id=self.object.pk)
+            else:
+                # Free ad - process immediately
+                # Auto-approve ads for verified users
+                if self.request.user.verification_status == User.VerificationStatus.VERIFIED:
+                    self.object.status = ClassifiedAd.AdStatus.ACTIVE
+                    messages.success(
+                        self.request, _("إعلانك نشط الآن لأنه تم التحقق من حسابك.")
+                    )
+                else:
+                    self.object.status = ClassifiedAd.AdStatus.PENDING
+                    messages.info(self.request, _("تم إرسال إعلانك للمراجعة وسيتم نشره قريباً."))
+
+                # Apply features
+                self.object.is_highlighted = feature_highlighted
+                self.object.is_urgent = feature_urgent
+                self.object.is_pinned = feature_pinned
+                self.object.contact_for_price = feature_contact_for_price
+                self.object.features_price = features_cost
+                self.object.save()
+
+                # Decrement ad count from user's package if they have one
+                if active_package:
+                    active_package.use_ad()
+
+                return redirect("main:ad_create_success", pk=self.object.pk)
         else:
             return self.render_to_response(self.get_context_data(form=form))
 

@@ -184,6 +184,11 @@ def paypal_success(request):
             if package_id:
                 process_package_purchase(payment, package_id)
 
+            # Process ad payment if applicable
+            ad_id = payment.metadata.get("ad_id")
+            if ad_id:
+                process_ad_payment(payment)
+
             messages.success(request, _("تم الدفع بنجاح"))
             return redirect("main:payment_success", payment_id=payment.id)
         else:
@@ -236,6 +241,11 @@ def paymob_callback(request):
             package_id = payment.metadata.get("package_id")
             if package_id:
                 process_package_purchase(payment, package_id)
+
+            # Process ad payment if applicable
+            ad_id = payment.metadata.get("ad_id")
+            if ad_id:
+                process_ad_payment(payment)
 
             logger.info(f"Paymob payment completed: {payment.id}")
         else:
@@ -301,7 +311,10 @@ def payment_history(request):
     """Display user's payment history"""
     payments = Payment.objects.filter(user=request.user).order_by("-created_at")
 
-    context = {"payments": payments}
+    context = {
+        "payments": payments,
+        "active_nav": "payment_history",
+    }
 
     return render(request, "payments/payment_history.html", context)
 
@@ -442,6 +455,82 @@ def ad_payment(request, ad_id):
     return render(request, "payments/ad_payment.html", context)
 
 
+def process_ad_payment(payment):
+    """
+    Process ad payment after successful payment confirmation.
+    Changes ad status from DRAFT to PENDING/ACTIVE and applies features.
+    """
+    from .models import ClassifiedAd, User, Notification, UserPackage
+
+    ad_id = payment.metadata.get("ad_id")
+    features = payment.metadata.get("features", {})
+    base_fee = Decimal(payment.metadata.get("base_fee", "0"))
+
+    if not ad_id:
+        logger.error(f"No ad_id in payment metadata for payment {payment.id}")
+        return False
+
+    try:
+        ad = ClassifiedAd.objects.get(id=ad_id)
+
+        # Apply features
+        ad.is_highlighted = features.get("highlighted", False)
+        ad.is_urgent = features.get("urgent", False)
+        ad.is_pinned = features.get("pinned", False)
+        ad.contact_for_price = features.get("contact_for_price", False)
+        ad.features_price = Decimal(payment.metadata.get("features_cost", "0"))
+
+        # Change status from DRAFT to PENDING or ACTIVE
+        if ad.status == ClassifiedAd.AdStatus.DRAFT:
+            # Check if user is verified
+            if ad.user.verification_status == User.VerificationStatus.VERIFIED:
+                ad.status = ClassifiedAd.AdStatus.ACTIVE
+                status_msg = _("نشط")
+            else:
+                ad.status = ClassifiedAd.AdStatus.PENDING
+                status_msg = _("قيد المراجعة")
+
+            # If user paid base fee (no package), check if they should get a package
+            # Otherwise, deduct from their active package
+            if base_fee == 0:
+                # User had a package, deduct ad count
+                active_package = (
+                    UserPackage.objects.filter(
+                        user=ad.user,
+                        ads_remaining__gt=0,
+                        expiry_date__gte=timezone.now(),
+                    )
+                    .order_by("expiry_date")
+                    .first()
+                )
+                if active_package:
+                    active_package.use_ad()
+
+            ad.save()
+
+            # Send notification to user
+            Notification.objects.create(
+                user=ad.user,
+                notification_type=Notification.NotificationType.GENERAL,
+                title=_("تم تأكيد الدفع"),
+                message=_("تم تأكيد دفع إعلانك {} وتحويله إلى {}.").format(ad.title, status_msg),
+                link=ad.get_absolute_url(),
+            )
+
+            logger.info(f"Ad {ad.id} status changed from DRAFT to {ad.status} after payment {payment.id}")
+            return True
+        else:
+            logger.warning(f"Ad {ad.id} is not in DRAFT status, current status: {ad.status}")
+            return False
+
+    except ClassifiedAd.DoesNotExist:
+        logger.error(f"Ad {ad_id} not found for payment {payment.id}")
+        return False
+    except Exception as e:
+        logger.error(f"Error processing ad payment {payment.id}: {str(e)}")
+        return False
+
+
 @login_required
 @require_POST
 def confirm_ad_payment(request, payment_id):
@@ -452,41 +541,15 @@ def confirm_ad_payment(request, payment_id):
         return JsonResponse({"success": False, "message": "Unauthorized"}, status=403)
 
     payment = get_object_or_404(Payment, id=payment_id)
-    ad_id = payment.metadata.get("ad_id")
-    features = payment.metadata.get("features", {})
 
-    if not ad_id:
-        return JsonResponse({"success": False, "message": "Invalid payment data"})
+    # Process the ad payment
+    success = process_ad_payment(payment)
 
-    ad = get_object_or_404(ClassifiedAd, id=ad_id)
-
-    # Apply features
-    ad.is_highlighted = features.get("highlighted", False)
-    ad.is_urgent = features.get("urgent", False)
-    ad.is_pinned = features.get("pinned", False)
-    ad.features_price = Decimal(payment.metadata.get("features_cost", "0"))
-
-    # Activate ad
-    if ad.user.verification_status == User.VerificationStatus.VERIFIED:
-        ad.status = ClassifiedAd.AdStatus.ACTIVE
-    else:
-        ad.status = ClassifiedAd.AdStatus.PENDING
-
-    ad.save()
+    if not success:
+        return JsonResponse({"success": False, "message": _("فشل في معالجة دفع الإعلان")})
 
     # Mark payment as completed
     payment.mark_completed()
-
-    # Send notification to user
-    from .models import Notification
-
-    Notification.objects.create(
-        user=ad.user,
-        notification_type=Notification.NotificationType.GENERAL,
-        title=_("تم تأكيد الدفع"),
-        message=_("تم تأكيد دفع إعلانك {} وتم تفعيله.").format(ad.title),
-        link=ad.get_absolute_url(),
-    )
 
     return JsonResponse(
         {"success": True, "message": _("تم تأكيد الدفع وتفعيل الإعلان")}
@@ -651,9 +714,10 @@ def confirm_package_payment(request, payment_id):
 
     package = get_object_or_404(AdPackage, id=package_id)
 
-    # Create user package
+    # Create user package with payment link
     user_package = UserPackage.objects.create(
         user=payment.user,
+        payment=payment,  # Link payment to UserPackage
         package=package,
         ads_remaining=package.ad_count,
         expiry_date=timezone.now() + timedelta(days=package.duration_days),
