@@ -248,6 +248,36 @@
 {% block content %}
 <div class="checkout-page">
     <div class="container">
+        <!-- Progress Bar -->
+        <div class="progressbar-container mb-4">
+            <ul class="progressbar">
+                <li class="active"><i class="fas fa-shopping-cart"></i> {% trans "السلة" %}</li>
+                <li class="active"><i class="fas fa-map-marker-alt"></i> {% trans "العنوان" %}</li>
+                <li class="active"><i class="fas fa-wallet"></i> {% trans "الدفع" %}</li>
+                <li><i class="fas fa-check-circle"></i> {% trans "تأكيد" %}</li>
+            </ul>
+        </div>
+        <style>
+            .progressbar-container { text-align: center; }
+            .progressbar { list-style: none; display: flex; justify-content: center; padding: 0; margin: 0; }
+            .progressbar li { flex: 1; position: relative; color: #b0b0b0; font-weight: 600; }
+            .progressbar li.active { color: #4b315e; }
+            .progressbar li:not(:last-child)::after {
+                content: "";
+                position: absolute;
+                top: 50%;
+                right: -50%;
+                width: 100%;
+                height: 4px;
+                background: #e0e0e0;
+                z-index: 0;
+                transform: translateY(-50%);
+            }
+            .progressbar li.active:not(:last-child)::after {
+                background: linear-gradient(90deg, #4b315e 60%, #c3cfe2 100%);
+            }
+            .progressbar i { margin-bottom: 0.25rem; font-size: 1.2rem; }
+        </style>
         <!-- Header -->
         <div class="checkout-header">
             <div class="checkout-header-icon">
@@ -422,55 +452,62 @@
                         <i class="fas fa-wallet me-2"></i>
                         {% trans "طريقة الدفع" %}
                     </h2>
-
                     <div class="payment-methods">
                         {% if site_config.allow_offline_payment %}
                             {% if site_config.instapay_qr_code %}
-                            <div class="payment-method" onclick="selectPaymentMethod('instapay')">
+                            <div class="payment-method" onclick="selectPaymentMethod('instapay')" title="{% trans 'ادفع عبر InstaPay باستخدام رمز QR' %}">
                                 <input type="radio" name="payment_method" value="instapay">
                                 <div class="payment-method-icon">
                                     <i class="fas fa-qrcode"></i>
                                 </div>
                                 <div class="payment-method-label">
                                     {% trans "InstaPay (QR)" %}
+                                    <span class="d-block text-muted small">{% trans "ادفع عبر رمز QR البنكي" %}</span>
                                 </div>
                             </div>
                             {% endif %}
                             {% if site_config.wallet_payment_link %}
-                            <div class="payment-method" onclick="selectPaymentMethod('wallet')">
+                            <div class="payment-method" onclick="selectPaymentMethod('wallet')" title="{% trans 'ادفع عبر محفظة إلكترونية' %}">
                                 <input type="radio" name="payment_method" value="wallet">
                                 <div class="payment-method-icon">
                                     <i class="fas fa-wallet"></i>
                                 </div>
                                 <div class="payment-method-label">
                                     {% trans "محفظة إلكترونية" %}
+                                    <span class="d-block text-muted small">{% trans "تحويل عبر محفظة إلكترونية" %}</span>
                                 </div>
                             </div>
                             {% endif %}
                         {% else %}
                             {% if config.ALLOW_ONLINE_PAYMENT and site_config.allow_online_payment %}
-                            <div class="payment-method" onclick="selectPaymentMethod('online')">
+                            <div class="payment-method" onclick="selectPaymentMethod('online')" title="{% trans 'ادفع إلكترونياً ببطاقة بنكية' %}">
                                 <input type="radio" name="payment_method" value="online">
                                 <div class="payment-method-icon">
                                     <i class="fas fa-credit-card"></i>
                                 </div>
                                 <div class="payment-method-label">
                                     {% trans "الدفع الإلكتروني" %}
+                                    <span class="d-block text-muted small">{% trans "بطاقة بنكية أو فيزا/ماستركارد" %}</span>
                                 </div>
                             </div>
                             {% endif %}
-                            <div class="payment-method" id="partialPaymentMethod" onclick="selectPaymentMethod('partial')">
+                            <div class="payment-method" id="partialPaymentMethod" onclick="selectPaymentMethod('partial')" title="{% trans 'دفع جزء من المبلغ الآن' %}">
                                 <input type="radio" name="payment_method" value="partial" id="partialPaymentRadio">
                                 <div class="payment-method-icon">
                                     <i class="fas fa-percentage"></i>
                                 </div>
                                 <div class="payment-method-label">
                                     {% trans "دفع جزئي" %}
+                                    <span class="d-block text-muted small">{% trans "ادفع جزء وأكمل لاحقاً" %}</span>
                                 </div>
                             </div>
                         {% endif %}
-                        </div>
                     </div>
+                    <!-- Error message placeholder -->
+                    <div id="paymentError" class="alert alert-danger d-none mt-2" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i> <span id="paymentErrorMsg"></span>
+                    </div>
+                </div>
 
                     {% if config.ALLOW_ONLINE_PAYMENT and site_config.allow_online_payment %}
                     <div id="onlinePaymentNote" style="display: none;" class="alert alert-info">
@@ -621,12 +658,11 @@
 
             <!-- Order Summary -->
             <div>
-                <div class="checkout-section">
+                <div class="checkout-section order-summary-section">
                     <h2 class="section-title">
                         <i class="fas fa-receipt me-2"></i>
                         {% trans "ملخص الطلب" %}
                     </h2>
-
                     <!-- Cart Items -->
                     {% for item in cart_items %}
                     <div class="order-item">
@@ -639,16 +675,18 @@
                                  alt="{{ item.ad.title }}"
                                  class="order-item-image">
                         {% endif %}
-
                         <div class="order-item-details">
-                            <div class="order-item-title">{{ item.ad.title }}</div>
-                            <div class="order-item-price">{{ item.ad.price|floatformat:"-2" }} {{ selected_currency }}</div>
+                            <div class="order-item-title"><i class="fas fa-box"></i> {{ item.ad.title }}</div>
+                            <div class="order-item-price"><i class="fas fa-tag"></i> {{ item.ad.price|floatformat:"-2" }} {{ selected_currency }}</div>
                         </div>
                     </div>
                     {% endfor %}
-
                     <!-- Summary -->
                     <div class="order-summary">
+                                <style>
+                                    .order-summary-section { position: sticky; top: 2rem; z-index: 10; }
+                                    @media (max-width: 992px) { .order-summary-section { position: static; } }
+                                </style>
                         <div class="summary-row">
                             <span>{% trans "المجموع الفرعي" %}</span>
                             <span>{{ total_amount|floatformat:"-2" }} {{ selected_currency }}</span>
