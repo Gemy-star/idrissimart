@@ -300,6 +300,47 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
 
         context["site_config"] = SiteConfiguration.get_solo()
 
+        # Get user's active package to determine feature prices
+        if self.request.user.is_authenticated:
+            active_package = (
+                UserPackage.objects.filter(
+                    user=self.request.user,
+                    expiry_date__gte=timezone.now(),
+                )
+                .order_by("expiry_date")
+                .first()
+            )
+
+            # Pass feature prices based on package or site defaults
+            if active_package and active_package.package:
+                package = active_package.package
+                context["feature_prices"] = {
+                    "highlighted": package.feature_highlighted_price,
+                    "urgent": package.feature_urgent_price,
+                    "pinned": package.feature_pinned_price,
+                    "contact_for_price": package.feature_contact_for_price,
+                }
+                context["pricing_source"] = "package"
+                context["active_package"] = active_package
+            else:
+                # Use site default prices
+                context["feature_prices"] = {
+                    "highlighted": context["site_config"].featured_ad_price,
+                    "urgent": context["site_config"].urgent_ad_price,
+                    "pinned": context["site_config"].pinned_ad_price,
+                    "contact_for_price": 0,  # Free or unavailable without package
+                }
+                context["pricing_source"] = "site_default"
+        else:
+            # Guest user - show site defaults
+            context["feature_prices"] = {
+                "highlighted": context["site_config"].featured_ad_price,
+                "urgent": context["site_config"].urgent_ad_price,
+                "pinned": context["site_config"].pinned_ad_price,
+                "contact_for_price": 0,
+            }
+            context["pricing_source"] = "site_default"
+
         return context
 
     def form_valid(self, form):
@@ -331,44 +372,49 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
                     False  # Reset if category doesn't support cart
                 )
 
-        # Calculate features cost
-        features_cost = Decimal("0.00")
-        if feature_highlighted:
-            features_cost += Decimal(str(site_config.featured_ad_price))
-        if feature_urgent:
-            features_cost += Decimal(str(site_config.urgent_ad_price))
-        if feature_pinned:
-            features_cost += Decimal(str(site_config.pinned_ad_price))
-        if feature_contact_for_price:
-            # Get the price from the user's active package or use default
-            active_package = (
-                UserPackage.objects.filter(
-                    user=self.request.user,
-                    expiry_date__gte=timezone.now(),
-                )
-                .order_by("expiry_date")
-                .first()
-            )
-            if active_package and active_package.package:
-                features_cost += Decimal(
-                    str(active_package.package.feature_contact_for_price)
-                )
-
-        # Check if user has free ads in package
+        # Check if user has active package (for both pricing and free ads check)
         active_package = (
             UserPackage.objects.filter(
                 user=self.request.user,
-                ads_remaining__gt=0,
                 expiry_date__gte=timezone.now(),
             )
             .order_by("expiry_date")
             .first()
         )
 
+        # Calculate features cost based on package-specific pricing
+        features_cost = Decimal("0.00")
+
+        # Determine which pricing to use (package or site default)
+        if active_package and active_package.package:
+            # Use package-specific pricing
+            package = active_package.package
+            if feature_highlighted:
+                features_cost += Decimal(str(package.feature_highlighted_price))
+            if feature_urgent:
+                features_cost += Decimal(str(package.feature_urgent_price))
+            if feature_pinned:
+                features_cost += Decimal(str(package.feature_pinned_price))
+            if feature_contact_for_price:
+                features_cost += Decimal(str(package.feature_contact_for_price))
+        else:
+            # User has no package, use site default pricing
+            if feature_highlighted:
+                features_cost += Decimal(str(site_config.featured_ad_price))
+            if feature_urgent:
+                features_cost += Decimal(str(site_config.urgent_ad_price))
+            if feature_pinned:
+                features_cost += Decimal(str(site_config.pinned_ad_price))
+            if feature_contact_for_price:
+                # For users without package, use site default or make it unavailable
+                # You can set a default price in SiteConfiguration or make it 0
+                features_cost += Decimal("0.00")
+
         # Determine base fee (publishing cost)
         base_fee = Decimal("0.00")
-        if not active_package:
-            # No package, user must pay base fee
+        # Check if user has free ads remaining in package
+        if not active_package or active_package.ads_remaining <= 0:
+            # No package or no ads remaining, user must pay base fee
             base_fee = Decimal(str(site_config.ad_base_fee))
 
         # Total cost = base publishing fee + features cost
