@@ -654,6 +654,11 @@ urlpatterns = [
         name="confirm_ad_payment",
     ),
     path(
+        "payment/ad-upgrade/<int:ad_id>/",
+        payment_views.ad_upgrade_payment,
+        name="ad_upgrade_payment",
+    ),
+    path(
         "payment/package/<int:package_id>/",
         payment_views.package_checkout,
         name="package_checkout",
@@ -1525,6 +1530,17 @@ urlpatterns = [
         "publisher/payments/",
         publisher_views.publisher_payment_history,
         name="publisher_payment_history",
+    ),
+    # Publisher Ad Restore & Permanent Delete
+    path(
+        "publisher/ads/<int:ad_id>/restore/",
+        publisher_views.publisher_restore_ad,
+        name="publisher_restore_ad",
+    ),
+    path(
+        "publisher/ads/<int:ad_id>/permanent-delete/",
+        publisher_views.publisher_permanent_delete_ad,
+        name="publisher_permanent_delete_ad",
     ),
     # Publisher Orders
     path(

@@ -16,7 +16,41 @@ def ad_features_upgrade(request, ad_id):
     """
     View for upgrading ad features (contact_for_price, facebook_share, video)
     """
+    from .models import UserPackage
+    from content.models import SiteConfiguration
+
     ad = get_object_or_404(ClassifiedAd, id=ad_id, user=request.user)
+    site_config = SiteConfiguration.get_solo()
+
+    # Get user's active package to determine feature prices
+    active_package = (
+        UserPackage.objects.filter(
+            user=request.user,
+            expiry_date__gte=timezone.now(),
+        )
+        .order_by("expiry_date")
+        .first()
+    )
+
+    # Determine feature prices based on package or site defaults
+    if active_package and active_package.package:
+        package = active_package.package
+        feature_prices = {
+            "contact_for_price": package.feature_contact_for_price,
+            "facebook_share": Decimal("100.00"),  # Fixed price for FB share
+            "video": Decimal("75.00"),  # Fixed price for video (coming soon)
+        }
+        pricing_source = "package"
+        active_package_info = active_package
+    else:
+        # Use site default prices or make features free/unavailable
+        feature_prices = {
+            "contact_for_price": Decimal("0.00"),  # Free without package
+            "facebook_share": Decimal("100.00"),
+            "video": Decimal("75.00"),
+        }
+        pricing_source = "site_default"
+        active_package_info = None
 
     if request.method == "POST":
         selected_features_json = request.POST.get("selected_features", "{}")
@@ -26,54 +60,76 @@ def ad_features_upgrade(request, ad_id):
             messages.error(request, _("خطأ في معالجة البيانات"))
             return redirect("main:ad_features_upgrade", ad_id=ad_id)
 
-        # Process selected features
-        updated_features = []
+        # Calculate total cost for selected features
+        total_cost = Decimal("0.00")
+        features_to_enable = {}
 
         # Contact for Price
-        if selected_features.get("contact_for_price"):
-            if not ad.contact_for_price:
-                ad.contact_for_price = True
-                updated_features.append(_("تواصل ليصلك عرض سعر"))
-        else:
-            if ad.contact_for_price:
-                ad.contact_for_price = False
+        if selected_features.get("contact_for_price") and not ad.contact_for_price:
+            total_cost += feature_prices["contact_for_price"]
+            features_to_enable["contact_for_price"] = True
 
         # Facebook Share
-        if selected_features.get("facebook_share"):
-            if not ad.share_on_facebook:
+        if selected_features.get("facebook_share") and not ad.share_on_facebook:
+            total_cost += feature_prices["facebook_share"]
+            features_to_enable["facebook_share"] = True
+
+        # Video (coming soon)
+        if selected_features.get("video") and not ad.video_url:
+            total_cost += feature_prices["video"]
+            features_to_enable["video"] = True
+
+        # If no new features selected
+        if not features_to_enable:
+            messages.info(request, _("لم يتم تحديد أي مميزات جديدة"))
+            return redirect("main:ad_detail", ad_id=ad.id)
+
+        # Store upgrade info in session for payment
+        request.session["upgrade_ad_id"] = ad.id
+        request.session["upgrade_features"] = features_to_enable
+        request.session["upgrade_total_cost"] = str(total_cost)
+
+        if total_cost > 0:
+            # Redirect to payment
+            messages.info(
+                request,
+                _("يرجى إتمام الدفع لتفعيل المميزات. المبلغ المطلوب: {} ريال").format(
+                    total_cost
+                ),
+            )
+            return redirect("main:ad_upgrade_payment", ad_id=ad.id)
+        else:
+            # Free features - activate immediately
+            updated_features = []
+            if features_to_enable.get("contact_for_price"):
+                ad.contact_for_price = True
+                updated_features.append(_("تواصل ليصلك عرض سعر"))
+
+            if features_to_enable.get("facebook_share"):
                 ad.share_on_facebook = True
                 ad.facebook_share_requested = True
                 updated_features.append(_("نشر على فيسبوك"))
 
-                # Create FacebookShareRequest for admin
                 FacebookShareRequest.objects.create(
                     ad=ad,
                     user=request.user,
-                    payment_confirmed=True,  # Assuming payment is processed
-                    payment_amount=Decimal("100.00"),
+                    payment_confirmed=True,
+                    payment_amount=Decimal("0.00"),
                 )
 
-                messages.info(
-                    request,
-                    _(
-                        "تم إرسال طلب النشر على فيسبوك. سيتم مراجعته خلال 24 ساعة."
-                    ),
-                )
-
-        # Save ad changes
-        if updated_features:
             ad.save()
             messages.success(
                 request,
                 _("تم تحديث مميزات الإعلان: ") + ", ".join(updated_features),
             )
-        else:
-            messages.info(request, _("لم يتم تحديد أي مميزات جديدة"))
-
-        return redirect("main:ad_detail", ad_id=ad.id)
+            return redirect("main:ad_detail", ad_id=ad.id)
 
     context = {
         "ad": ad,
+        "feature_prices": feature_prices,
+        "pricing_source": pricing_source,
+        "active_package": active_package_info,
+        "site_config": site_config,
     }
 
     return render(request, "classifieds/ad_features_upgrade.html", context)

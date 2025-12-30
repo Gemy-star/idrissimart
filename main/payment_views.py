@@ -184,10 +184,14 @@ def paypal_success(request):
             if package_id:
                 process_package_purchase(payment, package_id)
 
-            # Process ad payment if applicable
+            # Process ad payment or upgrade if applicable
             ad_id = payment.metadata.get("ad_id")
+            payment_type = payment.metadata.get("payment_type", "ad_payment")
             if ad_id:
-                process_ad_payment(payment)
+                if payment_type == "ad_upgrade":
+                    process_ad_upgrade_payment(payment)
+                else:
+                    process_ad_payment(payment)
 
             messages.success(request, _("تم الدفع بنجاح"))
             return redirect("main:payment_success", payment_id=payment.id)
@@ -242,10 +246,14 @@ def paymob_callback(request):
             if package_id:
                 process_package_purchase(payment, package_id)
 
-            # Process ad payment if applicable
+            # Process ad payment or upgrade if applicable
             ad_id = payment.metadata.get("ad_id")
+            payment_type = payment.metadata.get("payment_type", "ad_payment")
             if ad_id:
-                process_ad_payment(payment)
+                if payment_type == "ad_upgrade":
+                    process_ad_upgrade_payment(payment)
+                else:
+                    process_ad_payment(payment)
 
             logger.info(f"Paymob payment completed: {payment.id}")
         else:
@@ -546,7 +554,7 @@ def process_ad_payment(payment):
 @login_required
 @require_POST
 def confirm_ad_payment(request, payment_id):
-    """Admin confirms offline ad payment"""
+    """Admin confirms offline ad payment or upgrade"""
     from .models import ClassifiedAd, User
 
     if not request.user.is_staff:
@@ -554,8 +562,12 @@ def confirm_ad_payment(request, payment_id):
 
     payment = get_object_or_404(Payment, id=payment_id)
 
-    # Process the ad payment
-    success = process_ad_payment(payment)
+    # Check payment type and process accordingly
+    payment_type = payment.metadata.get("payment_type", "ad_payment")
+    if payment_type == "ad_upgrade":
+        success = process_ad_upgrade_payment(payment)
+    else:
+        success = process_ad_payment(payment)
 
     if not success:
         return JsonResponse({"success": False, "message": _("فشل في معالجة دفع الإعلان")})
@@ -762,3 +774,178 @@ def confirm_package_payment(request, payment_id):
     )
 
     return JsonResponse({"success": True, "message": _("تم تأكيد الدفع وتفعيل الباقة")})
+
+
+@login_required
+def ad_upgrade_payment(request, ad_id):
+    """Payment page for upgrading existing ad features"""
+    from .models import ClassifiedAd
+    from content.models import SiteConfiguration
+    from .payment_utils import get_allowed_payment_methods, PaymentContext
+
+    ad = get_object_or_404(ClassifiedAd, id=ad_id, user=request.user)
+    site_config = SiteConfiguration.get_solo()
+
+    # Get payment details from session
+    total_amount = Decimal(request.session.get("upgrade_total_cost", "0"))
+    upgrade_features = request.session.get("upgrade_features", {})
+
+    # Get allowed payment methods for platform payments
+    allowed_payment_methods = get_allowed_payment_methods(PaymentContext.PLATFORM_PAYMENT)
+
+    # If no payment needed, redirect
+    if total_amount == 0:
+        messages.info(request, _("لا توجد مميزات جديدة تتطلب دفع"))
+        return redirect("main:ad_detail", ad_id=ad.id)
+
+    if request.method == "POST":
+        payment_method = request.POST.get("payment_method")
+
+        # Validate payment method is allowed for platform payments
+        from .payment_utils import is_payment_method_allowed
+        if not is_payment_method_allowed(payment_method, PaymentContext.PLATFORM_PAYMENT):
+            messages.error(request, _("طريقة الدفع المختارة غير متاحة للدفع للمنصة."))
+            return redirect("main:ad_upgrade_payment", ad_id=ad.id)
+
+        if payment_method in ["instapay", "wallet"]:
+            # Handle offline payment with receipt
+            receipt = request.FILES.get("payment_receipt")
+
+            if not receipt:
+                messages.error(request, _("يرجى رفع إيصال الدفع"))
+                return render(
+                    request,
+                    "payments/ad_upgrade_payment.html",
+                    {
+                        "ad": ad,
+                        "total_amount": total_amount,
+                        "upgrade_features": upgrade_features,
+                        "site_config": site_config,
+                        "allowed_payment_methods": allowed_payment_methods,
+                    },
+                )
+
+            # Create payment record
+            payment = Payment.objects.create(
+                user=request.user,
+                provider=Payment.PaymentProvider.BANK_TRANSFER,
+                amount=total_amount,
+                currency="EGP",
+                status=Payment.PaymentStatus.PENDING,
+                description=f"ترقية مميزات الإعلان: {ad.title}",
+                offline_payment_receipt=receipt,
+                metadata={
+                    "ad_id": ad.id,
+                    "upgrade_features": upgrade_features,
+                    "payment_type": "ad_upgrade",
+                },
+            )
+
+            messages.success(
+                request,
+                _("تم استلام طلب الدفع. سيتم مراجعته خلال 24 ساعة وتفعيل المميزات."),
+            )
+
+            # Clear session
+            for key in ["upgrade_ad_id", "upgrade_features", "upgrade_total_cost"]:
+                request.session.pop(key, None)
+
+            return redirect("main:my_ads")
+
+        elif payment_method in ["paymob", "paypal", "visa"]:
+            # Create payment record for online payment
+            payment = Payment.objects.create(
+                user=request.user,
+                provider=(
+                    Payment.PaymentProvider.PAYMOB
+                    if payment_method in ["paymob", "visa"]
+                    else Payment.PaymentProvider.PAYPAL
+                ),
+                amount=total_amount,
+                currency="EGP",
+                status=Payment.PaymentStatus.PENDING,
+                description=f"ترقية مميزات الإعلان: {ad.title}",
+                metadata={
+                    "ad_id": ad.id,
+                    "upgrade_features": upgrade_features,
+                    "payment_type": "ad_upgrade",
+                },
+            )
+
+            # Redirect to online payment gateway
+            messages.info(request, _("جاري تحويلك إلى بوابة الدفع..."))
+            return redirect("main:payment_page")
+
+    context = {
+        "ad": ad,
+        "total_amount": total_amount,
+        "upgrade_features": upgrade_features,
+        "site_config": site_config,
+        "allowed_payment_methods": allowed_payment_methods,
+    }
+
+    return render(request, "payments/ad_upgrade_payment.html", context)
+
+
+def process_ad_upgrade_payment(payment):
+    """
+    Process ad upgrade payment after successful payment confirmation.
+    Applies additional features to existing ad.
+    """
+    from .models import ClassifiedAd, FacebookShareRequest, Notification
+
+    ad_id = payment.metadata.get("ad_id")
+    upgrade_features = payment.metadata.get("upgrade_features", {})
+
+    if not ad_id:
+        logger.error(f"No ad_id in payment metadata for payment {payment.id}")
+        return False
+
+    try:
+        ad = ClassifiedAd.objects.get(id=ad_id)
+        applied_features = []
+
+        # Apply upgrade features
+        if upgrade_features.get("contact_for_price"):
+            ad.contact_for_price = True
+            applied_features.append(_("تواصل ليصلك عرض سعر"))
+
+        if upgrade_features.get("facebook_share"):
+            ad.share_on_facebook = True
+            ad.facebook_share_requested = True
+            applied_features.append(_("نشر على فيسبوك"))
+
+            # Create FacebookShareRequest
+            FacebookShareRequest.objects.create(
+                ad=ad,
+                user=ad.user,
+                payment_confirmed=True,
+                payment_amount=payment.amount,
+            )
+
+        if upgrade_features.get("video"):
+            # Video feature implementation when ready
+            applied_features.append(_("فيديو"))
+
+        ad.save()
+
+        # Send notification to user
+        Notification.objects.create(
+            user=ad.user,
+            notification_type=Notification.NotificationType.GENERAL,
+            title=_("تم تأكيد الدفع"),
+            message=_("تم تأكيد دفع ترقية الإعلان {} وتفعيل المميزات: {}.").format(
+                ad.title, ", ".join(applied_features)
+            ),
+            link=ad.get_absolute_url(),
+        )
+
+        logger.info(f"Ad {ad.id} upgraded with features {upgrade_features} after payment {payment.id}")
+        return True
+
+    except ClassifiedAd.DoesNotExist:
+        logger.error(f"Ad {ad_id} not found for payment {payment.id}")
+        return False
+    except Exception as e:
+        logger.error(f"Error processing ad upgrade payment {payment.id}: {str(e)}")
+        return False

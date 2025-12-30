@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+{% load static i18n %}
+
+{% block title %}{% trans "إتمام الدفع - ترقية الإعلان" %} - {{ ad.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .payment-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .payment-card {
+        background: var(--bg-primary, #ffffff);
+        border-radius: 16px;
+        padding: 30px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+    }
+
+    [data-theme='dark'] .payment-card {
+        background: var(--card-bg, #2d3748);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .payment-method-card {
+        border: 2px solid var(--border-color, #dee2e6);
+        border-radius: 12px;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-bottom: 15px;
+    }
+
+    .payment-method-card:hover {
+        border-color: var(--primary-color, #6b4c7a);
+        box-shadow: 0 4px 15px rgba(107, 76, 122, 0.2);
+    }
+
+    .payment-method-card.selected {
+        border-color: var(--primary-color, #6b4c7a);
+        background: rgba(107, 76, 122, 0.05);
+    }
+
+    [data-theme='dark'] .payment-method-card {
+        background: rgba(255, 255, 255, 0.03);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    [data-theme='dark'] .payment-method-card.selected {
+        background: rgba(107, 76, 122, 0.15);
+        border-color: var(--accent-purple, #a78bbd);
+    }
+
+    .price-breakdown {
+        background: var(--bg-secondary, #f8f9fa);
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+    }
+
+    [data-theme='dark'] .price-breakdown {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .qr-code-img {
+        max-width: 300px;
+        margin: 20px auto;
+        display: block;
+    }
+
+    .feature-badge {
+        display: inline-block;
+        padding: 6px 12px;
+        background: var(--primary-color);
+        color: white;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        margin: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="page-hero">
+    <div class="container">
+        <div class="hero-content-center">
+            <h1 class="page-title">{% trans "إتمام الدفع - ترقية الإعلان" %}</h1>
+            <p class="page-subtitle">{% trans "اختر طريقة الدفع المناسبة لك" %}</p>
+        </div>
+    </div>
+</section>
+
+<section class="payment-section py-5">
+    <div class="container">
+        <div class="payment-container">
+            <!-- Ad Details -->
+            <div class="payment-card">
+                <h3 class="mb-4">
+                    <i class="fas fa-newspaper me-2"></i>
+                    {% trans "تفاصيل الإعلان" %}
+                </h3>
+                <div class="d-flex align-items-start">
+                    {% if ad.images.first %}
+                        <img src="{{ ad.images.first.image.url }}" alt="{{ ad.title }}"
+                             style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px;" class="me-3">
+                    {% endif %}
+                    <div>
+                        <h5>{{ ad.title }}</h5>
+                        <p class="text-muted small mb-0">{{ ad.category.name }}</p>
+                    </div>
+                </div>
+
+                <!-- Upgrade Features -->
+                <div class="mt-4">
+                    <h6 class="mb-3">{% trans "المميزات المطلوب تفعيلها:" %}</h6>
+                    <div>
+                        {% if upgrade_features.contact_for_price %}
+                            <span class="feature-badge">
+                                <i class="fas fa-file-invoice-dollar me-1"></i>
+                                {% trans "تواصل ليصلك عرض سعر" %}
+                            </span>
+                        {% endif %}
+                        {% if upgrade_features.facebook_share %}
+                            <span class="feature-badge">
+                                <i class="fab fa-facebook-f me-1"></i>
+                                {% trans "نشر على فيسبوك" %}
+                            </span>
+                        {% endif %}
+                        {% if upgrade_features.video %}
+                            <span class="feature-badge">
+                                <i class="fas fa-video me-1"></i>
+                                {% trans "فيديو" %}
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Price Breakdown -->
+            <div class="payment-card">
+                <h3 class="mb-4">
+                    <i class="fas fa-receipt me-2"></i>
+                    {% trans "تفاصيل التكلفة" %}
+                </h3>
+
+                <div class="price-breakdown">
+                    <div class="d-flex justify-content-between mb-3 pb-3 border-bottom">
+                        <span>{% trans "تكلفة المميزات:" %}</span>
+                        <strong>{{ total_amount }} {% trans "ريال" %}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <h5 class="mb-0">{% trans "المجموع:" %}</h5>
+                        <h5 class="mb-0 text-primary">{{ total_amount }} {% trans "ريال" %}</h5>
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    {% trans "سيتم تفعيل المميزات فور تأكيد الدفع" %}
+                </div>
+            </div>
+
+            <!-- Payment Methods -->
+            <div class="payment-card">
+                <h3 class="mb-4">
+                    <i class="fas fa-credit-card me-2"></i>
+                    {% trans "اختر طريقة الدفع" %}
+                </h3>
+
+                <form method="post" id="paymentForm" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    {% for method_value, method_label in allowed_payment_methods %}
+                    <div class="payment-method-card" data-method="{{ method_value }}" onclick="selectPaymentMethod('{{ method_value }}')">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="payment_method"
+                                   id="payment_{{ method_value }}" value="{{ method_value }}" required>
+                            <label class="form-check-label w-100" for="payment_{{ method_value }}">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <h6 class="mb-1">{{ method_label }}</h6>
+                                        {% if method_value == 'visa' %}
+                                            <small class="text-muted">{% trans "الدفع الفوري عبر بطاقة فيزا أو ماستركارد" %}</small>
+                                        {% elif method_value == 'wallet' %}
+                                            <small class="text-muted">{% trans "التحويل إلى المحفظة الإلكترونية" %}</small>
+                                        {% elif method_value == 'instapay' %}
+                                            <small class="text-muted">{% trans "التحويل عبر إنستاباي" %}</small>
+                                        {% endif %}
+                                    </div>
+                                    <i class="fas fa-chevron-left"></i>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Upload Receipt for offline methods -->
+                        {% if method_value in 'wallet,instapay' %}
+                        <div class="offline-payment-details mt-3" id="details_{{ method_value }}" style="display: none;">
+                            <div class="alert alert-warning mb-3">
+                                <h6 class="mb-2">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    {% trans "معلومات الدفع:" %}
+                                </h6>
+                                {% if method_value == 'wallet' %}
+                                    <p class="mb-1"><strong>{% trans "رقم المحفظة:" %}</strong> {{ site_config.wallet_number }}</p>
+                                    <p class="mb-1"><strong>{% trans "الاسم:" %}</strong> {{ site_config.wallet_name }}</p>
+                                {% elif method_value == 'instapay' %}
+                                    <p class="mb-1"><strong>{% trans "رقم InstaPay:" %}</strong> {{ site_config.instapay_username }}</p>
+                                    <p class="mb-1"><strong>{% trans "الاسم:" %}</strong> {{ site_config.instapay_name }}</p>
+                                {% endif %}
+                                <p class="mb-0"><strong>{% trans "المبلغ المطلوب:" %}</strong> {{ total_amount }} {% trans "ريال" %}</p>
+                            </div>
+
+                            {% if method_value == 'wallet' and site_config.wallet_qr_code %}
+                            <div class="text-center mb-3">
+                                <p class="fw-bold">{% trans "QR Code للمحفظة:" %}</p>
+                                <img src="{{ site_config.wallet_qr_code.url }}" alt="Wallet QR" class="qr-code-img">
+                            </div>
+                            {% elif method_value == 'instapay' and site_config.instapay_qr_code %}
+                            <div class="text-center mb-3">
+                                <p class="fw-bold">{% trans "QR Code لـ InstaPay:" %}</p>
+                                <img src="{{ site_config.instapay_qr_code.url }}" alt="InstaPay QR" class="qr-code-img">
+                            </div>
+                            {% endif %}
+
+                            <div class="mb-3">
+                                <label for="payment_receipt_{{ method_value }}" class="form-label">
+                                    <i class="fas fa-file-upload me-2"></i>
+                                    {% trans "رفع إيصال الدفع" %} *
+                                </label>
+                                <input type="file" class="form-control" name="payment_receipt"
+                                       id="payment_receipt_{{ method_value }}" accept="image/*,.pdf">
+                                <small class="text-muted">{% trans "صورة أو PDF للإيصال" %}</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-check-circle me-2"></i>
+                            {% trans "تأكيد الدفع" %}
+                        </button>
+                        <a href="{% url 'main:ad_detail' ad_id=ad.id %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>
+                            {% trans "إلغاء" %}
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function selectPaymentMethod(method) {
+    // Remove all selected classes
+    document.querySelectorAll('.payment-method-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+
+    // Hide all offline payment details
+    document.querySelectorAll('.offline-payment-details').forEach(details => {
+        details.style.display = 'none';
+    });
+
+    // Select current method
+    document.getElementById('payment_' + method).checked = true;
+    document.querySelector('[data-method="' + method + '"]').classList.add('selected');
+
+    // Show offline payment details if applicable
+    const details = document.getElementById('details_' + method);
+    if (details) {
+        details.style.display = 'block';
+    }
+}
+
+// Form validation for offline payments
+document.getElementById('paymentForm').addEventListener('submit', function(e) {
+    const selectedMethod = document.querySelector('input[name="payment_method"]:checked');
+
+    if (!selectedMethod) {
+        e.preventDefault();
+        alert('{% trans "يرجى اختيار طريقة الدفع" %}');
+        return false;
+    }
+
+    // Check if receipt is required and uploaded
+    if (['wallet', 'instapay'].includes(selectedMethod.value)) {
+        const receiptInput = document.getElementById('payment_receipt_' + selectedMethod.value);
+        if (!receiptInput || !receiptInput.files || receiptInput.files.length === 0) {
+            e.preventDefault();
+            alert('{% trans "يرجى رفع إيصال الدفع" %}');
+            return false;
+        }
+    }
+});
+</script>
+{% endblock %}
