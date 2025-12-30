@@ -5,6 +5,7 @@ Only includes settings NOT covered by django-constance
 """
 
 from django.db import models
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.translation import gettext_lazy as _
 from solo.models import SingletonModel
 from django_ckeditor_5.fields import CKEditor5Field
@@ -60,6 +61,14 @@ class SiteConfiguration(SingletonModel):
         verbose_name=_("التحقق مطلوب لاستخدام الخدمات"),
         help_text=_(
             "إذا كان مفعلاً، يجب التحقق من الحساب لاستخدام خدمات الموقع (نشر إعلانات، إضافة للسلة، إلخ)"
+        ),
+    )
+
+    require_verification_for_free_package = models.BooleanField(
+        default=False,
+        verbose_name=_("التحقق مطلوب للباقة المجانية"),
+        help_text=_(
+            "إذا كان مفعلاً، يتم منح الباقة المجانية فقط بعد التحقق من الإيميل ورقم الموبايل"
         ),
     )
 
@@ -165,6 +174,39 @@ class SiteConfiguration(SingletonModel):
         default=100,
         verbose_name=_("سعر تثبيت الإعلان"),
         help_text=_("رسوم تثبيت الإعلان في أعلى القائمة"),
+    )
+
+    # Cart Service Fee Settings
+    cart_service_fee_type = models.CharField(
+        max_length=20,
+        choices=[("fixed", _("رسوم ثابتة")), ("percentage", _("نسبة مئوية"))],
+        default="percentage",
+        verbose_name=_("نوع رسوم خدمة السلة"),
+        help_text=_("هل رسوم الخدمة ثابتة أم نسبة من سعر المنتج؟"),
+    )
+
+    cart_service_fixed_fee = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name=_("رسوم خدمة السلة الثابتة"),
+        help_text=_("المبلغ الثابت الذي يتم خصمه من الناشر عند البيع"),
+    )
+
+    cart_service_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=5,
+        verbose_name=_("نسبة رسوم خدمة السلة"),
+        help_text=_("النسبة المئوية من سعر المنتج التي يتم خصمها من الناشر"),
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
+
+    cart_service_instructions = models.TextField(
+        blank=True,
+        verbose_name=_("تعليمات خدمة السلة للناشر"),
+        default="عند تفعيل السلة، سيتم خصم رسوم خدمة من ثمن المنتج عند البيع. يجب أن يكون السعر شاملاً لهذه الرسوم ورسوم التوصيل.",
+        help_text=_("التعليمات التي تظهر للناشر عند تفعيل السلة"),
     )
 
     class Meta:

@@ -7,7 +7,15 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 import logging
 
-from .models import AdPackage, ClassifiedAd, Notification, User, UserPackage, Order
+from .models import (
+    AdPackage,
+    ClassifiedAd,
+    Notification,
+    User,
+    UserPackage,
+    Order,
+    Payment,
+)
 from .services.email_service import EmailService
 from .services.sms_service import SMSService
 
@@ -114,9 +122,37 @@ def assign_default_package_to_new_user(sender, instance, created, **kwargs):
     Assign default ad package to new DEFAULT users if it exists
     DEFAULT users get the is_default package
     PUBLISHER users don't need initial package (they purchase their own)
+
+    Note: If verification is required for free package, the package will be
+    assigned only after email and phone verification is complete.
     """
     if created and instance.profile_type == User.ProfileType.DEFAULT:
         try:
+            from content.verification_utils import is_free_package_verification_required
+
+            # Check if verification is required for free package
+            verification_required = is_free_package_verification_required()
+
+            # If verification is required, check if user is verified
+            if verification_required:
+                is_verified = instance.is_email_verified and instance.is_mobile_verified
+                if not is_verified:
+                    # Don't assign package yet - will be assigned after verification
+                    logger.info(
+                        f"Skipping package assignment for user {instance.username} - verification required"
+                    )
+
+                    # Create notification about verification requirement
+                    Notification.objects.create(
+                        user=instance,
+                        title=_("مرحباً بك في إدريسي مارت!"),
+                        message=_(
+                            "للحصول على باقتك المجانية، يجب عليك التحقق من البريد الإلكتروني ورقم الموبايل أولاً."
+                        ),
+                        notification_type=Notification.NotificationType.GENERAL,
+                    )
+                    return
+
             # Get the default ad package (is_default=True)
             default_package = AdPackage.objects.filter(
                 is_default=True, is_active=True
@@ -178,6 +214,99 @@ def assign_default_package_to_new_user(sender, instance, created, **kwargs):
             # Log error but don't fail user registration
             logger.error(
                 f"Error assigning default package to user {instance.username}: {e}"
+            )
+
+
+@receiver(pre_save, sender=User)
+def assign_package_after_verification(sender, instance, **kwargs):
+    """
+    Assign free package to user after they complete verification
+    This is triggered when is_email_verified or is_mobile_verified changes to True
+    """
+    if instance.pk:  # Only for existing users (not new registrations)
+        try:
+            from content.verification_utils import is_free_package_verification_required
+
+            # Check if verification is required for free package
+            verification_required = is_free_package_verification_required()
+
+            if not verification_required:
+                return  # Feature not enabled
+
+            # Get the old user state from database
+            try:
+                old_user = User.objects.get(pk=instance.pk)
+            except User.DoesNotExist:
+                return
+
+            # Check if user just became fully verified
+            old_verified = old_user.is_email_verified and old_user.is_mobile_verified
+            new_verified = instance.is_email_verified and instance.is_mobile_verified
+
+            # Only proceed if user just became verified
+            if not old_verified and new_verified:
+                # Check if user already has a package
+                has_package = UserPackage.objects.filter(user=instance).exists()
+
+                if not has_package:
+                    # Get the default ad package
+                    default_package = AdPackage.objects.filter(
+                        is_default=True, is_active=True
+                    ).first()
+
+                    if default_package:
+                        from datetime import timedelta
+
+                        UserPackage.objects.create(
+                            user=instance,
+                            package=default_package,
+                            ads_remaining=default_package.ad_count,
+                            expiry_date=timezone.now()
+                            + timedelta(days=default_package.duration_days),
+                        )
+
+                        Notification.objects.create(
+                            user=instance,
+                            title=_("تم تفعيل باقتك المجانية!"),
+                            message=_(
+                                "تم التحقق من حسابك بنجاح! تم منحك باقة {package_name} مع {ad_count} إعلان مجاني."
+                            ).format(
+                                package_name=default_package.name,
+                                ad_count=default_package.ad_count,
+                            ),
+                            notification_type=Notification.NotificationType.GENERAL,
+                        )
+
+                        logger.info(
+                            f"Assigned free package to verified user {instance.username}"
+                        )
+                    else:
+                        # No default package - create basic free entry
+                        from datetime import timedelta
+
+                        UserPackage.objects.create(
+                            user=instance,
+                            package=None,
+                            ads_remaining=1,
+                            expiry_date=timezone.now() + timedelta(days=365),
+                        )
+
+                        Notification.objects.create(
+                            user=instance,
+                            title=_("تم تفعيل باقتك المجانية!"),
+                            message=_(
+                                "تم التحقق من حسابك بنجاح! تم منحك إعلان واحد مجاني."
+                            ),
+                            notification_type=Notification.NotificationType.GENERAL,
+                        )
+
+                        logger.info(
+                            f"Assigned basic free ad to verified user {instance.username}"
+                        )
+
+        except Exception as e:
+            logger.error(
+                f"Error assigning package after verification for user {instance.username}: {e}"
             )
 
 
@@ -421,3 +550,84 @@ def send_order_status_notifications(sender, instance, created, **kwargs):
 
             except Exception as e:
                 logger.error(f"Error sending payment status notifications: {str(e)}")
+
+
+@receiver(post_save, sender=Payment)
+def activate_package_on_payment_completion(sender, instance, created, **kwargs):
+    """
+    تفعيل الباقة تلقائياً عند اكتمال الدفع
+    Automatically activate package when payment is marked as completed
+
+    This handles both:
+    - Electronic payments (auto-approved)
+    - Manual payments (admin approved via InstaPay/Wallet)
+    """
+    # Only trigger if payment was just completed
+    if instance.status == Payment.PaymentStatus.COMPLETED:
+        # Check if UserPackage already exists for this payment
+        existing_package = UserPackage.objects.filter(payment=instance).first()
+
+        if not existing_package:
+            # Get package info from metadata
+            package_id = instance.metadata.get("package_id")
+
+            if package_id:
+                try:
+                    package = AdPackage.objects.get(id=package_id)
+
+                    # Create UserPackage
+                    user_package = UserPackage.objects.create(
+                        user=instance.user,
+                        payment=instance,
+                        package=package,
+                        ads_remaining=package.ad_count,
+                        expiry_date=timezone.now()
+                        + timezone.timedelta(days=package.duration_days),
+                    )
+
+                    logger.info(
+                        f"UserPackage created for payment #{instance.id}: "
+                        f"{package.name} for user {instance.user.username}"
+                    )
+
+                    # Create notification for user
+                    Notification.objects.create(
+                        user=instance.user,
+                        title=_("تم تفعيل باقتك - Package Activated"),
+                        message=_(
+                            'تم تفعيل باقة "{package_name}" بنجاح! لديك {ad_count} إعلان متاح.'
+                        ).format(package_name=package.name, ad_count=package.ad_count),
+                        link="/publisher/dashboard/",
+                        notification_type=Notification.NotificationType.GENERAL,
+                    )
+
+                    # Send email notification
+                    if EmailService.is_enabled():
+                        try:
+                            email_service = EmailService()
+                            email_service.send_html_email(
+                                to_email=instance.user.email,
+                                subject=_("تم تفعيل باقتك - Package Activated"),
+                                template_name="emails/package_activated.html",
+                                context={
+                                    "user": instance.user,
+                                    "package": package,
+                                    "user_package": user_package,
+                                    "payment_amount": instance.amount,
+                                },
+                            )
+                        except Exception as e:
+                            logger.error(
+                                f"Failed to send package activation email: {str(e)}"
+                            )
+
+                except AdPackage.DoesNotExist:
+                    logger.error(
+                        f"AdPackage with id {package_id} not found for payment #{instance.id}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Error creating UserPackage for payment #{instance.id}: {str(e)}"
+                    )
+            else:
+                logger.warning(f"Payment #{instance.id} has no package_id in metadata")

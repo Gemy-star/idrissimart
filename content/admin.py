@@ -371,10 +371,11 @@ class SiteConfigurationAdmin(SingletonModelAdmin):
                     "require_email_verification",
                     "require_phone_verification",
                     "require_verification_for_services",
+                    "require_verification_for_free_package",
                     "verification_services_message",
                     "verification_services_message_ar",
                 ),
-                "description": "إعدادات التحقق من البريد الإلكتروني ورقم الهاتف أثناء التسجيل وعند استخدام خدمات الموقع",
+                "description": "إعدادات التحقق من البريد الإلكتروني ورقم الهاتف أثناء التسجيل وعند استخدام خدمات الموقع والباقات المجانية",
             },
         ),
         (
@@ -382,6 +383,18 @@ class SiteConfigurationAdmin(SingletonModelAdmin):
             {
                 "fields": ("instapay_qr_code",),
                 "description": "قم برفع صورة رمز QR الخاص بحساب InstaPay لتفعيل خيار الدفع عبر InstaPay في صفحة الدفع",
+            },
+        ),
+        (
+            "إعدادات رسوم خدمة السلة",
+            {
+                "fields": (
+                    "cart_service_fee_type",
+                    "cart_service_fixed_fee",
+                    "cart_service_percentage",
+                    "cart_service_instructions",
+                ),
+                "description": "إعدادات رسوم الخدمة التي يتم خصمها من الناشر عند البيع عبر المنصة",
             },
         ),
     )

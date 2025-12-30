@@ -26,6 +26,7 @@ from main.models import (
     UserPackage,
     Notification,
     AdPackage,
+    Payment,
 )
 from main.decorators import PublisherRequiredMixin, publisher_required
 
@@ -638,3 +639,32 @@ def publisher_process_renewal(request, ad_id):
             },
             status=500,
         )
+
+
+@publisher_required
+def publisher_payment_history(request):
+    """
+    عرض سجل المدفوعات للعضو
+    Display payment history for the publisher
+    """
+    payments = Payment.objects.filter(user=request.user).select_related('user').prefetch_related('packages').order_by('-created_at')
+
+    # Add package info from metadata for each payment
+    for payment in payments:
+        if payment.metadata.get('package_id'):
+            try:
+                payment.package_info = AdPackage.objects.get(id=payment.metadata['package_id'])
+            except AdPackage.DoesNotExist:
+                payment.package_info = None
+        else:
+            payment.package_info = None
+
+    context = {
+        'payments': payments,
+        'total_payments': payments.count(),
+        'completed_payments': payments.filter(status='completed').count(),
+        'pending_payments': payments.filter(status='pending').count(),
+        'total_spent': payments.filter(status='completed').aggregate(total=Sum('amount'))['total'] or 0,
+    }
+
+    return render(request, 'dashboard/publisher_payment_history.html', context)

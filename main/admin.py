@@ -32,6 +32,7 @@ from .models import (
     CustomFieldOption,
     FAQ,
     FAQCategory,
+    FacebookShareRequest,
     NewsletterSubscriber,
     Notification,
     Order,
@@ -90,6 +91,7 @@ class CategoryAdmin(MPTTModelAdmin):
             {
                 "fields": (
                     "allow_cart",
+                    "cart_instructions",
                     "default_reservation_percentage",
                     "min_reservation_amount",
                     "max_reservation_amount",
@@ -289,15 +291,14 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
 
         # Update expiration date and ensure status is active
         updated = queryset.update(
-            expires_at=future_date,
-            status=ClassifiedAd.AdStatus.ACTIVE
+            expires_at=future_date, status=ClassifiedAd.AdStatus.ACTIVE
         )
 
         self.message_user(
             request,
             _("{} إعلان تم تجديده لمدة 30 يوم (تنتهي في {})").format(
-                updated, future_date.strftime('%Y-%m-%d')
-            )
+                updated, future_date.strftime("%Y-%m-%d")
+            ),
         )
 
     renew_ads_30_days.short_description = _("تجديد الإعلانات لمدة 30 يوم")
@@ -311,15 +312,14 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
         future_date = now + timedelta(days=60)
 
         updated = queryset.update(
-            expires_at=future_date,
-            status=ClassifiedAd.AdStatus.ACTIVE
+            expires_at=future_date, status=ClassifiedAd.AdStatus.ACTIVE
         )
 
         self.message_user(
             request,
             _("{} إعلان تم تجديده لمدة 60 يوم (تنتهي في {})").format(
-                updated, future_date.strftime('%Y-%m-%d')
-            )
+                updated, future_date.strftime("%Y-%m-%d")
+            ),
         )
 
     renew_ads_60_days.short_description = _("تجديد الإعلانات لمدة 60 يوم")
@@ -333,15 +333,14 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
         future_date = now + timedelta(days=90)
 
         updated = queryset.update(
-            expires_at=future_date,
-            status=ClassifiedAd.AdStatus.ACTIVE
+            expires_at=future_date, status=ClassifiedAd.AdStatus.ACTIVE
         )
 
         self.message_user(
             request,
             _("{} إعلان تم تجديده لمدة 90 يوم (تنتهي في {})").format(
-                updated, future_date.strftime('%Y-%m-%d')
-            )
+                updated, future_date.strftime("%Y-%m-%d")
+            ),
         )
 
     renew_ads_90_days.short_description = _("تجديد الإعلانات لمدة 90 يوم")
@@ -361,11 +360,10 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
             return format_html(
                 '<span style="background-color: #ff9800; color: white; padding: 3px 10px; border-radius: 3px; font-weight: bold;">'
                 '<i class="fas fa-redo"></i> معاد إرساله'
-                '</span>'
+                "</span>"
             )
-        return format_html(
-            '<span style="color: #999;">-</span>'
-        )
+        return format_html('<span style="color: #999;">-</span>')
+
     resubmitted_badge.short_description = _("حالة الإرسال")
     resubmitted_badge.admin_order_field = "is_resubmitted"
 
@@ -767,9 +765,9 @@ class PaymentAdmin(admin.ModelAdmin):
     def get_payment_id(self, obj):
         """Display formatted payment ID"""
         return format_html(
-            '<span style="font-weight: bold; color: #0066cc;">#{}</span>',
-            obj.id
+            '<span style="font-weight: bold; color: #0066cc;">#{}</span>', obj.id
         )
+
     get_payment_id.short_description = _("رقم الدفعة")
     get_payment_id.admin_order_field = "id"
 
@@ -780,30 +778,39 @@ class PaymentAdmin(admin.ModelAdmin):
             '<span style="font-weight: bold; color: {};">{} {}</span>',
             color,
             obj.amount,
-            obj.currency
+            obj.currency,
         )
+
     get_amount_display.short_description = _("المبلغ")
     get_amount_display.admin_order_field = "amount"
 
     def get_payment_metadata(self, obj):
         """Display formatted metadata"""
         import json
+
         if obj.metadata:
             return format_html(
                 '<pre style="background: #f5f5f5; padding: 10px; border-radius: 5px;">{}</pre>',
-                json.dumps(obj.metadata, indent=2, ensure_ascii=False)
+                json.dumps(obj.metadata, indent=2, ensure_ascii=False),
             )
         return "-"
+
     get_payment_metadata.short_description = _("البيانات الإضافية")
 
     def mark_as_completed(self, request, queryset):
-        """Mark payments as completed"""
+        """Mark payments as completed - triggers signal to activate package"""
         from django.utils import timezone
 
-        updated = queryset.filter(status="pending").update(
-            status="completed", completed_at=timezone.now()
+        count = 0
+        for payment in queryset.filter(status="pending"):
+            payment.status = "completed"
+            payment.completed_at = timezone.now()
+            payment.save()  # Use save() instead of update() to trigger signals
+            count += 1
+
+        self.message_user(
+            request, _(f"تم تحديد {count} دفعة كمكتملة وتفعيل الباقات المرتبطة")
         )
-        self.message_user(request, _(f"تم تحديد {updated} دفعة كمكتملة"))
 
     mark_as_completed.short_description = _("✓ تحديد كمكتملة")
 
@@ -838,39 +845,49 @@ class PaymentAdmin(admin.ModelAdmin):
         from django.http import HttpResponse
         from django.utils import timezone
 
-        response = HttpResponse(content_type='text/csv; charset=utf-8')
-        response['Content-Disposition'] = f'attachment; filename="payments_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
-        response.write('\ufeff')  # UTF-8 BOM for Excel compatibility
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = (
+            f'attachment; filename="payments_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+        )
+        response.write("\ufeff")  # UTF-8 BOM for Excel compatibility
 
         writer = csv.writer(response)
-        writer.writerow([
-            _('رقم الدفعة'),
-            _('المستخدم'),
-            _('البريد الإلكتروني'),
-            _('مزود الدفع'),
-            _('رقم المعاملة'),
-            _('المبلغ'),
-            _('العملة'),
-            _('الحالة'),
-            _('الوصف'),
-            _('تاريخ الإنشاء'),
-            _('تاريخ الإكمال'),
-        ])
+        writer.writerow(
+            [
+                _("رقم الدفعة"),
+                _("المستخدم"),
+                _("البريد الإلكتروني"),
+                _("مزود الدفع"),
+                _("رقم المعاملة"),
+                _("المبلغ"),
+                _("العملة"),
+                _("الحالة"),
+                _("الوصف"),
+                _("تاريخ الإنشاء"),
+                _("تاريخ الإكمال"),
+            ]
+        )
 
         for payment in queryset:
-            writer.writerow([
-                payment.id,
-                payment.user.username,
-                payment.user.email,
-                payment.get_provider_display(),
-                payment.provider_transaction_id,
-                payment.amount,
-                payment.currency,
-                payment.get_status_display(),
-                payment.description,
-                payment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                payment.completed_at.strftime('%Y-%m-%d %H:%M:%S') if payment.completed_at else '',
-            ])
+            writer.writerow(
+                [
+                    payment.id,
+                    payment.user.username,
+                    payment.user.email,
+                    payment.get_provider_display(),
+                    payment.provider_transaction_id,
+                    payment.amount,
+                    payment.currency,
+                    payment.get_status_display(),
+                    payment.description,
+                    payment.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                    (
+                        payment.completed_at.strftime("%Y-%m-%d %H:%M:%S")
+                        if payment.completed_at
+                        else ""
+                    ),
+                ]
+            )
 
         self.message_user(request, _(f"تم تصدير {queryset.count()} دفعة"))
         return response
@@ -1144,7 +1161,14 @@ class CategoryCustomFieldInline(admin.TabularInline):
 
     model = CategoryCustomField
     extra = 1
-    fields = ("category", "is_required", "order", "is_active", "show_on_card")
+    fields = (
+        "category",
+        "is_required",
+        "order",
+        "is_active",
+        "show_on_card",
+        "show_in_filters",
+    )
     autocomplete_fields = ["category"]
 
 
@@ -1220,10 +1244,30 @@ class CustomFieldOptionAdmin(admin.ModelAdmin):
 
 @admin.register(CategoryCustomField)
 class CategoryCustomFieldAdmin(admin.ModelAdmin):
-    list_display = ("category", "custom_field", "is_required", "order", "is_active")
-    list_filter = ("category", "is_required", "is_active")
+    list_display = (
+        "category",
+        "custom_field",
+        "is_required",
+        "order",
+        "is_active",
+        "show_on_card",
+        "show_in_filters",
+    )
+    list_filter = (
+        "category",
+        "is_required",
+        "is_active",
+        "show_on_card",
+        "show_in_filters",
+    )
     search_fields = ("category__name", "custom_field__name")
-    list_editable = ("is_required", "order", "is_active")
+    list_editable = (
+        "is_required",
+        "order",
+        "is_active",
+        "show_on_card",
+        "show_in_filters",
+    )
     ordering = ("category", "order")
     autocomplete_fields = ["category", "custom_field"]
 
@@ -1502,8 +1546,9 @@ class OrderAdmin(admin.ModelAdmin):
         """Display formatted order number"""
         return format_html(
             '<span style="font-weight: bold; color: #0066cc; font-family: monospace;">{}</span>',
-            obj.order_number
+            obj.order_number,
         )
+
     get_order_number_display.short_description = _("رقم الطلب")
     get_order_number_display.admin_order_field = "order_number"
 
@@ -1513,8 +1558,9 @@ class OrderAdmin(admin.ModelAdmin):
             '<div style="text-align: right;"><span style="font-weight: bold; color: #28a745;">{:.2f}</span><br>'
             '<small style="color: #6c757d;">مدفوع: {:.2f}</small></div>',
             obj.total_amount,
-            obj.paid_amount
+            obj.paid_amount,
         )
+
     get_total_amount_display.short_description = _("المبلغ")
     get_total_amount_display.admin_order_field = "total_amount"
 
@@ -1531,8 +1577,9 @@ class OrderAdmin(admin.ModelAdmin):
             '<span style="background-color: {}; color: white; padding: 4px 8px; '
             'border-radius: 4px; font-size: 11px; font-weight: bold;">{}</span>',
             color,
-            obj.get_payment_status_display()
+            obj.get_payment_status_display(),
         )
+
     get_payment_status_display.short_description = _("حالة الدفع")
     get_payment_status_display.admin_order_field = "payment_status"
 
@@ -1551,8 +1598,9 @@ class OrderAdmin(admin.ModelAdmin):
             '<span style="background-color: {}; color: white; padding: 4px 8px; '
             'border-radius: 4px; font-size: 11px; font-weight: bold;">{}</span>',
             color,
-            obj.get_status_display()
+            obj.get_status_display(),
         )
+
     get_status_display_badge.short_description = _("حالة الطلب")
     get_status_display_badge.admin_order_field = "status"
 
@@ -1560,22 +1608,23 @@ class OrderAdmin(admin.ModelAdmin):
         """Display order summary"""
         items_html = '<ul style="margin: 0; padding-left: 20px;">'
         for item in obj.items.all():
-            items_html += f'<li>{item.ad.title} - {item.price} ر.س</li>'
-        items_html += '</ul>'
+            items_html += f"<li>{item.ad.title} - {item.price} ر.س</li>"
+        items_html += "</ul>"
 
         return format_html(
             '<div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">'
             '<h4 style="margin-top: 0;">ملخص الطلب</h4>'
-            '<p><strong>عدد العناصر:</strong> {}</p>'
-            '<p><strong>العناصر:</strong></p>{}'
-            '<p><strong>رسوم التوصيل:</strong> {} ر.س</p>'
+            "<p><strong>عدد العناصر:</strong> {}</p>"
+            "<p><strong>العناصر:</strong></p>{}"
+            "<p><strong>رسوم التوصيل:</strong> {} ر.س</p>"
             '<p><strong>الإجمالي:</strong> <span style="color: #28a745; font-weight: bold;">{} ر.س</span></p>'
-            '</div>',
+            "</div>",
             obj.get_items_count(),
             items_html,
             obj.delivery_fee,
-            obj.total_amount
+            obj.total_amount,
         )
+
     get_order_summary.short_description = _("ملخص الطلب")
 
     def get_payment_info(self, obj):
@@ -1584,26 +1633,27 @@ class OrderAdmin(admin.ModelAdmin):
         return format_html(
             '<div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">'
             '<h4 style="margin-top: 0;">معلومات الدفع</h4>'
-            '<p><strong>طريقة الدفع:</strong> {}</p>'
-            '<p><strong>حالة الدفع:</strong> {}</p>'
-            '<p><strong>المبلغ الإجمالي:</strong> {} ر.س</p>'
+            "<p><strong>طريقة الدفع:</strong> {}</p>"
+            "<p><strong>حالة الدفع:</strong> {}</p>"
+            "<p><strong>المبلغ الإجمالي:</strong> {} ر.س</p>"
             '<p><strong>المبلغ المدفوع:</strong> <span style="color: #28a745;">{} ر.س</span></p>'
             '<p><strong>المبلغ المتبقي:</strong> <span style="color: #dc3545;">{} ر.س</span></p>'
             '<div style="margin-top: 10px;">'
             '<div style="background: #e9ecef; height: 20px; border-radius: 10px; overflow: hidden;">'
             '<div style="background: #28a745; height: 100%; width: {}%; transition: width 0.3s;"></div>'
-            '</div>'
+            "</div>"
             '<small style="color: #6c757d;">نسبة السداد: {:.1f}%</small>'
-            '</div>'
-            '</div>',
+            "</div>"
+            "</div>",
             obj.get_payment_method_display(),
             obj.get_payment_status_display(),
             obj.total_amount,
             obj.paid_amount,
             obj.remaining_amount,
             percentage,
-            percentage
+            percentage,
         )
+
     get_payment_info.short_description = _("معلومات الدفع")
 
     # Admin Actions
@@ -1611,24 +1661,28 @@ class OrderAdmin(admin.ModelAdmin):
         """Mark selected orders as processing"""
         updated = queryset.filter(status="pending").update(status="processing")
         self.message_user(request, _(f"تم تحديث {updated} طلب إلى قيد المعالجة"))
+
     mark_as_processing.short_description = _("⚙ تحديد كـ قيد المعالجة")
 
     def mark_as_shipped(self, request, queryset):
         """Mark selected orders as shipped"""
         updated = queryset.filter(status="processing").update(status="shipped")
         self.message_user(request, _(f"تم تحديث {updated} طلب إلى تم الشحن"))
+
     mark_as_shipped.short_description = _("📦 تحديد كـ تم الشحن")
 
     def mark_as_delivered(self, request, queryset):
         """Mark selected orders as delivered"""
         updated = queryset.filter(status="shipped").update(status="delivered")
         self.message_user(request, _(f"تم تحديث {updated} طلب إلى تم التسليم"))
+
     mark_as_delivered.short_description = _("✓ تحديد كـ تم التسليم")
 
     def mark_as_cancelled(self, request, queryset):
         """Mark selected orders as cancelled"""
         updated = queryset.update(status="cancelled")
         self.message_user(request, _(f"تم إلغاء {updated} طلب"))
+
     mark_as_cancelled.short_description = _("✗ إلغاء الطلبات")
 
     # Payment Status Actions
@@ -1642,7 +1696,10 @@ class OrderAdmin(admin.ModelAdmin):
                 order.remaining_amount = 0
                 order.save()
                 count += 1
-        self.message_user(request, _(f"تم تحديث حالة الدفع لـ {count} طلب إلى مدفوع بالكامل"))
+        self.message_user(
+            request, _(f"تم تحديث حالة الدفع لـ {count} طلب إلى مدفوع بالكامل")
+        )
+
     mark_payment_as_paid.short_description = _("💰 تحديد الدفع كمدفوع بالكامل")
 
     def mark_payment_as_unpaid(self, request, queryset):
@@ -1655,7 +1712,10 @@ class OrderAdmin(admin.ModelAdmin):
                 order.remaining_amount = order.total_amount
                 order.save()
                 count += 1
-        self.message_user(request, _(f"تم تحديث حالة الدفع لـ {count} طلب إلى غير مدفوع"))
+        self.message_user(
+            request, _(f"تم تحديث حالة الدفع لـ {count} طلب إلى غير مدفوع")
+        )
+
     mark_payment_as_unpaid.short_description = _("⏸ تحديد الدفع كغير مدفوع")
 
     def mark_payment_as_refunded(self, request, queryset):
@@ -1673,6 +1733,7 @@ class OrderAdmin(admin.ModelAdmin):
             count += 1
 
         self.message_user(request, _(f"تم استرداد {count} طلب"))
+
     mark_payment_as_refunded.short_description = _("↩ استرداد المبلغ")
 
     def confirm_cod_payment(self, request, queryset):
@@ -1690,7 +1751,10 @@ class OrderAdmin(admin.ModelAdmin):
             order.save()
             count += 1
 
-        self.message_user(request, _(f"تم تأكيد استلام الدفع لـ {count} طلب (دفع عند الاستلام)"))
+        self.message_user(
+            request, _(f"تم تأكيد استلام الدفع لـ {count} طلب (دفع عند الاستلام)")
+        )
+
     confirm_cod_payment.short_description = _("✓ تأكيد الدفع عند الاستلام")
 
     def send_payment_reminder(self, request, queryset):
@@ -1700,6 +1764,7 @@ class OrderAdmin(admin.ModelAdmin):
             # TODO: Implement email/SMS notification
             count += 1
         self.message_user(request, _(f"تم إرسال تذكير دفع لـ {count} طلب"))
+
     send_payment_reminder.short_description = _("📧 إرسال تذكير بالدفع")
 
     def record_partial_payment(self, request, queryset):
@@ -1713,25 +1778,27 @@ class OrderAdmin(admin.ModelAdmin):
                 label=_("المبلغ المدفوع"),
                 max_digits=10,
                 decimal_places=2,
-                min_value=Decimal('0.01'),
-                widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'})
+                min_value=Decimal("0.01"),
+                widget=forms.NumberInput(
+                    attrs={"class": "form-control", "step": "0.01"}
+                ),
             )
             payment_note = forms.CharField(
                 label=_("ملاحظة الدفع"),
                 required=False,
-                widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
+                widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
             )
 
-        if 'apply' in request.POST:
+        if "apply" in request.POST:
             form = PartialPaymentForm(request.POST)
             if form.is_valid():
-                amount = form.cleaned_data['amount']
-                payment_note = form.cleaned_data['payment_note']
+                amount = form.cleaned_data["amount"]
+                payment_note = form.cleaned_data["payment_note"]
                 from django.utils import timezone
 
                 count = 0
                 for order in queryset:
-                    if order.payment_status in ['unpaid', 'partial']:
+                    if order.payment_status in ["unpaid", "partial"]:
                         # Add the partial payment
                         order.paid_amount += amount
 
@@ -1756,20 +1823,22 @@ class OrderAdmin(admin.ModelAdmin):
                         order.save()
                         count += 1
 
-                self.message_user(request, _(f"تم تسجيل دفعة جزئية بمبلغ {amount} ر.س لـ {count} طلب"))
+                self.message_user(
+                    request, _(f"تم تسجيل دفعة جزئية بمبلغ {amount} ر.س لـ {count} طلب")
+                )
                 return None
         else:
             form = PartialPaymentForm()
 
         return render(
             request,
-            'admin/order_partial_payment.html',
+            "admin/order_partial_payment.html",
             {
-                'orders': queryset,
-                'form': form,
-                'title': _('تسجيل دفعة جزئية'),
-                'opts': self.model._meta,
-            }
+                "orders": queryset,
+                "form": form,
+                "title": _("تسجيل دفعة جزئية"),
+                "opts": self.model._meta,
+            },
         )
 
     record_partial_payment.short_description = _("💵 تسجيل دفعة جزئية")
@@ -1780,47 +1849,53 @@ class OrderAdmin(admin.ModelAdmin):
         from django.http import HttpResponse
         from django.utils import timezone
 
-        response = HttpResponse(content_type='text/csv; charset=utf-8')
-        response['Content-Disposition'] = f'attachment; filename="orders_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
-        response.write('\ufeff')  # UTF-8 BOM for Excel compatibility
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = (
+            f'attachment; filename="orders_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+        )
+        response.write("\ufeff")  # UTF-8 BOM for Excel compatibility
 
         writer = csv.writer(response)
-        writer.writerow([
-            _('رقم الطلب'),
-            _('المستخدم'),
-            _('الاسم الكامل'),
-            _('الهاتف'),
-            _('المدينة'),
-            _('العنوان'),
-            _('المبلغ الإجمالي'),
-            _('المبلغ المدفوع'),
-            _('المبلغ المتبقي'),
-            _('طريقة الدفع'),
-            _('حالة الدفع'),
-            _('حالة الطلب'),
-            _('رسوم التوصيل'),
-            _('تاريخ الإنشاء'),
-            _('ملاحظات'),
-        ])
+        writer.writerow(
+            [
+                _("رقم الطلب"),
+                _("المستخدم"),
+                _("الاسم الكامل"),
+                _("الهاتف"),
+                _("المدينة"),
+                _("العنوان"),
+                _("المبلغ الإجمالي"),
+                _("المبلغ المدفوع"),
+                _("المبلغ المتبقي"),
+                _("طريقة الدفع"),
+                _("حالة الدفع"),
+                _("حالة الطلب"),
+                _("رسوم التوصيل"),
+                _("تاريخ الإنشاء"),
+                _("ملاحظات"),
+            ]
+        )
 
         for order in queryset:
-            writer.writerow([
-                order.order_number,
-                order.user.username,
-                order.full_name,
-                order.phone,
-                order.city,
-                order.address,
-                order.total_amount,
-                order.paid_amount,
-                order.remaining_amount,
-                order.get_payment_method_display(),
-                order.get_payment_status_display(),
-                order.get_status_display(),
-                order.delivery_fee,
-                order.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                order.notes,
-            ])
+            writer.writerow(
+                [
+                    order.order_number,
+                    order.user.username,
+                    order.full_name,
+                    order.phone,
+                    order.city,
+                    order.address,
+                    order.total_amount,
+                    order.paid_amount,
+                    order.remaining_amount,
+                    order.get_payment_method_display(),
+                    order.get_payment_status_display(),
+                    order.get_status_display(),
+                    order.delivery_fee,
+                    order.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                    order.notes,
+                ]
+            )
 
         self.message_user(request, _(f"تم تصدير {queryset.count()} طلب"))
         return response
@@ -1834,6 +1909,7 @@ class OrderAdmin(admin.ModelAdmin):
             # TODO: Implement email notification
             count += 1
         self.message_user(request, _(f"تم إرسال إشعارات لـ {count} طلب"))
+
     send_order_notification.short_description = _("📧 إرسال إشعار للعملاء")
 
     fieldsets = (
@@ -2017,3 +2093,141 @@ class FAQAdmin(admin.ModelAdmin):
         self.message_user(request, f"{updated} FAQ(s) deactivated.")
 
     deactivate_faqs.short_description = _("إلغاء التفعيل")
+
+
+@admin.register(FacebookShareRequest)
+class FacebookShareRequestAdmin(admin.ModelAdmin):
+    """Admin interface for Facebook Share Requests"""
+
+    list_display = [
+        "id",
+        "ad_title",
+        "user_link",
+        "status_badge",
+        "payment_confirmed",
+        "requested_at",
+        "processed_at",
+        "processed_by",
+    ]
+    list_filter = [
+        "status",
+        "payment_confirmed",
+        "requested_at",
+        "processed_at",
+    ]
+    search_fields = [
+        "ad__title",
+        "user__username",
+        "user__email",
+        "admin_notes",
+    ]
+    readonly_fields = [
+        "requested_at",
+        "user",
+        "ad",
+    ]
+    fieldsets = (
+        (
+            _("معلومات الطلب"),
+            {
+                "fields": (
+                    "ad",
+                    "user",
+                    "status",
+                    "requested_at",
+                )
+            },
+        ),
+        (
+            _("معلومات الدفع"),
+            {
+                "fields": (
+                    "payment_confirmed",
+                    "payment_amount",
+                )
+            },
+        ),
+        (
+            _("معلومات التنفيذ"),
+            {
+                "fields": (
+                    "facebook_post_url",
+                    "processed_at",
+                    "processed_by",
+                    "admin_notes",
+                )
+            },
+        ),
+    )
+    actions = [
+        "mark_as_in_progress",
+        "mark_as_completed",
+        "mark_as_rejected",
+        "confirm_payment",
+    ]
+
+    def ad_title(self, obj):
+        """Display ad title with link"""
+        return format_html(
+            '<a href="/admin/main/classifiedad/{}/change/" target="_blank">{}</a>',
+            obj.ad.id,
+            obj.ad.title[:50],
+        )
+
+    ad_title.short_description = _("الإعلان")
+
+    def user_link(self, obj):
+        """Display user with link"""
+        return format_html(
+            '<a href="/admin/main/user/{}/change/" target="_blank">{}</a>',
+            obj.user.id,
+            obj.user.username,
+        )
+
+    user_link.short_description = _("المستخدم")
+
+    def status_badge(self, obj):
+        """Display status with colored badge"""
+        colors = {
+            "pending": "#ff9800",
+            "in_progress": "#2196f3",
+            "completed": "#4caf50",
+            "rejected": "#f44336",
+        }
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 5px 10px; border-radius: 5px;">{}</span>',
+            colors.get(obj.status, "#999"),
+            obj.get_status_display(),
+        )
+
+    status_badge.short_description = _("الحالة")
+
+    def mark_as_in_progress(self, request, queryset):
+        """Mark selected requests as in progress"""
+        updated = queryset.update(status="in_progress")
+        self.message_user(request, f"{updated} طلب تم تحديثه إلى 'جاري التنفيذ'")
+
+    mark_as_in_progress.short_description = _("تحديث إلى 'جاري التنفيذ'")
+
+    def mark_as_completed(self, request, queryset):
+        """Mark selected requests as completed"""
+        for obj in queryset:
+            obj.mark_as_completed(admin=request.user)
+        self.message_user(request, f"{queryset.count()} طلب تم إكماله بنجاح")
+
+    mark_as_completed.short_description = _("تحديد كمكتمل")
+
+    def mark_as_rejected(self, request, queryset):
+        """Mark selected requests as rejected"""
+        for obj in queryset:
+            obj.mark_as_rejected(admin=request.user)
+        self.message_user(request, f"{queryset.count()} طلب تم رفضه")
+
+    mark_as_rejected.short_description = _("رفض الطلب")
+
+    def confirm_payment(self, request, queryset):
+        """Confirm payment for selected requests"""
+        updated = queryset.update(payment_confirmed=True)
+        self.message_user(request, f"{updated} طلب تم تأكيد الدفع له")
+
+    confirm_payment.short_description = _("تأكيد الدفع")

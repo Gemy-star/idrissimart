@@ -18,6 +18,9 @@ from . import admin_review_views
 from . import publisher_review_views
 from . import report_views
 from . import ad_actions_views
+from . import verification_views
+from . import ad_features_views
+from . import pricing_views
 from django.contrib.auth import views as dj_auth_views
 
 
@@ -120,6 +123,11 @@ urlpatterns = [
         name="publisher_reports",
     ),
     path(
+        "classifieds/pricing/",
+        pricing_views.ad_pricing_view,
+        name="ad_pricing",
+    ),
+    path(
         "classifieds/create/",
         classifieds_views.ClassifiedAdCreateView.as_view(),
         name="ad_create",
@@ -182,6 +190,22 @@ urlpatterns = [
         "classifieds/<int:pk>/upgrade/process/",
         classifieds_views.AdUpgradeProcessView.as_view(),
         name="ad_upgrade_process",
+    ),
+    # Ad Features URLs
+    path(
+        "classifieds/<int:ad_id>/features/",
+        ad_features_views.ad_features_upgrade,
+        name="ad_features_upgrade",
+    ),
+    path(
+        "classifieds/<int:ad_id>/toggle-contact-price/",
+        ad_features_views.toggle_contact_for_price,
+        name="toggle_contact_for_price",
+    ),
+    path(
+        "classifieds/<int:ad_id>/request-facebook-share/",
+        ad_features_views.request_facebook_share,
+        name="request_facebook_share",
     ),
     # Saved Searches URLs
     path(
@@ -289,6 +313,11 @@ urlpatterns = [
         "admin/custom-fields/<int:field_id>/delete/",
         views.AdminCustomFieldDeleteView.as_view(),
         name="admin_custom_field_delete",
+    ),
+    path(
+        "admin/custom-fields/add-to-categories/",
+        views.AdminCustomFieldAddToCategoriesView.as_view(),
+        name="admin_custom_field_add_to_categories",
     ),
     path(
         "admin/reports/",
@@ -555,6 +584,22 @@ urlpatterns = [
         "dashboard/settings/delete-account/",
         views.publisher_delete_account,
         name="publisher_delete_account",
+    ),
+    # Verification URLs
+    path(
+        "verification/request/",
+        verification_views.verification_request,
+        name="verification_request",
+    ),
+    path(
+        "verification/pending/",
+        verification_views.verification_pending,
+        name="verification_pending",
+    ),
+    path(
+        "verification/status/",
+        verification_views.verification_status,
+        name="verification_status",
     ),
     path(
         "dashboard/ad/<int:ad_id>/toggle-status/",
@@ -1474,6 +1519,12 @@ urlpatterns = [
         "publisher/dashboard/stats/",
         publisher_views.publisher_dashboard_stats_ajax,
         name="publisher_dashboard_stats",
+    ),
+    # Publisher Payment History
+    path(
+        "publisher/payments/",
+        publisher_views.publisher_payment_history,
+        name="publisher_payment_history",
     ),
     # Publisher Orders
     path(

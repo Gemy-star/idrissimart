@@ -391,14 +391,24 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label class="form-label">{% trans "الدولة" %}</label>
-                                <input type="text" class="form-control" name="country" value="{{ user.country }}">
+                                <label class="form-label">بتقصير">الدولة" %}</label>
+                                <select class="form-control" id="country" name="country" required>
+                                    <option value="">بتقصير">اختر الدولة" %}</option>
+                                    {% for country in countries %}
+                                    <option value="{{ country.code }}" {% if user.country == country.code %}selected{% endif %}>
+                                        {{ country.flag_emoji }} {{ country.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label class="form-label">{% trans "المدينة" %}</label>
-                                <input type="text" class="form-control" name="city" value="{{ user.city }}">
+                                <label class="form-label">بتقصير">المدينة" %}</label>
+                                <select class="form-control" id="city" name="city">
+                                    <option value="">بتقصير">اختر المدينة" %}</option>
+                                    <!-- Cities will be loaded dynamically based on selected country -->
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -876,6 +886,57 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
         });
+    }
+
+    // Dynamic city loading based on country selection
+    const countrySelect = document.getElementById('country');
+    const citySelect = document.getElementById('city');
+
+    // Countries data with cities
+    const countriesData = {
+        {% for country in countries %}
+        '{{ country.code }}': {
+            name: '{{ country.name }}',
+            cities: {{ country.cities|safe }}
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    };
+
+    // Load cities when country changes
+    if (countrySelect && citySelect) {
+        // Load cities for initially selected country
+        const initialCountry = countrySelect.value;
+        const initialCity = '{{ user.city }}';
+        if (initialCountry) {
+            loadCities(initialCountry, initialCity);
+        }
+
+        countrySelect.addEventListener('change', function() {
+            const selectedCountry = this.value;
+            loadCities(selectedCountry);
+        });
+    }
+
+    function loadCities(countryCode, selectedCity = '') {
+        if (!citySelect) return;
+
+        // Clear existing options
+        citySelect.innerHTML = '<option value="">{% trans "اختر المدينة" %}</option>';
+
+        if (!countryCode || !countriesData[countryCode]) return;
+
+        const cities = countriesData[countryCode].cities;
+        if (cities && Array.isArray(cities)) {
+            cities.forEach(city => {
+                const option = document.createElement('option');
+                option.value = city;
+                option.textContent = city;
+                if (city === selectedCity) {
+                    option.selected = true;
+                }
+                citySelect.appendChild(option);
+            });
+        }
     }
 });
 </script>

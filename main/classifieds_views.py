@@ -5,7 +5,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Case, F, IntegerField, Value, When
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
@@ -237,7 +237,7 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
 
         user = request.user
 
-        # Check if user has any active package with remaining ads (for display only)
+        # Check if user has any active package with remaining ads
         active_package = (
             UserPackage.objects.filter(
                 user=user,
@@ -247,6 +247,17 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             .order_by("expiry_date")
             .first()
         )
+
+        # Check if user is coming from pricing page or explicitly wants to pay per ad
+        pay_per_ad = request.GET.get("pay_per_ad") == "true"
+
+        # If no active package and not explicitly paying per ad, redirect to pricing
+        if not active_package and not pay_per_ad:
+            # Get category if specified
+            category_id = request.GET.get("category")
+            if category_id:
+                return redirect(f"{reverse('main:ad_pricing')}?category={category_id}")
+            return redirect("main:ad_pricing")
 
         # Store remaining ads count in session for display (if available)
         if active_package:
@@ -302,7 +313,23 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         feature_highlighted = self.request.POST.get("feature_highlighted") == "on"
         feature_urgent = self.request.POST.get("feature_urgent") == "on"
         feature_pinned = self.request.POST.get("feature_pinned") == "on"
-        feature_contact_for_price = self.request.POST.get("feature_contact_for_price") == "on"
+        feature_contact_for_price = (
+            self.request.POST.get("feature_contact_for_price") == "on"
+        )
+        publisher_cart_enabled = self.request.POST.get("publisher_cart_enabled") == "on"
+
+        # Set cart flags
+        if publisher_cart_enabled:
+            form.instance.publisher_cart_enabled = True
+            # Check if category allows cart
+            if form.instance.category and form.instance.category.allow_cart:
+                form.instance.allow_cart = (
+                    False  # Will be enabled by admin after receiving product
+                )
+            else:
+                form.instance.publisher_cart_enabled = (
+                    False  # Reset if category doesn't support cart
+                )
 
         # Calculate features cost
         features_cost = Decimal("0.00")
@@ -323,7 +350,9 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
                 .first()
             )
             if active_package and active_package.package:
-                features_cost += Decimal(str(active_package.package.feature_contact_for_price))
+                features_cost += Decimal(
+                    str(active_package.package.feature_contact_for_price)
+                )
 
         # Check if user has free ads in package
         active_package = (
@@ -382,14 +411,19 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             else:
                 # Free ad - process immediately
                 # Auto-approve ads for verified users
-                if self.request.user.verification_status == User.VerificationStatus.VERIFIED:
+                if (
+                    self.request.user.verification_status
+                    == User.VerificationStatus.VERIFIED
+                ):
                     self.object.status = ClassifiedAd.AdStatus.ACTIVE
                     messages.success(
                         self.request, _("إعلانك نشط الآن لأنه تم التحقق من حسابك.")
                     )
                 else:
                     self.object.status = ClassifiedAd.AdStatus.PENDING
-                    messages.info(self.request, _("تم إرسال إعلانك للمراجعة وسيتم نشره قريباً."))
+                    messages.info(
+                        self.request, _("تم إرسال إعلانك للمراجعة وسيتم نشره قريباً.")
+                    )
 
                 # Apply features
                 self.object.is_highlighted = feature_highlighted

@@ -16,6 +16,7 @@ from .models import (
     User,
     Category,
     AdFeaturePrice,
+    UserVerificationRequest,
 )
 
 

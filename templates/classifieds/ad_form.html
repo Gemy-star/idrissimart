@@ -76,8 +76,9 @@
     }
 
     .steps-progress[data-progress="1"]::after { width: 0%; }
-    .steps-progress[data-progress="2"]::after { width: 50%; }
-    .steps-progress[data-progress="3"]::after { width: 100%; }
+    .steps-progress[data-progress="2"]::after { width: 33.33%; }
+    .steps-progress[data-progress="3"]::after { width: 66.66%; }
+    .steps-progress[data-progress="4"]::after { width: 100%; }
 
     .step-item {
         position: relative;
@@ -646,6 +647,10 @@
                         <div class="step-circle">3</div>
                         <div class="step-label">{% trans "الصور" %}</div>
                     </div>
+                    <div class="step-item" data-step="4">
+                        <div class="step-circle">4</div>
+                        <div class="step-label">{% trans "المراجعة والدفع" %}</div>
+                    </div>
                 </div>
             </div>
 
@@ -953,6 +958,42 @@
 
                                     <hr class="my-4">
 
+                                    <!-- Cart/Shopping Cart Option -->
+                                    <div class="mb-4" id="cart-option-section" style="display: none;">
+                                        <h4 class="mb-3">
+                                            <i class="fas fa-shopping-cart me-2 text-primary"></i>
+                                            {% trans "تفعيل خدمة السلة (اختياري)" %}
+                                        </h4>
+                                        <div class="card border-primary">
+                                            <div class="card-body">
+                                                <div class="form-check form-switch mb-3">
+                                                    <input class="form-check-input" type="checkbox"
+                                                           id="publisher_cart_enabled" name="publisher_cart_enabled"
+                                                           {% if form.instance.publisher_cart_enabled %}checked{% endif %}>
+                                                    <label class="form-check-label fw-bold" for="publisher_cart_enabled">
+                                                        <i class="fas fa-cart-plus me-2 text-success"></i>
+                                                        {% trans "أرغب في تفعيل السلة لهذا الإعلان" %}
+                                                    </label>
+                                                </div>
+                                                <div class="alert alert-warning" id="cart-instructions">
+                                                    <i class="fas fa-info-circle me-2"></i>
+                                                    <strong>{% trans "تنبيه هام:" %}</strong>
+                                                    <div id="cart-instructions-text" class="mt-2"></div>
+                                                </div>
+                                                <div class="alert alert-info">
+                                                    <ul class="mb-0 small">
+                                                        <li>{% trans "سيتم تفعيل السلة بعد موافقة الإدارة واستلام المنتج" %}</li>
+                                                        <li>{% trans "سيتم خصم رسوم خدمة من ثمن المنتج عند البيع عبر المنصة" %}</li>
+                                                        <li>{% trans "يجب أن يكون السعر شاملاً لرسوم الخدمة والتوصيل" %}</li>
+                                                        <li>{% trans "هذه الرسوم منفصلة عن نسبة الحجز من المشتري" %}</li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <hr class="my-4">
+
                                     <!-- Contact and Location (same step) -->
                                     <div class="mb-4">
                                         <h4 class="mb-3">{% trans "معلومات التواصل والموقع" %}</h4>
@@ -1080,6 +1121,94 @@
                                     <div class="image-preview-container" id="image-preview-container"></div>
                                 </div>
 
+                                <!-- Step 4: Review and Payment -->
+                                <div class="form-step" data-step="4">
+                                    <div class="step-header">
+                                        <h3 class="step-title">{% trans "المراجعة والدفع" %}</h3>
+                                        <p class="step-description">{% trans "راجع تفاصيل إعلانك وأتمم الدفع إذا لزم الأمر" %}</p>
+                                    </div>
+
+                                    <!-- Summary Card -->
+                                    <div class="card mb-4">
+                                        <div class="card-header bg-primary text-white">
+                                            <h5 class="mb-0">
+                                                <i class="fas fa-receipt me-2"></i>
+                                                {% trans "ملخص الإعلان" %}
+                                            </h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row mb-3">
+                                                <div class="col-md-6">
+                                                    <strong>{% trans "القسم:" %}</strong>
+                                                    <p id="review-category" class="mb-1">-</p>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <strong>{% trans "العنوان:" %}</strong>
+                                                    <p id="review-title" class="mb-1">-</p>
+                                                </div>
+                                            </div>
+                                            <div class="row mb-3">
+                                                <div class="col-md-6">
+                                                    <strong>{% trans "السعر:" %}</strong>
+                                                    <p id="review-price" class="mb-1">-</p>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <strong>{% trans "الموقع:" %}</strong>
+                                                    <p id="review-location" class="mb-1">-</p>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-12">
+                                                    <strong>{% trans "الميزات المختارة:" %}</strong>
+                                                    <div id="review-features" class="mt-2">-</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Payment Summary -->
+                                    <div class="card mb-4" id="payment-summary-final">
+                                        <div class="card-header bg-success text-white">
+                                            <h5 class="mb-0">
+                                                <i class="fas fa-money-bill-wave me-2"></i>
+                                                {% trans "ملخص التكلفة" %}
+                                            </h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <span>{% trans "رسوم النشر الأساسية:" %}</span>
+                                                <span id="final-base-fee">0 ج.م</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between mb-2" id="final-features-row" style="display: none !important;">
+                                                <span>{% trans "الميزات الإضافية:" %}</span>
+                                                <span id="final-features-cost">0 ج.م</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between mb-2" id="final-package-info" style="display: none !important;">
+                                                <span class="text-success">
+                                                    <i class="fas fa-gift me-1"></i>
+                                                    {% trans "إعلانات مجانية متاحة" %}
+                                                </span>
+                                                <span class="text-success">{% trans "نعم" %}</span>
+                                            </div>
+                                            <hr>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <strong class="fs-5">{% trans "المجموع الكلي:" %}</strong>
+                                                <strong id="final-total-cost" class="text-success fs-3">0 ج.م</strong>
+                                            </div>
+                                            <div class="alert alert-info mt-3 mb-0" id="free-ad-message" style="display: none;">
+                                                <i class="fas fa-info-circle me-2"></i>
+                                                {% trans "لن يتم خصم أي مبلغ - لديك إعلانات مجانية متاحة" %}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="alert alert-warning">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        <strong>{% trans "مهم:" %}</strong>
+                                        {% trans "بالضغط على 'نشر الإعلان'، سيتم حفظ إعلانك وإذا كان هناك رسوم سيتم توجيهك لصفحة الدفع." %}
+                                    </div>
+                                </div>
+
                                 <!-- Navigation Buttons -->
                                 <div class="step-navigation">
                                     <button type="button" class="btn btn-step btn-prev" id="prevBtn" style="display: none;">
@@ -1126,7 +1255,7 @@
 
             // Start from step 1 always (category + details combined)
             let currentStep = 1;
-            const totalSteps = 3;
+            const totalSteps = 4;  // تغيير من 3 إلى 4
             const formSteps = document.querySelectorAll('.form-step');
             const stepItems = document.querySelectorAll('.step-item');
             const prevBtn = document.getElementById('prevBtn');
@@ -1277,6 +1406,11 @@
                     if (currentStep < totalSteps) {
                         currentStep++;
                         showStep(currentStep);
+
+                        // إذا وصلنا للخطوة 4 (المراجعة والدفع)، نملأ البيانات
+                        if (currentStep === 4) {
+                            populateReviewStep();
+                        }
                     }
                 }
             });
@@ -1941,6 +2075,131 @@
                     countrySelect.dispatchEvent(new Event('change'));
                 }
             }
+
+            // ========== Cart Option Handler ==========
+            function updateCartOption(categoryData) {
+                const cartSection = document.getElementById('cart-option-section');
+                const cartInstructionsText = document.getElementById('cart-instructions-text');
+
+                if (categoryData && categoryData.allow_cart) {
+                    cartSection.style.display = 'block';
+                    if (categoryData.cart_instructions) {
+                        cartInstructionsText.textContent = categoryData.cart_instructions;
+                    } else {
+                        cartInstructionsText.textContent = '{{ site_config.cart_service_instructions|default:"عند تفعيل السلة، سيتم خصم رسوم خدمة من ثمن المنتج عند البيع. يجب أن يكون السعر شاملاً لهذه الرسوم ورسوم التوصيل." }}';
+                    }
+                } else {
+                    cartSection.style.display = 'none';
+                }
+            }
+
+            // ========== Populate Review Step ==========
+            function populateReviewStep() {
+                // Get category name
+                const categorySelect = document.getElementById('hidden_category');
+                let categoryName = '-';
+                if (categorySelect && categorySelect.value) {
+                    const mainCat = mainCategorySelect.options[mainCategorySelect.selectedIndex];
+                    const subCat = subcategorySelect.options[subcategorySelect.selectedIndex];
+                    const subSubCat = subSubcategorySelect.options[subSubcategorySelect.selectedIndex];
+
+                    if (subSubCat && subSubCat.value) {
+                        categoryName = subSubCat.text;
+                    } else if (subCat && subCat.value) {
+                        categoryName = subCat.text;
+                    } else if (mainCat && mainCat.value) {
+                        categoryName = mainCat.text;
+                    }
+                }
+                document.getElementById('review-category').textContent = categoryName;
+
+                // Get title
+                const titleInput = document.getElementById('{{ form.title.id_for_label }}');
+                document.getElementById('review-title').textContent = titleInput ? titleInput.value : '-';
+
+                // Get price
+                const priceInput = document.getElementById('{{ form.price.id_for_label }}');
+                const isNegotiable = document.getElementById('{{ form.is_negotiable.id_for_label }}');
+                let priceText = priceInput ? `${priceInput.value} ج.م` : '-';
+                if (isNegotiable && isNegotiable.checked) {
+                    priceText += ' (قابل للتفاوض)';
+                }
+                document.getElementById('review-price').textContent = priceText;
+
+                // Get location
+                const countrySelect = document.getElementById('{{ form.country.id_for_label }}');
+                const cityInput = document.getElementById('{{ form.city.id_for_label }}');
+                let locationText = '';
+                if (countrySelect && countrySelect.selectedOptions[0]) {
+                    locationText = countrySelect.selectedOptions[0].text;
+                }
+                if (cityInput && cityInput.value) {
+                    locationText += ', ' + cityInput.value;
+                }
+                document.getElementById('review-location').textContent = locationText || '-';
+
+                // Get selected features
+                const featuresDiv = document.getElementById('review-features');
+                const selectedFeatures = [];
+
+                if (document.getElementById('feature_highlighted')?.checked) {
+                    selectedFeatures.push('<span class="badge bg-warning text-dark me-2"><i class="fas fa-certificate me-1"></i>إعلان مميز</span>');
+                }
+                if (document.getElementById('feature_urgent')?.checked) {
+                    selectedFeatures.push('<span class="badge bg-danger me-2"><i class="fas fa-bolt me-1"></i>إعلان عاجل</span>');
+                }
+                if (document.getElementById('feature_pinned')?.checked) {
+                    selectedFeatures.push('<span class="badge bg-success me-2"><i class="fas fa-thumbtack me-1"></i>إعلان مثبت</span>');
+                }
+                if (document.getElementById('publisher_cart_enabled')?.checked) {
+                    selectedFeatures.push('<span class="badge bg-info me-2"><i class="fas fa-shopping-cart me-1"></i>تفعيل السلة</span>');
+                }
+
+                featuresDiv.innerHTML = selectedFeatures.length > 0 ? selectedFeatures.join('') : '<span class="text-muted">لا توجد ميزات إضافية</span>';
+
+                // Update payment summary
+                const totalCost = calculateTotalCost();
+                document.getElementById('final-base-fee').textContent = document.getElementById('base-fee-display').textContent;
+                document.getElementById('final-features-cost').textContent = document.getElementById('features-cost-display').textContent;
+                document.getElementById('final-total-cost').textContent = document.getElementById('total-cost-display').textContent;
+
+                const featuresRow = document.getElementById('final-features-row');
+                const featuresCostValue = parseFloat(document.getElementById('features-cost-display').textContent);
+                if (featuresCostValue > 0) {
+                    featuresRow.style.display = 'flex';
+                } else {
+                    featuresRow.style.display = 'none';
+                }
+
+                const packageInfo = document.getElementById('final-package-info');
+                const freeAdMessage = document.getElementById('free-ad-message');
+                const hasPackage = {{ request.session.ads_remaining|default:0 }} > 0;
+
+                if (hasPackage && totalCost === 0) {
+                    packageInfo.style.display = 'flex';
+                    freeAdMessage.style.display = 'block';
+                } else {
+                    packageInfo.style.display = 'none';
+                    freeAdMessage.style.display = 'none';
+                }
+            }
+
+            // Update cart option on category change
+            const originalUpdateCustomFields = updateCustomFields;
+            updateCustomFields = function() {
+                originalUpdateCustomFields();
+
+                // Get selected category data
+                const selectedOption = subcategorySelect.options[subcategorySelect.selectedIndex] ||
+                                     subSubcategorySelect.options[subSubcategorySelect.selectedIndex];
+                if (selectedOption) {
+                    const categoryData = {
+                        allow_cart: selectedOption.dataset.allowCart === 'true',
+                        cart_instructions: selectedOption.dataset.cartInstructions || ''
+                    };
+                    updateCartOption(categoryData);
+                }
+            };
         });
     </script>
     {{ form.media.js }}

@@ -1,0 +1,562 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}
+    {% trans "أسعار نشر الإعلانات - Ad Pricing" %}
+{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'css/mobile-fixes.css' %}?v=1.0" rel="stylesheet">
+<style>
+    .pricing-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+
+    .page-header {
+        text-align: center;
+        margin-bottom: 3rem;
+        padding: 3rem 2rem;
+        background: linear-gradient(135deg, var(--accent-purple, #6B4C7A) 0%, var(--primary-color) 100%);
+        border-radius: 20px;
+        color: white;
+    }
+
+    .page-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+
+    .page-subtitle {
+        font-size: 1.1rem;
+        opacity: 0.95;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .pricing-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+
+    .pricing-card {
+        background: var(--bg-primary);
+        border-radius: 20px;
+        padding: 2.5rem;
+        box-shadow: 0 8px 30px var(--shadow-lg);
+        transition: all 0.3s ease;
+        border: 3px solid transparent;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .pricing-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 100%;
+        height: 5px;
+        background: linear-gradient(90deg, var(--accent-purple, #6B4C7A), var(--primary-color));
+    }
+
+    .pricing-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 12px 40px var(--shadow-lg);
+        border-color: var(--primary-color);
+    }
+
+    .pricing-card.recommended {
+        border-color: #ffd700;
+        transform: scale(1.05);
+    }
+
+    .pricing-card.recommended::after {
+        content: '⭐ موصى به';
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background: #ffd700;
+        color: #000;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 700;
+    }
+
+    .pricing-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .pricing-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, var(--accent-purple, #6B4C7A) 0%, var(--primary-color) 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        font-size: 2.5rem;
+        color: white;
+    }
+
+    .pricing-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .pricing-subtitle {
+        font-size: 1rem;
+        color: var(--text-secondary);
+    }
+
+    .pricing-price {
+        text-align: center;
+        margin: 2rem 0;
+        padding: 1.5rem;
+        background: var(--bg-secondary);
+        border-radius: 15px;
+    }
+
+    .price-amount {
+        font-size: 3rem;
+        font-weight: 900;
+        color: var(--primary-color);
+        line-height: 1;
+    }
+
+    .price-currency {
+        font-size: 1.25rem;
+        color: var(--text-secondary);
+        margin-right: 0.5rem;
+    }
+
+    .price-period {
+        display: block;
+        font-size: 1rem;
+        color: var(--text-secondary);
+        margin-top: 0.5rem;
+    }
+
+    .price-tax {
+        font-size: 0.875rem;
+        color: var(--text-muted);
+        margin-top: 0.25rem;
+    }
+
+    .features-list {
+        list-style: none;
+        padding: 0;
+        margin: 2rem 0;
+    }
+
+    .features-list li {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .features-list li:last-child {
+        border-bottom: none;
+    }
+
+    .feature-icon {
+        width: 24px;
+        height: 24px;
+        background: #4caf50;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.75rem;
+        flex-shrink: 0;
+    }
+
+    .feature-icon.highlight {
+        background: #ffd700;
+    }
+
+    .btn-select-package {
+        width: 100%;
+        padding: 1rem 2rem;
+        background: linear-gradient(135deg, var(--accent-purple, #6B4C7A) 0%, var(--primary-color) 100%);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .btn-select-package:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(107, 76, 122, 0.4);
+        color: white;
+    }
+
+    .btn-select-package.btn-pay-per-ad {
+        background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+    }
+
+    .packages-section {
+        margin-top: 4rem;
+    }
+
+    .section-title {
+        text-align: center;
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+    }
+
+    .section-subtitle {
+        text-align: center;
+        font-size: 1.1rem;
+        color: var(--text-secondary);
+        margin-bottom: 3rem;
+    }
+
+    .package-card {
+        background: var(--bg-primary);
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 4px 20px var(--shadow-md);
+        transition: all 0.3s ease;
+        border: 2px solid var(--border-color);
+    }
+
+    .package-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px var(--shadow-lg);
+        border-color: var(--primary-color);
+    }
+
+    .package-card.best-value {
+        border-color: #ff9800;
+    }
+
+    .package-badge {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+
+    .package-badge.best-value {
+        background: #ff9800;
+        color: white;
+    }
+
+    .package-name {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .package-description {
+        font-size: 0.95rem;
+        color: var(--text-secondary);
+        margin-bottom: 1.5rem;
+    }
+
+    .package-price {
+        font-size: 2.5rem;
+        font-weight: 900;
+        color: var(--primary-color);
+        margin-bottom: 0.5rem;
+    }
+
+    .package-details {
+        margin: 1.5rem 0;
+    }
+
+    .package-detail-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.5rem 0;
+    }
+
+    .comparison-note {
+        text-align: center;
+        margin-top: 3rem;
+        padding: 2rem;
+        background: var(--bg-secondary);
+        border-radius: 15px;
+    }
+
+    .comparison-note h3 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+    }
+
+    .comparison-note p {
+        font-size: 1.05rem;
+        color: var(--text-secondary);
+        margin: 0;
+    }
+
+    [data-theme="dark"] .pricing-card {
+        background: #2a1a3a;
+    }
+
+    [data-theme="dark"] .package-card {
+        background: #2a1a3a;
+    }
+
+    @media (max-width: 768px) {
+        .pricing-options {
+            grid-template-columns: 1fr;
+        }
+
+        .page-title {
+            font-size: 1.75rem;
+        }
+
+        .price-amount {
+            font-size: 2.5rem;
+        }
+
+        .pricing-card.recommended {
+            transform: scale(1);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pricing-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1 class="page-title">
+            <i class="fas fa-tag me-2"></i>{% trans "أسعار نشر الإعلانات" %}
+        </h1>
+        <p class="page-subtitle">
+            {% if category %}
+                {% trans "أسعار النشر في قسم" %}: <strong>{{ category.name }}</strong>
+            {% else %}
+                {% trans "اختر الطريقة المناسبة لك لنشر إعلاناتك" %}
+            {% endif %}
+        </p>
+    </div>
+
+    <!-- Pricing Options -->
+    <div class="pricing-options">
+        <!-- Pay Per Ad -->
+        <div class="pricing-card">
+            <div class="pricing-header">
+                <div class="pricing-icon">
+                    <i class="fas fa-receipt"></i>
+                </div>
+                <h2 class="pricing-title">{% trans "الدفع لكل إعلان" %}</h2>
+                <p class="pricing-subtitle">{% trans "انشر إعلان واحد الآن" %}</p>
+            </div>
+
+            <div class="pricing-price">
+                <div>
+                    <span class="price-amount">{{ pricing_details.base_price|floatformat:"-2" }}</span>
+                    <span class="price-currency">{% trans "ريال" %}</span>
+                </div>
+                <span class="price-period">{% trans "لإعلان واحد" %}</span>
+                <div class="price-tax">
+                    {% trans "+ ضريبة" %} {{ pricing_details.tax_amount|floatformat:"-2" }} {% trans "ريال" %}
+                    ({{ pricing_details.tax_rate|floatformat:"0" }}%)
+                </div>
+                <div class="price-tax">
+                    <strong>{% trans "المجموع:" %} {{ pricing_details.total_price|floatformat:"-2" }} {% trans "ريال" %}</strong>
+                </div>
+            </div>
+
+            <ul class="features-list">
+                <li>
+                    <span class="feature-icon"><i class="fas fa-check"></i></span>
+                    <span>{% trans "نشر إعلان واحد فقط" %}</span>
+                </li>
+                <li>
+                    <span class="feature-icon"><i class="fas fa-check"></i></span>
+                    <span>{% trans "ساري لمدة 30 يوم" %}</span>
+                </li>
+                <li>
+                    <span class="feature-icon"><i class="fas fa-check"></i></span>
+                    <span>{% trans "إمكانية إضافة الصور" %}</span>
+                </li>
+                <li>
+                    <span class="feature-icon"><i class="fas fa-check"></i></span>
+                    <span>{% trans "تعديل الإعلان في أي وقت" %}</span>
+                </li>
+                <li>
+                    <span class="feature-icon"><i class="fas fa-check"></i></span>
+                    <span>{% trans "دفعة واحدة فقط" %}</span>
+                </li>
+            </ul>
+
+            <a href="{% url 'main:ad_create' %}?pay_per_ad=true{% if category %}&category={{ category.id }}{% endif %}"
+               class="btn-select-package btn-pay-per-ad">
+                <i class="fas fa-paper-plane"></i>
+                {% trans "نشر إعلان الآن" %}
+            </a>
+        </div>
+
+        <!-- Best Package Recommendation -->
+        {% with best_package=packages.first %}
+        {% if best_package %}
+        <div class="pricing-card recommended">
+            <div class="pricing-header">
+                <div class="pricing-icon">
+                    <i class="fas fa-crown"></i>
+                </div>
+                <h2 class="pricing-title">{{ best_package.name }}</h2>
+                <p class="pricing-subtitle">{{ best_package.description }}</p>
+            </div>
+
+            <div class="pricing-price">
+                <div>
+                    <span class="price-amount">{{ best_package.price|floatformat:"-2" }}</span>
+                    <span class="price-currency">{% trans "ريال" %}</span>
+                </div>
+                <span class="price-period">{% trans "صالحة لمدة" %} {{ best_package.validity_days }} {% trans "يوم" %}</span>
+                <div class="price-tax">
+                    {% trans "شاملة الضريبة" %}
+                </div>
+            </div>
+
+            <ul class="features-list">
+                <li>
+                    <span class="feature-icon highlight"><i class="fas fa-star"></i></span>
+                    <span><strong>{{ best_package.ad_limit }}</strong> {% trans "إعلان مجاني" %}</span>
+                </li>
+                {% if best_package.allow_photo_upload %}
+                <li>
+                    <span class="feature-icon"><i class="fas fa-check"></i></span>
+                    <span>{% trans "رفع" %} {{ best_package.max_photos }} {% trans "صور لكل إعلان" %}</span>
+                </li>
+                {% endif %}
+                {% if best_package.allow_featured %}
+                <li>
+                    <span class="feature-icon highlight"><i class="fas fa-star"></i></span>
+                    <span>{% trans "إعلانات مميزة" %}</span>
+                </li>
+                {% endif %}
+                {% if best_package.priority_support %}
+                <li>
+                    <span class="feature-icon highlight"><i class="fas fa-headset"></i></span>
+                    <span>{% trans "دعم فني مميز" %}</span>
+                </li>
+                {% endif %}
+                <li>
+                    <span class="feature-icon highlight"><i class="fas fa-piggy-bank"></i></span>
+                    <span>{% trans "أفضل قيمة مقابل السعر" %}</span>
+                </li>
+            </ul>
+
+            <a href="{% url 'main:packages' %}?highlight={{ best_package.id }}"
+               class="btn-select-package">
+                <i class="fas fa-shopping-cart"></i>
+                {% trans "اشترِ الباقة" %}
+            </a>
+        </div>
+        {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- All Packages Section -->
+    {% if packages.count > 1 %}
+    <div class="packages-section">
+        <h2 class="section-title">
+            <i class="fas fa-boxes me-2"></i>{% trans "جميع الباقات المتوفرة" %}
+        </h2>
+        <p class="section-subtitle">
+            {% trans "اختر الباقة التي تناسب احتياجاتك" %}
+        </p>
+
+        <div class="pricing-options">
+            {% for package in packages %}
+            <div class="package-card {% if package.is_popular %}best-value{% endif %}">
+                {% if package.is_popular %}
+                <span class="package-badge best-value">
+                    <i class="fas fa-fire me-1"></i>{% trans "الأكثر مبيعاً" %}
+                </span>
+                {% endif %}
+
+                <h3 class="package-name">{{ package.name }}</h3>
+                <p class="package-description">{{ package.description }}</p>
+
+                <div class="package-price">
+                    {{ package.price|floatformat:"-2" }}
+                    <span class="price-currency">{% trans "ريال" %}</span>
+                </div>
+
+                <div class="package-details">
+                    <div class="package-detail-item">
+                        <i class="fas fa-bullhorn" style="color: var(--primary-color);"></i>
+                        <span><strong>{{ package.ad_limit }}</strong> {% trans "إعلان" %}</span>
+                    </div>
+                    <div class="package-detail-item">
+                        <i class="fas fa-calendar-alt" style="color: var(--primary-color);"></i>
+                        <span>{% trans "صالحة لـ" %} <strong>{{ package.validity_days }}</strong> {% trans "يوم" %}</span>
+                    </div>
+                    {% if package.allow_photo_upload %}
+                    <div class="package-detail-item">
+                        <i class="fas fa-images" style="color: var(--primary-color);"></i>
+                        <span>{% trans "حتى" %} <strong>{{ package.max_photos }}</strong> {% trans "صور" %}</span>
+                    </div>
+                    {% endif %}
+                    {% if package.allow_featured %}
+                    <div class="package-detail-item">
+                        <i class="fas fa-star" style="color: #ffd700;"></i>
+                        <span>{% trans "إعلانات مميزة" %}</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <a href="{% url 'main:packages' %}?select={{ package.id }}"
+                   class="btn-select-package">
+                    <i class="fas fa-shopping-cart"></i>
+                    {% trans "اختر هذه الباقة" %}
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Comparison Note -->
+    <div class="comparison-note">
+        <h3>
+            <i class="fas fa-info-circle me-2"></i>{% trans "لماذا الباقات أفضل؟" %}
+        </h3>
+        <p>
+            {% trans "عند شراء باقة، تحصل على خصم كبير مقارنة بالدفع لكل إعلان. بالإضافة إلى مميزات إضافية مثل الإعلانات المميزة والدعم الفني المميز." %}
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Add any interactive features here if needed
+</script>
+{% endblock %}

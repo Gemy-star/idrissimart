@@ -346,6 +346,7 @@ def ad_payment(request, ad_id):
     """Payment page for new ad with features"""
     from .models import ClassifiedAd
     from content.models import SiteConfiguration
+    from .payment_utils import get_allowed_payment_methods, PaymentContext
 
     ad = get_object_or_404(ClassifiedAd, id=ad_id, user=request.user)
     site_config = SiteConfiguration.get_solo()
@@ -356,6 +357,9 @@ def ad_payment(request, ad_id):
     features_cost = Decimal(request.session.get("ad_features_cost", "0"))
     features = request.session.get("ad_features", {})
 
+    # Get allowed payment methods for platform payments
+    allowed_payment_methods = get_allowed_payment_methods(PaymentContext.PLATFORM_PAYMENT)
+
     # If ad is already active or no payment needed, redirect
     if ad.status == ClassifiedAd.AdStatus.ACTIVE or total_amount == 0:
         messages.info(request, _("هذا الإعلان نشط بالفعل أو لا يحتاج إلى دفع"))
@@ -364,7 +368,13 @@ def ad_payment(request, ad_id):
     if request.method == "POST":
         payment_method = request.POST.get("payment_method")
 
-        if payment_method == "offline":
+        # Validate payment method is allowed for platform payments
+        from .payment_utils import is_payment_method_allowed
+        if not is_payment_method_allowed(payment_method, PaymentContext.PLATFORM_PAYMENT):
+            messages.error(request, _("طريقة الدفع المختارة غير متاحة للدفع للمنصة."))
+            return redirect("main:ad_payment", ad_id=ad.id)
+
+        if payment_method in ["instapay", "wallet"]:
             # Handle offline payment with receipt
             receipt = request.FILES.get("payment_receipt")
 
@@ -380,6 +390,7 @@ def ad_payment(request, ad_id):
                         "features_cost": features_cost,
                         "features": features,
                         "site_config": site_config,
+                        "allowed_payment_methods": allowed_payment_methods,
                     },
                 )
 
@@ -417,13 +428,13 @@ def ad_payment(request, ad_id):
 
             return redirect("main:my_ads")
 
-        elif payment_method in ["paymob", "paypal"]:
+        elif payment_method in ["paymob", "paypal", "visa"]:
             # Create payment record for online payment
             payment = Payment.objects.create(
                 user=request.user,
                 provider=(
                     Payment.PaymentProvider.PAYMOB
-                    if payment_method == "paymob"
+                    if payment_method in ["paymob", "visa"]
                     else Payment.PaymentProvider.PAYPAL
                 ),
                 amount=total_amount,
@@ -450,6 +461,7 @@ def ad_payment(request, ad_id):
         "features_cost": features_cost,
         "features": features,
         "site_config": site_config,
+        "allowed_payment_methods": allowed_payment_methods,
     }
 
     return render(request, "payments/ad_payment.html", context)
@@ -560,6 +572,7 @@ def confirm_ad_payment(request, payment_id):
 def package_checkout(request, package_id):
     """Checkout page for package purchase with offline/online payment options"""
     from content.models import SiteConfiguration
+    from .payment_utils import get_allowed_payment_methods, PaymentContext
 
     package = get_object_or_404(AdPackage, id=package_id, is_active=True)
     site_config = SiteConfiguration.get_solo()
@@ -572,10 +585,19 @@ def package_checkout(request, package_id):
 
     total_amount = package.price
 
+    # Get allowed payment methods for platform payments
+    allowed_payment_methods = get_allowed_payment_methods(PaymentContext.PLATFORM_PAYMENT)
+
     if request.method == "POST":
         payment_method = request.POST.get("payment_method")
 
-        if payment_method in ["offline", "instapay", "wallet"]:
+        # Validate payment method is allowed for platform payments
+        from .payment_utils import is_payment_method_allowed
+        if not is_payment_method_allowed(payment_method, PaymentContext.PLATFORM_PAYMENT):
+            messages.error(request, _("طريقة الدفع المختارة غير متاحة للدفع للمنصة."))
+            return redirect("main:package_checkout", package_id=package.id)
+
+        if payment_method in ["instapay", "wallet"]:
             # Handle offline payment methods with receipt
             receipt = request.FILES.get("payment_receipt")
 
@@ -622,11 +644,11 @@ def package_checkout(request, package_id):
 
             return redirect("main:my_ads")
 
-        elif payment_method in ["paymob", "paypal", "card", "wallet", "instapay"]:
+        elif payment_method in ["paymob", "paypal", "visa", "card"]:
             # Determine provider based on payment method
             if payment_method == "paypal":
                 provider = Payment.PaymentProvider.PAYPAL
-            elif payment_method in ["paymob", "card", "wallet", "instapay"]:
+            elif payment_method in ["paymob", "visa", "card"]:
                 provider = Payment.PaymentProvider.PAYMOB
             else:
                 provider = Payment.PaymentProvider.PAYMOB
@@ -692,6 +714,7 @@ def package_checkout(request, package_id):
         "package": package,
         "total_amount": total_amount,
         "site_config": site_config,
+        "allowed_payment_methods": allowed_payment_methods,
         "allow_offline_payment": site_config.allow_offline_payment,
         "offline_payment_instructions": site_config.offline_payment_instructions,
     }

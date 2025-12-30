@@ -971,6 +971,12 @@ class Category(MPTTModel):
         verbose_name=_("السماح بالسلة"),
         help_text=_("تفعيل نظام السلة لهذا القسم"),
     )
+    cart_instructions = models.TextField(
+        blank=True,
+        verbose_name=_("إرشادات السلة"),
+        help_text=_("نص إرشادي يظهر للناشر عند تفعيل السلة"),
+        default="عند تفعيل السلة، يجب أن يكون السعر شاملاً رسوم الخدمة والتوصيل. سيتم خصم رسوم الخدمة منك عند البيع عبر المنصة.",
+    )
     default_reservation_percentage = models.DecimalField(
         max_digits=5,
         decimal_places=2,
@@ -1235,10 +1241,7 @@ class ClassifiedAdManager(models.Manager):
         )
         # Order by: pinned first, then urgent, then highlighted, then by date
         return queryset.order_by(
-            "-is_pinned",
-            "-is_urgent",
-            "-is_highlighted",
-            "-created_at"
+            "-is_pinned", "-is_urgent", "-is_highlighted", "-created_at"
         )
 
     def featured_for_country(self, country_code):
@@ -1434,6 +1437,49 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
         help_text=_("إظهار 'تواصل ليصلك عرض سعر' بدلاً من السعر (ميزة مدفوعة)"),
     )
 
+    # Video Features (Coming Soon)
+    video_url = models.URLField(
+        blank=True,
+        null=True,
+        verbose_name=_("رابط الفيديو - Video URL"),
+        help_text=_("رابط فيديو YouTube أو Vimeo (ميزة قيد التطوير)"),
+    )
+    video_file = models.FileField(
+        blank=True,
+        null=True,
+        upload_to="ad_videos/",
+        verbose_name=_("ملف الفيديو - Video File"),
+        help_text=_("رفع ملف فيديو مباشرة (ميزة قيد التطوير)"),
+    )
+
+    # Facebook Share Feature (Paid)
+    share_on_facebook = models.BooleanField(
+        default=False,
+        verbose_name=_("نشر على فيسبوك - Share on Facebook"),
+        help_text=_("نشر الإعلان على صفحة فيسبوك (ميزة مدفوعة)"),
+    )
+    facebook_share_requested = models.BooleanField(
+        default=False,
+        verbose_name=_("تم طلب النشر على فيسبوك"),
+        help_text=_("تم تقديم طلب للنشر على فيسبوك"),
+    )
+    facebook_share_completed = models.BooleanField(
+        default=False,
+        verbose_name=_("تم النشر على فيسبوك"),
+        help_text=_("تم نشر الإعلان على صفحة فيسبوك"),
+    )
+    facebook_shared_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name=_("تاريخ النشر على فيسبوك"),
+    )
+    facebook_post_url = models.URLField(
+        blank=True,
+        null=True,
+        verbose_name=_("رابط المنشور على فيسبوك"),
+        help_text=_("الرابط المباشر للمنشور على فيسبوك"),
+    )
+
     # Visibility and Access Control
     class VisibilityType(models.TextChoices):
         PUBLIC = "public", _("عام - متاح للجميع")
@@ -1458,6 +1504,11 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
         default=False,
         verbose_name=_("السماح بالسلة"),
         help_text=_("تفعيل نظام السلة والحجز لهذا الإعلان"),
+    )
+    publisher_cart_enabled = models.BooleanField(
+        default=False,
+        verbose_name=_("الناشر فعّل السلة"),
+        help_text=_("الناشر طلب تفعيل السلة لهذا الإعلان"),
     )
     cart_enabled_by_admin = models.BooleanField(
         default=False,
@@ -2217,8 +2268,11 @@ class AdFeature(models.Model):  # This model is correct, no changes needed here.
         PINNED = "pinned", _("تثبيت - Pinned")
         TOP_SEARCH = "top_search", _("أعلى نتائج البحث - Top Search")
         FEATURED_SECTION = "featured_section", _("قسم مميز - Featured Section")
-        VIDEO = "video", _("إضافة فيديو - Video")
-        CONTACT_FOR_PRICE = "contact_for_price", _("تواصل ليصلك عرض سعر - Contact for Price")
+        VIDEO = "video", _("إضافة فيديو - Video (قيد التطوير)")
+        CONTACT_FOR_PRICE = "contact_for_price", _(
+            "تواصل ليصلك عرض سعر - Contact for Price"
+        )
+        FACEBOOK_SHARE = "facebook_share", _("نشر على فيسبوك - Facebook Share")
 
     ad = models.ForeignKey(
         ClassifiedAd, on_delete=models.CASCADE, related_name="features"
@@ -2888,6 +2942,11 @@ class CategoryCustomField(models.Model):
         default=False,
         verbose_name=_("إظهار على بطاقة الإعلان"),
         help_text=_("إظهار قيمة هذا الحقل على بطاقة الإعلان من الخارج"),
+    )
+    show_in_filters = models.BooleanField(
+        default=False,
+        verbose_name=_("إظهار في الفلاتر"),
+        help_text=_("إظهار هذا الحقل كفلتر في صفحات الأقسام"),
     )
 
     class Meta:
@@ -3666,3 +3725,114 @@ class FAQ(models.Model):
         """Increment views count"""
         self.views_count += 1
         self.save(update_fields=["views_count"])
+
+
+class FacebookShareRequest(models.Model):
+    """Model to track Facebook share requests for admin review"""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", _("قيد الانتظار - Pending")
+        IN_PROGRESS = "in_progress", _("جاري التنفيذ - In Progress")
+        COMPLETED = "completed", _("تم التنفيذ - Completed")
+        REJECTED = "rejected", _("مرفوض - Rejected")
+
+    ad = models.ForeignKey(
+        "ClassifiedAd",
+        on_delete=models.CASCADE,
+        related_name="facebook_share_requests",
+        verbose_name=_("الإعلان"),
+    )
+    user = models.ForeignKey(
+        "User",
+        on_delete=models.CASCADE,
+        related_name="facebook_share_requests",
+        verbose_name=_("المستخدم"),
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        verbose_name=_("الحالة"),
+    )
+    requested_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_("تاريخ الطلب"),
+    )
+    processed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_("تاريخ التنفيذ"),
+    )
+    processed_by = models.ForeignKey(
+        "User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="processed_facebook_requests",
+        verbose_name=_("تم التنفيذ بواسطة"),
+    )
+    facebook_post_url = models.URLField(
+        null=True,
+        blank=True,
+        verbose_name=_("رابط المنشور على فيسبوك"),
+    )
+    admin_notes = models.TextField(
+        blank=True,
+        verbose_name=_("ملاحظات الإدارة"),
+    )
+    payment_confirmed = models.BooleanField(
+        default=False,
+        verbose_name=_("تم تأكيد الدفع"),
+    )
+    payment_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name=_("مبلغ الدفع"),
+    )
+
+    class Meta:
+        db_table = "facebook_share_requests"
+        verbose_name = _("طلب نشر على فيسبوك")
+        verbose_name_plural = _("طلبات النشر على فيسبوك")
+        ordering = ["-requested_at"]
+        indexes = [
+            models.Index(fields=["status", "-requested_at"]),
+            models.Index(fields=["ad", "status"]),
+        ]
+
+    def __str__(self):
+        return f"طلب نشر على فيسبوك - {self.ad.title} ({self.get_status_display()})"
+
+    def mark_as_completed(self, facebook_post_url=None, admin=None):
+        """Mark the request as completed"""
+        self.status = self.Status.COMPLETED
+        self.processed_at = timezone.now()
+        self.processed_by = admin
+        if facebook_post_url:
+            self.facebook_post_url = facebook_post_url
+            # Update the ad
+            self.ad.facebook_share_completed = True
+            self.ad.facebook_shared_at = timezone.now()
+            self.ad.facebook_post_url = facebook_post_url
+            self.ad.save(
+                update_fields=[
+                    "facebook_share_completed",
+                    "facebook_shared_at",
+                    "facebook_post_url",
+                ]
+            )
+        self.save()
+
+    def mark_as_rejected(self, reason="", admin=None):
+        """Mark the request as rejected"""
+        self.status = self.Status.REJECTED
+        self.processed_at = timezone.now()
+        self.processed_by = admin
+        self.admin_notes = reason
+        # Update the ad
+        self.ad.share_on_facebook = False
+        self.ad.facebook_share_requested = False
+        self.ad.save(update_fields=["share_on_facebook", "facebook_share_requested"])
+        self.save()

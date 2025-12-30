@@ -204,10 +204,12 @@ class CustomLoginView(LoginView):
             self.request.session.set_expiry(86400)  # 1 day
         else:
             # Production behavior
-            if not remember_me:
-                self.request.session.set_expiry(0)  # Session expires on browser close
-            else:
+            if remember_me:
+                # User checked "Remember Me" - keep session for 2 weeks
                 self.request.session.set_expiry(1209600)  # 2 weeks
+            else:
+                # User didn't check "Remember Me" - session expires on browser close
+                self.request.session.set_expiry(0)
 
         # Log IP address
         user.last_login_ip = get_client_ip(self.request)
@@ -774,14 +776,27 @@ def password_reset_request(request):
                         "protocol": "https" if request.is_secure() else "http",
                     }
                     email_body = render_to_string(email_template_name, context)
+
+                    # Import Django settings to check if we're in DEBUG mode
+                    from django.conf import settings
+
                     try:
                         send_mail(
                             subject,
                             email_body,
-                            "noreply@idrissimart.com",
+                            settings.DEFAULT_FROM_EMAIL,
                             [user.email],
                             fail_silently=False,
                         )
+
+                        # If in DEBUG mode, also log the reset link to console for testing
+                        if settings.DEBUG:
+                            reset_link = f"{context['protocol']}://{context['domain']}/reset/{context['uid']}/{context['token']}/"
+                            print(f"\n{'='*60}")
+                            print(f"PASSWORD RESET LINK FOR: {user.email}")
+                            print(f"Link: {reset_link}")
+                            print(f"{'='*60}\n")
+
                         messages.success(
                             request,
                             _(
@@ -792,9 +807,28 @@ def password_reset_request(request):
                         messages.error(request, _("حدث خطأ. الرجاء المحاولة لاحقاً"))
                         return HttpResponse("Invalid header found.")
                     except Exception as e:
-                        messages.error(
-                            request, _("فشل إرسال البريد. يرجى المحاولة لاحقاً")
-                        )
+                        # Log the error for debugging
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.error(f"Failed to send password reset email: {str(e)}")
+
+                        # In DEBUG mode, show the error and still allow the process to continue
+                        if settings.DEBUG:
+                            reset_link = f"{context['protocol']}://{context['domain']}/reset/{context['uid']}/{context['token']}/"
+                            print(f"\n{'='*60}")
+                            print(f"EMAIL SEND FAILED - DEBUG MODE")
+                            print(f"Error: {str(e)}")
+                            print(f"PASSWORD RESET LINK FOR: {user.email}")
+                            print(f"Link: {reset_link}")
+                            print(f"{'='*60}\n")
+                            messages.warning(
+                                request,
+                                _("لم يتم إرسال البريد (وضع التطوير)، تحقق من console للحصول على الرابط")
+                            )
+                        else:
+                            messages.error(
+                                request, _("فشل إرسال البريد. يرجى المحاولة لاحقاً")
+                            )
             else:
                 # For security, show same message even if email doesn't exist
                 messages.success(

@@ -859,10 +859,7 @@ class CategoryDetailView(FilterView):
 
         # Always prioritize featured ads (pinned, urgent, highlighted) first
         queryset = queryset.order_by(
-            "-is_pinned",
-            "-is_urgent",
-            "-is_highlighted",
-            sort_option
+            "-is_pinned", "-is_urgent", "-is_highlighted", sort_option
         )
 
         return queryset
@@ -1117,10 +1114,7 @@ class SubcategoryDetailView(FilterView):
 
         # Always prioritize featured ads (pinned, urgent, highlighted) first
         queryset = queryset.order_by(
-            "-is_pinned",
-            "-is_urgent",
-            "-is_highlighted",
-            sort_by
+            "-is_pinned", "-is_urgent", "-is_highlighted", sort_by
         )
 
         return queryset
@@ -2228,9 +2222,12 @@ class ComparisonView(TemplateView):
             # Get wishlist ad IDs for authenticated users
             if self.request.user.is_authenticated:
                 from main.models import Wishlist
+
                 try:
                     wishlist = Wishlist.objects.get(user=self.request.user)
-                    wishlist_ad_ids = list(wishlist.items.values_list('ad_id', flat=True))
+                    wishlist_ad_ids = list(
+                        wishlist.items.values_list("ad_id", flat=True)
+                    )
                     context["wishlist_ad_ids"] = wishlist_ad_ids
                 except Wishlist.DoesNotExist:
                     context["wishlist_ad_ids"] = []
@@ -3086,6 +3083,7 @@ class AdminCategoryCustomFieldsView(SuperadminRequiredMixin, View):
                         ),  # Join for compatibility
                         "order": cf.order,  # From CategoryCustomField
                         "show_on_card": cf.show_on_card,  # Show on ad card
+                        "show_in_filters": cf.show_in_filters,  # Show in filters
                     }
                 )
 
@@ -3144,6 +3142,7 @@ class AdminCategoryCustomFieldsView(SuperadminRequiredMixin, View):
                     order=index,
                     is_active=True,
                     show_on_card=field_data.get("show_on_card", False),
+                    show_in_filters=field_data.get("show_in_filters", False),
                 )
 
                 # Handle options for select/radio/checkbox fields
@@ -3365,6 +3364,70 @@ class AdminCustomFieldDeleteView(SuperadminRequiredMixin, View):
                 },
                 status=500,
             )
+
+
+class AdminCustomFieldAddToCategoriesView(SuperadminRequiredMixin, View):
+    """AJAX view to add a custom field to multiple categories at once."""
+
+    def post(self, request):
+        try:
+            import json
+            from main.models import CategoryCustomField
+
+            data = json.loads(request.body)
+            field_id = data.get('field_id')
+            category_ids = data.get('category_ids', [])
+            is_required = data.get('is_required', False)
+            show_on_card = data.get('show_on_card', False)
+            show_in_filters = data.get('show_in_filters', False)
+
+            if not field_id or not category_ids:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'معرف الحقل والأقسام مطلوبة'
+                }, status=400)
+
+            field = get_object_or_404(CustomField, pk=field_id)
+
+            # Add field to each selected category
+            added_count = 0
+            for category_id in category_ids:
+                category = get_object_or_404(Category, pk=category_id)
+
+                # Create or update the relationship
+                _, created = CategoryCustomField.objects.update_or_create(
+                    category=category,
+                    custom_field=field,
+                    defaults={
+                        'is_required': is_required,
+                        'show_on_card': show_on_card,
+                        'show_in_filters': show_in_filters,
+                        'is_active': True,
+                        'order': 0
+                    }
+                )
+
+                if created:
+                    added_count += 1
+
+            message = f"تم إضافة الحقل '{field.label_ar or field.name}' إلى {added_count} قسم/أقسام بنجاح"
+
+            return JsonResponse({
+                'success': True,
+                'message': message,
+                'added_count': added_count
+            })
+
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'success': False,
+                'message': 'خطأ في تنسيق البيانات'
+            }, status=400)
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'حدث خطأ: {str(e)}'
+            }, status=500)
 
 
 class AdminUsersManagementView(SuperadminRequiredMixin, ListView):
@@ -4210,6 +4273,8 @@ def admin_user_detail(request, user_id):
     """
     Admin view to see detailed information about a specific user.
     """
+    from content.models import Country
+
     user_obj = get_object_or_404(
         User.objects.prefetch_related("classified_ads", "classified_ads__images"),
         pk=user_id,
@@ -4239,6 +4304,7 @@ def admin_user_detail(request, user_id):
         "recent_ads": recent_ads,
         "page_title": _("تفاصيل المستخدم") + f" - {user_obj.username}",
         "active_nav": "users",
+        "countries": Country.objects.filter(is_active=True).order_by("order", "name"),
     }
     return render(request, "admin_dashboard/user_detail.html", context)
 
@@ -6985,10 +7051,15 @@ class PublisherSettingsView(LoginRequiredMixin, TemplateView):
     template_name = "dashboard/publisher_settings.html"
 
     def get_context_data(self, **kwargs):
+        from content.models import Country
+
         context = super().get_context_data(**kwargs)
         context["active_nav"] = "settings"
         context["page_title"] = _("الإعدادات")
         context["user"] = self.request.user
+        context["countries"] = Country.objects.filter(is_active=True).order_by(
+            "order", "name"
+        )
         return context
 
 

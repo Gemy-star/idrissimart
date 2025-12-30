@@ -29,6 +29,12 @@ def is_verification_required_for_services():
     return config.require_verification_for_services
 
 
+def is_free_package_verification_required():
+    """Check if verification is required to receive free package"""
+    config = get_site_config()
+    return config.require_verification_for_free_package
+
+
 def get_verification_message():
     """Get the verification message for services"""
     config = get_site_config()

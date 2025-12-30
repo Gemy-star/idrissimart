@@ -1636,5 +1636,64 @@
                 showNotification('{% trans "خطأ في الاتصال" %}', 'error');
             });
         };
+
+        // Dynamic city loading for admin user detail
+        const adminCountrySelect = document.getElementById('admin_country');
+        const adminCitySelect = document.getElementById('admin_city');
+
+        // Countries data with cities
+        const adminCountriesData = {
+            {% for country in countries %}
+            '{{ country.code }}': {
+                name: '{{ country.name }}',
+                cities: {{ country.cities|safe }}
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        };
+
+        // Load cities when country changes
+        if (adminCountrySelect && adminCitySelect) {
+            // Load cities for initially selected country when entering edit mode
+            const originalCity = '{{ user_obj.city }}';
+
+            adminCountrySelect.addEventListener('change', function() {
+                const selectedCountry = this.value;
+                loadAdminCities(selectedCountry, '');
+            });
+
+            // When edit button is clicked, load cities for current country
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('.btn-edit')) {
+                    setTimeout(() => {
+                        const currentCountry = adminCountrySelect.value;
+                        if (currentCountry) {
+                            loadAdminCities(currentCountry, originalCity);
+                        }
+                    }, 100);
+                }
+            });
+        }
+
+        function loadAdminCities(countryCode, selectedCity = '') {
+            if (!adminCitySelect) return;
+
+            // Clear existing options
+            adminCitySelect.innerHTML = '<option value="">{% trans "اختر المدينة" %}</option>';
+
+            if (!countryCode || !adminCountriesData[countryCode]) return;
+
+            const cities = adminCountriesData[countryCode].cities;
+            if (cities && Array.isArray(cities)) {
+                cities.forEach(city => {
+                    const option = document.createElement('option');
+                    option.value = city;
+                    option.textContent = city;
+                    if (city === selectedCity) {
+                        option.selected = true;
+                    }
+                    adminCitySelect.appendChild(option);
+                });
+            }
+        }
     </script>
 {% endblock %}
