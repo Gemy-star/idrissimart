@@ -279,13 +279,15 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         context = super().get_context_data(**kwargs)
         if self.request.POST:
             context["image_formset"] = AdImageFormSet(
-                self.request.POST, self.request.FILES, prefix="images"
+                self.request.POST, self.request.FILES, prefix="images",
+                form_kwargs={'request': self.request}
             )
         else:
             # Limit extra forms to 5 as requested
             AdImageFormSet.extra = 5
             context["image_formset"] = AdImageFormSet(
-                prefix="images", queryset=AdImage.objects.none()
+                prefix="images", queryset=AdImage.objects.none(),
+                form_kwargs={'request': self.request}
             )
 
         context["ad_categories"] = Category.objects.filter(
@@ -294,6 +296,19 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             parent__isnull=True,  # Only root categories
         ).prefetch_related("subcategories")
         context["active_nav"] = "create_ad"
+
+        # Set default country from user profile or session
+        if self.request.user.is_authenticated:
+            user_country = None
+            # First try user's profile country
+            if hasattr(self.request.user, 'country') and self.request.user.country:
+                user_country = self.request.user.country.code
+            # Fall back to session country (from header selection)
+            if not user_country:
+                user_country = self.request.session.get('selected_country')
+
+            if user_country:
+                context['default_country'] = user_country
 
         # Add site configuration for pricing
         from content.models import SiteConfiguration
@@ -507,6 +522,7 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
                 self.request.POST,
                 self.request.FILES,
                 instance=self.object,
+                form_kwargs={'request': self.request}
             )
         else:
             # Calculate extra forms needed
@@ -517,6 +533,7 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
                 instance=self.object,
                 queryset=self.object.images.all(),
                 extra=extra_forms,
+                form_kwargs={'request': self.request}
             )
         context["ad_categories"] = Category.objects.filter(
             section_type=Category.SectionType.CLASSIFIED,

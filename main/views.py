@@ -1495,10 +1495,13 @@ class AdCreateView(LoginRequiredMixin, CreateView):
         # Add the image formset to the context
         if self.request.POST:
             context["image_formset"] = AdImageFormSet(
-                self.request.POST, self.request.FILES
+                self.request.POST, self.request.FILES,
+                form_kwargs={'request': self.request}
             )
         else:
-            context["image_formset"] = AdImageFormSet()
+            context["image_formset"] = AdImageFormSet(
+                form_kwargs={'request': self.request}
+            )
 
         # Add mobile verification setting from site_config
         from content.site_config import SiteConfiguration
@@ -1612,10 +1615,14 @@ class AdUpdateView(LoginRequiredMixin, UpdateView):
 
         if self.request.POST:
             context["image_formset"] = AdImageFormSet(
-                self.request.POST, self.request.FILES, instance=self.object
+                self.request.POST, self.request.FILES, instance=self.object,
+                form_kwargs={'request': self.request}
             )
         else:
-            context["image_formset"] = AdImageFormSet(instance=self.object)
+            context["image_formset"] = AdImageFormSet(
+                instance=self.object,
+                form_kwargs={'request': self.request}
+            )
 
         # Add mobile verification setting from site_config
         from content.site_config import SiteConfiguration

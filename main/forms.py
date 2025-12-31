@@ -519,14 +519,49 @@ class AdImageForm(forms.ModelForm):
         fields = ("image",)
         widgets = {
             "image": forms.FileInput(
-                attrs={"class": "form-control", "accept": "image/*"}
+                attrs={
+                    "class": "form-control",
+                    "accept": "image/jpeg,image/jpg,image/png,image/webp"
+                }
             )
         }
 
     def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
         super().__init__(*args, **kwargs)
         # Make image field optional
         self.fields["image"].required = False
+
+    def clean_image(self):
+        """Validate image type - prevent GIF for non-admin users"""
+        image = self.cleaned_data.get('image')
+
+        if not image:
+            return image
+
+        # Allow admins to upload any image type
+        if self.request and hasattr(self.request, 'user') and self.request.user.is_staff:
+            return image
+
+        # Get file extension
+        import os
+        file_name = image.name.lower()
+        file_ext = os.path.splitext(file_name)[1]
+
+        # Check if it's a GIF
+        if file_ext in ['.gif']:
+            raise forms.ValidationError(
+                _("صور GIF غير مسموح بها. يرجى استخدام صور PNG أو JPEG أو WebP.")
+            )
+
+        # Also check MIME type
+        if hasattr(image, 'content_type'):
+            if image.content_type == 'image/gif':
+                raise forms.ValidationError(
+                    _("صور GIF غير مسموح بها. يرجى استخدام صور PNG أو JPEG أو WebP.")
+                )
+
+        return image
 
 
 AdImageFormSet = inlineformset_factory(
