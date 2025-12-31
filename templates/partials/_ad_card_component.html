@@ -13,17 +13,7 @@
     <!-- Image Section -->
     <div class="ad-image-container">
         <a href="{{ ad.get_absolute_url }}" class="ad-image-link" aria-label="{{ ad.title }}">
-            {% if ad.images.first %}
-                <img src="{{ ad.images.first.image.url }}"
-                     class="ad-image"
-                     alt="{{ ad.title }}"
-                     loading="lazy">
-            {% else %}
-                <div class="ad-image-placeholder">
-                    <i class="fas fa-image" aria-hidden="true"></i>
-                    <span>{% trans "No Image" %}</span>
-                </div>
-            {% endif %}
+            {% ad_image_or_placeholder ad "ad-image" %}
         </a>
 
         <!-- Badges Overlay - Top Priority Badges -->
@@ -115,86 +105,7 @@
             </a>
         </h3>
 
-        <!-- Location -->
-        <div class="ad-location">
-            <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
-            <span>{{ ad.city }}{% if ad.country %}, {{ ad.country.name }}{% endif %}</span>
-        </div>
-
-        <!-- Features Row with Badges -->
-        <div class="ad-features-row">
-            <!-- Publisher Badge -->
-            <div class="publisher-badge-wrapper">
-                {% user_avatar user=ad.user size=48 css_class="publisher-avatar-mini" %}
-                {% if ad.user.is_verified %}
-                    <span class="avatar-verified-badge person-badge" title="{% trans 'Verified' %}" aria-label="{% trans 'Verified User' %}">
-                        <i class="fas fa-check-circle" aria-hidden="true"></i>
-                    </span>
-                {% elif ad.user.is_company %}
-                    <span class="avatar-verified-badge company-badge" title="شركة">
-                        <i class="fas fa-building" aria-hidden="true"></i>
-                    </span>
-                {% endif %}
-            </div>
-
-            <!-- Rating Badge - Beside Avatar -->
-            {% if ad.rating %}
-            <div class="ad-rating-badge" title="{% trans 'Average Rating' %}">
-                <div class="rating-stars">
-                    {% with rating_int=ad.rating|floatformat:0|add:"0" %}
-                    {% for i in "12345" %}
-                        {% if forloop.counter <= rating_int %}
-                            <i class="fas fa-star" aria-hidden="true"></i>
-                        {% elif forloop.counter == rating_int|add:"1" and ad.rating|floatformat:1|slice:"-3:" != ".0" %}
-                            <i class="fas fa-star-half-alt" aria-hidden="true"></i>
-                        {% else %}
-                            <i class="far fa-star" aria-hidden="true"></i>
-                        {% endif %}
-                    {% endfor %}
-                    {% endwith %}
-                </div>
-                <span class="rating-value">{{ ad.rating|floatformat:1 }}</span>
-                {% if ad.rating_count %}
-                <span class="rating-count">({{ ad.rating_count }})</span>
-                {% endif %}
-            </div>
-            {% endif %}
-
-            <!-- Cart Enabled Badge -->
-            {% if ad.cart_enabled_by_admin %}
-            <span class="feature-tag cart-enabled-tag" role="status" aria-label="{% trans 'Cart Available' %}">
-                <i class="fas fa-shopping-cart" aria-hidden="true"></i>
-                <span>{% trans "يمكن الشراء" %}</span>
-            </span>
-            {% endif %}
-
-            <!-- Feature Tags -->
-            {% if ad.is_delivery_available %}
-            <span class="feature-tag delivery-tag" role="status" aria-label="{% trans 'Delivery Available' %}">
-                <i class="fas fa-shipping-fast" aria-hidden="true"></i>
-                <span>شحن متاح</span>
-            </span>
-            {% endif %}
-
-            {% if ad.is_negotiable %}
-            <span class="feature-tag negotiable-tag" role="status" aria-label="{% trans 'Negotiable' %}">
-                <i class="fas fa-handshake" aria-hidden="true"></i>
-                <span>قابل للتفاوض</span>
-            </span>
-            {% endif %}
-
-            <!-- Dynamic Custom Fields -->
-            {% with custom_fields_for_card=ad.get_custom_fields_for_card %}
-                {% for field in custom_fields_for_card %}
-                <span class="feature-tag custom-field-tag" role="status" aria-label="{{ field.label }}: {{ field.value }}">
-                    <i class="fas {{ field.icon }}" aria-hidden="true"></i>
-                    <span>{{ field.label }}: {{ field.value }}</span>
-                </span>
-                {% endfor %}
-            {% endwith %}
-        </div>
-
-        <!-- Price Section -->
+        <!-- Price Section - Right after Title -->
         <div class="ad-price-section">
             {% if ad.contact_for_price or ad.hide_price or ad.price_on_request %}
                 <!-- Contact for Price / Get Quote / Price on Request -->
@@ -223,41 +134,103 @@
             {% else %}
                 <!-- Regular Price Display -->
                 <div class="ad-price-box">
-                    <div class="price-header">
-                        <div class="price-label">
-                            <i class="fas fa-money-bill-wave" aria-hidden="true" role="img"></i>
-                            <span>السعر</span>
-                        </div>
-                        {% if ad.is_negotiable %}
-                        <span class="price-negotiable-tag" title="{% trans 'Negotiable' %}" aria-label="{% trans 'Price is negotiable' %}">
-                            <i class="fas fa-handshake" aria-hidden="true" role="img"></i>
-                        </span>
-                        {% endif %}
-                    </div>
                     <div class="ad-price-main">
                         {% ad_price_formatted ad as formatted_price %}
                         <span class="price-amount">{{ formatted_price|default_if_none:ad.price|floatformat:"-2" }}</span>
                         <span class="price-currency">{{ selected_currency }}</span>
                     </div>
+                    {% if ad.is_negotiable %}
+                    <span class="price-negotiable-inline" title="{% trans 'Negotiable' %}">
+                        <i class="fas fa-handshake" aria-hidden="true"></i>
+                        <span>قابل للتفاوض</span>
+                    </span>
+                    {% endif %}
                 </div>
             {% endif %}
         </div>
-    </div>
 
-    <!-- Footer Section -->
-    <footer class="ad-footer">
-        <div class="ad-footer-content">
-            <!-- Time Posted -->
-            <div class="ad-time-posted" aria-label="{% trans 'Posted' %} {{ ad.created_at|timesince }} {% trans 'ago' %}">
-                <i class="far fa-clock" aria-hidden="true"></i>
-                <span>{{ ad.created_at|timesince }}</span>
+        <!-- Location & Publisher Combined -->
+        <div class="ad-info-row">
+            <div class="ad-location">
+                <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
+                <span>{{ ad.city }}{% if ad.country %}, {{ ad.country.name }}{% endif %}</span>
             </div>
 
-            <!-- Views Count -->
-            <div class="ad-views-count" aria-label="{{ ad.views_count|default:0 }} {% trans 'views' %}">
-                <i class="fas fa-eye" aria-hidden="true"></i>
-                <span>{{ ad.views_count|default:0 }}</span>
+            <div class="publisher-info-inline">
+                {% user_avatar user=ad.user size=32 css_class="publisher-avatar-mini" %}
+                {% if ad.user.is_verified %}
+                    <span class="avatar-verified-badge person-badge" title="{% trans 'Verified' %}">
+                        <i class="fas fa-check-circle" aria-hidden="true"></i>
+                    </span>
+                {% elif ad.user.is_company %}
+                    <span class="avatar-verified-badge company-badge" title="شركة">
+                        <i class="fas fa-building" aria-hidden="true"></i>
+                    </span>
+                {% endif %}
             </div>
         </div>
-    </footer>
+
+        <!-- Features Row with Badges -->
+        <div class="ad-features-row">
+            <!-- Time & Views Combined -->
+            <div class="ad-meta-inline">
+                <span class="meta-item">
+                    <i class="far fa-clock" aria-hidden="true"></i>
+                    {{ ad.created_at|timesince }}
+                </span>
+                <span class="meta-separator">•</span>
+                <span class="meta-item">
+                    <i class="fas fa-eye" aria-hidden="true"></i>
+                    {{ ad.views_count|default:0 }}
+                </span>
+            </div>
+
+            <!-- Cart Enabled Badge -->
+            {% if ad.cart_enabled_by_admin %}
+            <span class="feature-tag cart-enabled-tag" role="status">
+                <i class="fas fa-shopping-cart" aria-hidden="true"></i>
+            </span>
+            {% endif %}
+
+            <!-- Feature Tags -->
+            {% if ad.is_delivery_available %}
+            <span class="feature-tag delivery-tag" role="status">
+                <i class="fas fa-shipping-fast" aria-hidden="true"></i>
+            </span>
+            {% endif %}
+
+            <!-- Dynamic Custom Fields -->
+            {% with custom_fields_for_card=ad.get_custom_fields_for_card %}
+                {% for field in custom_fields_for_card %}
+                <span class="feature-tag custom-field-tag" role="status" title="{{ field.label }}: {{ field.value }}">
+                    <i class="fas {{ field.icon }}" aria-hidden="true"></i>
+                    <span>{{ field.value }}</span>
+                </span>
+                {% endfor %}
+            {% endwith %}
+        </div>
+
+        <!-- Rating at Bottom - Compact Version -->
+        {% if ad.rating %}
+        <div class="ad-rating-compact">
+            <div class="rating-stars-mini">
+                {% with rating_int=ad.rating|floatformat:0|add:"0" %}
+                {% for i in "12345" %}
+                    {% if forloop.counter <= rating_int %}
+                        <i class="fas fa-star" aria-hidden="true"></i>
+                    {% elif forloop.counter == rating_int|add:"1" and ad.rating|floatformat:1|slice:"-3:" != ".0" %}
+                        <i class="fas fa-star-half-alt" aria-hidden="true"></i>
+                    {% else %}
+                        <i class="far fa-star" aria-hidden="true"></i>
+                    {% endif %}
+                {% endfor %}
+                {% endwith %}
+            </div>
+            <span class="rating-value-mini">{{ ad.rating|floatformat:1 }}</span>
+            {% if ad.rating_count %}
+            <span class="rating-count-mini">({{ ad.rating_count }})</span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
 </article>

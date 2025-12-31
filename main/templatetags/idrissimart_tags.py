@@ -484,3 +484,40 @@ def is_in_wishlist(context, ad_id):
         return WishlistItem.objects.filter(wishlist=wishlist, ad_id=ad_id).exists()
     except Exception:
         return False
+
+
+@register.simple_tag(takes_context=True)
+def ad_image_or_placeholder(context, ad, css_class=""):
+    """
+    Returns HTML img tag with ad image or placeholder with site logo.
+    Usage: {% ad_image_or_placeholder ad "css-class" %}
+    """
+    from django.utils.html import format_html
+    from content.models import SiteConfiguration
+
+    site_config = SiteConfiguration.get_solo()
+
+    from django.templatetags.static import static
+
+    default_placeholder = static('images/default-placeholder.svg')
+
+    # Check if ad has images
+    if ad.images.exists():
+        first_image = ad.images.first()
+        fallback_url = site_config.logo.url if site_config.logo else default_placeholder
+        return format_html(
+            '<img src="{}" class="{}" alt="{}" loading="lazy" onerror="this.onerror=null; this.src=\'{}\'; this.classList.add(\'placeholder-fallback\');">',
+            first_image.image.url,
+            css_class,
+            ad.title,
+            fallback_url
+        )
+    else:
+        # Show placeholder with logo or default SVG
+        logo_url = site_config.logo.url if site_config.logo else default_placeholder
+        return format_html(
+            '<div class="ad-image-placeholder {}"><img src="{}" alt="{}" class="placeholder-logo"></div>',
+            css_class,
+            logo_url,
+            "صورة بديلة"
+        )
