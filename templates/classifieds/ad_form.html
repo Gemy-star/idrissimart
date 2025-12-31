@@ -720,6 +720,26 @@
                                         <p class="step-description">{% trans "حدد القسم وأضف تفاصيل إعلانك" %}</p>
                                     </div>
 
+                                    {% if is_editing %}
+                                    <!-- Category Edit Warning -->
+                                    <div class="alert alert-warning mb-4">
+                                        <i class="fas fa-lock me-2"></i>
+                                        <strong>{% trans "تنبيه:" %}</strong>
+                                        {% trans "لا يمكن تغيير القسم بعد نشر الإعلان. إذا كنت تريد تغيير القسم، يرجى حذف الإعلان وإنشاء إعلان جديد." %}
+                                    </div>
+
+                                    <!-- Display Current Category (Read-only) -->
+                                    <div class="mb-4">
+                                        <label class="form-label h5">
+                                            <i class="fas fa-folder-open me-2 text-primary"></i>
+                                            {% trans "القسم الحالي" %}
+                                        </label>
+                                        <div class="form-control bg-light" style="pointer-events: none;">
+                                            {{ original_category.get_breadcrumb|default:original_category.name }}
+                                        </div>
+                                        <input type="hidden" name="{{ form.category.name }}" id="{{ form.category.id_for_label }}" value="{{ form.category.value }}">
+                                    </div>
+                                    {% else %}
                                     <!-- Main Category Selection -->
                                     <div class="mb-4">
                                         <label for="mainCategorySelect" class="form-label h5">
@@ -727,7 +747,6 @@
                                             {% trans "القسم الرئيسي" %}
                                         </label>
                                         <select id="mainCategorySelect" class="form-select form-select-lg" required>
-                                            <option value="">{% trans "اختر قسم رئيسي..." %}</option>
                                             {% for category in ad_categories %}
                                                 <option value="{{ category.pk }}"
                                                         data-has-subcats="{{ category.subcategories.all|length|default:0 }}"
@@ -745,7 +764,6 @@
                                             {% trans "القسم الفرعي" %}
                                         </label>
                                         <select id="subcategorySelect" class="form-select form-select-lg">
-                                            <option value="">{% trans "اختر قسم فرعي..." %}</option>
                                         </select>
                                     </div>
 
@@ -756,12 +774,12 @@
                                             {% trans "القسم الفرعي الثاني" %}
                                         </label>
                                         <select id="subSubcategorySelect" class="form-select form-select-lg">
-                                            <option value="">{% trans "اختر قسم فرعي ثاني..." %}</option>
                                         </select>
                                     </div>
 
                                     <!-- Hidden field for actual category value -->
                                     <input type="hidden" name="{{ form.category.name }}" id="{{ form.category.id_for_label }}" value="{{ form.category.value|default:'' }}">
+                                    {% endif %}
 
                                     <hr class="my-4">
 
@@ -1060,7 +1078,7 @@
                                                 <option value="">{% trans "اختر الدولة..." %}</option>
                                                 {% for country in countries %}
                                                     <option value="{{ country.id }}"
-                                                        {% if form.country.value == country.id or not form.country.value and country.code == 'SA' %}selected{% endif %}>
+                                                        {% if form.country.value == country.id or not form.country.value and country.code == default_country|default:'SA' %}selected{% endif %}>
                                                         {{ country.flag_emoji }} {{ country.name }}
                                                     </option>
                                                 {% endfor %}
@@ -1290,8 +1308,6 @@
                 prevBtn.style.display = step === 1 ? 'none' : 'block';
                 nextBtn.style.display = step === totalSteps ? 'none' : 'block';
                 submitBtn.style.display = step === totalSteps ? 'block' : 'none';
-
-                window.scrollTo({ top: 0, behavior: 'smooth' });
             }
 
             function validateStep(step) {
@@ -1524,8 +1540,8 @@
                 const hasSubcats = this.options[this.selectedIndex]?.dataset.hasSubcats > 0;
 
                 // Clear subcategory and sub-subcategory selects
-                subcategorySelect.innerHTML = '<option value="">{% trans "اختر قسم فرعي..." %}</option>';
-                subSubcategorySelect.innerHTML = '<option value="">{% trans "اختر قسم فرعي ثاني..." %}</option>';
+                subcategorySelect.innerHTML = '';
+                subSubcategorySelect.innerHTML = '';
                 subSubcategoryContainer.style.display = 'none';
 
                 if (selectedCategoryId && hasSubcats && subcategoriesData[selectedCategoryId]) {
@@ -1564,7 +1580,7 @@
                 const mainCategoryId = mainCategorySelect.value;
 
                 // Clear sub-subcategory select
-                subSubcategorySelect.innerHTML = '<option value="">{% trans "اختر قسم فرعي ثاني..." %}</option>';
+                subSubcategorySelect.innerHTML = '';
 
                 if (selectedSubcatId && mainCategoryId) {
                     // Find the selected subcategory data
