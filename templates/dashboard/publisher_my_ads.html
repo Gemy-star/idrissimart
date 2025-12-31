@@ -52,6 +52,16 @@
             <p>{% trans "منتهي" %}</p>
         </div>
     </div>
+    {% if show_deleted_to_publisher and stats.deleted > 0 %}
+    <div class="col-lg-2 col-md-4 col-6 mb-3">
+        <a href="?deleted=true" class="text-decoration-none">
+            <div class="stats-card border-secondary">
+                <h3 class="text-secondary">{{ stats.deleted }}</h3>
+                <p>{% trans "محذوف" %} <i class="fas fa-trash"></i></p>
+            </div>
+        </a>
+    </div>
+    {% endif %}
     <div class="col-lg-2 col-md-4 col-6 mb-3">
         <div class="stats-card">
             <h3>{{ stats.draft }}</h3>
@@ -66,14 +76,24 @@
     </div>
 </div>
 
+<!-- Retention Info Alert -->
+{% if show_deleted_to_publisher and current_filters.deleted == "true" %}
+<div class="alert alert-warning mb-4">
+    <i class="fas fa-exclamation-triangle"></i>
+    <strong>{% trans "تنبيه:" %}</strong>
+    {% trans "الإعلانات المحذوفة سيتم حذفها نهائياً بعد" %} <strong>{{ deleted_retention_days }}</strong> {% trans "يوم من تاريخ الحذف" %}.
+    {% trans "الإعلانات المنتهية سيتم حذفها نهائياً بعد" %} <strong>{{ expired_retention_days }}</strong> {% trans "يوم من تاريخ الانتهاء" %}.
+</div>
+{% endif %}
+
 <!-- Filters -->
 <div class="card mb-4">
     <div class="card-body">
         <form method="get" class="row g-3">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <input type="text" name="search" class="form-control" placeholder="{% trans 'بحث...' %}" value="{{ current_filters.search }}">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <select name="status" class="form-control">
                     <option value="">{% trans "كل الحالات" %}</option>
                     {% for value, label in status_choices %}
@@ -83,6 +103,14 @@
                     {% endfor %}
                 </select>
             </div>
+            {% if show_deleted_to_publisher %}
+            <div class="col-md-2">
+                <select name="deleted" class="form-control">
+                    <option value="">{% trans "غير محذوف" %}</option>
+                    <option value="true" {% if current_filters.deleted == "true" %}selected{% endif %}>{% trans "محذوف" %}</option>
+                </select>
+            </div>
+            {% endif %}
             <div class="col-md-2">
                 <button type="submit" class="btn btn-primary w-100">
                     <i class="fas fa-search"></i> {% trans "بحث" %}
@@ -101,7 +129,7 @@
 <div class="row">
     {% for ad in ads %}
     <div class="col-md-4 mb-4">
-        <div class="card ad-card {% if ad.is_pinned %}border-primary{% elif ad.is_urgent %}border-danger{% elif ad.is_highlighted %}border-warning{% endif %}">
+        <div class="card ad-card {% if ad.deleted_at %}border-danger opacity-75{% elif ad.is_pinned %}border-primary{% elif ad.is_urgent %}border-danger{% elif ad.is_highlighted %}border-warning{% endif %}">
             {% if ad.images.first %}
             <img src="{{ ad.images.first.image.url }}" class="card-img-top" alt="{{ ad.title }}" style="height: 200px; object-fit: cover;">
             {% else %}
@@ -110,8 +138,19 @@
             </div>
             {% endif %}
 
+            <!-- Deleted Overlay -->
+            {% if ad.deleted_at %}
+            <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-50" style="z-index: 5;">
+                <div class="text-center text-white">
+                    <i class="fas fa-trash-alt fa-3x mb-2"></i>
+                    <h5>{% trans "محذوف" %}</h5>
+                    <small>{{ ad.deleted_at|date:"Y-m-d" }}</small>
+                </div>
+            </div>
+            {% endif %}
+
             <div class="card-body">
-                <h5 class="card-title">{{ ad.title }}</h5>
+                <h5 class="card-title {% if ad.deleted_at %}text-muted{% endif %}">{{ ad.title }}</h5>
                 <p class="card-text text-muted">
                     <i class="fas fa-tag"></i> {{ ad.price }} {{ ad.country.currency }}
                 </p>
@@ -124,7 +163,18 @@
 
                 <!-- Status Badge -->
                 <div class="mb-2">
-                    <span class="badge bg-{{ ad.status }}">{{ ad.get_status_display }}</span>
+                    {% if ad.deleted_at %}
+                        <span class="badge bg-danger"><i class="fas fa-trash"></i> {% trans "محذوف" %}</span>
+                        <span class="badge bg-secondary">
+                            {% trans "يحذف نهائياً بعد" %}
+                            {% with days_left=ad.deleted_at|timeuntil %}
+                            {{ days_left }}
+                            {% endwith %}
+                        </span>
+                    {% else %}
+                        <span class="badge bg-{{ ad.status }}">{{ ad.get_status_display }}</span>
+                    {% endif %}
+
                     {% if ad.is_resubmitted %}
                         <span class="badge bg-info"><i class="fas fa-redo"></i> معاد إرساله</span>
                     {% endif %}
@@ -140,20 +190,70 @@
                 </div>
 
                 <!-- Actions -->
-                <div class="btn-group w-100" role="group">
-                    <a href="{% url 'main:publisher_ad_detail' ad.id %}" class="btn btn-sm btn-outline-primary">
-                        <i class="fas fa-eye"></i> {% trans "عرض" %}
-                    </a>
-                    <a href="{% url 'main:publisher_ad_update' ad.id %}" class="btn btn-sm btn-outline-secondary">
-                        <i class="fas fa-edit"></i> {% trans "تعديل" %}
-                    </a>
-                    {% if ad.status == 'expired' %}
-                    <form method="post" action="{% url 'main:publisher_renew_ad' ad.id %}" style="display: inline;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-sm btn-outline-success">
-                            <i class="fas fa-redo"></i> {% trans "تجديد" %}
-                        </button>
-                    </form>
+                <div class="btn-group-vertical w-100 gap-1" role="group">
+                    {% if ad.deleted_at %}
+                        <!-- Deleted Ad Actions -->
+                        <form method="post" action="{% url 'main:publisher_restore_ad' ad.id %}" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-success w-100">
+                                <i class="fas fa-undo"></i> {% trans "استعادة" %}
+                            </button>
+                        </form>
+                        <form method="post" action="{% url 'main:publisher_permanent_delete_ad' ad.id %}"
+                              onsubmit="return confirm('{% trans "هل أنت متأكد من الحذف النهائي؟ لا يمكن التراجع عن هذا الإجراء" %}');"
+                              style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-danger w-100">
+                                <i class="fas fa-trash-alt"></i> {% trans "حذف نهائي" %}
+                            </button>
+                        </form>
+                    {% else %}
+                        <!-- Active/Draft Ad Actions -->
+                        <div class="btn-group w-100 mb-1">
+                            <a href="{% url 'main:publisher_ad_detail' ad.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i> {% trans "عرض" %}
+                            </a>
+                            <a href="{% url 'main:ad_update' ad.id %}" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-edit"></i> {% trans "تعديل" %}
+                            </a>
+                        </div>
+
+                        <div class="btn-group w-100 mb-1">
+                            {% if ad.status == 'active' %}
+                            <form method="post" action="{% url 'main:publisher_hide_ad' ad.id %}" style="display: inline; flex: 1;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-warning w-100">
+                                    <i class="fas fa-eye-slash"></i> {% trans "إخفاء" %}
+                                </button>
+                            </form>
+                            {% elif ad.status == 'draft' %}
+                            <form method="post" action="{% url 'main:publisher_activate_ad' ad.id %}" style="display: inline; flex: 1;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-success w-100">
+                                    <i class="fas fa-check-circle"></i> {% trans "تفعيل" %}
+                                </button>
+                            </form>
+                            {% elif ad.status == 'expired' %}
+                            <form method="post" action="{% url 'main:publisher_renew_ad' ad.id %}" style="display: inline; flex: 1;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-success w-100">
+                                    <i class="fas fa-redo"></i> {% trans "تجديد" %}
+                                </button>
+                            </form>
+                            {% endif %}
+
+                            <form method="post" action="{% url 'main:publisher_toggle_cart' ad.id %}" style="display: inline; flex: 1;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm {% if ad.is_cart_enabled %}btn-success{% else %}btn-outline-secondary{% endif %} w-100"
+                                        title="{% if ad.is_cart_enabled %}{% trans 'تعطيل السلة' %}{% else %}{% trans 'تفعيل السلة' %}{% endif %}">
+                                    <i class="fas fa-shopping-cart"></i>
+                                </button>
+                            </form>
+                        </div>
+
+                        <a href="{% url 'main:ad_unified_upgrade' ad.id %}" class="btn btn-sm btn-gradient-primary w-100">
+                            <i class="fas fa-rocket"></i> {% trans "ترقية وتمييز الإعلان" %}
+                        </a>
                     {% endif %}
                 </div>
             </div>
@@ -245,5 +345,59 @@
     .badge.bg-draft {
         background-color: #6b7280 !important;
     }
+
+    .btn-outline-purple {
+        color: #9333ea;
+        border-color: #9333ea;
+    }
+
+    .btn-outline-purple:hover {
+        background-color: #9333ea;
+        color: white;
+    }
+
+    .btn-group-vertical .btn {
+        margin-bottom: 0.25rem;
+    }
+
+    .btn-group-vertical .btn:last-child {
+        margin-bottom: 0;
+    }
+
+    .btn-gradient-primary {
+        background: linear-gradient(135deg, #6b4c7a 0%, #4b315e 100%);
+        color: white;
+        border: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-gradient-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(107, 76, 122, 0.4);
+        color: white;
+    }
+
+    [data-theme='dark'] .btn-gradient-primary {
+        background: linear-gradient(135deg, #a78bbd 0%, #8b6b9d 100%);
+    }
 </style>
+
+{% endblock %}
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert(data.message || '{% trans "حدث خطأ أثناء حذف الإعلان" %}');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('{% trans "حدث خطأ أثناء حذف الإعلان" %}');
+                });
+            }
+        });
+    });
+});
+</script>
+
 {% endblock %}

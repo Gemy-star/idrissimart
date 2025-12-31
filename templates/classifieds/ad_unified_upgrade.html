@@ -1,0 +1,1099 @@
+{% extends "base.html" %}
+{% load static i18n %}
+
+{% block title %}{% trans "ترقية وتمييز الإعلان" %} - {{ ad.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-color: #6b4c7a;
+        --primary-light: #a78bbd;
+        --success-color: #28a745;
+        --warning-color: #ffc107;
+        --danger-color: #dc3545;
+        --info-color: #17a2b8;
+    }
+
+    [data-theme='dark'] {
+        --primary-color: #a78bbd;
+        --bg-primary: #1a202c;
+        --card-bg: #2d3748;
+    }
+
+    /* Page Header */
+    .upgrade-hero {
+        background: linear-gradient(135deg, var(--primary-color) 0%, #4b315e 100%);
+        color: white;
+        padding: 3rem 0;
+        margin-bottom: 3rem;
+        border-radius: 0 0 30px 30px;
+    }
+
+    .upgrade-hero-title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+        text-align: center;
+    }
+
+    .upgrade-hero-subtitle {
+        font-size: 1.1rem;
+        opacity: 0.95;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    /* Ad Preview Card */
+    .ad-preview-card {
+        background: var(--bg-primary, #fff);
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+        margin-bottom: 3rem;
+        border: 2px solid rgba(107, 76, 122, 0.2);
+    }
+
+    [data-theme='dark'] .ad-preview-card {
+        background: var(--card-bg);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .ad-preview-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+    }
+
+    .ad-preview-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+    }
+
+    .ad-preview-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Section Headers */
+    .section-header {
+        margin: 3rem 0 2rem 0;
+        padding-bottom: 1rem;
+        border-bottom: 3px solid var(--primary-color);
+    }
+
+    .section-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .section-description {
+        color: var(--text-secondary);
+        margin-top: 0.5rem;
+        font-size: 1rem;
+    }
+
+    /* Option Cards Grid */
+    .options-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* Option Card */
+    .option-card {
+        background: var(--bg-primary, #fff);
+        border: 2px solid var(--border-color, #dee2e6);
+        border-radius: 20px;
+        padding: 2rem;
+        transition: all 0.3s ease;
+        position: relative;
+        cursor: pointer;
+        overflow: hidden;
+    }
+
+    [data-theme='dark'] .option-card {
+        background: rgba(255, 255, 255, 0.03);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .option-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 35px rgba(107, 76, 122, 0.2);
+        border-color: var(--primary-color);
+    }
+
+    .option-card.selected {
+        border-color: var(--primary-color);
+        background: linear-gradient(135deg, rgba(107, 76, 122, 0.05) 0%, transparent 100%);
+        box-shadow: 0 12px 35px rgba(107, 76, 122, 0.25);
+    }
+
+    .option-card.already-active {
+        border-color: var(--success-color);
+        background: linear-gradient(135deg, rgba(40, 167, 69, 0.05) 0%, transparent 100%);
+        opacity: 0.85;
+        cursor: default;
+    }
+
+    .option-card.already-active:hover {
+        transform: none;
+    }
+
+    .option-card.coming-soon {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .option-card.coming-soon:hover {
+        transform: none;
+    }
+
+    /* Badge */
+    .option-badge {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .option-badge.active {
+        background: var(--success-color);
+        color: white;
+    }
+
+    .option-badge.paid {
+        background: var(--warning-color);
+        color: #000;
+    }
+
+    .option-badge.premium {
+        background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+        color: #000;
+    }
+
+    .option-badge.coming-soon {
+        background: var(--info-color);
+        color: white;
+    }
+
+    /* Icon */
+    .option-icon {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        margin-bottom: 1.5rem;
+        background: linear-gradient(135deg, var(--primary-color) 0%, #4b315e 100%);
+        color: white;
+    }
+
+    .option-card.already-active .option-icon {
+        background: linear-gradient(135deg, var(--success-color) 0%, #1e7e34 100%);
+    }
+
+    .option-card.coming-soon .option-icon {
+        background: linear-gradient(135deg, #9e9e9e 0%, #757575 100%);
+    }
+
+    /* Content */
+    .option-title {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.75rem;
+    }
+
+    .option-description {
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+        line-height: 1.6;
+        margin-bottom: 1.25rem;
+    }
+
+    .option-features {
+        list-style: none;
+        padding: 0;
+        margin: 1.5rem 0;
+    }
+
+    .option-features li {
+        padding: 0.5rem 0;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .option-features li i {
+        color: var(--success-color);
+        font-size: 0.85rem;
+    }
+
+    /* Price */
+    .option-price {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--primary-color);
+        margin: 1.5rem 0;
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+    }
+
+    .option-price-currency {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+    }
+
+    .option-price-free {
+        color: var(--success-color);
+    }
+
+    /* Duration Selector */
+    .duration-selector {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 2px dashed var(--border-color);
+    }
+
+    .duration-label {
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+        display: block;
+    }
+
+    .duration-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .duration-option {
+        padding: 0.875rem 0.5rem;
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: var(--bg-primary);
+    }
+
+    [data-theme='dark'] .duration-option {
+        background: rgba(255, 255, 255, 0.03);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .duration-option:hover {
+        border-color: var(--primary-color);
+        background: rgba(107, 76, 122, 0.05);
+    }
+
+    .duration-option.selected {
+        border-color: var(--primary-color);
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .duration-option-label {
+        font-weight: 700;
+        display: block;
+        font-size: 0.95rem;
+    }
+
+    .duration-option-price {
+        font-size: 0.85rem;
+        margin-top: 0.25rem;
+        opacity: 0.9;
+    }
+
+    /* Checkbox */
+    .option-checkbox {
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+        accent-color: var(--primary-color);
+    }
+
+    /* Order Summary Sidebar */
+    .order-summary {
+        background: var(--bg-primary, #fff);
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+        position: sticky;
+        top: 100px;
+    }
+
+    [data-theme='dark'] .order-summary {
+        background: var(--card-bg);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .order-summary-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .summary-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.875rem 0;
+        color: var(--text-secondary);
+        border-bottom: 1px dashed var(--border-color);
+    }
+
+    .summary-item:last-child {
+        border-bottom: none;
+    }
+
+    .summary-item-name {
+        font-weight: 500;
+    }
+
+    .summary-item-price {
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+
+    .summary-total {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 3px solid var(--primary-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: var(--text-primary);
+    }
+
+    .summary-total-price {
+        color: var(--primary-color);
+    }
+
+    .empty-summary {
+        text-align: center;
+        padding: 2rem 0;
+        color: var(--text-muted);
+    }
+
+    .empty-summary i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.3;
+    }
+
+    /* Checkout Button */
+    .btn-checkout {
+        width: 100%;
+        padding: 1.25rem;
+        background: linear-gradient(135deg, var(--success-color) 0%, #1e7e34 100%);
+        color: white;
+        border: none;
+        border-radius: 15px;
+        font-size: 1.2rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+    }
+
+    .btn-checkout:hover:not(:disabled) {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 30px rgba(40, 167, 69, 0.4);
+    }
+
+    .btn-checkout:disabled {
+        background: #e0e0e0;
+        color: #9e9e9e;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    [data-theme='dark'] .btn-checkout:disabled {
+        background: rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.3);
+    }
+
+    .security-note {
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        margin-top: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 992px) {
+        .options-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .order-summary {
+            position: static;
+            margin-top: 3rem;
+        }
+
+        .upgrade-hero-title {
+            font-size: 2rem;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .upgrade-hero {
+            padding: 2rem 0;
+        }
+
+        .upgrade-hero-title {
+            font-size: 1.75rem;
+        }
+
+        .ad-preview-card {
+            padding: 1.5rem;
+        }
+
+        .option-card {
+            padding: 1.5rem;
+        }
+
+        .duration-options {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="upgrade-hero">
+    <div class="container">
+        <h1 class="upgrade-hero-title">
+            <i class="fas fa-rocket"></i>
+            {% trans "ترقية وتمييز إعلانك" %}
+        </h1>
+        <p class="upgrade-hero-subtitle">
+            {% trans "اختر المميزات والترقيات المناسبة لإعلانك لزيادة المشاهدات والمبيعات" %}
+        </p>
+    </div>
+</div>
+
+<div class="container pb-5">
+    <!-- Ad Preview -->
+    <div class="ad-preview-card">
+        <h2 class="ad-preview-title">
+            <i class="fas fa-bullhorn me-2"></i>
+            {{ ad.title }}
+        </h2>
+        <div class="ad-preview-meta">
+            <div class="ad-preview-meta-item">
+                <i class="fas fa-tag"></i>
+                <span>{{ ad.price|default:"غير محدد" }} {% if ad.price %}{% trans "ر.س" %}{% endif %}</span>
+            </div>
+            <div class="ad-preview-meta-item">
+                <i class="fas fa-folder"></i>
+                <span>{{ ad.category.name }}</span>
+            </div>
+            <div class="ad-preview-meta-item">
+                <i class="fas fa-map-marker-alt"></i>
+                <span>{{ ad.city }}{% if ad.country %}, {{ ad.country.name }}{% endif %}</span>
+            </div>
+            <div class="ad-preview-meta-item">
+                <i class="fas fa-calendar"></i>
+                <span>{{ ad.created_at|date:"Y/m/d" }}</span>
+            </div>
+        </div>
+    </div>
+
+    <form method="post" id="upgradeForm" action="{% url 'main:ad_unified_upgrade_process' pk=ad.pk %}">
+        {% csrf_token %}
+
+        <div class="row">
+            <!-- Left Column: Options -->
+            <div class="col-lg-8">
+                <!-- Promotion Options Section -->
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <i class="fas fa-star"></i>
+                        {% trans "خيارات الترقية والتمييز" %}
+                    </h2>
+                    <p class="section-description">
+                        {% trans "اجعل إعلانك يبرز ويحصل على مشاهدات أكثر بـ 10 أضعاف" %}
+                    </p>
+                </div>
+
+                <div class="options-grid">
+                    <!-- Highlighted/Featured Ad -->
+                    <div class="option-card {% if ad.is_highlighted %}already-active{% endif %}"
+                         data-option="highlighted"
+                         data-base-price="{{ highlighted_price }}">
+                        {% if ad.is_highlighted %}
+                            <span class="option-badge active">
+                                <i class="fas fa-check"></i> {% trans "مفعّل" %}
+                            </span>
+                        {% else %}
+                            <span class="option-badge premium">
+                                <i class="fas fa-crown"></i> {% trans "مميز" %}
+                            </span>
+                        {% endif %}
+
+                        <div class="option-icon">
+                            <i class="fas fa-star"></i>
+                        </div>
+
+                        <h3 class="option-title">
+                            {% trans "إعلان مميز" %}
+                        </h3>
+
+                        <p class="option-description">
+                            {% trans "اجعل إعلانك يظهر بشكل مميز بلون بارز وأيقونة نجمة ذهبية" %}
+                        </p>
+
+                        <ul class="option-features">
+                            <li><i class="fas fa-check-circle"></i> {% trans "ظهور مميز بلون مختلف" %}</li>
+                            <li><i class="fas fa-check-circle"></i> {% trans "أيقونة نجمة ذهبية" %}</li>
+                            <li><i class="fas fa-check-circle"></i> {% trans "أولوية في نتائج البحث" %}</li>
+                            <li><i class="fas fa-check-circle"></i> {% trans "زيادة المشاهدات بنسبة 300%" %}</li>
+                        </ul>
+
+                        {% if not ad.is_highlighted %}
+                            <div class="option-price">
+                                <span class="price-value">{{ highlighted_price }}</span>
+                                <span class="option-price-currency">{% trans "ر.س" %}</span>
+                            </div>
+
+                            <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+                                <input type="checkbox"
+                                       name="upgrade_highlighted"
+                                       value="1"
+                                       class="option-checkbox upgrade-checkbox">
+                                <span style="font-weight: 600;">{% trans "إضافة إلى الطلب" %}</span>
+                            </label>
+
+                            <div class="duration-selector" style="display: none;">
+                                <label class="duration-label">{% trans "اختر المدة:" %}</label>
+                                <div class="duration-options">
+                                    <div class="duration-option" data-days="7" data-price="{{ highlighted_price }}">
+                                        <span class="duration-option-label">7 {% trans "أيام" %}</span>
+                                        <span class="duration-option-price">{{ highlighted_price }} {% trans "ر.س" %}</span>
+                                    </div>
+                                    <div class="duration-option" data-days="14" data-price="{{ highlighted_price_14 }}">
+                                        <span class="duration-option-label">14 {% trans "يوم" %}</span>
+                                        <span class="duration-option-price">{{ highlighted_price_14 }} {% trans "ر.س" %}</span>
+                                    </div>
+                                    <div class="duration-option" data-days="30" data-price="{{ highlighted_price_30 }}">
+                                        <span class="duration-option-label">30 {% trans "يوم" %}</span>
+                                        <span class="duration-option-price">{{ highlighted_price_30 }} {% trans "ر.س" %}</span>
+                                        <span class="badge bg-warning text-dark ms-1">{% trans "الأكثر شعبية" %}</span>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="highlighted_duration" class="duration-input">
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Pinned Ad -->
+                    <div class="option-card {% if ad.is_pinned %}already-active{% endif %}"
+                         data-option="pinned"
+                         data-base-price="{{ pinned_price }}">
+                        {% if ad.is_pinned %}
+                            <span class="option-badge active">
+                                <i class="fas fa-check"></i> {% trans "مفعّل" %}
+                            </span>
+                        {% else %}
+                            <span class="option-badge premium">
+                                <i class="fas fa-fire"></i> {% trans "مميز" %}
+                            </span>
+                        {% endif %}
+
+                        <div class="option-icon">
+                            <i class="fas fa-thumbtack"></i>
+                        </div>
+
+                        <h3 class="option-title">
+                            {% trans "تثبيت في الأعلى" %}
+                        </h3>
+
+                        <p class="option-description">
+                            {% trans "ثبّت إعلانك في أعلى القائمة ليظهر دائماً في البداية" %}
+                        </p>
+
+                        <ul class="option-features">
+                            <li><i class="fas fa-check-circle"></i> {% trans "ظهور في أعلى القائمة دائماً" %}</li>
+                            <li><i class="fas fa-check-circle"></i> {% trans "أيقونة دبوس مميزة" %}</li>
+                            <li><i class="fas fa-check-circle"></i> {% trans "مشاهدات أكثر بـ 10 أضعاف" %}</li>
+                            <li><i class="fas fa-check-circle"></i> {% trans "أفضل خيار للبيع السريع" %}</li>
+                        </ul>
+
+                        {% if not ad.is_pinned %}
+                            <div class="option-price">
+                                <span class="price-value">{{ pinned_price }}</span>
+                                <span class="option-price-currency">{% trans "ر.س" %}</span>
+                            </div>
+
+                            <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+                                <input type="checkbox"
+                                       name="upgrade_pinned"
+                                       value="1"
+                                       class="option-checkbox upgrade-checkbox">
+                                <span style="font-weight: 600;">{% trans "إضافة إلى الطلب" %}</span>
+                            </label>
+
+                            <div class="duration-selector" style="display: none;">
+                                <label class="duration-label">{% trans "اختر المدة:" %}</label>
+                                <div class="duration-options">
+                                    <div class="duration-option" data-days="7" data-price="{{ pinned_price }}">
+                                        <span class="duration-option-label">7 {% trans "أيام" %}</span>
+                                        <span class="duration-option-price">{{ pinned_price }} {% trans "ر.س" %}</span>
+                                    </div>
+                                    <div class="duration-option" data-days="14" data-price="{{ pinned_price_14 }}">
+                                        <span class="duration-option-label">14 {% trans "يوم" %}</span>
+                                        <span class="duration-option-price">{{ pinned_price_14 }} {% trans "ر.س" %}</span>
+                                    </div>
+                                    <div class="duration-option" data-days="30" data-price="{{ pinned_price_30 }}">
+                                        <span class="duration-option-label">30 {% trans "يوم" %}</span>
+                                        <span class="duration-option-price">{{ pinned_price_30 }} {% trans "ر.س" %}</span>
+                                        <span class="badge bg-warning text-dark ms-1">{% trans "الأكثر شعبية" %}</span>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="pinned_duration" class="duration-input">
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Urgent Ad -->
+                    <div class="option-card {% if ad.is_urgent %}already-active{% endif %}"
+                         data-option="urgent"
+                         data-base-price="{{ urgent_price }}">
+                        {% if ad.is_urgent %}
+                            <span class="option-badge active">
+                                <i class="fas fa-check"></i> {% trans "مفعّل" %}
+                            </span>
+                        {% else %}
+                            <span class="option-badge paid">
+                                <i class="fas fa-bolt"></i> {% trans "مدفوع" %}
+                            </span>
+                        {% endif %}
+
+                        <div class="option-icon">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+
+                        <h3 class="option-title">
+                            {% trans "إعلان عاجل" %}
+                        </h3>
+
+                        <p class="option-description">
+                            {% trans "أضف شارة 'عاجل' باللون الأحمر لجذب الانتباه الفوري" %}
+                        </p>
+
+                        <ul class="option-features">
+                            <li><i class="fas fa-check-circle"></i> {% trans "شارة 'عاجل' حمراء بارزة" %}</li>
+                            <li><i class="fas fa-check-circle"></i> {% trans "جذب انتباه فوري" %}</li>
+                            <li><i class="fas fa-check-circle"></i> {% trans "أولوية في الترشيحات" %}</li>
+                            <li><i class="fas fa-check-circle"></i> {% trans "مثالي للعروض المحدودة" %}</li>
+                        </ul>
+
+                        {% if not ad.is_urgent %}
+                            <div class="option-price">
+                                <span class="price-value">{{ urgent_price }}</span>
+                                <span class="option-price-currency">{% trans "ر.س" %}</span>
+                            </div>
+
+                            <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+                                <input type="checkbox"
+                                       name="upgrade_urgent"
+                                       value="1"
+                                       class="option-checkbox upgrade-checkbox">
+                                <span style="font-weight: 600;">{% trans "إضافة إلى الطلب" %}</span>
+                            </label>
+
+                            <div class="duration-selector" style="display: none;">
+                                <label class="duration-label">{% trans "اختر المدة:" %}</label>
+                                <div class="duration-options">
+                                    <div class="duration-option" data-days="7" data-price="{{ urgent_price }}">
+                                        <span class="duration-option-label">7 {% trans "أيام" %}</span>
+                                        <span class="duration-option-price">{{ urgent_price }} {% trans "ر.س" %}</span>
+                                    </div>
+                                    <div class="duration-option" data-days="14" data-price="{{ urgent_price_14 }}">
+                                        <span class="duration-option-label">14 {% trans "يوم" %}</span>
+                                        <span class="duration-option-price">{{ urgent_price_14 }} {% trans "ر.س" %}</span>
+                                    </div>
+                                    <div class="duration-option" data-days="30" data-price="{{ urgent_price_30 }}">
+                                        <span class="duration-option-label">30 {% trans "يوم" %}</span>
+                                        <span class="duration-option-price">{{ urgent_price_30 }} {% trans "ر.س" %}</span>
+                                        <span class="badge bg-warning text-dark ms-1">{% trans "الأكثر شعبية" %}</span>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="urgent_duration" class="duration-input">
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Special Features Section -->
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <i class="fas fa-magic"></i>
+                        {% trans "مميزات خاصة" %}
+                    </h2>
+                    <p class="section-description">
+                        {% trans "أضف مميزات إضافية لإعلانك لزيادة فرص البيع" %}
+                    </p>
+                </div>
+
+                <div class="options-grid">
+                    <!-- Contact for Price -->
+                    <div class="option-card {% if ad.contact_for_price %}already-active{% endif %}"
+                         data-option="contact_for_price"
+                         data-base-price="{{ feature_prices.contact_for_price }}">
+                        {% if ad.contact_for_price %}
+                            <span class="option-badge active">
+                                <i class="fas fa-check"></i> {% trans "مفعّل" %}
+                            </span>
+                        {% else %}
+                            <span class="option-badge paid">
+                                <i class="fas fa-dollar-sign"></i> {% trans "مدفوع" %}
+                            </span>
+                        {% endif %}
+
+                        <div class="option-icon">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                        </div>
+
+                        <h3 class="option-title">
+                            {% trans "تواصل ليصلك عرض سعر" %}
+                        </h3>
+
+                        <p class="option-description">
+                            {% trans "إخفاء السعر وعرض رسالة للتواصل للحصول على عرض سعر. مثالي للإعلانات القابلة للتفاوض." %}
+                        </p>
+
+                        <ul class="option-features">
+                            <li><i class="fas fa-check-circle"></i> {% trans "إخفاء السعر من الإعلان" %}</li>
+                            <li><i class="fas fa-check-circle"></i> {% trans "زر تواصل مباشر" %}</li>
+                            <li><i class="fas fa-check-circle"></i> {% trans "مناسب للأعمال التجارية" %}</li>
+                        </ul>
+
+                        {% if not ad.contact_for_price %}
+                            <div class="option-price {% if feature_prices.contact_for_price == 0 %}option-price-free{% endif %}">
+                                {% if feature_prices.contact_for_price == 0 %}
+                                    <span class="price-value">{% trans "مجاناً" %}</span>
+                                {% else %}
+                                    <span class="price-value">{{ feature_prices.contact_for_price }}</span>
+                                    <span class="option-price-currency">{% trans "ر.س" %}</span>
+                                {% endif %}
+                            </div>
+
+                            <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+                                <input type="checkbox"
+                                       name="feature_contact_for_price"
+                                       value="1"
+                                       class="option-checkbox feature-checkbox"
+                                       data-price="{{ feature_prices.contact_for_price }}">
+                                <span style="font-weight: 600;">{% trans "إضافة إلى الطلب" %}</span>
+                            </label>
+                        {% endif %}
+                    </div>
+
+                    <!-- Facebook Share -->
+                    <div class="option-card {% if ad.share_on_facebook %}already-active{% endif %}"
+                         data-option="facebook_share"
+                         data-base-price="{{ feature_prices.facebook_share }}">
+                        {% if ad.share_on_facebook %}
+                            <span class="option-badge active">
+                                <i class="fas fa-check"></i>
+                                {% if ad.facebook_share_completed %}
+                                    {% trans "تم النشر" %}
+                                {% elif ad.facebook_share_requested %}
+                                    {% trans "قيد المراجعة" %}
+                                {% else %}
+                                    {% trans "مفعّل" %}
+                                {% endif %}
+                            </span>
+                        {% else %}
+                            <span class="option-badge paid">
+                                <i class="fab fa-facebook"></i> {% trans "مدفوع" %}
+                            </span>
+                        {% endif %}
+
+                        <div class="option-icon">
+                            <i class="fab fa-facebook-f"></i>
+                        </div>
+
+                        <h3 class="option-title">
+                            {% trans "نشر على فيسبوك" %}
+                        </h3>
+
+                        <p class="option-description">
+                            {% trans "سننشر إعلانك على صفحتنا الرسمية على فيسبوك للوصول لجمهور أكبر. يتم التنفيذ يدوياً خلال 24 ساعة." %}
+                        </p>
+
+                        <ul class="option-features">
+                            <li><i class="fas fa-check-circle"></i> {% trans "نشر على الصفحة الرسمية" %}</li>
+                            <li><i class="fas fa-check-circle"></i> {% trans "وصول لآلاف المتابعين" %}</li>
+                            <li><i class="fas fa-check-circle"></i> {% trans "زيادة المشاهدات بنسبة 500%" %}</li>
+                        </ul>
+
+                        {% if not ad.share_on_facebook %}
+                            <div class="option-price">
+                                <span class="price-value">{{ feature_prices.facebook_share }}</span>
+                                <span class="option-price-currency">{% trans "ر.س" %}</span>
+                            </div>
+
+                            <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+                                <input type="checkbox"
+                                       name="feature_facebook_share"
+                                       value="1"
+                                       class="option-checkbox feature-checkbox"
+                                       data-price="{{ feature_prices.facebook_share }}">
+                                <span style="font-weight: 600;">{% trans "إضافة إلى الطلب" %}</span>
+                            </label>
+                        {% elif ad.facebook_share_completed and ad.facebook_post_url %}
+                            <a href="{{ ad.facebook_post_url }}" target="_blank" class="btn btn-primary w-100 mt-3">
+                                <i class="fab fa-facebook me-2"></i>
+                                {% trans "عرض المنشور" %}
+                            </a>
+                        {% endif %}
+                    </div>
+
+                    <!-- Video Feature (Coming Soon) -->
+                    <div class="option-card coming-soon"
+                         data-option="video"
+                         data-base-price="{{ feature_prices.video }}">
+                        <span class="option-badge coming-soon">
+                            <i class="fas fa-tools"></i> {% trans "قريباً" %}
+                        </span>
+
+                        <div class="option-icon">
+                            <i class="fas fa-video"></i>
+                        </div>
+
+                        <h3 class="option-title">
+                            {% trans "إضافة فيديو" %}
+                        </h3>
+
+                        <p class="option-description">
+                            {% trans "أضف فيديو لإعلانك لجذب المزيد من المشترين. يدعم YouTube وVimeo أو رفع ملف مباشر." %}
+                        </p>
+
+                        <ul class="option-features">
+                            <li><i class="fas fa-check-circle"></i> {% trans "رفع فيديو مباشر" %}</li>
+                            <li><i class="fas fa-check-circle"></i> {% trans "ربط فيديو YouTube/Vimeo" %}</li>
+                            <li><i class="fas fa-check-circle"></i> {% trans "زيادة التفاعل بنسبة 800%" %}</li>
+                        </ul>
+
+                        <div class="option-price">
+                            <span class="price-value">{{ feature_prices.video }}</span>
+                            <span class="option-price-currency">{% trans "ر.س" %}</span>
+                        </div>
+
+                        <button type="button" class="btn btn-secondary w-100 mt-3" disabled>
+                            <i class="fas fa-hourglass-half me-2"></i>
+                            {% trans "قيد التطوير" %}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Order Summary -->
+            <div class="col-lg-4">
+                <div class="order-summary">
+                    <h3 class="order-summary-title">
+                        <i class="fas fa-shopping-cart"></i>
+                        {% trans "ملخص الطلب" %}
+                    </h3>
+
+                    <div id="summary-items">
+                        <div class="empty-summary">
+                            <i class="fas fa-cart-plus"></i>
+                            <p>{% trans "اختر المميزات والترقيات لعرض الملخص" %}</p>
+                        </div>
+                    </div>
+
+                    <div class="summary-total" id="total-row" style="display: none;">
+                        <span>{% trans "الإجمالي" %}:</span>
+                        <span class="summary-total-price" id="total-price">0 {% trans "ر.س" %}</span>
+                    </div>
+
+                    <button type="submit" class="btn-checkout" id="checkout-btn" disabled>
+                        <i class="fas fa-lock"></i>
+                        <span>{% trans "متابعة للدفع" %}</span>
+                    </button>
+
+                    <div class="security-note">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>{% trans "معاملات آمنة ومشفرة 100%" %}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const upgradeCheckboxes = document.querySelectorAll('.upgrade-checkbox');
+    const featureCheckboxes = document.querySelectorAll('.feature-checkbox');
+    const summaryItems = document.getElementById('summary-items');
+    const totalRow = document.getElementById('total-row');
+    const totalPrice = document.getElementById('total-price');
+    const checkoutBtn = document.getElementById('checkout-btn');
+
+    let selectedItems = {};
+
+    // Handle upgrade checkboxes (with duration)
+    upgradeCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const card = this.closest('.option-card');
+            const optionType = card.dataset.option;
+            const durationSelector = card.querySelector('.duration-selector');
+
+            if (this.checked) {
+                card.classList.add('selected');
+                if (durationSelector) {
+                    durationSelector.style.display = 'block';
+                    // Auto-select first duration
+                    const firstDuration = durationSelector.querySelector('.duration-option');
+                    if (firstDuration) {
+                        firstDuration.click();
+                    }
+                }
+            } else {
+                card.classList.remove('selected');
+                if (durationSelector) {
+                    durationSelector.style.display = 'none';
+                }
+                delete selectedItems[optionType];
+                updateSummary();
+            }
+        });
+    });
+
+    // Handle feature checkboxes (no duration)
+    featureCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const card = this.closest('.option-card');
+            const optionType = card.dataset.option;
+            const price = parseFloat(this.dataset.price);
+            const name = card.querySelector('.option-title').textContent.trim();
+
+            if (this.checked) {
+                card.classList.add('selected');
+                selectedItems[optionType] = {
+                    name: name,
+                    price: price,
+                    duration: null
+                };
+            } else {
+                card.classList.remove('selected');
+                delete selectedItems[optionType];
+            }
+            updateSummary();
+        });
+    });
+
+    // Handle duration selection
+    document.querySelectorAll('.duration-option').forEach(option => {
+        option.addEventListener('click', function() {
+            const parent = this.closest('.duration-selector');
+            const card = this.closest('.option-card');
+            const optionType = card.dataset.option;
+            const name = card.querySelector('.option-title').textContent.trim();
+
+            // Remove selected from siblings
+            parent.querySelectorAll('.duration-option').forEach(opt =>
+                opt.classList.remove('selected')
+            );
+
+            // Add selected to this
+            this.classList.add('selected');
+
+            const days = this.dataset.days;
+            const price = parseFloat(this.dataset.price);
+            const hiddenInput = parent.querySelector('.duration-input');
+            if (hiddenInput) {
+                hiddenInput.value = days;
+            }
+
+            selectedItems[optionType] = {
+                name: name,
+                price: price,
+                duration: days
+            };
+
+            updateSummary();
+        });
+    });
+
+    function updateSummary() {
+        summaryItems.innerHTML = '';
+        let total = 0;
+
+        if (Object.keys(selectedItems).length === 0) {
+            summaryItems.innerHTML = `
+                <div class="empty-summary">
+                    <i class="fas fa-cart-plus"></i>
+                    <p>{% trans "اختر المميزات والترقيات لعرض الملخص" %}</p>
+                </div>
+            `;
+            totalRow.style.display = 'none';
+            checkoutBtn.disabled = true;
+            return;
+        }
+
+        for (const [key, value] of Object.entries(selectedItems)) {
+            total += value.price;
+            const durationText = value.duration ? ` (${value.duration} {% trans "يوم" %})` : '';
+            summaryItems.innerHTML += `
+                <div class="summary-item">
+                    <span class="summary-item-name">${value.name}${durationText}</span>
+                    <span class="summary-item-price">${value.price.toFixed(2)} {% trans "ر.س" %}</span>
+                </div>
+            `;
+        }
+
+        totalPrice.textContent = `${total.toFixed(2)} {% trans "ر.س" %}`;
+        totalRow.style.display = 'flex';
+        checkoutBtn.disabled = false;
+    }
+});
+</script>
+{% endblock %}

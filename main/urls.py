@@ -147,6 +147,37 @@ urlpatterns = [
         classifieds_views.PublisherDeleteAdView.as_view(),
         name="publisher_ad_delete",
     ),
+    # Publisher Ad Management Actions
+    path(
+        "classifieds/<int:ad_id>/toggle-cart/",
+        classifieds_views.publisher_toggle_cart,
+        name="publisher_toggle_cart",
+    ),
+    path(
+        "classifieds/<int:ad_id>/hide/",
+        classifieds_views.publisher_hide_ad,
+        name="publisher_hide_ad",
+    ),
+    path(
+        "classifieds/<int:ad_id>/activate/",
+        classifieds_views.publisher_activate_ad,
+        name="publisher_activate_ad",
+    ),
+    path(
+        "classifieds/<int:ad_id>/restore/",
+        classifieds_views.publisher_restore_ad,
+        name="publisher_restore_ad",
+    ),
+    path(
+        "classifieds/<int:ad_id>/permanent-delete/",
+        classifieds_views.publisher_permanent_delete_ad,
+        name="publisher_permanent_delete_ad",
+    ),
+    path(
+        "classifieds/<int:ad_id>/renew/",
+        classifieds_views.publisher_renew_ad,
+        name="publisher_renew_ad",
+    ),
     path(
         "classifieds/create/success/<int:pk>/",
         classifieds_views.ClassifiedAdCreateSuccessView.as_view(),
@@ -190,6 +221,17 @@ urlpatterns = [
         "classifieds/<int:pk>/upgrade/process/",
         classifieds_views.AdUpgradeProcessView.as_view(),
         name="ad_upgrade_process",
+    ),
+    # Unified Upgrade URL (combines upgrades + features)
+    path(
+        "classifieds/<int:pk>/upgrade-all/",
+        classifieds_views.AdUnifiedUpgradeView.as_view(),
+        name="ad_unified_upgrade",
+    ),
+    path(
+        "classifieds/<int:pk>/upgrade-all/process/",
+        classifieds_views.AdUnifiedUpgradeProcessView.as_view(),
+        name="ad_unified_upgrade_process",
     ),
     # Ad Features URLs
     path(
