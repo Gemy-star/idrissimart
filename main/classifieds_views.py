@@ -280,15 +280,18 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         context = super().get_context_data(**kwargs)
         if self.request.POST:
             context["image_formset"] = AdImageFormSet(
-                self.request.POST, self.request.FILES, prefix="images",
-                form_kwargs={'request': self.request}
+                self.request.POST,
+                self.request.FILES,
+                prefix="images",
+                form_kwargs={"request": self.request},
             )
         else:
             # Limit extra forms to 5 as requested
             AdImageFormSet.extra = 5
             context["image_formset"] = AdImageFormSet(
-                prefix="images", queryset=AdImage.objects.none(),
-                form_kwargs={'request': self.request}
+                prefix="images",
+                queryset=AdImage.objects.none(),
+                form_kwargs={"request": self.request},
             )
 
         context["ad_categories"] = Category.objects.filter(
@@ -302,14 +305,14 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         if self.request.user.is_authenticated:
             user_country = None
             # First try user's profile country
-            if hasattr(self.request.user, 'country') and self.request.user.country:
+            if hasattr(self.request.user, "country") and self.request.user.country:
                 user_country = self.request.user.country.code
             # Fall back to session country (from header selection)
             if not user_country:
-                user_country = self.request.session.get('selected_country')
+                user_country = self.request.session.get("selected_country")
 
             if user_country:
-                context['default_country'] = user_country
+                context["default_country"] = user_country
 
         # Add site configuration for pricing
         from content.models import SiteConfiguration
@@ -515,15 +518,14 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
     def get_queryset(self):
         # Ensure users can only edit their own ads (excluding deleted ones)
         return ClassifiedAd.objects.filter(
-            user=self.request.user,
-            deleted_at__isnull=True
+            user=self.request.user, deleted_at__isnull=True
         )
 
     def get_form_kwargs(self):
         """Pass user and editing flag to form"""
         kwargs = super().get_form_kwargs()
-        kwargs['user'] = self.request.user
-        kwargs['is_editing'] = True
+        kwargs["user"] = self.request.user
+        kwargs["is_editing"] = True
         return kwargs
 
     def get_context_data(self, **kwargs):
@@ -533,7 +535,7 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
                 self.request.POST,
                 self.request.FILES,
                 instance=self.object,
-                form_kwargs={'request': self.request}
+                form_kwargs={"request": self.request},
             )
         else:
             # Calculate extra forms needed
@@ -544,7 +546,7 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
                 instance=self.object,
                 queryset=self.object.images.all(),
                 extra=extra_forms,
-                form_kwargs={'request': self.request}
+                form_kwargs={"request": self.request},
             )
         context["ad_categories"] = Category.objects.filter(
             section_type=Category.SectionType.CLASSIFIED,
@@ -563,7 +565,9 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
         if form.instance.category != self.object.category:
             messages.error(
                 self.request,
-                _("لا يمكن تغيير القسم بعد نشر الإعلان. لتغيير القسم، يرجى حذف الإعلان وإنشاء إعلان جديد.")
+                _(
+                    "لا يمكن تغيير القسم بعد نشر الإعلان. لتغيير القسم، يرجى حذف الإعلان وإنشاء إعلان جديد."
+                ),
             )
             return self.render_to_response(self.get_context_data(form=form))
 
@@ -591,7 +595,9 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
             if needs_approval:
                 messages.info(
                     self.request,
-                    _("تم تقديم التعديلات للمراجعة. سيظل إعلانك الحالي نشطاً حتى الموافقة على التعديلات.")
+                    _(
+                        "تم تقديم التعديلات للمراجعة. سيظل إعلانك الحالي نشطاً حتى الموافقة على التعديلات."
+                    ),
                 )
             else:
                 messages.success(self.request, _("تم تحديث إعلانك بنجاح!"))
@@ -685,8 +691,8 @@ class ClassifiedAdDetailView(DetailView):
         # We handle inactive ads in dispatch, so include all ads here
         # Optimize query with prefetch_related for images
         return ClassifiedAd.objects.select_related(
-            'user', 'category', 'country', 'city'
-        ).prefetch_related('images', 'features', 'reviews')
+            "user", "category", "country"
+        ).prefetch_related("images", "features", "reviews")
 
     def get_object(self, queryset=None):
         """Get the classified ad object with proper error handling and logging."""
@@ -1823,21 +1829,28 @@ def get_category_custom_fields(request, category_id):
 
 # ========== Publisher Ad Management Actions ==========
 
+
 @login_required
 @require_POST
 def publisher_toggle_cart(request, ad_id):
     """Toggle cart enabled status for an ad"""
-    ad = get_object_or_404(ClassifiedAd, id=ad_id, user=request.user, deleted_at__isnull=True)
+    ad = get_object_or_404(
+        ClassifiedAd, id=ad_id, user=request.user, deleted_at__isnull=True
+    )
 
     # Toggle cart status
     ad.is_cart_enabled = not ad.is_cart_enabled
-    ad.save(update_fields=['is_cart_enabled'])
+    ad.save(update_fields=["is_cart_enabled"])
 
     messages.success(
         request,
-        _("تم تفعيل السلة للإعلان") if ad.is_cart_enabled else _("تم إلغاء تفعيل السلة للإعلان")
+        (
+            _("تم تفعيل السلة للإعلان")
+            if ad.is_cart_enabled
+            else _("تم إلغاء تفعيل السلة للإعلان")
+        ),
     )
-    return redirect('main:my_ads')
+    return redirect("main:my_ads")
 
 
 @login_required
@@ -1845,20 +1858,17 @@ def publisher_toggle_cart(request, ad_id):
 def publisher_hide_ad(request, ad_id):
     """Hide an ad (change status to draft)"""
     ad = get_object_or_404(
-        ClassifiedAd,
-        id=ad_id,
-        user=request.user,
-        deleted_at__isnull=True
+        ClassifiedAd, id=ad_id, user=request.user, deleted_at__isnull=True
     )
 
     if ad.status == ClassifiedAd.AdStatus.ACTIVE:
         ad.status = ClassifiedAd.AdStatus.DRAFT
-        ad.save(update_fields=['status'])
+        ad.save(update_fields=["status"])
         messages.success(request, _("تم إخفاء الإعلان بنجاح"))
     else:
         messages.warning(request, _("يمكن إخفاء الإعلانات النشطة فقط"))
 
-    return redirect('main:my_ads')
+    return redirect("main:my_ads")
 
 
 @login_required
@@ -1866,31 +1876,29 @@ def publisher_hide_ad(request, ad_id):
 def publisher_activate_ad(request, ad_id):
     """Activate a hidden ad (change status from draft to active)"""
     ad = get_object_or_404(
-        ClassifiedAd,
-        id=ad_id,
-        user=request.user,
-        deleted_at__isnull=True
+        ClassifiedAd, id=ad_id, user=request.user, deleted_at__isnull=True
     )
 
     if ad.status == ClassifiedAd.AdStatus.DRAFT:
         # Check if user has available ads in package
         from django.utils import timezone
+
         active_package = UserPackage.objects.filter(
-            user=request.user,
-            expiry_date__gte=timezone.now(),
-            ads_remaining__gt=0
+            user=request.user, expiry_date__gte=timezone.now(), ads_remaining__gt=0
         ).first()
 
         if active_package:
             ad.status = ClassifiedAd.AdStatus.ACTIVE
-            ad.save(update_fields=['status'])
+            ad.save(update_fields=["status"])
             messages.success(request, _("تم تفعيل الإعلان بنجاح"))
         else:
-            messages.error(request, _("ليس لديك رصيد إعلانات متاح. يرجى شراء باقة جديدة"))
+            messages.error(
+                request, _("ليس لديك رصيد إعلانات متاح. يرجى شراء باقة جديدة")
+            )
     else:
         messages.warning(request, _("يمكن تفعيل الإعلانات المخفية فقط"))
 
-    return redirect('main:my_ads')
+    return redirect("main:my_ads")
 
 
 @login_required
@@ -1898,18 +1906,17 @@ def publisher_activate_ad(request, ad_id):
 def publisher_restore_ad(request, ad_id):
     """Restore a deleted ad"""
     ad = get_object_or_404(
-        ClassifiedAd,
-        id=ad_id,
-        user=request.user,
-        deleted_at__isnull=False
+        ClassifiedAd, id=ad_id, user=request.user, deleted_at__isnull=False
     )
 
     ad.deleted_at = None
     ad.status = ClassifiedAd.AdStatus.DRAFT  # Restore as draft
-    ad.save(update_fields=['deleted_at', 'status'])
+    ad.save(update_fields=["deleted_at", "status"])
 
-    messages.success(request, _("تم استعادة الإعلان بنجاح. يمكنك تفعيله من قائمة إعلاناتك"))
-    return redirect('main:my_ads')
+    messages.success(
+        request, _("تم استعادة الإعلان بنجاح. يمكنك تفعيله من قائمة إعلاناتك")
+    )
+    return redirect("main:my_ads")
 
 
 @login_required
@@ -1917,17 +1924,14 @@ def publisher_restore_ad(request, ad_id):
 def publisher_permanent_delete_ad(request, ad_id):
     """Permanently delete an ad"""
     ad = get_object_or_404(
-        ClassifiedAd,
-        id=ad_id,
-        user=request.user,
-        deleted_at__isnull=False
+        ClassifiedAd, id=ad_id, user=request.user, deleted_at__isnull=False
     )
 
     ad_title = ad.title
     ad.delete()  # Permanent deletion
 
     messages.success(request, _("تم حذف الإعلان '{}' نهائياً").format(ad_title))
-    return redirect('main:my_ads')
+    return redirect("main:my_ads")
 
 
 @login_required
@@ -1938,7 +1942,7 @@ def publisher_renew_ad(request, ad_id):
         id=ad_id,
         user=request.user,
         deleted_at__isnull=True,
-        status=ClassifiedAd.AdStatus.EXPIRED
+        status=ClassifiedAd.AdStatus.EXPIRED,
     )
 
     from django.utils import timezone
@@ -1946,32 +1950,33 @@ def publisher_renew_ad(request, ad_id):
 
     # Check if user has available ads in package
     active_package = UserPackage.objects.filter(
-        user=request.user,
-        expiry_date__gte=timezone.now(),
-        ads_remaining__gt=0
+        user=request.user, expiry_date__gte=timezone.now(), ads_remaining__gt=0
     ).first()
 
     if active_package:
         # Renew the ad
         ad.status = ClassifiedAd.AdStatus.ACTIVE
-        ad.expires_at = timezone.now() + timedelta(days=active_package.package.duration_days)
-        ad.save(update_fields=['status', 'expires_at'])
+        ad.expires_at = timezone.now() + timedelta(
+            days=active_package.package.duration_days
+        )
+        ad.save(update_fields=["status", "expires_at"])
 
         # Deduct from package
         active_package.ads_remaining -= 1
-        active_package.save(update_fields=['ads_remaining'])
+        active_package.save(update_fields=["ads_remaining"])
 
         messages.success(request, _("تم تجديد الإعلان بنجاح"))
     else:
         messages.error(request, _("ليس لديك رصيد إعلانات متاح. يرجى شراء باقة جديدة"))
 
-    return redirect('main:my_ads')
+    return redirect("main:my_ads")
 
 
 class AdUnifiedUpgradeView(LoginRequiredMixin, DetailView):
     """
     Unified upgrade page combining all upgrades and features in one place
     """
+
     model = ClassifiedAd
     template_name = "classifieds/ad_unified_upgrade.html"
     context_object_name = "ad"
@@ -2089,15 +2094,19 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
             elif highlighted_duration == 14:
                 price = Decimal(str(getattr(config, "FEATURED_AD_PRICE_14DAYS", 80.00)))
             else:  # 30
-                price = Decimal(str(getattr(config, "FEATURED_AD_PRICE_30DAYS", 100.00)))
+                price = Decimal(
+                    str(getattr(config, "FEATURED_AD_PRICE_30DAYS", 100.00))
+                )
 
             total_amount += price
-            upgrades.append({
-                "type": "featured",
-                "duration": highlighted_duration,
-                "price": str(price),
-                "name": _("إعلان مميز"),
-            })
+            upgrades.append(
+                {
+                    "type": "featured",
+                    "duration": highlighted_duration,
+                    "price": str(price),
+                    "name": _("إعلان مميز"),
+                }
+            )
 
         if upgrade_pinned and pinned_duration > 0:
             if pinned_duration == 7:
@@ -2108,12 +2117,14 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
                 price = Decimal(str(getattr(config, "PINNED_AD_PRICE_30DAYS", 150.00)))
 
             total_amount += price
-            upgrades.append({
-                "type": "pinned",
-                "duration": pinned_duration,
-                "price": str(price),
-                "name": _("تثبيت في الأعلى"),
-            })
+            upgrades.append(
+                {
+                    "type": "pinned",
+                    "duration": pinned_duration,
+                    "price": str(price),
+                    "name": _("تثبيت في الأعلى"),
+                }
+            )
 
         if upgrade_urgent and urgent_duration > 0:
             if urgent_duration == 7:
@@ -2124,12 +2135,14 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
                 price = Decimal(str(getattr(config, "URGENT_AD_PRICE_30DAYS", 60.00)))
 
             total_amount += price
-            upgrades.append({
-                "type": "urgent",
-                "duration": urgent_duration,
-                "price": str(price),
-                "name": _("إعلان عاجل"),
-            })
+            upgrades.append(
+                {
+                    "type": "urgent",
+                    "duration": urgent_duration,
+                    "price": str(price),
+                    "name": _("إعلان عاجل"),
+                }
+            )
 
         # Get feature prices
         active_package = (
@@ -2173,9 +2186,9 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
             # Redirect to payment
             messages.info(
                 request,
-                _("يرجى إتمام الدفع لتفعيل المميزات والترقيات. المبلغ المطلوب: {} ريال").format(
-                    total_amount
-                ),
+                _(
+                    "يرجى إتمام الدفع لتفعيل المميزات والترقيات. المبلغ المطلوب: {} ريال"
+                ).format(total_amount),
             )
             return redirect("main:ad_upgrade_payment", ad_id=ad.pk)
         else:
