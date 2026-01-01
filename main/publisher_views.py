@@ -47,6 +47,11 @@ class PublisherMyAdsView(PublisherRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
+        from content.site_config import SiteConfiguration
+
+        config = SiteConfiguration.get_solo()
+
+        # Base queryset - include all ads by default (even soft-deleted)
         queryset = (
             ClassifiedAd.objects.filter(user=self.request.user)
             .select_related("category", "country")
@@ -63,6 +68,14 @@ class PublisherMyAdsView(PublisherRequiredMixin, ListView):
         if status:
             queryset = queryset.filter(status=status)
 
+        # Filter for deleted ads
+        show_deleted = self.request.GET.get("deleted")
+        if show_deleted == "true" and config.show_deleted_ads_to_publisher:
+            queryset = queryset.filter(deleted_at__isnull=False)
+        elif show_deleted != "true":
+            # By default, exclude soft-deleted ads unless specifically requested
+            queryset = queryset.filter(deleted_at__isnull=True)
+
         # Filter for resubmitted ads
         resubmitted = self.request.GET.get("resubmitted")
         if resubmitted == "true":
@@ -77,20 +90,33 @@ class PublisherMyAdsView(PublisherRequiredMixin, ListView):
         return queryset
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
+        from content.site_config import SiteConfiguration
 
+        context = super().get_context_data(**kwargs)
+        config = SiteConfiguration.get_solo()
+
+        # Get all user ads (including deleted for counting)
         user_ads = ClassifiedAd.objects.filter(user=self.request.user)
 
+        # Non-deleted ads
+        active_ads = user_ads.filter(deleted_at__isnull=True)
+
+        # Deleted ads
+        deleted_ads = user_ads.filter(deleted_at__isnull=False)
+
         context["stats"] = {
-            "total": user_ads.count(),
-            "active": user_ads.filter(status="active").count(),
-            "pending": user_ads.filter(status="pending").count(),
-            "resubmitted": user_ads.filter(status="pending", is_resubmitted=True).count(),
-            "expired": user_ads.filter(status="expired").count(),
-            "draft": user_ads.filter(status="draft").count(),
-            "highlighted": user_ads.filter(is_highlighted=True).count(),
-            "urgent": user_ads.filter(is_urgent=True).count(),
-            "pinned": user_ads.filter(is_pinned=True).count(),
+            "total": active_ads.count(),
+            "active": active_ads.filter(status="active").count(),
+            "pending": active_ads.filter(status="pending").count(),
+            "resubmitted": active_ads.filter(
+                status="pending", is_resubmitted=True
+            ).count(),
+            "expired": active_ads.filter(status="expired").count(),
+            "draft": active_ads.filter(status="draft").count(),
+            "highlighted": active_ads.filter(is_highlighted=True).count(),
+            "urgent": active_ads.filter(is_urgent=True).count(),
+            "pinned": active_ads.filter(is_pinned=True).count(),
+            "deleted": deleted_ads.count(),
         }
 
         # Ad balance
@@ -107,9 +133,14 @@ class PublisherMyAdsView(PublisherRequiredMixin, ListView):
         context["current_filters"] = {
             "status": self.request.GET.get("status", ""),
             "search": self.request.GET.get("search", ""),
+            "deleted": self.request.GET.get("deleted", ""),
         }
 
         context["status_choices"] = ClassifiedAd.AdStatus.choices
+        context["show_deleted_to_publisher"] = config.show_deleted_ads_to_publisher
+        context["show_expired_to_publisher"] = config.show_expired_ads_to_publisher
+        context["deleted_retention_days"] = config.deleted_ads_retention_days
+        context["expired_retention_days"] = config.expired_ads_retention_days
 
         return context
 
@@ -647,24 +678,105 @@ def publisher_payment_history(request):
     عرض سجل المدفوعات للعضو
     Display payment history for the publisher
     """
-    payments = Payment.objects.filter(user=request.user).select_related('user').prefetch_related('packages').order_by('-created_at')
+    payments = (
+        Payment.objects.filter(user=request.user)
+        .select_related("user")
+        .prefetch_related("packages")
+        .order_by("-created_at")
+    )
 
     # Add package info from metadata for each payment
     for payment in payments:
-        if payment.metadata.get('package_id'):
+        if payment.metadata.get("package_id"):
             try:
-                payment.package_info = AdPackage.objects.get(id=payment.metadata['package_id'])
+                payment.package_info = AdPackage.objects.get(
+                    id=payment.metadata["package_id"]
+                )
             except AdPackage.DoesNotExist:
                 payment.package_info = None
         else:
             payment.package_info = None
 
     context = {
-        'payments': payments,
-        'total_payments': payments.count(),
-        'completed_payments': payments.filter(status='completed').count(),
-        'pending_payments': payments.filter(status='pending').count(),
-        'total_spent': payments.filter(status='completed').aggregate(total=Sum('amount'))['total'] or 0,
+        "payments": payments,
+        "total_payments": payments.count(),
+        "completed_payments": payments.filter(status="completed").count(),
+        "pending_payments": payments.filter(status="pending").count(),
+        "total_spent": payments.filter(status="completed").aggregate(
+            total=Sum("amount")
+        )["total"]
+        or 0,
     }
 
-    return render(request, 'dashboard/publisher_payment_history.html', context)
+    return render(request, "dashboard/publisher_payment_history.html", context)
+
+
+@publisher_required
+def publisher_restore_ad(request, ad_id):
+    """
+    استعادة إعلان محذوف
+    Restore a soft-deleted ad
+    """
+    from django.http import JsonResponse
+
+    ad = get_object_or_404(ClassifiedAd, id=ad_id, user=request.user)
+
+    if request.method == "POST":
+        if ad.restore_from_soft_delete():
+            return JsonResponse(
+                {"success": True, "message": _("تم استعادة الإعلان بنجاح")}
+            )
+        else:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": _("الإعلان غير محذوف أو لا يمكن استعادته"),
+                },
+                status=400,
+            )
+
+    return JsonResponse(
+        {"success": False, "message": _("طريقة غير مسموحة")}, status=405
+    )
+
+
+@publisher_required
+def publisher_permanent_delete_ad(request, ad_id):
+    """
+    حذف إعلان نهائياً
+    Permanently delete an ad
+    """
+    from django.http import JsonResponse
+
+    ad = get_object_or_404(ClassifiedAd, id=ad_id, user=request.user)
+
+    if request.method == "POST":
+        # Check if ad is eligible for permanent deletion
+        can_delete, reason = ad.can_be_permanently_deleted()
+
+        if (
+            can_delete or ad.deleted_at
+        ):  # Allow manual permanent delete if already soft-deleted
+            ad_title = ad.title
+            ad.delete()  # Hard delete from database
+
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": _('تم حذف الإعلان "{}" نهائياً').format(ad_title),
+                }
+            )
+        else:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": _(
+                        "لا يمكن حذف الإعلان نهائياً في الوقت الحالي. السبب: {}"
+                    ).format(reason),
+                },
+                status=400,
+            )
+
+    return JsonResponse(
+        {"success": False, "message": _("طريقة غير مسموحة")}, status=405
+    )

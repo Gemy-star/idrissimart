@@ -1245,25 +1245,21 @@ class ClassifiedAdManager(models.Manager):
         )
 
     def featured_for_country(self, country_code):
-        """Get featured/upgraded ads for a specific country"""
+        """Get only highlighted ads for a specific country (featured section)"""
         from django.utils import timezone
 
-        # Get ads with active upgrades (highlighted, urgent, or pinned)
-        featured_ad_pks = (
-            AdUpgradeHistory.objects.filter(
-                end_date__gte=timezone.now(),
-                is_active=True,
-                ad__country__code=country_code if country_code else "EG",
+        # Get only highlighted ads (is_highlighted=True)
+        queryset = (
+            self.get_queryset()
+            .filter(
+                is_highlighted=True,
+                status=self.model.AdStatus.ACTIVE,
+                country__code=country_code if country_code else "EG",
             )
-            .values_list("ad_id", flat=True)
-            .distinct()
+            .order_by("-is_pinned", "-is_urgent", "-created_at")
         )
 
-        return (
-            self.get_queryset()
-            .filter(pk__in=featured_ad_pks, status=self.model.AdStatus.ACTIVE)
-            .order_by("-is_pinned", "-is_urgent", "-is_highlighted", "-created_at")
-        )
+        return queryset
 
     def highlighted(self):
         """Get highlighted ads"""
@@ -1583,6 +1579,12 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
     updated_at = models.DateTimeField(auto_now=True)
     expires_at = models.DateTimeField(
         null=True, blank=True, verbose_name=_("تاريخ الانتهاء")
+    )
+    deleted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_("تاريخ الحذف"),
+        help_text=_("تاريخ الحذف المؤقت - يتم الحذف النهائي بعد المدة المحددة"),
     )
     views_count = models.PositiveIntegerField(
         default=0, verbose_name=_("عدد المشاهدات")
@@ -2013,6 +2015,83 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
             and self.expires_at > timezone.now()
         )
 
+    def soft_delete(self):
+        """
+        Soft delete the ad by marking deleted_at timestamp
+        The ad will be permanently deleted after the retention period
+        """
+        self.deleted_at = timezone.now()
+        self.status = self.AdStatus.EXPIRED  # Or keep current status
+        self.save(update_fields=["deleted_at", "status", "updated_at"])
+
+        # Create notification
+        from main.models import Notification
+        from content.site_config import SiteConfiguration
+
+        config = SiteConfiguration.get_solo()
+        retention_days = config.deleted_ads_retention_days
+
+        Notification.objects.create(
+            user=self.user,
+            title=_("تم حذف إعلانك"),
+            message=_('تم حذف إعلانك "{}". سيتم الحذف النهائي بعد {} يوم.').format(
+                self.title, retention_days
+            ),
+            notification_type="general",
+            link=f"/publisher/my-ads/",
+        )
+
+    def is_soft_deleted(self):
+        """Check if ad is soft deleted"""
+        return self.deleted_at is not None
+
+    def can_be_permanently_deleted(self):
+        """
+        Check if ad can be permanently deleted based on retention settings
+        Returns: (can_delete: bool, reason: str)
+        """
+        from content.site_config import SiteConfiguration
+
+        config = SiteConfiguration.get_solo()
+
+        # Check if deleted and past retention period
+        if self.deleted_at:
+            days_since_deletion = (timezone.now() - self.deleted_at).days
+            if days_since_deletion >= config.deleted_ads_retention_days:
+                return True, "deleted_retention_exceeded"
+
+        # Check if expired and past retention period
+        if self.status == self.AdStatus.EXPIRED and self.expires_at:
+            days_since_expiry = (timezone.now() - self.expires_at).days
+            if days_since_expiry >= config.expired_ads_retention_days:
+                return True, "expired_retention_exceeded"
+
+        return False, "retention_period_not_met"
+
+    def restore_from_soft_delete(self):
+        """Restore a soft-deleted ad"""
+        if self.deleted_at:
+            self.deleted_at = None
+            # Restore to appropriate status
+            if self.expires_at and self.expires_at > timezone.now():
+                self.status = self.AdStatus.ACTIVE
+            else:
+                self.status = self.AdStatus.EXPIRED
+            self.save(update_fields=["deleted_at", "status", "updated_at"])
+
+            # Create notification
+            from main.models import Notification
+
+            Notification.objects.create(
+                user=self.user,
+                title=_("تم استعادة إعلانك"),
+                message=_('تم استعادة إعلانك "{}".').format(self.title),
+                notification_type="general",
+                link=self.get_absolute_url(),
+            )
+            return True
+        return False
+
     def renew_ad(self, duration_days=30, free=False):
         """
         Renew the ad for specified duration
@@ -2217,9 +2296,9 @@ class AdReview(models.Model):
         verbose_name=_("التعليق"), blank=True, help_text=_("تعليق اختياري")
     )
     is_approved = models.BooleanField(
-        default=True,
+        default=False,
         verbose_name=_("معتمد"),
-        help_text=_("يمكن للإدارة إخفاء التعليقات غير اللائقة"),
+        help_text=_("يتطلب موافقة الإدارة قبل الظهور"),
     )
     created_at = models.DateTimeField(
         auto_now_add=True, verbose_name=_("تاريخ الإنشاء")

@@ -157,17 +157,28 @@ class ClassifiedAdForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
+        self.is_editing = kwargs.pop("is_editing", False)
         super().__init__(*args, **kwargs)
 
         # Update mobile number help text based on verification settings
         from content.site_config import SiteConfiguration
+
         site_config = SiteConfiguration.get_solo()
         if not site_config.require_phone_verification:
             # If phone verification is disabled, remove the verification mention
             self.fields["mobile_number"].help_text = _("رقم الجوال للتواصل")
 
+        # Disable category field when editing (prevent category changes)
+        if self.is_editing and self.instance and self.instance.pk:
+            self.fields["category"].disabled = True
+            self.fields["category"].help_text = _("لا يمكن تغيير القسم بعد نشر الإعلان")
+            self.fields["category"].widget.attrs["readonly"] = True
+            self.fields["category"].widget.attrs[
+                "style"
+            ] = "pointer-events: none; background-color: #e9ecef;"
+
         # Remove default empty label for category field
-        if "category" in self.fields:
+        if "category" in self.fields and not self.is_editing:
             self.fields["category"].empty_label = None
 
         # Remove default empty label for country field
@@ -233,9 +244,7 @@ class ClassifiedAdForm(forms.ModelForm):
 
         # Get all active custom fields for this category
         category_fields = (
-            CategoryCustomField.objects.filter(
-                category=category, is_active=True
-            )
+            CategoryCustomField.objects.filter(category=category, is_active=True)
             .select_related("custom_field")
             .order_by("order")
         )
@@ -268,15 +277,13 @@ class ClassifiedAdForm(forms.ModelForm):
 
                 if field_type == "radio":
                     self.fields[field_name] = forms.ChoiceField(
-                        **field_kwargs,
-                        choices=choices,
-                        widget=forms.RadioSelect()
+                        **field_kwargs, choices=choices, widget=forms.RadioSelect()
                     )
                 else:
                     self.fields[field_name] = forms.ChoiceField(
                         **field_kwargs,
                         choices=choices,
-                        widget=forms.Select(attrs=widget_attrs)
+                        widget=forms.Select(attrs=widget_attrs),
                     )
 
             elif field_type == "checkbox":
@@ -304,16 +311,18 @@ class ClassifiedAdForm(forms.ModelForm):
                 )
 
             elif field_type == "number":
-                widget_attrs.update({
-                    "min": field.min_value if field.min_value is not None else "",
-                    "max": field.max_value if field.max_value is not None else "",
-                    "step": "any",
-                })
+                widget_attrs.update(
+                    {
+                        "min": field.min_value if field.min_value is not None else "",
+                        "max": field.max_value if field.max_value is not None else "",
+                        "step": "any",
+                    }
+                )
                 self.fields[field_name] = forms.DecimalField(
                     **field_kwargs,
                     min_value=field.min_value,
                     max_value=field.max_value,
-                    widget=forms.NumberInput(attrs=widget_attrs)
+                    widget=forms.NumberInput(attrs=widget_attrs),
                 )
 
             elif field_type == "email":
@@ -521,42 +530,47 @@ class AdImageForm(forms.ModelForm):
             "image": forms.FileInput(
                 attrs={
                     "class": "form-control",
-                    "accept": "image/jpeg,image/jpg,image/png,image/webp"
+                    "accept": "image/jpeg,image/jpg,image/png,image/webp",
                 }
             )
         }
 
     def __init__(self, *args, **kwargs):
-        self.request = kwargs.pop('request', None)
+        self.request = kwargs.pop("request", None)
         super().__init__(*args, **kwargs)
         # Make image field optional
         self.fields["image"].required = False
 
     def clean_image(self):
         """Validate image type - prevent GIF for non-admin users"""
-        image = self.cleaned_data.get('image')
+        image = self.cleaned_data.get("image")
 
         if not image:
             return image
 
         # Allow admins to upload any image type
-        if self.request and hasattr(self.request, 'user') and self.request.user.is_staff:
+        if (
+            self.request
+            and hasattr(self.request, "user")
+            and self.request.user.is_staff
+        ):
             return image
 
         # Get file extension
         import os
+
         file_name = image.name.lower()
         file_ext = os.path.splitext(file_name)[1]
 
         # Check if it's a GIF
-        if file_ext in ['.gif']:
+        if file_ext in [".gif"]:
             raise forms.ValidationError(
                 _("صور GIF غير مسموح بها. يرجى استخدام صور PNG أو JPEG أو WebP.")
             )
 
         # Also check MIME type
-        if hasattr(image, 'content_type'):
-            if image.content_type == 'image/gif':
+        if hasattr(image, "content_type"):
+            if image.content_type == "image/gif":
                 raise forms.ValidationError(
                     _("صور GIF غير مسموح بها. يرجى استخدام صور PNG أو JPEG أو WebP.")
                 )
@@ -1060,7 +1074,9 @@ class AdminClassifiedAdForm(forms.ModelForm):
             "is_highlighted": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "is_urgent": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "is_pinned": forms.CheckboxInput(attrs={"class": "form-check-input"}),
-            "contact_for_price": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "contact_for_price": forms.CheckboxInput(
+                attrs={"class": "form-check-input"}
+            ),
         }
 
     def __init__(self, *args, **kwargs):
@@ -1122,9 +1138,7 @@ class AdminClassifiedAdForm(forms.ModelForm):
 
         # Get all active custom fields for this category
         category_fields = (
-            CategoryCustomField.objects.filter(
-                category=category, is_active=True
-            )
+            CategoryCustomField.objects.filter(category=category, is_active=True)
             .select_related("custom_field")
             .order_by("order")
         )
@@ -1156,15 +1170,13 @@ class AdminClassifiedAdForm(forms.ModelForm):
 
                 if field_type == "radio":
                     self.fields[field_name] = forms.ChoiceField(
-                        **field_kwargs,
-                        choices=choices,
-                        widget=forms.RadioSelect()
+                        **field_kwargs, choices=choices, widget=forms.RadioSelect()
                     )
                 else:
                     self.fields[field_name] = forms.ChoiceField(
                         **field_kwargs,
                         choices=choices,
-                        widget=forms.Select(attrs=widget_attrs)
+                        widget=forms.Select(attrs=widget_attrs),
                     )
 
             elif field_type == "checkbox":
@@ -1180,15 +1192,17 @@ class AdminClassifiedAdForm(forms.ModelForm):
                 )
 
             elif field_type == "number":
-                widget_attrs.update({
-                    "min": field.min_value if field.min_value is not None else "",
-                    "max": field.max_value if field.max_value is not None else "",
-                })
+                widget_attrs.update(
+                    {
+                        "min": field.min_value if field.min_value is not None else "",
+                        "max": field.max_value if field.max_value is not None else "",
+                    }
+                )
                 self.fields[field_name] = forms.DecimalField(
                     **field_kwargs,
                     min_value=field.min_value,
                     max_value=field.max_value,
-                    widget=forms.NumberInput(attrs=widget_attrs)
+                    widget=forms.NumberInput(attrs=widget_attrs),
                 )
 
             elif field_type == "email":

@@ -41,6 +41,15 @@ class SiteConfiguration(SingletonModel):
         verbose_name=_("نص حقوق النشر"),
     )
 
+    # Site Logo
+    logo = models.ImageField(
+        upload_to="site/logos/",
+        blank=True,
+        null=True,
+        verbose_name=_("شعار الموقع - Site Logo"),
+        help_text=_("شعار الموقع الذي يظهر في الإعلانات بدون صور"),
+    )
+
     # Verification Settings
     require_email_verification = models.BooleanField(
         default=False,
@@ -207,6 +216,87 @@ class SiteConfiguration(SingletonModel):
         verbose_name=_("تعليمات خدمة السلة للناشر"),
         default="عند تفعيل السلة، سيتم خصم رسوم خدمة من ثمن المنتج عند البيع. يجب أن يكون السعر شاملاً لهذه الرسوم ورسوم التوصيل.",
         help_text=_("التعليمات التي تظهر للناشر عند تفعيل السلة"),
+    )
+
+    # Ads Retention Settings (Soft Delete)
+    deleted_ads_retention_days = models.PositiveIntegerField(
+        default=90,
+        verbose_name=_("مدة الاحتفاظ بالإعلانات المحذوفة (يوم)"),
+        help_text=_(
+            "عدد الأيام قبل الحذف النهائي للإعلانات المحذوفة من قاعدة البيانات. القيمة الافتراضية: 90 يوم (3 شهور)"
+        ),
+        validators=[MinValueValidator(1), MaxValueValidator(730)],
+    )
+
+    expired_ads_retention_days = models.PositiveIntegerField(
+        default=365,
+        verbose_name=_("مدة الاحتفاظ بالإعلانات المنتهية (يوم)"),
+        help_text=_(
+            "عدد الأيام قبل الحذف النهائي للإعلانات المنتهية من قاعدة البيانات. القيمة الافتراضية: 365 يوم (سنة)"
+        ),
+        validators=[MinValueValidator(1), MaxValueValidator(1825)],
+    )
+
+    show_deleted_ads_to_publisher = models.BooleanField(
+        default=True,
+        verbose_name=_("إظهار الإعلانات المحذوفة للناشر"),
+        help_text=_("السماح للناشر برؤية إعلاناته المحذوفة قبل الحذف النهائي"),
+    )
+
+    show_expired_ads_to_publisher = models.BooleanField(
+        default=True,
+        verbose_name=_("إظهار الإعلانات المنتهية للناشر"),
+        help_text=_("السماح للناشر برؤية إعلاناته المنتهية"),
+    )
+
+    # Buyer Safety Notes
+    buyer_safety_notes_enabled = models.BooleanField(
+        default=True,
+        verbose_name=_("تفعيل نصائح الأمان للمشترين"),
+        help_text=_("إظهار/إخفاء نصائح الأمان في صفحة تفاصيل الإعلان"),
+    )
+
+    buyer_safety_notes = CKEditor5Field(
+        blank=True,
+        verbose_name=_("نصائح الأمان للمشترين"),
+        config_name="default",
+        default="""
+        <ul>
+            <li>قابل البائع في مكان عام وآمن</li>
+            <li>تحقق من المنتج جيداً قبل الشراء</li>
+            <li>لا تحول أي أموال قبل استلام المنتج</li>
+            <li>احذر من العروض المشبوهة أو الأسعار المبالغ فيها</li>
+            <li>استخدم طرق الدفع الآمنة</li>
+        </ul>
+        """,
+        help_text=_("النصائح الإرشادية التي تظهر للمشتري بجوار الإعلان"),
+    )
+
+    buyer_safety_notes_ar = CKEditor5Field(
+        blank=True,
+        verbose_name=_("نصائح الأمان للمشترين بالعربية"),
+        config_name="default",
+        default="""
+        <ul>
+            <li>قابل البائع في مكان عام وآمن</li>
+            <li>تحقق من المنتج جيداً قبل الشراء</li>
+            <li>لا تحول أي أموال قبل استلام المنتج</li>
+            <li>احذر من العروض المشبوهة أو الأسعار المبالغ فيها</li>
+            <li>استخدم طرق الدفع الآمنة</li>
+        </ul>
+        """,
+    )
+
+    buyer_safety_notes_title = models.CharField(
+        max_length=200,
+        default="نصائح للأمان",
+        verbose_name=_("عنوان نصائح الأمان"),
+    )
+
+    buyer_safety_notes_title_ar = models.CharField(
+        max_length=200,
+        default="نصائح للأمان",
+        verbose_name=_("عنوان نصائح الأمان بالعربية"),
     )
 
     class Meta:

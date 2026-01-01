@@ -361,6 +361,7 @@ class SiteConfigurationAdmin(SingletonModelAdmin):
                     "footer_text",
                     "footer_text_ar",
                     "copyright_text",
+                    "logo",
                 )
             },
         ),
@@ -395,6 +396,19 @@ class SiteConfigurationAdmin(SingletonModelAdmin):
                     "cart_service_instructions",
                 ),
                 "description": "إعدادات رسوم الخدمة التي يتم خصمها من الناشر عند البيع عبر المنصة",
+            },
+        ),
+        (
+            "نصائح الأمان للمشترين",
+            {
+                "fields": (
+                    "buyer_safety_notes_enabled",
+                    "buyer_safety_notes_title",
+                    "buyer_safety_notes_title_ar",
+                    "buyer_safety_notes",
+                    "buyer_safety_notes_ar",
+                ),
+                "description": "النصائح الإرشادية التي تظهر للمشتري بجوار الإعلان لتوعيتهم بكيفية التعامل الآمن",
             },
         ),
     )

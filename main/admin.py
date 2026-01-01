@@ -1404,11 +1404,11 @@ class NewsletterSubscriberAdmin(admin.ModelAdmin):
 class AdReportAdmin(admin.ModelAdmin):
     list_display = (
         "id",
-        "report_type",
-        "status",
-        "reporter",
-        "reported_ad",
-        "reported_user",
+        "report_type_badge",
+        "status_badge",
+        "reporter_info",
+        "reported_target",
+        "description_preview",
         "created_at",
         "reviewed_by",
     )
@@ -1420,6 +1420,9 @@ class AdReportAdmin(admin.ModelAdmin):
         "reported_user__username",
     )
     readonly_fields = ("created_at", "updated_at", "resolved_at")
+    list_per_page = 20
+    date_hierarchy = "created_at"
+
     fieldsets = (
         (
             "معلومات البلاغ",
@@ -1469,6 +1472,94 @@ class AdReportAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+    def report_type_badge(self, obj):
+        colors = {
+            "ad_content": "#dc3545",
+            "fraud": "#fd7e14",
+            "spam": "#ffc107",
+            "wrong_category": "#0dcaf0",
+            "user_behavior": "#d63384",
+            "fake_info": "#6610f2",
+            "other": "#6c757d",
+        }
+        color = colors.get(obj.report_type, "#6c757d")
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">{}</span>',
+            color,
+            obj.get_report_type_display(),
+        )
+    report_type_badge.short_description = "نوع البلاغ"
+
+    def status_badge(self, obj):
+        colors = {
+            "pending": "#ffc107",
+            "reviewing": "#0dcaf0",
+            "resolved": "#198754",
+            "rejected": "#dc3545",
+        }
+        icons = {
+            "pending": "⏳",
+            "reviewing": "👁️",
+            "resolved": "✅",
+            "rejected": "❌",
+        }
+        color = colors.get(obj.status, "#6c757d")
+        icon = icons.get(obj.status, "")
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">{} {}</span>',
+            color,
+            icon,
+            obj.get_status_display(),
+        )
+    status_badge.short_description = "الحالة"
+
+    def reporter_info(self, obj):
+        if obj.reporter:
+            verified = "✓" if obj.reporter.is_verified else ""
+            return format_html(
+                '<strong>{}</strong> {}',
+                obj.reporter.username,
+                verified,
+            )
+        return format_html('<span style="color: #6c757d;">غير معروف</span>')
+    reporter_info.short_description = "المبلغ"
+
+    def reported_target(self, obj):
+        if obj.reported_ad:
+            return format_html(
+                '<div><strong style="color: #0d6efd;">📢 إعلان:</strong><br/>'
+                '<a href="{}" target="_blank" style="color: #198754;">{}</a><br/>'
+                '<small style="color: #6c757d;">بواسطة: {}</small></div>',
+                obj.reported_ad.get_absolute_url(),
+                obj.reported_ad.title[:40] + "..." if len(obj.reported_ad.title) > 40 else obj.reported_ad.title,
+                obj.reported_ad.user.username,
+            )
+        elif obj.reported_user:
+            return format_html(
+                '<div><strong style="color: #dc3545;">👤 مستخدم:</strong><br/>{}</div>',
+                obj.reported_user.username,
+            )
+        return format_html('<span style="color: #6c757d;">غير محدد</span>')
+    reported_target.short_description = "المبلغ عنه"
+
+    def description_preview(self, obj):
+        max_length = 80
+        if len(obj.description) > max_length:
+            text = obj.description[:max_length] + "..."
+        else:
+            text = obj.description
+
+        evidence = ""
+        if obj.evidence_url:
+            evidence = f'<br/><a href="{obj.evidence_url}" target="_blank" style="color: #0dcaf0; font-size: 11px;">🔗 دليل مرفق</a>'
+
+        return format_html(
+            '<div style="max-width: 300px;">{}{}</div>',
+            text,
+            evidence,
+        )
+    description_preview.short_description = "الوصف"
 
     def save_model(self, request, obj, form, change):
         """Auto-set reviewed_by when status changes to resolved"""

@@ -47,4 +47,4 @@ def submit_ad_review(request, ad_id):
     )
 
     messages.success(request, _("شكراً لك! تم إضافة تقييمك وسيظهر بعد موافقة المشرف"))
-    return redirect("main:ad_detail", pk=ad_id)
+    return redirect("main:ad_detail", slug=ad.slug)

@@ -3,6 +3,25 @@
 
 {% block title %}{% trans "إدارة البلاغات" %} - {% trans "لوحة التحكم" %}{% endblock %}
 
+{% block extra_css %}
+<style>
+.table td {
+    vertical-align: middle;
+}
+.report-cell {
+    padding: 12px 8px !important;
+}
+.badge {
+    font-size: 0.8rem;
+    padding: 6px 10px;
+}
+.btn-group-vertical .btn {
+    font-size: 0.8rem;
+    padding: 4px 8px;
+}
+</style>
+{% endblock %}
+
 {% block admin_content %}
 <div class="admin-header">
     <div class="admin-header-content">
@@ -119,65 +138,139 @@
             <table class="table table-hover mb-0">
                 <thead>
                     <tr>
-                        <th>{% trans "#" %}</th>
-                        <th>{% trans "نوع البلاغ" %}</th>
-                        <th>{% trans "المبلغ" %}</th>
-                        <th>{% trans "المبلغ عنه" %}</th>
+                        <th style="width: 60px;">{% trans "#" %}</th>
+                        <th style="width: 150px;">{% trans "نوع البلاغ" %}</th>
+                        <th style="width: 120px;">{% trans "المبلغ" %}</th>
+                        <th style="width: 200px;">{% trans "المبلغ عنه" %}</th>
                         <th>{% trans "الوصف" %}</th>
-                        <th>{% trans "الحالة" %}</th>
-                        <th>{% trans "التاريخ" %}</th>
-                        <th>{% trans "إجراءات" %}</th>
+                        <th style="width: 120px;">{% trans "الحالة" %}</th>
+                        <th style="width: 120px;">{% trans "التاريخ" %}</th>
+                        <th style="width: 100px;">{% trans "إجراءات" %}</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for report in reports %}
                     <tr>
-                        <td>{{ report.id }}</td>
+                        <td><strong>#{{ report.id }}</strong></td>
                         <td>
-                            <span class="badge bg-info">
+                            <span class="badge bg-info text-wrap">
                                 {{ report.get_report_type_display }}
                             </span>
                         </td>
                         <td>
                             {% if report.reporter %}
-                                {{ report.reporter.username }}
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-user-circle me-2 text-primary"></i>
+                                    <div>
+                                        <strong>{{ report.reporter.username }}</strong>
+                                        {% if report.reporter.is_verified %}
+                                            <i class="fas fa-check-circle text-success ms-1" title="{% trans 'موثق' %}"></i>
+                                        {% endif %}
+                                    </div>
+                                </div>
                             {% else %}
-                                <span class="text-muted">{% trans "غير معروف" %}</span>
+                                <span class="text-muted">
+                                    <i class="fas fa-user-secret me-1"></i>
+                                    {% trans "غير معروف" %}
+                                </span>
                             {% endif %}
                         </td>
                         <td>
                             {% if report.reported_ad %}
-                                <a href="{{ report.reported_ad.get_absolute_url }}" target="_blank">
-                                    {{ report.reported_ad.title|truncatewords:5 }}
-                                </a>
+                                <div class="d-flex align-items-start">
+                                    <i class="fas fa-ad me-2 text-warning mt-1"></i>
+                                    <div>
+                                        <strong>{% trans "إعلان:" %}</strong>
+                                        <a href="{{ report.reported_ad.get_absolute_url }}" target="_blank" class="d-block text-truncate" style="max-width: 180px;" title="{{ report.reported_ad.title }}">
+                                            {{ report.reported_ad.title }}
+                                        </a>
+                                        <small class="text-muted">
+                                            {% trans "بواسطة:" %} {{ report.reported_ad.user.username }}
+                                        </small>
+                                    </div>
+                                </div>
                             {% elif report.reported_user %}
-                                {{ report.reported_user.username }}
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-user-times me-2 text-danger"></i>
+                                    <div>
+                                        <strong>{% trans "مستخدم:" %}</strong>
+                                        <div>{{ report.reported_user.username }}</div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <span class="text-muted">{% trans "غير محدد" %}</span>
                             {% endif %}
                         </td>
-                        <td>{{ report.description|truncatewords:10 }}</td>
+                        <td>
+                            <div class="text-truncate" style="max-width: 250px;" title="{{ report.description }}">
+                                {{ report.description|truncatewords:15 }}
+                            </div>
+                            {% if report.evidence_url %}
+                                <a href="{{ report.evidence_url }}" target="_blank" class="badge bg-secondary mt-1">
+                                    <i class="fas fa-link me-1"></i>
+                                    {% trans "دليل" %}
+                                </a>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if report.status == 'pending' %}
-                                <span class="badge bg-warning">{{ report.get_status_display }}</span>
+                                <span class="badge bg-warning text-dark">
+                                    <i class="fas fa-clock me-1"></i>
+                                    {{ report.get_status_display }}
+                                </span>
                             {% elif report.status == 'reviewing' %}
-                                <span class="badge bg-info">{{ report.get_status_display }}</span>
+                                <span class="badge bg-info">
+                                    <i class="fas fa-eye me-1"></i>
+                                    {{ report.get_status_display }}
+                                </span>
                             {% elif report.status == 'resolved' %}
-                                <span class="badge bg-success">{{ report.get_status_display }}</span>
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check-circle me-1"></i>
+                                    {{ report.get_status_display }}
+                                </span>
                             {% else %}
-                                <span class="badge bg-danger">{{ report.get_status_display }}</span>
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-times-circle me-1"></i>
+                                    {{ report.get_status_display }}
+                                </span>
+                            {% endif %}
+                            {% if report.reviewed_by %}
+                                <small class="d-block text-muted mt-1">
+                                    {{ report.reviewed_by.username }}
+                                </small>
                             {% endif %}
                         </td>
-                        <td>{{ report.created_at|date:"Y-m-d" }}</td>
                         <td>
-                            <a href="{% url 'admin:main_adreport_change' report.id %}" class="btn btn-sm btn-primary" title="{% trans 'عرض التفاصيل' %}">
-                                <i class="fas fa-eye"></i>
-                            </a>
+                            <div>
+                                <i class="far fa-calendar-alt me-1"></i>
+                                <small>{{ report.created_at|date:"Y-m-d" }}</small>
+                            </div>
+                            <div class="text-muted">
+                                <i class="far fa-clock me-1"></i>
+                                <small>{{ report.created_at|date:"H:i" }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="btn-group-vertical" role="group">
+                                <a href="{% url 'admin:main_adreport_change' report.id %}" class="btn btn-sm btn-primary" title="{% trans 'عرض التفاصيل' %}">
+                                    <i class="fas fa-eye me-1"></i>
+                                    {% trans "تفاصيل" %}
+                                </a>
+                                {% if report.reported_ad %}
+                                    <a href="{{ report.reported_ad.get_absolute_url }}" target="_blank" class="btn btn-sm btn-outline-info" title="{% trans 'عرض الإعلان' %}">
+                                        <i class="fas fa-external-link-alt me-1"></i>
+                                        {% trans "الإعلان" %}
+                                    </a>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center py-4 text-muted">
-                            <i class="fas fa-inbox fa-3x mb-3"></i>
-                            <p>{% trans "لا توجد بلاغات" %}</p>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                            <h5>{% trans "لا توجد بلاغات" %}</h5>
+                            <p>{% trans "لم يتم استلام أي بلاغات حتى الآن" %}</p>
                         </td>
                     </tr>
                     {% endfor %}

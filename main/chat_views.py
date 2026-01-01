@@ -106,11 +106,38 @@ def chat_room(request, room_id=None):
             if existing_room:
                 return redirect("main:chat_room", room_id=existing_room.id)
 
+            # Determine who is publisher and who is client
+            # If ad_id is provided, get the ad's publisher
+            from .models import ClassifiedAd
+
+            if ad_id:
+                try:
+                    ad = ClassifiedAd.objects.get(id=ad_id)
+                    ad_publisher = ad.user
+
+                    # Publisher is the ad owner, client is the other user
+                    if user == ad_publisher:
+                        # Current user is the ad owner
+                        publisher = user
+                        client = other_user
+                    else:
+                        # Other user is the ad owner
+                        publisher = other_user
+                        client = user
+                except ClassifiedAd.DoesNotExist:
+                    # If ad doesn't exist, use default logic
+                    publisher = other_user
+                    client = user
+            else:
+                # If no ad_id, the other_user is assumed to be the publisher
+                publisher = other_user
+                client = user
+
             # Create new room
             chat_room = ChatRoom.objects.create(
                 room_type="publisher_client",
-                publisher=user,
-                client=other_user,
+                publisher=publisher,
+                client=client,
                 ad_id=ad_id if ad_id else None,
             )
 
