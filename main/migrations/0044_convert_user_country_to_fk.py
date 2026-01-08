@@ -69,10 +69,22 @@ def migrate_country_data(apps, schema_editor):
         # Create temporary column for the new FK if it doesn't exist
         if not column_exists(cursor, "users", "country_id"):
             try:
-                cursor.execute("ALTER TABLE users ADD COLUMN country_id BIGINT NULL")
-                print("✅ Created country_id column")
+                # Use BIGINT UNSIGNED to match the content_country.id type
+                cursor.execute(
+                    "ALTER TABLE users ADD COLUMN country_id BIGINT UNSIGNED NULL"
+                )
+                print("✅ Created country_id column (BIGINT UNSIGNED)")
             except Exception as e:
                 print(f"ℹ️  Column country_id might already exist: {e}")
+        else:
+            # If column exists, make sure it's the correct type
+            try:
+                cursor.execute(
+                    "ALTER TABLE users MODIFY COLUMN country_id BIGINT UNSIGNED NULL"
+                )
+                print("✅ Modified country_id to BIGINT UNSIGNED")
+            except Exception as e:
+                print(f"⚠️  Could not modify country_id type: {e}")
 
         # Set all users to the default country
         cursor.execute(
@@ -141,13 +153,7 @@ class Migration(migrations.Migration):
     operations = [
         # Step 1: Run data migration - handles everything with raw SQL
         migrations.RunPython(migrate_country_data, reverse_migration),
-        # Step 2: Add index on country_id for better FK performance
-        migrations.RunSQL(
-            sql="CREATE INDEX users_country_id_idx ON users(country_id)",
-            reverse_sql="DROP INDEX users_country_id_idx ON users",
-        ),
-        # Step 3: Add FK constraint to existing country_id column
-        # Make sure data types match and all values are valid
+        # Step 2: Add FK constraint using raw SQL with proper error handling
         migrations.RunSQL(
             sql="""
                 ALTER TABLE users
@@ -157,8 +163,25 @@ class Migration(migrations.Migration):
                 ON DELETE SET NULL
             """,
             reverse_sql="ALTER TABLE users DROP FOREIGN KEY users_country_id_fk",
+            state_operations=[
+                # Tell Django that country is now a ForeignKey
+                migrations.AlterField(
+                    model_name="user",
+                    name="country",
+                    field=models.ForeignKey(
+                        blank=True,
+                        help_text="الدولة التي اختارها المستخدم عند التسجيل",
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="users",
+                        to="content.country",
+                        verbose_name="الدولة - Country",
+                        db_column="country_id",
+                    ),
+                ),
+            ],
         ),
-        # Step 4: Update city field help text
+        # Step 3: Update city field help text
         migrations.AlterField(
             model_name="user",
             name="city",
