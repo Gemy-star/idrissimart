@@ -1,191 +1,176 @@
-import sqlite3
+"""
+Database Integrity Fix Script for Country Foreign Key
+Works with both SQLite (local) and MySQL (production)
+Uses Django ORM for database operations
+"""
+
 import os
+import sys
+import django
 
-# Configuration
-DB_FILES = ["db.sqlite", "db.sqlite3"]
-TABLE_USER = "users"
-TABLE_COUNTRY = "content_country"
+# Setup Django environment
+if "DJANGO_SETTINGS_MODULE" not in os.environ:
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "idrissimart.settings.local")
+
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Initialize Django
+django.setup()
+
+from django.db import connection, transaction
+from django.contrib.auth import get_user_model
+from content.models import Country
+
+User = get_user_model()
 
 
-def get_db_path():
-    # Check current directory for database files
-    for f in DB_FILES:
-        if os.path.exists(f):
-            return f
-    return None
+def fix_country_integrity():
+    """
+    Fix users with invalid country_id values
+    - Finds users with non-existent or invalid country references
+    - Updates them to use a valid default country
+    """
 
-
-def fix_integrity():
-    db_path = get_db_path()
-    if not db_path:
-        print("❌ Database file not found (looked for db.sqlite, db.sqlite3).")
-        return
-
-    print(f"📂 Opening database: {db_path}")
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
+    print("=" * 60)
+    print("🔧 Database Integrity Fix - Country Foreign Key")
+    print("=" * 60)
+    print(f"📊 Database: {connection.settings_dict.get('NAME', 'Unknown')}")
+    print(f"🔌 Engine: {connection.settings_dict.get('ENGINE', 'Unknown')}")
+    print()
 
     try:
-        # 1. Identify the column in users table
-        cursor.execute(f"PRAGMA table_info({TABLE_USER})")
-        user_columns = [row["name"] for row in cursor.fetchall()]
+        # Step 1: Get all valid countries
+        valid_countries = list(
+            Country.objects.filter(is_active=True).values_list("id", flat=True)
+        )
 
-        target_column = "country_id"
-        if "country_id" in user_columns:
-            target_column = "country_id"
-        elif "country" in user_columns:
-            target_column = "country"
-        else:
-            print(
-                f"⚠️ Column 'country_id' or 'country' not found in table '{TABLE_USER}'."
+        if not valid_countries:
+            print("❌ No active countries found in database!")
+            print("⚠️  Please create at least one country before running migrations.")
+            return False
+
+        print(f"✓ Found {len(valid_countries)} active countries")
+        print(
+            f"  Valid IDs: {valid_countries[:5]}{'...' if len(valid_countries) > 5 else ''}"
+        )
+        print()
+
+        # Step 2: Find users with invalid country_id using raw SQL
+        # This is necessary because Django ORM might fail with invalid FK values
+        with connection.cursor() as cursor:
+            # Get table name
+            user_table = User._meta.db_table
+
+            # Find users with invalid country_id
+            # Handle different invalid cases: NULL, empty string, non-existent ID
+            cursor.execute(
+                f"""
+                SELECT id, country_id
+                FROM {user_table}
+                WHERE country_id IS NULL
+                   OR country_id = ''
+                   OR country_id NOT IN (
+                       SELECT id FROM content_country WHERE is_active = 1
+                   )
+            """
             )
-            return
 
-        print(f"✓ Found column: {target_column}")
-
-        # 2. Check content_country schema to find PK
-        cursor.execute(f"PRAGMA table_info({TABLE_COUNTRY})")
-        country_cols_info = cursor.fetchall()
-        country_cols = [row["name"] for row in country_cols_info]
-
-        # Find PK column (usually 'id')
-        pk_col = "id"
-        for row in country_cols_info:
-            if row["pk"] == 1:
-                pk_col = row["name"]
-                break
-
-        print(f"✓ {TABLE_COUNTRY} PK column: {pk_col}")
-
-        # 3. Find all users with invalid or empty country_id
-        cursor.execute(f"SELECT id, {target_column} FROM {TABLE_USER}")
-        all_users = cursor.fetchall()
-
-        # Get all valid country IDs
-        cursor.execute(f"SELECT {pk_col} FROM {TABLE_COUNTRY}")
-        valid_country_ids = [row[pk_col] for row in cursor.fetchall()]
-
-        print(f"✓ Found {len(valid_country_ids)} valid countries")
-
-        # Find users with invalid country_id
-        invalid_users = []
-        for user in all_users:
-            country_id = user[target_column]
-            # Check if empty string, None, or not in valid IDs
-            if (
-                not country_id
-                or country_id == ""
-                or country_id not in valid_country_ids
-            ):
-                invalid_users.append((user["id"], country_id))
+            invalid_users = cursor.fetchall()
 
         if not invalid_users:
-            print("✅ All users have valid country_id. No fix needed.")
-            return
+            print("✅ All users have valid country references!")
+            print("   No fixes needed.")
+            return True
 
         print(f"❌ Found {len(invalid_users)} users with invalid country_id:")
-        for user_id, country_id in invalid_users:
+
+        # Show sample of invalid users
+        sample_size = min(10, len(invalid_users))
+        for user_id, country_id in invalid_users[:sample_size]:
             print(f"   - User ID {user_id}: country_id = '{country_id}'")
+        if len(invalid_users) > sample_size:
+            print(f"   ... and {len(invalid_users) - sample_size} more")
+        print()
 
-        # 4. Get or create a default country
-        default_country_id = None
+        # Step 3: Get default country (first active country)
+        default_country = Country.objects.filter(is_active=True).order_by("id").first()
 
-        if valid_country_ids:
-            # Use first valid country
-            default_country_id = valid_country_ids[0]
-            print(f"✓ Will use existing country ID: {default_country_id}")
-        else:
-            # Insert a default country
-            print(f"🛠️ No countries exist. Inserting default country...")
-            try:
-                insert_data = {}
+        if not default_country:
+            print("❌ Could not find a default country to use!")
+            return False
 
-                # Force integer ID if PK is 'id'
-                if pk_col == "id":
-                    insert_data["id"] = 1
-                if "code" in country_cols:
-                    insert_data["code"] = "SA"
-                if "name" in country_cols:
-                    insert_data["name"] = "Saudi Arabia"
-                if "name_ar" in country_cols:
-                    insert_data["name_ar"] = "السعودية"
-                if "name_en" in country_cols:
-                    insert_data["name_en"] = "Saudi Arabia"
-                if "currency" in country_cols:
-                    insert_data["currency"] = "SAR"
-                if "phone_code" in country_cols:
-                    insert_data["phone_code"] = "+966"
-                if "is_active" in country_cols:
-                    insert_data["is_active"] = 1
+        print(f"✓ Default country selected:")
+        print(f"  ID: {default_country.id}")
+        print(f"  Name: {default_country.name_ar} / {default_country.name_en}")
+        print()
 
-                cols_str = ", ".join([f'"{k}"' for k in insert_data.keys()])
-                placeholders = ", ".join(["?"] * len(insert_data))
-                values = tuple(insert_data.values())
-
-                cursor.execute(
-                    f"INSERT INTO {TABLE_COUNTRY} ({cols_str}) VALUES ({placeholders})",
-                    values,
-                )
-                conn.commit()
-                default_country_id = insert_data.get(pk_col, 1)
-                print(f"✅ Inserted default country with ID: {default_country_id}")
-
-            except Exception as insert_e:
-                print(f"❌ Failed to insert country: {insert_e}")
-                return
-
-        # 5. Update all invalid users
+        # Step 4: Update invalid users
         print(
-            f"\n🔄 Updating {len(invalid_users)} users to country ID {default_country_id}..."
+            f"🔄 Updating {len(invalid_users)} users to country ID {default_country.id}..."
         )
+
         updated_count = 0
+        failed_count = 0
 
-        for user_id, old_country_id in invalid_users:
-            try:
-                cursor.execute(
-                    f"UPDATE {TABLE_USER} SET {target_column}=? WHERE id=?",
-                    (default_country_id, user_id),
-                )
-                updated_count += 1
-            except Exception as update_e:
-                print(f"   ❌ Failed to update user {user_id}: {update_e}")
+        with transaction.atomic():
+            for user_id, old_country_id in invalid_users:
+                try:
+                    # Use raw SQL to update to avoid Django FK validation
+                    with connection.cursor() as cursor:
+                        cursor.execute(
+                            f"UPDATE {user_table} SET country_id = %s WHERE id = %s",
+                            [default_country.id, user_id],
+                        )
+                    updated_count += 1
+                except Exception as e:
+                    failed_count += 1
+                    print(f"   ❌ Failed to update user {user_id}: {e}")
 
-        conn.commit()
         print(f"✅ Successfully updated {updated_count} users!")
+        if failed_count > 0:
+            print(f"⚠️  Failed to update {failed_count} users")
+        print()
 
-        # 6. Verify the fix
-        print("\n🔍 Verifying fix...")
-        cursor.execute(f"SELECT id, {target_column} FROM {TABLE_USER}")
-        all_users_after = cursor.fetchall()
+        # Step 5: Verify the fix
+        print("🔍 Verifying fix...")
 
-        still_invalid = []
-        for user in all_users_after:
-            country_id = user[target_column]
-            if (
-                not country_id
-                or country_id == ""
-                or country_id not in [default_country_id] + valid_country_ids
-            ):
-                still_invalid.append((user["id"], country_id))
-
-        if still_invalid:
-            print(
-                f"⚠️ Warning: {len(still_invalid)} users still have invalid country_id:"
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT COUNT(*)
+                FROM {user_table}
+                WHERE country_id IS NULL
+                   OR country_id = ''
+                   OR country_id NOT IN (
+                       SELECT id FROM content_country WHERE is_active = 1
+                   )
+            """
             )
-            for user_id, country_id in still_invalid:
-                print(f"   - User ID {user_id}: country_id = '{country_id}'")
+
+            remaining_invalid = cursor.fetchone()[0]
+
+        if remaining_invalid > 0:
+            print(
+                f"⚠️  Warning: {remaining_invalid} users still have invalid country_id"
+            )
+            return False
         else:
-            print("✅ All users now have valid country_id!")
+            print("✅ All users now have valid country references!")
+            print()
+            print("=" * 60)
+            print("✅ Database integrity fix completed successfully!")
+            print("=" * 60)
+            return True
 
     except Exception as e:
         print(f"❌ An error occurred: {e}")
         import traceback
 
         traceback.print_exc()
-    finally:
-        conn.close()
+        return False
 
 
 if __name__ == "__main__":
-    fix_integrity()
+    success = fix_country_integrity()
+    sys.exit(0 if success else 1)
