@@ -139,7 +139,7 @@ def fix_country_integrity():
 
         print(f"✓ Default country selected:")
         print(f"  ID: {default_country.id}")
-        print(f"  Name: {default_country.name_ar} / {default_country.name_en}")
+        print(f"  Name: {default_country.name} / {default_country.name_en}")
         print()
 
         # Step 4: Update invalid users
