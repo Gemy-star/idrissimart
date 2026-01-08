@@ -209,37 +209,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Step 1: Run data migration - handles everything with raw SQL
+        # Step 1: Run data migration - creates country_id column and migrates data
         migrations.RunPython(migrate_country_data, reverse_migration),
-        # Step 2: Add FK constraint using raw SQL with proper error handling
-        migrations.RunSQL(
-            sql="""
-                ALTER TABLE users
-                ADD CONSTRAINT users_country_id_fk
-                FOREIGN KEY (country_id)
-                REFERENCES content_country(id)
-                ON DELETE SET NULL
-            """,
-            reverse_sql="ALTER TABLE users DROP FOREIGN KEY users_country_id_fk",
-            state_operations=[
-                # Tell Django that country is now a ForeignKey
-                migrations.AlterField(
-                    model_name="user",
-                    name="country",
-                    field=models.ForeignKey(
-                        blank=True,
-                        help_text="الدولة التي اختارها المستخدم عند التسجيل",
-                        null=True,
-                        on_delete=django.db.models.deletion.SET_NULL,
-                        related_name="users",
-                        to="content.country",
-                        verbose_name="الدولة - Country",
-                        db_column="country_id",
-                    ),
-                ),
-            ],
-        ),
-        # Step 3: Update city field help text
+        # Step 2: Update city field help text
         migrations.AlterField(
             model_name="user",
             name="city",
