@@ -3,6 +3,21 @@ import django.db.models.deletion
 from django.db import migrations, models
 
 
+def column_exists(cursor, table_name, column_name):
+    """Check if a column exists in a table"""
+    cursor.execute(
+        """
+        SELECT COUNT(*)
+        FROM information_schema.columns
+        WHERE table_schema = DATABASE()
+          AND table_name = %s
+          AND column_name = %s
+    """,
+        [table_name, column_name],
+    )
+    return cursor.fetchone()[0] > 0
+
+
 def migrate_country_data(apps, schema_editor):
     """
     Migrate existing country CharField values to ForeignKey IDs
@@ -35,25 +50,46 @@ def migrate_country_data(apps, schema_editor):
     from django.db import connection
 
     with connection.cursor() as cursor:
-        # First, create a temporary column for the new FK
-        try:
-            cursor.execute(
-                """
-                ALTER TABLE users
-                ADD COLUMN country_id_new BIGINT NULL
-            """
-            )
-        except Exception as e:
-            print(f"ℹ️  Column country_id_new might already exist: {e}")
+        # Check if old 'country' CharField exists
+        has_old_country = column_exists(cursor, "users", "country")
+
+        if has_old_country:
+            print("ℹ️  Found old 'country' CharField column, will migrate data...")
+            # Rename old column first
+            try:
+                cursor.execute(
+                    "ALTER TABLE users CHANGE COLUMN country country_old VARCHAR(100)"
+                )
+                print("✅ Renamed old country column to country_old")
+            except Exception as e:
+                print(f"⚠️  Error renaming country column: {e}")
+        else:
+            print("ℹ️  No old 'country' CharField column found, skipping rename...")
+
+        # Create temporary column for the new FK if it doesn't exist
+        if not column_exists(cursor, "users", "country_id"):
+            try:
+                cursor.execute("ALTER TABLE users ADD COLUMN country_id BIGINT NULL")
+                print("✅ Created country_id column")
+            except Exception as e:
+                print(f"ℹ️  Column country_id might already exist: {e}")
 
         # Set all users to the default country
         cursor.execute(
             f"""
             UPDATE users
-            SET country_id_new = {default_country.id}
-            WHERE country_id_new IS NULL
+            SET country_id = {default_country.id}
+            WHERE country_id IS NULL
         """
         )
+
+        # Drop old column if it exists
+        if has_old_country:
+            try:
+                cursor.execute("ALTER TABLE users DROP COLUMN country_old")
+                print("✅ Dropped old country_old column")
+            except Exception as e:
+                print(f"⚠️  Error dropping country_old: {e}")
 
         print(f"✅ Migrated user country data to FK (Country ID: {default_country.id})")
 
@@ -80,40 +116,20 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Step 1: Run data migration FIRST
+        # Step 1: Run data migration - handles everything with raw SQL
         migrations.RunPython(migrate_country_data, reverse_migration),
-        # Step 2: Rename old CharField column
-        migrations.RenameField(
-            model_name="user",
-            old_name="country",
-            new_name="country_old",
-        ),
-        # Step 3: Rename temporary FK column to 'country_id'
+        # Step 2: Add FK constraint to existing country_id column
         migrations.RunSQL(
-            sql="ALTER TABLE users CHANGE COLUMN country_id_new country_id BIGINT NULL",
-            reverse_sql="ALTER TABLE users CHANGE COLUMN country_id country_id_new BIGINT NULL",
+            sql="""
+                ALTER TABLE users
+                ADD CONSTRAINT users_country_id_fk
+                FOREIGN KEY (country_id)
+                REFERENCES content_country(id)
+                ON DELETE SET NULL
+            """,
+            reverse_sql="ALTER TABLE users DROP FOREIGN KEY users_country_id_fk",
         ),
-        # Step 4: Add the FK constraint
-        migrations.AddField(
-            model_name="user",
-            name="country",
-            field=models.ForeignKey(
-                blank=True,
-                help_text="الدولة التي اختارها المستخدم عند التسجيل",
-                null=True,
-                on_delete=django.db.models.deletion.SET_NULL,
-                related_name="users",
-                to="content.country",
-                verbose_name="الدولة - Country",
-                db_column="country_id",  # Use existing country_id column
-            ),
-        ),
-        # Step 5: Remove old CharField column
-        migrations.RemoveField(
-            model_name="user",
-            name="country_old",
-        ),
-        # Step 6: Update city field help text
+        # Step 3: Update city field help text
         migrations.AlterField(
             model_name="user",
             name="city",
