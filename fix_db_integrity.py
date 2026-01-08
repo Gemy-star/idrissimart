@@ -10,7 +10,7 @@ import django
 
 # Setup Django environment
 if "DJANGO_SETTINGS_MODULE" not in os.environ:
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "idrissimart.settings.local")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "idrissimart.settings.docker")
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -62,21 +62,58 @@ def fix_country_integrity():
             # Get table name
             user_table = User._meta.db_table
 
-            # Find users with invalid country_id
-            # Handle different invalid cases: NULL, empty string, non-existent ID
-            cursor.execute(
-                f"""
-                SELECT id, country_id
-                FROM {user_table}
-                WHERE country_id IS NULL
-                   OR country_id = ''
-                   OR country_id NOT IN (
-                       SELECT id FROM content_country WHERE is_active = 1
-                   )
-            """
-            )
+            # Get database engine
+            engine = connection.settings_dict.get("ENGINE", "")
+            is_mysql = "mysql" in engine.lower()
 
-            invalid_users = cursor.fetchall()
+            # Build query based on database type
+            if is_mysql:
+                # MySQL: Handle string values like 'SA' that can't be cast to INT
+                query = f"""
+                    SELECT u.id, u.country_id
+                    FROM {user_table} u
+                    WHERE u.country_id IS NULL
+                       OR u.country_id = ''
+                       OR NOT EXISTS (
+                           SELECT 1 FROM content_country c
+                           WHERE c.id = u.country_id AND c.is_active = 1
+                       )
+                       OR u.country_id REGEXP '^[^0-9]'
+                """
+            else:
+                # SQLite: Simpler query
+                query = f"""
+                    SELECT id, country_id
+                    FROM {user_table}
+                    WHERE country_id IS NULL
+                       OR country_id = ''
+                       OR country_id NOT IN (
+                           SELECT id FROM content_country WHERE is_active = 1
+                       )
+                """
+
+            # Find users with invalid country_id
+            try:
+                cursor.execute(query)
+                invalid_users = cursor.fetchall()
+            except Exception as query_error:
+                print(f"⚠️  Query error: {query_error}")
+                print("   Trying alternative approach...")
+
+                # Fallback: Get all users and check in Python
+                cursor.execute(f"SELECT id, country_id FROM {user_table}")
+                all_users = cursor.fetchall()
+
+                invalid_users = []
+                for user_id, country_id in all_users:
+                    # Check if invalid
+                    if (
+                        not country_id
+                        or str(country_id).strip() == ""
+                        or not str(country_id).isdigit()
+                        or int(country_id) not in valid_countries
+                    ):
+                        invalid_users.append((user_id, country_id))
 
         if not invalid_users:
             print("✅ All users have valid country references!")
