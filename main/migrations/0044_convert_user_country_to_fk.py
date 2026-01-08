@@ -83,6 +83,29 @@ def migrate_country_data(apps, schema_editor):
         """
         )
 
+        # Also fix any invalid country_id values (e.g., pointing to non-existent countries)
+        cursor.execute(
+            f"""
+            UPDATE users
+            SET country_id = {default_country.id}
+            WHERE country_id NOT IN (SELECT id FROM content_country WHERE is_active = 1)
+        """
+        )
+
+        # Verify all users have valid country_id
+        cursor.execute(
+            """
+            SELECT COUNT(*) FROM users
+            WHERE country_id IS NULL
+               OR country_id NOT IN (SELECT id FROM content_country WHERE is_active = 1)
+        """
+        )
+        invalid_count = cursor.fetchone()[0]
+        if invalid_count > 0:
+            print(f"⚠️  Warning: {invalid_count} users still have invalid country_id!")
+        else:
+            print("✅ All users have valid country_id values")
+
         # Drop old column if it exists
         if has_old_country:
             try:
@@ -118,7 +141,13 @@ class Migration(migrations.Migration):
     operations = [
         # Step 1: Run data migration - handles everything with raw SQL
         migrations.RunPython(migrate_country_data, reverse_migration),
-        # Step 2: Add FK constraint to existing country_id column
+        # Step 2: Add index on country_id for better FK performance
+        migrations.RunSQL(
+            sql="CREATE INDEX users_country_id_idx ON users(country_id)",
+            reverse_sql="DROP INDEX users_country_id_idx ON users",
+        ),
+        # Step 3: Add FK constraint to existing country_id column
+        # Make sure data types match and all values are valid
         migrations.RunSQL(
             sql="""
                 ALTER TABLE users
@@ -129,7 +158,7 @@ class Migration(migrations.Migration):
             """,
             reverse_sql="ALTER TABLE users DROP FOREIGN KEY users_country_id_fk",
         ),
-        # Step 3: Update city field help text
+        # Step 4: Update city field help text
         migrations.AlterField(
             model_name="user",
             name="city",
