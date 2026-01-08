@@ -160,6 +160,11 @@ CONSTANCE_CONFIG = {
         _("Enable online payment option in checkout"),
         bool,
     ),
+    "TAX_RATE": (
+        15.0,
+        _("نسبة الضريبة (%) - Tax Rate"),
+        float,
+    ),
     # Email Settings - SendGrid
     "SENDGRID_API_KEY": (
         os.getenv("SENDGRID_API_KEY", ""),
@@ -191,6 +196,30 @@ CONSTANCE_CONFIG = {
         True,
         _("Enable SendGrid email service"),
         bool,
+    ),
+    # Social Authentication Settings
+    "SOCIAL_AUTH_ENABLED": (
+        False,
+        _("Enable Social Authentication (Google, Facebook)"),
+        bool,
+    ),
+    # Google OAuth Settings
+    "GOOGLE_OAUTH_CLIENT_ID": (
+        os.getenv("GOOGLE_OAUTH_CLIENT_ID", ""),
+        _("Google OAuth Client ID"),
+    ),
+    "GOOGLE_OAUTH_SECRET": (
+        os.getenv("GOOGLE_OAUTH_SECRET", ""),
+        _("Google OAuth Client Secret"),
+    ),
+    # Facebook OAuth Settings
+    "FACEBOOK_APP_ID": (
+        os.getenv("FACEBOOK_APP_ID", ""),
+        _("Facebook App ID"),
+    ),
+    "FACEBOOK_APP_SECRET": (
+        os.getenv("FACEBOOK_APP_SECRET", ""),
+        _("Facebook App Secret"),
     ),
     # SMS Settings - Twilio
     "TWILIO_ACCOUNT_SID": (
@@ -230,6 +259,26 @@ CONSTANCE_CONFIG = {
         3,
         _("Maximum OTP Attempts"),
         int,
+    ),
+    # Verification Settings
+    "REQUIRE_EMAIL_VERIFICATION": (
+        False,
+        _("التحقق من البريد الإلكتروني إلزامي أثناء التسجيل"),
+        bool,
+    ),
+    "REQUIRE_PHONE_VERIFICATION": (
+        False,
+        _("التحقق من رقم الهاتف إلزامي أثناء التسجيل"),
+        bool,
+    ),
+    "REQUIRE_VERIFICATION_FOR_SERVICES": (
+        False,
+        _("التحقق مطلوب لاستخدام خدمات الموقع (نشر إعلانات، إضافة للسلة، إلخ)"),
+        bool,
+    ),
+    "VERIFICATION_SERVICES_MESSAGE": (
+        "يجب التحقق من حسابك (البريد الإلكتروني أو رقم الهاتف) لاستخدام هذه الخدمة",
+        _("رسالة التحقق المطلوبة للخدمات"),
     ),
     # Publishing Settings
     "PUBLISHING_MODE": (
@@ -476,7 +525,7 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "PAYMOB_MASTERCARD_INTEGRATION_ID",
         "PAYMOB_VISA_INTEGRATION_ID",
     ),
-    "Payment General Settings": ("ALLOW_ONLINE_PAYMENT",),
+    "Payment General Settings": ("ALLOW_ONLINE_PAYMENT", "TAX_RATE"),
     "Email Settings - SendGrid": (
         "SENDGRID_ENABLED",
         "SENDGRID_API_KEY",
@@ -487,6 +536,13 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "RECAPTCHA_ENABLED",
         "RECAPTCHA_SITE_KEY",
         "RECAPTCHA_SECRET_KEY",
+    ),
+    "Social Authentication": (
+        "SOCIAL_AUTH_ENABLED",
+        "GOOGLE_OAUTH_CLIENT_ID",
+        "GOOGLE_OAUTH_SECRET",
+        "FACEBOOK_APP_ID",
+        "FACEBOOK_APP_SECRET",
     ),
     "SMS Settings - Twilio": (
         "TWILIO_ENABLED",
@@ -499,6 +555,12 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "ENABLE_MOBILE_VERIFICATION",
         "OTP_EXPIRY_MINUTES",
         "MAX_OTP_ATTEMPTS",
+    ),
+    "Verification Settings": (
+        "REQUIRE_EMAIL_VERIFICATION",
+        "REQUIRE_PHONE_VERIFICATION",
+        "REQUIRE_VERIFICATION_FOR_SERVICES",
+        "VERIFICATION_SERVICES_MESSAGE",
     ),
     "Publishing Settings": (
         "PUBLISHING_MODE",

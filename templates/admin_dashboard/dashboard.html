@@ -305,6 +305,229 @@
                     </div>
                 </div>
 
+    <!-- Model Changes Log Section -->
+    <div class="row mb-4">
+        <div class="col-lg-12">
+            <div class="admin-content-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        {% trans "سجل التغييرات في النظام" %}
+                    </h5>
+                    <div>
+                        <span class="badge bg-info">
+                            <i class="fas fa-calendar-day me-1"></i>
+                            {% trans "اليوم" %}: {{ recent_changes.total_changes_today }}
+                        </span>
+                        <span class="badge bg-primary ms-2">
+                            <i class="fas fa-calendar-week me-1"></i>
+                            {% trans "هذا الأسبوع" %}: {{ recent_changes.total_changes_week }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Tabs for different views -->
+                    <ul class="nav nav-tabs mb-3" id="changesTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="recent-tab" data-bs-toggle="tab" data-bs-target="#recent-changes" type="button" role="tab">
+                                <i class="fas fa-clock me-1"></i>
+                                {% trans "أحدث التغييرات" %}
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="models-tab" data-bs-toggle="tab" data-bs-target="#model-stats" type="button" role="tab">
+                                <i class="fas fa-database me-1"></i>
+                                {% trans "إحصائيات الموديلات" %}
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="users-activity-tab" data-bs-toggle="tab" data-bs-target="#users-activity" type="button" role="tab">
+                                <i class="fas fa-user-edit me-1"></i>
+                                {% trans "نشاط المستخدمين" %}
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="changesTabContent">
+                        <!-- Recent Changes Tab -->
+                        <div class="tab-pane fade show active" id="recent-changes" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th><i class="fas fa-clock me-1"></i>{% trans "الوقت" %}</th>
+                                            <th><i class="fas fa-user me-1"></i>{% trans "المستخدم" %}</th>
+                                            <th><i class="fas fa-cog me-1"></i>{% trans "العملية" %}</th>
+                                            <th><i class="fas fa-database me-1"></i>{% trans "النموذج" %}</th>
+                                            <th><i class="fas fa-info-circle me-1"></i>{% trans "التفاصيل" %}</th>
+                                            <th><i class="fas fa-edit me-1"></i>{% trans "التغيير" %}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for log in recent_changes.recent_logs %}
+                                            <tr>
+                                                <td>
+                                                    <small class="text-muted">
+                                                        {{ log.action_time|date:"Y-m-d H:i" }}
+                                                        <br>
+                                                        <span class="badge bg-light text-dark">{{ log.action_time|timesince }}</span>
+                                                    </small>
+                                                </td>
+                                                <td>
+                                                    <strong>{{ log.user.username }}</strong>
+                                                    {% if log.user.first_name %}
+                                                        <br><small class="text-muted">{{ log.user.get_full_name }}</small>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if log.action_flag == 1 %}
+                                                        <span class="badge bg-success">
+                                                            <i class="fas fa-plus-circle"></i> {{ log.action }}
+                                                        </span>
+                                                    {% elif log.action_flag == 2 %}
+                                                        <span class="badge bg-warning">
+                                                            <i class="fas fa-edit"></i> {{ log.action }}
+                                                        </span>
+                                                    {% elif log.action_flag == 3 %}
+                                                        <span class="badge bg-danger">
+                                                            <i class="fas fa-trash"></i> {{ log.action }}
+                                                        </span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-info">{{ log.model_name }}</span>
+                                                </td>
+                                                <td>
+                                                    <strong>{{ log.object_repr|truncatechars:50 }}</strong>
+                                                    {% if log.object_id %}
+                                                        <br><small class="text-muted">ID: {{ log.object_id }}</small>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if log.change_message %}
+                                                        <small class="text-muted">{{ log.change_message|truncatechars:60 }}</small>
+                                                    {% else %}
+                                                        <small class="text-muted">-</small>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        {% empty %}
+                                            <tr>
+                                                <td colspan="6" class="text-center text-muted">
+                                                    <i class="fas fa-inbox fa-2x mb-2"></i>
+                                                    <p>{% trans "لا توجد تغييرات مسجلة" %}</p>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Model Statistics Tab -->
+                        <div class="tab-pane fade" id="model-stats" role="tabpanel">
+                            <div class="row">
+                                {% for stat in recent_changes.model_stats %}
+                                    <div class="col-lg-6 mb-3">
+                                        <div class="card border-start border-primary border-3">
+                                            <div class="card-body">
+                                                <h5 class="card-title">
+                                                    <i class="fas fa-database me-2"></i>
+                                                    {{ stat.content_type__model|title }}
+                                                </h5>
+                                                <div class="row text-center mt-3">
+                                                    <div class="col-3">
+                                                        <div class="stat-box">
+                                                            <h4 class="text-primary">{{ stat.total_changes }}</h4>
+                                                            <small class="text-muted">{% trans "المجموع" %}</small>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-3">
+                                                        <div class="stat-box">
+                                                            <h4 class="text-success">{{ stat.additions }}</h4>
+                                                            <small class="text-muted">{% trans "إضافات" %}</small>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-3">
+                                                        <div class="stat-box">
+                                                            <h4 class="text-warning">{{ stat.modifications }}</h4>
+                                                            <small class="text-muted">{% trans "تعديلات" %}</small>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-3">
+                                                        <div class="stat-box">
+                                                            <h4 class="text-danger">{{ stat.deletions }}</h4>
+                                                            <small class="text-muted">{% trans "حذف" %}</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- User Activity Tab -->
+                        <div class="tab-pane fade" id="users-activity" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th><i class="fas fa-hashtag me-1"></i>#</th>
+                                            <th><i class="fas fa-user me-1"></i>{% trans "المستخدم" %}</th>
+                                            <th><i class="fas fa-chart-bar me-1"></i>{% trans "عدد العمليات" %}</th>
+                                            <th><i class="fas fa-award me-1"></i>{% trans "النشاط" %}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for user_stat in recent_changes.user_stats %}
+                                            <tr>
+                                                <td>{{ forloop.counter }}</td>
+                                                <td>
+                                                    <strong>{{ user_stat.user__username }}</strong>
+                                                    {% if user_stat.user__first_name %}
+                                                        <br>
+                                                        <small class="text-muted">
+                                                            {{ user_stat.user__first_name }} {{ user_stat.user__last_name }}
+                                                        </small>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <h5 class="mb-0">
+                                                        <span class="badge bg-primary">{{ user_stat.total_actions }}</span>
+                                                    </h5>
+                                                </td>
+                                                <td>
+                                                    <div class="progress" style="height: 25px;">
+                                                        <div class="progress-bar bg-success"
+                                                             role="progressbar"
+                                                             style="width: {{ user_stat.total_actions|floatformat:0 }}%"
+                                                             aria-valuenow="{{ user_stat.total_actions }}"
+                                                             aria-valuemin="0"
+                                                             aria-valuemax="100">
+                                                            {{ user_stat.total_actions }} {% trans "عملية" %}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% empty %}
+                                            <tr>
+                                                <td colspan="4" class="text-center text-muted">
+                                                    {% trans "لا توجد بيانات نشاط" %}
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Charts Section -->
     <div class="row mb-4">
         <div class="col-lg-8">

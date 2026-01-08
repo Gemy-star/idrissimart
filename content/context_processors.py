@@ -133,9 +133,21 @@ def verification_settings(request):
     """
     Context processor to add verification requirements to all templates
     """
-    return {
+    context = {
         "verification_requirements": get_verification_requirements(),
     }
+
+    # Add user verification status if authenticated
+    if request.user.is_authenticated:
+        context["user_verification_status"] = {
+            "is_email_verified": request.user.is_email_verified,
+            "is_phone_verified": request.user.is_mobile_verified,
+            "needs_verification": not (
+                request.user.is_email_verified or request.user.is_mobile_verified
+            ),
+        }
+
+    return context
 
 
 def site_configuration(request):

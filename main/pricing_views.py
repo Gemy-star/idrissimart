@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from decimal import Decimal
+from constance import config
 
 from .models import AdPackage, UserPackage, Category
 from content.models import SiteConfiguration
@@ -47,7 +48,11 @@ def ad_pricing_view(request):
         try:
             category = Category.objects.get(id=category_id, is_active=True)
             # Check if category has custom pricing
-            category_base_price = category.ad_base_fee if hasattr(category, 'ad_base_fee') and category.ad_base_fee else site_config.ad_base_fee
+            category_base_price = (
+                category.ad_base_fee
+                if hasattr(category, "ad_base_fee") and category.ad_base_fee
+                else site_config.ad_base_fee
+            )
         except Category.DoesNotExist:
             pass
 
@@ -58,14 +63,23 @@ def ad_pricing_view(request):
     # Get all active packages
     packages = AdPackage.objects.filter(is_active=True).order_by("price")
 
+    # Get tax rate from Constance config (default 15%)
+    tax_rate_percentage = getattr(config, "TAX_RATE", 15.0)
+    tax_rate_decimal = Decimal(str(tax_rate_percentage)) / Decimal("100")
+
     # Calculate pricing details
     pricing_details = {
         "base_price": Decimal(str(category_base_price)),
-        "tax_rate": Decimal("0.15"),  # 15% tax
+        "tax_rate": tax_rate_decimal,
+        "tax_rate_percentage": tax_rate_percentage,  # For display
     }
 
-    pricing_details["tax_amount"] = pricing_details["base_price"] * pricing_details["tax_rate"]
-    pricing_details["total_price"] = pricing_details["base_price"] + pricing_details["tax_amount"]
+    pricing_details["tax_amount"] = (
+        pricing_details["base_price"] * pricing_details["tax_rate"]
+    )
+    pricing_details["total_price"] = (
+        pricing_details["base_price"] + pricing_details["tax_amount"]
+    )
 
     context = {
         "category": category,

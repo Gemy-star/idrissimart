@@ -46,6 +46,12 @@ INSTALLED_APPS = [
     "crispy_forms",
     "crispy_bootstrap5",
     "constance",
+    # Django Allauth
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.facebook",
     "constance.backends.database",
     "imagekit",
     "rosetta",
@@ -86,6 +92,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Django Allauth - must be after AuthenticationMiddleware
+    "allauth.account.middleware.AccountMiddleware",
     # Block malicious requests (should be early in middleware stack)
     "main.middleware.BlockMaliciousRequestsMiddleware",
     # force App to open in AR language
@@ -277,6 +285,38 @@ LOGIN_REDIRECT_URL = "main:home"
 LOGOUT_REDIRECT_URL = "main:home"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# =======================
+# Django Allauth Settings
+# =======================
+AUTHENTICATION_BACKENDS = [
+    # Django default
+    "django.contrib.auth.backends.ModelBackend",
+    # Allauth specific
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+# Allauth configuration
+ACCOUNT_AUTHENTICATION_METHOD = "username_email"
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = True
+ACCOUNT_EMAIL_VERIFICATION = "optional"  # 'mandatory', 'optional', or 'none'
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_VERIFICATION = "optional"
+
+# Redirect URLs after social auth
+SOCIALACCOUNT_LOGIN_ON_GET = True
+LOGIN_REDIRECT_URL = "/dashboard/"
+ACCOUNT_LOGOUT_REDIRECT_URL = "/"
+
+# Social Account Providers (loaded dynamically from Constance)
+# To configure: Go to Admin Panel -> Constance -> Config -> Social Authentication
+SOCIALACCOUNT_PROVIDERS = {}
+
+# We'll load Google and Facebook settings dynamically from Constance
+# This is done in the AppConfig.ready() method
+# Admins can configure OAuth credentials in the admin panel without code changes
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 200 * 1024 * 1024  # 200 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 200 * 1024 * 1024  # 200 MB

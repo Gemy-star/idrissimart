@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
+from constance import config
 
 from .models import ClassifiedAd, FacebookShareRequest
 
@@ -124,12 +125,17 @@ def ad_features_upgrade(request, ad_id):
             )
             return redirect("main:ad_detail", ad_id=ad.id)
 
+    # Get tax rate from Constance config (default 15%)
+    tax_rate_percentage = getattr(config, "TAX_RATE", 15.0)
+
     context = {
         "ad": ad,
         "feature_prices": feature_prices,
         "pricing_source": pricing_source,
         "active_package": active_package_info,
         "site_config": site_config,
+        "tax_rate": tax_rate_percentage / 100.0,  # Convert to decimal (0.15)
+        "tax_rate_percentage": tax_rate_percentage,  # For display (15)
     }
 
     return render(request, "classifieds/ad_features_upgrade.html", context)

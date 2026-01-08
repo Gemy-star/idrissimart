@@ -123,10 +123,10 @@
         <div class="row align-items-center">
             <div class="col">
                 <h1 class="display-6 mb-1">
-                    <i class="fas fa-credit-card me-3"></i>
-                    {% trans "المدفوعات والعضويات المميزة" %}
+                    <i class="fas fa-money-check-alt me-3"></i>
+                    {% trans "إدارة المدفوعات" %}
                 </h1>
-                <p class="text-muted mb-0">{% trans "إدارة العمليات المالية وأعضاء الباقات المميزة" %}</p>
+                <p class="text-muted mb-0">{% trans "حالات الدفع، طرق الدفع، إتمام المعاملات المالية (الباقات والاشتراكات فقط - الطلبات في صفحة منفصلة)" %}</p>
             </div>
         </div>
     </div>
@@ -154,7 +154,8 @@
                     <i class="fas fa-chart-line"></i>
                 </div>
                 <div class="stat-content">
-                    <h3>{{ payment_stats.total_revenue|floatformat:2 }} {{ currency|default:"SAR" }}</h3>
+                    {% load idrissimart_tags %}
+                    <h3>{{ payment_stats.total_revenue|floatformat:2 }} {{ currency|default:"SAR"|currency_symbol }}</h3>
                     <p>{% trans "إجمالي الإيرادات" %}</p>
                     <small class="text-muted">
                         {% trans "الشهر:" %} {{ payment_stats.monthly_revenue|floatformat:2 }} {{ currency|default:"SAR" }}
@@ -258,71 +259,120 @@
             </div>
         </div>
     </div>
-    <!-- Transactions Section -->
+    <!-- Payment Transactions Section -->
     <div class="admin-content-card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card-header">
             <h5 class="mb-0">
-                <i class="fas fa-list me-2"></i>
-                {% trans "المعاملات المالية" %}
+                <i class="fas fa-money-bill-wave me-2"></i>
+                {% trans "المعاملات المالية - حالات الدفع" %}
             </h5>
-            <div class="btn-group" role="group">
-                <button class="btn btn-outline-primary btn-sm" onclick="filterTransactions('all')">
-                    {% trans "الكل" %}
-                </button>
-                <button class="btn btn-outline-success btn-sm" onclick="filterTransactions('completed')">
-                    {% trans "مكتملة" %}
-                </button>
-                <button class="btn btn-outline-warning btn-sm" onclick="filterTransactions('pending')">
-                    {% trans "معلقة" %}
-                </button>
-                <button class="btn btn-outline-danger btn-sm" onclick="filterTransactions('failed')">
-                    {% trans "فاشلة" %}
-                </button>
-            </div>
+            <p class="mb-0 small text-muted mt-1">
+                {% trans "جميع المعاملات المالية (الباقات، الاشتراكات، الترقيات) - لا تشمل طلبات الشراء" %}
+            </p>
         </div>
         <div class="card-body">
+            <!-- Filters -->
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <label class="form-label">{% trans "حالة الدفع" %}</label>
+                    <select class="form-select" id="paymentStatusFilter" onchange="filterTransactions()">
+                        <option value="all">{% trans "الكل" %}</option>
+                        <option value="completed">{% trans "مكتمل" %}</option>
+                        <option value="pending">{% trans "قيد الانتظار" %}</option>
+                        <option value="failed">{% trans "فاشل" %}</option>
+                        <option value="cancelled">{% trans "ملغي" %}</option>
+                        <option value="refunded">{% trans "مسترد" %}</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">{% trans "طريقة الدفع" %}</label>
+                    <select class="form-select" id="paymentMethodFilter" onchange="filterTransactions()">
+                        <option value="all">{% trans "الكل" %}</option>
+                        <option value="paypal">PayPal</option>
+                        <option value="paymob">Paymob</option>
+                        <option value="bank_transfer">{% trans "تحويل بنكي" %}</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">{% trans "من تاريخ" %}</label>
+                    <input type="date" class="form-control" id="dateFrom">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">{% trans "إلى تاريخ" %}</label>
+                    <input type="date" class="form-control" id="dateTo">
+                </div>
+            </div>
+
             <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
                         <tr>
                             <th>{% trans "رقم المعاملة" %}</th>
                             <th>{% trans "المستخدم" %}</th>
-                            <th>{% trans "نوع العملية" %}</th>
+                            <th>{% trans "الوصف" %}</th>
+                            <th>{% trans "طريقة الدفع" %}</th>
                             <th>{% trans "المبلغ" %}</th>
-                            <th>{% trans "الحالة" %}</th>
-                            <th>{% trans "التاريخ" %}</th>
+                            <th>{% trans "حالة الدفع" %}</th>
+                            <th>{% trans "تاريخ الدفع" %}</th>
                             <th>{% trans "إجراءات" %}</th>
                         </tr>
                     </thead>
                     <tbody id="transactionsTable">
                         {% if recent_transactions %}
                             {% for transaction in recent_transactions %}
-                            <tr data-status="{{ transaction.status }}">
-                                <td>#{{ transaction.id }}</td>
-                                <td>{{ transaction.user.username }}</td>
-                                <td>{{ transaction.get_provider_display }}</td>
-                                <td>{{ transaction.amount }} {{ selected_currency|default:"SAR" }}</td>
+                            <tr data-status="{{ transaction.status }}" data-provider="{{ transaction.provider }}">
+                                <td class="fw-bold">#{{ transaction.id }}</td>
                                 <td>
-                                    <span class="status-badge status-{{ transaction.status }}">
-                                        {{ transaction.get_status_display }}
-                                    </span>
+                                    <div>{{ transaction.user.get_full_name|default:transaction.user.username }}</div>
+                                    <small class="text-muted">@{{ transaction.user.username }}</small>
                                 </td>
-                                <td>{{ transaction.created_at|date:"d/m/Y H:i" }}</td>
+                                <td>
+                                    <small>{{ transaction.description|default:"-" }}</small>
+                                </td>
+                                <td>
+                                    {% if transaction.provider == 'paypal' %}
+                                        <span class="badge bg-primary"><i class="fab fa-paypal"></i> PayPal</span>
+                                    {% elif transaction.provider == 'paymob' %}
+                                        <span class="badge bg-info">Paymob</span>
+                                    {% elif transaction.provider == 'bank_transfer' %}
+                                        <span class="badge bg-secondary"><i class="fas fa-university"></i> {% trans "تحويل بنكي" %}</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark">{{ transaction.get_provider_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="fw-bold text-success">{{ transaction.amount }} {{ transaction.currency }}</td>
+                                <td>
+                                    {% if transaction.status == 'completed' %}
+                                        <span class="badge bg-success"><i class="fas fa-check-circle"></i> {% trans "مكتمل" %}</span>
+                                    {% elif transaction.status == 'pending' %}
+                                        <span class="badge bg-warning"><i class="fas fa-clock"></i> {% trans "قيد الانتظار" %}</span>
+                                    {% elif transaction.status == 'failed' %}
+                                        <span class="badge bg-danger"><i class="fas fa-times-circle"></i> {% trans "فاشل" %}</span>
+                                    {% elif transaction.status == 'cancelled' %}
+                                        <span class="badge bg-secondary"><i class="fas fa-ban"></i> {% trans "ملغي" %}</span>
+                                    {% elif transaction.status == 'refunded' %}
+                                        <span class="badge bg-dark"><i class="fas fa-undo"></i> {% trans "مسترد" %}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div dir="ltr">{{ transaction.created_at|date:"Y-m-d" }}</div>
+                                    <small class="text-muted" dir="ltr">{{ transaction.created_at|date:"H:i" }}</small>
+                                </td>
                                 <td>
                                     <div class="btn-group btn-group-sm" role="group">
                                         <button class="btn btn-outline-primary" onclick="viewTransaction({{ transaction.id }})" title="{% trans 'عرض التفاصيل' %}">
                                             <i class="fas fa-eye"></i>
                                         </button>
-                                        {% if transaction.metadata and transaction.metadata.transaction_photo %}
-                                        <button class="btn btn-outline-info" onclick="viewTransactionPhoto('{{ transaction.metadata.transaction_photo }}')" title="{% trans 'عرض صورة الإيصال' %}">
+                                        {% if transaction.offline_payment_receipt %}
+                                        <button class="btn btn-outline-info" onclick="viewReceipt('{{ transaction.offline_payment_receipt.url }}')" title="{% trans 'عرض الإيصال' %}">
                                             <i class="fas fa-image"></i>
                                         </button>
                                         {% endif %}
                                         {% if transaction.provider == 'bank_transfer' and transaction.status == 'pending' %}
-                                        <button class="btn btn-success" onclick="confirmOfflinePayment({{ transaction.id }})" title="{% trans 'تأكيد الدفع' %}">
+                                        <button class="btn btn-success btn-sm" onclick="confirmPayment({{ transaction.id }})" title="{% trans 'تأكيد الدفع' %}">
                                             <i class="fas fa-check"></i>
                                         </button>
-                                        <button class="btn btn-danger" onclick="rejectOfflinePayment({{ transaction.id }})" title="{% trans 'رفض الدفع' %}">
+                                        <button class="btn btn-danger btn-sm" onclick="rejectPayment({{ transaction.id }})" title="{% trans 'رفض' %}">
                                             <i class="fas fa-times"></i>
                                         </button>
                                         {% endif %}
@@ -337,9 +387,9 @@
                             {% endfor %}
                         {% else %}
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-4">
-                                <i class="fas fa-receipt fa-3x mb-3 d-block"></i>
-                                {% trans "لا توجد معاملات مالية بعد" %}
+                            <td colspan="8" class="text-center text-muted py-4">
+                                <i class="fas fa-wallet fa-3x mb-3 d-block opacity-50"></i>
+                                <p class="mb-0">{% trans "لا توجد معاملات مالية بعد" %}</p>
                             </td>
                         </tr>
                         {% endif %}
@@ -821,22 +871,29 @@ function initializeRevenueChart() {
 }
 
 // Transaction Management
-function filterTransactions(status) {
+function filterTransactions() {
+    const statusFilter = document.getElementById('paymentStatusFilter')?.value || 'all';
+    const methodFilter = document.getElementById('paymentMethodFilter')?.value || 'all';
     const rows = document.querySelectorAll('#transactionsTable tr[data-status]');
 
     rows.forEach(row => {
-        if (status === 'all' || row.dataset.status === status) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
-    });
+        const status = row.getAttribute('data-status');
+        const provider = row.getAttribute('data-provider');
 
-    // Update active button
-    document.querySelectorAll('.btn-group .btn').forEach(btn => {
-        btn.classList.remove('active');
+        let showRow = true;
+
+        // Filter by status
+        if (statusFilter !== 'all' && status !== statusFilter) {
+            showRow = false;
+        }
+
+        // Filter by method
+        if (methodFilter !== 'all' && provider !== methodFilter) {
+            showRow = false;
+        }
+
+        row.style.display = showRow ? '' : 'none';
     });
-    event.target.classList.add('active');
 }
 
 function viewTransaction(transactionId) {

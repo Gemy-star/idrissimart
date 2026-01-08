@@ -1,6 +1,7 @@
 # admin.py
 from django.contrib import admin
 from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
 from django.db import models
 from django.forms import JSONField, Textarea
 from django_ckeditor_5.widgets import CKEditor5Widget
@@ -14,9 +15,11 @@ from .models import (
     HomeSlider,
     SiteConfiguration,
     AboutPage,
+    AboutPageSection,
     ContactPage,
     HomePage,
     TermsPage,
+    PaymentMethodConfig,
     PrivacyPage,
 )
 
@@ -418,14 +421,71 @@ class SiteConfigurationAdmin(SingletonModelAdmin):
     }
 
 
+class AboutPageSectionInline(admin.TabularInline):
+    """Inline editor for About Page Sections"""
+    model = AboutPageSection
+    extra = 1
+    fields = ('tab_title', 'tab_title_ar', 'icon', 'order', 'is_active')
+    ordering = ['order', 'id']
+
+
 @admin.register(AboutPage)
 class AboutPageAdmin(SingletonModelAdmin):
     fieldsets = (
         ("العنوان", {"fields": ("title", "title_ar")}),
+        (
+            "قسم البطل - Hero Section",
+            {
+                "fields": ("tagline", "tagline_ar", "subtitle", "subtitle_ar"),
+                "description": "الشعار والعنوان الفرعي الذي يظهر في أعلى الصفحة"
+            }
+        ),
         ("المحتوى الرئيسي", {"fields": ("content", "content_ar", "featured_image")}),
         ("رسالتنا", {"fields": ("mission", "mission_ar"), "classes": ("collapse",)}),
         ("رؤيتنا", {"fields": ("vision", "vision_ar"), "classes": ("collapse",)}),
         ("قيمنا", {"fields": ("values", "values_ar"), "classes": ("collapse",)}),
+        (
+            "قسم ماذا نقدم - What We Offer",
+            {
+                "fields": ("what_we_offer_title", "what_we_offer_title_ar"),
+                "description": "عنوان قسم ماذا نقدم. استخدم الأقسام أدناه لإضافة محتوى ديناميكي"
+            }
+        ),
+    )
+    inlines = [AboutPageSectionInline]
+
+
+@admin.register(AboutPageSection)
+class AboutPageSectionAdmin(admin.ModelAdmin):
+    """Detailed admin for About Page Sections"""
+    list_display = ['tab_title_ar', 'tab_title', 'icon', 'order', 'is_active', 'created_at']
+    list_editable = ['order', 'is_active']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['tab_title', 'tab_title_ar', 'content', 'content_ar']
+    ordering = ['order', 'id']
+
+    fieldsets = (
+        (
+            "عنوان التبويب",
+            {
+                "fields": ("about_page", "tab_title", "tab_title_ar", "icon"),
+                "description": "عنوان التبويب الذي سيظهر في الأزرار"
+            }
+        ),
+        (
+            "المحتوى",
+            {
+                "fields": ("content", "content_ar"),
+                "description": "محتوى القسم بتنسيق HTML الغني"
+            }
+        ),
+        (
+            "الإعدادات",
+            {
+                "fields": ("order", "is_active"),
+                "description": "ترتيب ظهور القسم وحالته"
+            }
+        ),
     )
 
 
@@ -536,3 +596,125 @@ class PrivacyPageAdmin(SingletonModelAdmin):
     formfield_overrides = {
         models.TextField: {"widget": CKEditor5Widget(config_name="default")},
     }
+
+
+@admin.register(PaymentMethodConfig)
+class PaymentMethodConfigAdmin(admin.ModelAdmin):
+    """Admin interface for payment method configuration"""
+
+    list_display = [
+        "context_display",
+        "visa_status",
+        "paypal_status",
+        "wallet_status",
+        "instapay_status",
+        "cod_status",
+        "partial_status",
+        "is_active",
+        "updated_at",
+    ]
+    list_filter = ["is_active", "context"]
+    search_fields = ["context", "notes"]
+
+    fieldsets = (
+        (
+            _("معلومات أساسية"),
+            {
+                "fields": ("context", "is_active", "notes"),
+            },
+        ),
+        (
+            _("وسائل الدفع المتاحة"),
+            {
+                "fields": (
+                    "visa_enabled",
+                    "paypal_enabled",
+                    "wallet_enabled",
+                    "instapay_enabled",
+                    "cod_enabled",
+                    "partial_enabled",
+                ),
+                "description": _("حدد وسائل الدفع المتاحة لهذا النوع من المعاملات"),
+            },
+        ),
+        (
+            _("إعدادات الدفع عند الاستلام (COD)"),
+            {
+                "fields": (
+                    "cod_requires_deposit",
+                    "cod_deposit_type",
+                    "cod_deposit_amount",
+                    "cod_deposit_percentage",
+                ),
+                "description": _("إعدادات مبلغ الحجز المطلوب للدفع عند الاستلام"),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            _("معلومات إضافية"),
+            {
+                "fields": ("created_at", "updated_at"),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+    readonly_fields = ["created_at", "updated_at"]
+
+    def context_display(self, obj):
+        """Display context in Arabic"""
+        return obj.get_context_display()
+
+    context_display.short_description = _("سياق الدفع")
+
+    def visa_status(self, obj):
+        return "✅" if obj.visa_enabled else "❌"
+
+    visa_status.short_description = _("فيزا/ماستركارد")
+
+    def paypal_status(self, obj):
+        return "✅" if obj.paypal_enabled else "❌"
+
+    paypal_status.short_description = _("باي بال")
+
+    def wallet_status(self, obj):
+        return "✅" if obj.wallet_enabled else "❌"
+
+    wallet_status.short_description = _("محفظة")
+
+    def instapay_status(self, obj):
+        return "✅" if obj.instapay_enabled else "❌"
+
+    instapay_status.short_description = _("إنستا باي")
+
+    def cod_status(self, obj):
+        return "✅" if obj.cod_enabled else "❌"
+
+    cod_status.short_description = _("COD")
+
+    def partial_status(self, obj):
+        return "✅" if obj.partial_enabled else "❌"
+
+    partial_status.short_description = _("دفع جزئي")
+
+    def save_model(self, request, obj, form, change):
+        """Override to add validation"""
+        # Ensure at least one payment method is enabled
+        if not any(
+            [
+                obj.visa_enabled,
+                obj.paypal_enabled,
+                obj.wallet_enabled,
+                obj.instapay_enabled,
+                obj.cod_enabled,
+                obj.partial_enabled,
+            ]
+        ):
+            from django.contrib import messages
+
+            messages.warning(
+                request,
+                _("تحذير: لا توجد وسائل دفع مفعلة! يجب تفعيل وسيلة واحدة على الأقل."),
+            )
+
+        super().save_model(request, obj, form, change)

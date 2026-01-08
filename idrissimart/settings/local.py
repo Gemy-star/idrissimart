@@ -12,10 +12,8 @@ COMPRESS_OFFLINE = False
 # =======================
 # Session Settings for Local Development
 # =======================
-# Override common session settings for better local development experience
-SESSION_COOKIE_AGE = 86400  # 1 day for local development
-SESSION_SAVE_EVERY_REQUEST = True  # Save session on every request
-SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Don't expire on browser close in dev
+# Note: Remember Me functionality is handled in auth_views.py via set_expiry()
+# Don't override SESSION_EXPIRE_AT_BROWSER_CLOSE here to allow remember_me to work
 SESSION_COOKIE_SECURE = False  # HTTP is fine for local
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"

@@ -120,6 +120,30 @@ def user_avatar(user, size=30, css_class=""):
 # CURRENCY TAGS
 # ======================
 
+# Dictionary of currency symbols
+CURRENCY_SYMBOLS = {
+    "SAR": "ر.س",  # Saudi Riyal
+    "EGP": "ج.م",  # Egyptian Pound
+    "AED": "د.إ",  # UAE Dirham
+    "KWD": "د.ك",  # Kuwaiti Dinar
+    "QAR": "ر.ق",  # Qatari Riyal
+    "BHD": "د.ب",  # Bahraini Dinar
+    "OMR": "ر.ع",  # Omani Rial
+    "JOD": "د.أ",  # Jordanian Dinar
+}
+
+# Dictionary of currency names in Arabic
+CURRENCY_NAMES = {
+    "SAR": "ريال سعودي",
+    "EGP": "جنيه مصري",
+    "AED": "درهم إماراتي",
+    "KWD": "دينار كويتي",
+    "QAR": "ريال قطري",
+    "BHD": "دينار بحريني",
+    "OMR": "ريال عماني",
+    "JOD": "دينار أردني",
+}
+
 
 @register.simple_tag
 def get_currency(ad):
@@ -137,19 +161,46 @@ def get_currency_symbol(ad):
     """
     Returns the currency symbol for the ad based on its country.
     """
-    currency_symbols = {
-        "SAR": "ر.س",  # Saudi Riyal
-        "EGP": "ج.م",  # Egyptian Pound
-        "AED": "د.إ",  # UAE Dirham
-        "KWD": "د.ك",  # Kuwaiti Dinar
-        "QAR": "ر.ق",  # Qatari Riyal
-        "BHD": "د.ب",  # Bahraini Dinar
-        "OMR": "ر.ع",  # Omani Rial
-        "JOD": "د.أ",  # Jordanian Dinar
-    }
-
     currency_code = get_currency(ad)
-    return currency_symbols.get(currency_code, currency_code)
+    return CURRENCY_SYMBOLS.get(currency_code, currency_code)
+
+
+@register.simple_tag(takes_context=True)
+def get_country_currency(context):
+    """
+    Returns the currency code for the selected country from context.
+    Usage: {% get_country_currency as currency %}
+    """
+    selected_country_code = context.get("selected_country", "SA")
+    try:
+        from content.models import Country
+
+        country = Country.objects.get(code=selected_country_code)
+        return country.currency or "SAR"
+    except Exception:
+        return "SAR"
+
+
+@register.filter
+def currency_symbol(currency_code):
+    """
+    Returns the symbol for a given currency code.
+    Usage: {{ order.currency|currency_symbol }}
+    """
+    if not currency_code:
+        currency_code = "SAR"
+    return CURRENCY_SYMBOLS.get(currency_code, currency_code)
+
+
+@register.filter
+def currency_name(currency_code):
+    """
+    Returns the Arabic name for a given currency code.
+    Usage: {{ order.currency|currency_name }}
+    """
+    if not currency_code:
+        currency_code = "SAR"
+    return CURRENCY_NAMES.get(currency_code, currency_code)
 
 
 @register.filter
@@ -499,7 +550,7 @@ def ad_image_or_placeholder(context, ad, css_class=""):
 
     from django.templatetags.static import static
 
-    default_placeholder = static('images/default-placeholder.svg')
+    default_placeholder = static("images/default-placeholder.svg")
 
     # Check if ad has images
     if ad.images.exists():
@@ -510,7 +561,7 @@ def ad_image_or_placeholder(context, ad, css_class=""):
             first_image.image.url,
             css_class,
             ad.title,
-            fallback_url
+            fallback_url,
         )
     else:
         # Show placeholder with logo or default SVG
@@ -519,5 +570,5 @@ def ad_image_or_placeholder(context, ad, css_class=""):
             '<div class="ad-image-placeholder {}"><img src="{}" alt="{}" class="placeholder-logo"></div>',
             css_class,
             logo_url,
-            "صورة بديلة"
+            "صورة بديلة",
         )

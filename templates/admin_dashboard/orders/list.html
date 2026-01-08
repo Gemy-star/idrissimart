@@ -206,22 +206,11 @@
                             </select>
                         </div>
                         <div class="col-md-2">
-                            <label for="payment_method" class="form-label">{% trans "طريقة الدفع" %}</label>
-                            <select name="payment_method" id="payment_method" class="form-select">
-                                <option value="">{% trans "الكل" %}</option>
-                                <option value="cod" {% if request.GET.payment_method == 'cod' %}selected{% endif %}>{% trans "عند الاستلام" %}</option>
-                                <option value="online" {% if request.GET.payment_method == 'online' %}selected{% endif %}>{% trans "إلكتروني" %}</option>
-                                <option value="partial" {% if request.GET.payment_method == 'partial' %}selected{% endif %}>{% trans "دفع جزئي" %}</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
                             <label for="payment_status" class="form-label">{% trans "حالة الدفع" %}</label>
                             <select name="payment_status" id="payment_status" class="form-select">
                                 <option value="">{% trans "الكل" %}</option>
                                 <option value="unpaid" {% if request.GET.payment_status == 'unpaid' %}selected{% endif %}>{% trans "غير مدفوع" %}</option>
-                                <option value="partial" {% if request.GET.payment_status == 'partial' %}selected{% endif %}>{% trans "دفع جزئي" %}</option>
                                 <option value="paid" {% if request.GET.payment_status == 'paid' %}selected{% endif %}>{% trans "مدفوع" %}</option>
-                                <option value="refunded" {% if request.GET.payment_status == 'refunded' %}selected{% endif %}>{% trans "مسترد" %}</option>
                             </select>
                         </div>
                         <div class="col-md-3">
@@ -260,7 +249,7 @@
                                     <th>{% trans "العميل" %}</th>
                                     <th>{% trans "الهاتف" %}</th>
                                     <th>{% trans "المبلغ" %}</th>
-                                    <th>{% trans "حالة الدفع" %}</th>
+                                    <th>{% trans "مدفوع/غير مدفوع" %}</th>
                                     <th>{% trans "حالة الطلب" %}</th>
                                     <th>{% trans "التاريخ" %}</th>
                                     <th>{% trans "الإجراءات" %}</th>
@@ -278,27 +267,12 @@
                                     <td dir="ltr" class="text-end">{{ order.phone }}</td>
                                     <td>
                                         <div class="text-success fw-bold">{{ order.total_amount }} {{ currency_symbol }}</div>
-                                        {% if order.payment_status == 'partial' %}
-                                        <small class="text-muted">{% trans "مدفوع" %}: {{ order.paid_amount }} {{ currency_symbol }}</small>
-                                        {% endif %}
                                     </td>
                                     <td>
-                                        {% if order.payment_status == 'paid' %}
-                                            <span class="badge bg-success">{% trans "مدفوع" %}</span>
-                                        {% elif order.payment_status == 'partial' %}
-                                            <span class="badge bg-warning">{% trans "دفع جزئي" %}</span>
-                                            <div class="progress mt-1" style="height: 5px;">
-                                                <div class="progress-bar bg-warning" role="progressbar" style="width: {{ order.get_payment_percentage }}%"></div>
-                                            </div>
-                                        {% elif order.payment_status == 'refunded' %}
-                                            <span class="badge bg-secondary">{% trans "مسترد" %}</span>
+                                        {% if order.payment_status == 'paid' or order.payment_status == 'partial' %}
+                                            <span class="badge bg-success"><i class="fas fa-check-circle"></i> {% trans "مدفوع" %}</span>
                                         {% else %}
-                                            <span class="badge bg-danger">{% trans "غير مدفوع" %}</span>
-                                            {% if order.payment_method == 'bank_transfer' and order.payment_status == 'pending' %}
-                                                <button class="btn btn-sm btn-success mt-1" onclick="confirmOrderPayment({{ order.id }})">
-                                                    <i class="fas fa-check"></i> {% trans "تأكيد الدفع" %}
-                                                </button>
-                                            {% endif %}
+                                            <span class="badge bg-danger"><i class="fas fa-times-circle"></i> {% trans "غير مدفوع" %}</span>
                                         {% endif %}
                                     </td>
                                     <td>

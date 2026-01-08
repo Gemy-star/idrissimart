@@ -1495,12 +1495,13 @@ class AdCreateView(LoginRequiredMixin, CreateView):
         # Add the image formset to the context
         if self.request.POST:
             context["image_formset"] = AdImageFormSet(
-                self.request.POST, self.request.FILES,
-                form_kwargs={'request': self.request}
+                self.request.POST,
+                self.request.FILES,
+                form_kwargs={"request": self.request},
             )
         else:
             context["image_formset"] = AdImageFormSet(
-                form_kwargs={'request': self.request}
+                form_kwargs={"request": self.request}
             )
 
         # Add mobile verification setting from site_config
@@ -1615,13 +1616,14 @@ class AdUpdateView(LoginRequiredMixin, UpdateView):
 
         if self.request.POST:
             context["image_formset"] = AdImageFormSet(
-                self.request.POST, self.request.FILES, instance=self.object,
-                form_kwargs={'request': self.request}
+                self.request.POST,
+                self.request.FILES,
+                instance=self.object,
+                form_kwargs={"request": self.request},
             )
         else:
             context["image_formset"] = AdImageFormSet(
-                instance=self.object,
-                form_kwargs={'request': self.request}
+                instance=self.object, form_kwargs={"request": self.request}
             )
 
         # Add mobile verification setting from site_config
@@ -2576,7 +2578,6 @@ class AdminDashboardView(SuperadminRequiredMixin, TemplateView):
     """
 
     template_name = "admin_dashboard/dashboard.html"
-    template_name = "admin_dashboard/dashboard.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -2587,6 +2588,9 @@ class AdminDashboardView(SuperadminRequiredMixin, TemplateView):
         # Recent Activities
         context["recent_ads"] = self.get_recent_ads()
         context["recent_users"] = self.get_recent_users()
+
+        # Model Changes Log
+        context["recent_changes"] = self.get_recent_model_changes()
 
         # System Metrics
         context["system_metrics"] = self.get_system_metrics()
@@ -2749,6 +2753,81 @@ class AdminDashboardView(SuperadminRequiredMixin, TemplateView):
             "users_last_4_weeks": users_last_4_weeks,
             "category_names": category_names,
             "category_counts": category_counts,
+        }
+
+    def get_recent_model_changes(self):
+        """Get recent changes from all models using Django's LogEntry"""
+        from django.contrib.admin.models import LogEntry, ADDITION, CHANGE, DELETION
+        from django.contrib.contenttypes.models import ContentType
+
+        # Get recent log entries (last 50)
+        recent_logs = LogEntry.objects.select_related("user", "content_type").order_by(
+            "-action_time"
+        )[:50]
+
+        # Format the changes with additional context
+        changes = []
+        for log in recent_logs:
+            action_text = {
+                ADDITION: _("أضاف"),
+                CHANGE: _("عدّل"),
+                DELETION: _("حذف"),
+            }.get(log.action_flag, _("عملية"))
+
+            # Get model name in Arabic if possible
+            model_name = log.content_type.model
+            model_verbose_name = (
+                log.content_type.model_class()._meta.verbose_name
+                if log.content_type.model_class()
+                else model_name
+            )
+
+            changes.append(
+                {
+                    "id": log.id,
+                    "action": action_text,
+                    "action_flag": log.action_flag,
+                    "user": log.user,
+                    "model_name": model_verbose_name,
+                    "object_repr": log.object_repr,
+                    "change_message": log.get_change_message(),
+                    "action_time": log.action_time,
+                    "object_id": log.object_id,
+                    "content_type": log.content_type,
+                }
+            )
+
+        # Get statistics by model
+        model_stats = (
+            LogEntry.objects.values("content_type__model")
+            .annotate(
+                total_changes=Count("id"),
+                additions=Count("id", filter=Q(action_flag=ADDITION)),
+                modifications=Count("id", filter=Q(action_flag=CHANGE)),
+                deletions=Count("id", filter=Q(action_flag=DELETION)),
+            )
+            .order_by("-total_changes")[:10]
+        )
+
+        # Get statistics by user
+        user_stats = (
+            LogEntry.objects.values(
+                "user__username", "user__first_name", "user__last_name"
+            )
+            .annotate(total_actions=Count("id"))
+            .order_by("-total_actions")[:10]
+        )
+
+        return {
+            "recent_logs": changes,
+            "model_stats": model_stats,
+            "user_stats": user_stats,
+            "total_changes_today": LogEntry.objects.filter(
+                action_time__date=timezone.now().date()
+            ).count(),
+            "total_changes_week": LogEntry.objects.filter(
+                action_time__gte=timezone.now() - timedelta(days=7)
+            ).count(),
         }
 
     def calculate_growth_percentage(self, current, previous):
@@ -3382,17 +3461,17 @@ class AdminCustomFieldAddToCategoriesView(SuperadminRequiredMixin, View):
             from main.models import CategoryCustomField
 
             data = json.loads(request.body)
-            field_id = data.get('field_id')
-            category_ids = data.get('category_ids', [])
-            is_required = data.get('is_required', False)
-            show_on_card = data.get('show_on_card', False)
-            show_in_filters = data.get('show_in_filters', False)
+            field_id = data.get("field_id")
+            category_ids = data.get("category_ids", [])
+            is_required = data.get("is_required", False)
+            show_on_card = data.get("show_on_card", False)
+            show_in_filters = data.get("show_in_filters", False)
 
             if not field_id or not category_ids:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'معرف الحقل والأقسام مطلوبة'
-                }, status=400)
+                return JsonResponse(
+                    {"success": False, "message": "معرف الحقل والأقسام مطلوبة"},
+                    status=400,
+                )
 
             field = get_object_or_404(CustomField, pk=field_id)
 
@@ -3406,12 +3485,12 @@ class AdminCustomFieldAddToCategoriesView(SuperadminRequiredMixin, View):
                     category=category,
                     custom_field=field,
                     defaults={
-                        'is_required': is_required,
-                        'show_on_card': show_on_card,
-                        'show_in_filters': show_in_filters,
-                        'is_active': True,
-                        'order': 0
-                    }
+                        "is_required": is_required,
+                        "show_on_card": show_on_card,
+                        "show_in_filters": show_in_filters,
+                        "is_active": True,
+                        "order": 0,
+                    },
                 )
 
                 if created:
@@ -3419,22 +3498,18 @@ class AdminCustomFieldAddToCategoriesView(SuperadminRequiredMixin, View):
 
             message = f"تم إضافة الحقل '{field.label_ar or field.name}' إلى {added_count} قسم/أقسام بنجاح"
 
-            return JsonResponse({
-                'success': True,
-                'message': message,
-                'added_count': added_count
-            })
+            return JsonResponse(
+                {"success": True, "message": message, "added_count": added_count}
+            )
 
         except json.JSONDecodeError:
-            return JsonResponse({
-                'success': False,
-                'message': 'خطأ في تنسيق البيانات'
-            }, status=400)
+            return JsonResponse(
+                {"success": False, "message": "خطأ في تنسيق البيانات"}, status=400
+            )
         except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'message': f'حدث خطأ: {str(e)}'
-            }, status=500)
+            return JsonResponse(
+                {"success": False, "message": f"حدث خطأ: {str(e)}"}, status=500
+            )
 
 
 class AdminUsersManagementView(SuperadminRequiredMixin, ListView):
@@ -3810,13 +3885,6 @@ def admin_payment_transaction_detail(request, transaction_id):
         return JsonResponse(
             {"success": False, "error": "حدث خطأ في تحميل تفاصيل المعاملة"},
             status=500,
-        )
-        import logging
-
-        logger = logging.getLogger(__name__)
-        logger.error(f"Error loading transaction {transaction_id}: {str(e)}")
-        return JsonResponse(
-            {"success": False, "error": "حدث خطأ في تحميل تفاصيل المعاملة"}, status=500
         )
 
 

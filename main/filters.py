@@ -3,6 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from django.db.models import Q
 
 from .models import Category, ClassifiedAd
+from content.models import Country
 
 
 class ClassifiedAdFilter(django_filters.FilterSet):
@@ -30,6 +31,12 @@ class ClassifiedAdFilter(django_filters.FilterSet):
     )
 
     # Location filtering
+    country = django_filters.ModelChoiceFilter(
+        field_name="country",
+        queryset=Country.objects.filter(is_active=True).order_by("order", "name"),
+        label=_("الدولة"),
+        empty_label=_("جميع الدول"),
+    )
     city = django_filters.CharFilter(lookup_expr="icontains", label=_("المدينة"))
 
     # Price range filtering
@@ -147,6 +154,7 @@ class ClassifiedAdFilter(django_filters.FilterSet):
             "search",
             "category",
             "subcategory",
+            "country",
             "city",
             "min_price",
             "max_price",

@@ -629,16 +629,33 @@ class RegistrationForm(forms.Form):
             "required": _("تأكيد كلمة المرور مطلوب."),
         },
     )
-    first_name = forms.CharField(label=_("الاسم الأول"), required=False)
-    last_name = forms.CharField(label=_("الاسم الأخير"), required=False)
-    country = forms.CharField(
+    first_name = forms.CharField(
+        label=_("الاسم الحقيقي كاملاً"),
+        required=True,
+        widget=forms.TextInput(attrs={"placeholder": _("أدخل الاسم الحقيقي كاملاً")}),
+        error_messages={
+            "required": _("الاسم الحقيقي مطلوب."),
+        },
+    )
+    last_name = forms.CharField(
+        label=_("الاسم الأخير"), required=False, widget=forms.HiddenInput(), initial="-"
+    )
+    country = forms.ModelChoiceField(
+        queryset=None,  # Will be set in __init__
         label=_("الدولة"),
         required=True,
+        empty_label=_("اختر الدولة"),
+        widget=forms.Select(attrs={"class": "form-select", "id": "id_country"}),
         error_messages={
-            "required": _(
-                "جعل الدولة الافتراضية : اعتبار التسجيل مصر. يجب اختيار الدولة."
-            ),
+            "required": _("يجب اختيار الدولة."),
+            "invalid_choice": _("الدولة المحددة غير صحيحة."),
         },
+    )
+    city = forms.ChoiceField(
+        label=_("المدينة"),
+        required=False,
+        choices=[("", _("اختر الدولة أولاً"))],
+        widget=forms.Select(attrs={"class": "form-select", "id": "id_city"}),
     )
     phone = forms.CharField(
         label=_("رقم الجوال"),
@@ -718,6 +735,23 @@ class RegistrationForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Set up country queryset
+        from content.models import Country
+        self.fields["country"].queryset = Country.objects.filter(is_active=True).order_by("order", "name")
+
+        # Set up city choices dynamically based on selected country
+        if self.data.get("country"):
+            try:
+                country_id = int(self.data.get("country"))
+                country = Country.objects.get(pk=country_id)
+                if country.cities:
+                    city_choices = [("", _("اختر المدينة"))] + [
+                        (city, city) for city in country.cities
+                    ]
+                    self.fields["city"].choices = city_choices
+            except (Country.DoesNotExist, ValueError, TypeError):
+                pass
 
         # Only allow DEFAULT profile type during registration
         # Users can upgrade to PUBLISHER via package purchase

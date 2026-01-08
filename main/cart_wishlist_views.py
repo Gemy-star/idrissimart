@@ -318,6 +318,7 @@ def checkout_view(request):
             phone = request.POST.get("phone")
             address = request.POST.get("address")
             city = request.POST.get("city")
+            country_id = request.POST.get("country")
             postal_code = request.POST.get("postal_code", "")
             notes = request.POST.get("notes", "")
             payment_method = request.POST.get("payment_method", "cod")
@@ -397,6 +398,7 @@ def checkout_view(request):
                     phone=phone,
                     address=address,
                     city=city,
+                    country_id=country_id,
                     postal_code=postal_code,
                     notes=notes,
                     payment_method=payment_method,

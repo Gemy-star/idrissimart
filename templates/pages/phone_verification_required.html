@@ -1,0 +1,504 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}
+    {% trans "التحقق من رقم الهاتف" %} | {% trans "إدريسي مارت" %}
+{% endblock %}
+
+{% block content %}
+<div class="verification-container">
+    <div class="verification-card">
+        <div class="verification-icon">
+            <i class="fas fa-mobile-alt"></i>
+        </div>
+
+        <h1 class="verification-title">
+            {% trans "يرجى التحقق من رقم هاتفك" %}
+        </h1>
+
+        <div class="verification-message">
+            <p>
+                {% trans "رقم هاتفك المسجل:" %}
+            </p>
+            <p class="phone-display">
+                <i class="fas fa-phone me-2"></i>
+                <strong>{{ user.phone }}</strong>
+            </p>
+        </div>
+
+        <div class="verification-form">
+            <form id="phoneVerificationForm">
+                {% csrf_token %}
+                <div class="form-step" id="step1">
+                    <p class="step-description">
+                        {% trans "سنرسل رمز التحقق إلى رقم هاتفك عبر SMS" %}
+                    </p>
+                    <button type="button" class="btn-send" id="sendCodeBtn" onclick="sendVerificationCode()">
+                        <i class="fas fa-paper-plane me-2"></i>
+                        {% trans "إرسال رمز التحقق" %}
+                    </button>
+                </div>
+
+                <div class="form-step" id="step2" style="display: none;">
+                    <p class="step-description">
+                        {% trans "أدخل رمز التحقق المكون من 6 أرقام" %}
+                    </p>
+                    <div class="code-input-container">
+                        <input type="text"
+                               id="verificationCode"
+                               maxlength="6"
+                               pattern="[0-9]{6}"
+                               placeholder="000000"
+                               class="code-input"
+                               autocomplete="off">
+                    </div>
+                    <button type="button" class="btn-verify" id="verifyBtn" onclick="verifyCode()">
+                        <i class="fas fa-check me-2"></i>
+                        {% trans "تحقق من الرمز" %}
+                    </button>
+                    <p class="small text-muted mt-2" id="countdown" style="display: none;">
+                        {% trans "يمكن إعادة الإرسال بعد" %} <span id="timer">60</span> {% trans "ثانية" %}
+                    </p>
+                    <button type="button" class="btn-resend" id="resendBtn" onclick="sendVerificationCode()" style="display: none;">
+                        <i class="fas fa-redo me-2"></i>
+                        {% trans "إعادة إرسال الرمز" %}
+                    </button>
+                </div>
+
+                <div class="form-step" id="step3" style="display: none;">
+                    <div class="success-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <p class="success-message">
+                        {% trans "تم التحقق من رقم هاتفك بنجاح!" %}
+                    </p>
+                    <a href="{% url 'main:dashboard' %}" class="btn-continue">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        {% trans "متابعة إلى لوحة التحكم" %}
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <div class="help-section">
+            <details class="help-details">
+                <summary>
+                    <i class="fas fa-question-circle me-2"></i>
+                    {% trans "لم تستلم الرمز؟" %}
+                </summary>
+                <div class="help-content">
+                    <ul>
+                        <li>{% trans "تأكد من أن رقم هاتفك صحيح" %}</li>
+                        <li>{% trans "تحقق من رسائل SMS" %}</li>
+                        <li>{% trans "انتظر بضع دقائق قبل طلب رمز جديد" %}</li>
+                        <li>{% trans "تأكد من أن هاتفك يستقبل الرسائل النصية" %}</li>
+                        <li>
+                            {% trans "إذا استمرت المشكلة، يرجى التواصل مع" %}
+                            <a href="{% url 'content:contact_us' %}">{% trans "الدعم الفني" %}</a>
+                        </li>
+                    </ul>
+                </div>
+            </details>
+        </div>
+
+        <div class="back-section">
+            <a href="{% url 'main:dashboard' %}" class="btn-back">
+                <i class="fas fa-arrow-right me-2"></i>
+                {% trans "العودة إلى لوحة التحكم" %}
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+.verification-container {
+    min-height: calc(100vh - 200px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.verification-card {
+    background: white;
+    border-radius: 20px;
+    padding: 3rem 2rem;
+    max-width: 600px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    text-align: center;
+}
+
+.verification-icon {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 2rem;
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    color: white;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.verification-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 1.5rem;
+}
+
+.verification-message {
+    color: #4a5568;
+    margin-bottom: 2rem;
+    line-height: 1.8;
+}
+
+.phone-display {
+    background: #f7fafc;
+    padding: 1rem;
+    border-radius: 10px;
+    font-size: 1.3rem;
+    color: #11998e;
+    margin: 1rem 0;
+    direction: ltr;
+}
+
+.verification-form {
+    margin: 2rem 0;
+}
+
+.form-step {
+    padding: 2rem;
+    background: #f7fafc;
+    border-radius: 15px;
+}
+
+.step-description {
+    color: #4a5568;
+    margin-bottom: 1.5rem;
+}
+
+.code-input-container {
+    margin: 1.5rem 0;
+}
+
+.code-input {
+    width: 100%;
+    max-width: 300px;
+    padding: 1rem;
+    font-size: 2rem;
+    text-align: center;
+    border: 3px solid #e2e8f0;
+    border-radius: 10px;
+    letter-spacing: 0.5rem;
+    font-weight: bold;
+    direction: ltr;
+}
+
+.code-input:focus {
+    outline: none;
+    border-color: #11998e;
+    box-shadow: 0 0 0 3px rgba(17, 153, 142, 0.1);
+}
+
+.btn-send, .btn-verify, .btn-resend, .btn-continue {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+    border: none;
+    padding: 0.75rem 2rem;
+    border-radius: 25px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: inline-block;
+    text-decoration: none;
+}
+
+.btn-send:hover, .btn-verify:hover, .btn-resend:hover, .btn-continue:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(17, 153, 142, 0.3);
+}
+
+.btn-send:disabled, .btn-verify:disabled, .btn-resend:disabled {
+    background: #cbd5e0;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-resend {
+    background: #718096;
+    margin-top: 1rem;
+}
+
+.success-icon {
+    font-size: 5rem;
+    color: #38ef7d;
+    margin-bottom: 1rem;
+}
+
+.success-message {
+    font-size: 1.3rem;
+    color: #2d3748;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+}
+
+.help-details {
+    background: #fff5e6;
+    border: 2px solid #ffa500;
+    border-radius: 10px;
+    padding: 1rem;
+    margin: 2rem 0;
+    text-align: right;
+}
+
+.help-details summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: #d97706;
+    list-style: none;
+}
+
+.help-details summary::-webkit-details-marker {
+    display: none;
+}
+
+.help-content {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #fed7aa;
+}
+
+.help-content ul {
+    list-style: none;
+    padding: 0;
+}
+
+.help-content li {
+    padding: 0.5rem 0;
+    color: #92400e;
+}
+
+.help-content li:before {
+    content: "✓ ";
+    color: #ffa500;
+    font-weight: bold;
+    margin-left: 0.5rem;
+}
+
+.btn-back {
+    display: inline-block;
+    color: #11998e;
+    text-decoration: none;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    border: 2px solid #11998e;
+    border-radius: 25px;
+    transition: all 0.3s;
+}
+
+.btn-back:hover {
+    background: #11998e;
+    color: white;
+}
+
+@media (max-width: 768px) {
+    .verification-card {
+        padding: 2rem 1rem;
+    }
+
+    .verification-title {
+        font-size: 1.5rem;
+    }
+
+    .code-input {
+        font-size: 1.5rem;
+        letter-spacing: 0.3rem;
+    }
+}
+</style>
+
+<script>
+let countdownInterval;
+
+function showToast(message, type = 'info') {
+    // Simple toast notification
+    const toast = document.createElement('div');
+    toast.className = `toast-notification toast-${type}`;
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#38ef7d' : type === 'error' ? '#ff4444' : '#667eea'};
+        color: white;
+        padding: 1rem 2rem;
+        border-radius: 10px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        z-index: 9999;
+        animation: slideIn 0.3s ease;
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+function sendVerificationCode() {
+    const btn = document.getElementById('sendCodeBtn');
+    const countdown = document.getElementById('countdown');
+    const timer = document.getElementById('timer');
+    const resendBtn = document.getElementById('resendBtn');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري الإرسال..." %}';
+
+    fetch('{% url "main:send_phone_code" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            phone: '{{ user.phone }}',
+            country_code: '{{ user.country|default:"EG" }}'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message, 'success');
+            document.getElementById('step1').style.display = 'none';
+            document.getElementById('step2').style.display = 'block';
+            document.getElementById('verificationCode').focus();
+
+            // Start countdown
+            let timeLeft = 60;
+            countdown.style.display = 'block';
+            resendBtn.style.display = 'none';
+
+            countdownInterval = setInterval(() => {
+                timeLeft--;
+                timer.textContent = timeLeft;
+
+                if (timeLeft <= 0) {
+                    clearInterval(countdownInterval);
+                    countdown.style.display = 'none';
+                    resendBtn.style.display = 'inline-block';
+                }
+            }, 1000);
+        } else {
+            showToast(data.message, 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>{% trans "إرسال رمز التحقق" %}';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('{% trans "حدث خطأ. الرجاء المحاولة لاحقاً" %}', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>{% trans "إرسال رمز التحقق" %}';
+    });
+}
+
+function verifyCode() {
+    const code = document.getElementById('verificationCode').value.trim();
+    const btn = document.getElementById('verifyBtn');
+
+    if (!code || code.length !== 6) {
+        showToast('{% trans "يرجى إدخال رمز التحقق المكون من 6 أرقام" %}', 'error');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري التحقق..." %}';
+
+    fetch('{% url "main:verify_phone_code" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            phone: '{{ user.phone }}',
+            code: code,
+            country_code: '{{ user.country|default:"EG" }}'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message, 'success');
+            clearInterval(countdownInterval);
+
+            // Update user verification status on backend
+            fetch('{% url "main:mark_phone_verified" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            });
+
+            // Show success step
+            document.getElementById('step2').style.display = 'none';
+            document.getElementById('step3').style.display = 'block';
+        } else {
+            showToast(data.message, 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check me-2"></i>{% trans "تحقق من الرمز" %}';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('{% trans "حدث خطأ. الرجاء المحاولة لاحقاً" %}', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check me-2"></i>{% trans "تحقق من الرمز" %}';
+    });
+}
+
+// Auto-submit when 6 digits are entered
+document.getElementById('verificationCode')?.addEventListener('input', function(e) {
+    if (this.value.length === 6) {
+        verifyCode();
+    }
+});
+</script>
+
+<style>
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+</style>
+{% endblock %}

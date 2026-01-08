@@ -1,0 +1,362 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}
+    {% trans "التحقق من البريد الإلكتروني" %} | {% trans "إدريسي مارت" %}
+{% endblock %}
+
+{% block content %}
+<div class="verification-container">
+    <div class="verification-card">
+        <div class="verification-icon">
+            <i class="fas fa-envelope-open-text"></i>
+        </div>
+
+        <h1 class="verification-title">
+            {% trans "يرجى التحقق من بريدك الإلكتروني" %}
+        </h1>
+
+        <div class="verification-message">
+            <p>
+                {% trans "تم إرسال رسالة تحقق إلى بريدك الإلكتروني:" %}
+            </p>
+            <p class="email-display">
+                <i class="fas fa-envelope me-2"></i>
+                <strong>{{ user.email }}</strong>
+            </p>
+            <p class="mt-3">
+                {% trans "يرجى التحقق من صندوق الوارد الخاص بك والنقر على الرابط الموجود في الرسالة لتأكيد حسابك." %}
+            </p>
+        </div>
+
+        <div class="verification-steps">
+            <div class="step">
+                <div class="step-icon">
+                    <i class="fas fa-search"></i>
+                </div>
+                <div class="step-text">
+                    {% trans "ابحث عن البريد الإلكتروني" %}
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-icon">
+                    <i class="fas fa-mouse-pointer"></i>
+                </div>
+                <div class="step-text">
+                    {% trans "اضغط على رابط التحقق" %}
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="step-text">
+                    {% trans "تمتع بجميع المزايا" %}
+                </div>
+            </div>
+        </div>
+
+        <div class="resend-section">
+            <p class="text-muted">
+                {% trans "لم تستلم الرسالة؟" %}
+            </p>
+            <form method="post" action="{% url 'main:resend_email_verification' %}" id="resendForm">
+                {% csrf_token %}
+                <button type="submit" class="btn-resend" id="resendBtn">
+                    <i class="fas fa-paper-plane me-2"></i>
+                    {% trans "إعادة إرسال رابط التحقق" %}
+                </button>
+            </form>
+            <p class="small text-muted mt-2" id="countdown" style="display: none;">
+                {% trans "يمكنك إعادة الإرسال بعد" %} <span id="timer">60</span> {% trans "ثانية" %}
+            </p>
+        </div>
+
+        <div class="help-section">
+            <details class="help-details">
+                <summary>
+                    <i class="fas fa-question-circle me-2"></i>
+                    {% trans "لم تجد الرسالة؟" %}
+                </summary>
+                <div class="help-content">
+                    <ul>
+                        <li>{% trans "تحقق من مجلد الرسائل غير المرغوب فيها (Spam)" %}</li>
+                        <li>{% trans "تأكد من صحة عنوان البريد الإلكتروني" %}</li>
+                        <li>{% trans "انتظر بضع دقائق، قد يتأخر وصول الرسالة" %}</li>
+                        <li>
+                            {% trans "إذا استمرت المشكلة، يرجى التواصل مع" %}
+                            <a href="{% url 'content:contact_us' %}">{% trans "الدعم الفني" %}</a>
+                        </li>
+                    </ul>
+                </div>
+            </details>
+        </div>
+
+        <div class="back-section">
+            <a href="{% url 'main:dashboard' %}" class="btn-back">
+                <i class="fas fa-arrow-right me-2"></i>
+                {% trans "العودة إلى لوحة التحكم" %}
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+.verification-container {
+    min-height: calc(100vh - 200px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.verification-card {
+    background: white;
+    border-radius: 20px;
+    padding: 3rem 2rem;
+    max-width: 600px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    text-align: center;
+}
+
+.verification-icon {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 2rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    color: white;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.verification-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 1.5rem;
+}
+
+.verification-message {
+    color: #4a5568;
+    margin-bottom: 2rem;
+    line-height: 1.8;
+}
+
+.email-display {
+    background: #f7fafc;
+    padding: 1rem;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    color: #667eea;
+    margin: 1rem 0;
+}
+
+.verification-steps {
+    display: flex;
+    justify-content: space-around;
+    margin: 3rem 0;
+    gap: 1rem;
+}
+
+.step {
+    flex: 1;
+    text-align: center;
+}
+
+.step-icon {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 0.5rem;
+    background: #f7fafc;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: #667eea;
+    border: 3px solid #e2e8f0;
+}
+
+.step-text {
+    font-size: 0.9rem;
+    color: #4a5568;
+    font-weight: 600;
+}
+
+.resend-section {
+    background: #f7fafc;
+    padding: 2rem;
+    border-radius: 15px;
+    margin: 2rem 0;
+}
+
+.btn-resend {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 0.75rem 2rem;
+    border-radius: 25px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-resend:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(102,126,234,0.3);
+}
+
+.btn-resend:disabled {
+    background: #cbd5e0;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.help-details {
+    background: #fff5e6;
+    border: 2px solid #ffa500;
+    border-radius: 10px;
+    padding: 1rem;
+    margin: 2rem 0;
+    text-align: right;
+}
+
+.help-details summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: #d97706;
+    list-style: none;
+}
+
+.help-details summary::-webkit-details-marker {
+    display: none;
+}
+
+.help-content {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #fed7aa;
+}
+
+.help-content ul {
+    list-style: none;
+    padding: 0;
+}
+
+.help-content li {
+    padding: 0.5rem 0;
+    color: #92400e;
+}
+
+.help-content li:before {
+    content: "✓ ";
+    color: #ffa500;
+    font-weight: bold;
+    margin-left: 0.5rem;
+}
+
+.btn-back {
+    display: inline-block;
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    border: 2px solid #667eea;
+    border-radius: 25px;
+    transition: all 0.3s;
+}
+
+.btn-back:hover {
+    background: #667eea;
+    color: white;
+}
+
+@media (max-width: 768px) {
+    .verification-card {
+        padding: 2rem 1rem;
+    }
+
+    .verification-steps {
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .verification-title {
+        font-size: 1.5rem;
+    }
+}
+</style>
+
+<script>
+document.getElementById('resendForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const btn = document.getElementById('resendBtn');
+    const countdown = document.getElementById('countdown');
+    const timer = document.getElementById('timer');
+
+    // Disable button
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري الإرسال..." %}';
+
+    // Submit form
+    fetch(this.action, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            btn.innerHTML = '<i class="fas fa-check me-2"></i>{% trans "تم الإرسال بنجاح!" %}';
+
+            // Start countdown
+            let timeLeft = 60;
+            countdown.style.display = 'block';
+
+            const interval = setInterval(() => {
+                timeLeft--;
+                timer.textContent = timeLeft;
+
+                if (timeLeft <= 0) {
+                    clearInterval(interval);
+                    countdown.style.display = 'none';
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>{% trans "إعادة إرسال رابط التحقق" %}';
+                }
+            }, 1000);
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>{% trans "فشل الإرسال" %}';
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>{% trans "إعادة إرسال رابط التحقق" %}';
+            }, 3000);
+        }
+    })
+    .catch(error => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>{% trans "حدث خطأ" %}';
+        setTimeout(() => {
+            btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>{% trans "إعادة إرسال رابط التحقق" %}';
+        }, 3000);
+    });
+});
+</script>
+{% endblock %}

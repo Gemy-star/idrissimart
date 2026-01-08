@@ -3,49 +3,31 @@ Utilities for handling verification requirements
 """
 
 from django.utils.translation import get_language
-from content.site_config import SiteConfiguration
-
-
-def get_site_config():
-    """Get site configuration singleton"""
-    return SiteConfiguration.get_solo()
+from constance import config
 
 
 def is_email_verification_required():
     """Check if email verification is required during registration"""
-    config = get_site_config()
-    return config.require_email_verification
+    return getattr(config, "REQUIRE_EMAIL_VERIFICATION", False)
 
 
 def is_phone_verification_required():
     """Check if phone verification is required during registration"""
-    config = get_site_config()
-    return config.require_phone_verification
+    return getattr(config, "REQUIRE_PHONE_VERIFICATION", False)
 
 
 def is_verification_required_for_services():
     """Check if verification is required to use site services"""
-    config = get_site_config()
-    return config.require_verification_for_services
-
-
-def is_free_package_verification_required():
-    """Check if verification is required to receive free package"""
-    config = get_site_config()
-    return config.require_verification_for_free_package
+    return getattr(config, "REQUIRE_VERIFICATION_FOR_SERVICES", False)
 
 
 def get_verification_message():
     """Get the verification message for services"""
-    config = get_site_config()
-    current_language = get_language()
-
-    if current_language == "ar":
-        return (
-            config.verification_services_message_ar
-            or config.verification_services_message
-        )
-    return config.verification_services_message
+    return getattr(
+        config,
+        "VERIFICATION_SERVICES_MESSAGE",
+        "يجب التحقق من حسابك لاستخدام هذه الخدمة",
+    )
 
 
 def user_can_use_services(user):
@@ -56,20 +38,20 @@ def user_can_use_services(user):
     if not is_verification_required_for_services():
         return True, ""
 
-    if not user.is_authenticated:
+    if not user or not user.is_authenticated:
         return False, "يجب تسجيل الدخول أولاً"
-
-    # Check if user is verified (email or phone)
-    is_verified = False
-
-    if hasattr(user, "email_verified") and user.email_verified:
-        is_verified = True
-
-    if hasattr(user, "phone_verified") and user.phone_verified:
-        is_verified = True
 
     # Staff and superusers can always use services
     if user.is_staff or user.is_superuser:
+        return True, ""
+
+    # Check if user has at least one verification (email OR phone)
+    is_verified = False
+
+    if hasattr(user, "is_email_verified") and user.is_email_verified:
+        is_verified = True
+
+    if hasattr(user, "is_mobile_verified") and user.is_mobile_verified:
         is_verified = True
 
     if not is_verified:
@@ -83,9 +65,12 @@ def get_verification_requirements():
     Get all verification requirements as a dictionary
     Useful for passing to templates
     """
+    from constance import config as constance_config
+
     return {
         "email_required": is_email_verification_required(),
         "phone_required": is_phone_verification_required(),
         "services_require_verification": is_verification_required_for_services(),
         "verification_message": get_verification_message(),
+        "social_auth_enabled": getattr(constance_config, "SOCIAL_AUTH_ENABLED", False),
     }

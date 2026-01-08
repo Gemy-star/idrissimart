@@ -276,15 +276,20 @@ class User(AbstractUser):  # This model is correct, no changes needed here.
     )
 
     # Location Information
-    country = models.CharField(
-        max_length=100,
+    country = models.ForeignKey(
+        "content.Country",
+        on_delete=models.SET_NULL,
+        null=True,
         blank=True,
         verbose_name=_("الدولة - Country"),
+        related_name="users",
+        help_text=_("الدولة التي اختارها المستخدم عند التسجيل")
     )
     city = models.CharField(
         max_length=100,
         blank=True,
         verbose_name=_("المدينة - City"),
+        help_text=_("يجب اختيار المدينة من القائمة المتاحة للدولة")
     )
     address = models.TextField(
         blank=True,
@@ -1245,18 +1250,33 @@ class ClassifiedAdManager(models.Manager):
         )
 
     def featured_for_country(self, country_code):
-        """Get only highlighted ads for a specific country (featured section)"""
-        from django.utils import timezone
+        """Get only highlighted ads for a specific country (featured section)
 
-        # Get only highlighted ads (is_highlighted=True)
+        Returns ads that are either:
+        1. Marked as is_highlighted=True (manual or via AdUpgrade)
+        2. Have an active FEATURED_SECTION feature via AdFeature
+        """
+        from django.utils import timezone
+        from django.db.models import Q, Exists, OuterRef
+
+        # Get active featured section features
+        active_features = AdFeature.objects.filter(
+            ad=OuterRef("pk"),
+            feature_type=AdFeature.FeatureType.FEATURED_SECTION,
+            is_active=True,
+            end_date__gte=timezone.now(),
+        )
+
+        # Get ads that are either highlighted OR have active featured section
         queryset = (
             self.get_queryset()
             .filter(
-                is_highlighted=True,
+                Q(is_highlighted=True) | Q(Exists(active_features)),
                 status=self.model.AdStatus.ACTIVE,
                 country__code=country_code if country_code else "EG",
             )
             .order_by("-is_pinned", "-is_urgent", "-created_at")
+            .distinct()
         )
 
         return queryset
@@ -2366,8 +2386,53 @@ class AdFeature(models.Model):  # This model is correct, no changes needed here.
         verbose_name = _("Ad Feature")
         verbose_name_plural = _("Ad Features")
 
+    def __str__(self):
+        return f"{self.ad.title} - {self.get_feature_type_display()}"
+
+    def save(self, *args, **kwargs):
+        """Update ad flags when feature is activated"""
+        # If this is a FEATURED_SECTION feature and it's active, set is_highlighted
+        if self.is_active and self.feature_type == self.FeatureType.FEATURED_SECTION:
+            self.ad.is_highlighted = True
+            self.ad.save(update_fields=["is_highlighted"])
+
+        super().save(*args, **kwargs)
+
     def is_feature_active(self):
         return self.is_active and self.end_date >= timezone.now()
+
+    def deactivate(self):
+        """Deactivate this feature and update the ad if needed"""
+        self.is_active = False
+
+        # If this is FEATURED_SECTION, check if ad should still be highlighted
+        if self.feature_type == self.FeatureType.FEATURED_SECTION:
+            # Check if there are other active FEATURED_SECTION features
+            other_features = (
+                AdFeature.objects.filter(
+                    ad=self.ad,
+                    feature_type=self.FeatureType.FEATURED_SECTION,
+                    is_active=True,
+                )
+                .exclude(id=self.id)
+                .exists()
+            )
+
+            # If no other features and no active AdUpgrade, remove highlight
+            if not other_features:
+                from .models import AdUpgrade
+
+                has_upgrade = AdUpgrade.objects.filter(
+                    ad=self.ad,
+                    upgrade_type=AdUpgrade.UpgradeType.HIGHLIGHTED,
+                    is_active=True,
+                ).exists()
+
+                if not has_upgrade:
+                    self.ad.is_highlighted = False
+                    self.ad.save(update_fields=["is_highlighted"])
+
+        self.save()
 
 
 class AdPackage(models.Model):
@@ -3202,6 +3267,14 @@ class Order(models.Model):
     phone = models.CharField(max_length=20, verbose_name=_("رقم الهاتف"))
     address = models.TextField(verbose_name=_("العنوان"))
     city = models.CharField(max_length=100, verbose_name=_("المدينة"))
+    country = models.ForeignKey(
+        "content.Country",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("الدولة"),
+        related_name="orders",
+    )
     postal_code = models.CharField(
         max_length=20, blank=True, verbose_name=_("الرمز البريدي")
     )
@@ -3219,6 +3292,12 @@ class Order(models.Model):
         choices=PAYMENT_STATUS_CHOICES,
         default="unpaid",
         verbose_name=_("حالة الدفع"),
+    )
+    currency = models.CharField(
+        max_length=3,
+        default="SAR",
+        verbose_name=_("العملة - Currency"),
+        help_text=_("العملة المستخدمة للطلب"),
     )
     total_amount = models.DecimalField(
         max_digits=10, decimal_places=2, verbose_name=_("المبلغ الإجمالي")

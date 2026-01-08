@@ -70,7 +70,7 @@
     const box = document.createElement('div')
     box.className = 'custom-notification'
     box.style.cssText = `
-            position: fixed; top: 90px; right: 20px; z-index: 9999;
+            position: fixed; top: 90px; right: 20px; z-index: 100000;
             background: ${colors[type]}; color: white; padding: 14px 22px;
             border-radius: 12px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,0.2);
             display: flex; align-items: center; gap: 8px; max-width: 340px;

@@ -77,7 +77,7 @@ function showNotification(message, type = 'success') {
         padding: 15px 25px;
         border-radius: 10px;
         box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-        z-index: 9999;
+        z-index: 100000;
         font-weight: 600;
         display: flex;
         align-items: center;

@@ -22,9 +22,23 @@
                         {% trans "إدريسي مارت" %}
                     {% endif %}
                 </h1>
-                <p class="page-tagline">{% trans "منصة تجمع سوق واحد" %}</p>
+                <p class="page-tagline">
+                    {% if LANGUAGE_CODE == 'ar' and about_page.tagline_ar %}
+                        {{ about_page.tagline_ar }}
+                    {% elif about_page.tagline %}
+                        {{ about_page.tagline }}
+                    {% else %}
+                        {% trans "منصة تجمع سوق واحد" %}
+                    {% endif %}
+                </p>
                 <p class="page-subtitle">
-                    {% trans "متخصص يستفيد منه المتخصصون والجمهور العام الذي يحتاج إلى أي من خدمات هذا السوق" %}
+                    {% if LANGUAGE_CODE == 'ar' and about_page.subtitle_ar %}
+                        {{ about_page.subtitle_ar }}
+                    {% elif about_page.subtitle %}
+                        {{ about_page.subtitle }}
+                    {% else %}
+                        {% trans "متخصص يستفيد منه المتخصصون والجمهور العام الذي يحتاج إلى أي من خدمات هذا السوق" %}
+                    {% endif %}
                 </p>
             </div>
         </div>
@@ -196,7 +210,55 @@
     <!-- What We Offer Section -->
     <section class="offerings-section">
         <div class="container">
-            <h2 class="section-title">{% trans "ماذا نقدم؟" %}</h2>
+            <h2 class="section-title">
+                {% if LANGUAGE_CODE == 'ar' and about_page.what_we_offer_title_ar %}
+                    {{ about_page.what_we_offer_title_ar }}
+                {% elif about_page.what_we_offer_title %}
+                    {{ about_page.what_we_offer_title }}
+                {% else %}
+                    {% trans "ماذا نقدم؟" %}
+                {% endif %}
+            </h2>
+            {% if about_page.sections.all %}
+            <div class="offerings-tabs">
+                <div class="tab-buttons" role="tablist">
+                    {% for section in about_page.sections.all %}
+                    {% if section.is_active %}
+                    <button type="button"
+                            id="tab-btn-section-{{ section.id }}"
+                            class="tab-btn{% if forloop.first %} active{% endif %}"
+                            data-tab="section-{{ section.id }}"
+                            aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+                        {% if LANGUAGE_CODE == 'ar' and section.tab_title_ar %}
+                            {{ section.tab_title_ar }}
+                        {% else %}
+                            {{ section.tab_title }}
+                        {% endif %}
+                    </button>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% for section in about_page.sections.all %}
+                {% if section.is_active %}
+                <div class="tab-pane fade{% if forloop.first %} show active{% endif %}"
+                     id="section-{{ section.id }}"
+                     role="tabpanel"
+                     aria-labelledby="tab-btn-section-{{ section.id }}">
+                    <div class="offerings-content">
+                        {% autoescape off %}
+                        {% if LANGUAGE_CODE == 'ar' and section.content_ar %}
+                            {{ section.content_ar }}
+                        {% else %}
+                            {{ section.content }}
+                        {% endif %}
+                        {% endautoescape %}
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% else %}
+            <!-- Fallback content if no sections exist -->
             <div class="offerings-tabs">
                 <div class="tab-buttons" role="tablist">
                     <button type="button"
@@ -265,6 +327,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
         </div>
     </section>
     <!-- Statistics Section -->

@@ -1,4 +1,4 @@
-from django.urls import path, re_path
+from django.urls import path, re_path, include
 
 from . import views
 from . import auth_views
@@ -18,6 +18,7 @@ from . import admin_review_views
 from . import publisher_review_views
 from . import report_views
 from . import ad_actions_views
+from . import user_orders_views
 from . import verification_views
 from . import ad_features_views
 from . import pricing_views
@@ -68,6 +69,21 @@ urlpatterns = [
         "resend-verification-email/",
         auth_views.resend_email_verification,
         name="resend_email_verification",
+    ),
+    path(
+        "email-verification-required/",
+        auth_views.email_verification_required,
+        name="email_verification_required",
+    ),
+    path(
+        "phone-verification-required/",
+        auth_views.phone_verification_required,
+        name="phone_verification_required",
+    ),
+    path(
+        "mark-phone-verified/",
+        auth_views.mark_phone_verified,
+        name="mark_phone_verified",
     ),
     path(
         "password-reset-request/",
@@ -1595,6 +1611,17 @@ urlpatterns = [
         admin_orders_views.publisher_order_detail,
         name="publisher_order_detail",
     ),
+    # User Orders (My Orders - as a Buyer)
+    path(
+        "my-orders/",
+        user_orders_views.my_orders_list,
+        name="my_orders",
+    ),
+    path(
+        "my-orders/<int:order_id>/",
+        user_orders_views.my_order_detail,
+        name="my_order_detail",
+    ),
     # Publisher Reviews
     path(
         "publisher/reviews/",
@@ -1686,4 +1713,6 @@ urlpatterns = [
         ad_actions_views.delete_ad,
         name="delete_ad_api",
     ),
+    # Django Allauth URLs for Social Authentication
+    path("accounts/", include("allauth.urls")),
 ]

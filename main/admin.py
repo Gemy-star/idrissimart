@@ -538,7 +538,7 @@ class UserPackageAdmin(admin.ModelAdmin):
     )
     list_filter = ("package", "purchase_date", "expiry_date")
     search_fields = ("user__username", "user__email", "package__name")
-    readonly_fields = ("purchase_date", "expiry_date", "ads_remaining", "ads_used")
+    readonly_fields = ("purchase_date", "usage_percentage", "is_active_status")
     date_hierarchy = "purchase_date"
 
     def is_active_status(self, obj):
@@ -1489,6 +1489,7 @@ class AdReportAdmin(admin.ModelAdmin):
             color,
             obj.get_report_type_display(),
         )
+
     report_type_badge.short_description = "نوع البلاغ"
 
     def status_badge(self, obj):
@@ -1512,17 +1513,19 @@ class AdReportAdmin(admin.ModelAdmin):
             icon,
             obj.get_status_display(),
         )
+
     status_badge.short_description = "الحالة"
 
     def reporter_info(self, obj):
         if obj.reporter:
             verified = "✓" if obj.reporter.is_verified else ""
             return format_html(
-                '<strong>{}</strong> {}',
+                "<strong>{}</strong> {}",
                 obj.reporter.username,
                 verified,
             )
         return format_html('<span style="color: #6c757d;">غير معروف</span>')
+
     reporter_info.short_description = "المبلغ"
 
     def reported_target(self, obj):
@@ -1532,7 +1535,11 @@ class AdReportAdmin(admin.ModelAdmin):
                 '<a href="{}" target="_blank" style="color: #198754;">{}</a><br/>'
                 '<small style="color: #6c757d;">بواسطة: {}</small></div>',
                 obj.reported_ad.get_absolute_url(),
-                obj.reported_ad.title[:40] + "..." if len(obj.reported_ad.title) > 40 else obj.reported_ad.title,
+                (
+                    obj.reported_ad.title[:40] + "..."
+                    if len(obj.reported_ad.title) > 40
+                    else obj.reported_ad.title
+                ),
                 obj.reported_ad.user.username,
             )
         elif obj.reported_user:
@@ -1541,6 +1548,7 @@ class AdReportAdmin(admin.ModelAdmin):
                 obj.reported_user.username,
             )
         return format_html('<span style="color: #6c757d;">غير محدد</span>')
+
     reported_target.short_description = "المبلغ عنه"
 
     def description_preview(self, obj):
@@ -1559,6 +1567,7 @@ class AdReportAdmin(admin.ModelAdmin):
             text,
             evidence,
         )
+
     description_preview.short_description = "الوصف"
 
     def save_model(self, request, obj, form, change):

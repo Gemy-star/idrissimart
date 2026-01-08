@@ -11,6 +11,7 @@ from django_ckeditor_5.fields import CKEditor5Field
 from .site_config import (
     SiteConfiguration,
     AboutPage,
+    AboutPageSection,
     ContactPage,
     HomePage,
     TermsPage,
@@ -421,3 +422,199 @@ class HomeSlider(models.Model):
         if language == "ar":
             return self.button_text_ar or self.button_text
         return self.button_text
+
+
+class PaymentMethodConfig(models.Model):
+    """
+    Configuration for available payment methods per context.
+    Allows admin to control which payment methods are available for each payment type.
+    """
+
+    class PaymentContext(models.TextChoices):
+        AD_POSTING = "ad_posting", _("نشر الإعلان")
+        AD_UPGRADE = "ad_upgrade", _("ترقية الإعلان")
+        PACKAGE_PURCHASE = "package_purchase", _("شراء باقة")
+        PRODUCT_PURCHASE = "product_purchase", _("شراء منتج من السلة")
+
+    class PaymentMethod(models.TextChoices):
+        VISA = "visa", _("فيزا/ماستركارد")
+        PAYPAL = "paypal", _("باي بال")
+        WALLET = "wallet", _("محفظة إلكترونية")
+        INSTAPAY = "instapay", _("إنستا باي")
+        COD = "cod", _("الدفع عند الاستلام")
+        PARTIAL = "partial", _("دفع جزئي")
+
+    context = models.CharField(
+        max_length=50,
+        choices=PaymentContext.choices,
+        unique=True,
+        verbose_name=_("سياق الدفع"),
+    )
+    
+    # Payment methods availability
+    visa_enabled = models.BooleanField(default=True, verbose_name=_("فيزا/ماستركارد"))
+    paypal_enabled = models.BooleanField(default=False, verbose_name=_("باي بال"))
+    wallet_enabled = models.BooleanField(default=True, verbose_name=_("محفظة إلكترونية"))
+    instapay_enabled = models.BooleanField(default=True, verbose_name=_("إنستا باي"))
+    cod_enabled = models.BooleanField(default=False, verbose_name=_("الدفع عند الاستلام"))
+    partial_enabled = models.BooleanField(default=False, verbose_name=_("دفع جزئي"))
+    
+    # COD Deposit Configuration (for product purchase with COD)
+    cod_requires_deposit = models.BooleanField(
+        default=True,
+        verbose_name=_("يتطلب الدفع عند الاستلام مبلغ حجز"),
+        help_text=_("إذا كان مفعلاً، يجب دفع مبلغ الحجز قبل تأكيد الطلب"),
+    )
+    cod_deposit_type = models.CharField(
+        max_length=20,
+        choices=[
+            ("fixed", _("مبلغ ثابت")),
+            ("percentage", _("نسبة مئوية")),
+        ],
+        default="percentage",
+        verbose_name=_("نوع مبلغ الحجز"),
+    )
+    cod_deposit_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name=_("مبلغ الحجز الثابت"),
+        help_text=_("يستخدم إذا كان النوع 'مبلغ ثابت'"),
+    )
+    cod_deposit_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=20.00,
+        verbose_name=_("نسبة مبلغ الحجز %"),
+        help_text=_("يستخدم إذا كان النوع 'نسبة مئوية' (مثال: 20 = 20%)"),
+    )
+    
+    # Notes
+    notes = models.TextField(
+        blank=True,
+        verbose_name=_("ملاحظات"),
+        help_text=_("ملاحظات إضافية حول هذا السياق"),
+    )
+    
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإنشاء"))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("تاريخ التحديث"))
+
+    class Meta:
+        verbose_name = _("إعدادات وسائل الدفع")
+        verbose_name_plural = _("إعدادات وسائل الدفع")
+        ordering = ["context"]
+
+    def __str__(self):
+        return f"{self.get_context_display()}"
+
+    def get_enabled_methods(self):
+        """
+        Returns list of enabled payment methods for this context.
+        Returns: List of tuples [(method_code, method_name), ...]
+        """
+        methods = []
+        if self.visa_enabled:
+            methods.append(("visa", _("بطاقة فيزا/ماستركارد")))
+        if self.paypal_enabled:
+            methods.append(("paypal", _("باي بال")))
+        if self.wallet_enabled:
+            methods.append(("wallet", _("محفظة إلكترونية")))
+        if self.instapay_enabled:
+            methods.append(("instapay", _("إنستا باي")))
+        if self.cod_enabled:
+            methods.append(("cod", _("الدفع عند الاستلام")))
+        if self.partial_enabled:
+            methods.append(("partial", _("دفع جزئي")))
+        return methods
+
+    def is_method_enabled(self, method_code):
+        """Check if a specific payment method is enabled"""
+        method_map = {
+            "visa": self.visa_enabled,
+            "paypal": self.paypal_enabled,
+            "wallet": self.wallet_enabled,
+            "instapay": self.instapay_enabled,
+            "cod": self.cod_enabled,
+            "partial": self.partial_enabled,
+        }
+        return method_map.get(method_code, False)
+
+    def calculate_cod_deposit(self, total_amount):
+        """
+        Calculate the required deposit amount for COD orders.
+        
+        Args:
+            total_amount: Total order amount (Decimal)
+            
+        Returns:
+            Decimal: Deposit amount required
+        """
+        from decimal import Decimal
+        
+        if not self.cod_requires_deposit:
+            return Decimal("0.00")
+        
+        if self.cod_deposit_type == "fixed":
+            return self.cod_deposit_amount
+        else:  # percentage
+            return (total_amount * self.cod_deposit_percentage / Decimal("100")).quantize(
+                Decimal("0.01")
+            )
+
+    @classmethod
+    def get_for_context(cls, context):
+        """
+        Get configuration for a specific payment context.
+        Creates default config if not exists.
+        """
+        config, created = cls.objects.get_or_create(
+            context=context,
+            defaults=cls._get_default_config(context),
+        )
+        return config
+
+    @staticmethod
+    def _get_default_config(context):
+        """Get default configuration for each context"""
+        defaults = {
+            "is_active": True,
+            "visa_enabled": True,
+            "paypal_enabled": False,
+            "wallet_enabled": True,
+            "instapay_enabled": True,
+        }
+        
+        if context == "ad_posting":
+            # Ad posting: Online methods only, no COD
+            defaults.update({
+                "cod_enabled": False,
+                "partial_enabled": False,
+                "notes": _("نشر الإعلان - وسائل الدفع الإلكتروني فقط"),
+            })
+        elif context == "ad_upgrade":
+            # Ad upgrade: Online methods only
+            defaults.update({
+                "cod_enabled": False,
+                "partial_enabled": False,
+                "notes": _("ترقية الإعلان - وسائل الدفع الإلكتروني فقط"),
+            })
+        elif context == "package_purchase":
+            # Package purchase: Online methods only
+            defaults.update({
+                "cod_enabled": False,
+                "partial_enabled": False,
+                "notes": _("شراء الباقات - وسائل الدفع الإلكتروني فقط"),
+            })
+        elif context == "product_purchase":
+            # Product purchase: All methods including COD with deposit
+            defaults.update({
+                "cod_enabled": True,
+                "partial_enabled": True,
+                "cod_requires_deposit": True,
+                "cod_deposit_type": "percentage",
+                "cod_deposit_percentage": 20.00,
+                "notes": _("شراء المنتجات - جميع وسائل الدفع متاحة"),
+            })
+        
+        return defaults

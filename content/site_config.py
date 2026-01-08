@@ -317,6 +317,30 @@ class AboutPage(SingletonModel):
         max_length=200, default="من نحن", verbose_name=_("العنوان بالعربية")
     )
 
+    # Hero Section - First Heading (Tagline)
+    tagline = models.CharField(
+        max_length=200,
+        default="منصة تجمع سوق واحد",
+        verbose_name=_("الشعار - Tagline"),
+        help_text=_("العنوان الأول الذي يظهر أسفل العنوان الرئيسي")
+    )
+    tagline_ar = models.CharField(
+        max_length=200,
+        default="منصة تجمع سوق واحد",
+        verbose_name=_("الشعار بالعربية")
+    )
+
+    subtitle = models.TextField(
+        blank=True,
+        default="متخصص يستفيد منه المتخصصون والجمهور العام الذي يحتاج إلى أي من خدمات هذا السوق",
+        verbose_name=_("العنوان الفرعي - Subtitle")
+    )
+    subtitle_ar = models.TextField(
+        blank=True,
+        default="متخصص يستفيد منه المتخصصون والجمهور العام الذي يحتاج إلى أي من خدمات هذا السوق",
+        verbose_name=_("العنوان الفرعي بالعربية")
+    )
+
     content = CKEditor5Field(
         blank=True, verbose_name=_("المحتوى - Content"), config_name="default"
     )
@@ -345,6 +369,18 @@ class AboutPage(SingletonModel):
         blank=True, verbose_name=_("قيمنا بالعربية"), config_name="default"
     )
 
+    # What We Offer Section
+    what_we_offer_title = models.CharField(
+        max_length=200,
+        default="ماذا نقدم؟",
+        verbose_name=_("عنوان قسم ماذا نقدم - What We Offer Title")
+    )
+    what_we_offer_title_ar = models.CharField(
+        max_length=200,
+        default="ماذا نقدم؟",
+        verbose_name=_("عنوان قسم ماذا نقدم بالعربية")
+    )
+
     featured_image = models.ImageField(
         upload_to="about/", blank=True, null=True, verbose_name=_("صورة مميزة")
     )
@@ -355,6 +391,68 @@ class AboutPage(SingletonModel):
 
     def __str__(self):
         return "About Page"
+
+
+class AboutPageSection(models.Model):
+    """Dynamic sections for 'What We Offer' on About page"""
+
+    about_page = models.ForeignKey(
+        AboutPage,
+        on_delete=models.CASCADE,
+        related_name="sections",
+        verbose_name=_("صفحة من نحن")
+    )
+
+    tab_title = models.CharField(
+        max_length=100,
+        verbose_name=_("عنوان التبويب - Tab Title"),
+        help_text=_("العنوان الذي يظهر في زر التبويب (مثل: للأفراد، للشركات)")
+    )
+    tab_title_ar = models.CharField(
+        max_length=100,
+        verbose_name=_("عنوان التبويب بالعربية")
+    )
+
+    icon = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name=_("الأيقونة - Icon"),
+        help_text=_("أيقونة إيموجي أو رمز (مثل: 📢، 🛒، 🔧)")
+    )
+
+    content = CKEditor5Field(
+        blank=True,
+        verbose_name=_("المحتوى - Content"),
+        config_name="default",
+        help_text=_("محتوى القسم بتنسيق HTML")
+    )
+    content_ar = CKEditor5Field(
+        blank=True,
+        verbose_name=_("المحتوى بالعربية"),
+        config_name="default"
+    )
+
+    order = models.IntegerField(
+        default=0,
+        verbose_name=_("الترتيب - Order"),
+        help_text=_("ترتيب ظهور التبويب")
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_("نشط - Active")
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("قسم من نحن - ماذا نقدم")
+        verbose_name_plural = _("أقسام من نحن - ماذا نقدم")
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return self.tab_title_ar or self.tab_title
 
 
 class ContactPage(SingletonModel):

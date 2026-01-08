@@ -196,20 +196,12 @@ class CustomLoginView(LoginView):
         # Handle "Remember Me" functionality
         remember_me = self.request.POST.get("remember_me")
 
-        # In local development, always keep session active
-        from django.conf import settings
-
-        if settings.DEBUG:
-            # For local development, set longer session timeout
-            self.request.session.set_expiry(86400)  # 1 day
+        if remember_me:
+            # User checked "Remember Me" - keep session for 2 weeks
+            self.request.session.set_expiry(1209600)  # 2 weeks (14 days)
         else:
-            # Production behavior
-            if remember_me:
-                # User checked "Remember Me" - keep session for 2 weeks
-                self.request.session.set_expiry(1209600)  # 2 weeks
-            else:
-                # User didn't check "Remember Me" - session expires on browser close
-                self.request.session.set_expiry(0)
+            # User didn't check "Remember Me" - session expires on browser close
+            self.request.session.set_expiry(0)
 
         # Log IP address
         user.last_login_ip = get_client_ip(self.request)
@@ -809,6 +801,7 @@ def password_reset_request(request):
                     except Exception as e:
                         # Log the error for debugging
                         import logging
+
                         logger = logging.getLogger(__name__)
                         logger.error(f"Failed to send password reset email: {str(e)}")
 
@@ -823,7 +816,9 @@ def password_reset_request(request):
                             print(f"{'='*60}\n")
                             messages.warning(
                                 request,
-                                _("لم يتم إرسال البريد (وضع التطوير)، تحقق من console للحصول على الرابط")
+                                _(
+                                    "لم يتم إرسال البريد (وضع التطوير)، تحقق من console للحصول على الرابط"
+                                ),
                             )
                         else:
                             messages.error(
@@ -934,15 +929,84 @@ def verify_email(request, user_id, token):
 def resend_email_verification(request):
     """Resend email verification link"""
     if not request.user.is_authenticated:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse(
+                {"success": False, "message": _("يجب تسجيل الدخول أولاً")}, status=401
+            )
         return redirect("main:login")
 
     if request.user.is_email_verified:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse(
+                {"success": False, "message": _("بريدك الإلكتروني مؤكد بالفعل.")}
+            )
         messages.info(request, _("بريدك الإلكتروني مؤكد بالفعل."))
         return redirect("main:home")
 
     if send_email_verification(request, request.user):
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": _("تم إرسال رابط التأكيد إلى بريدك الإلكتروني."),
+                }
+            )
         messages.success(request, _("تم إرسال رابط التأكيد إلى بريدك الإلكتروني."))
     else:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": _("حدث خطأ أثناء إرسال البريد. يرجى المحاولة لاحقاً."),
+                },
+                status=500,
+            )
         messages.error(request, _("حدث خطأ أثناء إرسال البريد. يرجى المحاولة لاحقاً."))
 
     return redirect("main:home")
+
+
+def email_verification_required(request):
+    """Show email verification required page"""
+    if not request.user.is_authenticated:
+        return redirect("main:login")
+
+    if request.user.is_email_verified:
+        return redirect("main:dashboard")
+
+    return render(request, "pages/email_verification_required.html")
+
+
+def phone_verification_required(request):
+    """Show phone verification required page"""
+    if not request.user.is_authenticated:
+        return redirect("main:login")
+
+    if request.user.is_mobile_verified:
+        return redirect("main:dashboard")
+
+    return render(request, "pages/phone_verification_required.html")
+
+
+@require_POST
+def mark_phone_verified(request):
+    """Mark user's phone as verified after successful OTP verification"""
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"success": False, "message": _("يجب تسجيل الدخول أولاً")}, status=401
+        )
+
+    # Check if phone was verified in session
+    normalized_phone = normalize_phone_number(
+        request.user.phone, request.user.country or "EG"
+    )
+    if request.session.get(f"phone_verified_{normalized_phone}"):
+        request.user.is_mobile_verified = True
+        request.user.save(update_fields=["is_mobile_verified"])
+        # Clear session
+        del request.session[f"phone_verified_{normalized_phone}"]
+        return JsonResponse({"success": True, "message": _("تم تحديث حالة التحقق")})
+
+    return JsonResponse(
+        {"success": False, "message": _("لم يتم التحقق من الهاتف")}, status=400
+    )
