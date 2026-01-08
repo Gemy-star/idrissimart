@@ -3,6 +3,37 @@ import django.db.models.deletion
 from django.db import migrations, models
 
 
+def get_table_info(cursor, table_name, column_name):
+    """Get detailed column information"""
+    cursor.execute(
+        """
+        SELECT COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY
+        FROM information_schema.columns
+        WHERE table_schema = DATABASE()
+          AND table_name = %s
+          AND column_name = %s
+    """,
+        [table_name, column_name],
+    )
+    result = cursor.fetchone()
+    return result if result else None
+
+
+def get_table_engine(cursor, table_name):
+    """Get table storage engine"""
+    cursor.execute(
+        """
+        SELECT ENGINE
+        FROM information_schema.tables
+        WHERE table_schema = DATABASE()
+          AND table_name = %s
+    """,
+        [table_name],
+    )
+    result = cursor.fetchone()
+    return result[0] if result else None
+
+
 def column_exists(cursor, table_name, column_name):
     """Check if a column exists in a table"""
     cursor.execute(
@@ -103,6 +134,33 @@ def migrate_country_data(apps, schema_editor):
             WHERE country_id NOT IN (SELECT id FROM content_country WHERE is_active = 1)
         """
         )
+
+        # Debug: Check table structures before adding FK
+        print("\n🔍 Debugging FK constraint issue:")
+
+        # Check users table engine
+        users_engine = get_table_engine(cursor, "users")
+        country_engine = get_table_engine(cursor, "content_country")
+        print(f"  users table engine: {users_engine}")
+        print(f"  content_country table engine: {country_engine}")
+
+        # Check column types
+        users_country_info = get_table_info(cursor, "users", "country_id")
+        country_id_info = get_table_info(cursor, "content_country", "id")
+        print(f"  users.country_id type: {users_country_info}")
+        print(f"  content_country.id type: {country_id_info}")
+
+        # Ensure both tables use InnoDB
+        if users_engine != "InnoDB":
+            print(f"  ⚠️  Converting users table to InnoDB...")
+            cursor.execute("ALTER TABLE users ENGINE=InnoDB")
+            print(f"  ✅ Converted users to InnoDB")
+
+        if country_engine != "InnoDB":
+            print(f"  ⚠️  Converting content_country table to InnoDB...")
+            cursor.execute("ALTER TABLE content_country ENGINE=InnoDB")
+            print(f"  ✅ Converted content_country to InnoDB")
+        print()
 
         # Verify all users have valid country_id
         cursor.execute(
