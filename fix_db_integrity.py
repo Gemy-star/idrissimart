@@ -61,10 +61,13 @@ def fix_country_integrity():
         with connection.cursor() as cursor:
             # Get table name
             user_table = User._meta.db_table
+            print(f"📋 User table name: {user_table}")
 
             # Get database engine
             engine = connection.settings_dict.get("ENGINE", "")
             is_mysql = "mysql" in engine.lower()
+            print(f"🔍 Database type: {'MySQL' if is_mysql else 'SQLite'}")
+            print()
 
             # Build query based on database type
             if is_mysql:
@@ -173,18 +176,31 @@ def fix_country_integrity():
         print("🔍 Verifying fix...")
 
         with connection.cursor() as cursor:
-            cursor.execute(
-                f"""
-                SELECT COUNT(*)
-                FROM {user_table}
-                WHERE country_id IS NULL
-                   OR country_id = ''
-                   OR country_id NOT IN (
-                       SELECT id FROM content_country WHERE is_active = 1
-                   )
-            """
-            )
+            # Use database-specific verification query
+            if is_mysql:
+                verify_query = f"""
+                    SELECT COUNT(*)
+                    FROM {user_table} u
+                    WHERE u.country_id IS NULL
+                       OR u.country_id = ''
+                       OR NOT EXISTS (
+                           SELECT 1 FROM content_country c
+                           WHERE c.id = u.country_id AND c.is_active = 1
+                       )
+                       OR u.country_id REGEXP '^[^0-9]'
+                """
+            else:
+                verify_query = f"""
+                    SELECT COUNT(*)
+                    FROM {user_table}
+                    WHERE country_id IS NULL
+                       OR country_id = ''
+                       OR country_id NOT IN (
+                           SELECT id FROM content_country WHERE is_active = 1
+                       )
+                """
 
+            cursor.execute(verify_query)
             remaining_invalid = cursor.fetchone()[0]
 
         if remaining_invalid > 0:
