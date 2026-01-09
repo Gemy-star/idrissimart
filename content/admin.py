@@ -533,23 +533,6 @@ class HomePageAdmin(SingletonModelAdmin):
             },
         ),
         (
-            "نافذة الإعلان (Modal)",
-            {
-                "fields": (
-                    "show_modal",
-                    "modal_title",
-                    "modal_title_ar",
-                    "modal_content",
-                    "modal_content_ar",
-                    "modal_image",
-                    "modal_button_text",
-                    "modal_button_text_ar",
-                    "modal_button_url",
-                ),
-                "classes": ("collapse",),
-            },
-        ),
-        (
             "الأقسام المميزة",
             {
                 "fields": ("show_featured_categories", "show_featured_ads"),

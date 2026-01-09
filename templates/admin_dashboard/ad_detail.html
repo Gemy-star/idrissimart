@@ -413,22 +413,81 @@
 
             <!-- Quick Actions -->
             <h3 class="mt-4">{% trans "إجراءات سريعة" %}</h3>
+
+            <!-- حالة الإعلان -->
             {% if ad.status == 'pending' %}
-            <form method="post" action="{% url 'main:admin_approve_ad' ad.id %}">
+            <form method="post" action="{% url 'main:admin_approve_ad' ad.id %}" style="margin-bottom: 0.5rem;">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-success w-100 mb-2">
-                    <i class="fas fa-check"></i> {% trans "الموافقة" %}
+                <button type="submit" class="btn btn-success w-100">
+                    <i class="fas fa-check-circle"></i> {% trans "الموافقة على الإعلان" %}
+                </button>
+            </form>
+            <form method="post" action="{% url 'main:admin_reject_ad' ad.id %}" style="margin-bottom: 0.5rem;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger w-100">
+                    <i class="fas fa-times-circle"></i> {% trans "رفض الإعلان" %}
+                </button>
+            </form>
+            {% elif ad.status == 'active' %}
+            <form method="post" action="{% url 'main:admin_suspend_ad' ad.id %}" style="margin-bottom: 0.5rem;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-warning w-100">
+                    <i class="fas fa-pause-circle"></i> {% trans "تعليق الإعلان" %}
+                </button>
+            </form>
+            {% elif ad.status == 'suspended' %}
+            <form method="post" action="{% url 'main:admin_activate_ad' ad.id %}" style="margin-bottom: 0.5rem;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success w-100">
+                    <i class="fas fa-play-circle"></i> {% trans "تنشيط الإعلان" %}
                 </button>
             </form>
             {% endif %}
 
-            <a href="{% url 'main:admin_upgrade_create' %}?ad_id={{ ad.id }}" class="btn btn-primary w-100 mb-2">
-                <i class="fas fa-arrow-up"></i> {% trans "إضافة ترقية" %}
-            </a>
+            <!-- إخفاء/إظهار الإعلان -->
+            <form method="post" action="{% url 'main:admin_hide_ad' ad.id %}" style="margin-bottom: 0.5rem;">
+                {% csrf_token %}
+                <button type="submit" class="btn w-100" style="background: {% if ad.is_hidden %}linear-gradient(135deg, #10b981, #059669){% else %}linear-gradient(135deg, #6b7280, #4b5563){% endif %}; color: white;">
+                    {% if ad.is_hidden %}
+                        <i class="fas fa-eye"></i> {% trans "إظهار الإعلان" %}
+                    {% else %}
+                        <i class="fas fa-eye-slash"></i> {% trans "إخفاء الإعلان" %}
+                    {% endif %}
+                </button>
+            </form>
 
-            <a href="{% url 'main:ad_detail' ad.id %}" class="btn btn-secondary w-100" target="_blank">
-                <i class="fas fa-external-link-alt"></i> {% trans "عرض في الموقع" %}
-            </a>
+            <!-- السلة -->
+            {% if ad.cart_enabled %}
+            <form method="post" action="{% url 'main:admin_disable_cart_for_ad' ad.id %}" style="margin-bottom: 0.5rem;">
+                {% csrf_token %}
+                <button type="submit" class="btn w-100" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white;">
+                    <i class="fas fa-shopping-cart"></i> {% trans "تعطيل السلة" %}
+                </button>
+            </form>
+            {% else %}
+            <form method="post" action="{% url 'main:admin_enable_cart_for_ad' ad.id %}" style="margin-bottom: 0.5rem;">
+                {% csrf_token %}
+                <button type="submit" class="btn w-100" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">
+                    <i class="fas fa-cart-plus"></i> {% trans "تفعيل السلة" %}
+                </button>
+            </form>
+            {% endif %}
+
+            <!-- إجراءات إضافية -->
+            <div style="border-top: 2px solid #e5e7eb; margin: 1rem 0; padding-top: 1rem;">
+                <a href="{% url 'main:admin_upgrade_create' %}?ad_id={{ ad.id }}" class="btn btn-primary w-100 mb-2">
+                    <i class="fas fa-star"></i> {% trans "إضافة ترقية" %}
+                </a>
+
+                {% if ad.status == 'expired' %}
+                <form method="post" action="{% url 'main:admin_republish_ad' ad.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn w-100" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white;">
+                        <i class="fas fa-redo"></i> {% trans "إعادة نشر" %}
+                    </button>
+                </form>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>

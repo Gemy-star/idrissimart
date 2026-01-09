@@ -572,47 +572,6 @@ class HomePage(SingletonModel):
         max_length=200, default="/ads/", verbose_name=_("رابط الزر - Button URL")
     )
 
-    # Modal/Announcement
-    show_modal = models.BooleanField(
-        default=False,
-        verbose_name=_("إظهار نافذة الإعلان"),
-        help_text=_("عرض نافذة منبثقة عند زيارة الصفحة الرئيسية"),
-    )
-
-    modal_title = models.CharField(
-        max_length=200, blank=True, verbose_name=_("عنوان الإعلان - Modal Title")
-    )
-    modal_title_ar = models.CharField(
-        max_length=200, blank=True, verbose_name=_("عنوان الإعلان بالعربية")
-    )
-
-    modal_content = CKEditor5Field(
-        blank=True,
-        verbose_name=_("محتوى الإعلان - Modal Content"),
-        config_name="default",
-    )
-    modal_content_ar = CKEditor5Field(
-        blank=True, verbose_name=_("محتوى الإعلان بالعربية"), config_name="default"
-    )
-
-    modal_image = models.ImageField(
-        upload_to="homepage/modal/",
-        blank=True,
-        null=True,
-        verbose_name=_("صورة الإعلان"),
-    )
-
-    modal_button_text = models.CharField(
-        max_length=100, blank=True, verbose_name=_("نص زر الإعلان")
-    )
-    modal_button_text_ar = models.CharField(
-        max_length=100, blank=True, verbose_name=_("نص زر الإعلان بالعربية")
-    )
-
-    modal_button_url = models.CharField(
-        max_length=200, blank=True, verbose_name=_("رابط زر الإعلان")
-    )
-
     # Featured sections
     show_featured_categories = models.BooleanField(
         default=True, verbose_name=_("عرض الأقسام المميزة")

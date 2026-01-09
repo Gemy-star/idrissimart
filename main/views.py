@@ -1223,14 +1223,27 @@ def faq_increment_views(request, faq_id):
     """Increment FAQ views count via AJAX"""
     try:
         from main.models import FAQ
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.info(f"Incrementing FAQ views for FAQ ID: {faq_id}")
 
         faq = FAQ.objects.get(id=faq_id, is_active=True)
         faq.increment_views()
 
-        return JsonResponse({"success": True, "views_count": faq.views_count})
+        logger.info(f"FAQ {faq_id} views updated to: {faq.views_count}")
+
+        return JsonResponse({
+            "success": True,
+            "views_count": faq.views_count,
+            "message": "Views incremented successfully"
+        })
     except FAQ.DoesNotExist:
         return JsonResponse({"success": False, "error": "FAQ not found"}, status=404)
     except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error incrementing FAQ views: {str(e)}")
         return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 
@@ -4511,6 +4524,18 @@ def admin_user_action(request, user_id):
             user_to_act_on.is_suspended = False
             user_to_act_on.save(update_fields=["is_suspended"])
             message = _("تم إلغاء تعليق المستخدم '{}'.").format(user_to_act_on.username)
+        elif action == "ban":
+            user_to_act_on.is_banned = True
+            user_to_act_on.is_active = False  # تعطيل الحساب أيضاً
+            user_to_act_on.ban_reason = data.get("reason", "تم الحظر من قبل الإدارة")
+            user_to_act_on.save(update_fields=["is_banned", "is_active", "ban_reason"])
+            message = _("تم حظر المستخدم '{}' نهائياً.").format(user_to_act_on.username)
+        elif action == "unban":
+            user_to_act_on.is_banned = False
+            user_to_act_on.is_active = True  # إعادة تفعيل الحساب
+            user_to_act_on.ban_reason = ""
+            user_to_act_on.save(update_fields=["is_banned", "is_active", "ban_reason"])
+            message = _("تم إلغاء حظر المستخدم '{}'.").format(user_to_act_on.username)
         elif action == "verify":
             user_to_act_on.verification_status = User.VerificationStatus.VERIFIED
             user_to_act_on.verified_at = timezone.now()
@@ -7039,6 +7064,121 @@ class AdminReportsView(SuperadminRequiredMixin, TemplateView):
         )
 
         return context
+
+
+@login_required
+@require_http_methods(["GET"])
+def visitor_analytics_data(request):
+    """
+    API endpoint to provide visitor analytics data for charts.
+    Returns JSON data for session duration, pages per visit, return visitors, and visitor trend.
+    """
+    # Check if user is superadmin
+    if not request.user.is_superuser:
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+
+    from django.db.models import Avg, Count, F, ExpressionWrapper, fields
+    from datetime import timedelta
+
+    # Get the number of days from query parameter (default: 30)
+    days = int(request.GET.get("days", 30))
+    now = timezone.now()
+    start_date = now - timedelta(days=days)
+
+    # Generate date labels (in Arabic format)
+    import calendar
+
+    arabic_months = [
+        "يناير",
+        "فبراير",
+        "مارس",
+        "أبريل",
+        "مايو",
+        "يونيو",
+        "يوليو",
+        "أغسطس",
+        "سبتمبر",
+        "أكتوبر",
+        "نوفمبر",
+        "ديسمبر",
+    ]
+
+    labels = []
+    for i in range(days - 1, -1, -1):
+        date = now - timedelta(days=i)
+        month_name = arabic_months[date.month - 1]
+        labels.append(f"{date.day} {month_name[:3]}")  # e.g., "15 ينا"
+
+    # 1. Session Duration (average time between first_visit and last_activity)
+    session_duration_data = []
+    for i in range(days - 1, -1, -1):
+        date = now - timedelta(days=i)
+        day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=1)
+
+        # Calculate average session duration in minutes
+        visitors = Visitor.objects.filter(
+            first_visit__gte=day_start, first_visit__lt=day_end
+        )
+
+        total_duration = 0
+        count = 0
+        for visitor in visitors:
+            duration = (visitor.last_activity - visitor.first_visit).total_seconds() / 60
+            if duration > 0:  # Only count positive durations
+                total_duration += duration
+                count += 1
+
+        avg_duration = total_duration / count if count > 0 else 0
+        session_duration_data.append(round(avg_duration, 1))
+
+    # 2. Pages Per Visit (average page_views per visitor)
+    pages_per_visit_data = []
+    for i in range(days - 1, -1, -1):
+        date = now - timedelta(days=i)
+        day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=1)
+
+        avg_pages = (
+            Visitor.objects.filter(
+                first_visit__gte=day_start, first_visit__lt=day_end
+            ).aggregate(avg=Avg("page_views"))["avg"]
+            or 0
+        )
+        pages_per_visit_data.append(round(avg_pages, 1))
+
+    # 3. Return Visitors (new vs returning visitors in the period)
+    # A returning visitor is one who first visited before the period
+    new_visitors = Visitor.objects.filter(first_visit__gte=start_date).count()
+
+    returning_visitors = Visitor.objects.filter(
+        first_visit__lt=start_date, last_activity__gte=start_date
+    ).count()
+
+    # 4. Visitor Trend (total unique visitors per day)
+    visitor_trend_data = []
+    for i in range(days - 1, -1, -1):
+        date = now - timedelta(days=i)
+        day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=1)
+
+        daily_visitors = Visitor.objects.filter(
+            first_visit__gte=day_start, first_visit__lt=day_end
+        ).count()
+        visitor_trend_data.append(daily_visitors)
+
+    # Prepare response data
+    response_data = {
+        "session_duration": {"labels": labels, "values": session_duration_data},
+        "pages_per_visit": {"labels": labels, "values": pages_per_visit_data},
+        "return_visitors": {
+            "new_visitors": new_visitors,
+            "returning_visitors": returning_visitors,
+        },
+        "visitor_trend": {"labels": labels, "values": visitor_trend_data},
+    }
+
+    return JsonResponse(response_data)
 
 
 @require_POST

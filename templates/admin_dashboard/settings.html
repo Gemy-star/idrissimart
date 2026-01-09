@@ -7,33 +7,158 @@
 
 {% block admin_extra_css %}
 <style>
+    .settings-tabs-wrapper {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+
+    [data-theme='dark'] .settings-tabs-wrapper {
+        background: #2d3748;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .settings-nav-tabs {
+        display: flex;
+        border-bottom: 2px solid #e9ecef;
+        padding: 0;
+        margin: 0;
+        list-style: none;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    [data-theme='dark'] .settings-nav-tabs {
+        border-bottom-color: rgba(255,255,255,0.1);
+    }
+
+    .settings-nav-tabs .nav-item {
+        flex-shrink: 0;
+    }
+
+    .settings-nav-tabs .nav-link {
+        padding: 1.2rem 2rem;
+        color: #6c757d;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        border-bottom: 3px solid transparent;
+        transition: all 0.3s ease;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    .settings-nav-tabs .nav-link:hover {
+        color: #4f46e5;
+        background: rgba(79, 70, 229, 0.05);
+    }
+
+    .settings-nav-tabs .nav-link.active {
+        color: #4f46e5;
+        border-bottom-color: #4f46e5;
+        background: rgba(79, 70, 229, 0.05);
+    }
+
+    [data-theme='dark'] .settings-nav-tabs .nav-link {
+        color: #a0aec0;
+    }
+
+    [data-theme='dark'] .settings-nav-tabs .nav-link.active {
+        color: #818cf8;
+        border-bottom-color: #818cf8;
+        background: rgba(129, 140, 248, 0.1);
+    }
+
+    .settings-nav-tabs .nav-link i {
+        font-size: 1.1rem;
+    }
+
+    .tab-content {
+        padding: 2rem;
+    }
+
+    .tab-pane {
+        display: none;
+    }
+
+    .tab-pane.active {
+        display: block;
+    }
+
     .settings-group {
         margin-bottom: 2rem;
         padding-bottom: 2rem;
         border-bottom: 1px solid #e9ecef;
     }
+
     [data-theme='dark'] .settings-group {
         border-bottom-color: rgba(255, 255, 255, 0.1);
     }
+
     .settings-group:last-child {
         border-bottom: none;
         margin-bottom: 0;
         padding-bottom: 0;
     }
+
     .settings-group-title {
         font-weight: 700;
         color: #2c3e50;
         margin-bottom: 1rem;
         font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
+
     [data-theme='dark'] .settings-group-title {
         color: #e9ecef;
     }
+
+    .settings-group-title i {
+        color: #4f46e5;
+    }
+
     .form-check-label strong {
         color: #2c3e50;
     }
+
     [data-theme='dark'] .form-check-label strong {
         color: #e9ecef;
+    }
+
+    .settings-card {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    [data-theme='dark'] .settings-card {
+        background: rgba(255,255,255,0.05);
+    }
+
+    .save-settings-btn {
+        position: sticky;
+        bottom: 1rem;
+        left: 0;
+        right: 0;
+        z-index: 10;
+        display: flex;
+        justify-content: flex-end;
+        padding: 1rem 2rem;
+        background: white;
+        border-top: 1px solid #e9ecef;
+        border-radius: 0 0 12px 12px;
+        margin: 0 -2rem -2rem -2rem;
+    }
+
+    [data-theme='dark'] .save-settings-btn {
+        background: #2d3748;
+        border-top-color: rgba(255,255,255,0.1);
     }
 </style>
 {% endblock %}
@@ -47,108 +172,151 @@
                     <i class="fas fa-cogs me-3"></i>
                     {% trans "إعدادات النظام" %}
                 </h1>
-                <p class="text-muted mb-0">{% trans "إدارة إعدادات النشر، التوصيل، والسلة الإلكترونية" %}</p>
+                <p class="text-muted mb-0">{% trans "إدارة جميع إعدادات الموقع والنظام" %}</p>
             </div>
         </div>
     </div>
 
-    <!-- Publishing Settings -->
-    <div class="admin-content-card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">
-                <i class="fas fa-eye me-2"></i>
-                {% trans "إعدادات النشر والعرض" %}
-            </h5>
-        </div>
-        <div class="card-body">
-            <form id="publishingSettingsForm">
-                <div class="settings-group">
-                    <h6 class="settings-group-title">{% trans "وضع النشر" %}</h6>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-check form-switch">
-                                <input type="radio" name="publishing_mode" value="direct" class="form-check-input" id="directPublish" checked>
-                                <label class="form-check-label" for="directPublish">
-                                    <strong>{% trans "النشر المباشر" %}</strong>
-                                    <small class="d-block text-muted">{% trans "الإعلانات تظهر فوراً بدون مراجعة" %}</small>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-check form-switch">
-                                <input type="radio" name="publishing_mode" value="review" class="form-check-input" id="reviewPublish">
-                                <label class="form-check-label" for="reviewPublish">
-                                    <strong>{% trans "النشر بعد المراجعة" %}</strong>
-                                    <small class="d-block text-muted">{% trans "الإعلانات تحتاج موافقة المدير" %}</small>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="settings-group">
-                    <h6 class="settings-group-title">{% trans "استثناء المستخدمين الموثقين" %}</h6>
-                    <div class="form-check form-switch">
-                        <input type="checkbox" name="verified_auto_publish" class="form-check-input" id="verifiedAutoPublish" checked>
-                        <label class="form-check-label" for="verifiedAutoPublish">
-                            {% trans "نشر إعلانات المستخدمين الموثقين مباشرة (حتى في وضع المراجعة)" %}
-                        </label>
-                    </div>
-                </div>
-                <div class="settings-group">
-                    <h6 class="settings-group-title">{% trans "إعدادات الزوار" %}</h6>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-check form-switch">
-                                <input type="checkbox" name="allow_guest_viewing" class="form-check-input" id="allowGuestViewing" checked>
-                                <label class="form-check-label" for="allowGuestViewing">
-                                    {% trans "السماح للزوار بمشاهدة الإعلانات" %}
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-check form-switch">
-                                <input type="checkbox" name="allow_guest_contact" class="form-check-input" id="allowGuestContact">
-                                <label class="form-check-label" for="allowGuestContact">
-                                    {% trans "السماح للزوار برؤية معلومات الاتصال" %}
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="settings-group">
-                    <h6 class="settings-group-title">{% trans "ميزات الأعضاء المسجلين فقط" %}</h6>
-                    <div class="form-check form-switch mb-2">
-                        <input type="checkbox" name="members_only_contact" class="form-check-input" id="membersOnlyContact" checked>
-                        <label class="form-check-label" for="membersOnlyContact">
-                            {% trans "إظهار معلومات الاتصال للأعضاء المسجلين فقط" %}
-                        </label>
-                    </div>
-                    <div class="form-check form-switch">
-                        <input type="checkbox" name="members_only_messaging" class="form-check-input" id="membersOnlyMessaging" checked>
-                        <label class="form-check-label" for="membersOnlyMessaging">
-                            {% trans "إرسال الرسائل للأعضاء المسجلين فقط" %}
-                        </label>
-                    </div>
-                </div>
-                <div class="text-end">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save me-2"></i>
-                        {% trans "حفظ إعدادات النشر" %}
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <!-- Settings Tabs -->
+    <div class="settings-tabs-wrapper">
+        <!-- Navigation Tabs -->
+        <ul class="settings-nav-tabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" data-tab="publishing" role="tab">
+                    <i class="fas fa-eye"></i>
+                    <span>{% trans "النشر والعرض" %}</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-tab="delivery" role="tab">
+                    <i class="fas fa-truck"></i>
+                    <span>{% trans "التوصيل" %}</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-tab="cart" role="tab">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>{% trans "السلة" %}</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-tab="notifications" role="tab">
+                    <i class="fas fa-bell"></i>
+                    <span>{% trans "الإشعارات" %}</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-tab="system" role="tab">
+                    <i class="fas fa-sliders-h"></i>
+                    <span>{% trans "النظام" %}</span>
+                </a>
+            </li>
+        </ul>
 
-    <!-- Delivery Settings -->
-    <div class="admin-content-card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">
-                <i class="fas fa-truck me-2"></i>
-                {% trans "إعدادات التوصيل والتحصيل" %}
-            </h5>
-        </div>
-        <div class="card-body">
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- Publishing Tab -->
+            <div class="tab-pane active" id="publishing-tab">
+                <form id="publishingSettingsForm"
+                    <div class="settings-group">
+                        <h6 class="settings-group-title">
+                            <i class="fas fa-toggle-on"></i>
+                            {% trans "وضع النشر" %}
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="settings-card">
+                                    <div class="form-check">
+                                        <input type="radio" name="publishing_mode" value="direct" class="form-check-input" id="directPublish" checked>
+                                        <label class="form-check-label" for="directPublish">
+                                            <strong>{% trans "النشر المباشر" %}</strong>
+                                            <small class="d-block text-muted mt-1">{% trans "الإعلانات تظهر فوراً بدون مراجعة" %}</small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="settings-card">
+                                    <div class="form-check">
+                                        <input type="radio" name="publishing_mode" value="review" class="form-check-input" id="reviewPublish">
+                                        <label class="form-check-label" for="reviewPublish">
+                                            <strong>{% trans "النشر بعد المراجعة" %}</strong>
+                                            <small class="d-block text-muted mt-1">{% trans "الإعلانات تحتاج موافقة المدير" %}</small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <h6 class="settings-group-title">
+                            <i class="fas fa-user-check"></i>
+                            {% trans "استثناء المستخدمين الموثقين" %}
+                        </h6>
+                        <div class="form-check form-switch">
+                            <input type="checkbox" name="verified_auto_publish" class="form-check-input" id="verifiedAutoPublish" checked>
+                            <label class="form-check-label" for="verifiedAutoPublish">
+                                {% trans "نشر إعلانات المستخدمين الموثقين مباشرة (حتى في وضع المراجعة)" %}
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <h6 class="settings-group-title">
+                            <i class="fas fa-users"></i>
+                            {% trans "إعدادات الزوار" %}
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input type="checkbox" name="allow_guest_viewing" class="form-check-input" id="allowGuestViewing" checked>
+                                    <label class="form-check-label" for="allowGuestViewing">
+                                        <strong>{% trans "السماح للزوار بمشاهدة الإعلانات" %}</strong>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input type="checkbox" name="allow_guest_contact" class="form-check-input" id="allowGuestContact">
+                                    <label class="form-check-label" for="allowGuestContact">
+                                        <strong>{% trans "السماح للزوار برؤية معلومات الاتصال" %}</strong>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <h6 class="settings-group-title">
+                            <i class="fas fa-id-card"></i>
+                            {% trans "ميزات الأعضاء المسجلين فقط" %}
+                        </h6>
+                        <div class="form-check form-switch mb-2">
+                            <input type="checkbox" name="members_only_contact" class="form-check-input" id="membersOnlyContact" checked>
+                            <label class="form-check-label" for="membersOnlyContact">
+                                {% trans "إظهار معلومات الاتصال للأعضاء المسجلين فقط" %}
+                            </label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input type="checkbox" name="members_only_messaging" class="form-check-input" id="membersOnlyMessaging" checked>
+                            <label class="form-check-label" for="membersOnlyMessaging">
+                                {% trans "إرسال الرسائل للأعضاء المسجلين فقط" %}
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="save-settings-btn">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-save me-2"></i>
+                            {% trans "حفظ إعدادات النشر" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Delivery Tab -->
+            <div class="tab-pane" id="delivery-tab">
             <form id="deliverySettingsForm">
                 <div class="settings-group">
                     <h6 class="settings-group-title">{% trans "تفعيل خدمة التوصيل والتحصيل" %}</h6>
@@ -401,6 +569,40 @@ const SETTINGS_URLS = {
 };
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Tab switching functionality
+    const tabLinks = document.querySelectorAll('.settings-nav-tabs .nav-link');
+    const tabPanes = document.querySelectorAll('.tab-pane');
+
+    tabLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const tabId = this.getAttribute('data-tab');
+
+            // Remove active class from all tabs and panes
+            tabLinks.forEach(l => l.classList.remove('active'));
+            tabPanes.forEach(p => p.classList.remove('active'));
+
+            // Add active class to clicked tab and corresponding pane
+            this.classList.add('active');
+            const targetPane = document.getElementById(tabId + '-tab');
+            if (targetPane) {
+                targetPane.classList.add('active');
+            }
+
+            // Save active tab to localStorage
+            localStorage.setItem('activeSettingsTab', tabId);
+        });
+    });
+
+    // Restore active tab from localStorage
+    const savedTab = localStorage.getItem('activeSettingsTab');
+    if (savedTab) {
+        const savedLink = document.querySelector(`.settings-nav-tabs .nav-link[data-tab="${savedTab}"]`);
+        if (savedLink) {
+            savedLink.click();
+        }
+    }
+
     loadSystemSettings();
     loadConstanceSettings();
 
@@ -472,6 +674,10 @@ function populateSettingsForms(settings) {
 function savePublishingSettings(e) {
     e.preventDefault();
     const formData = new FormData(e.target);
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري الحفظ..." %}';
+
     fetch(SETTINGS_URLS.publishing, {
         method: 'POST',
         headers: { 'X-CSRFToken': getCookie('csrftoken') },
@@ -481,12 +687,20 @@ function savePublishingSettings(e) {
     .then(data => {
         if (data.success) showSuccess('تم حفظ إعدادات النشر بنجاح');
         else showError('فشل في حفظ الإعدادات');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save me-2"></i>{% trans "حفظ إعدادات النشر" %}';
     });
 }
 
 function saveDeliverySettings(e) {
     e.preventDefault();
     const formData = new FormData(e.target);
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري الحفظ..." %}';
+
     fetch(SETTINGS_URLS.delivery, {
         method: 'POST',
         headers: { 'X-CSRFToken': getCookie('csrftoken') },
@@ -496,12 +710,20 @@ function saveDeliverySettings(e) {
     .then(data => {
         if (data.success) showSuccess('تم حفظ إعدادات التوصيل بنجاح');
         else showError('فشل في حفظ الإعدادات');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save me-2"></i>{% trans "حفظ إعدادات التوصيل" %}';
     });
 }
 
 function saveCartSettings(e) {
     e.preventDefault();
     const formData = new FormData(e.target);
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري الحفظ..." %}';
+
     fetch(SETTINGS_URLS.cart, {
         method: 'POST',
         headers: { 'X-CSRFToken': getCookie('csrftoken') },
@@ -511,12 +733,20 @@ function saveCartSettings(e) {
     .then(data => {
         if (data.success) showSuccess('تم حفظ إعدادات السلة بنجاح');
         else showError('فشل في حفظ الإعدادات');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save me-2"></i>{% trans "حفظ إعدادات السلة" %}';
     });
 }
 
 function saveNotificationSettings(e) {
     e.preventDefault();
     const formData = new FormData(e.target);
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري الحفظ..." %}';
+
     fetch(SETTINGS_URLS.notifications, {
         method: 'POST',
         headers: { 'X-CSRFToken': getCookie('csrftoken') },
@@ -526,6 +756,10 @@ function saveNotificationSettings(e) {
     .then(data => {
         if (data.success) showSuccess('تم حفظ إعدادات الإشعارات بنجاح');
         else showError('فشل في حفظ الإعدادات');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save me-2"></i>{% trans "حفظ إعدادات الإشعارات" %}';
     });
 }
 
@@ -590,6 +824,10 @@ function loadConstanceSettings() {
 function saveConstanceSettings() {
     const container = document.getElementById('constanceSettingsList');
     if (!container) return;
+    const btn = document.getElementById('saveConstanceBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>{% trans "جاري الحفظ..." %}';
+
     const inputs = container.querySelectorAll('[data-key]');
     const updates = {};
     inputs.forEach(el => {
@@ -609,6 +847,10 @@ function saveConstanceSettings() {
         if (data.success) showSuccess('تم حفظ إعدادات النظام');
         else showError(data.message || 'حدث خطأ أثناء الحفظ');
     })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save me-1"></i>{% trans "حفظ الإعدادات" %}';
+    });
 }
 
 function getCookie(name) {

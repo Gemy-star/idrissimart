@@ -383,6 +383,11 @@ urlpatterns = [
         name="admin_reports",
     ),
     path(
+        "admin/reports/visitor-analytics/",
+        views.visitor_analytics_data,
+        name="visitor_analytics_data",
+    ),
+    path(
         "admin/users/",
         views.AdminUsersManagementView.as_view(),
         name="admin_users",
@@ -1562,6 +1567,37 @@ urlpatterns = [
         "admin/ads/bulk-actions/",
         admin_ad_views.admin_bulk_actions,
         name="admin_bulk_actions",
+    ),
+    # New Individual Ad Actions
+    path(
+        "admin/ads/<int:ad_id>/approve/",
+        admin_ad_views.admin_approve_ad,
+        name="admin_approve_ad",
+    ),
+    path(
+        "admin/ads/<int:ad_id>/reject/",
+        admin_ad_views.admin_reject_ad,
+        name="admin_reject_ad",
+    ),
+    path(
+        "admin/ads/<int:ad_id>/hide/",
+        admin_ad_views.admin_hide_ad,
+        name="admin_hide_ad",
+    ),
+    path(
+        "admin/ads/<int:ad_id>/enable-cart/",
+        admin_ad_views.admin_enable_cart_for_ad,
+        name="admin_enable_cart_for_ad",
+    ),
+    path(
+        "admin/ads/<int:ad_id>/disable-cart/",
+        admin_ad_views.admin_disable_cart_for_ad,
+        name="admin_disable_cart_for_ad",
+    ),
+    path(
+        "admin/ads/<int:ad_id>/republish/",
+        admin_ad_views.admin_republish_ad,
+        name="admin_republish_ad",
     ),
     # ============================================================================
     # PUBLISHER AD MANAGEMENT - FULL CRUD OPERATIONS

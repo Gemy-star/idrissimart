@@ -310,6 +310,7 @@ class AdminAdCreateView(SuperadminRequiredMixin, CreateView):
     def get_form_class(self):
         """Use the AdminClassifiedAdForm that supports custom fields"""
         from main.forms import AdminClassifiedAdForm
+
         return AdminClassifiedAdForm
 
     def get_context_data(self, **kwargs):
@@ -339,6 +340,7 @@ class AdminAdUpdateView(SuperadminRequiredMixin, UpdateView):
     def get_form_class(self):
         """Use the AdminClassifiedAdForm that supports custom fields"""
         from main.forms import AdminClassifiedAdForm
+
         return AdminClassifiedAdForm
 
     def get_success_url(self):
@@ -911,3 +913,364 @@ def admin_bulk_actions(request):
             "count": count,
         }
     )
+
+
+# ============================================================================
+# ADDITIONAL ADMIN AD ACTIONS
+# ============================================================================
+
+
+@staff_member_required
+@require_POST
+def admin_ban_ad(request, ad_id):
+    """Ban an ad permanently"""
+    ad = get_object_or_404(ClassifiedAd, pk=ad_id)
+    reason = request.POST.get("reason", "تم الحظر من قبل الإدارة")
+
+    ad.status = "BANNED"
+    ad.is_hidden = True
+    ad.save(update_fields=["status", "is_hidden"])
+
+    # Notify user
+    Notification.objects.create(
+        user=ad.user,
+        title="تم حظر إعلانك نهائياً",
+        message=f'تم حظر إعلانك "{ad.title}" نهائياً. السبب: {reason}',
+        notification_type="ad_banned",
+        link=f"/classifieds/{ad.id}/",
+    )
+
+    messages.error(request, f'تم حظر الإعلان "{ad.title}" نهائياً.')
+    return redirect(request.META.get("HTTP_REFERER", "main:admin_ads"))
+
+
+@staff_member_required
+@require_POST
+def admin_unban_ad(request, ad_id):
+    """Unban a banned ad"""
+    ad = get_object_or_404(ClassifiedAd, pk=ad_id)
+
+    ad.status = "ACTIVE"
+    ad.is_hidden = False
+    ad.save(update_fields=["status", "is_hidden"])
+
+    # Notify user
+    Notification.objects.create(
+        user=ad.user,
+        title="تم إلغاء حظر إعلانك",
+        message=f'تم إلغاء حظر إعلانك "{ad.title}". الإعلان الآن نشط.',
+        notification_type="ad_unbanned",
+        link=f"/classifieds/{ad.id}/",
+    )
+
+    messages.success(request, f'تم إلغاء حظر الإعلان "{ad.title}".')
+    return redirect(request.META.get("HTTP_REFERER", "main:admin_ads"))
+
+
+@staff_member_required
+@require_POST
+def admin_duplicate_ad(request, ad_id):
+    """Duplicate an ad with all its details"""
+    original_ad = get_object_or_404(ClassifiedAd, pk=ad_id)
+
+    # Create a copy
+    duplicated_ad = ClassifiedAd.objects.get(pk=ad_id)
+    duplicated_ad.pk = None  # Create new instance
+    duplicated_ad.title = f"{original_ad.title} (نسخة)"
+    duplicated_ad.slug = None  # Will be auto-generated
+    duplicated_ad.status = "PENDING"  # Requires review
+    duplicated_ad.created_at = timezone.now()
+    duplicated_ad.updated_at = timezone.now()
+    duplicated_ad.views_count = 0
+    duplicated_ad.expires_at = None  # Will be set on approval
+    duplicated_ad.save()
+
+    # Copy images
+    for image in original_ad.images.all():
+        AdImage.objects.create(
+            ad=duplicated_ad,
+            image=image.image,
+            order=image.order,
+        )
+
+    # Notify user
+    Notification.objects.create(
+        user=original_ad.user,
+        title="تم نسخ إعلانك",
+        message=f'تم إنشاء نسخة من إعلانك "{original_ad.title}". الإعلان الجديد بحاجة إلى مراجعة.',
+        notification_type="ad_duplicated",
+        link=f"/publisher/ads/{duplicated_ad.id}/",
+    )
+
+    messages.success(
+        request,
+        f'تم نسخ الإعلان "{original_ad.title}" بنجاح. الإعلان الجديد ID: {duplicated_ad.id}',
+    )
+    return redirect("main:admin_ad_detail", ad_id=duplicated_ad.id)
+
+
+@staff_member_required
+@require_POST
+def admin_permanent_delete_ad(request, ad_id):
+    """Permanently delete an ad from database (hard delete)"""
+    ad = get_object_or_404(ClassifiedAd, pk=ad_id)
+    ad_title = ad.title
+    ad_user = ad.user
+
+    # Send notification before deleting
+    Notification.objects.create(
+        user=ad_user,
+        title="تم حذف إعلانك نهائياً",
+        message=f'تم حذف إعلانك "{ad_title}" نهائياً من النظام ولا يمكن استرجاعه.',
+        notification_type="ad_deleted",
+    )
+
+    # Delete related images (will be auto-deleted due to CASCADE)
+    # Delete the ad (hard delete)
+    ad.delete()
+
+    messages.warning(request, f'تم حذف الإعلان "{ad_title}" نهائياً من قاعدة البيانات.')
+    return redirect("main:admin_ads")
+
+
+@staff_member_required
+@require_POST
+def admin_transfer_ownership(request, ad_id):
+    """Transfer ad ownership to another user"""
+    ad = get_object_or_404(ClassifiedAd, pk=ad_id)
+    new_user_id = request.POST.get("new_user_id")
+
+    if not new_user_id:
+        messages.error(request, "يرجى تحديد المستخدم الجديد.")
+        return redirect(request.META.get("HTTP_REFERER", "main:admin_ads"))
+
+    try:
+        from main.models import User
+
+        new_user = get_object_or_404(User, pk=new_user_id)
+        old_user = ad.user
+
+        ad.user = new_user
+        ad.save(update_fields=["user"])
+
+        # Notify old user
+        Notification.objects.create(
+            user=old_user,
+            title="تم نقل ملكية إعلانك",
+            message=f'تم نقل ملكية إعلانك "{ad.title}" إلى مستخدم آخر.',
+            notification_type="ad_transferred",
+        )
+
+        # Notify new user
+        Notification.objects.create(
+            user=new_user,
+            title="تم نقل إعلان إليك",
+            message=f'تم نقل ملكية الإعلان "{ad.title}" إليك.',
+            notification_type="ad_received",
+            link=f"/publisher/ads/{ad.id}/",
+        )
+
+        messages.success(
+            request,
+            f'تم نقل ملكية الإعلان "{ad.title}" من {old_user.username} إلى {new_user.username}.',
+        )
+    except Exception as e:
+        messages.error(request, f"حدث خطأ: {str(e)}")
+
+    return redirect(request.META.get("HTTP_REFERER", "main:admin_ads"))
+
+
+@staff_member_required
+def admin_ad_full_edit(request, ad_id):
+    """Full edit page for admin to modify all ad content"""
+    ad = get_object_or_404(ClassifiedAd, pk=ad_id)
+
+    if request.method == "POST":
+        # Handle form submission
+        form = ClassifiedAdForm(request.POST, request.FILES, instance=ad)
+        image_formset = AdImageFormSet(
+            request.POST, request.FILES, instance=ad, prefix="images"
+        )
+
+        if form.is_valid() and image_formset.is_valid():
+            form.save()
+            image_formset.save()
+
+            # Notify user
+            Notification.objects.create(
+                user=ad.user,
+                title="تم تعديل إعلانك",
+                message=f'تم تعديل إعلانك "{ad.title}" من قبل الإدارة.',
+                notification_type="ad_updated",
+                link=f"/classifieds/{ad.id}/",
+            )
+
+            messages.success(request, f'تم تعديل الإعلان "{ad.title}" بنجاح.')
+            return redirect("main:admin_ad_detail", ad_id=ad.id)
+    else:
+        form = ClassifiedAdForm(instance=ad)
+        image_formset = AdImageFormSet(instance=ad, prefix="images")
+
+    context = {
+        "ad": ad,
+        "form": form,
+        "image_formset": image_formset,
+        "page_title": f"تعديل كامل: {ad.title}",
+        "active_nav": "ads",
+    }
+
+    return render(request, "admin_dashboard/ad_full_edit.html", context)
+
+
+@staff_member_required
+@require_POST
+def admin_republish_ad(request, ad_id):
+    """Republish an expired ad"""
+    ad = get_object_or_404(ClassifiedAd, pk=ad_id)
+
+    # Set new expiration date
+    ad.expires_at = timezone.now() + timezone.timedelta(days=30)
+    ad.status = "ACTIVE"
+    ad.created_at = timezone.now()  # Reset creation date
+    ad.save(update_fields=["expires_at", "status", "created_at"])
+
+    # Notify user
+    Notification.objects.create(
+        user=ad.user,
+        title="تم إعادة نشر إعلانك",
+        message=f'تم إعادة نشر إعلانك "{ad.title}" بتاريخ انتهاء جديد.',
+        notification_type="ad_republished",
+        link=f"/classifieds/{ad.id}/",
+    )
+
+    messages.success(request, f'تم إعادة نشر الإعلان "{ad.title}" بنجاح.')
+    return redirect(request.META.get("HTTP_REFERER", "main:admin_ads"))
+
+
+@staff_member_required
+@require_POST
+def admin_approve_ad(request, ad_id):
+    """Approve a single ad"""
+    ad = get_object_or_404(ClassifiedAd, pk=ad_id)
+
+    # Change status to active
+    ad.status = "ACTIVE"
+    ad.save(update_fields=["status"])
+
+    # Send notification to user
+    Notification.objects.create(
+        user=ad.user,
+        title="تمت الموافقة على إعلانك",
+        message=f'تمت الموافقة على إعلانك "{ad.title}" وأصبح نشطاً الآن.',
+        notification_type="ad_approved",
+        link=f"/classifieds/{ad.id}/",
+    )
+
+    messages.success(request, f'تمت الموافقة على الإعلان "{ad.title}" بنجاح.')
+    return redirect(request.META.get("HTTP_REFERER", "main:admin_ads"))
+
+
+@staff_member_required
+@require_POST
+def admin_reject_ad(request, ad_id):
+    """Reject a single ad"""
+    ad = get_object_or_404(ClassifiedAd, pk=ad_id)
+    reason = request.POST.get("reason", "")
+
+    # Change status to rejected
+    ad.status = "REJECTED"
+    ad.save(update_fields=["status"])
+
+    # Send notification to user with reason
+    Notification.objects.create(
+        user=ad.user,
+        title="تم رفض إعلانك",
+        message=(
+            f'تم رفض إعلانك "{ad.title}". السبب: {reason}'
+            if reason
+            else f'تم رفض إعلانك "{ad.title}".'
+        ),
+        notification_type="ad_rejected",
+        link=f"/classifieds/{ad.id}/",
+    )
+
+    messages.warning(request, f'تم رفض الإعلان "{ad.title}".')
+    return redirect(request.META.get("HTTP_REFERER", "main:admin_ads"))
+
+
+@staff_member_required
+@require_POST
+def admin_hide_ad(request, ad_id):
+    """Hide a single ad (toggle is_hidden)"""
+    ad = get_object_or_404(ClassifiedAd, pk=ad_id)
+
+    # Toggle hidden status
+    ad.is_hidden = not ad.is_hidden
+    ad.save(update_fields=["is_hidden"])
+
+    if ad.is_hidden:
+        # Send notification when hiding
+        Notification.objects.create(
+            user=ad.user,
+            title="تم إخفاء إعلانك",
+            message=f'تم إخفاء إعلانك "{ad.title}" من قبل الإدارة.',
+            notification_type="ad_hidden",
+            link=f"/classifieds/{ad.id}/",
+        )
+        messages.warning(request, f'تم إخفاء الإعلان "{ad.title}".')
+    else:
+        # Send notification when unhiding
+        Notification.objects.create(
+            user=ad.user,
+            title="تم إظهار إعلانك",
+            message=f'تم إظهار إعلانك "{ad.title}" مرة أخرى.',
+            notification_type="ad_shown",
+            link=f"/classifieds/{ad.id}/",
+        )
+        messages.success(request, f'تم إظهار الإعلان "{ad.title}" مرة أخرى.')
+
+    return redirect(request.META.get("HTTP_REFERER", "main:admin_ads"))
+
+
+@staff_member_required
+@require_POST
+def admin_enable_cart_for_ad(request, ad_id):
+    """Enable cart for a single ad"""
+    ad = get_object_or_404(ClassifiedAd, pk=ad_id)
+
+    ad.cart_enabled_by_admin = True
+    ad.save(update_fields=["cart_enabled_by_admin"])
+
+    # Send notification
+    Notification.objects.create(
+        user=ad.user,
+        title="تم تفعيل السلة لإعلانك",
+        message=f'تم تفعيل السلة لإعلانك "{ad.title}". يمكن للمشترين الآن إضافته إلى سلة التسوق.',
+        notification_type="cart_enabled",
+        link=f"/classifieds/{ad.id}/",
+    )
+
+    messages.success(request, f'تم تفعيل السلة للإعلان "{ad.title}".')
+    return redirect(request.META.get("HTTP_REFERER", "main:admin_ads"))
+
+
+@staff_member_required
+@require_POST
+def admin_disable_cart_for_ad(request, ad_id):
+    """Disable cart for a single ad"""
+    ad = get_object_or_404(ClassifiedAd, pk=ad_id)
+
+    ad.cart_enabled_by_admin = False
+    ad.save(update_fields=["cart_enabled_by_admin"])
+
+    # Send notification
+    Notification.objects.create(
+        user=ad.user,
+        title="تم تعطيل السلة لإعلانك",
+        message=f'تم تعطيل السلة لإعلانك "{ad.title}".',
+        notification_type="cart_disabled",
+        link=f"/classifieds/{ad.id}/",
+    )
+
+    messages.warning(request, f'تم تعطيل السلة للإعلان "{ad.title}".')
+    return redirect(request.META.get("HTTP_REFERER", "main:admin_ads"))

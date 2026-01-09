@@ -283,13 +283,13 @@ class User(AbstractUser):  # This model is correct, no changes needed here.
         blank=True,
         verbose_name=_("الدولة - Country"),
         related_name="users",
-        help_text=_("الدولة التي اختارها المستخدم عند التسجيل")
+        help_text=_("الدولة التي اختارها المستخدم عند التسجيل"),
     )
     city = models.CharField(
         max_length=100,
         blank=True,
         verbose_name=_("المدينة - City"),
-        help_text=_("يجب اختيار المدينة من القائمة المتاحة للدولة")
+        help_text=_("يجب اختيار المدينة من القائمة المتاحة للدولة"),
     )
     address = models.TextField(
         blank=True,
@@ -395,6 +395,15 @@ class User(AbstractUser):  # This model is correct, no changes needed here.
     suspension_reason = models.TextField(
         blank=True,
         verbose_name=_("سبب التعليق"),
+    )
+    is_banned = models.BooleanField(
+        default=False,
+        verbose_name=_("محظور - Banned"),
+        help_text=_("حظر نهائي للمستخدم - لا يمكن تسجيل الدخول"),
+    )
+    ban_reason = models.TextField(
+        blank=True,
+        verbose_name=_("سبب الحظر"),
     )
 
     # Notification Preferences
@@ -3880,9 +3889,13 @@ class FAQ(models.Model):
         return self.question_ar or self.question
 
     def increment_views(self):
-        """Increment views count"""
-        self.views_count += 1
-        self.save(update_fields=["views_count"])
+        """Increment views count atomically"""
+        from django.db.models import F
+
+        # Use F expression to avoid race conditions
+        FAQ.objects.filter(pk=self.pk).update(views_count=F("views_count") + 1)
+        # Refresh the instance
+        self.refresh_from_db(fields=["views_count"])
 
 
 class FacebookShareRequest(models.Model):

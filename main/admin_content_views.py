@@ -303,21 +303,6 @@ def admin_edit_homepage(request):
             if "hero_image" in request.FILES:
                 home_page.hero_image = request.FILES["hero_image"]
 
-            # Modal
-            home_page.show_modal = request.POST.get("show_modal") == "on"
-            home_page.modal_title = request.POST.get("modal_title", "")
-            home_page.modal_title_ar = request.POST.get("modal_title_ar", "")
-            home_page.modal_content = request.POST.get("modal_content", "")
-            home_page.modal_content_ar = request.POST.get("modal_content_ar", "")
-            home_page.modal_button_text = request.POST.get("modal_button_text", "")
-            home_page.modal_button_text_ar = request.POST.get(
-                "modal_button_text_ar", ""
-            )
-            home_page.modal_button_url = request.POST.get("modal_button_url", "")
-
-            if "modal_image" in request.FILES:
-                home_page.modal_image = request.FILES["modal_image"]
-
             home_page.save()
 
             messages.success(request, _("تم تحديث الصفحة الرئيسية بنجاح"))
@@ -351,15 +336,29 @@ def admin_edit_siteconfig(request):
             site_config.copyright_text = request.POST.get("copyright_text", "")
 
             # Verification Settings
-            site_config.require_email_verification = request.POST.get("require_email_verification") == "on"
-            site_config.require_phone_verification = request.POST.get("require_phone_verification") == "on"
-            site_config.require_verification_for_services = request.POST.get("require_verification_for_services") == "on"
-            site_config.verification_services_message = request.POST.get("verification_services_message", "")
-            site_config.verification_services_message_ar = request.POST.get("verification_services_message_ar", "")
+            site_config.require_email_verification = (
+                request.POST.get("require_email_verification") == "on"
+            )
+            site_config.require_phone_verification = (
+                request.POST.get("require_phone_verification") == "on"
+            )
+            site_config.require_verification_for_services = (
+                request.POST.get("require_verification_for_services") == "on"
+            )
+            site_config.verification_services_message = request.POST.get(
+                "verification_services_message", ""
+            )
+            site_config.verification_services_message_ar = request.POST.get(
+                "verification_services_message_ar", ""
+            )
 
             # Payment Settings
-            site_config.allow_online_payment = request.POST.get("allow_online_payment") == "on"
-            site_config.allow_offline_payment = request.POST.get("allow_offline_payment") == "on"
+            site_config.allow_online_payment = (
+                request.POST.get("allow_online_payment") == "on"
+            )
+            site_config.allow_offline_payment = (
+                request.POST.get("allow_offline_payment") == "on"
+            )
 
             # InstaPay Settings
             if "instapay_qr_code" in request.FILES:
@@ -367,12 +366,18 @@ def admin_edit_siteconfig(request):
             site_config.instapay_phone = request.POST.get("instapay_phone", "")
 
             # Wallet Settings
-            site_config.wallet_payment_link = request.POST.get("wallet_payment_link", "")
+            site_config.wallet_payment_link = request.POST.get(
+                "wallet_payment_link", ""
+            )
             site_config.wallet_phone = request.POST.get("wallet_phone", "")
 
             # Offline Payment Instructions
-            site_config.offline_payment_instructions = request.POST.get("offline_payment_instructions", "")
-            site_config.offline_payment_instructions_ar = request.POST.get("offline_payment_instructions_ar", "")
+            site_config.offline_payment_instructions = request.POST.get(
+                "offline_payment_instructions", ""
+            )
+            site_config.offline_payment_instructions_ar = request.POST.get(
+                "offline_payment_instructions_ar", ""
+            )
 
             site_config.save()
 
@@ -661,37 +666,75 @@ def admin_faqs(request):
 def admin_faq_create(request):
     """Create new FAQ"""
     from main.models import FAQ, FAQCategory
+    import logging
+
+    logger = logging.getLogger(__name__)
 
     if request.method == "POST":
-        question_ar = request.POST.get("question_ar")
-        question_en = request.POST.get("question_en")
-        answer_ar = request.POST.get("answer_ar")
-        answer_en = request.POST.get("answer_en")
+        question_ar = request.POST.get("question_ar", "").strip()
+        question_en = request.POST.get("question_en", "").strip()
+        answer_ar = request.POST.get("answer_ar", "").strip()
+        answer_en = request.POST.get("answer_en", "").strip()
         category_id = request.POST.get("category")
         order = request.POST.get("order", 0)
         is_active = request.POST.get("is_active") == "on"
         is_popular = request.POST.get("is_popular") == "on"
 
+        logger.info(
+            f"Creating FAQ - Question AR: {question_ar[:50]}, Category ID: {category_id}"
+        )
+        logger.info(
+            f"Answer AR length: {len(answer_ar)}, Answer EN length: {len(answer_en)}"
+        )
+
+        # Validation
+        if not question_ar:
+            messages.error(request, _("السؤال بالعربية مطلوب"))
+            context = {
+                "categories": FAQCategory.objects.filter(is_active=True).order_by(
+                    "order"
+                ),
+            }
+            return render(request, "admin_dashboard/faqs/create.html", context)
+
+        if not answer_ar:
+            messages.error(request, _("الإجابة بالعربية مطلوبة"))
+            context = {
+                "categories": FAQCategory.objects.filter(is_active=True).order_by(
+                    "order"
+                ),
+            }
+            return render(request, "admin_dashboard/faqs/create.html", context)
+
         try:
             category = FAQCategory.objects.get(id=category_id)
 
             faq = FAQ.objects.create(
+                question=question_ar,  # Required field, use AR as default
                 question_ar=question_ar,
-                question_en=question_en,
+                question_en=(
+                    question_en if question_en else question_ar
+                ),  # Fallback to AR if EN is empty
+                answer=answer_ar,  # Required field, use AR as default
                 answer_ar=answer_ar,
-                answer_en=answer_en,
+                answer_en=(
+                    answer_en if answer_en else answer_ar
+                ),  # Fallback to AR if EN is empty
                 category=category,
-                order=int(order),
+                order=int(order) if order else 0,
                 is_active=is_active,
                 is_popular=is_popular,
             )
 
+            logger.info(f"FAQ created successfully with ID: {faq.id}")
             messages.success(request, _("تم إضافة السؤال بنجاح"))
             return redirect("main:admin_faqs")
 
         except FAQCategory.DoesNotExist:
+            logger.error(f"Category with ID {category_id} not found")
             messages.error(request, _("الفئة المحددة غير موجودة"))
         except Exception as e:
+            logger.error(f"Error creating FAQ: {str(e)}")
             messages.error(request, f"حدث خطأ: {str(e)}")
 
     context = {
@@ -706,19 +749,29 @@ def admin_faq_create(request):
 def admin_faq_edit(request, faq_id):
     """Edit FAQ"""
     from main.models import FAQ, FAQCategory
+    import logging
 
+    logger = logging.getLogger(__name__)
     faq = get_object_or_404(FAQ, id=faq_id)
 
     if request.method == "POST":
-        faq.question_ar = request.POST.get("question_ar")
-        faq.question_en = request.POST.get("question_en")
-        faq.answer_ar = request.POST.get("answer_ar")
-        faq.answer_en = request.POST.get("answer_en")
+        question_ar = request.POST.get("question_ar", "").strip()
+        question_en = request.POST.get("question_en", "").strip()
+        answer_ar = request.POST.get("answer_ar", "").strip()
+        answer_en = request.POST.get("answer_en", "").strip()
+
+        faq.question = question_ar  # Update required field
+        faq.question_ar = question_ar
+        faq.question_en = question_en if question_en else question_ar
+        faq.answer = answer_ar  # Update required field
+        faq.answer_ar = answer_ar
+        faq.answer_en = answer_en if answer_en else answer_ar
 
         category_id = request.POST.get("category")
         try:
             faq.category = FAQCategory.objects.get(id=category_id)
         except FAQCategory.DoesNotExist:
+            logger.error(f"Category with ID {category_id} not found")
             messages.error(request, _("الفئة المحددة غير موجودة"))
             return redirect("main:admin_faq_edit", faq_id=faq_id)
 
@@ -728,9 +781,11 @@ def admin_faq_edit(request, faq_id):
 
         try:
             faq.save()
+            logger.info(f"FAQ {faq_id} updated successfully")
             messages.success(request, _("تم تحديث السؤال بنجاح"))
             return redirect("main:admin_faqs")
         except Exception as e:
+            logger.error(f"Error updating FAQ {faq_id}: {str(e)}")
             messages.error(request, f"حدث خطأ: {str(e)}")
 
     context = {

@@ -72,14 +72,6 @@ class Command(BaseCommand):
         if not home.hero_button_url or reset:
             home.hero_button_url = "/ads/"
 
-        if not home.modal_title or reset:
-            home.modal_title = "Special Offer"
-            home.modal_title_ar = "عرض خاص"
-
-        if not home.modal_content or reset:
-            home.modal_content = "<p>Check out our latest deals and promotions!</p>"
-            home.modal_content_ar = "<p>تحقق من أحدث العروض والخصومات!</p>"
-
         home.show_featured_categories = True
         home.show_featured_ads = True
 

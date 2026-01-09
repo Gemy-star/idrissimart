@@ -417,13 +417,17 @@ def checkout_view(request):
                     order.transaction_photo = request.FILES.get("transaction_photo")
                     order.save(update_fields=["transaction_photo"])
 
-                # Create order items
+                # Create order items and disable cart for purchased ads
                 for cart_item in cart_items:
                     OrderItem.objects.create(
                         order=order,
                         ad=cart_item.ad,
                         price=cart_item.ad.price,
                     )
+
+                    # Disable cart for this ad after purchase
+                    cart_item.ad.cart_enabled_by_admin = False
+                    cart_item.ad.save(update_fields=["cart_enabled_by_admin"])
 
                 # Clear cart
                 cart_items.delete()

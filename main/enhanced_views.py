@@ -511,23 +511,12 @@ def admin_edit_homepage(request):
                 "hero_button_text",
                 "hero_button_text_ar",
                 "hero_button_url",
-                "show_modal",
-                "modal_title",
-                "modal_title_ar",
-                "modal_content",
-                "modal_content_ar",
-                "modal_image",
-                "modal_button_text",
-                "modal_button_text_ar",
-                "modal_button_url",
                 "show_featured_categories",
                 "show_featured_ads",
             ]
             widgets = {
                 "hero_subtitle": CKEditor5Widget(config_name="default"),
                 "hero_subtitle_ar": CKEditor5Widget(config_name="default"),
-                "modal_content": CKEditor5Widget(config_name="default"),
-                "modal_content_ar": CKEditor5Widget(config_name="default"),
             }
 
     home_page = HomePage.get_solo()

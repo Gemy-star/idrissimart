@@ -4,49 +4,82 @@ from django.db import migrations, models
 
 
 def get_table_info(cursor, table_name, column_name):
-    """Get detailed column information"""
-    cursor.execute(
-        """
-        SELECT COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY
-        FROM information_schema.columns
-        WHERE table_schema = DATABASE()
-          AND table_name = %s
-          AND column_name = %s
-    """,
-        [table_name, column_name],
-    )
-    result = cursor.fetchone()
-    return result if result else None
+    """Get detailed column information - works for both MySQL and SQLite"""
+    from django.db import connection
+
+    if connection.vendor == "sqlite":
+        # SQLite: Use PRAGMA table_info
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        for row in cursor.fetchall():
+            if row[1] == column_name:  # row[1] is column name
+                # Return: (type, nullable, key_type)
+                # SQLite PRAGMA: (cid, name, type, notnull, dflt_value, pk)
+                return (
+                    row[2],
+                    "YES" if row[3] == 0 else "NO",
+                    "PRI" if row[5] == 1 else "",
+                )
+        return None
+    else:
+        # MySQL/MariaDB: Use information_schema
+        cursor.execute(
+            """
+            SELECT COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = %s
+              AND column_name = %s
+        """,
+            [table_name, column_name],
+        )
+        result = cursor.fetchone()
+        return result if result else None
 
 
 def get_table_engine(cursor, table_name):
-    """Get table storage engine"""
-    cursor.execute(
-        """
-        SELECT ENGINE
-        FROM information_schema.tables
-        WHERE table_schema = DATABASE()
-          AND table_name = %s
-    """,
-        [table_name],
-    )
-    result = cursor.fetchone()
-    return result[0] if result else None
+    """Get table storage engine - works for MySQL, returns None for SQLite"""
+    from django.db import connection
+
+    if connection.vendor == "sqlite":
+        # SQLite doesn't have table engines
+        return "sqlite"
+    else:
+        # MySQL/MariaDB: Use information_schema
+        cursor.execute(
+            """
+            SELECT ENGINE
+            FROM information_schema.tables
+            WHERE table_schema = DATABASE()
+              AND table_name = %s
+        """,
+            [table_name],
+        )
+        result = cursor.fetchone()
+        return result[0] if result else None
 
 
 def column_exists(cursor, table_name, column_name):
-    """Check if a column exists in a table"""
-    cursor.execute(
-        """
-        SELECT COUNT(*)
-        FROM information_schema.columns
-        WHERE table_schema = DATABASE()
-          AND table_name = %s
-          AND column_name = %s
-    """,
-        [table_name, column_name],
-    )
-    return cursor.fetchone()[0] > 0
+    """Check if a column exists in a table - works for both MySQL and SQLite"""
+    from django.db import connection
+
+    if connection.vendor == "sqlite":
+        # SQLite: Use PRAGMA table_info
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        columns = [row[1] for row in cursor.fetchall()]
+        return column_name in columns
+    else:
+        # MySQL/MariaDB: Use information_schema
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = %s
+              AND column_name = %s
+        """,
+            [table_name, column_name],
+        )
+        return cursor.fetchone()[0] > 0
 
 
 def migrate_country_data(apps, schema_editor):
@@ -88,10 +121,16 @@ def migrate_country_data(apps, schema_editor):
             print("ℹ️  Found old 'country' CharField column, will migrate data...")
             # Rename old column first
             try:
-                cursor.execute(
-                    "ALTER TABLE users CHANGE COLUMN country country_old VARCHAR(100)"
-                )
-                print("✅ Renamed old country column to country_old")
+                if connection.vendor == "sqlite":
+                    # SQLite doesn't support CHANGE COLUMN, need to rebuild table
+                    print(
+                        "ℹ️  SQLite detected - skipping column rename (will handle differently)"
+                    )
+                else:
+                    cursor.execute(
+                        "ALTER TABLE users CHANGE COLUMN country country_old VARCHAR(100)"
+                    )
+                    print("✅ Renamed old country column to country_old")
             except Exception as e:
                 print(f"⚠️  Error renaming country column: {e}")
         else:
@@ -102,15 +141,26 @@ def migrate_country_data(apps, schema_editor):
             try:
                 # Use BIGINT (SIGNED) to match content_country.id type
                 # MariaDB requires exact type match for FK constraints
-                cursor.execute("ALTER TABLE users ADD COLUMN country_id BIGINT NULL")
-                print("✅ Created country_id column (BIGINT SIGNED)")
+                if connection.vendor == "sqlite":
+                    cursor.execute(
+                        "ALTER TABLE users ADD COLUMN country_id INTEGER NULL"
+                    )
+                    print("✅ Created country_id column (INTEGER for SQLite)")
+                else:
+                    cursor.execute(
+                        "ALTER TABLE users ADD COLUMN country_id BIGINT NULL"
+                    )
+                    print("✅ Created country_id column (BIGINT SIGNED)")
             except Exception as e:
                 print(f"ℹ️  Column country_id might already exist: {e}")
         else:
             # If column exists, make sure it's the correct type (SIGNED not UNSIGNED)
             try:
-                cursor.execute("ALTER TABLE users MODIFY COLUMN country_id BIGINT NULL")
-                print("✅ Modified country_id to BIGINT SIGNED")
+                if connection.vendor == "mysql":
+                    cursor.execute(
+                        "ALTER TABLE users MODIFY COLUMN country_id BIGINT NULL"
+                    )
+                    print("✅ Modified country_id to BIGINT SIGNED")
             except Exception as e:
                 print(f"⚠️  Could not modify country_id type: {e}")
 
@@ -147,16 +197,19 @@ def migrate_country_data(apps, schema_editor):
         print(f"  users.country_id type: {users_country_info}")
         print(f"  content_country.id type: {country_id_info}")
 
-        # Ensure both tables use InnoDB
-        if users_engine != "InnoDB":
-            print(f"  ⚠️  Converting users table to InnoDB...")
-            cursor.execute("ALTER TABLE users ENGINE=InnoDB")
-            print(f"  ✅ Converted users to InnoDB")
+        # Ensure both tables use InnoDB (MySQL only)
+        if connection.vendor == "mysql":
+            if users_engine != "InnoDB":
+                print(f"  ⚠️  Converting users table to InnoDB...")
+                cursor.execute("ALTER TABLE users ENGINE=InnoDB")
+                print(f"  ✅ Converted users to InnoDB")
 
-        if country_engine != "InnoDB":
-            print(f"  ⚠️  Converting content_country table to InnoDB...")
-            cursor.execute("ALTER TABLE content_country ENGINE=InnoDB")
-            print(f"  ✅ Converted content_country to InnoDB")
+            if country_engine != "InnoDB":
+                print(f"  ⚠️  Converting content_country table to InnoDB...")
+                cursor.execute("ALTER TABLE content_country ENGINE=InnoDB")
+                print(f"  ✅ Converted content_country to InnoDB")
+        else:
+            print("  ℹ️  SQLite detected - no engine conversion needed")
         print()
 
         # Verify all users have valid country_id
@@ -174,7 +227,7 @@ def migrate_country_data(apps, schema_editor):
             print("✅ All users have valid country_id values")
 
         # Drop old column if it exists
-        if has_old_country:
+        if has_old_country and connection.vendor != "sqlite":
             try:
                 cursor.execute("ALTER TABLE users DROP COLUMN country_old")
                 print("✅ Dropped old country_old column")

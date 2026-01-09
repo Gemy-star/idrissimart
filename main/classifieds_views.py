@@ -40,6 +40,20 @@ class ClassifiedAdListView(FilterView):
     context_object_name = "ads"
     paginate_by = 12
 
+    def dispatch(self, request, *args, **kwargs):
+        """Check if guests are allowed to view ads."""
+        from constance import config
+
+        # If user is not authenticated and guest viewing is disabled
+        if not request.user.is_authenticated and not getattr(config, 'ALLOW_GUEST_VIEWING', True):
+            from django.contrib import messages
+            from django.utils.translation import gettext as _
+            messages.warning(request, _('يجب عليك تسجيل الدخول لمشاهدة الإعلانات'))
+            from django.shortcuts import redirect
+            return redirect('main:login')
+
+        return super().dispatch(request, *args, **kwargs)
+
     def get_queryset(self):
         # Start with only active ads for the selected country
         selected_country = get_selected_country_from_request(self.request)
@@ -639,7 +653,17 @@ class ClassifiedAdDetailView(DetailView):
     slug_url_kwarg = "slug"
 
     def dispatch(self, request, *args, **kwargs):
-        """Override dispatch to handle inactive ads gracefully."""
+        """Override dispatch to handle inactive ads gracefully and check guest permissions."""
+        from constance import config
+        from django.contrib import messages
+        from django.utils.translation import gettext as _
+        from django.shortcuts import redirect
+
+        # Check if guests are allowed to view ads
+        if not request.user.is_authenticated and not getattr(config, 'ALLOW_GUEST_VIEWING', True):
+            messages.warning(request, _('يجب عليك تسجيل الدخول لمشاهدة الإعلانات'))
+            return redirect('main:login')
+
         ad_slug = self.kwargs.get(self.slug_url_kwarg)
 
         try:
@@ -728,6 +752,8 @@ class ClassifiedAdDetailView(DetailView):
         """
         Add related ads to the context.
         """
+        from constance import config
+
         context = super().get_context_data(**kwargs)
         # Use the already-fetched object to avoid incrementing views_count twice
         ad = context.get("ad") or getattr(self, "object", None)
@@ -781,6 +807,35 @@ class ClassifiedAdDetailView(DetailView):
         else:
             context["user_has_reviewed"] = False
             context["user_has_pending_review"] = False
+
+        # Determine if contact information should be shown based on settings
+        show_contact_info = True
+        can_send_message = True
+
+        if not self.request.user.is_authenticated:
+            # Guest user
+            allow_guest_contact = getattr(config, 'ALLOW_GUEST_CONTACT', False)
+            show_contact_info = allow_guest_contact
+            can_send_message = False  # Guests can't send messages
+        else:
+            # Authenticated user
+            members_only_contact = getattr(config, 'MEMBERS_ONLY_CONTACT', True)
+            members_only_messaging = getattr(config, 'MEMBERS_ONLY_MESSAGING', True)
+
+            # For registered users, check if contact is members-only
+            if members_only_contact:
+                show_contact_info = True  # Registered users can see contact info
+            else:
+                show_contact_info = True  # Not members-only, so everyone (including guests) can see
+
+            # For messaging, check if it's members-only
+            if members_only_messaging:
+                can_send_message = True  # Registered users can send messages
+            else:
+                can_send_message = True  # Not members-only, so everyone can send
+
+        context["show_contact_info"] = show_contact_info
+        context["can_send_message"] = can_send_message
 
         return context
 

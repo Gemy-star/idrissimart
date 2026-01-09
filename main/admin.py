@@ -199,6 +199,8 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
         "show_prices",
         "set_price_on_request",
         "unset_price_on_request",
+        "enable_cart_for_ads",
+        "disable_cart_for_ads",
     ]
 
     formfield_overrides = {
@@ -344,6 +346,26 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
         )
 
     renew_ads_90_days.short_description = _("تجديد الإعلانات لمدة 90 يوم")
+
+    def enable_cart_for_ads(self, request, queryset):
+        """Enable cart for selected ads"""
+        updated = queryset.update(cart_enabled_by_admin=True)
+        self.message_user(
+            request,
+            _("تم تفعيل السلة لـ {} إعلان").format(updated),
+        )
+
+    enable_cart_for_ads.short_description = _("تفعيل السلة للإعلانات المحددة")
+
+    def disable_cart_for_ads(self, request, queryset):
+        """Disable cart for selected ads"""
+        updated = queryset.update(cart_enabled_by_admin=False)
+        self.message_user(
+            request,
+            _("تم تعطيل السلة لـ {} إعلان").format(updated),
+        )
+
+    disable_cart_for_ads.short_description = _("تعطيل السلة للإعلانات المحددة")
 
     def get_list_display(self, request):
         """Add custom display method for resubmitted ads"""

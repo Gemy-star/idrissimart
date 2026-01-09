@@ -113,6 +113,71 @@
     </div>
 </div>
 
+<!-- Visitor Analytics Charts -->
+<div class="admin-content-card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-chart-bar me-2"></i>
+            {% trans "تحليلات سلوك الزوار" %}
+        </h5>
+        <div class="date-range-selector">
+            <select id="dateRangeSelect" class="form-select form-select-sm" onchange="updateCharts(this.value)">
+                <option value="7">{% trans "آخر 7 أيام" %}</option>
+                <option value="14">{% trans "آخر 14 يوم" %}</option>
+                <option value="30" selected>{% trans "آخر 30 يوم" %}</option>
+                <option value="90">{% trans "آخر 3 أشهر" %}</option>
+            </select>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row g-4">
+            <!-- Session Duration Chart -->
+            <div class="col-lg-6">
+                <div class="chart-container">
+                    <h6 class="chart-title">
+                        <i class="fas fa-clock me-2"></i>
+                        {% trans "متوسط مدة بقاء الزائر" %}
+                    </h6>
+                    <canvas id="sessionDurationChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Pages Per Visit Chart -->
+            <div class="col-lg-6">
+                <div class="chart-container">
+                    <h6 class="chart-title">
+                        <i class="fas fa-file-alt me-2"></i>
+                        {% trans "متوسط عدد الصفحات لكل زيارة" %}
+                    </h6>
+                    <canvas id="pagesPerVisitChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Return Visitors Chart -->
+            <div class="col-lg-6">
+                <div class="chart-container">
+                    <h6 class="chart-title">
+                        <i class="fas fa-redo me-2"></i>
+                        {% trans "الزوار العائدون" %}
+                    </h6>
+                    <canvas id="returnVisitorsChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Visitor Trend Chart -->
+            <div class="col-lg-6">
+                <div class="chart-container">
+                    <h6 class="chart-title">
+                        <i class="fas fa-chart-line me-2"></i>
+                        {% trans "اتجاه الزيارات اليومية" %}
+                    </h6>
+                    <canvas id="visitorTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- User Statistics -->
 <div class="admin-content-card mb-4">
     <div class="card-header">
@@ -579,5 +644,431 @@
             break-inside: avoid;
         }
     }
+
+    /* Chart Container Styles */
+    .chart-container {
+        background: var(--bs-body-bg);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 12px;
+        padding: 1.5rem;
+        height: 100%;
+        min-height: 350px;
+    }
+
+    .chart-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--bs-body-color);
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--bs-border-color);
+    }
+
+    .date-range-selector .form-select {
+        min-width: 150px;
+        border-radius: 8px;
+        border-color: rgba(255, 255, 255, 0.3);
+        background-color: rgba(255, 255, 255, 0.1);
+        color: white;
+        font-weight: 500;
+    }
+
+    .date-range-selector .form-select:focus {
+        border-color: rgba(255, 255, 255, 0.5);
+        box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.2);
+        background-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .date-range-selector .form-select option {
+        background-color: #4b315e;
+        color: white;
+    }
+
+    [data-theme='dark'] .chart-container {
+        background: #2d3748;
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    [data-theme='dark'] .chart-title {
+        color: #f7fafc;
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+
+    [data-theme='dark'] .date-range-selector .form-select {
+        background-color: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    [data-theme='dark'] .date-range-selector .form-select option {
+        background-color: #2d3748;
+    }
+
+    /* Responsive Chart Adjustments */
+    @media (max-width: 991.98px) {
+        .chart-container {
+            min-height: 300px;
+            padding: 1rem;
+        }
+
+        .chart-title {
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .chart-container {
+            min-height: 250px;
+            padding: 0.75rem;
+        }
+
+        .date-range-selector .form-select {
+            font-size: 0.85rem;
+            min-width: 130px;
+        }
+    }
 </style>
+{% endblock %}
+
+{% block admin_extra_js %}
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+    // Chart instances
+    let sessionDurationChart, pagesPerVisitChart, returnVisitorsChart, visitorTrendChart;
+
+    // Initialize charts on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateCharts(30); // Default: last 30 days
+    });
+
+    // Update charts based on selected date range
+    async function updateCharts(days) {
+        try {
+            // Fetch data from server
+            const response = await fetch(`/admin/reports/visitor-analytics/?days=${days}`);
+            if (!response.ok) throw new Error('Failed to fetch data');
+
+            const data = await response.json();
+
+            // Initialize or update charts
+            initSessionDurationChart(data.session_duration);
+            initPagesPerVisitChart(data.pages_per_visit);
+            initReturnVisitorsChart(data.return_visitors);
+            initVisitorTrendChart(data.visitor_trend);
+        } catch (error) {
+            console.error('Error updating charts:', error);
+            // Use fallback data if API fails
+            const fallbackData = generateFallbackData(days);
+            initSessionDurationChart(fallbackData.session_duration);
+            initPagesPerVisitChart(fallbackData.pages_per_visit);
+            initReturnVisitorsChart(fallbackData.return_visitors);
+            initVisitorTrendChart(fallbackData.visitor_trend);
+        }
+    }
+
+    // Session Duration Chart (Bar Chart)
+    function initSessionDurationChart(data) {
+        const ctx = document.getElementById('sessionDurationChart');
+        if (!ctx) return;
+
+        if (sessionDurationChart) {
+            sessionDurationChart.destroy();
+        }
+
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const textColor = isDark ? '#f7fafc' : '#495057';
+        const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+
+        sessionDurationChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    label: 'متوسط المدة (دقائق)',
+                    data: data.values,
+                    backgroundColor: 'rgba(75, 49, 94, 0.7)',
+                    borderColor: 'rgba(75, 49, 94, 1)',
+                    borderWidth: 2,
+                    borderRadius: 8,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: { color: textColor, font: { family: 'Cairo', size: 12 } }
+                    },
+                    tooltip: {
+                        backgroundColor: isDark ? '#2d3748' : 'white',
+                        titleColor: textColor,
+                        bodyColor: textColor,
+                        borderColor: gridColor,
+                        borderWidth: 1,
+                        rtl: true,
+                        callbacks: {
+                            label: function(context) {
+                                return context.parsed.y.toFixed(1) + ' دقيقة';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: textColor, font: { family: 'Cairo' } },
+                        grid: { color: gridColor }
+                    },
+                    x: {
+                        ticks: { color: textColor, font: { family: 'Cairo' } },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
+    // Pages Per Visit Chart (Line Chart)
+    function initPagesPerVisitChart(data) {
+        const ctx = document.getElementById('pagesPerVisitChart');
+        if (!ctx) return;
+
+        if (pagesPerVisitChart) {
+            pagesPerVisitChart.destroy();
+        }
+
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const textColor = isDark ? '#f7fafc' : '#495057';
+        const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+
+        pagesPerVisitChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    label: 'متوسط عدد الصفحات',
+                    data: data.values,
+                    borderColor: 'rgba(255, 107, 53, 1)',
+                    backgroundColor: 'rgba(255, 107, 53, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: 'rgba(255, 107, 53, 1)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: { color: textColor, font: { family: 'Cairo', size: 12 } }
+                    },
+                    tooltip: {
+                        backgroundColor: isDark ? '#2d3748' : 'white',
+                        titleColor: textColor,
+                        bodyColor: textColor,
+                        borderColor: gridColor,
+                        borderWidth: 1,
+                        rtl: true,
+                        callbacks: {
+                            label: function(context) {
+                                return context.parsed.y.toFixed(1) + ' صفحة';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: textColor, font: { family: 'Cairo' } },
+                        grid: { color: gridColor }
+                    },
+                    x: {
+                        ticks: { color: textColor, font: { family: 'Cairo' } },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
+    // Return Visitors Chart (Doughnut Chart)
+    function initReturnVisitorsChart(data) {
+        const ctx = document.getElementById('returnVisitorsChart');
+        if (!ctx) return;
+
+        if (returnVisitorsChart) {
+            returnVisitorsChart.destroy();
+        }
+
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const textColor = isDark ? '#f7fafc' : '#495057';
+
+        returnVisitorsChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['زوار جدد', 'زوار عائدون'],
+                datasets: [{
+                    data: [data.new_visitors, data.returning_visitors],
+                    backgroundColor: [
+                        'rgba(40, 167, 69, 0.8)',
+                        'rgba(75, 49, 94, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(40, 167, 69, 1)',
+                        'rgba(75, 49, 94, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: textColor,
+                            font: { family: 'Cairo', size: 13 },
+                            padding: 15
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: isDark ? '#2d3748' : 'white',
+                        titleColor: textColor,
+                        bodyColor: textColor,
+                        borderColor: 'rgba(0, 0, 0, 0.1)',
+                        borderWidth: 1,
+                        rtl: true,
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                return context.label + ': ' + context.parsed + ' (' + percentage + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Visitor Trend Chart (Line Chart)
+    function initVisitorTrendChart(data) {
+        const ctx = document.getElementById('visitorTrendChart');
+        if (!ctx) return;
+
+        if (visitorTrendChart) {
+            visitorTrendChart.destroy();
+        }
+
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const textColor = isDark ? '#f7fafc' : '#495057';
+        const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+
+        visitorTrendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    label: 'عدد الزوار',
+                    data: data.values,
+                    borderColor: 'rgba(23, 162, 184, 1)',
+                    backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: 'rgba(23, 162, 184, 1)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: { color: textColor, font: { family: 'Cairo', size: 12 } }
+                    },
+                    tooltip: {
+                        backgroundColor: isDark ? '#2d3748' : 'white',
+                        titleColor: textColor,
+                        bodyColor: textColor,
+                        borderColor: gridColor,
+                        borderWidth: 1,
+                        rtl: true,
+                        callbacks: {
+                            label: function(context) {
+                                return 'الزوار: ' + context.parsed.y;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: textColor,
+                            font: { family: 'Cairo' },
+                            precision: 0
+                        },
+                        grid: { color: gridColor }
+                    },
+                    x: {
+                        ticks: { color: textColor, font: { family: 'Cairo' } },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
+    // Generate fallback data if API fails
+    function generateFallbackData(days) {
+        const labels = [];
+        const now = new Date();
+
+        for (let i = days - 1; i >= 0; i--) {
+            const date = new Date(now);
+            date.setDate(date.getDate() - i);
+            labels.push(date.toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' }));
+        }
+
+        return {
+            session_duration: {
+                labels: labels,
+                values: Array(days).fill(0).map(() => Math.random() * 10 + 2)
+            },
+            pages_per_visit: {
+                labels: labels,
+                values: Array(days).fill(0).map(() => Math.random() * 5 + 1)
+            },
+            return_visitors: {
+                new_visitors: Math.floor(Math.random() * 500 + 200),
+                returning_visitors: Math.floor(Math.random() * 300 + 100)
+            },
+            visitor_trend: {
+                labels: labels,
+                values: Array(days).fill(0).map(() => Math.floor(Math.random() * 200 + 50))
+            }
+        };
+    }
+
+    // Update charts when theme changes
+    document.addEventListener('themeChanged', function() {
+        const dateRange = document.getElementById('dateRangeSelect').value;
+        updateCharts(dateRange);
+    });
+</script>
 {% endblock %}

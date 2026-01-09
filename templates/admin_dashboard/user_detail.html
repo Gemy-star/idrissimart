@@ -896,16 +896,16 @@
 
                 <!-- Admin Actions -->
                 <div id="adminActions" class="action-buttons mt-4 pt-4" style="border-top: 2px solid #e5e7eb;">
-                    <button class="btn-action btn-suspend flex-fill" onclick="handleUserAction('{{ user_obj.is_suspended|yesno:'unsuspend,suspend' }}', {{ user_obj.id }})">
+                    <button class="btn-action flex-fill" style="background: {% if user_obj.is_suspended %}linear-gradient(135deg, #10b981, #059669){% else %}linear-gradient(135deg, #f59e0b, #d97706){% endif %};" onclick="handleUserAction('{{ user_obj.is_suspended|yesno:'unsuspend,suspend' }}', {{ user_obj.id }})">
                         {% if user_obj.is_suspended %}
-                            <i class="fas fa-play-circle me-2"></i> {% trans "إلغاء التعليق" %}
+                            <i class="fas fa-unlock me-2"></i> {% trans "إلغاء التعليق" %}
                         {% else %}
-                            <i class="fas fa-pause-circle me-2"></i> {% trans "تعليق" %}
+                            <i class="fas fa-user-lock me-2"></i> {% trans "تعليق" %}
                         {% endif %}
                     </button>
                     {% if user_obj.verification_status != 'verified' %}
-                        <button class="btn-action btn-verify flex-fill" onclick="handleUserAction('verify', {{ user_obj.id }})">
-                            <i class="fas fa-user-check me-2"></i> {% trans "توثيق" %}
+                        <button class="btn-action flex-fill" style="background: linear-gradient(135deg, #10b981, #059669);" onclick="handleUserAction('verify', {{ user_obj.id }})">
+                            <i class="fas fa-certificate me-2"></i> {% trans "توثيق" %}
                         </button>
                     {% endif %}
                 </div>
@@ -921,8 +921,12 @@
                 </div>
 
                 <div class="action-buttons mt-2" style="gap: 10px;">
-                    <button class="btn-action flex-fill" style="background: linear-gradient(135deg, #dc2626, #991b1b);" onclick="handleUserAction('ban', {{ user_obj.id }})">
-                        <i class="fas fa-ban me-2"></i> {% trans "حظر المستخدم" %}
+                    <button class="btn-action flex-fill" style="background: {% if user_obj.is_banned %}linear-gradient(135deg, #10b981, #059669){% else %}linear-gradient(135deg, #dc2626, #991b1b){% endif %};" onclick="handleUserAction('{{ user_obj.is_banned|yesno:'unban,ban' }}', {{ user_obj.id }})">
+                        {% if user_obj.is_banned %}
+                            <i class="fas fa-user-check me-2"></i> {% trans "إلغاء الحظر" %}
+                        {% else %}
+                            <i class="fas fa-user-slash me-2"></i> {% trans "حظر المستخدم" %}
+                        {% endif %}
                     </button>
                     {% if not user_obj.is_superuser %}
                     <button class="btn-action flex-fill" style="background: linear-gradient(135deg, #7f1d1d, #450a0a);" onclick="confirmDeleteUser({{ user_obj.id }}, '{{ user_obj.username|escapejs }}')">
@@ -1251,8 +1255,10 @@
             currentUserAction = action;
 
             const msgMap = {
-                suspend: '{% trans "هل أنت متأكد من تعليق هذا المستخدم؟" %}',
+                suspend: '{% trans "هل أنت متأكد من تعليق هذا المستخدم؟ سيكون مؤقتاً ويمكن إلغاؤه." %}',
                 unsuspend: '{% trans "هل أنت متأكد من إلغاء تعليق هذا المستخدم؟" %}',
+                ban: '{% trans "هل أنت متأكد من حظر هذا المستخدم نهائياً؟ سيتم تعطيل حسابه بشكل كامل." %}',
+                unban: '{% trans "هل أنت متأكد من إلغاء حظر هذا المستخدم؟" %}',
                 verify: '{% trans "هل أنت متأكد من توثيق هذا المستخدم؟" %}'
             };
             const confirmMsg = msgMap[action] || '{% trans "هل أنت متأكد؟" %}';
@@ -1260,6 +1266,8 @@
             const buttonTextMap = {
                 suspend: '{% trans "تعليق" %}',
                 unsuspend: '{% trans "إلغاء التعليق" %}',
+                ban: '{% trans "حظر نهائياً" %}',
+                unban: '{% trans "إلغاء الحظر" %}',
                 verify: '{% trans "توثيق" %}'
             };
             const buttonText = buttonTextMap[action] || '{% trans "تأكيد" %}';
