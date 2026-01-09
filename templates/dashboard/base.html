@@ -66,22 +66,31 @@
                 // Add touch/swipe support for mobile
                 let startX = 0;
                 let scrollLeft = 0;
+                let isDragging = false;
 
                 navLinks.addEventListener('touchstart', function(e) {
                     startX = e.touches[0].pageX - navLinks.offsetLeft;
                     scrollLeft = navLinks.scrollLeft;
-                });
+                    isDragging = false;
+                }, { passive: true });
 
                 navLinks.addEventListener('touchmove', function(e) {
-                    if (!startX) return;
-                    e.preventDefault();
+                    if (startX === 0) return;
                     const x = e.touches[0].pageX - navLinks.offsetLeft;
-                    const walk = (x - startX) * 2;
-                    navLinks.scrollLeft = scrollLeft - walk;
-                });
+                    const walk = x - startX;
+                    if (!isDragging && Math.abs(walk) < 6) {
+                        return;
+                    }
+                    if (!isDragging) {
+                        isDragging = true;
+                    }
+                    e.preventDefault();
+                    navLinks.scrollLeft = scrollLeft - walk * 2;
+                }, { passive: false });
 
                 navLinks.addEventListener('touchend', function() {
                     startX = 0;
+                    isDragging = false;
                 });
             }
 
