@@ -100,20 +100,17 @@ def migrate_country_data(apps, schema_editor):
         # Create temporary column for the new FK if it doesn't exist
         if not column_exists(cursor, "users", "country_id"):
             try:
-                # Use BIGINT UNSIGNED to match the content_country.id type
-                cursor.execute(
-                    "ALTER TABLE users ADD COLUMN country_id BIGINT UNSIGNED NULL"
-                )
-                print("✅ Created country_id column (BIGINT UNSIGNED)")
+                # Use BIGINT (SIGNED) to match content_country.id type
+                # MariaDB requires exact type match for FK constraints
+                cursor.execute("ALTER TABLE users ADD COLUMN country_id BIGINT NULL")
+                print("✅ Created country_id column (BIGINT SIGNED)")
             except Exception as e:
                 print(f"ℹ️  Column country_id might already exist: {e}")
         else:
-            # If column exists, make sure it's the correct type
+            # If column exists, make sure it's the correct type (SIGNED not UNSIGNED)
             try:
-                cursor.execute(
-                    "ALTER TABLE users MODIFY COLUMN country_id BIGINT UNSIGNED NULL"
-                )
-                print("✅ Modified country_id to BIGINT UNSIGNED")
+                cursor.execute("ALTER TABLE users MODIFY COLUMN country_id BIGINT NULL")
+                print("✅ Modified country_id to BIGINT SIGNED")
             except Exception as e:
                 print(f"⚠️  Could not modify country_id type: {e}")
 
