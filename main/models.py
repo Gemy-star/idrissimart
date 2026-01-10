@@ -1769,7 +1769,7 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
 
         fields_to_display = []
         for cat_cf in category_custom_fields:
-            field_key = cat_cf.custom_field.key
+            field_key = cat_cf.custom_field.name
             if field_key in self.custom_fields:
                 field_value = self.custom_fields[field_key]
 
