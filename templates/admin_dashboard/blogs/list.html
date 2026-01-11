@@ -139,6 +139,17 @@
         display: inline-block;
         margin-bottom: 0.5rem;
     }
+
+    /* Modal forms polish */
+    .modal .form-label { font-weight: 600; }
+    .modal .form-text { color: #6b7280; }
+    [data-theme='dark'] .modal .form-text { color: #9ca3af; }
+    .modal .form-control, .modal .form-select { border-radius: 12px; }
+    .modal .form-check-input { transform: scale(1.05); cursor: pointer; }
+    .modal .form-check-label { cursor: pointer; }
+    .modal .modal-footer .btn { border-radius: 10px; }
+    .modal-dialog.modal-lg { max-width: 900px; }
+    .modal .ck-editor__editable_inline { min-height: 220px; }
 </style>
 {% endblock %}
 
@@ -155,10 +166,9 @@
                 <i class="fas fa-folder me-2"></i>
                 {% trans "إدارة الفئات" %}
             </a>
-            <a href="/admin/content/blog/add/" class="btn btn-primary">
-                <i class="fas fa-plus me-2"></i>
-                {% trans "مدونة جديدة" %}
-            </a>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addBlogModal">
+                <i class="fas fa-plus me-2"></i>{% trans "مدونة جديدة" %}
+            </button>
         </div>
     </div>
 
@@ -270,9 +280,9 @@
                     </div>
 
                     <div class="mt-3">
-                        <a href="/admin/content/blog/{{ blog.id }}/change/" class="btn btn-sm btn-primary">
+                        <button type="button" class="btn btn-sm btn-primary" data-action="edit-blog" data-blog-id="{{ blog.id }}">
                             <i class="fas fa-edit me-1"></i> {% trans "تعديل" %}
-                        </a>
+                        </button>
                         <form method="post" action="{% url 'main:admin_blog_toggle_publish' blog.pk %}" style="display: inline;">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-sm btn-warning">
@@ -338,5 +348,237 @@
             <p class="text-muted">{% trans "ابدأ بإضافة مدونة جديدة" %}</p>
         </div>
     {% endif %}
+</div>
+{% endblock %}
+
+{% block admin_extra_js %}
+<script>
+    // Ensure CKEditor5 is available (load lazily if not)
+    function loadCKEditor(callback) {
+        if (window.ClassicEditor) { callback && callback(); return; }
+        if (document.getElementById('ckeditor5-cdn')) { // already loading
+            const script = document.getElementById('ckeditor5-cdn');
+            script.addEventListener('load', () => callback && callback());
+            return;
+        }
+        const s = document.createElement('script');
+        s.id = 'ckeditor5-cdn';
+        s.src = 'https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js';
+        s.onload = () => callback && callback();
+        document.head.appendChild(s);
+    }
+    // URLs for AJAX CRUD
+    const BLOG_URLS = {
+        create: "{% url 'main:admin_blog_create' %}",
+        update: (id) => `{% url 'main:admin_blog_update' 0 %}`.replace('/0/', `/${id}/`)
+    };
+
+    function getCookie(name) {
+        let v = null; if (document.cookie && document.cookie !== '') {
+            document.cookie.split(';').forEach(c => { c = c.trim(); if (c.startsWith(name + '=')) v = decodeURIComponent(c.substring(name.length + 1)); });
+        } return v;
+    }
+
+    // Add Blog
+    function submitAddBlog() {
+        const form = document.getElementById('addBlogForm');
+        const fd = new FormData(form);
+        // Checkbox value to string 'true'/'false' expected by backend
+        fd.set('is_published', form.querySelector('[name="is_published"]').checked ? 'true' : 'false');
+        fetch(BLOG_URLS.create, { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') }, body: fd })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) { alert(data.error || '{% trans "فشل إنشاء المدونة" %}'); return; }
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addBlogModal')); if (modal) modal.hide();
+                location.reload();
+            })
+            .catch(() => alert('{% trans "حدث خطأ أثناء إنشاء المدونة" %}'));
+    }
+
+    // Populate and show edit modal
+    function openEditBlog(id) {
+        const url = BLOG_URLS.update(id);
+        fetch(url)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) { alert('{% trans "فشل تحميل بيانات المدونة" %}'); return; }
+                const b = data.blog;
+                document.getElementById('editBlogId').value = id;
+                document.getElementById('editBlogTitle').value = b.title || '';
+                document.getElementById('editBlogContent').value = b.content || '';
+                document.getElementById('editBlogTags').value = b.tags || '';
+                document.getElementById('editBlogPublished').checked = !!b.is_published;
+                // Category if available
+                const catSelect = document.getElementById('editBlogCategory');
+                if (catSelect) {
+                    const catId = b.category_id || '';
+                    if (catId) catSelect.value = String(catId);
+                    else catSelect.value = '';
+                }
+                new bootstrap.Modal(document.getElementById('editBlogModal')).show();
+            })
+            .catch(() => alert('{% trans "حدث خطأ أثناء تحميل بيانات المدونة" %}'));
+    }
+
+    // Save blog edits
+    function submitEditBlog() {
+        const form = document.getElementById('editBlogForm');
+        const id = document.getElementById('editBlogId').value;
+        const fd = new FormData(form);
+        fd.set('is_published', form.querySelector('[name="is_published"]').checked ? 'true' : 'false');
+        fetch(BLOG_URLS.update(id), { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') }, body: fd })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) { alert(data.error || '{% trans "فشل حفظ التغييرات" %}'); return; }
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editBlogModal')); if (modal) modal.hide();
+                location.reload();
+            })
+            .catch(() => alert('{% trans "حدث خطأ أثناء حفظ التغييرات" %}'));
+    }
+
+    // Delegate edit buttons
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-action="edit-blog"]');
+        if (!btn) return;
+        const id = btn.dataset.blogId;
+        openEditBlog(id);
+    });
+
+    // Optional: Initialize CKEditor 5 if available
+    (function initEditors(){
+        const createOrUpdate = () => {
+            const addEl = document.getElementById('addBlogContent');
+            const editEl = document.getElementById('editBlogContent');
+
+            if (addEl && !addEl.dataset.ckeInited) {
+                window.ClassicEditor.create(addEl).then(() => { addEl.dataset.ckeInited = '1'; }).catch(()=>{});
+            }
+            if (editEl && !editEl.dataset.ckeInited) {
+                window.ClassicEditor.create(editEl).then(() => { editEl.dataset.ckeInited = '1'; }).catch(()=>{});
+            }
+        };
+
+        if (window.ClassicEditor) createOrUpdate(); else loadCKEditor(createOrUpdate);
+
+        // Initialize on modal show in case content is dynamically inserted
+        ['addBlogModal','editBlogModal'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('shown.bs.modal', () => {
+                if (window.ClassicEditor) {
+                    createOrUpdate();
+                } else {
+                    loadCKEditor(createOrUpdate);
+                }
+            });
+        });
+    })();
+</script>
+
+<!-- Add Blog Modal -->
+<div class="modal fade" id="addBlogModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus me-2"></i>{% trans "مدونة جديدة" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addBlogForm">
+                    <div class="mb-3">
+                        <label class="form-label">{% trans "الفئة" %}</label>
+                        <select name="category" class="form-select">
+                            <option value="">{% trans "بدون فئة" %}</option>
+                            {% for category in categories %}
+                                <option value="{{ category.id }}">{{ category.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{% trans "العنوان" %} *</label>
+                        <input type="text" name="title" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{% trans "المحتوى" %} *</label>
+                        <textarea id="addBlogContent" name="content" class="form-control" rows="8" required></textarea>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">{% trans "وسوم (مفصولة بفواصل)" %}</label>
+                            <input type="text" name="tags" class="form-control" placeholder="tag1, tag2">
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="addBlogPublished" name="is_published" checked>
+                                <label class="form-check-label" for="addBlogPublished">{% trans "منشور" %}</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label">{% trans "صورة" %}</label>
+                        <input type="file" name="image" accept="image/*" class="form-control">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                <button type="button" class="btn btn-primary" onclick="submitAddBlog()">{% trans "حفظ" %}</button>
+            </div>
+        </div>
+    </div>
+    </div>
+
+<!-- Edit Blog Modal -->
+<div class="modal fade" id="editBlogModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>{% trans "تعديل المدونة" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editBlogForm">
+                    <input type="hidden" id="editBlogId">
+                    <div class="mb-3">
+                        <label class="form-label">{% trans "الفئة" %}</label>
+                        <select id="editBlogCategory" name="category" class="form-select">
+                            <option value="">{% trans "بدون فئة" %}</option>
+                            {% for category in categories %}
+                                <option value="{{ category.id }}">{{ category.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{% trans "العنوان" %} *</label>
+                        <input type="text" id="editBlogTitle" name="title" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{% trans "المحتوى" %} *</label>
+                        <textarea id="editBlogContent" name="content" class="form-control" rows="8" required></textarea>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">{% trans "وسوم (مفصولة بفواصل)" %}</label>
+                            <input type="text" id="editBlogTags" name="tags" class="form-control" placeholder="tag1, tag2">
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editBlogPublished" name="is_published">
+                                <label class="form-check-label" for="editBlogPublished">{% trans "منشور" %}</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label">{% trans "صورة" %}</label>
+                        <input type="file" name="image" accept="image/*" class="form-control">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                <button type="button" class="btn btn-primary" onclick="submitEditBlog()">{% trans "حفظ التغييرات" %}</button>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}

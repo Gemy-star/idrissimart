@@ -10,7 +10,7 @@ from django.http import JsonResponse, HttpResponseNotFound
 from django.db.models import Q, Count
 from django.utils.text import slugify
 from django.core.paginator import Paginator
-from content.models import Blog
+from content.models import Blog, BlogCategory
 from django.utils.translation import gettext_lazy as _
 from functools import wraps
 import json
@@ -139,6 +139,7 @@ def admin_blog_create(request):
             is_published = request.POST.get("is_published") == "true"
             tags = request.POST.get("tags", "").strip()
             image = request.FILES.get("image")
+            category_id = request.POST.get("category")
 
             print(f"📝 Title: {title[:50] if title else 'EMPTY'}")
             print(f"📝 Content length: {len(content)}")
@@ -161,6 +162,14 @@ def admin_blog_create(request):
                 is_published=is_published,
                 image=image,
             )
+
+            # Set category if provided
+            if category_id:
+                try:
+                    blog.category = BlogCategory.objects.get(id=int(category_id))
+                    blog.save(update_fields=["category"])
+                except (BlogCategory.DoesNotExist, ValueError):
+                    pass
 
             print(f"✅ Blog created with ID: {blog.id}")
 
@@ -218,6 +227,7 @@ def admin_blog_update(request, blog_id):
             is_published = request.POST.get("is_published") == "true"
             tags = request.POST.get("tags", "").strip()
             image = request.FILES.get("image")
+            category_id = request.POST.get("category")
 
             print(f"📝 Title: {title[:50] if title else 'EMPTY'}")
             print(f"📝 Content length: {len(content)}")
@@ -238,6 +248,15 @@ def admin_blog_update(request, blog_id):
             if image:
                 blog.image = image
                 print(f"📸 Image updated")
+
+            # Update category if provided
+            if category_id:
+                try:
+                    blog.category = BlogCategory.objects.get(id=int(category_id))
+                except (BlogCategory.DoesNotExist, ValueError):
+                    blog.category = None
+            else:
+                blog.category = None
 
             blog.save()
             print(f"✅ Blog updated: {blog.id}")
@@ -273,6 +292,7 @@ def admin_blog_update(request, blog_id):
                 "content": blog.content,
                 "is_published": blog.is_published,
                 "tags": tags_str,
+                "category_id": blog.category.id if blog.category else None,
                 "image_url": blog.image.url if blog.image else None,
             },
         }

@@ -1,1514 +1,1696 @@
 {% extends 'admin_dashboard/base.html' %}
 {% load static i18n idrissimart_tags %}
 
-{% block title %}{% trans "إدارة المستخدمين" %}{% endblock %}
+{% block title %}{% trans "إدارة المستخدمين" %}{% endblock title %}
 
 {% block admin_extra_css %}
 <style>
-    /* Dark theme text color fixes for table */
-    [data-theme='dark'] table tbody td {
-        color: #e9ecef;
+  .users-management-page {
+    background: var(--bs-body-bg);
+  }
+
+  .page-header {
+    background: linear-gradient(135deg, #6b4c7a 0%, #ff8534 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 12px rgba(107, 76, 122, 0.2);
+  }
+
+  .page-header h2 {
+    margin: 0;
+    font-weight: 700;
+    color: white !important;
+  }
+
+  .page-header .subtitle {
+    opacity: 0.95;
+    margin-top: 0.5rem;
+  }
+
+  .stats-row {
+    margin-bottom: 2rem;
+  }
+
+  .stat-card {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    height: 100%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+  }
+
+  .stat-card .stat-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+    margin-bottom: 1rem;
+  }
+
+  .stat-card.stat-info .stat-icon {
+    background: linear-gradient(135deg, #6b4c7a 0%, #ff8534 100%);
+  }
+
+  .stat-card.stat-verified .stat-icon {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  }
+
+  .stat-card.stat-primary .stat-icon {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+
+  .stat-card h3 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+
+  .stat-card p {
+    color: #6c757d;
+    margin: 0;
+    font-weight: 500;
+  }
+
+  .search-card {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  }
+
+  .users-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .user-card {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  }
+
+  .user-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+  }
+
+  .user-card-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--bs-border-color);
+  }
+
+  .user-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: 3px solid #e2e8f0;
+    transition: border-color 0.3s ease;
+  }
+
+  .user-card:hover .user-avatar {
+    border-color: #6b4c7a;
+  }
+
+  .user-info h5 {
+    margin: 0 0 0.25rem 0;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #212529;
+  }
+
+  .user-info .username {
+    color: #6c757d;
+    font-size: 0.875rem;
+  }
+
+  .user-details {
+    margin-bottom: 1rem;
+  }
+
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    font-size: 0.875rem;
+  }
+
+  .detail-label {
+    color: #6c757d;
+    font-weight: 500;
+  }
+
+  .detail-value {
+    font-weight: 600;
+  }
+
+  .user-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .badge {
+    padding: 0.35rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .badge-verified {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+  }
+
+  .badge-suspended {
+    background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);
+    color: white;
+  }
+
+  .badge-role {
+    background: linear-gradient(135deg, #6b4c7a 0%, #ff8534 100%);
+    color: white;
+  }
+
+  .badge-package {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+
+  .badge-no-package {
+    background: #e2e3e5;
+    color: #6c757d;
+  }
+
+  .package-info {
+    background: #f7fafc;
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .package-stats {
+    display: flex;
+    gap: 1rem;
+    justify-content: space-around;
+    margin-top: 0.5rem;
+  }
+
+  .package-stat {
+    text-align: center;
+  }
+
+  .package-stat-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #212529;
+  }
+
+  .package-stat-label {
+    font-size: 0.75rem;
+    color: #6c757d;
+  }
+
+  .user-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .btn-action {
+    flex: 1;
+    padding: 0.5rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border: none;
+    transition: all 0.3s ease;
+  }
+
+  .btn-view {
+    background: linear-gradient(135deg, #6b4c7a 0%, #ff8534 100%);
+    color: white;
+  }
+
+  .btn-view:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(107, 76, 122, 0.4);
+    color: white;
+  }
+
+  .btn-more {
+    background: #f7fafc;
+    color: #2d3748;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
+  }
+
+  .btn-more:hover {
+    background: #edf2f7;
+    transform: translateY(-2px);
+  }
+
+  .btn-more.active {
+    background: linear-gradient(135deg, #6b4c7a 0%, #ff8534 100%);
+    color: white;
+    border-color: transparent;
+  }
+
+  .actions-panel {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease, margin-top 0.4s ease, opacity 0.3s ease;
+    opacity: 0;
+    margin-top: 0;
+  }
+
+  .actions-panel.active {
+    max-height: 600px;
+    margin-top: 1rem;
+    opacity: 1;
+  }
+
+  .actions-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+    padding: 1rem;
+    background: #f7fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .action-section {
+    grid-column: 1 / -1;
+    margin-top: 0.5rem;
+  }
+
+  .action-section:first-child {
+    margin-top: 0;
+  }
+
+  .action-section-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #6b4c7a;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 2px solid rgba(107, 76, 122, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .action-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 0.75rem;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background: white;
+    color: #2d3748;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+  }
+
+  .action-btn:hover {
+    background: linear-gradient(135deg, rgba(107, 76, 122, 0.05) 0%, rgba(255, 133, 52, 0.05) 100%);
+    border-color: #6b4c7a;
+    transform: translateX(3px);
+  }
+
+  .action-btn i {
+    width: 16px;
+    text-align: center;
+    font-size: 0.9rem;
+  }
+
+  .action-btn.danger {
+    border-color: #fee2e2;
+    color: #dc2626;
+  }
+
+  .action-btn.danger:hover {
+    background: linear-gradient(135deg, rgba(238, 9, 121, 0.05) 0%, rgba(255, 106, 0, 0.05) 100%);
+    border-color: #dc2626;
+  }
+
+  .action-btn.success i {
+    color: #059669;
+  }
+
+  .action-btn.warning i {
+    color: #d97706;
+  }
+
+  .action-btn.info i {
+    color: #0284c7;
+  }
+
+  .action-btn.primary i {
+    color: #6b4c7a;
+  }
+
+  .btn-primary-custom {
+    background: linear-gradient(135deg, #6b4c7a 0%, #ff8534 100%);
+    border: none;
+    color: white;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+  }
+
+  .btn-primary-custom:hover {
+    background: linear-gradient(135deg, #5a3d68 0%, #e67429 100%);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(107, 76, 122, 0.4);
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #6c757d;
+  }
+
+  .empty-state h4 {
+    color: #495057;
+    font-weight: 600;
+  }
+
+  .empty-state i {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    color: #6c757d;
+  }
+
+  .dropdown-menu {
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    padding: 0.75rem;
+    min-width: 280px;
+    animation: slideDown 0.3s ease;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .dropdown-item {
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.25rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .dropdown-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 3px;
+    background: linear-gradient(135deg, #6b4c7a 0%, #ff8534 100%);
+    transform: scaleY(0);
+    transition: transform 0.2s ease;
+  }
+
+  .dropdown-item:hover::before {
+    transform: scaleY(1);
+  }
+
+  .dropdown-item:hover {
+    background: linear-gradient(135deg, rgba(107, 76, 122, 0.05) 0%, rgba(255, 133, 52, 0.05) 100%);
+    padding-left: 1.25rem;
+  }
+
+  .dropdown-item i {
+    width: 20px;
+    text-align: center;
+    font-size: 1rem;
+  }
+
+  .dropdown-item.text-danger:hover {
+    background: linear-gradient(135deg, rgba(238, 9, 121, 0.1) 0%, rgba(255, 106, 0, 0.1) 100%);
+    color: #dc3545 !important;
+  }
+
+  .dropdown-item.text-danger::before {
+    background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);
+  }
+
+  .dropdown-header {
+    font-weight: 700;
+    color: #2d3748;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 0.75rem 1rem 0.5rem;
+    margin-bottom: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .dropdown-header i {
+    font-size: 0.875rem;
+    color: #6b4c7a;
+  }
+
+  .dropdown-divider {
+    margin: 0.5rem 0;
+    border-color: rgba(107, 76, 122, 0.1);
+  }
+
+  .modal-content {
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  }
+
+  .modal-header {
+    background: linear-gradient(135deg, #6b4c7a 0%, #ff8534 100%);
+    color: white;
+    border-radius: 12px 12px 0 0;
+    padding: 1.25rem 1.5rem;
+  }
+
+  .modal-header .btn-close {
+    filter: brightness(0) invert(1);
+  }
+
+  .modal-title {
+    font-weight: 600;
+  }
+
+  .pagination {
+    gap: 0.5rem;
+  }
+
+  .pagination .page-item .page-link {
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    color: #4a5568;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+  }
+
+  .pagination .page-item .page-link:hover {
+    background: linear-gradient(135deg, #6b4c7a 0%, #ff8534 100%);
+    color: white;
+    border-color: transparent;
+  }
+
+  .pagination .page-item.active .page-link {
+    background: linear-gradient(135deg, #6b4c7a 0%, #ff8534 100%);
+    border-color: transparent;
+  }
+
+  /* Dark Theme */
+  [data-theme='dark'] .page-header {
+    background: linear-gradient(135deg, #4a3557 0%, #d67129 100%);
+  }
+
+  [data-theme='dark'] .stat-card,
+  [data-theme='dark'] .search-card,
+  [data-theme='dark'] .user-card {
+    background: rgba(30, 30, 46, 0.8);
+    border-color: rgba(107, 76, 122, 0.3);
+  }
+
+  [data-theme='dark'] .user-info h5,
+  [data-theme='dark'] .stat-card h3 {
+    color: #f0f0f0 !important;
+  }
+
+  [data-theme='dark'] .detail-value {
+    color: #e0e0e0;
+  }
+
+  [data-theme='dark'] .package-info {
+    background: rgba(40, 40, 56, 0.8);
+  }
+
+  [data-theme='dark'] .btn-more {
+    background: rgba(40, 40, 56, 0.8);
+    border-color: rgba(107, 76, 122, 0.3);
+    color: #e0e0e0;
+  }
+
+  [data-theme='dark'] .btn-more:hover {
+    background: rgba(50, 50, 66, 0.9);
+  }
+
+  [data-theme='dark'] .btn-more.active {
+    background: linear-gradient(135deg, #4a3557 0%, #d67129 100%);
+  }
+
+  [data-theme='dark'] .actions-grid {
+    background: rgba(40, 40, 56, 0.6);
+    border-color: rgba(107, 76, 122, 0.3);
+  }
+
+  [data-theme='dark'] .action-section-title {
+    color: #ff8534;
+    border-bottom-color: rgba(255, 133, 52, 0.3);
+  }
+
+  [data-theme='dark'] .action-btn {
+    background: rgba(30, 30, 46, 0.8);
+    border-color: rgba(107, 76, 122, 0.3);
+    color: #e2e8f0;
+  }
+
+  [data-theme='dark'] .action-btn:hover {
+    background: linear-gradient(135deg, rgba(107, 76, 122, 0.15) 0%, rgba(255, 133, 52, 0.15) 100%);
+    border-color: #ff8534;
+  }
+
+  [data-theme='dark'] .action-btn.danger {
+    border-color: rgba(220, 38, 38, 0.3);
+    color: #fc8181;
+  }
+
+  [data-theme='dark'] .action-btn.danger:hover {
+    background: linear-gradient(135deg, rgba(238, 9, 121, 0.15) 0%, rgba(255, 106, 0, 0.15) 100%);
+    border-color: #fc8181;
+  }
+
+  [data-theme='dark'] .modal-content {
+    background: rgba(30, 30, 46, 0.95);
+    border-color: rgba(107, 76, 122, 0.3);
+  }
+
+  [data-theme='dark'] .modal-body {
+    background: rgba(30, 30, 46, 0.8);
+    color: #e0e0e0;
+  }
+
+  [data-theme='dark'] .modal-footer {
+    background: rgba(30, 30, 46, 0.9);
+    border-color: rgba(107, 76, 122, 0.3);
+  }
+
+  [data-theme='dark'] .dropdown-menu {
+    background: #2d3748;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  }
+
+  [data-theme='dark'] .dropdown-item {
+    color: #e2e8f0;
+  }
+
+  [data-theme='dark'] .dropdown-item:hover {
+    background: linear-gradient(135deg, rgba(107, 76, 122, 0.15) 0%, rgba(255, 133, 52, 0.15) 100%);
+    color: #f7fafc;
+  }
+
+  [data-theme='dark'] .dropdown-header {
+    color: #cbd5e0;
+  }
+
+  [data-theme='dark'] .dropdown-header i {
+    color: #ff8534;
+  }
+
+  [data-theme='dark'] .dropdown-divider {
+    border-color: rgba(255, 133, 52, 0.2);
+  }
+
+  [data-theme='dark'] .dropdown-item.text-danger {
+    color: #fc8181 !important;
+  }
+
+  [data-theme='dark'] .dropdown-item.text-danger:hover {
+    background: linear-gradient(135deg, rgba(238, 9, 121, 0.2) 0%, rgba(255, 106, 0, 0.2) 100%);
+    color: #fc8181 !important;
+  }
+
+  [data-theme='dark'] .form-control,
+  [data-theme='dark'] .form-select {
+    background-color: rgba(40, 40, 56, 0.8);
+    border-color: rgba(107, 76, 122, 0.3);
+    color: #e0e0e0;
+  }
+
+  [data-theme='dark'] .form-control:focus,
+  [data-theme='dark'] .form-select:focus {
+    background-color: rgba(40, 40, 56, 0.9);
+    border-color: #ff8534;
+    color: #e0e0e0;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .users-grid {
+      grid-template-columns: 1fr;
     }
 
-    [data-theme='dark'] table tbody td .text-muted {
-        color: #b8b9be !important;
+    .page-header {
+      padding: 1.5rem;
     }
 
-    [data-theme='dark'] table tbody td a {
-        color: #e9ecef;
+    .stat-card h3 {
+      font-size: 1.5rem;
     }
-
-    /* All modal styles are inherited from admin-dashboard.css */
-    /* Modal z-index hierarchy: backdrop (10500), modal (10600), dialog (10700) */
+  }
 </style>
-{% endblock %}
+{% endblock admin_extra_css %}
 
 {% block admin_content %}
-    <!-- Header -->
-    <div class="admin-dashboard-header">
-        <div class="row align-items-center">
-            <div class="col">
-                <h1 class="display-6 mb-1">
-                    <i class="fas fa-users-cog me-3"></i>
-                    {% trans "إدارة المستخدمين" %}
-                </h1>
-                <p class="text-muted mb-0">{% trans "عرض، تعديل، وإدارة جميع المستخدمين على المنصة" %}</p>
-            </div>
-            <div class="col-auto">
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
-                    <i class="fas fa-user-plus me-2"></i>
-                    {% trans "إنشاء مستخدم جديد" %}
-                </button>
-            </div>
-            <div class="col-auto">
-                <div class="admin-quick-stats">
-                    <span class="badge bg-primary fs-6">
-                        {% trans "المستخدمين" %}: {{ total_users }}
-                    </span>
-                </div>
-            </div>
+<div class="users-management-page">
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div>
+        <h2>
+          <i class="fas fa-users-cog me-2"></i>
+          {% trans "إدارة المستخدمين" %}
+        </h2>
+        <div class="subtitle">
+          {% trans "عرض، تعديل، وإدارة جميع المستخدمين على المنصة" %}
         </div>
+      </div>
+      <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#createUserModal">
+        <i class="fas fa-user-plus me-2"></i>
+        {% trans "إنشاء مستخدم جديد" %}
+      </button>
     </div>
+  </div>
 
-    <!-- Main Statistics -->
-    <div class="row mb-4">
-        <div class="col-lg-4 col-md-6 mb-3">
-            <div class="admin-stat-card stat-info">
-                <div class="stat-icon">
-                    <i class="fas fa-users"></i>
-                </div>
-                <div class="stat-content">
-                    <h3>{{ total_users }}</h3>
-                    <p>{% trans "إجمالي المستخدمين" %}</p>
-                </div>
-            </div>
+  <!-- Statistics -->
+  <div class="stats-row">
+    <div class="row g-3">
+      <div class="col-lg-4 col-md-6">
+        <div class="stat-card stat-info">
+          <div class="stat-icon">
+            <i class="fas fa-users"></i>
+          </div>
+          <h3>{{ total_users }}</h3>
+          <p>{% trans "إجمالي المستخدمين" %}</p>
         </div>
+      </div>
 
-        <div class="col-lg-4 col-md-6 mb-3">
-            <div class="admin-stat-card stat-verified">
-                <div class="stat-icon">
-                    <i class="fas fa-user-check"></i>
-                </div>
-                <div class="stat-content">
-                    <h3>{{ verified_users }}</h3>
-                    <p>{% trans "مستخدمين موثقين" %}</p>
-                </div>
-            </div>
+      <div class="col-lg-4 col-md-6">
+        <div class="stat-card stat-verified">
+          <div class="stat-icon">
+            <i class="fas fa-user-check"></i>
+          </div>
+          <h3>{{ verified_users }}</h3>
+          <p>{% trans "مستخدمين موثقين" %}</p>
         </div>
+      </div>
 
-        <div class="col-lg-4 col-md-6 mb-3">
-            <div class="admin-stat-card stat-primary">
-                <div class="stat-icon">
-                    <i class="fas fa-store"></i>
-                </div>
-                <div class="stat-content">
-                    <h3>{{ publisher_users }}</h3>
-                    <p>{% trans "الناشرون" %}</p>
-                </div>
-            </div>
+      <div class="col-lg-4 col-md-6">
+        <div class="stat-card stat-primary">
+          <div class="stat-icon">
+            <i class="fas fa-store"></i>
+          </div>
+          <h3>{{ publisher_users }}</h3>
+          <p>{% trans "الناشرون" %}</p>
         </div>
+      </div>
     </div>
+  </div>
 
-    <!-- Main Content -->
-    <div class="row">
-        <div class="col-12">
-            <div class="admin-content-card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-users me-2"></i>
-                        {% trans "قائمة المستخدمين" %}
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <!-- Search and Filter -->
-                    <div class="mb-4">
-                        <form method="get">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <input type="text" name="search" class="form-control" placeholder="{% trans 'ابحث بالاسم، المستخدم، أو البريد...' %}" value="{{ search_query }}">
-                                </div>
-                                <div class="col-md-4">
-                                    <select name="role" class="form-select">
-                                        <option value="">{% trans "كل الأدوار" %}</option>
-                                        {% for value, name in profile_type_choices %}
-                                            <option value="{{ value }}" {% if value == role_filter %}selected{% endif %}>{{ name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-2">
-                                    <button class="btn btn-primary w-100" type="submit">
-                                        <i class="fas fa-search"></i> {% trans "بحث" %}
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-
-                    <!-- Users Table -->
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle">
-                            <thead>
-                                <tr>
-                                    <th>{% trans "المستخدم" %}</th>
-                                    <th>{% trans "البريد الإلكتروني" %}</th>
-                                    <th>{% trans "الدور" %}</th>
-                                    <th>{% trans "العضوية" %}</th>
-                                    <th>{% trans "الحالة" %}</th>
-                                    <th>{% trans "تاريخ التسجيل" %}</th>
-                                    <th>{% trans "إجراءات" %}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for user_obj in users %}
-                                <tr>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            {% user_avatar user=user_obj size=40 css_class="rounded-circle me-3" %}
-                                            <div>
-                                                <a href="{% url 'main:admin_user_detail' user_obj.id %}" class="fw-bold text-dark text-decoration-none">
-                                                    {{ user_obj.get_full_name|default:user_obj.username }}
-                                                </a>
-                                                <div class="text-muted small">
-                                                    {% trans "في قائمة المستخدم يجب ان يظهر اسم المستخدم او ايميله المستخدم في الدخول" %}:
-                                                    @{{ user_obj.username }} | {{ user_obj.email }}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>{{ user_obj.email }}</td>
-                                    <td>
-                                        <span class="badge bg-light text-dark">{{ user_obj.get_profile_type_display }}</span>
-                                    </td>
-                                    <td>
-                                        {% with active_package=user_obj.userpackage_set.filter|first %}
-                                            {% if active_package %}
-                                                <span class="badge bg-success" title="{% trans 'الإجمالي' %}: {{ active_package.package.ads_limit }} | {% trans 'المستخدم' %}: {{ active_package.ads_used }} | {% trans 'المتاح' %}: {{ active_package.ads_remaining }}">
-                                                    <i class="fas fa-crown me-1"></i>
-                                                    {{ active_package.package.name }}
-                                                </span>
-                                                <div class="text-muted small mt-1">
-                                                    <i class="fas fa-chart-pie me-1"></i>
-                                                    {% trans "الاجمالي" %}: {{ active_package.package.ads_limit }} |
-                                                    {% trans "المستخدم" %}: {{ active_package.ads_used }} |
-                                                    {% trans "المتاح" %}: {{ active_package.ads_remaining }}
-                                                </div>
-                                            {% else %}
-                                                <span class="badge bg-secondary">{% trans "بدون اشتراك" %}</span>
-                                            {% endif %}
-                                        {% endwith %}
-                                    </td>
-                                    <td>
-                                        {% if user_obj.is_suspended %}
-                                            <span class="badge bg-danger">{% trans "معلق" %}</span>
-                                        {% elif user_obj.is_verified %}
-                                            <span class="badge bg-success">{% trans "موثق" %}</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">{% trans "نشط" %}</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ user_obj.date_joined|date:"d M, Y" }}</td>
-                                    <td class="text-nowrap">
-                                        <div class="btn-group" role="group">
-                                            <a href="{% url 'main:admin_user_detail' user_obj.id %}" class="btn btn-sm btn-primary" title="{% trans 'عرض التفاصيل' %}">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            <div class="btn-group" role="group">
-                                                <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                                    <i class="fas fa-cog"></i> {% trans "إجراءات" %}
-                                                </button>
-                                                <ul class="dropdown-menu dropdown-menu-end">
-                                                    <!-- Verification Actions -->
-                                                    <li><h6 class="dropdown-header"><i class="fas fa-shield-alt"></i> {% trans "التوثيق" %}</h6></li>
-                                                    <li>
-                                                        <button class="dropdown-item" data-action="verify-email" data-user-id="{{ user_obj.id }}" data-verified="{{ user_obj.verification_status|yesno:'true,false' }}">
-                                                            <i class="fas fa-{% if user_obj.verification_status == 'VERIFIED' %}times-circle text-danger{% else %}check-circle text-success{% endif %}"></i>
-                                                            {% if user_obj.verification_status == 'VERIFIED' %}{% trans "إلغاء توثيق الإيميل" %}{% else %}{% trans "توثيق الإيميل" %}{% endif %}
-                                                        </button>
-                                                    </li>
-                                                    <li>
-                                                        <button class="dropdown-item" data-action="verify-phone" data-user-id="{{ user_obj.id }}" data-verified="{{ user_obj.is_mobile_verified|yesno:'true,false' }}">
-                                                            <i class="fas fa-{% if user_obj.is_mobile_verified %}times-circle text-danger{% else %}check-circle text-success{% endif %}"></i>
-                                                            {% if user_obj.is_mobile_verified %}{% trans "إلغاء توثيق الهاتف" %}{% else %}{% trans "توثيق الهاتف" %}{% endif %}
-                                                        </button>
-                                                    </li>
-
-                                                    <li><hr class="dropdown-divider"></li>
-
-                                                    <!-- Account Management -->
-                                                    <li><h6 class="dropdown-header"><i class="fas fa-user-cog"></i> {% trans "إدارة الحساب" %}</h6></li>
-                                                    <li>
-                                                        <button class="dropdown-item" data-action="toggle-active" data-user-id="{{ user_obj.id }}" data-active="{{ user_obj.is_active|yesno:'true,false' }}">
-                                                            <i class="fas fa-{% if user_obj.is_active %}ban text-danger{% else %}check text-success{% endif %}"></i>
-                                                            {% if user_obj.is_active %}{% trans "تعطيل الحساب" %}{% else %}{% trans "تفعيل الحساب" %}{% endif %}
-                                                        </button>
-                                                    </li>
-                                                    <li>
-                                                        <button class="dropdown-item" data-action="change-role" data-user-id="{{ user_obj.id }}" data-bs-toggle="modal" data-bs-target="#changeRoleModal">
-                                                            <i class="fas fa-user-shield text-info"></i>
-                                                            {% trans "تغيير الدور" %}
-                                                        </button>
-                                                    </li>
-                                                    <li>
-                                                        <button class="dropdown-item" data-action="reset-password" data-user-id="{{ user_obj.id }}" data-username="{{ user_obj.username }}">
-                                                            <i class="fas fa-key text-warning"></i>
-                                                            {% trans "إعادة تعيين كلمة المرور" %}
-                                                        </button>
-                                                    </li>
-
-                                                    <li><hr class="dropdown-divider"></li>
-
-                                                    <!-- Balance & Resources -->
-                                                    <li><h6 class="dropdown-header"><i class="fas fa-coins"></i> {% trans "الرصيد والموارد" %}</h6></li>
-                                                    <li>
-                                                        {% with active_pkg=user_obj.ad_packages.all|first %}
-                                                        <button class="dropdown-item" data-action="add-balance" data-user-id="{{ user_obj.id }}" data-username="{{ user_obj.username }}" data-balance="{% if active_pkg %}{{ active_pkg.ads_remaining }}{% else %}0{% endif %}" data-bs-toggle="modal" data-bs-target="#addBalanceModal">
-                                                            <i class="fas fa-plus-circle text-success"></i>
-                                                            {% trans "إضافة رصيد إعلاني" %}
-                                                        </button>
-                                                        {% endwith %}
-                                                    </li>
-
-                                                    <li><hr class="dropdown-divider"></li>
-
-                                                    <!-- Communication -->
-                                                    <li><h6 class="dropdown-header"><i class="fas fa-comments"></i> {% trans "التواصل" %}</h6></li>
-                                                    <li>
-                                                        <button class="dropdown-item" data-action="send-notification" data-user-id="{{ user_obj.id }}" data-username="{{ user_obj.username }}">
-                                                            <i class="fas fa-bell text-info"></i>
-                                                            {% trans "إرسال إشعار" %}
-                                                        </button>
-                                                    </li>
-                                                    <li>
-                                                        <button class="dropdown-item" data-action="open-chat" data-user-id="{{ user_obj.id }}" data-user-name="{{ user_obj.get_full_name|default:user_obj.username|escapejs }}">
-                                                            <i class="fas fa-comments text-primary"></i>
-                                                            {% trans "فتح محادثة" %}
-                                                        </button>
-                                                    </li>
-
-                                                    {% if not user_obj.is_superuser %}
-                                                    <li><hr class="dropdown-divider"></li>
-                                                    <li>
-                                                        <button class="dropdown-item text-danger" data-action="delete-user" data-user-id="{{ user_obj.id }}" data-username="{{ user_obj.username }}">
-                                                            <i class="fas fa-trash-alt"></i>
-                                                            {% trans "حذف المستخدم" %}
-                                                        </button>
-                                                    </li>
-                                                    {% endif %}
-                                                </ul>
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="7" class="text-center py-5">
-                                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
-                                        <p class="text-muted">{% trans "لا يوجد مستخدمون يطابقون هذه المعايير." %}</p>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Pagination -->
-                    {% if is_paginated %}
-                    <div class="pagination-container">
-                        <ul class="pagination">
-                            {% if page_obj.has_previous %}
-                                <li class="page-item"><a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">&laquo;</a></li>
-                                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">&lsaquo;</a></li>
-                            {% endif %}
-
-                            {% for num in paginator.page_range %}
-                                {% if page_obj.number == num %}
-                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                                    <li class="page-item"><a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">{{ num }}</a></li>
-                                {% endif %}
-                            {% endfor %}
-
-                            {% if page_obj.has_next %}
-                                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">&rsaquo;</a></li>
-                                <li class="page-item"><a class="page-link" href="?page={{ paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">&raquo;</a></li>
-                            {% endif %}
-                        </ul>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
+  <!-- Search Card -->
+  <div class="search-card">
+    <form method="get">
+      <div class="row g-3 align-items-center">
+        <div class="col-md-6">
+          <div class="input-group">
+            <span class="input-group-text">
+              <i class="fas fa-search"></i>
+            </span>
+            <input
+              type="text"
+              name="search"
+              class="form-control"
+              placeholder="{% trans 'ابحث بالاسم، المستخدم، أو البريد...' %}"
+              value="{{ search_query }}"
+            />
+          </div>
         </div>
-    </div>
+        <div class="col-md-4">
+          <select name="role" class="form-select">
+            <option value="">{% trans "كل الأدوار" %}</option>
+            {% for value, name in profile_type_choices %}
+            <option value="{{ value }}" {% if value == role_filter %}selected{% endif %}>
+              {{ name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-primary-custom w-100" type="submit">
+            <i class="fas fa-search me-2"></i>
+            {% trans "بحث" %}
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
 
-{% endblock %}
+  <!-- Users Grid -->
+  {% if users %}
+  <div class="users-grid">
+    {% for user_obj in users %}
+    <div class="user-card">
+      <!-- User Card Header -->
+      <div class="user-card-header">
+        <div class="user-avatar-wrapper">
+          {% user_avatar user=user_obj size=64 css_class="user-avatar" %}
+        </div>
+        <div class="user-info flex-grow-1">
+          <h5>{{ user_obj.get_full_name|default:user_obj.username }}</h5>
+          <div class="username">
+            <i class="fas fa-at me-1"></i>{{ user_obj.username }}
+          </div>
+        </div>
+      </div>
+
+      <!-- User Details -->
+      <div class="user-details">
+        <div class="detail-row">
+          <span class="detail-label">
+            <i class="fas fa-envelope me-1"></i>
+            {% trans "البريد" %}
+          </span>
+          <span class="detail-value text-truncate" style="max-width: 200px;" title="{{ user_obj.email }}">
+            {{ user_obj.email }}
+          </span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">
+            <i class="fas fa-calendar me-1"></i>
+            {% trans "التسجيل" %}
+          </span>
+          <span class="detail-value">{{ user_obj.date_joined|date:"d M, Y" }}</span>
+        </div>
+      </div>
+
+      <!-- User Badges -->
+      <div class="user-badges">
+        <span class="badge badge-role">
+          <i class="fas fa-user-tag"></i>
+          {{ user_obj.get_profile_type_display }}
+        </span>
+
+        {% if user_obj.is_suspended %}
+        <span class="badge badge-suspended">
+          <i class="fas fa-pause-circle"></i>
+          {% trans "معلق" %}
+        </span>
+        {% elif user_obj.is_verified %}
+        <span class="badge badge-verified">
+          <i class="fas fa-check-circle"></i>
+          {% trans "موثق" %}
+        </span>
+        {% endif %}
+      </div>
+
+      <!-- Package Info -->
+      {% with active_package=user_obj.userpackage_set.all|first %}
+      {% if active_package %}
+      <div class="package-info">
+        <div class="d-flex justify-content-between align-items-center">
+          <span class="badge badge-package">
+            <i class="fas fa-crown"></i>
+            {{ active_package.package.name }}
+          </span>
+        </div>
+        <div class="package-stats">
+          <div class="package-stat">
+            <div class="package-stat-value">{{ active_package.ads_used }}</div>
+            <div class="package-stat-label">{% trans "مستخدم" %}</div>
+          </div>
+          <div class="package-stat">
+            <div class="package-stat-value">{{ active_package.ads_remaining }}</div>
+            <div class="package-stat-label">{% trans "متاح" %}</div>
+          </div>
+          <div class="package-stat">
+            <div class="package-stat-value">{{ active_package.package.ads_limit }}</div>
+            <div class="package-stat-label">{% trans "الإجمالي" %}</div>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="package-info text-center">
+        <span class="badge badge-no-package">
+          <i class="fas fa-times"></i>
+          {% trans "بدون اشتراك" %}
+        </span>
+      </div>
+      {% endif %}
+      {% endwith %}
+
+      <!-- User Actions -->
+      <div class="user-actions">
+        <a href="{% url 'main:admin_user_detail' user_obj.id %}" class="btn btn-action btn-view">
+          <i class="fas fa-eye me-1"></i>
+          {% trans "عرض" %}
+        </a>
+        <button class="btn btn-action btn-more w-100" onclick="toggleActionsPanel(this)">
+          <i class="fas fa-cog me-1"></i>
+          {% trans "إجراءات" %}
+        </button>
+      </div>
+
+      <!-- Expandable Actions Panel -->
+      <div class="actions-panel">
+        <div class="actions-grid">
+          <!-- Verification Section -->
+          <div class="action-section">
+            <div class="action-section-title">
+              <i class="fas fa-shield-alt"></i>
+              {% trans "التوثيق" %}
+            </div>
+          </div>
+          <button
+            class="action-btn success"
+            data-action="verify-email"
+            data-user-id="{{ user_obj.id }}"
+            data-verified="{{ user_obj.verification_status|yesno:'true,false' }}"
+          >
+            <i class="fas fa-{% if user_obj.verification_status == 'VERIFIED' %}times-circle{% else %}check-circle{% endif %}"></i>
+            {% if user_obj.verification_status == 'VERIFIED' %}{% trans "إلغاء توثيق الإيميل" %}{% else %}{% trans "توثيق الإيميل" %}{% endif %}
+          </button>
+          <button
+            class="action-btn success"
+            data-action="verify-phone"
+            data-user-id="{{ user_obj.id }}"
+            data-verified="{{ user_obj.is_mobile_verified|yesno:'true,false' }}"
+          >
+            <i class="fas fa-{% if user_obj.is_mobile_verified %}times-circle{% else %}check-circle{% endif %}"></i>
+            {% if user_obj.is_mobile_verified %}{% trans "إلغاء توثيق الهاتف" %}{% else %}{% trans "توثيق الهاتف" %}{% endif %}
+          </button>
+
+          <!-- Account Management Section -->
+          <div class="action-section">
+            <div class="action-section-title">
+              <i class="fas fa-user-cog"></i>
+              {% trans "إدارة الحساب" %}
+            </div>
+          </div>
+          <button
+            class="action-btn warning"
+            data-action="toggle-active"
+            data-user-id="{{ user_obj.id }}"
+            data-active="{{ user_obj.is_active|yesno:'true,false' }}"
+          >
+            <i class="fas fa-{% if user_obj.is_active %}ban{% else %}check{% endif %}"></i>
+            {% if user_obj.is_active %}{% trans "تعطيل الحساب" %}{% else %}{% trans "تفعيل الحساب" %}{% endif %}
+          </button>
+          <button
+            class="action-btn warning"
+            data-action="user-action"
+            data-user-id="{{ user_obj.id }}"
+            data-user-action="{% if user_obj.is_suspended %}unsuspend{% else %}suspend{% endif %}"
+          >
+            <i class="fas fa-user-clock"></i>
+            {% if user_obj.is_suspended %}{% trans "إلغاء التعليق" %}{% else %}{% trans "تعليق مؤقت" %}{% endif %}
+          </button>
+          <button
+            class="action-btn warning"
+            data-action="user-action"
+            data-user-id="{{ user_obj.id }}"
+            data-user-action="{% if user_obj.is_banned %}unban{% else %}ban{% endif %}"
+          >
+            <i class="fas fa-gavel"></i>
+            {% if user_obj.is_banned %}{% trans "إلغاء الحظر" %}{% else %}{% trans "حظر نهائي" %}{% endif %}
+          </button>
+          {% if user_obj.verification_status != 'VERIFIED' %}
+          <button
+            class="action-btn primary"
+            data-action="user-action"
+            data-user-id="{{ user_obj.id }}"
+            data-user-action="verify"
+          >
+            <i class="fas fa-shield-check"></i>
+            {% trans "توثيق المستخدم" %}
+          </button>
+          {% endif %}
+          <button
+            class="action-btn info"
+            data-action="change-role"
+            data-user-id="{{ user_obj.id }}"
+            data-bs-toggle="modal"
+            data-bs-target="#changeRoleModal"
+          >
+            <i class="fas fa-user-shield"></i>
+            {% trans "تغيير الدور" %}
+          </button>
+          <button
+            class="action-btn warning"
+            data-action="reset-password"
+            data-user-id="{{ user_obj.id }}"
+            data-username="{{ user_obj.username }}"
+          >
+            <i class="fas fa-key"></i>
+            {% trans "إعادة تعيين كلمة المرور" %}
+          </button>
+
+          <!-- Balance & Resources Section -->
+          <div class="action-section">
+            <div class="action-section-title">
+              <i class="fas fa-coins"></i>
+              {% trans "الرصيد والموارد" %}
+            </div>
+          </div>
+          {% with active_pkg=user_obj.ad_packages.all|first %}
+          <button
+            class="action-btn success"
+            data-action="add-balance"
+            data-user-id="{{ user_obj.id }}"
+            data-username="{{ user_obj.username }}"
+            data-balance="{% if active_pkg %}{{ active_pkg.ads_remaining }}{% else %}0{% endif %}"
+            data-bs-toggle="modal"
+            data-bs-target="#addBalanceModal"
+          >
+            <i class="fas fa-plus-circle"></i>
+            {% trans "إضافة رصيد إعلاني" %}
+          </button>
+          {% endwith %}
+
+          <!-- Communication Section -->
+          <div class="action-section" style="grid-column: 2 / -1;">
+            <div class="action-section-title">
+              <i class="fas fa-comments"></i>
+              {% trans "التواصل" %}
+            </div>
+          </div>
+          <button
+            class="action-btn info"
+            data-action="send-notification"
+            data-user-id="{{ user_obj.id }}"
+            data-username="{{ user_obj.username }}"
+          >
+            <i class="fas fa-bell"></i>
+            {% trans "إرسال إشعار" %}
+          </button>
+          <button
+            class="action-btn primary"
+            data-action="open-chat"
+            data-user-id="{{ user_obj.id }}"
+            data-user-name="{{ user_obj.get_full_name|default:user_obj.username|escapejs }}"
+          >
+            <i class="fas fa-comments"></i>
+            {% trans "فتح محادثة" %}
+          </button>
+
+          {% if not user_obj.is_superuser %}
+          <!-- Delete Section -->
+          <div class="action-section">
+            <div class="action-section-title" style="color: #dc2626; border-bottom-color: rgba(220, 38, 38, 0.3);">
+              <i class="fas fa-trash-alt"></i>
+              {% trans "منطقة الخطر" %}
+            </div>
+          </div>
+          <button
+            class="action-btn danger"
+            data-action="delete-user"
+            data-user-id="{{ user_obj.id }}"
+            data-username="{{ user_obj.username }}"
+            style="grid-column: 1 / -1;"
+          >
+            <i class="fas fa-trash-alt"></i>
+            {% trans "حذف المستخدم نهائياً" %}
+          </button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <i class="far fa-users"></i>
+    <h4>{% trans "لا يوجد مستخدمون" %}</h4>
+    <p class="text-muted">
+      {% trans "لا يوجد مستخدمون يطابقون هذه المعايير." %}
+    </p>
+  </div>
+  {% endif %}
+
+  <!-- Pagination -->
+  {% if is_paginated %}
+  <div class="d-flex justify-content-center">
+    <ul class="pagination">
+      {% if page_obj.has_previous %}
+      <li class="page-item">
+        <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">&laquo;</a>
+      </li>
+      <li class="page-item">
+        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">{% trans "السابق" %}</a>
+      </li>
+      {% endif %}
+
+      {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+        <li class="page-item"><a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">{{ num }}</a></li>
+        {% endif %}
+      {% endfor %}
+
+      {% if page_obj.has_next %}
+      <li class="page-item">
+        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">{% trans "التالي" %}</a>
+      </li>
+      <li class="page-item">
+        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">&raquo;</a>
+      </li>
+      {% endif %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+{% endblock admin_content %}
 
 {% block modals %}
-    <!-- Create New User Modal -->
-    <div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>
-                        <i class="fas fa-user-plus text-primary me-2"></i>
-                        <span>{% trans "إنشاء مستخدم جديد" %}</span>
-                    </h2>
-                    <button class="btn-close" data-bs-dismiss="modal">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <form id="createUserForm">
-                        {% csrf_token %}
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">{% trans "اسم المستخدم" %} <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="create_username" name="username" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">{% trans "البريد الإلكتروني" %} <span class="text-danger">*</span></label>
-                                <input type="email" class="form-control" id="create_email" name="email" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">{% trans "الاسم الأول" %}</label>
-                                <input type="text" class="form-control" id="create_first_name" name="first_name">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">{% trans "الاسم الأخير" %}</label>
-                                <input type="text" class="form-control" id="create_last_name" name="last_name">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">{% trans "كلمة المرور" %} <span class="text-danger">*</span></label>
-                                <input type="password" class="form-control" id="create_password" name="password" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">{% trans "رقم الهاتف" %}</label>
-                                <input type="text" class="form-control" id="create_phone" name="phone_number" placeholder="+966XXXXXXXXX">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">{% trans "الدور" %}</label>
-                                <select class="form-select" id="create_role" name="role">
-                                    <option value="member">{% trans "عضو" %}</option>
-                                    <option value="staff">{% trans "موظف" %}</option>
-                                    <option value="superuser">{% trans "مدير" %}</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">{% trans "الرصيد الإعلاني الأولي" %}</label>
-                                <input type="number" class="form-control" id="create_ad_balance" name="ad_balance" value="0" min="0">
-                            </div>
-                            <div class="col-12">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="create_email_verified" name="email_verified">
-                                    <label class="form-check-label" for="create_email_verified">
-                                        {% trans "تفعيل التحقق من البريد الإلكتروني" %}
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-12">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="create_phone_verified" name="is_mobile_verified">
-                                    <label class="form-check-label" for="create_phone_verified">
-                                        {% trans "تفعيل التحقق من رقم الهاتف" %}
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn-cancel" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-2"></i>
-                        {% trans "إلغاء" %}
-                    </button>
-                    <button type="button" id="confirmCreateUserBtn" class="btn-primary">
-                        <i class="fas fa-user-plus me-2"></i>
-                        {% trans "إنشاء المستخدم" %}
-                    </button>
-                </div>
-            </div>
-        </div>
+<!-- Create User Modal -->
+<div class="modal fade" id="createUserModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-user-plus me-2"></i>
+          {% trans "إنشاء مستخدم جديد" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="createUserForm">
+          {% csrf_token %}
+          <!-- Form fields will be added by your backend -->
+          <p class="text-muted">{% trans "نموذج إنشاء المستخدم" %}</p>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          {% trans "إلغاء" %}
+        </button>
+        <button type="button" class="btn btn-primary-custom">
+          {% trans "إنشاء" %}
+        </button>
+      </div>
     </div>
+  </div>
+</div>
 
-    <!-- Change User Role Modal -->
-    <div class="modal fade" id="changeRoleModal" tabindex="-1" aria-labelledby="changeRoleModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>
-                        <i class="fas fa-user-tag text-info me-2"></i>
-                        <span>{% trans "تغيير دور المستخدم" %}</span>
-                    </h2>
-                    <button class="btn-close" data-bs-dismiss="modal">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <form id="changeRoleForm">
-                        {% csrf_token %}
-                        <input type="hidden" id="rolechange_user_id">
-                        <div class="mb-3">
-                            <label class="form-label">{% trans "المستخدم" %}</label>
-                            <input type="text" class="form-control" id="rolechange_username" readonly>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">{% trans "الدور الحالي" %}</label>
-                            <input type="text" class="form-control" id="rolechange_current_role" readonly>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">{% trans "الدور الجديد" %} <span class="text-danger">*</span></label>
-                            <select class="form-select" id="rolechange_new_role" name="new_role" required>
-                                <option value="">{% trans "اختر الدور الجديد" %}</option>
-                                <option value="member">{% trans "عضو - صلاحيات محدودة" %}</option>
-                                <option value="staff">{% trans "موظف - الوصول إلى لوحة التحكم" %}</option>
-                                <option value="superuser">{% trans "مدير - كل الصلاحيات" %}</option>
-                            </select>
-                        </div>
-                        <div class="alert alert-warning">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            {% trans "تغيير الدور سيؤثر على صلاحيات المستخدم فوراً" %}
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn-cancel" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-2"></i>
-                        {% trans "إلغاء" %}
-                    </button>
-                    <button type="button" id="confirmChangeRoleBtn" class="btn-info">
-                        <i class="fas fa-user-tag me-2"></i>
-                        {% trans "تغيير الدور" %}
-                    </button>
-                </div>
-            </div>
-        </div>
+<!-- Change Role Modal -->
+<div class="modal fade" id="changeRoleModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-user-shield me-2"></i>
+          {% trans "تغيير دور المستخدم" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="changeRoleForm">
+          {% csrf_token %}
+          <input type="hidden" id="changeRoleUserId" name="user_id">
+          <div class="mb-3">
+            <label class="form-label">{% trans "الدور الجديد" %}</label>
+            <select name="role" class="form-select" required>
+              {% for value, name in profile_type_choices %}
+              <option value="{{ value }}">{{ name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          {% trans "إلغاء" %}
+        </button>
+        <button type="button" class="btn btn-primary-custom" onclick="submitChangeRole()">
+          {% trans "حفظ" %}
+        </button>
+      </div>
     </div>
+  </div>
+</div>
 
-    <!-- Add Ad Balance Modal -->
-    <div class="modal fade" id="addBalanceModal" tabindex="-1" aria-labelledby="addBalanceModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>
-                        <i class="fas fa-coins text-success me-2"></i>
-                        <span>{% trans "إضافة رصيد إعلاني" %}</span>
-                    </h2>
-                    <button class="btn-close" data-bs-dismiss="modal">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <form id="addBalanceForm">
-                        {% csrf_token %}
-                        <input type="hidden" id="balance_user_id">
-                        <div class="mb-3">
-                            <label class="form-label">{% trans "المستخدم" %}</label>
-                            <input type="text" class="form-control" id="balance_username" readonly>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">{% trans "الرصيد الحالي" %}</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" id="balance_current" readonly>
-                                <span class="input-group-text">{% trans "إعلان" %}</span>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">{% trans "المبلغ المضاف" %} <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control" id="balance_amount" name="amount" min="1" required>
-                            <small class="form-text text-muted">{% trans "أدخل عدد الإعلانات المراد إضافتها" %}</small>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">{% trans "ملاحظة" %}</label>
-                            <textarea class="form-control" id="balance_note" name="note" rows="3" placeholder="{% trans 'سبب الإضافة (اختياري)' %}"></textarea>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-2"></i>
-                        {% trans "إلغاء" %}
-                    </button>
-                    <button type="button" id="confirmAddBalanceBtn" class="btn btn-success">
-                        <i class="fas fa-coins me-2"></i>
-                        {% trans "إضافة الرصيد" %}
-                    </button>
-                </div>
-            </div>
-        </div>
+<!-- Add Balance Modal -->
+<div class="modal fade" id="addBalanceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-plus-circle me-2"></i>
+          {% trans "إضافة رصيد إعلاني" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="addBalanceForm">
+          {% csrf_token %}
+          <input type="hidden" id="addBalanceUserId" name="user_id">
+          <div class="mb-3">
+            <label class="form-label">{% trans "عدد الإعلانات" %}</label>
+            <input type="number" name="ads_count" class="form-control" min="1" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">{% trans "ملاحظات" %}</label>
+            <textarea name="notes" class="form-control" rows="3"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          {% trans "إلغاء" %}
+        </button>
+        <button type="button" class="btn btn-primary-custom" onclick="submitAddBalance()">
+          {% trans "إضافة" %}
+        </button>
+      </div>
     </div>
+  </div>
+</div>
 
-    <!-- Reset Password Modal -->
-    <div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-labelledby="resetPasswordModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>
-                        <i class="fas fa-key text-warning me-2"></i>
-                        <span>{% trans "إعادة تعيين كلمة المرور" %}</span>
-                    </h2>
-                    <button class="btn-close" data-bs-dismiss="modal">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <form id="resetPasswordForm">
-                        {% csrf_token %}
-                        <input type="hidden" id="reset_user_id">
-                        <div class="mb-3">
-                            <label class="form-label">{% trans "المستخدم" %}</label>
-                            <input type="text" class="form-control" id="reset_username" readonly>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">{% trans "كلمة المرور الجديدة" %} <span class="text-danger">*</span></label>
-                            <input type="password" class="form-control" id="reset_new_password" name="new_password" required minlength="8">
-                            <small class="form-text text-muted">{% trans "8 أحرف على الأقل" %}</small>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">{% trans "تأكيد كلمة المرور" %} <span class="text-danger">*</span></label>
-                            <input type="password" class="form-control" id="reset_confirm_password" name="confirm_password" required minlength="8">
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="reset_send_email" name="send_email" checked>
-                            <label class="form-check-label" for="reset_send_email">
-                                {% trans "إرسال كلمة المرور الجديدة إلى بريد المستخدم" %}
-                            </label>
-                        </div>
-                        <div class="alert alert-warning mt-3">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            {% trans "سيتم إعادة تعيين كلمة المرور فوراً" %}
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn-cancel" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-2"></i>
-                        {% trans "إلغاء" %}
-                    </button>
-                    <button type="button" id="confirmResetPasswordBtn" class="btn-warning">
-                        <i class="fas fa-key me-2"></i>
-                        {% trans "إعادة تعيين" %}
-                    </button>
-                </div>
-            </div>
-        </div>
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmationModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          <span id="confirmationModalTitle">{% trans "تأكيد العملية" %}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmationModalMessage"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="fas fa-times me-2"></i>
+          {% trans "إلغاء" %}
+        </button>
+        <button type="button" class="btn btn-primary-custom" id="confirmationModalConfirm">
+          <i class="fas fa-check me-2"></i>
+          {% trans "تأكيد" %}
+        </button>
+      </div>
     </div>
+  </div>
+</div>
 
-    <!-- Verify Email Confirmation Modal -->
-    <div class="modal fade" id="verifyEmailModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>
-                        <i class="fas fa-envelope-circle-check text-info me-2"></i>
-                        <span id="verifyEmailTitle">{% trans "تأكيد التحقق من البريد الإلكتروني" %}</span>
-                    </h2>
-                    <button class="btn-close" data-bs-dismiss="modal">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <span id="verifyEmailMessage"></span>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn-cancel" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-2"></i>
-                        {% trans "إلغاء" %}
-                    </button>
-                    <button type="button" id="confirmVerifyEmailBtn" class="btn-info">
-                        <i class="fas fa-check me-2"></i>
-                        {% trans "تأكيد" %}
-                    </button>
-                </div>
-            </div>
-        </div>
+<!-- Send Notification Modal -->
+<div class="modal fade" id="sendNotificationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-bell me-2"></i>
+          {% trans "إرسال إشعار" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="sendNotificationForm">
+          {% csrf_token %}
+          <input type="hidden" id="notificationUserId" name="user_id">
+          <div class="mb-3">
+            <label class="form-label">{% trans "المستخدم" %}</label>
+            <input type="text" id="notificationUsername" class="form-control" readonly>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">{% trans "عنوان الإشعار" %}</label>
+            <input type="text" name="title" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">{% trans "نص الإشعار" %}</label>
+            <textarea name="message" class="form-control" rows="4" required></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">{% trans "نوع الإشعار" %}</label>
+            <select name="notification_type" class="form-select">
+              <option value="info">{% trans "معلومات" %}</option>
+              <option value="warning">{% trans "تحذير" %}</option>
+              <option value="success">{% trans "نجاح" %}</option>
+              <option value="error">{% trans "خطأ" %}</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          {% trans "إلغاء" %}
+        </button>
+        <button type="button" class="btn btn-primary-custom" onclick="submitSendNotification()">
+          <i class="fas fa-paper-plane me-2"></i>
+          {% trans "إرسال" %}
+        </button>
+      </div>
     </div>
-
-    <!-- Verify Phone Confirmation Modal -->
-    <div class="modal fade" id="verifyPhoneModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>
-                        <i class="fas fa-phone-circle-check text-info me-2"></i>
-                        <span id="verifyPhoneTitle">{% trans "تأكيد التحقق من رقم الهاتف" %}</span>
-                    </h2>
-                    <button class="btn-close" data-bs-dismiss="modal">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <span id="verifyPhoneMessage"></span>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn-cancel" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-2"></i>
-                        {% trans "إلغاء" %}
-                    </button>
-                    <button type="button" id="confirmVerifyPhoneBtn" class="btn-info">
-                        <i class="fas fa-check me-2"></i>
-                        {% trans "تأكيد" %}
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Toggle Active Confirmation Modal -->
-    <div class="modal fade" id="toggleActiveModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>
-                        <i class="fas fa-user-check text-warning me-2"></i>
-                        <span id="toggleActiveTitle">{% trans "تأكيد تفعيل/تعطيل الحساب" %}</span>
-                    </h2>
-                    <button class="btn-close" data-bs-dismiss="modal">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <span id="toggleActiveMessage"></span>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn-cancel" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-2"></i>
-                        {% trans "إلغاء" %}
-                    </button>
-                    <button type="button" id="confirmToggleActiveBtn" class="btn-warning">
-                        <i class="fas fa-check me-2"></i>
-                        {% trans "تأكيد" %}
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Delete User Confirmation Modal -->
-    <div class="modal fade" id="deleteUserModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-danger text-white">
-                    <h2>
-                        <i class="fas fa-trash-alt me-2"></i>
-                        <span>{% trans "تأكيد حذف المستخدم" %}</span>
-                    </h2>
-                    <button class="btn-close btn-close-white" data-bs-dismiss="modal">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>{% trans "تحذير:" %}</strong>
-                        <p class="mb-0 mt-2">{% trans "هل أنت متأكد من حذف هذا المستخدم؟" %}</p>
-                        <p class="mb-0 mt-1"><strong>{% trans "هذا الإجراء لا يمكن التراجع عنه!" %}</strong></p>
-                    </div>
-                    <div class="mt-3">
-                        <p><strong>{% trans "سيتم حذف:" %}</strong></p>
-                        <ul>
-                            <li>{% trans "جميع بيانات المستخدم" %}</li>
-                            <li>{% trans "جميع إعلاناته" %}</li>
-                            <li>{% trans "جميع رسائله" %}</li>
-                        </ul>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn-cancel" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-2"></i>
-                        {% trans "إلغاء" %}
-                    </button>
-                    <button type="button" id="confirmDeleteUserBtn" class="btn-danger">
-                        <i class="fas fa-trash-alt me-2"></i>
-                        {% trans "حذف نهائياً" %}
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- User Action Confirmation Modal -->
-    <div class="modal fade" id="userActionModal" tabindex="-1" aria-labelledby="userActionModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>
-                        <i class="fas fa-user-shield text-warning me-2"></i>
-                        <span id="userActionTitle">{% trans "تأكيد الإجراء" %}</span>
-                    </h2>
-                    <button class="btn-close" data-action="close-modal" data-modal-id="userActionModal">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <span id="userActionMessage"></span>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn-cancel" data-action="close-modal" data-modal-id="userActionModal">
-                        <i class="fas fa-times me-2"></i>
-                        {% trans "إلغاء" %}
-                    </button>
-                    <button type="button" id="confirmUserActionBtn" class="btn-warning">
-                        <i class="fas fa-check me-2"></i>
-                        <span id="userActionButtonText">{% trans "تأكيد" %}</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-{% endblock %}
+  </div>
+</div>
+{% endblock modals %}
 
 {% block admin_extra_js %}
-    <script>
-        // Language code for URLs
-        const LANGUAGE_CODE = '{{ LANGUAGE_CODE }}';
+<script>
+// Toggle Actions Panel
+function toggleActionsPanel(button) {
+  const card = button.closest('.user-card');
+  const panel = card.querySelector('.actions-panel');
+  const isActive = panel.classList.contains('active');
 
-        // Suppress browser extension errors
-        window.addEventListener('error', function(e) {
-            if (e.message && e.message.includes('message channel closed')) {
-                e.preventDefault();
-                return true;
-            }
-        });
+  // Close all other panels
+  document.querySelectorAll('.actions-panel.active').forEach(p => {
+    if (p !== panel) {
+      p.classList.remove('active');
+      p.closest('.user-card').querySelector('.btn-more').classList.remove('active');
+    }
+  });
 
-        // Suppress unhandled promise rejections from extensions
-        window.addEventListener('unhandledrejection', function(e) {
-            if (e.reason && e.reason.message && e.reason.message.includes('message channel closed')) {
-                e.preventDefault();
-                return true;
-            }
-        });
+  // Toggle current panel
+  if (isActive) {
+    panel.classList.remove('active');
+    button.classList.remove('active');
+  } else {
+    panel.classList.add('active');
+    button.classList.add('active');
+  }
+}
 
-        // Toast Notification System
-        window.showNotification = function(message, type = 'success') {
-            const notification = document.createElement('div');
-            const typeClass = type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info';
-            const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle';
-            notification.className = `alert alert-${typeClass} position-fixed`;
-            notification.style.cssText = 'top: 20px; right: 20px; z-index: 10800; min-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: slideInRight 0.3s ease;';
-            notification.innerHTML = `
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-${icon} me-2"></i>
-                    <span>${message}</span>
-                </div>
-            `;
-            document.body.appendChild(notification);
+// Confirmation Modal Helper
+let confirmationCallback = null;
+const confirmationModal = new bootstrap.Modal(document.getElementById('confirmationModal'));
 
-            setTimeout(() => {
-                notification.style.opacity = '0';
-                notification.style.transition = 'opacity 0.3s ease';
-                setTimeout(() => notification.remove(), 300);
-            }, 3000);
-        };
+function showConfirmation(title, message, callback) {
+  document.getElementById('confirmationModalTitle').textContent = title;
+  document.getElementById('confirmationModalMessage').textContent = message;
+  confirmationCallback = callback;
+  confirmationModal.show();
+}
 
-        // Admin Users Management JavaScript
-        document.addEventListener('DOMContentLoaded', function () {
-            // Animate statistics cards
-            if (typeof gsap !== 'undefined') {
-                gsap.fromTo('.admin-stat-card', {
-                    opacity: 0,
-                    y: 30,
-                    scale: 0.95
-                }, {
-                    opacity: 1,
-                    y: 0,
-                    scale: 1,
-                    duration: 0.5,
-                    stagger: 0.1,
-                    ease: 'back.out(1.7)'
-                });
+// Handle confirmation modal confirm button
+document.getElementById('confirmationModalConfirm').addEventListener('click', () => {
+  if (confirmationCallback) {
+    confirmationCallback();
+    confirmationCallback = null;
+  }
+  confirmationModal.hide();
+});
 
-                // Animate content cards
-                gsap.fromTo('.admin-content-card', {
-                    opacity: 0,
-                    y: 20
-                }, {
-                    opacity: 1,
-                    y: 0,
-                    duration: 0.6,
-                    stagger: 0.15,
-                    ease: 'power2.out',
-                    delay: 0.3
-                });
-            }
-        });
+// Event delegation for all user actions
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
 
-        window.getCookie = function(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
-            }
-            return cookieValue;
-        };
+  const action = el.dataset.action;
+  const userId = el.dataset.userId;
 
-        // Modal helper functions
-        window.openModal = function(modalId) {
-            const modal = document.getElementById(modalId);
-            if (modal) {
-                modal.classList.add('active');
-            }
-        };
+  switch(action) {
+    case 'verify-email':
+      handleVerifyEmail(userId, el.dataset.verified === 'true');
+      break;
+    case 'verify-phone':
+      handleVerifyPhone(userId, el.dataset.verified === 'true');
+      break;
+    case 'toggle-active':
+      handleToggleActive(userId, el.dataset.active === 'true');
+      break;
+    case 'user-action':
+      handleUserAction(userId, el.dataset.userAction);
+      break;
+    case 'change-role':
+      document.getElementById('changeRoleUserId').value = userId;
+      break;
+    case 'reset-password':
+      handleResetPassword(userId, el.dataset.username);
+      break;
+    case 'add-balance':
+      document.getElementById('addBalanceUserId').value = userId;
+      break;
+    case 'send-notification':
+      handleSendNotification(userId, el.dataset.username);
+      break;
+    case 'open-chat':
+      handleOpenChat(userId, el.dataset.userName);
+      break;
+    case 'delete-user':
+      handleDeleteUser(userId, el.dataset.username);
+      break;
+  }
+});
 
-        window.closeModal = function(modalId) {
-            const modal = document.getElementById(modalId);
-            if (modal) {
-                modal.classList.remove('active');
-            }
-        };
+function handleVerifyEmail(userId, isVerified) {
+  const action = isVerified ? 'unverify' : 'verify';
+  const message = isVerified
+    ? '{% trans "هل تريد إلغاء توثيق البريد الإلكتروني لهذا المستخدم؟" %}'
+    : '{% trans "هل تريد توثيق البريد الإلكتروني لهذا المستخدم؟" %}';
 
-        // Close modal when clicking outside
-        window.addEventListener('click', function(event) {
-            if (event.target.classList.contains('modal')) {
-                event.target.classList.remove('active');
-            }
-        });
+  showConfirmation('{% trans "تأكيد التوثيق" %}', message, () => {
+    // Add your AJAX call here
+    fetch(`/admin/users/${userId}/verify-email/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken')
+      },
+      body: JSON.stringify({ action: action })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        showNotification(data.message || '{% trans "تم التحديث بنجاح" %}', 'success');
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
+      }
+    })
+    .catch(() => showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error'));
+  });
+}
 
-        // Close modal with Escape key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                const activeModal = document.querySelector('.modal.active');
-                if (activeModal && activeModal.id) {
-                    closeModal(activeModal.id);
-                }
-            }
-        });
+function handleVerifyPhone(userId, isVerified) {
+  const action = isVerified ? 'unverify' : 'verify';
+  const message = isVerified
+    ? '{% trans "هل تريد إلغاء توثيق رقم الهاتف لهذا المستخدم؟" %}'
+    : '{% trans "هل تريد توثيق رقم الهاتف لهذا المستخدم؟" %}';
 
-        // User action state variables
-        let currentUserId = null;
-        let currentUserAction = null;
-        let pendingEmailVerificationData = null;
-        let pendingPhoneVerificationData = null;
-        let pendingToggleActiveData = null;
-        let pendingDeleteUserData = null;
+  showConfirmation('{% trans "تأكيد التوثيق" %}', message, () => {
+    // Add your AJAX call here
+    fetch(`/admin/users/${userId}/verify-phone/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken')
+      },
+      body: JSON.stringify({ action: action })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        showNotification(data.message || '{% trans "تم التحديث بنجاح" %}', 'success');
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
+      }
+    })
+    .catch(() => showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error'));
+  });
+}
 
-        // Toggle Email Verification
-        function toggleEmailVerification(userId, currentlyVerified) {
-            const action = currentlyVerified ? 'إلغاء التحقق من البريد الإلكتروني' : 'تفعيل التحقق من البريد الإلكتروني';
+function handleToggleActive(userId, isActive) {
+  const action = isActive ? 'deactivate' : 'activate';
+  const message = isActive
+    ? '{% trans "هل تريد تعطيل حساب هذا المستخدم؟" %}'
+    : '{% trans "هل تريد تفعيل حساب هذا المستخدم؟" %}';
 
-            // Store data for confirmation
-            pendingEmailVerificationData = { userId, currentlyVerified };
+  showConfirmation('{% trans "تأكيد العملية" %}', message, () => {
+    // Add your AJAX call here
+    fetch(`/admin/users/${userId}/toggle-active/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken')
+      }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        showNotification(data.message || '{% trans "تم التحديث بنجاح" %}', 'success');
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
+      }
+    })
+    .catch(() => showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error'));
+  });
+}
 
-            // Update modal content
-            document.getElementById('verifyEmailMessage').textContent = `هل تريد ${action} لهذا المستخدم؟`;
+function handleUserAction(userId, userAction) {
+  let message = '';
+  let title = '{% trans "تأكيد العملية" %}';
 
-            // Show modal
-            const modal = new bootstrap.Modal(document.getElementById('verifyEmailModal'));
-            modal.show();
+  switch(userAction) {
+    case 'suspend':
+      message = '{% trans "هل تريد تعليق هذا المستخدم مؤقتاً؟" %}';
+      title = '{% trans "تأكيد التعليق" %}';
+      break;
+    case 'unsuspend':
+      message = '{% trans "هل تريد إلغاء تعليق هذا المستخدم؟" %}';
+      title = '{% trans "تأكيد إلغاء التعليق" %}';
+      break;
+    case 'ban':
+      message = '{% trans "هل تريد حظر هذا المستخدم نهائياً؟" %}';
+      title = '{% trans "تأكيد الحظر" %}';
+      break;
+    case 'unban':
+      message = '{% trans "هل تريد إلغاء حظر هذا المستخدم؟" %}';
+      title = '{% trans "تأكيد إلغاء الحظر" %}';
+      break;
+    case 'verify':
+      message = '{% trans "هل تريد توثيق هذا المستخدم؟" %}';
+      title = '{% trans "تأكيد التوثيق" %}';
+      break;
+  }
+
+  showConfirmation(title, message, () => {
+    // Add your AJAX call here
+    fetch(`/admin/users/${userId}/action/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken')
+      },
+      body: JSON.stringify({ action: userAction })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        showNotification(data.message || '{% trans "تم التحديث بنجاح" %}', 'success');
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
+      }
+    })
+    .catch(() => showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error'));
+  });
+}
+
+function handleResetPassword(userId, username) {
+  showConfirmation(
+    '{% trans "إعادة تعيين كلمة المرور" %}',
+    `{% trans "هل تريد إعادة تعيين كلمة المرور للمستخدم" %} "${username}"؟`,
+    () => {
+      // Add your AJAX call here
+      fetch(`/admin/users/${userId}/reset-password/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken')
         }
-
-        // Confirm Email Verification
-        function confirmEmailVerification() {
-            if (!pendingEmailVerificationData) return;
-
-            const { userId } = pendingEmailVerificationData;
-
-            // Close modal
-            const modalEl = document.getElementById('verifyEmailModal');
-            const modalInstance = bootstrap.Modal.getInstance(modalEl);
-            if (modalInstance) modalInstance.hide();
-
-            fetch(`/${LANGUAGE_CODE}/admin/users/${userId}/verify-email/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken'),
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    showNotification(data.message, 'success');
-                    setTimeout(() => location.reload(), 1000);
-                } else {
-                    showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
-                }
-            })
-            .catch(error => {
-                if (!error.message.includes('message channel')) {
-                    console.error('Error:', error);
-                    showNotification('{% trans "خطأ في الاتصال" %}', 'error');
-                }
-            });
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          showNotification(data.message || '{% trans "تم إعادة تعيين كلمة المرور بنجاح" %}', 'success');
+        } else {
+          showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
         }
+      })
+      .catch(() => showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error'));
+    }
+  );
+}
 
-        // Toggle Phone Verification
-        function togglePhoneVerification(userId, currentlyVerified) {
-            const action = currentlyVerified ? 'إلغاء التحقق من رقم الهاتف' : 'تفعيل التحقق من رقم الهاتف';
+function handleSendNotification(userId, username) {
+  document.getElementById('notificationUserId').value = userId;
+  document.getElementById('notificationUsername').value = username;
+  const modal = new bootstrap.Modal(document.getElementById('sendNotificationModal'));
+  modal.show();
+}
 
-            // Store data for confirmation
-            pendingPhoneVerificationData = { userId, currentlyVerified };
+function handleOpenChat(userId, userName) {
+  // Open chat with user - redirect or open in new tab
+  window.location.href = `/admin/chat/${userId}/`;
+}
 
-            // Update modal content
-            document.getElementById('verifyPhoneMessage').textContent = `هل تريد ${action} لهذا المستخدم؟`;
-
-            // Show modal
-            const modal = new bootstrap.Modal(document.getElementById('verifyPhoneModal'));
-            modal.show();
+function handleDeleteUser(userId, username) {
+  showConfirmation(
+    '{% trans "حذف المستخدم" %}',
+    `{% trans "هل أنت متأكد من حذف المستخدم" %} "${username}"؟\n{% trans "هذا الإجراء لا يمكن التراجع عنه!" %}`,
+    () => {
+      // Add your AJAX call here
+      fetch(`/admin/users/${userId}/delete/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken')
         }
-
-        // Confirm Phone Verification
-        function confirmPhoneVerification() {
-            if (!pendingPhoneVerificationData) return;
-
-            const { userId } = pendingPhoneVerificationData;
-
-            // Close modal
-            const modalEl = document.getElementById('verifyPhoneModal');
-            const modalInstance = bootstrap.Modal.getInstance(modalEl);
-            if (modalInstance) modalInstance.hide();
-
-            fetch(`/${LANGUAGE_CODE}/admin/users/${userId}/verify-phone/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken'),
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    showNotification(data.message, 'success');
-                    setTimeout(() => location.reload(), 1000);
-                } else {
-                    showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
-                }
-            })
-            .catch(error => {
-                if (!error.message.includes('message channel')) {
-                    console.error('Error:', error);
-                    showNotification('{% trans "خطأ في الاتصال" %}', 'error');
-                }
-            });
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          showNotification(data.message || '{% trans "تم حذف المستخدم بنجاح" %}', 'success');
+          setTimeout(() => location.reload(), 1000);
+        } else {
+          showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
         }
-
-        // Toggle User Active Status
-        function toggleUserActive(userId, currentlyActive) {
-            const action = currentlyActive ? 'تعطيل' : 'تفعيل';
-
-            // Store data for confirmation
-            pendingToggleActiveData = { userId, currentlyActive };
-
-            // Update modal content
-            document.getElementById('toggleActiveMessage').textContent = `هل تريد ${action} حساب هذا المستخدم؟`;
-
-            // Show modal
-            const modal = new bootstrap.Modal(document.getElementById('toggleActiveModal'));
-            modal.show();
-        }
-
-        // Confirm Toggle Active
-        function confirmToggleActive() {
-            if (!pendingToggleActiveData) return;
-
-            const { userId } = pendingToggleActiveData;
-
-            // Close modal
-            const modalEl = document.getElementById('toggleActiveModal');
-            const modalInstance = bootstrap.Modal.getInstance(modalEl);
-            if (modalInstance) modalInstance.hide();
-
-            fetch(`/${LANGUAGE_CODE}/admin/users/${userId}/toggle-active/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken'),
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    showNotification(data.message, 'success');
-                    setTimeout(() => location.reload(), 1000);
-                } else {
-                    showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
-                }
-            })
-            .catch(error => {
-                if (!error.message.includes('message channel')) {
-                    console.error('Error:', error);
-                    showNotification('{% trans "خطأ في الاتصال" %}', 'error');
-                }
-            });
-        }
-
-        // Open Change Role Modal
-        function openChangeRoleModal(userId, username, currentRole) {
-            document.getElementById('rolechange_user_id').value = userId;
-            document.getElementById('rolechange_username').value = username;
-            document.getElementById('rolechange_current_role').value = currentRole;
-
-            const modal = new bootstrap.Modal(document.getElementById('changeRoleModal'));
-            modal.show();
-        }
-
-        // Open Add Balance Modal
-        function openAddBalanceModal(userId, username, currentBalance) {
-            document.getElementById('balance_user_id').value = userId;
-            document.getElementById('balance_username').value = username;
-            document.getElementById('balance_current').value = currentBalance;
-            document.getElementById('balance_amount').value = '';
-            document.getElementById('balance_note').value = '';
-
-            const modal = new bootstrap.Modal(document.getElementById('addBalanceModal'));
-            modal.show();
-        }
-
-        // Reset User Password
-        function resetUserPassword(userId) {
-            // Get username from the table row
-            const row = document.querySelector(`[data-action="reset-password"][data-user-id="${userId}"]`).closest('tr');
-            const username = row.querySelector('td:nth-child(2)').textContent.trim();
-
-            // Populate modal
-            document.getElementById('reset_user_id').value = userId;
-            document.getElementById('reset_username').value = username;
-            document.getElementById('reset_new_password').value = '';
-            document.getElementById('reset_confirm_password').value = '';
-            document.getElementById('reset_send_email').checked = true;
-
-            // Show modal
-            const modal = new bootstrap.Modal(document.getElementById('resetPasswordModal'));
-            modal.show();
-        }
-
-        // Delete User
-        function deleteUser(userId) {
-            // Store data for confirmation
-            pendingDeleteUserData = { userId };
-
-            // Show modal
-            const modal = new bootstrap.Modal(document.getElementById('deleteUserModal'));
-            modal.show();
-        }
-
-        // Confirm Delete User
-        function confirmDeleteUser() {
-            if (!pendingDeleteUserData) return;
-
-            const { userId } = pendingDeleteUserData;
-
-            // Close modal
-            const modalEl = document.getElementById('deleteUserModal');
-            const modalInstance = bootstrap.Modal.getInstance(modalEl);
-            if (modalInstance) modalInstance.hide();
-
-            fetch(`/${LANGUAGE_CODE}/admin/users/${userId}/delete/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken'),
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    showNotification(data.message, 'success');
-                    setTimeout(() => location.reload(), 1000);
-                } else {
-                    showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
-                }
-            })
-            .catch(error => {
-                if (!error.message.includes('message channel')) {
-                    console.error('Error:', error);
-                    showNotification('{% trans "خطأ في الاتصال" %}', 'error');
-                }
-            });
-        }
-
-        // Event delegation for user management actions
-        document.addEventListener('click', function(e) {
-            const target = e.target.closest('[data-action]');
-            if (!target) return;
-
-            const action = target.dataset.action;
-
-            switch(action) {
-                case 'verify-email':
-                    const emailUserId = parseInt(target.dataset.userId);
-                    const emailVerified = target.dataset.verified === 'true';
-                    toggleEmailVerification(emailUserId, emailVerified);
-                    break;
-
-                case 'verify-phone':
-                    const phoneUserId = parseInt(target.dataset.userId);
-                    const phoneVerified = target.dataset.verified === 'true';
-                    togglePhoneVerification(phoneUserId, phoneVerified);
-                    break;
-
-                case 'toggle-active':
-                    const activeUserId = parseInt(target.dataset.userId);
-                    const isActive = target.dataset.active === 'true';
-                    toggleUserActive(activeUserId, isActive);
-                    break;
-
-                case 'change-role':
-                    const roleUserId = parseInt(target.dataset.userId);
-                    const username = target.closest('tr').querySelector('td:nth-child(2)').textContent.trim();
-                    const currentRoleBadge = target.closest('tr').querySelector('.badge');
-                    const currentRole = currentRoleBadge ? currentRoleBadge.textContent.trim() : '';
-                    openChangeRoleModal(roleUserId, username, currentRole);
-                    break;
-
-                case 'add-balance':
-                    const balanceUserId = parseInt(target.dataset.userId);
-                    const balanceUsername = target.dataset.username;
-                    const currentBalance = parseInt(target.dataset.balance) || 0;
-                    openAddBalanceModal(balanceUserId, balanceUsername, currentBalance);
-                    break;
-
-                case 'reset-password':
-                    const resetUserId = parseInt(target.dataset.userId);
-                    resetUserPassword(resetUserId);
-                    break;
-
-                case 'send-notification':
-                    const notifyUserId = parseInt(target.dataset.userId);
-                    const notifyUsername = target.dataset.username || '';
-                    window.location.href = `/${LANGUAGE_CODE}/admin/users/${notifyUserId}/`;
-                    break;
-
-                case 'delete-user':
-                    const deleteUserId = parseInt(target.dataset.userId);
-                    deleteUser(deleteUserId);
-                    break;
-
-                case 'user-action':
-                    const userAction = target.dataset.userAction;
-                    const userId = parseInt(target.dataset.userId);
-                    if (userAction && userId) {
-                        handleUserAction(userAction, userId);
-                    }
-                    break;
-
-                case 'close-modal':
-                    const modalId = target.dataset.modalId;
-                    if (modalId) {
-                        const modalEl = document.getElementById(modalId);
-                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                        if (modalInstance) modalInstance.hide();
-                    }
-                    break;
-            }
-        });
-
-        function handleUserAction(action, userId) {
-            if (!action || !userId) return;
-
-            currentUserId = userId;
-            currentUserAction = action;
-
-            const msgMap = {
-                suspend: '{% trans "هل أنت متأكد من تعليق هذا المستخدم؟ سيكون مؤقتاً ويمكن إلغاؤه." %}',
-                unsuspend: '{% trans "هل أنت متأكد من إلغاء تعليق هذا المستخدم؟" %}',
-                ban: '{% trans "هل أنت متأكد من حظر هذا المستخدم نهائياً؟ سيتم تعطيل حسابه بشكل كامل." %}',
-                unban: '{% trans "هل أنت متأكد من إلغاء حظر هذا المستخدم؟" %}',
-                verify: '{% trans "هل أنت متأكد من توثيق هذا المستخدم؟" %}'
-            };
-            const confirmMsg = msgMap[action] || '{% trans "هل أنت متأكد؟" %}';
-
-            const buttonTextMap = {
-                suspend: '{% trans "تعليق" %}',
-                unsuspend: '{% trans "إلغاء التعليق" %}',
-                ban: '{% trans "حظر نهائياً" %}',
-                unban: '{% trans "إلغاء الحظر" %}',
-                verify: '{% trans "توثيق" %}'
-            };
-            const buttonText = buttonTextMap[action] || '{% trans "تأكيد" %}';
-
-            document.getElementById('userActionMessage').textContent = confirmMsg;
-            document.getElementById('userActionButtonText').textContent = buttonText;
-
-            const modal = new bootstrap.Modal(document.getElementById('userActionModal'));
-            modal.show();
-        }
-
-        // Confirm user action handler
-        document.addEventListener('DOMContentLoaded', function() {
-            // Email Verification Confirmation Handler
-            const confirmVerifyEmailBtn = document.getElementById('confirmVerifyEmailBtn');
-            if (confirmVerifyEmailBtn) {
-                confirmVerifyEmailBtn.addEventListener('click', confirmEmailVerification);
-            }
-
-            // Phone Verification Confirmation Handler
-            const confirmVerifyPhoneBtn = document.getElementById('confirmVerifyPhoneBtn');
-            if (confirmVerifyPhoneBtn) {
-                confirmVerifyPhoneBtn.addEventListener('click', confirmPhoneVerification);
-            }
-
-            // Toggle Active Confirmation Handler
-            const confirmToggleActiveBtn = document.getElementById('confirmToggleActiveBtn');
-            if (confirmToggleActiveBtn) {
-                confirmToggleActiveBtn.addEventListener('click', confirmToggleActive);
-            }
-
-            // Delete User Confirmation Handler
-            const confirmDeleteUserBtn = document.getElementById('confirmDeleteUserBtn');
-            if (confirmDeleteUserBtn) {
-                confirmDeleteUserBtn.addEventListener('click', confirmDeleteUser);
-            }
-
-            // Create User Modal Handler
-            const confirmCreateUserBtn = document.getElementById('confirmCreateUserBtn');
-            if (confirmCreateUserBtn) {
-                confirmCreateUserBtn.addEventListener('click', function() {
-                    const form = document.getElementById('createUserForm');
-                    const formData = new FormData(form);
-
-                    // Validate required fields
-                    const username = formData.get('username');
-                    const email = formData.get('email');
-                    const password = formData.get('password');
-
-                    if (!username || !email || !password) {
-                        showNotification('{% trans "يرجى ملء جميع الحقول المطلوبة" %}', 'error');
-                        return;
-                    }
-
-                    // Prepare data
-                    const data = {
-                        username: username,
-                        email: email,
-                        password: password,
-                        first_name: formData.get('first_name') || '',
-                        last_name: formData.get('last_name') || '',
-                        phone_number: formData.get('phone_number') || '',
-                        role: formData.get('role') || 'member',
-                        ad_balance: parseInt(formData.get('ad_balance')) || 0,
-                        email_verified: document.getElementById('create_email_verified').checked,
-                        is_mobile_verified: document.getElementById('create_phone_verified').checked
-                    };
-
-                    fetch(`/${LANGUAGE_CODE}/admin/users/create/`, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': getCookie('csrftoken'),
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(data)
-                    })
-                    .then(r => r.json())
-                    .then(data => {
-                        const modalEl = document.getElementById('createUserModal');
-                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                        if (modalInstance) modalInstance.hide();
-
-                        if (data.success) {
-                            showNotification(data.message || '{% trans "تم إنشاء المستخدم بنجاح" %}', 'success');
-                            setTimeout(() => location.reload(), 1000);
-                        } else {
-                            showNotification(data.message || '{% trans "حدث خطأ أثناء إنشاء المستخدم" %}', 'error');
-                        }
-                    })
-                    .catch(error => {
-                        const modalEl = document.getElementById('createUserModal');
-                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                        if (modalInstance) modalInstance.hide();
-
-                        if (!error.message.includes('message channel')) {
-                            console.error('Error:', error);
-                            showNotification('{% trans "خطأ في الاتصال بالخادم" %}', 'error');
-                        }
-                    });
-                });
-            }
-
-            // Change Role Modal Handler
-            const confirmChangeRoleBtn = document.getElementById('confirmChangeRoleBtn');
-            if (confirmChangeRoleBtn) {
-                confirmChangeRoleBtn.addEventListener('click', function() {
-                    const userId = document.getElementById('rolechange_user_id').value;
-                    const newRole = document.getElementById('rolechange_new_role').value;
-
-                    if (!newRole) {
-                        showNotification('{% trans "يرجى اختيار الدور الجديد" %}', 'error');
-                        return;
-                    }
-
-                    fetch(`/${LANGUAGE_CODE}/admin/users/${userId}/change-role/`, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': getCookie('csrftoken'),
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ role: newRole })
-                    })
-                    .then(r => r.json())
-                    .then(data => {
-                        const modalEl = document.getElementById('changeRoleModal');
-                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                        if (modalInstance) modalInstance.hide();
-
-                        if (data.success) {
-                            showNotification(data.message || '{% trans "تم تغيير الدور بنجاح" %}', 'success');
-                            setTimeout(() => location.reload(), 1000);
-                        } else {
-                            showNotification(data.message || '{% trans "حدث خطأ أثناء تغيير الدور" %}', 'error');
-                        }
-                    })
-                    .catch(error => {
-                        const modalEl = document.getElementById('changeRoleModal');
-                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                        if (modalInstance) modalInstance.hide();
-
-                        if (!error.message.includes('message channel')) {
-                            console.error('Error:', error);
-                            showNotification('{% trans "خطأ في الاتصال بالخادم" %}', 'error');
-                        }
-                    });
-                });
-            }
-
-            // Add Balance Modal Handler
-            const confirmAddBalanceBtn = document.getElementById('confirmAddBalanceBtn');
-            if (confirmAddBalanceBtn) {
-                confirmAddBalanceBtn.addEventListener('click', function() {
-                    const userId = document.getElementById('balance_user_id').value;
-                    const amount = parseInt(document.getElementById('balance_amount').value);
-                    const note = document.getElementById('balance_note').value;
-
-                    if (!amount || amount < 1) {
-                        showNotification('{% trans "يرجى إدخال مبلغ صحيح" %}', 'error');
-                        return;
-                    }
-
-                    fetch(`/${LANGUAGE_CODE}/admin/users/${userId}/add-balance/`, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': getCookie('csrftoken'),
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            amount: amount,
-                            note: note || ''
-                        })
-                    })
-                    .then(r => r.json())
-                    .then(data => {
-                        const modalEl = document.getElementById('addBalanceModal');
-                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                        if (modalInstance) modalInstance.hide();
-
-                        if (data.success) {
-                            showNotification(data.message || '{% trans "تمت إضافة الرصيد بنجاح" %}', 'success');
-                            setTimeout(() => location.reload(), 1000);
-                        } else {
-                            showNotification(data.message || '{% trans "حدث خطأ أثناء إضافة الرصيد" %}', 'error');
-                        }
-                    })
-                    .catch(error => {
-                        const modalEl = document.getElementById('addBalanceModal');
-                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                        if (modalInstance) modalInstance.hide();
-
-                        if (!error.message.includes('message channel')) {
-                            console.error('Error:', error);
-                            showNotification('{% trans "خطأ في الاتصال بالخادم" %}', 'error');
-                        }
-                    });
-                });
-            }
-
-            // Reset Password Modal Handler
-            const confirmResetPasswordBtn = document.getElementById('confirmResetPasswordBtn');
-            if (confirmResetPasswordBtn) {
-                confirmResetPasswordBtn.addEventListener('click', function() {
-                    const userId = document.getElementById('reset_user_id').value;
-                    const newPassword = document.getElementById('reset_new_password').value;
-                    const confirmPassword = document.getElementById('reset_confirm_password').value;
-                    const sendEmail = document.getElementById('reset_send_email').checked;
-
-                    // Validate password length
-                    if (!newPassword || newPassword.length < 8) {
-                        showNotification('{% trans "كلمة المرور يجب أن تحتوي على 8 أحرف على الأقل" %}', 'error');
-                        return;
-                    }
-
-                    // Validate passwords match
-                    if (newPassword !== confirmPassword) {
-                        showNotification('{% trans "كلمتا المرور غير متطابقتين" %}', 'error');
-                        return;
-                    }
-
-                    fetch(`/${LANGUAGE_CODE}/admin/users/${userId}/reset-password/`, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': getCookie('csrftoken'),
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            new_password: newPassword,
-                            send_email: sendEmail
-                        })
-                    })
-                    .then(r => r.json())
-                    .then(data => {
-                        const modalEl = document.getElementById('resetPasswordModal');
-                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                        if (modalInstance) modalInstance.hide();
-
-                        if (data.success) {
-                            showNotification(data.message || '{% trans "تم إعادة تعيين كلمة المرور بنجاح" %}', 'success');
-                        } else {
-                            showNotification(data.message || '{% trans "حدث خطأ أثناء إعادة تعيين كلمة المرور" %}', 'error');
-                        }
-                    })
-                    .catch(error => {
-                        const modalEl = document.getElementById('resetPasswordModal');
-                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                        if (modalInstance) modalInstance.hide();
-
-                        if (!error.message.includes('message channel')) {
-                            console.error('Error:', error);
-                            showNotification('{% trans "خطأ في الاتصال بالخادم" %}', 'error');
-                        }
-                    });
-                });
-            }
-
-            // Original confirm user action handler
-            const confirmUserActionBtn = document.getElementById('confirmUserActionBtn');
-            if (confirmUserActionBtn) {
-                confirmUserActionBtn.addEventListener('click', function() {
-                    if (currentUserId === null || currentUserAction === null) return;
-
-                    const url = "{% url 'main:admin_user_action' 0 %}".replace('0', currentUserId);
-
-                    fetch(url, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': getCookie('csrftoken'),
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ action: currentUserAction })
-                    })
-                    .then(r => {
-                        if (!r.ok) throw new Error('Network response was not ok');
-                        return r.json();
-                    })
-                    .then(data => {
-                        const modalEl = document.getElementById('userActionModal');
-                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                        if (modalInstance) modalInstance.hide();
-
-                        if (data.success) {
-                            showNotification(data.message || '{% trans "تمت العملية بنجاح." %}', 'success');
-                            setTimeout(() => location.reload(), 1000);
-                        } else {
-                            showNotification(data.message || '{% trans "حدث خطأ أثناء تنفيذ العملية." %}', 'error');
-                        }
-                    })
-                    .catch((error) => {
-                        const modalEl = document.getElementById('userActionModal');
-                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                        if (modalInstance) modalInstance.hide();
-
-                        // Only show error if it's not from browser extension
-                        if (!error.message.includes('message channel')) {
-                            console.error('Error:', error);
-                            showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'error');
-                        }
-                    });
-                });
-            }
-        });
-    </script>
-{% endblock %}
+      })
+      .catch(() => showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error'));
+    }
+  );
+}
+
+function submitChangeRole() {
+  const form = document.getElementById('changeRoleForm');
+  const formData = new FormData(form);
+  const userId = document.getElementById('changeRoleUserId').value;
+
+  fetch(`/admin/users/${userId}/change-role/`, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': getCookie('csrftoken')
+    },
+    body: formData
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      const modal = bootstrap.Modal.getInstance(document.getElementById('changeRoleModal'));
+      modal.hide();
+      showNotification(data.message || '{% trans "تم تغيير الدور بنجاح" %}', 'success');
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
+    }
+  })
+  .catch(() => showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error'));
+}
+
+function submitAddBalance() {
+  const form = document.getElementById('addBalanceForm');
+  const formData = new FormData(form);
+  const userId = document.getElementById('addBalanceUserId').value;
+
+  fetch(`/admin/users/${userId}/add-balance/`, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': getCookie('csrftoken')
+    },
+    body: formData
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      const modal = bootstrap.Modal.getInstance(document.getElementById('addBalanceModal'));
+      modal.hide();
+      showNotification(data.message || '{% trans "تمت إضافة الرصيد بنجاح" %}', 'success');
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
+    }
+  })
+  .catch(() => showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error'));
+}
+
+function submitSendNotification() {
+  const form = document.getElementById('sendNotificationForm');
+  const formData = new FormData(form);
+  const userId = document.getElementById('notificationUserId').value;
+
+  fetch(`/admin/users/${userId}/send-notification/`, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': getCookie('csrftoken')
+    },
+    body: formData
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      const modal = bootstrap.Modal.getInstance(document.getElementById('sendNotificationModal'));
+      modal.hide();
+      form.reset();
+      showNotification(data.message || '{% trans "تم إرسال الإشعار بنجاح" %}', 'success');
+    } else {
+      showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
+    }
+  })
+  .catch(() => showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error'));
+}
+
+function getCookie(name) {
+  let value = null;
+  if (document.cookie && document.cookie !== '') {
+    document.cookie.split(';').forEach(c => {
+      c = c.trim();
+      if (c.startsWith(name + '=')) {
+        value = decodeURIComponent(c.substring(name.length + 1));
+      }
+    });
+  }
+  return value;
+}
+
+function showNotification(message, type = 'info') {
+  // Use your existing notification system or create a simple one
+  if (window.showNotification) {
+    window.showNotification(message, type);
+  } else {
+    // Fallback to alert if no notification system exists
+    alert(message);
+  }
+}
+</script>
+{% endblock admin_extra_js %}

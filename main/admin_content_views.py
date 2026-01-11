@@ -250,34 +250,28 @@ def admin_edit_contactpage(request):
 @user_passes_test(is_admin)
 def admin_edit_aboutpage(request):
     """Edit about page"""
+    from content.forms import AboutPageForm
+
     about_page = AboutPage.get_solo()
 
     if request.method == "POST":
-        try:
-            about_page.title = request.POST.get("title", "")
-            about_page.title_ar = request.POST.get("title_ar", "")
-            about_page.content = request.POST.get("content", "")
-            about_page.content_ar = request.POST.get("content_ar", "")
-            about_page.mission = request.POST.get("mission", "")
-            about_page.mission_ar = request.POST.get("mission_ar", "")
-            about_page.vision = request.POST.get("vision", "")
-            about_page.vision_ar = request.POST.get("vision_ar", "")
-            about_page.values = request.POST.get("values", "")
-            about_page.values_ar = request.POST.get("values_ar", "")
-
-            if "featured_image" in request.FILES:
-                about_page.featured_image = request.FILES["featured_image"]
-
-            about_page.save()
-
-            messages.success(request, _("تم تحديث صفحة من نحن بنجاح"))
-            return redirect("main:admin_site_content")
-
-        except Exception as e:
-            messages.error(request, f"حدث خطأ: {str(e)}")
+        form = AboutPageForm(request.POST, request.FILES, instance=about_page)
+        if form.is_valid():
+            try:
+                form.save()
+                messages.success(request, _("تم تحديث صفحة من نحن بنجاح"))
+                return redirect("main:admin_site_content")
+            except Exception as e:
+                messages.error(request, f"حدث خطأ: {str(e)}")
+        else:
+            messages.error(request, _("يرجى تصحيح الأخطاء في النموذج"))
+    else:
+        form = AboutPageForm(instance=about_page)
 
     context = {
         "about_page": about_page,
+        "form": form,
+        "page_title": _("تعديل صفحة من نحن"),
     }
 
     return render(request, "admin_dashboard/edit_aboutpage.html", context)
