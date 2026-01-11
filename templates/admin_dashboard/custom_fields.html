@@ -723,16 +723,13 @@
     };
 
     // URL patterns with language prefix
-            max-height: 100vh;
-            margin: 0;
-        }
+    const CUSTOM_FIELD_URLS = {
+        get: (id) => `{% url 'main:admin_custom_field_get' 0 %}`.replace('/0/', `/${id}/`),
+        save: "{% url 'main:admin_custom_field_save' %}",
+        delete: (id) => `{% url 'main:admin_custom_field_delete' 0 %}`.replace('/0/', `/${id}/`),
+        addToCategories: "{% url 'main:admin_custom_field_add_to_categories' %}"
+    };
 
-        .modal-content {
-            max-height: 100vh;
-            border-radius: 0;
-        }
-
-        .modal-body {
     // Wait for DOM to be fully loaded
     document.addEventListener('DOMContentLoaded', function() {
         // Ensure Bootstrap modals are properly initialized
@@ -1007,13 +1004,19 @@
             console.error('Error:', error);
             showError('{% trans "حدث خطأ أثناء إضافة الحقل" %}');
         });
-    }       }
+    }
+
+    function deleteCustomField(fieldId, fieldName) {
+        if (!confirm(`هل أنت متأكد من حذف الحقل "${fieldName}"؟`)) {
+            return;
+        }
+
+        fetch(CUSTOM_FIELD_URLS.delete(fieldId), {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') }
         })
         .then(response => response.json())
         .then(data => {
-            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteFieldModal'));
-            if (modal) modal.hide();
-
             if (data.success) {
                 showSuccess(data.message || '{% trans "تم حذف الحقل بنجاح" %}');
                 setTimeout(() => location.reload(), 1000);
