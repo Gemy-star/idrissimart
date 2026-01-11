@@ -6003,15 +6003,15 @@ def ad_publisher_detail(request, ad_id):
 def dashboard_redirect(request):
     """
     Smart dashboard redirect based on user role:
-    - Superusers/Staff -> Admin Dashboard
+    - Superusers -> Admin Dashboard
     - Publisher profile -> Publisher Dashboard (My Ads)
     - Users with ads -> Publisher Dashboard (My Ads)
     - Regular users -> Home page
     """
     user = request.user
 
-    # Redirect admins to admin dashboard
-    if user.is_superuser or user.is_staff:
+    # Redirect only superusers to admin dashboard (not staff)
+    if user.is_superuser:
         return redirect("main:admin_dashboard")
 
     # Both DEFAULT and PUBLISHER users go to publisher dashboard

@@ -1,236 +1,458 @@
-{% extends 'dashboard/base.html' %}
-{% load static i18n %}
+{% extends 'dashboard/base.html' %} {% load static i18n idrissimart_tags %} {%
+block publisher_title %} {% trans "سجل المدفوعات" %} - {% trans "إدريسي مارت" %}
+{% endblock %} {% block publisher_extra_css %}
+<style>
+  /* Payment History Page Styles */
+  .dashboard-header {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: linear-gradient(
+      135deg,
+      rgba(75, 49, 94, 0.08),
+      rgba(107, 76, 122, 0.05)
+    );
+    border-radius: 12px;
+    border-left: 4px solid #4b315e;
+  }
 
-{% block publisher_title %}{% trans "سجل المدفوعات" %}{% endblock %}
+  .dashboard-header h1 {
+    color: #2c3e50;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
 
-{% block publisher_content %}
+  [data-theme='dark'] .dashboard-header {
+    background: linear-gradient(
+      135deg,
+      rgba(183, 148, 246, 0.1),
+      rgba(107, 76, 122, 0.08)
+    );
+    border-left-color: #b794f6;
+  }
+
+  [data-theme='dark'] .dashboard-header h1 {
+    color: #e0e0e0;
+  }
+
+  /* Stats Cards */
+  .stats-card {
+    padding: 1.5rem;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  .stats-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+  }
+
+  [data-theme='dark'] .stats-card {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  [data-theme='dark'] .stats-card:hover {
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+  }
+
+  .stats-card h3 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+
+  .stats-card p {
+    margin: 0;
+    font-size: 0.9rem;
+    opacity: 0.9;
+  }
+
+  /* Card Styles */
+  .card {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  }
+
+  [data-theme='dark'] .card {
+    background: #1e1e2e;
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .card-header {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    padding: 1rem 1.25rem;
+  }
+
+  [data-theme='dark'] .card-header {
+    background: linear-gradient(135deg, #2a2a3e, #1e1e2e);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .card-header h5,
+  .card-header h6 {
+    color: #2c3e50;
+    font-weight: 600;
+  }
+
+  [data-theme='dark'] .card-header h5,
+  [data-theme='dark'] .card-header h6 {
+    color: #e0e0e0;
+  }
+
+  /* Table Styles */
+  .table {
+    margin-bottom: 0;
+  }
+
+  .table thead th {
+    background: #f8f9fa;
+    color: #495057;
+    font-weight: 600;
+    border-bottom: 2px solid #dee2e6;
+    padding: 1rem;
+    white-space: nowrap;
+  }
+
+  [data-theme='dark'] .table thead th {
+    background: #2a2a3e;
+    color: #adb5bd;
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .table tbody tr {
+    transition: all 0.2s ease;
+  }
+
+  .table tbody tr:hover {
+    background: #f8f9fa;
+    transform: translateX(-2px);
+  }
+
+  [data-theme='dark'] .table tbody tr:hover {
+    background: #2a2a3e;
+  }
+
+  .table tbody td {
+    padding: 1rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  [data-theme='dark'] .table tbody td {
+    border-bottom-color: rgba(255, 255, 255, 0.05);
+  }
+
+  /* Badge Styles */
+  .badge {
+    font-size: 0.85rem;
+    padding: 0.5rem 0.75rem;
+    font-weight: 500;
+  }
+
+  /* Empty State */
+  .empty-state {
+    text-align: center;
+    padding: 3rem;
+  }
+
+  .empty-state i {
+    color: #ccc;
+    margin-bottom: 1rem;
+  }
+
+  [data-theme='dark'] .empty-state i {
+    color: #666;
+  }
+
+  .empty-state h5 {
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+  }
+
+  [data-theme='dark'] .empty-state h5 {
+    color: #e0e0e0;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .dashboard-header {
+      padding: 1rem;
+    }
+
+    .stats-card {
+      margin-bottom: 1rem;
+    }
+
+    .table {
+      font-size: 0.9rem;
+    }
+  }
+</style>
+{% endblock %} {% block publisher_content %}
+<!-- Page Header -->
 <div class="dashboard-header mb-4">
-    <div class="d-flex justify-content-between align-items-center">
-        <div>
-            <h1><i class="fas fa-money-bill-wave"></i> {% trans "سجل المدفوعات - Payment History" %}</h1>
-            <p class="text-muted">{% trans "جميع مدفوعاتك وحالتها - All your payments and their status" %}</p>
-        </div>
-        <a href="{% url 'main:dashboard' %}" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left"></i> {% trans "العودة - Back" %}
-        </a>
+  <div class="d-flex justify-content-between align-items-center">
+    <div>
+      <h1>
+        <i class="fas fa-money-bill-wave"></i> {% trans "سجل المدفوعات" %}
+      </h1>
+      <p class="text-muted mb-0">{% trans "جميع مدفوعاتك وحالتها الحالية" %}</p>
     </div>
+    <a href="{% url 'main:dashboard' %}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> {% trans "العودة للرئيسية" %}
+    </a>
+  </div>
 </div>
 
-<!-- Payment Statistics -->
-<div class="row mb-4">
-    <div class="col-md-3 mb-3">
-        <div class="stats-card bg-primary text-white">
-            <h3>{{ total_payments }}</h3>
-            <p><i class="fas fa-receipt"></i> {% trans "إجمالي المدفوعات - Total Payments" %}</p>
-        </div>
+<!-- Statistics Section -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3 col-sm-6">
+    <div class="stats-card bg-primary text-white">
+      <h3>{{ total_payments }}</h3>
+      <p><i class="fas fa-receipt me-2"></i>{% trans "إجمالي المدفوعات" %}</p>
     </div>
-    <div class="col-md-3 mb-3">
-        <div class="stats-card bg-success text-white">
-            <h3>{{ completed_payments }}</h3>
-            <p><i class="fas fa-check-circle"></i> {% trans "مكتملة - Completed" %}</p>
-        </div>
+  </div>
+  <div class="col-md-3 col-sm-6">
+    <div class="stats-card bg-success text-white">
+      <h3>{{ completed_payments }}</h3>
+      <p><i class="fas fa-check-circle me-2"></i>{% trans "مكتملة" %}</p>
     </div>
-    <div class="col-md-3 mb-3">
-        <div class="stats-card bg-warning text-white">
-            <h3>{{ pending_payments }}</h3>
-            <p><i class="fas fa-clock"></i> {% trans "قيد الانتظار - Pending" %}</p>
-        </div>
+  </div>
+  <div class="col-md-3 col-sm-6">
+    <div class="stats-card bg-warning text-white">
+      <h3>{{ pending_payments }}</h3>
+      <p><i class="fas fa-clock me-2"></i>{% trans "قيد الانتظار" %}</p>
     </div>
-    <div class="col-md-3 mb-3">
-        <div class="stats-card bg-info text-white">
-            {% load idrissimart_tags %}
-            {% get_country_currency as currency %}
-            <h3>{{ total_spent|floatformat:2 }} {{ currency|currency_symbol }}</h3>
-            <p><i class="fas fa-coins"></i> {% trans "إجمالي المبلغ - Total Spent" %}</p>
-        </div>
+  </div>
+  <div class="col-md-3 col-sm-6">
+    <div class="stats-card bg-info text-white">
+      <h3>
+        {{ total_spent|floatformat:2 }} {% get_country_currency as currency %}{{
+        currency|currency_symbol }}
+      </h3>
+      <p><i class="fas fa-coins me-2"></i>{% trans "إجمالي المبلغ" %}</p>
     </div>
+  </div>
 </div>
 
 <!-- Payments Table -->
-<div class="card">
-    <div class="card-header">
-        <h5 class="mb-0">
-            <i class="fas fa-list"></i> {% trans "قائمة المدفوعات - Payments List" %}
-        </h5>
+<div class="card mb-4">
+  <div class="card-header">
+    <h5 class="mb-0">
+      <i class="fas fa-list me-2"></i>{% trans "قائمة المدفوعات" %}
+    </h5>
+  </div>
+  <div class="card-body p-0">
+    {% if payments %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>{% trans "الباقة" %}</th>
+            <th>{% trans "المبلغ" %}</th>
+            <th>{% trans "طريقة الدفع" %}</th>
+            <th>{% trans "الحالة" %}</th>
+            <th>{% trans "تاريخ الإنشاء" %}</th>
+            <th>{% trans "تاريخ الإكمال" %}</th>
+            <th>{% trans "الإجراءات" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for payment in payments %}
+          <tr>
+            <td><strong>#{{ payment.id }}</strong></td>
+            <td>
+              {% if payment.package_info %}
+              <div class="d-flex align-items-center">
+                <span class="badge bg-primary me-2"
+                  >{{ payment.package_info.name }}</span
+                >
+                <small class="text-muted">
+                  {{ payment.package_info.ad_count }} {% trans "إعلان" %} | {{
+                  payment.package_info.duration_days }} {% trans "يوم" %}
+                </small>
+              </div>
+              {% else %}
+              <span class="text-muted">{% trans "غير محدد" %}</span>
+              {% endif %}
+            </td>
+            <td>
+              <strong class="text-success">
+                {{ payment.amount }} {{ payment.currency }}
+              </strong>
+            </td>
+            <td>
+              {% if payment.provider == 'paypal' %}
+              <i class="fab fa-paypal text-primary me-1"></i>PayPal {% elif
+              payment.provider == 'paymob' %}
+              <i class="fas fa-credit-card text-info me-1"></i>Paymob {% elif
+              payment.provider == 'bank_transfer' %}
+              <i class="fas fa-university text-secondary me-1"></i>{% trans
+              "تحويل بنكي" %} {% else %} {{ payment.get_provider_display }} {%
+              endif %}
+            </td>
+            <td>
+              {% if payment.status == 'completed' %}
+              <span class="badge bg-success">
+                <i class="fas fa-check-circle me-1"></i>{% trans "مكتمل" %}
+              </span>
+              {% elif payment.status == 'pending' %}
+              <span class="badge bg-warning">
+                <i class="fas fa-clock me-1"></i>{% trans "قيد الانتظار" %}
+              </span>
+              {% elif payment.status == 'failed' %}
+              <span class="badge bg-danger">
+                <i class="fas fa-times-circle me-1"></i>{% trans "فاشل" %}
+              </span>
+              {% elif payment.status == 'cancelled' %}
+              <span class="badge bg-secondary">
+                <i class="fas fa-ban me-1"></i>{% trans "ملغي" %}
+              </span>
+              {% elif payment.status == 'refunded' %}
+              <span class="badge bg-info">
+                <i class="fas fa-undo me-1"></i>{% trans "مسترد" %}
+              </span>
+              {% else %}
+              <span class="badge bg-secondary"
+                >{{ payment.get_status_display }}</span
+              >
+              {% endif %}
+            </td>
+            <td>
+              <small>{{ payment.created_at|date:"Y-m-d H:i" }}</small>
+            </td>
+            <td>
+              {% if payment.completed_at %}
+              <small class="text-success"
+                >{{ payment.completed_at|date:"Y-m-d H:i" }}</small
+              >
+              {% else %}
+              <span class="text-muted">-</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="btn-group btn-group-sm" role="group">
+                {% if payment.provider_transaction_id %}
+                <button
+                  class="btn btn-outline-info"
+                  data-bs-toggle="tooltip"
+                  title="{% trans 'معرف المعاملة' %}: {{ payment.provider_transaction_id }}"
+                >
+                  <i class="fas fa-info-circle"></i>
+                </button>
+                {% endif %} {% if payment.offline_payment_receipt %}
+                <a
+                  href="{{ payment.offline_payment_receipt.url }}"
+                  target="_blank"
+                  class="btn btn-outline-secondary"
+                  data-bs-toggle="tooltip"
+                  title="{% trans 'عرض الإيصال' %}"
+                >
+                  <i class="fas fa-receipt"></i>
+                </a>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-    <div class="card-body">
-        {% if payments %}
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead class="table-light">
-                    <tr>
-                        <th>#</th>
-                        <th>{% trans "الباقة - Package" %}</th>
-                        <th>{% trans "المبلغ - Amount" %}</th>
-                        <th>{% trans "طريقة الدفع - Provider" %}</th>
-                        <th>{% trans "الحالة - Status" %}</th>
-                        <th>{% trans "التاريخ - Date" %}</th>
-                        <th>{% trans "تاريخ الإكمال - Completed At" %}</th>
-                        <th>{% trans "الإجراءات - Actions" %}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for payment in payments %}
-                    <tr>
-                        <td><strong>#{{ payment.id }}</strong></td>
-                        <td>
-                            {% if payment.package_info %}
-                                <span class="badge bg-primary">{{ payment.package_info.name }}</span>
-                                <br>
-                                <small class="text-muted">
-                                    {{ payment.package_info.ad_count }} {% trans "إعلان - ads" %} |
-                                    {{ payment.package_info.duration_days }} {% trans "يوم - days" %}
-                                </small>
-                            {% else %}
-                                <span class="text-muted">{% trans "غير محدد - N/A" %}</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <strong class="text-success">{{ payment.amount }} {{ payment.currency }}</strong>
-                        </td>
-                        <td>
-                            {% if payment.provider == 'paypal' %}
-                                <i class="fab fa-paypal text-primary"></i> PayPal
-                            {% elif payment.provider == 'paymob' %}
-                                <i class="fas fa-credit-card text-info"></i> Paymob
-                            {% elif payment.provider == 'bank_transfer' %}
-                                <i class="fas fa-university text-secondary"></i> {% trans "تحويل بنكي" %}
-                            {% else %}
-                                {{ payment.get_provider_display }}
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if payment.status == 'completed' %}
-                                <span class="badge bg-success">
-                                    <i class="fas fa-check-circle"></i> {% trans "مكتمل - Completed" %}
-                                </span>
-                            {% elif payment.status == 'pending' %}
-                                <span class="badge bg-warning">
-                                    <i class="fas fa-clock"></i> {% trans "قيد الانتظار - Pending" %}
-                                </span>
-                            {% elif payment.status == 'failed' %}
-                                <span class="badge bg-danger">
-                                    <i class="fas fa-times-circle"></i> {% trans "فاشل - Failed" %}
-                                </span>
-                            {% elif payment.status == 'cancelled' %}
-                                <span class="badge bg-secondary">
-                                    <i class="fas fa-ban"></i> {% trans "ملغي - Cancelled" %}
-                                </span>
-                            {% elif payment.status == 'refunded' %}
-                                <span class="badge bg-info">
-                                    <i class="fas fa-undo"></i> {% trans "مسترد - Refunded" %}
-                                </span>
-                            {% else %}
-                                <span class="badge bg-secondary">{{ payment.get_status_display }}</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <small>{{ payment.created_at|date:"Y-m-d H:i" }}</small>
-                        </td>
-                        <td>
-                            {% if payment.completed_at %}
-                                <small class="text-success">{{ payment.completed_at|date:"Y-m-d H:i" }}</small>
-                            {% else %}
-                                <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if payment.provider_transaction_id %}
-                                <button class="btn btn-sm btn-outline-info" data-bs-toggle="tooltip" title="{% trans 'معرف المعاملة' %}: {{ payment.provider_transaction_id }}">
-                                    <i class="fas fa-info-circle"></i>
-                                </button>
-                            {% endif %}
-
-                            {% if payment.offline_payment_receipt %}
-                                <a href="{{ payment.offline_payment_receipt.url }}" target="_blank" class="btn btn-sm btn-outline-secondary" data-bs-toggle="tooltip" title="{% trans 'عرض الإيصال' %}">
-                                    <i class="fas fa-receipt"></i>
-                                </a>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <div class="text-center py-5">
-            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-            <h5>{% trans "لا توجد مدفوعات بعد - No Payments Yet" %}</h5>
-            <p class="text-muted">{% trans "عندما تقوم بشراء باقة، ستظهر هنا" %}</p>
-            <a href="{% url 'main:packages' %}" class="btn btn-primary mt-3">
-                <i class="fas fa-shopping-cart"></i> {% trans "عرض الباقات - View Packages" %}
-            </a>
-        </div>
-        {% endif %}
+    {% else %}
+    <div class="empty-state">
+      <i class="fas fa-inbox fa-4x mb-3"></i>
+      <h5>{% trans "لا توجد مدفوعات بعد" %}</h5>
+      <p class="text-muted mb-3">
+        {% trans "عندما تقوم بشراء باقة، ستظهر قائمة مدفوعاتك هنا" %}
+      </p>
+      <a href="{% url 'main:packages_list' %}" class="btn btn-primary">
+        <i class="fas fa-shopping-cart me-2"></i>{% trans "استعرض الباقات" %}
+      </a>
     </div>
+    {% endif %}
+  </div>
 </div>
 
 <!-- Payment Status Legend -->
-<div class="card mt-4">
-    <div class="card-header">
-        <h6 class="mb-0">
-            <i class="fas fa-question-circle"></i> {% trans "شرح الحالات - Status Explanation" %}
-        </h6>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-6 mb-2">
-                <span class="badge bg-success me-2"><i class="fas fa-check-circle"></i> {% trans "مكتمل" %}</span>
-                {% trans "الدفع تم بنجاح والباقة مفعلة - Payment completed and package activated" %}
-            </div>
-            <div class="col-md-6 mb-2">
-                <span class="badge bg-warning me-2"><i class="fas fa-clock"></i> {% trans "قيد الانتظار" %}</span>
-                {% trans "في انتظار مراجعة الإدارة (محفظة/إنستاباي) - Waiting for admin review (Wallet/InstaPay)" %}
-            </div>
-            <div class="col-md-6 mb-2">
-                <span class="badge bg-danger me-2"><i class="fas fa-times-circle"></i> {% trans "فاشل" %}</span>
-                {% trans "حدث خطأ في عملية الدفع - Payment failed" %}
-            </div>
-            <div class="col-md-6 mb-2">
-                <span class="badge bg-info me-2"><i class="fas fa-undo"></i> {% trans "مسترد" %}</span>
-                {% trans "تم استرداد المبلغ - Amount refunded" %}
-            </div>
+<div class="card">
+  <div class="card-header">
+    <h6 class="mb-0">
+      <i class="fas fa-info-circle me-2"></i>{% trans "شرح حالات الدفع" %}
+    </h6>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="d-flex align-items-start">
+          <span class="badge bg-success me-3 mt-1"
+            ><i class="fas fa-check-circle"></i
+          ></span>
+          <div>
+            <strong>{% trans "مكتمل" %}</strong>
+            <p class="text-muted small mb-0">
+              {% trans "تم إكمال الدفع وتفعيل الباقة بنجاح" %}
+            </p>
+          </div>
         </div>
+      </div>
+      <div class="col-md-6">
+        <div class="d-flex align-items-start">
+          <span class="badge bg-warning me-3 mt-1"
+            ><i class="fas fa-clock"></i
+          ></span>
+          <div>
+            <strong>{% trans "قيد الانتظار" %}</strong>
+            <p class="text-muted small mb-0">
+              {% trans "في انتظار مراجعة الإدارة أو التأكيد من البنك" %}
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="d-flex align-items-start">
+          <span class="badge bg-danger me-3 mt-1"
+            ><i class="fas fa-times-circle"></i
+          ></span>
+          <div>
+            <strong>{% trans "فاشل" %}</strong>
+            <p class="text-muted small mb-0">
+              {% trans "حدث خطأ في عملية الدفع، يرجى محاولة مجددا" %}
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="d-flex align-items-start">
+          <span class="badge bg-info me-3 mt-1"
+            ><i class="fas fa-undo"></i
+          ></span>
+          <div>
+            <strong>{% trans "مسترد" %}</strong>
+            <p class="text-muted small mb-0">
+              {% trans "تم استرجاع المبلغ إلى حسابك" %}
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
 </div>
-
-<style>
-.stats-card {
-    padding: 20px;
-    border-radius: 10px;
-    text-align: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.stats-card h3 {
-    margin-bottom: 5px;
-    font-weight: bold;
-}
-
-.stats-card p {
-    margin-bottom: 0;
-    font-size: 0.9rem;
-}
-
-.table th {
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-.badge {
-    font-size: 0.85rem;
-    padding: 5px 10px;
-}
-</style>
-
+{% endblock %} {% block extra_js %}
 <script>
-// Initialize Bootstrap tooltips
-document.addEventListener('DOMContentLoaded', function() {
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl)
+  // Initialize Bootstrap tooltips
+  document.addEventListener('DOMContentLoaded', function () {
+    const tooltipTriggerList = [].slice.call(
+      document.querySelectorAll('[data-bs-toggle="tooltip"]')
+    );
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl);
     });
-});
+  });
 </script>
-
 {% endblock %}

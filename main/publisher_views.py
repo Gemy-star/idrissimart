@@ -547,6 +547,7 @@ class PublisherExpiredAdsView(PublisherRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["active_nav"] = "expired_ads"
 
         # Count expired vs expiring soon
         expired_count = (
@@ -706,6 +707,7 @@ def publisher_payment_history(request):
             total=Sum("amount")
         )["total"]
         or 0,
+        "active_nav": "payment_history",
     }
 
     return render(request, "dashboard/publisher_payment_history.html", context)

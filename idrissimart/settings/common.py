@@ -281,7 +281,6 @@ COMPRESS_JS_FILTERS = [
 AUTH_USER_MODEL = "main.User"
 
 LOGIN_URL = "main:login"
-LOGIN_REDIRECT_URL = "main:home"
 LOGOUT_REDIRECT_URL = "main:home"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
