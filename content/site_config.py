@@ -608,6 +608,152 @@ class HomePage(SingletonModel):
         default=True, verbose_name=_("عرض الإعلانات المميزة")
     )
 
+    # Statistics Section
+    show_statistics = models.BooleanField(
+        default=True,
+        verbose_name=_("عرض قسم الإحصائيات - Show Statistics")
+    )
+
+    # Statistic 1
+    stat1_value = models.IntegerField(
+        default=15,
+        verbose_name=_("الإحصائية 1 - القيمة"),
+        help_text=_("القيمة العددية (مثل: 15)")
+    )
+    stat1_title = models.CharField(
+        max_length=200,
+        default="Active Advertisers",
+        verbose_name=_("الإحصائية 1 - العنوان"),
+    )
+    stat1_title_ar = models.CharField(
+        max_length=200,
+        default="معلنين نشطين",
+        verbose_name=_("الإحصائية 1 - العنوان بالعربية"),
+    )
+    stat1_subtitle = models.CharField(
+        max_length=300,
+        blank=True,
+        default="Offices, Engineers & Companies",
+        verbose_name=_("الإحصائية 1 - العنوان الفرعي"),
+    )
+    stat1_subtitle_ar = models.CharField(
+        max_length=300,
+        blank=True,
+        default="مكاتب، مهندسين، وشركات",
+        verbose_name=_("الإحصائية 1 - العنوان الفرعي بالعربية"),
+    )
+    stat1_icon = models.CharField(
+        max_length=100,
+        default="fas fa-user-friends",
+        verbose_name=_("الإحصائية 1 - الأيقونة"),
+        help_text=_("أيقونة FontAwesome (مثل: fas fa-user-friends)")
+    )
+
+    # Statistic 2
+    stat2_value = models.IntegerField(
+        default=150,
+        verbose_name=_("الإحصائية 2 - القيمة"),
+        help_text=_("القيمة العددية (مثل: 150)")
+    )
+    stat2_title = models.CharField(
+        max_length=200,
+        default="Published Ads",
+        verbose_name=_("الإحصائية 2 - العنوان"),
+    )
+    stat2_title_ar = models.CharField(
+        max_length=200,
+        default="إعلانات منشورة",
+        verbose_name=_("الإحصائية 2 - العنوان بالعربية"),
+    )
+    stat2_subtitle = models.CharField(
+        max_length=300,
+        blank=True,
+        default="Services, Equipment & Job Opportunities",
+        verbose_name=_("الإحصائية 2 - العنوان الفرعي"),
+    )
+    stat2_subtitle_ar = models.CharField(
+        max_length=300,
+        blank=True,
+        default="خدمات، معدات، وفرص عمل",
+        verbose_name=_("الإحصائية 2 - العنوان الفرعي بالعربية"),
+    )
+    stat2_icon = models.CharField(
+        max_length=100,
+        default="fas fa-bullhorn",
+        verbose_name=_("الإحصائية 2 - الأيقونة"),
+        help_text=_("أيقونة FontAwesome (مثل: fas fa-bullhorn)")
+    )
+
+    # Statistic 3
+    stat3_value = models.IntegerField(
+        default=500,
+        verbose_name=_("الإحصائية 3 - القيمة"),
+        help_text=_("القيمة العددية (مثل: 500)")
+    )
+    stat3_title = models.CharField(
+        max_length=200,
+        default="Monthly Visits",
+        verbose_name=_("الإحصائية 3 - العنوان"),
+    )
+    stat3_title_ar = models.CharField(
+        max_length=200,
+        default="زيارات شهرية",
+        verbose_name=_("الإحصائية 3 - العنوان بالعربية"),
+    )
+    stat3_subtitle = models.CharField(
+        max_length=300,
+        blank=True,
+        default="Interested in Surveying Field",
+        verbose_name=_("الإحصائية 3 - العنوان الفرعي"),
+    )
+    stat3_subtitle_ar = models.CharField(
+        max_length=300,
+        blank=True,
+        default="مهتمون بالمجال المساحي",
+        verbose_name=_("الإحصائية 3 - العنوان الفرعي بالعربية"),
+    )
+    stat3_icon = models.CharField(
+        max_length=100,
+        default="fas fa-chart-line",
+        verbose_name=_("الإحصائية 3 - الأيقونة"),
+        help_text=_("أيقونة FontAwesome (مثل: fas fa-chart-line)")
+    )
+
+    # Statistic 4
+    stat4_value = models.IntegerField(
+        default=250,
+        verbose_name=_("الإحصائية 4 - القيمة"),
+        help_text=_("القيمة العددية (مثل: 250)")
+    )
+    stat4_title = models.CharField(
+        max_length=200,
+        default="Supported Specializations",
+        verbose_name=_("الإحصائية 4 - العنوان"),
+    )
+    stat4_title_ar = models.CharField(
+        max_length=200,
+        default="تخصصات مدعومة",
+        verbose_name=_("الإحصائية 4 - العنوان بالعربية"),
+    )
+    stat4_subtitle = models.CharField(
+        max_length=300,
+        blank=True,
+        default="Surveying - Engineering - GIS",
+        verbose_name=_("الإحصائية 4 - العنوان الفرعي"),
+    )
+    stat4_subtitle_ar = models.CharField(
+        max_length=300,
+        blank=True,
+        default="مساحة – هندسة – GIS",
+        verbose_name=_("الإحصائية 4 - العنوان الفرعي بالعربية"),
+    )
+    stat4_icon = models.CharField(
+        max_length=100,
+        default="fas fa-th-large",
+        verbose_name=_("الإحصائية 4 - الأيقونة"),
+        help_text=_("أيقونة FontAwesome (مثل: fas fa-th-large)")
+    )
+
     class Meta:
         verbose_name = _("محتوى الصفحة الرئيسية")
         verbose_name_plural = _("محتوى الصفحة الرئيسية")

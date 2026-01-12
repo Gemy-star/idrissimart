@@ -297,6 +297,45 @@ def admin_edit_homepage(request):
             if "hero_image" in request.FILES:
                 home_page.hero_image = request.FILES["hero_image"]
 
+            # Statistics section
+            home_page.show_statistics = request.POST.get("show_statistics") == "on"
+            
+            # Statistic 1
+            home_page.stat1_value = int(request.POST.get("stat1_value", 15))
+            home_page.stat1_title = request.POST.get("stat1_title", "")
+            home_page.stat1_title_ar = request.POST.get("stat1_title_ar", "")
+            home_page.stat1_subtitle = request.POST.get("stat1_subtitle", "")
+            home_page.stat1_subtitle_ar = request.POST.get("stat1_subtitle_ar", "")
+            home_page.stat1_icon = request.POST.get("stat1_icon", "fas fa-user-friends")
+            
+            # Statistic 2
+            home_page.stat2_value = int(request.POST.get("stat2_value", 150))
+            home_page.stat2_title = request.POST.get("stat2_title", "")
+            home_page.stat2_title_ar = request.POST.get("stat2_title_ar", "")
+            home_page.stat2_subtitle = request.POST.get("stat2_subtitle", "")
+            home_page.stat2_subtitle_ar = request.POST.get("stat2_subtitle_ar", "")
+            home_page.stat2_icon = request.POST.get("stat2_icon", "fas fa-bullhorn")
+            
+            # Statistic 3
+            home_page.stat3_value = int(request.POST.get("stat3_value", 500))
+            home_page.stat3_title = request.POST.get("stat3_title", "")
+            home_page.stat3_title_ar = request.POST.get("stat3_title_ar", "")
+            home_page.stat3_subtitle = request.POST.get("stat3_subtitle", "")
+            home_page.stat3_subtitle_ar = request.POST.get("stat3_subtitle_ar", "")
+            home_page.stat3_icon = request.POST.get("stat3_icon", "fas fa-chart-line")
+            
+            # Statistic 4
+            home_page.stat4_value = int(request.POST.get("stat4_value", 250))
+            home_page.stat4_title = request.POST.get("stat4_title", "")
+            home_page.stat4_title_ar = request.POST.get("stat4_title_ar", "")
+            home_page.stat4_subtitle = request.POST.get("stat4_subtitle", "")
+            home_page.stat4_subtitle_ar = request.POST.get("stat4_subtitle_ar", "")
+            home_page.stat4_icon = request.POST.get("stat4_icon", "fas fa-th-large")
+
+            # Featured sections
+            home_page.show_featured_categories = request.POST.get("show_featured_categories") == "on"
+            home_page.show_featured_ads = request.POST.get("show_featured_ads") == "on"
+
             home_page.save()
 
             messages.success(request, _("تم تحديث الصفحة الرئيسية بنجاح"))

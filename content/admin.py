@@ -626,6 +626,71 @@ class HomePageAdmin(SingletonModelAdmin):
             },
         ),
         (
+            "قسم الإحصائيات (Statistics Section)",
+            {
+                "fields": (
+                    "show_statistics",
+                ),
+                "classes": ("wide",),
+            },
+        ),
+        (
+            "الإحصائية 1",
+            {
+                "fields": (
+                    "stat1_value",
+                    "stat1_title",
+                    "stat1_title_ar",
+                    "stat1_subtitle",
+                    "stat1_subtitle_ar",
+                    "stat1_icon",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "الإحصائية 2",
+            {
+                "fields": (
+                    "stat2_value",
+                    "stat2_title",
+                    "stat2_title_ar",
+                    "stat2_subtitle",
+                    "stat2_subtitle_ar",
+                    "stat2_icon",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "الإحصائية 3",
+            {
+                "fields": (
+                    "stat3_value",
+                    "stat3_title",
+                    "stat3_title_ar",
+                    "stat3_subtitle",
+                    "stat3_subtitle_ar",
+                    "stat3_icon",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "الإحصائية 4",
+            {
+                "fields": (
+                    "stat4_value",
+                    "stat4_title",
+                    "stat4_title_ar",
+                    "stat4_subtitle",
+                    "stat4_subtitle_ar",
+                    "stat4_icon",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+        (
             "الأقسام المميزة",
             {
                 "fields": ("show_featured_categories", "show_featured_ads"),
