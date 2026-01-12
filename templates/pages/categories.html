@@ -1005,17 +1005,9 @@
                                     {% endif %}
                                 </option>
                                 {% for category in categories %}
-                                    <option value="{{ category.id }}">
+                                    <option value="{{ category.id }}" data-has-children="{% if category.subcategories.all %}true{% else %}false{% endif %}">
                                         {% if LANGUAGE_CODE == 'ar' and category.name_ar %}{{ category.name_ar }}{% else %}{{ category.name }}{% endif %}
                                     </option>
-                                    {% if not parent_category %}
-                                        {% for subcategory in category.subcategories.all %}
-                                            <option value="{{ subcategory.id }}">&nbsp;&nbsp;&nbsp;↳ {% if LANGUAGE_CODE == 'ar' and subcategory.name_ar %}{{ subcategory.name_ar }}{% else %}{{ subcategory.name }}{% endif %}</option>
-                                            {% for subsubcategory in subcategory.subcategories.all %}
-                                                <option value="{{ subsubcategory.id }}">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↳ {% if LANGUAGE_CODE == 'ar' and subsubcategory.name_ar %}{{ subsubcategory.name_ar }}{% else %}{{ subsubcategory.name }}{% endif %}</option>
-                                            {% endfor %}
-                                        {% endfor %}
-                                    {% endif %}
                                 {% endfor %}
                             </select>
                         </div>
@@ -1093,19 +1085,14 @@
                     <div class="row g-4 ads-grid" id="adsGrid" data-view="grid">
                         {% if ads %}
                             {% for ad in ads %}
-                                <div class="col-xxl-4 col-xl-4 col-lg-4 col-md-6 col-sm-6 col-12" data-aos="fade-up">
+                                <div class="col-xxl-4 col-xl-4 col-lg-4 col-md-6 col-sm-6 col-12"
+                                     data-aos="fade-up"
+                                     data-category-id="{{ ad.category.id }}"
+                                     data-category-name="{% if LANGUAGE_CODE == 'ar' and ad.category.name_ar %}{{ ad.category.name_ar }}{% else %}{{ ad.category.name }}{% endif %}">
                                     {% include "partials/_ad_card_component.html" with ad=ad %}
                                 </div>
                             {% endfor %}
                         {% else %}
-                            <!-- Show skeleton loaders if no ads are passed initially -->
-                            {% for i in "123456" %}
-                            <div class="col-xxl-4 col-xl-4 col-lg-4 col-md-6 col-sm-6 col-12" aria-hidden="true">
-                                {% include "partials/_ad_card_skeleton.html" %}
-                            </div>
-                            {% endfor %}
-                        {% endif %}
-                        {% if not ads %}
                             <div class="col-12">
                                 <div class="empty-state">
                                     <div class="empty-icon">
@@ -1290,21 +1277,34 @@
                 const featuredOnly = this.featuredFilter?.checked || false;
                 const verifiedOnly = this.verifiedFilter?.checked || false;
                 const withImages = this.imagesFilter?.checked || false;
+                const sortBy = this.sortFilter?.value || '-created_at';
 
                 const adCards = this.adsGrid.querySelectorAll('[data-aos="fade-up"]');
                 let visibleCount = 0;
+                let visibleAds = [];
 
                 adCards.forEach(card => {
                     const title = card.querySelector('.ad-title a')?.textContent.toLowerCase() || '';
                     const description = card.querySelector('.ad-location')?.textContent.toLowerCase() || '';
+                    const locationText = card.querySelector('.ad-location')?.textContent.toLowerCase() || '';
                     const priceText = card.querySelector('.price-amount')?.textContent || '';
                     const price = parseFloat(priceText.replace(/[^\d.]/g, '')) || 0;
+                    const categoryBadge = card.querySelector('.ad-category-badge')?.textContent.toLowerCase() || '';
+                    const cardCategoryId = card.dataset.categoryId || '';
+                    const cardCategoryName = card.dataset.categoryName?.toLowerCase() || '';
+
+                    // Check for badges
+                    const isFeatured = card.querySelector('.highlighted-badge') !== null ||
+                                     card.querySelector('.pinned-badge') !== null;
+                    const isVerified = card.querySelector('.avatar-verified-badge') !== null;
+                    const hasImages = card.querySelector('.ad-image-container img') !== null &&
+                                    !card.querySelector('.ad-image-placeholder');
 
                     let visible = true;
 
                     // Search filter
                     const query = searchQuery || filterQuery;
-                    if (query && !title.includes(query) && !description.includes(query)) {
+                    if (query && !title.includes(query) && !description.includes(query) && !categoryBadge.includes(query)) {
                         visible = false;
                     }
 
@@ -1313,10 +1313,60 @@
                         visible = false;
                     }
 
+                    // Location filter
+                    if (location && !locationText.includes(location.toLowerCase())) {
+                        visible = false;
+                    }
+
+                    // Category filter - check by ID first, then fall back to name
+                    if (category) {
+                        const selectedOption = this.categoryFilter.querySelector(`option[value="${category}"]`);
+                        const isParentCategory = selectedOption?.dataset.isParent === 'true';
+
+                        if (isParentCategory) {
+                            // Parent category selected, check if card category matches parent or any of its descendants
+                            // For now, we'll just show all cards as server should handle parent filtering
+                            // In a future enhancement, we could store parent IDs on cards
+                            visible = true;
+                        } else if (cardCategoryId && cardCategoryId !== category) {
+                            // Direct category ID match
+                            visible = false;
+                        } else if (!cardCategoryId && !categoryBadge.includes(category.toLowerCase()) && !cardCategoryName.includes(category.toLowerCase())) {
+                            // Fallback to text-based matching
+                            visible = false;
+                        }
+                    }
+
+                    // Featured filter
+                    if (featuredOnly && !isFeatured) {
+                        visible = false;
+                    }
+
+                    // Verified filter
+                    if (verifiedOnly && !isVerified) {
+                        visible = false;
+                    }
+
+                    // Images filter
+                    if (withImages && !hasImages) {
+                        visible = false;
+                    }
+
                     // Show/hide card
                     card.style.display = visible ? 'block' : 'none';
-                    if (visible) visibleCount++;
+                    if (visible) {
+                        visibleCount++;
+                        visibleAds.push({
+                            element: card,
+                            price: price,
+                            title: title,
+                            date: card.querySelector('.ad-time-posted')?.textContent || ''
+                        });
+                    }
                 });
+
+                // Sort visible ads
+                this.sortAds(visibleAds, sortBy);
 
                 // Update results count
                 if (this.resultsCount) {
@@ -1328,6 +1378,70 @@
                 if (visibleAdsEl) {
                     visibleAdsEl.textContent = visibleCount;
                 }
+
+                // Update URL parameters
+                this.updateURLParams();
+            }
+
+            sortAds(visibleAds, sortBy) {
+                const grid = this.adsGrid;
+
+                visibleAds.sort((a, b) => {
+                    switch(sortBy) {
+                        case 'price':
+                            return a.price - b.price;
+                        case '-price':
+                            return b.price - a.price;
+                        case 'title':
+                            return a.title.localeCompare(b.title);
+                        case '-title':
+                            return b.title.localeCompare(a.title);
+                        case '-created_at':
+                        default:
+                            return 0; // Keep original order
+                    }
+                });
+
+                // Reorder DOM elements
+                visibleAds.forEach(ad => {
+                    grid.appendChild(ad.element);
+                });
+            }
+
+            updateURLParams() {
+                const params = new URLSearchParams(window.location.search);
+
+                // Update search param
+                const searchValue = this.searchInput?.value || this.filterSearch?.value;
+                if (searchValue) {
+                    params.set('search', searchValue);
+                } else {
+                    params.delete('search');
+                }
+
+                // Update price params
+                if (this.minPrice?.value) {
+                    params.set('min_price', this.minPrice.value);
+                } else {
+                    params.delete('min_price');
+                }
+
+                if (this.maxPrice?.value) {
+                    params.set('max_price', this.maxPrice.value);
+                } else {
+                    params.delete('max_price');
+                }
+
+                // Update sort param
+                if (this.sortFilter?.value && this.sortFilter.value !== '-created_at') {
+                    params.set('sort', this.sortFilter.value);
+                } else {
+                    params.delete('sort');
+                }
+
+                // Update URL without reload
+                const newURL = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
+                window.history.pushState({}, '', newURL);
             }
 
             setView(view) {
@@ -1365,19 +1479,98 @@
 
         // Function to filter by category using parent parameter
         function filterByCategory(categoryId) {
-            if (categoryId) {
-                // Navigate to categories page with parent parameter
-                window.location.href = "{% url 'main:categories' %}?parent=" + categoryId;
+            if (!categoryId) {
+                // Reset to all categories
+                filterAds();
+                return;
+            }
+
+            // Check if this is a parent category that has children
+            const selectedOption = document.querySelector(`#categoryFilter option[value="${categoryId}"]`);
+            const hasSubcategories = selectedOption && selectedOption.dataset.hasChildren === 'true';
+
+            if (hasSubcategories) {
+                // Load subcategories via AJAX
+                loadSubcategories(categoryId);
             } else {
-                // Navigate back to all categories
-                {% if parent_category %}
-                    // If we're currently viewing a parent, go back to all categories
-                    window.location.href = "{% url 'main:categories' %}";
-                {% else %}
-                    // Refresh the current page
-                    window.location.href = "{% url 'main:categories' %}";
-                {% endif %}
+                // Filter ads by this category
+                filterAds();
             }
         }
+
+        function loadSubcategories(categoryId) {
+            const categoryFilter = document.getElementById('categoryFilter');
+
+            // Show loading indicator
+            const currentLang = '{{ LANGUAGE_CODE }}';
+            const loadingText = currentLang === 'ar' ? 'جاري التحميل...' : 'Loading...';
+
+            // Store current selections
+            const originalOptions = categoryFilter.innerHTML;
+
+            // Show loading state
+            categoryFilter.innerHTML = `<option value="">${loadingText}</option>`;
+            categoryFilter.disabled = true;
+
+            // Make AJAX request to get subcategories
+            fetch(`/ajax/subcategories/${categoryId}/`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Clear the dropdown
+                    categoryFilter.innerHTML = '';
+
+                    // Add "Back to parent" option
+                    const backText = currentLang === 'ar' ? 'العودة للفئات الرئيسية' : 'Back to main categories';
+                    const backOption = document.createElement('option');
+                    backOption.value = 'back';
+                    backOption.textContent = `← ${backText}`;
+                    categoryFilter.appendChild(backOption);
+
+                    // Add "All subcategories" option
+                    const allText = currentLang === 'ar' ? 'جميع الأقسام الفرعية' : 'All subcategories';
+                    const allOption = document.createElement('option');
+                    allOption.value = categoryId;
+                    allOption.textContent = allText;
+                    allOption.dataset.isParent = 'true';
+                    categoryFilter.appendChild(allOption);
+
+                    // Add subcategories
+                    data.subcategories.forEach(subcat => {
+                        const option = document.createElement('option');
+                        option.value = subcat.id;
+                        option.textContent = currentLang === 'ar' ? subcat.name_ar || subcat.name : subcat.name;
+                        option.dataset.hasChildren = subcat.has_children;
+                        categoryFilter.appendChild(option);
+                    });
+
+                    // Re-enable dropdown
+                    categoryFilter.disabled = false;
+
+                    // Filter ads by parent category
+                    filterAds();
+                })
+                .catch(error => {
+                    console.error('Error loading subcategories:', error);
+                    // Restore original options on error
+                    categoryFilter.innerHTML = originalOptions;
+                    categoryFilter.disabled = false;
+
+                    const errorText = currentLang === 'ar' ? 'حدث خطأ في تحميل الأقسام الفرعية' : 'Error loading subcategories';
+                    alert(errorText);
+                });
+        }
+
+        // Handle back to main categories
+        document.getElementById('categoryFilter').addEventListener('change', function(e) {
+            if (this.value === 'back') {
+                // Reload the page to show main categories
+                window.location.href = "{% url 'main:categories' %}";
+            }
+        });
     </script>
 {% endblock %}
