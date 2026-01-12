@@ -14,6 +14,7 @@ from .site_config import (
     AboutPageSection,
     ContactPage,
     HomePage,
+    WhyChooseUsFeature,
     TermsPage,
     PrivacyPage,
 )

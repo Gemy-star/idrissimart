@@ -572,6 +572,33 @@ class HomePage(SingletonModel):
         max_length=200, default="/ads/", verbose_name=_("رابط الزر - Button URL")
     )
 
+    # Why Choose Us Section
+    show_why_choose_us = models.BooleanField(
+        default=True,
+        verbose_name=_("عرض قسم لماذا نحن - Show Why Choose Us")
+    )
+
+    why_choose_us_title = models.CharField(
+        max_length=200,
+        default="Why Choose Us?",
+        verbose_name=_("عنوان قسم لماذا نحن - Why Choose Us Title"),
+    )
+    why_choose_us_title_ar = models.CharField(
+        max_length=200,
+        default="لماذا إدريسي مارت للمساحة؟",
+        verbose_name=_("عنوان قسم لماذا نحن بالعربية"),
+    )
+
+    why_choose_us_subtitle = models.TextField(
+        blank=True,
+        verbose_name=_("عنوان فرعي - Subtitle"),
+        help_text=_("نص توضيحي قصير أسفل العنوان (اختياري)"),
+    )
+    why_choose_us_subtitle_ar = models.TextField(
+        blank=True,
+        verbose_name=_("عنوان فرعي بالعربية"),
+    )
+
     # Featured sections
     show_featured_categories = models.BooleanField(
         default=True, verbose_name=_("عرض الأقسام المميزة")
@@ -587,6 +614,64 @@ class HomePage(SingletonModel):
 
     def __str__(self):
         return "Home Page Content"
+
+
+class WhyChooseUsFeature(models.Model):
+    """Features for Why Choose Us section on homepage"""
+
+    home_page = models.ForeignKey(
+        HomePage,
+        on_delete=models.CASCADE,
+        related_name="why_choose_us_features",
+        verbose_name=_("الصفحة الرئيسية - Home Page")
+    )
+
+    title = models.CharField(
+        max_length=200,
+        verbose_name=_("العنوان - Title"),
+        help_text=_("عنوان الميزة (مثل: دقة عالية)")
+    )
+    title_ar = models.CharField(
+        max_length=200,
+        verbose_name=_("العنوان بالعربية")
+    )
+
+    description = models.TextField(
+        verbose_name=_("الوصف - Description"),
+        help_text=_("وصف الميزة")
+    )
+    description_ar = models.TextField(
+        verbose_name=_("الوصف بالعربية")
+    )
+
+    icon = models.CharField(
+        max_length=50,
+        default="fas fa-check-circle",
+        verbose_name=_("الأيقونة - Icon"),
+        help_text=_("أيقونة FontAwesome (مثل: fas fa-check-circle, fas fa-star, fas fa-award)")
+    )
+
+    order = models.IntegerField(
+        default=0,
+        verbose_name=_("الترتيب - Order"),
+        help_text=_("ترتيب ظهور الميزة")
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_("نشط - Active")
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("ميزة - لماذا نحن")
+        verbose_name_plural = _("مميزات - لماذا نحن")
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return self.title_ar or self.title
 
 
 class TermsPage(SingletonModel):

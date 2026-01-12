@@ -18,6 +18,7 @@ from .models import (
     AboutPageSection,
     ContactPage,
     HomePage,
+    WhyChooseUsFeature,
     TermsPage,
     PaymentMethodConfig,
     PrivacyPage,
@@ -585,6 +586,14 @@ class ContactPageAdmin(SingletonModelAdmin):
     )
 
 
+class WhyChooseUsFeatureInline(admin.TabularInline):
+    """Inline editor for Why Choose Us Features"""
+    model = WhyChooseUsFeature
+    extra = 1
+    fields = ('title_ar', 'title', 'description_ar', 'icon', 'order', 'is_active')
+    ordering = ['order', 'id']
+
+
 @admin.register(HomePage)
 class HomePageAdmin(SingletonModelAdmin):
     fieldsets = (
@@ -604,6 +613,19 @@ class HomePageAdmin(SingletonModelAdmin):
             },
         ),
         (
+            "قسم لماذا نحن (Why Choose Us)",
+            {
+                "fields": (
+                    "show_why_choose_us",
+                    "why_choose_us_title",
+                    "why_choose_us_title_ar",
+                    "why_choose_us_subtitle",
+                    "why_choose_us_subtitle_ar",
+                ),
+                "description": "عنوان القسم. استخدم المميزات أدناه لإضافة محتوى ديناميكي"
+            },
+        ),
+        (
             "الأقسام المميزة",
             {
                 "fields": ("show_featured_categories", "show_featured_ads"),
@@ -611,6 +633,8 @@ class HomePageAdmin(SingletonModelAdmin):
             },
         ),
     )
+
+    inlines = [WhyChooseUsFeatureInline]
 
     formfield_overrides = {
         models.TextField: {"widget": CKEditor5Widget(config_name="default")},
@@ -620,6 +644,49 @@ class HomePageAdmin(SingletonModelAdmin):
         queryset.update(active=True)
 
     approve_comments.short_description = "Approve selected comments"
+
+
+@admin.register(WhyChooseUsFeature)
+class WhyChooseUsFeatureAdmin(admin.ModelAdmin):
+    """Detailed admin for Why Choose Us Features"""
+    list_display = ['icon_display', 'title_ar', 'title', 'order', 'is_active', 'created_at']
+    list_editable = ['order', 'is_active']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['title', 'title_ar', 'description', 'description_ar']
+    ordering = ['order', 'id']
+
+    fieldsets = (
+        (
+            "عنوان الميزة",
+            {
+                "fields": ("home_page", "title", "title_ar", "icon"),
+                "description": "عنوان الميزة والأيقونة"
+            }
+        ),
+        (
+            "الوصف",
+            {
+                "fields": ("description", "description_ar"),
+                "description": "وصف تفصيلي للميزة"
+            }
+        ),
+        (
+            "الإعدادات",
+            {
+                "fields": ("order", "is_active"),
+                "description": "ترتيب ظهور الميزة وحالتها"
+            }
+        ),
+    )
+
+    def icon_display(self, obj):
+        """Display icon preview"""
+        return format_html(
+            '<i class="{}" style="font-size: 20px; color: #6b4c7a;"></i>',
+            obj.icon,
+        )
+
+    icon_display.short_description = "الأيقونة"
 
 
 @admin.register(TermsPage)
