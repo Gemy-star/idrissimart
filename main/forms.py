@@ -123,6 +123,7 @@ class ClassifiedAdForm(forms.ModelForm):
             "is_cart_enabled",
             "is_delivery_available",
             "video_url",
+            "video_file",
         ]
         widgets = {
             "title": forms.TextInput(attrs={"class": "form-control"}),
@@ -130,7 +131,18 @@ class ClassifiedAdForm(forms.ModelForm):
             "price": forms.NumberInput(attrs={"class": "form-control"}),
             "city": forms.Select(attrs={"class": "form-select", "id": "id_city"}),
             "address": forms.TextInput(attrs={"class": "form-control"}),
-            "video_url": forms.URLInput(attrs={"class": "form-control"}),
+            "video_url": forms.URLInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": _("مثال: https://www.youtube.com/watch?v=..."),
+                }
+            ),
+            "video_file": forms.FileInput(
+                attrs={
+                    "class": "form-control",
+                    "accept": "video/*",
+                }
+            ),
         }
         error_messages = {
             "category": {
@@ -738,7 +750,10 @@ class RegistrationForm(forms.Form):
 
         # Set up country queryset
         from content.models import Country
-        self.fields["country"].queryset = Country.objects.filter(is_active=True).order_by("order", "name")
+
+        self.fields["country"].queryset = Country.objects.filter(
+            is_active=True
+        ).order_by("order", "name")
 
         # Set up city choices dynamically based on selected country
         if self.data.get("country"):

@@ -59,6 +59,12 @@ def confirm_offline_payment(request):
 
         payment.save()
 
+        # If this payment is linked to an ad, process it
+        if "ad_id" in payment.metadata:
+            from main.payment_views import process_ad_payment
+
+            process_ad_payment(payment)
+
         # If this payment is linked to a user package, activate it
         if "package_id" in payment.metadata:
             from main.models import UserPackage

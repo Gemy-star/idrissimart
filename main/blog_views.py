@@ -107,11 +107,20 @@ def admin_blogs(request):
     published_blogs = Blog.objects.filter(is_published=True).count()
     draft_blogs = Blog.objects.filter(is_published=False).count()
 
+    # Get categories for filters and forms
+    categories = BlogCategory.objects.all()
+    category_filter = request.GET.get("category", "")
+    if category_filter:
+        blogs = blogs.filter(category_id=category_filter)
+
     context = {
         "blogs": blogs_page,
         "total_blogs": total_blogs,
         "published_blogs": published_blogs,
         "draft_blogs": draft_blogs,
+        "categories": categories,
+        "selected_category": category_filter,
+        "selected_status": status_filter if status_filter != "all" else "",
         "status_filter": status_filter,
         "search_query": search_query,
         "sort_by": sort_by,

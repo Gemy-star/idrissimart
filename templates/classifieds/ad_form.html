@@ -829,11 +829,191 @@
                                     </div>
                                 </div>
 
-                                <!-- Step 2: Price and Location -->
+                                <!-- Step 2: Contact and Location -->
                                 <div class="form-step" data-step="2">
                                     <div class="step-header">
-                                        <h3 class="step-title">{% trans "السعر والموقع" %}</h3>
-                                        <p class="step-description">{% trans "حدد السعر ومعلومات الموقع والميزات الإضافية" %}</p>
+                                        <h3 class="step-title">{% trans "التواصل والموقع" %}</h3>
+                                        <p class="step-description">{% trans "أضف معلومات التواصل والموقع" %}</p>
+                                    </div>
+
+                                    <!-- Contact and Location (same step) -->
+                                    <div class="mb-4">
+                                        <h4 class="mb-3">{% trans "معلومات التواصل والموقع" %}</h4>
+                                    </div>
+
+                                    <div class="mb-4">\n
+                                        <label for="{{ form.mobile_number.id_for_label }}" class="form-label h6">
+                                            <i class="fas fa-phone me-2 text-primary"></i>
+                                            {{ form.mobile_number.label }}
+                                            {% if form.mobile_number.field.required %}<span class="text-danger">*</span>{% endif %}
+                                        </label>
+                                        {{ form.mobile_number }}
+                                        <div class="form-text">{{ form.mobile_number.help_text }}</div>
+
+                                        <!-- Mobile Verification UI -->
+                                        <div id="mobile-verification-section" class="mt-3" style="display: none;">
+                                            <div class="alert alert-warning" role="alert">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                                {% trans "يجب التحقق من رقم الجوال قبل نشر الإعلان" %}
+                                            </div>
+
+                                            <div class="row">
+                                                <div class="col-md-8">
+                                                    <button type="button" id="send-otp-btn" class="btn btn-outline-primary">
+                                                        <i class="fas fa-sms me-2"></i>
+                                                        {% trans "إرسال رمز التحقق" %}
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div id="otp-input-section" class="mt-3" style="display: none;">
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <label for="verification_code" class="form-label">{% trans "رمز التحقق" %}</label>
+                                                        <input type="text" id="verification_code" class="form-control"
+                                                               placeholder="{% trans 'أدخل الرمز المرسل' %}" maxlength="6">
+                                                    </div>
+                                                    <div class="col-md-6 d-flex align-items-end">
+                                                        <button type="button" id="verify-otp-btn" class="btn btn-success">
+                                                            <i class="fas fa-check me-2"></i>
+                                                            {% trans "تحقق" %}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="form-text">{% trans "سيتم إرسال رمز التحقق خلال دقائق قليلة" %}</div>
+                                            </div>
+
+                                            <div id="verification-success" class="alert alert-success mt-3" style="display: none;">
+                                                <i class="fas fa-check-circle me-2"></i>
+                                                {% trans "تم التحقق من رقم الجوال بنجاح" %}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Location Fields -->
+                                    <div class="row">
+                                        <div class="col-md-6 mb-4">
+                                            <label for="{{ form.country.id_for_label }}" class="form-label h6">
+                                                <i class="fas fa-flag me-2 text-primary"></i>
+                                                {% trans "الدولة" %}
+                                                <span class="text-danger">*</span>
+                                            </label>
+                                            <select name="{{ form.country.name }}" id="{{ form.country.id_for_label }}" class="form-select" required>
+                                                <option value="">{% trans "اختر الدولة..." %}</option>
+                                                {% for country in countries %}
+                                                    <option value="{{ country.id }}"
+                                                        {% if form.country.value == country.id or not form.country.value and country.code == default_country|default:'SA' %}selected{% endif %}>
+                                                        {{ country.flag_emoji }} {{ country.name }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6 mb-4">
+                                            <label for="{{ form.city.id_for_label }}" class="form-label h6">
+                                                <i class="fas fa-city me-2 text-primary"></i>
+                                                {% trans "المدينة" %}
+                                                <span class="text-danger">*</span>
+                                            </label>
+                                            {{ form.city }}
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <label for="{{ form.address.id_for_label }}" class="form-label h6">
+                                            <i class="fas fa-map-marker-alt me-2 text-primary"></i>
+                                            {{ form.address.label }}
+                                        </label>
+                                        {{ form.address }}
+                                        <div class="form-text">{% trans "عنوان تفصيلي (اختياري)" %}</div>
+                                    </div>
+                                </div>
+
+                                <!-- Step 3: Images and Video Upload -->
+                                <div class="form-step" data-step="3">
+                                    <div class="step-header">
+                                        <h3 class="step-title">{% trans "الصور والفيديو" %}</h3>
+                                        <p class="step-description">{% trans "أضف صوراً واضحة وفيديو (اختياري) للمنتج" %}</p>
+                                    </div>
+
+                                    <!-- Images Section -->
+                                    <div class="mb-4">
+                                        <h4 class="mb-3">
+                                            <i class="fas fa-images me-2 text-primary"></i>
+                                            {% trans "صور الإعلان" %}
+                                        </h4>
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            {% trans "الصورة الأولى ستكون الصورة الرئيسية للإعلان (حتى 5 صور)" %}
+                                        </div>
+                                    </div>
+
+                                    {{ image_formset.management_form }}
+                                    <div id="images-container">
+                                        {% for form in image_formset %}
+                                            <div class="image-formset-item mb-3">
+                                                {% if form.instance.pk and form.instance.image %}
+                                                    <div class="image-preview-item">
+                                                        <img src="{{ form.instance.image.url }}" alt="{% trans 'Image' %}">
+                                                        <button type="button" class="remove-image-btn">
+                                                            <i class="fas fa-times"></i>
+                                                        </button>
+                                                        {{ form.DELETE }}
+                                                    </div>
+                                                {% endif %}
+                                                {{ form.image }}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+
+                                    <div class="image-preview-container" id="image-preview-container"></div>
+
+                                    <hr class="my-4">
+
+                                    <!-- Video Section -->
+                                    <div class="mb-4">
+                                        <h4 class="mb-3">
+                                            <i class="fas fa-video me-2 text-primary"></i>
+                                            {% trans "إضافة فيديو (اختياري)" %}
+                                        </h4>
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            {% trans "يمكنك إضافة فيديو من YouTube/Vimeo أو رفع ملف فيديو مباشرة" %}
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6 mb-4">
+                                            <label for="{{ form.video_url.id_for_label }}" class="form-label h6">
+                                                <i class="fas fa-link me-2 text-primary"></i>
+                                                {% trans "رابط الفيديو" %}
+                                            </label>
+                                            {{ form.video_url }}
+                                            <div class="form-text">{% trans "رابط فيديو من YouTube أو Vimeo" %}</div>
+                                        </div>
+                                        <div class="col-md-6 mb-4">
+                                            <label for="{{ form.video_file.id_for_label }}" class="form-label h6">
+                                                <i class="fas fa-file-video me-2 text-primary"></i>
+                                                {% trans "أو رفع ملف فيديو" %}
+                                            </label>
+                                            {{ form.video_file }}
+                                            <div class="form-text">{% trans "حجم الملف الأقصى: 50 ميجا" %}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Step 4: Price, Features, and Payment -->
+                                <div class="form-step" data-step="4">
+                                    <div class="step-header">
+                                        <h3 class="step-title">{% trans "السعر والميزات والدفع" %}</h3>
+                                        <p class="step-description">{% trans "حدد السعر، اختر الميزات الإضافية، وراجع تكلفة الإعلان" %}</p>
+                                    </div>
+
+                                    <!-- Price Section -->
+                                    <div class="mb-4">
+                                        <h4 class="mb-3">
+                                            <i class="fas fa-tag me-2 text-primary"></i>
+                                            {% trans "السعر" %}
+                                        </h4>
                                     </div>
 
                                     <div class="row">
@@ -944,36 +1124,6 @@
                                         </div>
                                     </div>
 
-                                    <!-- Price Summary Card -->
-                                    <div class="card mb-4" id="price-summary-card" style="display: none;">
-                                        <div class="card-body bg-light">
-                                            <h5 class="card-title mb-3">
-                                                <i class="fas fa-calculator me-2"></i>
-                                                {% trans "ملخص التكلفة" %}
-                                            </h5>
-                                            <div class="d-flex justify-content-between mb-2">
-                                                <span>{% trans "رسوم النشر الأساسية:" %}</span>
-                                                <span id="base-fee-display">0 ج.م</span>
-                                            </div>
-                                            <div class="d-flex justify-content-between mb-2" id="features-cost-row" style="display: none !important;">
-                                                <span>{% trans "الميزات الإضافية:" %}</span>
-                                                <span id="features-cost-display">0 ج.م</span>
-                                            </div>
-                                            <div class="d-flex justify-content-between mb-2" id="free-ads-discount-row" style="display: none !important;">
-                                                <span class="text-success">
-                                                    <i class="fas fa-gift me-1"></i>
-                                                    {% trans "إعلانات مجانية متاحة:" %}
-                                                </span>
-                                                <span class="text-success" id="free-ads-count">0</span>
-                                            </div>
-                                            <hr>
-                                            <div class="d-flex justify-content-between">
-                                                <strong>{% trans "المجموع:" %}</strong>
-                                                <strong id="total-cost-display" class="text-primary fs-4">0 ج.م</strong>
-                                            </div>
-                                        </div>
-                                    </div>
-
                                     <hr class="my-4">
 
                                     <!-- Cart/Shopping Cart Option -->
@@ -1012,139 +1162,37 @@
 
                                     <hr class="my-4">
 
-                                    <!-- Contact and Location (same step) -->
-                                    <div class="mb-4">
-                                        <h4 class="mb-3">{% trans "معلومات التواصل والموقع" %}</h4>
-                                    </div>
-
-                                    <div class="mb-4">
-                                        <label for="{{ form.mobile_number.id_for_label }}" class="form-label h6">
-                                            <i class="fas fa-phone me-2 text-primary"></i>
-                                            {{ form.mobile_number.label }}
-                                            {% if form.mobile_number.field.required %}<span class="text-danger">*</span>{% endif %}
-                                        </label>
-                                        {{ form.mobile_number }}
-                                        <div class="form-text">{{ form.mobile_number.help_text }}</div>
-
-                                        <!-- Mobile Verification UI -->
-                                        <div id="mobile-verification-section" class="mt-3" style="display: none;">
-                                            <div class="alert alert-warning" role="alert">
-                                                <i class="fas fa-exclamation-triangle me-2"></i>
-                                                {% trans "يجب التحقق من رقم الجوال قبل نشر الإعلان" %}
+                                    <!-- Price Summary Card -->
+                                    <div class="card mb-4" id="price-summary-card">
+                                        <div class="card-body bg-light">
+                                            <h5 class="card-title mb-3">
+                                                <i class="fas fa-calculator me-2"></i>
+                                                {% trans "ملخص التكلفة" %}
+                                            </h5>
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <span>{% trans "رسوم النشر الأساسية:" %}</span>
+                                                <span id="base-fee-display">0 ج.م</span>
                                             </div>
-
-                                            <div class="row">
-                                                <div class="col-md-8">
-                                                    <button type="button" id="send-otp-btn" class="btn btn-outline-primary">
-                                                        <i class="fas fa-sms me-2"></i>
-                                                        {% trans "إرسال رمز التحقق" %}
-                                                    </button>
-                                                </div>
+                                            <div class="d-flex justify-content-between mb-2" id="features-cost-row" style="display: none !important;">
+                                                <span>{% trans "الميزات الإضافية:" %}</span>
+                                                <span id="features-cost-display">0 ج.م</span>
                                             </div>
-
-                                            <div id="otp-input-section" class="mt-3" style="display: none;">
-                                                <div class="row">
-                                                    <div class="col-md-6">
-                                                        <label for="verification_code" class="form-label">{% trans "رمز التحقق" %}</label>
-                                                        <input type="text" id="verification_code" class="form-control"
-                                                               placeholder="{% trans 'أدخل الرمز المرسل' %}" maxlength="6">
-                                                    </div>
-                                                    <div class="col-md-6 d-flex align-items-end">
-                                                        <button type="button" id="verify-otp-btn" class="btn btn-success">
-                                                            <i class="fas fa-check me-2"></i>
-                                                            {% trans "تحقق" %}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                <div class="form-text">{% trans "سيتم إرسال رمز التحقق خلال دقائق قليلة" %}</div>
+                                            <div class="d-flex justify-content-between mb-2" id="free-ads-discount-row" style="display: none !important;">
+                                                <span class="text-success">
+                                                    <i class="fas fa-gift me-1"></i>
+                                                    {% trans "إعلانات مجانية متاحة:" %}
+                                                </span>
+                                                <span class="text-success" id="free-ads-count">0</span>
                                             </div>
-
-                                            <div id="verification-success" class="alert alert-success mt-3" style="display: none;">
-                                                <i class="fas fa-check-circle me-2"></i>
-                                                {% trans "تم التحقق من رقم الجوال بنجاح" %}
+                                            <hr>
+                                            <div class="d-flex justify-content-between">
+                                                <strong>{% trans "المجموع:" %}</strong>
+                                                <strong id="total-cost-display" class="text-primary fs-4">0 ج.م</strong>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <!-- Location Fields -->
-                                    <div class="row">
-                                        <div class="col-md-6 mb-4">
-                                            <label for="{{ form.country.id_for_label }}" class="form-label h6">
-                                                <i class="fas fa-flag me-2 text-primary"></i>
-                                                {% trans "الدولة" %}
-                                                <span class="text-danger">*</span>
-                                            </label>
-                                            <select name="{{ form.country.name }}" id="{{ form.country.id_for_label }}" class="form-select" required>
-                                                <option value="">{% trans "اختر الدولة..." %}</option>
-                                                {% for country in countries %}
-                                                    <option value="{{ country.id }}"
-                                                        {% if form.country.value == country.id or not form.country.value and country.code == default_country|default:'SA' %}selected{% endif %}>
-                                                        {{ country.flag_emoji }} {{ country.name }}
-                                                    </option>
-                                                {% endfor %}
-                                            </select>
-                                        </div>
-                                        <div class="col-md-6 mb-4">
-                                            <label for="{{ form.city.id_for_label }}" class="form-label h6">
-                                                <i class="fas fa-city me-2 text-primary"></i>
-                                                {% trans "المدينة" %}
-                                                <span class="text-danger">*</span>
-                                            </label>
-                                            {{ form.city }}
-                                        </div>
-                                    </div>
-
-                                    <div class="mb-4">
-                                        <label for="{{ form.address.id_for_label }}" class="form-label h6">
-                                            <i class="fas fa-map-marker-alt me-2 text-primary"></i>
-                                            {{ form.address.label }}
-                                        </label>
-                                        {{ form.address }}
-                                        <div class="form-text">{% trans "عنوان تفصيلي (اختياري)" %}</div>
-                                    </div>
-                                </div>
-
-                                <!-- Step 3: Images Upload -->
-                                <div class="form-step" data-step="3">
-                                    <div class="step-header">
-                                        <h3 class="step-title">{% trans "صور الإعلان" %}</h3>
-                                        <p class="step-description">{% trans "أضف صوراً واضحة للمنتج (حتى 5 صور)" %}</p>
-                                    </div>
-
-                                    <div class="mb-4">
-                                        <div class="alert alert-info">
-                                            <i class="fas fa-info-circle me-2"></i>
-                                            {% trans "الصورة الأولى ستكون الصورة الرئيسية للإعلان" %}
-                                        </div>
-                                    </div>
-
-                                    {{ image_formset.management_form }}
-                                    <div id="images-container">
-                                        {% for form in image_formset %}
-                                            <div class="image-formset-item mb-3">
-                                                {% if form.instance.pk and form.instance.image %}
-                                                    <div class="image-preview-item">
-                                                        <img src="{{ form.instance.image.url }}" alt="{% trans 'Image' %}">
-                                                        <button type="button" class="remove-image-btn">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                        {{ form.DELETE }}
-                                                    </div>
-                                                {% endif %}
-                                                {{ form.image }}
-                                            </div>
-                                        {% endfor %}
-                                    </div>
-
-                                    <div class="image-preview-container" id="image-preview-container"></div>
-                                </div>
-
-                                <!-- Step 4: Review and Payment -->
-                                <div class="form-step" data-step="4">
-                                    <div class="step-header">
-                                        <h3 class="step-title">{% trans "المراجعة والدفع" %}</h3>
-                                        <p class="step-description">{% trans "راجع تفاصيل إعلانك وأتمم الدفع إذا لزم الأمر" %}</p>
-                                    </div>
+                                    <hr class="my-4">
 
                                     <!-- Summary Card -->
                                     <div class="card mb-4">
@@ -1184,7 +1232,7 @@
                                         </div>
                                     </div>
 
-                                    <!-- Payment Summary -->
+                                    <!-- Payment Summary Final -->
                                     <div class="card mb-4" id="payment-summary-final">
                                         <div class="card-header bg-success text-white">
                                             <h5 class="mb-0">

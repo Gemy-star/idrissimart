@@ -37,10 +37,12 @@ class CountryAdmin(admin.ModelAdmin):
         "is_active",
         "order",
     ]
-    list_filter = ["is_active", "currency"]
+    list_filter = ["is_active", "currency", "created_at"]
     search_fields = ["name", "name_en", "code", "phone_code"]
     list_editable = ["is_active", "order"]
     ordering = ["order", "name"]
+    date_hierarchy = "created_at"
+    list_per_page = 25
 
     # Use a better widget for JSON field
     formfield_overrides = {
@@ -139,11 +141,14 @@ class BlogCategoryAdmin(admin.ModelAdmin):
         "is_active",
         "blogs_count",
     ]
-    list_filter = ["is_active"]
-    search_fields = ["name", "name_en", "slug"]
+    list_filter = ["is_active", "created_at"]
+    search_fields = ["name", "name_en", "slug", "description"]
     list_editable = ["order", "is_active"]
     prepopulated_fields = {"slug": ("name",)}
     ordering = ["order", "name"]
+    date_hierarchy = "created_at"
+    list_per_page = 25
+    actions = ["activate_categories", "deactivate_categories"]
 
     fieldsets = (
         (
@@ -192,6 +197,20 @@ class BlogCategoryAdmin(admin.ModelAdmin):
         return obj.get_blogs_count()
 
     blogs_count.short_description = "عدد المدونات"
+
+    def activate_categories(self, request, queryset):
+        """Activate selected blog categories"""
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f"تم تفعيل {updated} تصنيف")
+
+    activate_categories.short_description = "تفعيل التصنيفات المحددة"
+
+    def deactivate_categories(self, request, queryset):
+        """Deactivate selected blog categories"""
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f"تم إلغاء تفعيل {updated} تصنيف")
+
+    deactivate_categories.short_description = "إلغاء تفعيل التصنيفات المحددة"
 
 
 @admin.register(HomeSlider)
@@ -319,29 +338,81 @@ class BlogAdmin(admin.ModelAdmin):
         "views_count",
         "is_published",
     )
-    list_filter = ("is_published", "author", "category")
-    search_fields = ("title", "content")
+    list_filter = ("is_published", "author", "category", "published_date")
+    search_fields = ("title", "content", "author__username")
     prepopulated_fields = {"slug": ("title",)}
     date_hierarchy = "published_date"
     ordering = ("-published_date",)
+    list_per_page = 25
+    readonly_fields = ("views_count", "published_date")
+    actions = ["publish_blogs", "unpublish_blogs"]
 
     formfield_overrides = {
         models.TextField: {"widget": CKEditor5Widget(config_name="admin")},
     }
 
+    fieldsets = (
+        (
+            _("معلومات أساسية"),
+            {"fields": ("title", "slug", "author", "category")},
+        ),
+        (
+            _("المحتوى"),
+            {"fields": ("content", "featured_image")},
+        ),
+        (
+            _("الحالة والإحصائيات"),
+            {"fields": ("is_published", "published_date", "views_count")},
+        ),
+    )
+
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related("category")
+        return super().get_queryset(request).select_related("category", "author")
+
+    def publish_blogs(self, request, queryset):
+        """Publish selected blogs"""
+        updated = queryset.update(is_published=True)
+        self.message_user(request, f"تم نشر {updated} مدونة")
+
+    publish_blogs.short_description = _("نشر المدونات المحددة")
+
+    def unpublish_blogs(self, request, queryset):
+        """Unpublish selected blogs"""
+        updated = queryset.update(is_published=False)
+        self.message_user(request, f"تم إلغاء نشر {updated} مدونة")
+
+    unpublish_blogs.short_description = _("إلغاء نشر المدونات المحددة")
 
 
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
-    list_display = ("author", "body", "blog", "created_on", "active")
+    list_display = ("author", "body_preview", "blog", "created_on", "active")
     list_filter = ("active", "created_on")
-    search_fields = ("author__username", "body")
-    actions = ["approve_comments"]
+    search_fields = ("author__username", "body", "blog__title")
+    readonly_fields = ("created_on",)
+    date_hierarchy = "created_on"
+    list_per_page = 25
+    actions = ["approve_comments", "disapprove_comments"]
+
+    def body_preview(self, obj):
+        """Display comment preview"""
+        return obj.body[:50] + "..." if len(obj.body) > 50 else obj.body
+
+    body_preview.short_description = _("التعليق")
 
     def approve_comments(self, request, queryset):
-        queryset.update(active=True)
+        """Approve selected comments"""
+        updated = queryset.update(active=True)
+        self.message_user(request, f"تم قبول {updated} تعليق")
+
+    approve_comments.short_description = _("قبول التعليقات")
+
+    def disapprove_comments(self, request, queryset):
+        """Disapprove selected comments"""
+        updated = queryset.update(active=False)
+        self.message_user(request, f"تم رفض {updated} تعليق")
+
+    disapprove_comments.short_description = _("رفض التعليقات")
 
 
 # Solo Model Admins for Site Configuration

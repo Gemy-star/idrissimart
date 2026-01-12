@@ -1801,7 +1801,7 @@ def get_category_stats(request):
 
 @login_required
 def enhanced_ad_create_view(request):
-    """Simple enhanced ad creation view with balance check"""
+    """Simple enhanced ad creation view - allows all users, payment handled at end"""
 
     # First check if user is authenticated
     if not request.user.is_authenticated:
@@ -1811,7 +1811,7 @@ def enhanced_ad_create_view(request):
         )
         return redirect("main:login")
 
-    # Check if user has any active package with remaining ads
+    # Check if user has any active package with remaining ads (for display)
     active_package = (
         UserPackage.objects.filter(
             user=request.user,
@@ -1822,16 +1822,11 @@ def enhanced_ad_create_view(request):
         .first()
     )
 
-    if not active_package:
-        # User has no balance (ads_remaining = 0) or no active package
-        messages.warning(
-            request,
-            _("يجب الاشتراك في باقة لتتمكن من نشر إعلان. رصيدك الحالي = 0"),
-        )
-        return redirect("main:packages_list")
-
-    # Store remaining ads count for display
-    request.session["ads_remaining"] = active_package.ads_remaining
+    # Store remaining ads count for display (0 if no package)
+    if active_package:
+        request.session["ads_remaining"] = active_package.ads_remaining
+    else:
+        request.session["ads_remaining"] = 0
 
     if request.method == "POST":
         # استخدام النموذج المبسط
@@ -3375,9 +3370,18 @@ class AdminCustomFieldSaveView(SuperadminRequiredMixin, View):
 
     def post(self, request):
         try:
+            import json
             from main.models import CategoryCustomField, CustomFieldOption
 
-            field_id = request.POST.get("field_id")
+            # Check if request is JSON or FormData
+            if request.content_type == "application/json":
+                data = json.loads(request.body)
+                is_json = True
+            else:
+                data = request.POST
+                is_json = False
+
+            field_id = data.get("field_id") or data.get("id")
             if field_id:
                 field = get_object_or_404(CustomField, pk=field_id)
                 message = _("تم تحديث الحقل بنجاح.")
@@ -3386,36 +3390,103 @@ class AdminCustomFieldSaveView(SuperadminRequiredMixin, View):
                 message = _("تم إنشاء الحقل بنجاح.")
 
             # Update field data
-            field.name = request.POST.get("name", field.name)
-            field.label_ar = request.POST.get("label_ar", field.label_ar)
-            field.label_en = request.POST.get("label_en", field.label_en)
-            field.field_type = request.POST.get("field_type", field.field_type)
-            field.is_required = request.POST.get("is_required") == "on"
-            field.is_active = request.POST.get("is_active") == "on"
-            field.help_text = request.POST.get("help_text", field.help_text or "")
-            field.placeholder = request.POST.get("placeholder", field.placeholder or "")
-            field.default_value = request.POST.get(
-                "default_value", field.default_value or ""
-            )
+            field.name = data.get("name", field.name)
+            field.label_ar = data.get("label_ar", field.label_ar)
+            field.label_en = data.get("label_en", field.label_en or "")
+            field.field_type = data.get("field_type", field.field_type)
+
+            # Handle boolean fields based on data type
+            if is_json:
+                field.is_required = data.get("is_required", False)
+                field.is_active = data.get("is_active", True)
+            else:
+                field.is_required = data.get("is_required") == "on"
+                field.is_active = data.get("is_active") == "on"
+
+            field.help_text = data.get("help_text", field.help_text or "")
+            field.placeholder = data.get("placeholder", field.placeholder or "")
+            field.default_value = data.get("default_value", field.default_value or "")
             field.save()
 
-            # Handle category association
-            category_id = request.POST.get("category")
-            if category_id:
-                category = get_object_or_404(Category, pk=category_id)
-                # Create or update CategoryCustomField relationship
-                CategoryCustomField.objects.update_or_create(
-                    category=category,
-                    custom_field=field,
-                    defaults={
-                        "is_required": field.is_required,
-                        "order": int(request.POST.get("order", 0)),
-                        "is_active": True,
-                    },
-                )
+            # Handle category associations (single or multiple)
+            category_ids = data.get("category_ids", [])
+            category_id = data.get("category")
+
+            # For backward compatibility with single category
+            if category_id and not category_ids:
+                category_ids = [category_id]
+
+            # Handle multiple category associations
+            if category_ids:
+                # If editing an existing field, manage category associations
+                if field_id:
+                    # Get existing category associations
+                    existing_links = CategoryCustomField.objects.filter(
+                        custom_field=field
+                    )
+                    existing_cat_ids = set(
+                        existing_links.values_list("category_id", flat=True)
+                    )
+                    new_cat_ids = set(category_ids)
+
+                    # Remove categories that are no longer selected
+                    cats_to_remove = existing_cat_ids - new_cat_ids
+                    if cats_to_remove:
+                        removed_count = CategoryCustomField.objects.filter(
+                            custom_field=field, category_id__in=cats_to_remove
+                        ).delete()[0]
+                        if removed_count > 0:
+                            message = _(
+                                "تم تحديث الحقل وإزالته من %(removed)d أقسام."
+                            ) % {"removed": removed_count}
+
+                # Add/update selected categories
+                added_count = 0
+                updated_count = 0
+                for cat_id in category_ids:
+                    try:
+                        category = get_object_or_404(Category, pk=cat_id)
+
+                        # Get category-specific settings
+                        if is_json:
+                            show_on_card = data.get("show_on_card", False)
+                            show_in_filters = data.get("show_in_filters", False)
+                        else:
+                            show_on_card = data.get("show_on_card") == "on"
+                            show_in_filters = data.get("show_in_filters") == "on"
+
+                        # Create or update CategoryCustomField relationship
+                        _, created = CategoryCustomField.objects.update_or_create(
+                            category=category,
+                            custom_field=field,
+                            defaults={
+                                "is_required": field.is_required,
+                                "order": int(data.get("order", 0)),
+                                "is_active": True,
+                                "show_on_card": show_on_card,
+                                "show_in_filters": show_in_filters,
+                            },
+                        )
+                        if created:
+                            added_count += 1
+                        else:
+                            updated_count += 1
+                    except Exception as e:
+                        print(f"Error adding field to category {cat_id}: {e}")
+                        continue
+
+                # Update success message based on operation
+                if not field_id and added_count > 1:
+                    message = _(
+                        "تم إنشاء الحقل وإضافته إلى %(count)d أقسام بنجاح."
+                    ) % {"count": added_count}
+                elif field_id and added_count > 0:
+                    message = _(
+                        "تم تحديث الحقل وإضافته إلى %(count)d أقسام جديدة."
+                    ) % {"count": added_count}
 
             # Handle options for select/radio/checkbox fields
-            options_str = request.POST.get("options", "")
+            options_str = data.get("options", "")
             if options_str and field.field_type in ["select", "radio", "checkbox"]:
                 # Delete existing options
                 CustomFieldOption.objects.filter(custom_field=field).delete()

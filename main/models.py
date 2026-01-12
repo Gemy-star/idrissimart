@@ -1019,6 +1019,18 @@ class Category(MPTTModel):
         help_text=_("الإعلانات تتطلب مراجعة قبل النشر"),
     )
 
+    # Ad Creation Pricing
+    ad_creation_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name=_("سعر إنشاء الإعلان"),
+        help_text=_(
+            "السعر المطلوب لإنشاء إعلان في هذا القسم (إذا لم يكن لدى المستخدم إعلانات مجانية)"
+        ),
+        validators=[MinValueValidator(0)],
+    )
+
     order = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
 
@@ -1603,6 +1615,11 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
     # Status and Timestamps
     status = models.CharField(
         max_length=20, choices=AdStatus.choices, default=AdStatus.PENDING
+    )
+    is_paid = models.BooleanField(
+        default=False,
+        verbose_name=_("مدفوع"),
+        help_text=_("تم دفع رسوم نشر الإعلان"),
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

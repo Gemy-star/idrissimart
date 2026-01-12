@@ -366,7 +366,9 @@ def ad_payment(request, ad_id):
     features = request.session.get("ad_features", {})
 
     # Get allowed payment methods for platform payments
-    allowed_payment_methods = get_allowed_payment_methods(PaymentContext.PLATFORM_PAYMENT)
+    allowed_payment_methods = get_allowed_payment_methods(
+        PaymentContext.PLATFORM_PAYMENT
+    )
 
     # If ad is already active or no payment needed, redirect
     if ad.status == ClassifiedAd.AdStatus.ACTIVE or total_amount == 0:
@@ -378,7 +380,10 @@ def ad_payment(request, ad_id):
 
         # Validate payment method is allowed for platform payments
         from .payment_utils import is_payment_method_allowed
-        if not is_payment_method_allowed(payment_method, PaymentContext.PLATFORM_PAYMENT):
+
+        if not is_payment_method_allowed(
+            payment_method, PaymentContext.PLATFORM_PAYMENT
+        ):
             messages.error(request, _("طريقة الدفع المختارة غير متاحة للدفع للمنصة."))
             return redirect("main:ad_payment", ad_id=ad.id)
 
@@ -500,6 +505,9 @@ def process_ad_payment(payment):
         ad.contact_for_price = features.get("contact_for_price", False)
         ad.features_price = Decimal(payment.metadata.get("features_cost", "0"))
 
+        # Mark ad as paid
+        ad.is_paid = True
+
         # Change status from DRAFT to PENDING or ACTIVE
         if ad.status == ClassifiedAd.AdStatus.DRAFT:
             # Check if user is verified
@@ -533,14 +541,20 @@ def process_ad_payment(payment):
                 user=ad.user,
                 notification_type=Notification.NotificationType.GENERAL,
                 title=_("تم تأكيد الدفع"),
-                message=_("تم تأكيد دفع إعلانك {} وتحويله إلى {}.").format(ad.title, status_msg),
+                message=_("تم تأكيد دفع إعلانك {} وتحويله إلى {}.").format(
+                    ad.title, status_msg
+                ),
                 link=ad.get_absolute_url(),
             )
 
-            logger.info(f"Ad {ad.id} status changed from DRAFT to {ad.status} after payment {payment.id}")
+            logger.info(
+                f"Ad {ad.id} status changed from DRAFT to {ad.status} after payment {payment.id}"
+            )
             return True
         else:
-            logger.warning(f"Ad {ad.id} is not in DRAFT status, current status: {ad.status}")
+            logger.warning(
+                f"Ad {ad.id} is not in DRAFT status, current status: {ad.status}"
+            )
             return False
 
     except ClassifiedAd.DoesNotExist:
@@ -570,7 +584,9 @@ def confirm_ad_payment(request, payment_id):
         success = process_ad_payment(payment)
 
     if not success:
-        return JsonResponse({"success": False, "message": _("فشل في معالجة دفع الإعلان")})
+        return JsonResponse(
+            {"success": False, "message": _("فشل في معالجة دفع الإعلان")}
+        )
 
     # Mark payment as completed
     payment.mark_completed()
@@ -598,14 +614,19 @@ def package_checkout(request, package_id):
     total_amount = package.price
 
     # Get allowed payment methods for platform payments
-    allowed_payment_methods = get_allowed_payment_methods(PaymentContext.PLATFORM_PAYMENT)
+    allowed_payment_methods = get_allowed_payment_methods(
+        PaymentContext.PLATFORM_PAYMENT
+    )
 
     if request.method == "POST":
         payment_method = request.POST.get("payment_method")
 
         # Validate payment method is allowed for platform payments
         from .payment_utils import is_payment_method_allowed
-        if not is_payment_method_allowed(payment_method, PaymentContext.PLATFORM_PAYMENT):
+
+        if not is_payment_method_allowed(
+            payment_method, PaymentContext.PLATFORM_PAYMENT
+        ):
             messages.error(request, _("طريقة الدفع المختارة غير متاحة للدفع للمنصة."))
             return redirect("main:package_checkout", package_id=package.id)
 
@@ -791,7 +812,9 @@ def ad_upgrade_payment(request, ad_id):
     upgrade_features = request.session.get("upgrade_features", {})
 
     # Get allowed payment methods for platform payments
-    allowed_payment_methods = get_allowed_payment_methods(PaymentContext.PLATFORM_PAYMENT)
+    allowed_payment_methods = get_allowed_payment_methods(
+        PaymentContext.PLATFORM_PAYMENT
+    )
 
     # If no payment needed, redirect
     if total_amount == 0:
@@ -803,7 +826,10 @@ def ad_upgrade_payment(request, ad_id):
 
         # Validate payment method is allowed for platform payments
         from .payment_utils import is_payment_method_allowed
-        if not is_payment_method_allowed(payment_method, PaymentContext.PLATFORM_PAYMENT):
+
+        if not is_payment_method_allowed(
+            payment_method, PaymentContext.PLATFORM_PAYMENT
+        ):
             messages.error(request, _("طريقة الدفع المختارة غير متاحة للدفع للمنصة."))
             return redirect("main:ad_upgrade_payment", ad_id=ad.id)
 
@@ -940,7 +966,9 @@ def process_ad_upgrade_payment(payment):
             link=ad.get_absolute_url(),
         )
 
-        logger.info(f"Ad {ad.id} upgraded with features {upgrade_features} after payment {payment.id}")
+        logger.info(
+            f"Ad {ad.id} upgraded with features {upgrade_features} after payment {payment.id}"
+        )
         return True
 
     except ClassifiedAd.DoesNotExist:

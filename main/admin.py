@@ -58,12 +58,14 @@ class CategoryAdmin(MPTTModelAdmin):
         "parent",
         "country",
         "is_active",
+        "custom_fields_count",
         "created_at",
     )
-    list_filter = ("is_active", "country", "parent", "created_at")
-    search_fields = ("name", "name_ar", "slug", "slug_ar")
+    list_filter = ("is_active", "country", "parent", "section_type", "created_at")
+    search_fields = ("name", "name_ar", "slug", "slug_ar", "description")
     prepopulated_fields = {"slug": ("name",), "slug_ar": ("name_ar",)}
     list_editable = ("is_active",)
+    autocomplete_fields = []  # Enable autocomplete for this model
 
     formfield_overrides = {
         models.TextField: {"widget": CKEditor5Widget(config_name="admin")},
@@ -103,6 +105,24 @@ class CategoryAdmin(MPTTModelAdmin):
         ("Settings", {"fields": ("order", "is_active")}),
     )
     ordering = ("country", "name")
+
+    def custom_fields_count(self, obj):
+        """Display count of custom fields linked to this category"""
+        count = obj.custom_fields.count()
+        if count > 0:
+            return format_html(
+                '<span style="background-color: #17a2b8; color: white; padding: 3px 8px; '
+                'border-radius: 10px; font-size: 11px; font-weight: bold;">{}</span>',
+                count,
+            )
+        return format_html('<span style="color: #999;">-</span>')
+
+    custom_fields_count.short_description = _("الحقول المخصصة")
+
+    def get_queryset(self, request):
+        """Optimize queryset"""
+        qs = super().get_queryset(request)
+        return qs.prefetch_related("custom_fields")
 
 
 # --- Classified Ads Admin ---
@@ -156,6 +176,7 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
         "category",
         "price",
         "status",
+        "is_paid",
         "is_resubmitted",
         "is_highlighted",
         "is_urgent",
@@ -168,6 +189,7 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
     )
     list_filter = (
         "status",
+        "is_paid",
         "is_resubmitted",
         "category",
         "is_hidden",
@@ -191,6 +213,8 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
         "approve_ads",
         "reject_ads",
         "mark_as_pending",
+        "mark_as_paid",
+        "mark_as_unpaid",
         "activate_upgrades_action",
         "renew_ads_30_days",
         "renew_ads_60_days",
@@ -1173,13 +1197,20 @@ class CustomFieldOptionInline(admin.TabularInline):
     """Inline for custom field options."""
 
     model = CustomFieldOption
-    extra = 3
+    extra = 2
     fields = ("label_ar", "label_en", "value", "order", "is_active")
     ordering = ("order", "label_ar")
+    classes = ("collapse",)
+    verbose_name = _("خيار الحقل")
+    verbose_name_plural = _("خيارات الحقل (للقوائم المنسدلة)")
+
+    def get_queryset(self, request):
+        """Optimize queryset"""
+        return super().get_queryset(request).select_related("custom_field")
 
 
 class CategoryCustomFieldInline(admin.TabularInline):
-    """Inline for associating custom fields with categories."""
+    """Inline for associating custom fields with categories and subcategories."""
 
     model = CategoryCustomField
     extra = 1
@@ -1192,6 +1223,13 @@ class CategoryCustomFieldInline(admin.TabularInline):
         "show_in_filters",
     )
     autocomplete_fields = ["category"]
+    classes = ("collapse",)
+    verbose_name = _("ربط الحقل بقسم")
+    verbose_name_plural = _("الأقسام والأقسام الفرعية المرتبطة بهذا الحقل")
+
+    def get_queryset(self, request):
+        """Optimize queryset"""
+        return super().get_queryset(request).select_related("category", "custom_field")
 
 
 @admin.register(CustomField)
@@ -1199,21 +1237,40 @@ class CustomFieldAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "label_ar",
-        "field_type",
+        "field_type_badge",
         "is_required",
         "is_active",
         "get_categories_count",
+        "created_at",
     )
-    list_filter = ("field_type", "is_required", "is_active")
-    search_fields = ("name", "label_ar", "label_en")
+    list_filter = (
+        "field_type",
+        "is_required",
+        "is_active",
+        "created_at",
+    )
+    search_fields = ("name", "label_ar", "label_en", "help_text")
     list_editable = ("is_active", "is_required")
     ordering = ("name",)
     inlines = [CustomFieldOptionInline, CategoryCustomFieldInline]
+    date_hierarchy = "created_at"
+    actions = [
+        "activate_fields",
+        "deactivate_fields",
+        "mark_as_required",
+        "mark_as_optional",
+        "duplicate_fields",
+    ]
 
     fieldsets = (
         (
             _("معلومات أساسية"),
-            {"fields": ("name", "label_ar", "label_en", "field_type")},
+            {
+                "fields": ("name", "label_ar", "label_en", "field_type"),
+                "description": _(
+                    "المعلومات الأساسية للحقل المخصص. يمكن ربط هذا الحقل بعدة أقسام أو أقسام فرعية."
+                ),
+            },
         ),
         (
             _("إعدادات الحقل"),
@@ -1242,10 +1299,115 @@ class CustomFieldAdmin(admin.ModelAdmin):
         ),
     )
 
-    def get_categories_count(self, obj):
-        return obj.categories.count()
+    def field_type_badge(self, obj):
+        """Display field type with colored badge"""
+        type_colors = {
+            "text": "#007bff",
+            "number": "#28a745",
+            "email": "#17a2b8",
+            "phone": "#ffc107",
+            "select": "#6f42c1",
+            "checkbox": "#fd7e14",
+            "radio": "#e83e8c",
+            "textarea": "#20c997",
+            "date": "#6610f2",
+        }
+        color = type_colors.get(obj.field_type, "#6c757d")
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 4px 10px; '
+            'border-radius: 12px; font-size: 11px; font-weight: 600;">{}</span>',
+            color,
+            obj.get_field_type_display(),
+        )
 
-    get_categories_count.short_description = _("عدد الأقسام")
+    field_type_badge.short_description = _("نوع الحقل")
+    field_type_badge.admin_order_field = "field_type"
+
+    def get_categories_count(self, obj):
+        """Get count of categories this field is linked to"""
+        count = obj.categories.count()
+        if count > 0:
+            return format_html(
+                '<span style="background-color: #28a745; color: white; padding: 3px 8px; '
+                'border-radius: 10px; font-size: 11px; font-weight: bold;">{}</span>',
+                count,
+            )
+        return format_html('<span style="color: #dc3545;">لا يوجد</span>')
+
+    get_categories_count.short_description = _("عدد الأقسام المرتبطة")
+
+    def get_queryset(self, request):
+        """Optimize queryset with prefetch"""
+        qs = super().get_queryset(request)
+        return qs.prefetch_related("categories", "field_options")
+
+    # Admin Actions
+    def activate_fields(self, request, queryset):
+        """Activate selected custom fields"""
+        updated = queryset.update(is_active=True)
+        self.message_user(request, _(f"تم تفعيل {updated} حقل مخصص"))
+
+    activate_fields.short_description = _("✓ تفعيل الحقول المحددة")
+
+    def deactivate_fields(self, request, queryset):
+        """Deactivate selected custom fields"""
+        updated = queryset.update(is_active=False)
+        self.message_user(request, _(f"تم إلغاء تفعيل {updated} حقل مخصص"))
+
+    deactivate_fields.short_description = _("✗ إلغاء تفعيل الحقول المحددة")
+
+    def mark_as_required(self, request, queryset):
+        """Mark selected fields as required"""
+        updated = queryset.update(is_required=True)
+        self.message_user(request, _(f"تم تحديد {updated} حقل كإلزامي"))
+
+    mark_as_required.short_description = _("* تحديد كإلزامي")
+
+    def mark_as_optional(self, request, queryset):
+        """Mark selected fields as optional"""
+        updated = queryset.update(is_required=False)
+        self.message_user(request, _(f"تم تحديد {updated} حقل كاختياري"))
+
+    mark_as_optional.short_description = _("○ تحديد كاختياري")
+
+    def duplicate_fields(self, request, queryset):
+        """Duplicate selected custom fields"""
+        count = 0
+        for field in queryset:
+            # Create a copy of the field
+            new_field = CustomField.objects.create(
+                name=f"{field.name}_copy_{count + 1}",
+                label_ar=f"{field.label_ar} (نسخة)",
+                label_en=f"{field.label_en} (Copy)" if field.label_en else "",
+                field_type=field.field_type,
+                is_required=field.is_required,
+                is_active=False,  # Set as inactive by default
+                help_text=field.help_text,
+                placeholder=field.placeholder,
+                default_value=field.default_value,
+                min_length=field.min_length,
+                max_length=field.max_length,
+                min_value=field.min_value,
+                max_value=field.max_value,
+                validation_regex=field.validation_regex,
+            )
+
+            # Copy field options if any
+            for option in field.field_options.all():
+                CustomFieldOption.objects.create(
+                    custom_field=new_field,
+                    label_ar=option.label_ar,
+                    label_en=option.label_en,
+                    value=option.value,
+                    order=option.order,
+                    is_active=option.is_active,
+                )
+
+            count += 1
+
+        self.message_user(request, _(f"تم نسخ {count} حقل مخصص بنجاح"))
+
+    duplicate_fields.short_description = _("⎘ نسخ الحقول المحددة")
 
 
 @admin.register(CustomFieldOption)
@@ -1267,8 +1429,9 @@ class CustomFieldOptionAdmin(admin.ModelAdmin):
 @admin.register(CategoryCustomField)
 class CategoryCustomFieldAdmin(admin.ModelAdmin):
     list_display = (
-        "category",
-        "custom_field",
+        "get_category_display",
+        "get_field_display",
+        "get_field_type",
         "is_required",
         "order",
         "is_active",
@@ -1276,13 +1439,19 @@ class CategoryCustomFieldAdmin(admin.ModelAdmin):
         "show_in_filters",
     )
     list_filter = (
-        "category",
         "is_required",
         "is_active",
         "show_on_card",
         "show_in_filters",
+        "custom_field__field_type",
+        "category__parent",
     )
-    search_fields = ("category__name", "custom_field__name")
+    search_fields = (
+        "category__name",
+        "category__name_ar",
+        "custom_field__name",
+        "custom_field__label_ar",
+    )
     list_editable = (
         "is_required",
         "order",
@@ -1290,8 +1459,143 @@ class CategoryCustomFieldAdmin(admin.ModelAdmin):
         "show_on_card",
         "show_in_filters",
     )
-    ordering = ("category", "order")
+    ordering = ("category__name", "order")
     autocomplete_fields = ["category", "custom_field"]
+    actions = [
+        "activate_links",
+        "deactivate_links",
+        "show_on_cards",
+        "hide_from_cards",
+        "add_to_filters",
+        "remove_from_filters",
+    ]
+
+    fieldsets = (
+        (
+            _("ربط الحقل بالقسم"),
+            {
+                "fields": ("category", "custom_field"),
+                "description": _(
+                    "حدد القسم أو القسم الفرعي والحقل المخصص المراد ربطهما"
+                ),
+            },
+        ),
+        (
+            _("إعدادات الحقل"),
+            {
+                "fields": ("is_required", "order", "is_active"),
+            },
+        ),
+        (
+            _("إعدادات العرض"),
+            {
+                "fields": ("show_on_card", "show_in_filters"),
+                "description": _(
+                    "تحكم في كيفية عرض هذا الحقل في بطاقات الإعلانات والفلاتر"
+                ),
+            },
+        ),
+    )
+
+    def get_category_display(self, obj):
+        """Display category with parent info"""
+        if obj.category.parent:
+            return format_html(
+                '<div><strong>{}</strong><br/><small style="color: #666;">└─ {}</small></div>',
+                obj.category.parent.name_ar or obj.category.parent.name,
+                obj.category.name_ar or obj.category.name,
+            )
+        return format_html(
+            "<strong>{}</strong>",
+            obj.category.name_ar or obj.category.name,
+        )
+
+    get_category_display.short_description = _("القسم")
+    get_category_display.admin_order_field = "category"
+
+    def get_field_display(self, obj):
+        """Display field name"""
+        return format_html(
+            '<strong style="color: #007bff;">{}</strong>',
+            obj.custom_field.label_ar or obj.custom_field.name,
+        )
+
+    get_field_display.short_description = _("الحقل المخصص")
+    get_field_display.admin_order_field = "custom_field"
+
+    def get_field_type(self, obj):
+        """Display field type badge"""
+        type_colors = {
+            "text": "#007bff",
+            "number": "#28a745",
+            "email": "#17a2b8",
+            "phone": "#ffc107",
+            "select": "#6f42c1",
+            "checkbox": "#fd7e14",
+            "radio": "#e83e8c",
+            "textarea": "#20c997",
+            "date": "#6610f2",
+        }
+        color = type_colors.get(obj.custom_field.field_type, "#6c757d")
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 8px; '
+            'border-radius: 10px; font-size: 10px; font-weight: 600;">{}</span>',
+            color,
+            obj.custom_field.get_field_type_display(),
+        )
+
+    get_field_type.short_description = _("النوع")
+
+    def get_queryset(self, request):
+        """Optimize queryset"""
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("category", "category__parent", "custom_field")
+        )
+
+    # Admin Actions
+    def activate_links(self, request, queryset):
+        """Activate selected category-field links"""
+        updated = queryset.update(is_active=True)
+        self.message_user(request, _(f"تم تفعيل {updated} ربط"))
+
+    activate_links.short_description = _("✓ تفعيل الروابط المحددة")
+
+    def deactivate_links(self, request, queryset):
+        """Deactivate selected category-field links"""
+        updated = queryset.update(is_active=False)
+        self.message_user(request, _(f"تم إلغاء تفعيل {updated} ربط"))
+
+    deactivate_links.short_description = _("✗ إلغاء تفعيل الروابط المحددة")
+
+    def show_on_cards(self, request, queryset):
+        """Show fields on ad cards"""
+        updated = queryset.update(show_on_card=True)
+        self.message_user(request, _(f"سيتم عرض {updated} حقل على بطاقات الإعلانات"))
+
+    show_on_cards.short_description = _("📇 إظهار على البطاقات")
+
+    def hide_from_cards(self, request, queryset):
+        """Hide fields from ad cards"""
+        updated = queryset.update(show_on_card=False)
+        self.message_user(request, _(f"تم إخفاء {updated} حقل من بطاقات الإعلانات"))
+
+    hide_from_cards.short_description = _("🚫 إخفاء من البطاقات")
+
+    def add_to_filters(self, request, queryset):
+        """Add fields to filter sidebar"""
+        updated = queryset.update(show_in_filters=True)
+        self.message_user(request, _(f"تمت إضافة {updated} حقل للفلاتر"))
+
+    add_to_filters.short_description = _("🔍 إضافة للفلاتر")
+
+    def remove_from_filters(self, request, queryset):
+        """Remove fields from filter sidebar"""
+        updated = queryset.update(show_in_filters=False)
+        self.message_user(request, _(f"تمت إزالة {updated} حقل من الفلاتر"))
+
+    remove_from_filters.short_description = _("❌ إزالة من الفلاتر")
 
 
 @admin.register(UserPermissionLog)

@@ -63,6 +63,8 @@ class AdminPendingAdsView(SuperadminRequiredMixin, ListView):
             "with_upgrades": pending_ads.filter(
                 Q(is_highlighted=True) | Q(is_urgent=True) | Q(is_pinned=True)
             ).count(),
+            "paid_ads": pending_ads.filter(is_paid=True).count(),
+            "unpaid_ads": pending_ads.filter(is_paid=False).count(),
         }
 
         context["active_nav"] = "pending_ads"
@@ -289,6 +291,7 @@ class AdminAdDetailView(SuperadminRequiredMixin, DetailView):
             "days_active": (
                 (timezone.now() - ad.created_at).days if ad.status == "active" else 0
             ),
+            "is_paid": ad.is_paid,
         }
 
         context["active_nav"] = "all_ads"

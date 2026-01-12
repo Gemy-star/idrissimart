@@ -45,12 +45,16 @@ class ClassifiedAdListView(FilterView):
         from constance import config
 
         # If user is not authenticated and guest viewing is disabled
-        if not request.user.is_authenticated and not getattr(config, 'ALLOW_GUEST_VIEWING', True):
+        if not request.user.is_authenticated and not getattr(
+            config, "ALLOW_GUEST_VIEWING", True
+        ):
             from django.contrib import messages
             from django.utils.translation import gettext as _
-            messages.warning(request, _('يجب عليك تسجيل الدخول لمشاهدة الإعلانات'))
+
+            messages.warning(request, _("يجب عليك تسجيل الدخول لمشاهدة الإعلانات"))
             from django.shortcuts import redirect
-            return redirect('main:login')
+
+            return redirect("main:login")
 
         return super().dispatch(request, *args, **kwargs)
 
@@ -238,7 +242,11 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
 
     def dispatch(self, request, *args, **kwargs):
         """
-        Allow users to create ads - payment will be handled at the end.
+        Allow all authenticated users to create ads.
+        Payment will be handled at the end based on:
+        1. Whether they have free ads remaining in a package
+        2. The category's ad_creation_price
+        3. Site default ad_base_fee
         """
         # First check if user is authenticated
         if not request.user.is_authenticated:
@@ -250,29 +258,16 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             # Let LoginRequiredMixin handle the redirect
             return super().dispatch(request, *args, **kwargs)
 
-        user = request.user
-
-        # Check if user has any active package with remaining ads
+        # Check if user has any active package with remaining ads (for display purposes)
         active_package = (
             UserPackage.objects.filter(
-                user=user,
+                user=request.user,
                 expiry_date__gte=timezone.now(),
                 ads_remaining__gt=0,
             )
             .order_by("expiry_date")
             .first()
         )
-
-        # Check if user is coming from pricing page or explicitly wants to pay per ad
-        pay_per_ad = request.GET.get("pay_per_ad") == "true"
-
-        # If no active package and not explicitly paying per ad, redirect to pricing
-        if not active_package and not pay_per_ad:
-            # Get category if specified
-            category_id = request.GET.get("category")
-            if category_id:
-                return redirect(f"{reverse('main:ad_pricing')}?category={category_id}")
-            return redirect("main:ad_pricing")
 
         # Store remaining ads count in session for display (if available)
         if active_package:
@@ -314,6 +309,17 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             parent__isnull=True,  # Only root categories
         ).prefetch_related("subcategories")
         context["active_nav"] = "create_ad"
+
+        # Prepare categories data with pricing for JavaScript
+        categories_data = {}
+        for category in Category.objects.filter(
+            section_type=Category.SectionType.CLASSIFIED,
+            is_active=True,
+        ).values("id", "ad_creation_price"):
+            categories_data[category["id"]] = {
+                "ad_creation_price": float(category["ad_creation_price"] or 0)
+            }
+        context["categories_pricing"] = categories_data
 
         # Set default country from user profile or session
         if self.request.user.is_authenticated:
@@ -448,7 +454,12 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         # Check if user has free ads remaining in package
         if not active_package or active_package.ads_remaining <= 0:
             # No package or no ads remaining, user must pay base fee
-            base_fee = Decimal(str(site_config.ad_base_fee))
+            # First check if category has its own ad_creation_price
+            if form.instance.category and form.instance.category.ad_creation_price > 0:
+                base_fee = Decimal(str(form.instance.category.ad_creation_price))
+            else:
+                # Fall back to site default ad_base_fee
+                base_fee = Decimal(str(site_config.ad_base_fee))
 
         # Total cost = base publishing fee + features cost
         total_cost = base_fee + features_cost
@@ -489,6 +500,9 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
                 return redirect("main:ad_payment", ad_id=self.object.pk)
             else:
                 # Free ad - process immediately
+                # Mark as paid (free/no payment required)
+                self.object.is_paid = True
+
                 # Auto-approve ads for verified users
                 if (
                     self.request.user.verification_status
@@ -660,9 +674,11 @@ class ClassifiedAdDetailView(DetailView):
         from django.shortcuts import redirect
 
         # Check if guests are allowed to view ads
-        if not request.user.is_authenticated and not getattr(config, 'ALLOW_GUEST_VIEWING', True):
-            messages.warning(request, _('يجب عليك تسجيل الدخول لمشاهدة الإعلانات'))
-            return redirect('main:login')
+        if not request.user.is_authenticated and not getattr(
+            config, "ALLOW_GUEST_VIEWING", True
+        ):
+            messages.warning(request, _("يجب عليك تسجيل الدخول لمشاهدة الإعلانات"))
+            return redirect("main:login")
 
         ad_slug = self.kwargs.get(self.slug_url_kwarg)
 
@@ -814,19 +830,21 @@ class ClassifiedAdDetailView(DetailView):
 
         if not self.request.user.is_authenticated:
             # Guest user
-            allow_guest_contact = getattr(config, 'ALLOW_GUEST_CONTACT', False)
+            allow_guest_contact = getattr(config, "ALLOW_GUEST_CONTACT", False)
             show_contact_info = allow_guest_contact
             can_send_message = False  # Guests can't send messages
         else:
             # Authenticated user
-            members_only_contact = getattr(config, 'MEMBERS_ONLY_CONTACT', True)
-            members_only_messaging = getattr(config, 'MEMBERS_ONLY_MESSAGING', True)
+            members_only_contact = getattr(config, "MEMBERS_ONLY_CONTACT", True)
+            members_only_messaging = getattr(config, "MEMBERS_ONLY_MESSAGING", True)
 
             # For registered users, check if contact is members-only
             if members_only_contact:
                 show_contact_info = True  # Registered users can see contact info
             else:
-                show_contact_info = True  # Not members-only, so everyone (including guests) can see
+                show_contact_info = (
+                    True  # Not members-only, so everyone (including guests) can see
+                )
 
             # For messaging, check if it's members-only
             if members_only_messaging:

@@ -283,19 +283,16 @@
                         <button type="button" class="btn btn-sm btn-primary" data-action="edit-blog" data-blog-id="{{ blog.id }}">
                             <i class="fas fa-edit me-1"></i> {% trans "تعديل" %}
                         </button>
-                        <form method="post" action="{% url 'main:admin_blog_toggle_publish' blog.pk %}" style="display: inline;">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-sm btn-warning">
-                                <i class="fas fa-sync-alt me-1"></i>
-                                {% if blog.is_published %}{% trans "تحويل لمسودة" %}{% else %}{% trans "نشر" %}{% endif %}
-                            </button>
-                        </form>
+                        <button type="button" class="btn btn-sm btn-warning" data-action="toggle-publish" data-blog-id="{{ blog.id }}">
+                            <i class="fas fa-sync-alt me-1"></i>
+                            {% if blog.is_published %}{% trans "تحويل لمسودة" %}{% else %}{% trans "نشر" %}{% endif %}
+                        </button>
                         <a href="{{ blog.get_absolute_url }}" target="_blank" class="btn btn-sm btn-info">
                             <i class="fas fa-eye me-1"></i> {% trans "عرض" %}
                         </a>
-                        <a href="{% url 'main:admin_blog_delete' blog.pk %}" class="btn btn-sm btn-danger">
+                        <button type="button" class="btn btn-sm btn-danger" data-action="delete-blog" data-blog-id="{{ blog.id }}" data-blog-title="{{ blog.title|escapejs }}">
                             <i class="fas fa-trash me-1"></i> {% trans "حذف" %}
-                        </a>
+                        </button>
                     </div>
                 </div>
 
@@ -355,7 +352,7 @@
 <script>
     // Ensure CKEditor5 is available (load lazily if not)
     function loadCKEditor(callback) {
-        if (window.ClassicEditor) { callback && callback(); return; }
+        if (window.CKEDITOR && window.CKEDITOR.ClassicEditor) { callback && callback(); return; }
         if (document.getElementById('ckeditor5-cdn')) { // already loading
             const script = document.getElementById('ckeditor5-cdn');
             script.addEventListener('load', () => callback && callback());
@@ -363,7 +360,7 @@
         }
         const s = document.createElement('script');
         s.id = 'ckeditor5-cdn';
-        s.src = 'https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js';
+        s.src = 'https://cdn.ckeditor.com/ckeditor5/40.0.0/super-build/ckeditor.js';
         s.onload = () => callback && callback();
         document.head.appendChild(s);
     }
@@ -383,31 +380,47 @@
     function submitAddBlog() {
         const form = document.getElementById('addBlogForm');
         const fd = new FormData(form);
+
+        // Get content from CKEditor if available
+        if (addEditor) {
+            fd.set('content', addEditor.getData());
+        }
+
         // Checkbox value to string 'true'/'false' expected by backend
         fd.set('is_published', form.querySelector('[name="is_published"]').checked ? 'true' : 'false');
-        fetch(BLOG_URLS.create, { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') }, body: fd })
-            .then(r => r.json())
-            .then(data => {
-                if (!data.success) { alert(data.error || '{% trans "فشل إنشاء المدونة" %}'); return; }
-                const modal = bootstrap.Modal.getInstance(document.getElementById('addBlogModal')); if (modal) modal.hide();
-                location.reload();
-            })
-            .catch(() => alert('{% trans "حدث خطأ أثناء إنشاء المدونة" %}'));
+
+        fetch(BLOG_URLS.create, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken'), 'X-Requested-With': 'XMLHttpRequest' },
+            body: fd
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) { alert(data.error || '{% trans "فشل إنشاء المدونة" %}'); return; }
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addBlogModal'));
+            if (modal) modal.hide();
+            if (addEditor) { addEditor.setData(''); }
+            location.reload();
+        })
+        .catch(err => { console.error(err); alert('{% trans "حدث خطأ أثناء إنشاء المدونة" %}'); });
     }
 
     // Populate and show edit modal
     function openEditBlog(id) {
         const url = BLOG_URLS.update(id);
-        fetch(url)
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then(r => r.json())
             .then(data => {
                 if (!data.success) { alert('{% trans "فشل تحميل بيانات المدونة" %}'); return; }
                 const b = data.blog;
                 document.getElementById('editBlogId').value = id;
                 document.getElementById('editBlogTitle').value = b.title || '';
-                document.getElementById('editBlogContent').value = b.content || '';
                 document.getElementById('editBlogTags').value = b.tags || '';
                 document.getElementById('editBlogPublished').checked = !!b.is_published;
+
+                // Set content in textarea first
+                document.getElementById('editBlogContent').value = b.content || '';
+
                 // Category if available
                 const catSelect = document.getElementById('editBlogCategory');
                 if (catSelect) {
@@ -415,9 +428,19 @@
                     if (catId) catSelect.value = String(catId);
                     else catSelect.value = '';
                 }
-                new bootstrap.Modal(document.getElementById('editBlogModal')).show();
+
+                // Show modal and initialize editor with content
+                const modal = new bootstrap.Modal(document.getElementById('editBlogModal'));
+                modal.show();
+
+                // Set CKEditor content after modal is shown
+                setTimeout(() => {
+                    if (editEditor) {
+                        editEditor.setData(b.content || '');
+                    }
+                }, 300);
             })
-            .catch(() => alert('{% trans "حدث خطأ أثناء تحميل بيانات المدونة" %}'));
+            .catch(err => { console.error(err); alert('{% trans "حدث خطأ أثناء تحميل بيانات المدونة" %}'); });
     }
 
     // Save blog edits
@@ -425,54 +448,119 @@
         const form = document.getElementById('editBlogForm');
         const id = document.getElementById('editBlogId').value;
         const fd = new FormData(form);
+
+        // Get content from CKEditor if available
+        if (editEditor) {
+            fd.set('content', editEditor.getData());
+        }
+
         fd.set('is_published', form.querySelector('[name="is_published"]').checked ? 'true' : 'false');
-        fetch(BLOG_URLS.update(id), { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') }, body: fd })
-            .then(r => r.json())
-            .then(data => {
-                if (!data.success) { alert(data.error || '{% trans "فشل حفظ التغييرات" %}'); return; }
-                const modal = bootstrap.Modal.getInstance(document.getElementById('editBlogModal')); if (modal) modal.hide();
-                location.reload();
-            })
-            .catch(() => alert('{% trans "حدث خطأ أثناء حفظ التغييرات" %}'));
+
+        fetch(BLOG_URLS.update(id), {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken'), 'X-Requested-With': 'XMLHttpRequest' },
+            body: fd
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) { alert(data.error || '{% trans "فشل حفظ التغييرات" %}'); return; }
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editBlogModal'));
+            if (modal) modal.hide();
+            location.reload();
+        })
+        .catch(err => { console.error(err); alert('{% trans "حدث خطأ أثناء حفظ التغييرات" %}'); });
     }
 
-    // Delegate edit buttons
+    // Delegate action buttons
     document.addEventListener('click', (e) => {
-        const btn = e.target.closest('[data-action="edit-blog"]');
+        const btn = e.target.closest('[data-action]');
         if (!btn) return;
+        const action = btn.dataset.action;
         const id = btn.dataset.blogId;
-        openEditBlog(id);
+
+        if (action === 'edit-blog') {
+            openEditBlog(id);
+        } else if (action === 'delete-blog') {
+            const title = btn.dataset.blogTitle;
+            openDeleteModal(id, title);
+        } else if (action === 'toggle-publish') {
+            togglePublish(id);
+        }
     });
 
-    // Optional: Initialize CKEditor 5 if available
-    (function initEditors(){
-        const createOrUpdate = () => {
-            const addEl = document.getElementById('addBlogContent');
-            const editEl = document.getElementById('editBlogContent');
+    // Delete functionality
+    let currentDeleteId = null;
+    function openDeleteModal(id, title) {
+        currentDeleteId = id;
+        document.getElementById('deleteBlogTitle').textContent = title;
+        new bootstrap.Modal(document.getElementById('deleteBlogModal')).show();
+    }
 
-            if (addEl && !addEl.dataset.ckeInited) {
-                window.ClassicEditor.create(addEl).then(() => { addEl.dataset.ckeInited = '1'; }).catch(()=>{});
-            }
-            if (editEl && !editEl.dataset.ckeInited) {
-                window.ClassicEditor.create(editEl).then(() => { editEl.dataset.ckeInited = '1'; }).catch(()=>{});
-            }
-        };
+    function confirmDelete() {
+        if (!currentDeleteId) return;
+        const url = `{% url 'main:admin_blog_delete' 0 %}`.replace('/0/', `/${currentDeleteId}/`);
+        fetch(url, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken'), 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) { alert(data.error || '{% trans "فشل حذف المدونة" %}'); return; }
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteBlogModal'));
+            if (modal) modal.hide();
+            location.reload();
+        })
+        .catch(err => { console.error(err); alert('{% trans "حدث خطأ أثناء حذف المدونة" %}'); });
+    }
 
-        if (window.ClassicEditor) createOrUpdate(); else loadCKEditor(createOrUpdate);
+    // Toggle publish status
+    function togglePublish(id) {
+        const url = `{% url 'main:admin_blog_toggle_publish' 0 %}`.replace('/0/', `/${id}/`);
+        fetch(url, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken'), 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) { alert(data.error || '{% trans "فشل تغيير حالة النشر" %}'); return; }
+            location.reload();
+        })
+        .catch(err => { console.error(err); alert('{% trans "حدث خطأ أثناء تغيير حالة النشر" %}'); });
+    }
 
-        // Initialize on modal show in case content is dynamically inserted
-        ['addBlogModal','editBlogModal'].forEach(id => {
-            const el = document.getElementById(id);
-            if (!el) return;
-            el.addEventListener('shown.bs.modal', () => {
-                if (window.ClassicEditor) {
-                    createOrUpdate();
-                } else {
-                    loadCKEditor(createOrUpdate);
-                }
-            });
-        });
-    })();
+    // Initialize CKEditor instances
+    let addEditor = null;
+    let editEditor = null;
+
+    function initAddEditor() {
+        const el = document.getElementById('addBlogContent');
+        if (!el || addEditor) return;
+        if (!window.CKEDITOR || !window.CKEDITOR.ClassicEditor) {
+            loadCKEditor(initAddEditor);
+            return;
+        }
+        CKEDITOR.ClassicEditor.create(el, {
+            language: 'ar',
+            toolbar: { items: ['heading', '|', 'bold', 'italic', '|', 'link', 'bulletedList', 'numberedList', '|', 'undo', 'redo'] }
+        }).then(editor => { addEditor = editor; }).catch(err => console.error('CKEditor init error:', err));
+    }
+
+    function initEditEditor() {
+        const el = document.getElementById('editBlogContent');
+        if (!el || editEditor) return;
+        if (!window.CKEDITOR || !window.CKEDITOR.ClassicEditor) {
+            loadCKEditor(initEditEditor);
+            return;
+        }
+        CKEDITOR.ClassicEditor.create(el, {
+            language: 'ar',
+            toolbar: { items: ['heading', '|', 'bold', 'italic', '|', 'link', 'bulletedList', 'numberedList', '|', 'undo', 'redo'] }
+        }).then(editor => { editEditor = editor; }).catch(err => console.error('CKEditor init error:', err));
+    }
+
+    // Initialize editors when modals are shown
+    document.getElementById('addBlogModal')?.addEventListener('shown.bs.modal', () => { setTimeout(initAddEditor, 100); });
+    document.getElementById('editBlogModal')?.addEventListener('shown.bs.modal', () => { setTimeout(initEditEditor, 100); });
 </script>
 
 <!-- Add Blog Modal -->
@@ -577,6 +665,31 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
                 <button type="button" class="btn btn-primary" onclick="submitEditBlog()">{% trans "حفظ التغييرات" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteBlogModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-exclamation-triangle text-danger me-2"></i>{% trans "تأكيد الحذف" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>{% trans "هل أنت متأكد من حذف المدونة" %} "<strong id="deleteBlogTitle"></strong>"؟</p>
+                <p class="text-danger fw-bold">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    {% trans "لا يمكن التراجع عن هذا الإجراء" %}
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDelete()">
+                    <i class="fas fa-trash me-2"></i>{% trans "حذف" %}
+                </button>
             </div>
         </div>
     </div>
