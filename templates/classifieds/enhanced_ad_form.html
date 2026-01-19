@@ -527,54 +527,85 @@ document.addEventListener('DOMContentLoaded', function() {
         currentStep = step;
     }
 
-    // Category selection
-    document.getElementById('category-select').addEventListener('change', function() {
-        const categoryId = this.value;
-        if (categoryId) {
-            fetch(`/ajax/subcategories/${categoryId}/`)
-                .then(response => response.json())
-                .then(data => {
-                    const grid = document.getElementById('subcategory-grid');
-                    grid.innerHTML = '';
+    // Category selection - handle both regular select and Select2
+    const categorySelect = document.getElementById('id_category');
+    if (categorySelect) {
+        // Handler function for loading subcategories
+        function loadSubcategories() {
+            const categoryId = categorySelect.value;
+            console.log('Category selected:', categoryId);
 
-                    if (data.subcategories && data.subcategories.length > 0) {
-                        data.subcategories.forEach(subcat => {
-                            const item = document.createElement('div');
-                            item.className = 'subcategory-item';
-                            item.dataset.subcategoryId = subcat.id;
-                            item.innerHTML = `
-                                <div class="subcategory-icon">
-                                    <i class="${subcat.icon}"></i>
-                                </div>
-                                <h6>${subcat.name}</h6>
-                            `;
+            if (categoryId) {
+                fetch(`/ajax/subcategories/${categoryId}/`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Subcategories data:', data);
+                        const grid = document.getElementById('subcategory-grid');
+                        grid.innerHTML = '';
 
-                            item.addEventListener('click', function() {
-                                // Remove previous selection
-                                grid.querySelectorAll('.subcategory-item').forEach(el => {
-                                    el.classList.remove('selected');
+                        if (data.subcategories && data.subcategories.length > 0) {
+                            data.subcategories.forEach(subcat => {
+                                const item = document.createElement('div');
+                                item.className = 'subcategory-item';
+                                item.dataset.subcategoryId = subcat.id;
+                                // Use name_ar for Arabic display, fallback to name
+                                const displayName = subcat.name_ar || subcat.name;
+                                item.innerHTML = `
+                                    <div class="subcategory-icon">
+                                        <i class="${subcat.icon || 'fas fa-folder'}"></i>
+                                    </div>
+                                    <h6>${displayName}</h6>
+                                `;
+
+                                item.addEventListener('click', function() {
+                                    // Remove previous selection
+                                    grid.querySelectorAll('.subcategory-item').forEach(el => {
+                                        el.classList.remove('selected');
+                                    });
+
+                                    // Select current
+                                    this.classList.add('selected');
+                                    selectedCategory = subcat.id;
+
+                                    // Enable next button
+                                    document.getElementById('next-to-details').disabled = false;
                                 });
 
-                                // Select current
-                                this.classList.add('selected');
-                                selectedCategory = subcat.id;
-
-                                // Enable next button
-                                document.getElementById('next-to-details').disabled = false;
+                                grid.appendChild(item);
                             });
 
-                            grid.appendChild(item);
-                        });
-
-                        document.getElementById('subcategory-selection').style.display = 'block';
-                    } else {
-                        // No subcategories, use main category
-                        selectedCategory = categoryId;
-                        document.getElementById('next-to-details').disabled = false;
-                    }
-                });
+                            document.getElementById('subcategory-selection').style.display = 'block';
+                        } else {
+                            // No subcategories, use main category
+                            selectedCategory = categoryId;
+                            document.getElementById('next-to-details').disabled = false;
+                            document.getElementById('subcategory-selection').style.display = 'none';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading subcategories:', error);
+                    });
+            } else {
+                // Reset if no category selected
+                document.getElementById('subcategory-selection').style.display = 'none';
+                document.getElementById('next-to-details').disabled = true;
+                selectedCategory = null;
+            }
         }
-    });
+
+        // Listen for regular change event
+        categorySelect.addEventListener('change', loadSubcategories);
+
+        // Also listen for Select2 change event if Select2 is initialized
+        if (typeof jQuery !== 'undefined' && jQuery(categorySelect).data('select2')) {
+            jQuery(categorySelect).on('select2:select', loadSubcategories);
+        }
+    }
 
     // Image upload
     const imageInput = document.getElementById('image-input');

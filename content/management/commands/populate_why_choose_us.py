@@ -12,38 +12,28 @@ class Command(BaseCommand):
         home_page = HomePage.get_solo()
 
         # Default features data
+        # العناصر التي تم إزالتها:
+        # - دقة عالية
+        # - إعلانات مساحية متخصصة
+        # - تقنية متطورة
+        # - إعلانك يصل لمكانه الصحيح
+
         features_data = [
             {
-                "title": "High Accuracy",
-                "title_ar": "دقة عالية",
-                "description": "We ensure the highest standards of accuracy in all surveying and measurement work",
-                "description_ar": "نضمن أعلى معايير الدقة في جميع أعمال المساحة والقياس",
-                "icon": "fas fa-crosshairs",
+                "title": "Specialization Makes the Difference",
+                "title_ar": "لأن التخصص يصنع الفرق",
+                "description": "Because general ads don't understand the surveying market needs, we created a specialized ads platform that clearly brings together opportunities and expertise.",
+                "description_ar": "لأن الإعلانات العامة لا تفهم احتياجات السوق المساحي، أنشأنا منصة إعلانات متخصصة تجمع الفرص والخبرات بوضوح.",
+                "icon": "fas fa-star",
                 "order": 1,
             },
             {
-                "title": "Advanced Technology",
-                "title_ar": "تقنية متطورة",
-                "description": "We use the latest surveying equipment and geodetic technologies",
-                "description_ar": "نستخدم أحدث أجهزة المساحة والتقنيات الجيوديسية",
-                "icon": "fas fa-satellite",
+                "title": "Platform Understood by Industry Professionals",
+                "title_ar": "منصة إعلانات يفهمها أهل المجال",
+                "description": "Post your surveying ad or search for the right service within a professional community that understands your field and interacts with you seriously.",
+                "description_ar": "انشر إعلانك المساحي، أو ابحث عن الخدمة المناسبة، ضمن مجتمع مهني يفهم مجالك ويتفاعل معك بجدية.",
+                "icon": "fas fa-users",
                 "order": 2,
-            },
-            {
-                "title": "Certified Expertise",
-                "title_ar": "خبرة معتمدة",
-                "description": "A team of certified and experienced surveying engineers",
-                "description_ar": "فريق من المهندسين المساحين المعتمدين وذوي الخبرة",
-                "icon": "fas fa-certificate",
-                "order": 3,
-            },
-            {
-                "title": "Fast Delivery",
-                "title_ar": "تسليم سريع",
-                "description": "Commitment to deadlines and delivering projects on time",
-                "description_ar": "التزام بالمواعيد المحددة وتسليم المشاريع في الوقت",
-                "icon": "fas fa-clock",
-                "order": 4,
             },
         ]
 

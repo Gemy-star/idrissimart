@@ -139,12 +139,18 @@
             background-color: rgba(0, 0, 0, 0.95);
             animation: fadeIn 0.3s ease;
             touch-action: pan-y pinch-zoom;
+            overflow: hidden;
         }
 
         .lightbox.active {
-            display: flex;
+            display: flex !important;
             justify-content: center;
             align-items: center;
+        }
+
+        /* Prevent scrolling when lightbox is active */
+        body.lightbox-open {
+            overflow: hidden;
         }
 
         .lightbox-content {
@@ -268,6 +274,18 @@
             color: white;
             font-size: 20px;
             z-index: 10001;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 2rem;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .lightbox-loading.active {
+            display: flex !important;
         }
 
         /* Zoom indicators */
@@ -856,6 +874,12 @@
             border-radius: 20px;
             overflow: hidden;
             background: var(--bg-secondary);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] .ad-gallery-swiper {
+            background: #1e1e2e;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
         }
 
         .ad-gallery-swiper .swiper-slide {
@@ -875,6 +899,12 @@
             object-fit: contain;
             background: var(--bg-secondary);
             max-height: 500px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .ad-gallery-swiper .swiper-slide img:hover {
+            transform: scale(1.02);
         }
 
         .ad-gallery-container {
@@ -886,7 +916,11 @@
             height: 80px;
             box-sizing: border-box;
             padding: 5px 0;
-            margin-top: 10px;
+            margin-top: 15px;
+        }
+
+        [data-theme="dark"] .ad-thumbnails-swiper {
+            background: transparent;
         }
 
         .ad-thumbnails-swiper .swiper-slide {
@@ -903,6 +937,16 @@
         .ad-thumbnails-swiper .swiper-slide-thumb-active {
             opacity: 1 !important;
             border-color: var(--primary-color) !important;
+            box-shadow: 0 0 10px rgba(75, 49, 94, 0.5);
+        }
+
+        [data-theme="dark"] .ad-thumbnails-swiper .swiper-slide {
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        [data-theme="dark"] .ad-thumbnails-swiper .swiper-slide-thumb-active {
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 0 15px rgba(183, 148, 246, 0.6);
         }
 
         .ad-thumbnails-swiper .swiper-slide img {
@@ -910,6 +954,15 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .ad-thumbnails-swiper .swiper-slide:hover {
+            opacity: 1;
+        }
+
+        .ad-thumbnails-swiper .swiper-slide:hover img {
+            transform: scale(1.1);
         }
 
         .swiper-button-next,
@@ -930,6 +983,19 @@
 
         .swiper-button-next:hover,
         .swiper-button-prev:hover {
+            background: var(--primary-color);
+            color: white !important;
+            transform: scale(1.1);
+        }
+
+        [data-theme="dark"] .swiper-button-next,
+        [data-theme="dark"] .swiper-button-prev {
+            background: rgba(30, 30, 46, 0.9);
+            color: var(--primary-color) !important;
+        }
+
+        [data-theme="dark"] .swiper-button-next:hover,
+        [data-theme="dark"] .swiper-button-prev:hover {
             background: var(--primary-color);
             color: white !important;
         }
@@ -1247,7 +1313,7 @@
                                     <div class="swiper-slide">
                                         <img src="{{ image.image.url }}"
                                              alt="{{ ad.title }} - {% trans "صورة" %} {{ forloop.counter }}"
-                                             onclick="openLightbox({{ forloop.counter0 }})"
+                                             onclick="window.openLightbox({{ forloop.counter0 }})"
                                              style="cursor: pointer;"
                                              loading="lazy"
                                              onerror="this.src='{% static 'images/placeholder-ad.jpg' %}'">
@@ -1862,7 +1928,7 @@
     </section>
 
     <!-- Enhanced Lightbox Modal -->
-    <div id="imageLightbox" class="lightbox" onclick="closeLightboxOnBackground(event)">
+    <div id="imageLightbox" class="lightbox" onclick="window.closeLightboxOnBackground(event)">
         <!-- Top Control Bar -->
         <div class="lightbox-top-bar">
             <div class="lightbox-zoom-indicator" id="zoomIndicator">
@@ -1870,32 +1936,32 @@
                 <span id="zoomLevel">100%</span>
             </div>
             <div class="lightbox-actions">
-                <button class="lightbox-action-btn" onclick="event.stopPropagation(); downloadImage()" title="{% trans 'تحميل الصورة' %}">
+                <button class="lightbox-action-btn" onclick="event.stopPropagation(); window.downloadImage()" title="{% trans 'تحميل الصورة' %}">
                     <i class="fas fa-download"></i>
                 </button>
-                <button class="lightbox-action-btn" onclick="event.stopPropagation(); resetZoom()" title="{% trans 'إعادة تعيين' %}">
+                <button class="lightbox-action-btn" onclick="event.stopPropagation(); window.resetZoom()" title="{% trans 'إعادة تعيين' %}">
                     <i class="fas fa-compress"></i>
                 </button>
-                <button class="lightbox-action-btn" onclick="event.stopPropagation(); toggleFullscreen()" title="{% trans 'ملء الشاشة' %}">
+                <button class="lightbox-action-btn" onclick="event.stopPropagation(); window.toggleFullscreen()" title="{% trans 'ملء الشاشة' %}">
                     <i class="fas fa-expand" id="fullscreenIcon"></i>
                 </button>
             </div>
         </div>
 
-        <span class="lightbox-close" onclick="closeLightbox()" title="{% trans "إغلاق" %}">
+        <span class="lightbox-close" onclick="window.closeLightbox()" title="{% trans "إغلاق" %}">
             <i class="fas fa-times"></i>
         </span>
-        <span class="lightbox-prev" onclick="changeLightboxImage(-1)" title="{% trans "السابق" %}">
+        <span class="lightbox-prev" onclick="window.changeLightboxImage(-1)" title="{% trans "السابق" %}">
             <i class="fas fa-chevron-right"></i>
         </span>
         <div class="lightbox-content">
             <img id="lightboxImage" src="" alt="{% trans "صورة بالحجم الكامل" %}">
-            <div class="lightbox-loading" id="lightboxLoading" style="display: none;">
+            <div class="lightbox-loading" id="lightboxLoading">
                 <i class="fas fa-spinner fa-spin fa-3x"></i>
                 <p class="mt-3">{% trans "جاري التحميل..." %}</p>
             </div>
         </div>
-        <span class="lightbox-next" onclick="changeLightboxImage(1)" title="{% trans "التالي" %}">
+        <span class="lightbox-next" onclick="window.changeLightboxImage(1)" title="{% trans "التالي" %}">
             <i class="fas fa-chevron-left"></i>
         </span>
 
@@ -1952,13 +2018,15 @@
             if (thumbnailsContainer && imageSlides.length > 1) {
                 try {
                     // Calculate appropriate slidesPerView based on number of images
-                    const maxSlidesPerView = Math.min(imageSlides.length, 4);
+                    const maxSlidesPerView = Math.min(imageSlides.length, 5);
 
                     thumbnailsSwiper = new Swiper('.ad-thumbnails-swiper', {
                         spaceBetween: 10,
                         slidesPerView: maxSlidesPerView,
                         freeMode: true,
                         watchSlidesProgress: true,
+                        watchSlidesVisibility: true,
+                        slideToClickedSlide: true,
                         breakpoints: {
                             320: {
                                 slidesPerView: Math.min(imageSlides.length, 3),
@@ -1969,7 +2037,11 @@
                                 spaceBetween: 8
                             },
                             768: {
-                                slidesPerView: Math.min(imageSlides.length, 4),
+                                slidesPerView: Math.min(imageSlides.length, 5),
+                                spaceBetween: 10
+                            },
+                            1024: {
+                                slidesPerView: Math.min(imageSlides.length, 6),
                                 spaceBetween: 10
                             }
                         }
@@ -1986,6 +2058,7 @@
 
                 const gallerySwiper = new Swiper('.ad-gallery-swiper', {
                     spaceBetween: 10,
+                    slidesPerView: 1,
                     navigation: {
                         nextEl: '.swiper-button-next',
                         prevEl: '.swiper-button-prev',
@@ -1997,11 +2070,13 @@
                     autoplay: hasMultipleImages ? {
                         delay: 5000,
                         disableOnInteraction: false,
+                        pauseOnMouseEnter: true,
                     } : false,
                     effect: 'fade',
                     fadeEffect: {
                         crossFade: true
                     },
+                    speed: 600,
                     touchEventsTarget: 'container',
                     touchRatio: 1,
                     touchAngle: 45,
@@ -2017,10 +2092,23 @@
                     touchStartPreventDefault: false,
                     touchStartForcePreventDefault: false,
                     touchReleaseOnEdges: false,
+                    keyboard: {
+                        enabled: true,
+                        onlyInViewport: true,
+                    },
+                    mousewheel: {
+                        forceToAxis: true,
+                    },
+                    preloadImages: true,
+                    lazy: {
+                        loadPrevNext: true,
+                        loadPrevNextAmount: 2,
+                    },
                     on: {
                         init: function() {
                             console.log('Gallery Swiper initialized successfully');
                             console.log('Total slides:', this.slides.length);
+                            console.log('Has thumbnails:', !!thumbnailsSwiper);
                         },
                         slideChange: function() {
                             console.log('Slide changed to:', this.activeIndex);
@@ -2042,56 +2130,8 @@
                     }
                 }, 500);
 
-                    slidesPerView: 1,
-                    spaceBetween: 20,
-                    loop: false,
-                    autoplay: {
-                        delay: 4000,
-                        disableOnInteraction: false,
-                    },
-                    pagination: {
-                        el: '.related-products-pagination',
-                        clickable: true,
-                        dynamicBullets: true,
-                    },
-                    breakpoints: {
-                        320: {
-                            slidesPerView: 1,
-                            spaceBetween: 12
-                        },
-                        576: {
-                            slidesPerView: 2,
-                            spaceBetween: 16
-                        },
-                        768: {
-                            slidesPerView: 2,
-                            spaceBetween: 20
-                        },
-                        992: {
-                            slidesPerView: 3,
-                            spaceBetween: 24
-                        },
-                        1200: {
-                            slidesPerView: 3,
-                            spaceBetween: 28
-                        }
-                    },
-                    touchEventsTarget: 'container',
-                    touchRatio: 1,
-                    touchAngle: 45,
-                    grabCursor: true,
-                    simulateTouch: true,
-                    shortSwipes: true,
-                    longSwipes: true,
-                    longSwipesRatio: 0.5,
-                    longSwipesMs: 300,
-                    followFinger: true,
-                    threshold: 5,
-                    touchMoveStopPropagation: false,
-                    touchStartPreventDefault: false,
-                    touchStartForcePreventDefault: false,
-                    touchReleaseOnEdges: false,
-                });
+            } catch (error) {
+                console.error('Error initializing gallery swiper:', error);
             }
         });
     </script>
@@ -2249,7 +2289,7 @@
 
                 if (lightboxImages.length > 0) {
                     // Show loading indicator
-                    loadingIndicator.style.display = 'flex';
+                    loadingIndicator.classList.add('active');
 
                     const imageUrl = lightboxImages[currentLightboxIndex].url;
                     const imageAlt = lightboxImages[currentLightboxIndex].alt;
@@ -2265,16 +2305,17 @@
 
                     // Show lightbox immediately
                     lightbox.classList.add('active');
+                    document.body.classList.add('lightbox-open');
                     document.body.style.overflow = 'hidden';
 
                     // Hide loading indicator after image loads
                     lightboxImg.onload = function() {
-                        loadingIndicator.style.display = 'none';
+                        loadingIndicator.classList.remove('active');
                     };
 
                     // Fallback: hide loading indicator after a delay
                     setTimeout(() => {
-                        loadingIndicator.style.display = 'none';
+                        loadingIndicator.classList.remove('active');
                     }, 2000);
 
                     // Reset zoom
@@ -2292,6 +2333,7 @@
             function closeLightbox() {
                 const lightbox = document.getElementById('imageLightbox');
                 lightbox.classList.remove('active');
+                document.body.classList.remove('lightbox-open');
                 document.body.style.overflow = '';
             }
 
@@ -2318,7 +2360,7 @@
                 console.log('Changing to image:', currentLightboxIndex);
 
                 // Show loading indicator
-                loadingIndicator.style.display = 'flex';
+                loadingIndicator.classList.add('active');
 
                 const imageUrl = lightboxImages[currentLightboxIndex].url;
                 const imageAlt = lightboxImages[currentLightboxIndex].alt;
@@ -2334,12 +2376,12 @@
 
                 // Hide loading indicator after image loads
                 lightboxImg.onload = function() {
-                    loadingIndicator.style.display = 'none';
+                    loadingIndicator.classList.remove('active');
                 };
 
                 // Fallback timeout
                 setTimeout(() => {
-                    loadingIndicator.style.display = 'none';
+                    loadingIndicator.classList.remove('active');
                 }, 2000);
 
                 // Reset zoom when changing images
@@ -2443,6 +2485,44 @@
                 }
             });
 
+            // Keyboard navigation for lightbox
+            document.addEventListener('keydown', function(e) {
+                const lightbox = document.getElementById('imageLightbox');
+                if (lightbox && lightbox.classList.contains('active')) {
+                    switch(e.key) {
+                        case 'Escape':
+                            window.closeLightbox();
+                            break;
+                        case 'ArrowLeft':
+                            window.changeLightboxImage(1);
+                            break;
+                        case 'ArrowRight':
+                            window.changeLightboxImage(-1);
+                            break;
+                        case '+':
+                        case '=':
+                            if (currentScale < 4) {
+                                currentScale += 0.25;
+                                updateImageTransform();
+                                updateZoomIndicator();
+                            }
+                            break;
+                        case '-':
+                        case '_':
+                            if (currentScale > 1) {
+                                currentScale -= 0.25;
+                                if (currentScale < 1) currentScale = 1;
+                                updateImageTransform();
+                                updateZoomIndicator();
+                            }
+                            break;
+                        case '0':
+                            window.resetZoom();
+                            break;
+                    }
+                }
+            });
+
             // Make functions globally accessible
             window.openLightbox = openLightbox;
             window.closeLightbox = closeLightbox;
@@ -2454,14 +2534,36 @@
 
         }); // End DOMContentLoaded
 
-        // Fallback functions in case DOMContentLoaded doesn't work
-        function openLightbox(index) {
-            console.log('Fallback openLightbox called with index:', index);
-        }
+        // Ensure functions are available globally before DOMContentLoaded
+        window.openLightbox = window.openLightbox || function(index) {
+            console.log('Global openLightbox called, waiting for initialization...');
+            // Wait for DOM to be ready and try again
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    setTimeout(() => window.openLightbox(index), 100);
+                });
+            }
+        };
 
-        function closeLightbox() {
-            console.log('Fallback closeLightbox called');
-        }
+        window.closeLightbox = window.closeLightbox || function() {
+            console.log('Global closeLightbox called');
+            const lightbox = document.getElementById('imageLightbox');
+            if (lightbox) {
+                lightbox.classList.remove('active');
+                document.body.classList.remove('lightbox-open');
+                document.body.style.overflow = '';
+            }
+        };
+
+        window.closeLightboxOnBackground = function(event) {
+            if (event.target.id === 'imageLightbox') {
+                window.closeLightbox();
+            }
+        };
+
+        window.changeLightboxImage = window.changeLightboxImage || function(direction) {
+            console.log('Global changeLightboxImage called with direction:', direction);
+        };
 
         // Helper function to get CSRF cookie
         function getCookie(name) {
