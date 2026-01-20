@@ -47,7 +47,31 @@ class SiteConfiguration(SingletonModel):
         blank=True,
         null=True,
         verbose_name=_("شعار الموقع - Site Logo"),
-        help_text=_("شعار الموقع الذي يظهر في الإعلانات بدون صور"),
+        help_text=_("شعار الموقع الذي يظهر في الإعلانات بدون صور (الشعار الافتراضي)"),
+    )
+
+    logo_light = models.ImageField(
+        upload_to="site/logos/",
+        blank=True,
+        null=True,
+        verbose_name=_("شعار الموقع - الوضع الفاتح"),
+        help_text=_("شعار الموقع الذي يظهر في الوضع الفاتح (Light Mode). إذا تُرك فارغاً، سيُستخدم الشعار الافتراضي"),
+    )
+
+    logo_dark = models.ImageField(
+        upload_to="site/logos/",
+        blank=True,
+        null=True,
+        verbose_name=_("شعار الموقع - الوضع الداكن"),
+        help_text=_("شعار الموقع الذي يظهر في الوضع الداكن (Dark Mode). إذا تُرك فارغاً، سيُستخدم الشعار الافتراضي"),
+    )
+
+    logo_mini = models.ImageField(
+        upload_to="site/logos/",
+        blank=True,
+        null=True,
+        verbose_name=_("شعار مصغر - Loader"),
+        help_text=_("شعار مصغر يظهر في صفحات التحميل (Loader). إذا تُرك فارغاً، سيُستخدم الشعار الافتراضي"),
     )
 
     # Verification Settings
@@ -305,6 +329,47 @@ class SiteConfiguration(SingletonModel):
 
     def __str__(self):
         return "Site Configuration"
+
+    def get_logo_for_theme(self, theme='light'):
+        """
+        Get appropriate logo based on theme
+        Args:
+            theme: 'light' or 'dark'
+        Returns:
+            ImageField or None
+        """
+        if theme == 'light':
+            return self.logo_light if self.logo_light else self.logo
+        elif theme == 'dark':
+            return self.logo_dark if self.logo_dark else self.logo
+        return self.logo
+
+    def get_loader_logo(self):
+        """
+        Get logo for loader/spinner
+        Returns mini logo if available, otherwise default logo
+        """
+        return self.logo_mini if self.logo_mini else self.logo
+
+    def get_logo_url(self, theme='light'):
+        """
+        Get logo URL based on theme
+        Args:
+            theme: 'light' or 'dark'
+        Returns:
+            str: URL of the logo or empty string
+        """
+        logo = self.get_logo_for_theme(theme)
+        return logo.url if logo else ""
+
+    def get_loader_logo_url(self):
+        """
+        Get loader logo URL
+        Returns:
+            str: URL of the loader logo or empty string
+        """
+        logo = self.get_loader_logo()
+        return logo.url if logo else ""
 
 
 class AboutPage(SingletonModel):

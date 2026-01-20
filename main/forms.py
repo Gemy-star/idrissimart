@@ -127,7 +127,10 @@ class ClassifiedAdForm(forms.ModelForm):
         ]
         widgets = {
             "title": forms.TextInput(attrs={"class": "form-control"}),
-            "description": CKEditor5Widget(config_name="default"),
+            "description": CKEditor5Widget(
+                config_name="public_ad",
+                attrs={"class": "django-ckeditor-5"}
+            ),
             "price": forms.NumberInput(attrs={"class": "form-control"}),
             "city": forms.Select(attrs={"class": "form-select", "id": "id_city"}),
             "address": forms.TextInput(attrs={"class": "form-control"}),

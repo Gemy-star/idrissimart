@@ -436,8 +436,19 @@ class SiteConfigurationAdmin(SingletonModelAdmin):
                     "footer_text",
                     "footer_text_ar",
                     "copyright_text",
-                    "logo",
                 )
+            },
+        ),
+        (
+            "شعارات الموقع",
+            {
+                "fields": (
+                    "logo",
+                    "logo_light",
+                    "logo_dark",
+                    "logo_mini",
+                ),
+                "description": "قم برفع الشعارات المختلفة للموقع. الشعار الافتراضي يُستخدم إذا لم يتم رفع الشعارات الأخرى."
             },
         ),
         (

@@ -358,12 +358,43 @@
         display: flex;
         gap: 6px;
         justify-content: center;
+        flex-wrap: wrap;
     }
 
     .action-buttons .btn {
         padding: 6px 12px;
         border-radius: 6px;
         transition: all 0.2s ease;
+        font-size: 0.875rem;
+    }
+
+    .action-buttons .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Modal improvements */
+    .modal-content {
+        border-radius: 12px;
+        border: none;
+    }
+
+    [data-theme='dark'] .modal-content {
+        background: #1e1e2e;
+        color: #e0e0e0;
+    }
+
+    .modal-header {
+        border-radius: 12px 12px 0 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .modal-footer {
+        border-top: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    [data-theme='dark'] .modal-footer {
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     /* Empty State Card */
@@ -750,7 +781,7 @@
                                         <th style="width: 120px;">{% trans "الحالة" %}</th>
                                         <th style="width: 100px;">{% trans "المشاهدات" %}</th>
                                         <th style="width: 120px;">{% trans "تاريخ النشر" %}</th>
-                                        <th style="width: 180px;" class="text-center">{% trans "الإجراءات" %}</th>
+                                        <th style="width: 280px;" class="text-center">{% trans "الإجراءات" %}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -826,7 +857,7 @@
                                                 <small class="text-muted">{{ ad.created_at|date:"d/m/Y" }}</small>
                                             </td>
                                             <td class="text-center">
-                                                <div class="action-buttons">
+                                                <div class="action-buttons d-flex flex-wrap gap-1 justify-content-center">
                                                     <a href="{% url 'main:ad_detail' ad.slug %}" target="_blank" class="btn btn-sm btn-info" title="{% trans "عرض" %}">
                                                         <i class="fas fa-eye"></i>
                                                     </a>
@@ -835,6 +866,40 @@
                                                        title="{% trans "تعديل" %}">
                                                         <i class="fas fa-edit"></i>
                                                     </a>
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-success"
+                                                            title="{% trans "نسخ الإعلان" %}"
+                                                            onclick="duplicateAd({{ ad.pk }}, '{{ ad.title|escapejs }}')">
+                                                        <i class="fas fa-copy"></i>
+                                                    </button>
+                                                    {% if ad.status == 'active' %}
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-primary"
+                                                            title="{% trans "ترقية الإعلان" %}"
+                                                            onclick="window.location.href='{% url 'main:ad_upgrade_checkout' ad.pk %}'">
+                                                        <i class="fas fa-star"></i>
+                                                    </button>
+                                                    {% endif %}
+                                                    {% if ad.status == 'expired' %}
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-info"
+                                                            title="{% trans "تجديد الإعلان" %}"
+                                                            onclick="renewAd({{ ad.pk }}, '{{ ad.title|escapejs }}')">
+                                                        <i class="fas fa-redo"></i>
+                                                    </button>
+                                                    {% endif %}
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-secondary"
+                                                            title="{% trans "إحصائيات" %}"
+                                                            onclick="showAdStats({{ ad.pk }}, '{{ ad.title|escapejs }}', {{ ad.views_count }})">
+                                                        <i class="fas fa-chart-bar"></i>
+                                                    </button>
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-dark"
+                                                            title="{% trans "مشاركة" %}"
+                                                            onclick="shareAd('{{ ad.slug }}', '{{ ad.title|escapejs }}')">
+                                                        <i class="fas fa-share-alt"></i>
+                                                    </button>
                                                     <button type="button"
                                                             class="btn btn-sm btn-danger"
                                                             title="{% trans "حذف" %}"
@@ -849,6 +914,73 @@
                             </table>
                         </div>
                     </div>
+                    
+                    <!-- Pagination -->
+                    {% if page_obj.has_other_pages %}
+                    <div class="card-footer bg-light">
+                        <nav aria-label="{% trans 'صفحات الإعلانات' %}">
+                            <ul class="pagination justify-content-center mb-0">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1" aria-label="{% trans 'الأولى' %}">
+                                        <i class="fas fa-angle-double-right"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="{% trans 'السابقة' %}">
+                                        <i class="fas fa-angle-right"></i>
+                                    </a>
+                                </li>
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="fas fa-angle-double-right"></i></span>
+                                </li>
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="fas fa-angle-right"></i></span>
+                                </li>
+                                {% endif %}
+
+                                {% for num in page_obj.paginator.page_range %}
+                                    {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                    </li>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="{% trans 'التالية' %}">
+                                        <i class="fas fa-angle-left"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" aria-label="{% trans 'الأخيرة' %}">
+                                        <i class="fas fa-angle-double-left"></i>
+                                    </a>
+                                </li>
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="fas fa-angle-left"></i></span>
+                                </li>
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="fas fa-angle-double-left"></i></span>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        <div class="text-center mt-2">
+                            <small class="text-muted">
+                                {% trans "صفحة" %} {{ page_obj.number }} {% trans "من" %} {{ page_obj.paginator.num_pages }}
+                                ({{ page_obj.paginator.count }} {% trans "إعلان" %})
+                            </small>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             {% else %}
                 <div class="card ad-content-card text-center py-5">
@@ -897,12 +1029,167 @@
         </div>
     </div>
 </div>
+<!-- Duplicate Ad Confirmation Modal -->
+<div class="modal fade" id="duplicateAdModal" tabindex="-1" aria-labelledby="duplicateAdModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="duplicateAdModalLabel">
+                    <i class="fas fa-copy me-2"></i>
+                    {% trans "نسخ الإعلان" %}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">{% trans "هل تريد نسخ الإعلان" %} "<strong id="adTitleToDuplicate"></strong>"؟</p>
+                <p class="text-muted mt-2 mb-0">
+                    <small>{% trans "سيتم إنشاء نسخة جديدة من الإعلان بنفس التفاصيل" %}</small>
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> {% trans "إلغاء" %}
+                </button>
+                <button type="button" class="btn btn-success" id="confirmDuplicateBtn">
+                    <i class="fas fa-copy me-1"></i> {% trans "نسخ" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Renew Ad Modal -->
+<div class="modal fade" id="renewAdModal" tabindex="-1" aria-labelledby="renewAdModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="renewAdModalLabel">
+                    <i class="fas fa-redo me-2"></i>
+                    {% trans "تجديد الإعلان" %}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">{% trans "هل تريد تجديد الإعلان" %} "<strong id="adTitleToRenew"></strong>"؟</p>
+                <p class="text-muted mt-2 mb-0">
+                    <small>{% trans "سيتم تمديد فترة نشر الإعلان" %}</small>
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> {% trans "إلغاء" %}
+                </button>
+                <button type="button" class="btn btn-info" id="confirmRenewBtn">
+                    <i class="fas fa-redo me-1"></i> {% trans "تجديد" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ad Statistics Modal -->
+<div class="modal fade" id="adStatsModal" tabindex="-1" aria-labelledby="adStatsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="adStatsModalLabel">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    {% trans "إحصائيات الإعلان" %}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6 class="mb-3" id="adTitleForStats"></h6>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <i class="fas fa-eye fa-2x text-primary mb-2"></i>
+                                <h3 class="mb-0" id="statsViews">-</h3>
+                                <p class="text-muted mb-0">{% trans "المشاهدات" %}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <i class="fas fa-heart fa-2x text-danger mb-2"></i>
+                                <h3 class="mb-0" id="statsFavorites">-</h3>
+                                <p class="text-muted mb-0">{% trans "المفضلة" %}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <i class="fas fa-comments fa-2x text-success mb-2"></i>
+                                <h3 class="mb-0" id="statsMessages">-</h3>
+                                <p class="text-muted mb-0">{% trans "الرسائل" %}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> {% trans "إغلاق" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Share Ad Modal -->
+<div class="modal fade" id="shareAdModal" tabindex="-1" aria-labelledby="shareAdModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title" id="shareAdModalLabel">
+                    <i class="fas fa-share-alt me-2"></i>
+                    {% trans "مشاركة الإعلان" %}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6 class="mb-3" id="adTitleToShare"></h6>
+                <div class="d-flex gap-2 justify-content-center mb-3">
+                    <button class="btn btn-primary" onclick="shareOnPlatform('facebook')">
+                        <i class="fab fa-facebook-f me-1"></i> Facebook
+                    </button>
+                    <button class="btn btn-info" onclick="shareOnPlatform('twitter')">
+                        <i class="fab fa-twitter me-1"></i> Twitter
+                    </button>
+                    <button class="btn btn-success" onclick="shareOnPlatform('whatsapp')">
+                        <i class="fab fa-whatsapp me-1"></i> WhatsApp
+                    </button>
+                </div>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="shareAdLink" readonly>
+                    <button class="btn btn-outline-secondary" type="button" onclick="copyShareLink()">
+                        <i class="fas fa-copy"></i> {% trans "نسخ" %}
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> {% trans "إغلاق" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock modals %}
 
 {% block publisher_extra_js %}
 <script>
     let adIdToDelete = null;
+    let adIdToDuplicate = null;
+    let adIdToRenew = null;
+    let currentShareSlug = null;
+    let currentShareTitle = null;
 
+    // Delete Ad Function
     function confirmDeleteAd(adId, adTitle) {
         adIdToDelete = adId;
         document.getElementById('adTitleToDelete').textContent = adTitle;
@@ -925,16 +1212,9 @@
             const data = await response.json();
 
             if (data.success) {
-                // Close modal
                 bootstrap.Modal.getInstance(document.getElementById('deleteAdModal')).hide();
-
-                // Show success message
                 showNotification(data.message || '{% trans "تم حذف الإعلان بنجاح" %}', 'success');
-
-                // Reload page after 1 second
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
+                setTimeout(() => window.location.reload(), 1000);
             } else {
                 showNotification(data.message || '{% trans "حدث خطأ أثناء الحذف" %}', 'error');
             }
@@ -943,6 +1223,157 @@
             showNotification('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
         }
     });
+
+    // Duplicate Ad Function
+    function duplicateAd(adId, adTitle) {
+        adIdToDuplicate = adId;
+        document.getElementById('adTitleToDuplicate').textContent = adTitle;
+        const modal = new bootstrap.Modal(document.getElementById('duplicateAdModal'));
+        modal.show();
+    }
+
+    document.getElementById('confirmDuplicateBtn').addEventListener('click', async function() {
+        if (!adIdToDuplicate) return;
+
+        try {
+            const response = await fetch(`{% url 'main:publisher_duplicate_ad' 0 %}`.replace('0', adIdToDuplicate), {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('duplicateAdModal')).hide();
+                showNotification(data.message || '{% trans "تم نسخ الإعلان بنجاح" %}', 'success');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                showNotification(data.message || '{% trans "حدث خطأ أثناء النسخ" %}', 'error');
+            }
+        } catch (error) {
+            console.error('Error duplicating ad:', error);
+            showNotification('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
+        }
+    });
+
+    // Renew Ad Function
+    function renewAd(adId, adTitle) {
+        adIdToRenew = adId;
+        document.getElementById('adTitleToRenew').textContent = adTitle;
+        const modal = new bootstrap.Modal(document.getElementById('renewAdModal'));
+        modal.show();
+    }
+
+    document.getElementById('confirmRenewBtn').addEventListener('click', async function() {
+        if (!adIdToRenew) return;
+
+        try {
+            const response = await fetch(`/ar/publisher/ads/${adIdToRenew}/renew/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('renewAdModal')).hide();
+                showNotification(data.message || '{% trans "تم تجديد الإعلان بنجاح" %}', 'success');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                showNotification(data.message || '{% trans "حدث خطأ أثناء التجديد" %}', 'error');
+            }
+        } catch (error) {
+            console.error('Error renewing ad:', error);
+            showNotification('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
+        }
+    });
+
+    // Show Ad Statistics
+    function showAdStats(adId, adTitle, views) {
+        document.getElementById('adTitleForStats').textContent = adTitle;
+        document.getElementById('statsViews').textContent = views;
+        
+        // Fetch additional stats
+        fetch(`/ar/publisher/ads/${adId}/stats/`, {
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('statsFavorites').textContent = data.favorites || 0;
+                document.getElementById('statsMessages').textContent = data.messages || 0;
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching stats:', error);
+            document.getElementById('statsFavorites').textContent = '-';
+            document.getElementById('statsMessages').textContent = '-';
+        });
+
+        const modal = new bootstrap.Modal(document.getElementById('adStatsModal'));
+        modal.show();
+    }
+
+    // Share Ad Function
+    function shareAd(slug, title) {
+        currentShareSlug = slug;
+        currentShareTitle = title;
+        const shareUrl = window.location.origin + '/ar/classifieds/' + slug + '/';
+        
+        document.getElementById('adTitleToShare').textContent = title;
+        document.getElementById('shareAdLink').value = shareUrl;
+        
+        const modal = new bootstrap.Modal(document.getElementById('shareAdModal'));
+        modal.show();
+    }
+
+    function shareOnPlatform(platform) {
+        const shareUrl = document.getElementById('shareAdLink').value;
+        const title = currentShareTitle;
+        let url = '';
+
+        switch(platform) {
+            case 'facebook':
+                url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+                break;
+            case 'twitter':
+                url = `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(title)}`;
+                break;
+            case 'whatsapp':
+                url = `https://wa.me/?text=${encodeURIComponent(title + ' ' + shareUrl)}`;
+                break;
+        }
+
+        if (url) {
+            window.open(url, '_blank', 'width=600,height=400');
+        }
+    }
+
+    function copyShareLink() {
+        const input = document.getElementById('shareAdLink');
+        input.select();
+        input.setSelectionRange(0, 99999); // For mobile devices
+        
+        try {
+            document.execCommand('copy');
+            showNotification('{% trans "تم نسخ الرابط" %}', 'success');
+        } catch (err) {
+            // Fallback for modern browsers
+            navigator.clipboard.writeText(input.value).then(() => {
+                showNotification('{% trans "تم نسخ الرابط" %}', 'success');
+            }).catch(() => {
+                showNotification('{% trans "فشل نسخ الرابط" %}', 'error');
+            });
+        }
+    }
 
     function getCookie(name) {
         let cookieValue = null;
@@ -960,7 +1391,6 @@
     }
 
     function showNotification(message, type) {
-        // Create toast container if it doesn't exist
         let toastContainer = document.querySelector('.toast-container');
         if (!toastContainer) {
             toastContainer = document.createElement('div');
@@ -969,7 +1399,6 @@
             document.body.appendChild(toastContainer);
         }
 
-        // Create toast element
         const toastId = 'toast-' + Date.now();
         const bgClass = type === 'success' ? 'bg-success' : 'bg-danger';
         const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
@@ -991,7 +1420,6 @@
         const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
         toast.show();
 
-        // Remove toast element after it's hidden
         toastElement.addEventListener('hidden.bs.toast', function() {
             toastElement.remove();
         });

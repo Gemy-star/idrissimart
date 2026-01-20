@@ -21,11 +21,14 @@ def to_json(value):
     """
     Converts a Python object to JSON string with proper JavaScript syntax.
     Handles None, True, False conversion to null, true, false.
+    Also handles Django types like Decimal, datetime, etc.
     """
+    from django.core.serializers.json import DjangoJSONEncoder
+    
     if value is None:
         return mark_safe("null")
     try:
-        return mark_safe(json.dumps(value))
+        return mark_safe(json.dumps(value, cls=DjangoJSONEncoder))
     except (TypeError, ValueError):
         return mark_safe("null")
 
@@ -572,3 +575,50 @@ def ad_image_or_placeholder(context, ad, css_class=""):
             logo_url,
             "صورة بديلة",
         )
+
+
+# ======================
+# SITE LOGO TAGS
+# ======================
+
+
+@register.simple_tag
+def get_site_logo(theme='default'):
+    """
+    Get site logo based on theme mode
+    Usage: {% get_site_logo 'light' %} or {% get_site_logo 'dark' %}
+    Returns URL of the logo or empty string
+    """
+    from content.site_config import SiteConfiguration
+    
+    site_config = SiteConfiguration.get_solo()
+    
+    if theme == 'light' and site_config.logo_light:
+        return site_config.logo_light.url
+    elif theme == 'dark' and site_config.logo_dark:
+        return site_config.logo_dark.url
+    elif theme == 'loader' and site_config.logo_mini:
+        return site_config.logo_mini.url
+    elif site_config.logo:
+        return site_config.logo.url
+    
+    return ""
+
+
+@register.simple_tag
+def get_loader_logo():
+    """
+    Get loader logo (mini logo)
+    Usage: {% get_loader_logo %}
+    Returns URL of the mini logo or default logo
+    """
+    from content.site_config import SiteConfiguration
+    
+    site_config = SiteConfiguration.get_solo()
+    
+    if site_config.logo_mini:
+        return site_config.logo_mini.url
+    elif site_config.logo:
+        return site_config.logo.url
+    
+    return ""

@@ -484,6 +484,140 @@ CKEDITOR_5_CONFIGS = {
         },
         "placeholder": "اكتب وصف الإعلان هنا... يمكنك استخدام الإيموجي 😊",
     },
+    "public_ad": {
+        # Enhanced but secure configuration for public ad forms
+        "toolbar": {
+            "items": [
+                "heading",
+                "|",
+                "bold",
+                "italic",
+                "underline",
+                "strikethrough",
+                "|",
+                "fontSize",
+                "fontColor",
+                "fontBackgroundColor",
+                "|",
+                "alignment",
+                "|",
+                "bulletedList",
+                "numberedList",
+                "todoList",
+                "|",
+                "outdent",
+                "indent",
+                "|",
+                "link",
+                "insertTable",
+                "blockQuote",
+                "horizontalLine",
+                "|",
+                "undo",
+                "redo",
+            ],
+            "shouldNotGroupWhenFull": True
+        },
+        "heading": {
+            "options": [
+                {"model": "paragraph", "title": "فقرة", "class": "ck-heading_paragraph"},
+                {"model": "heading2", "view": "h2", "title": "عنوان 1", "class": "ck-heading_heading2"},
+                {"model": "heading3", "view": "h3", "title": "عنوان 2", "class": "ck-heading_heading3"},
+                {"model": "heading4", "view": "h4", "title": "عنوان 3", "class": "ck-heading_heading4"},
+            ]
+        },
+        "fontSize": {
+            "options": [
+                "tiny",
+                "small",
+                "default",
+                "big",
+                "huge"
+            ]
+        },
+        "fontColor": {
+            "colors": [
+                {"color": "#000000", "label": "أسود"},
+                {"color": "#4d4d4d", "label": "رمادي غامق"},
+                {"color": "#999999", "label": "رمادي"},
+                {"color": "#e6e6e6", "label": "رمادي فاتح"},
+                {"color": "#ffffff", "label": "أبيض"},
+                {"color": "#e74c3c", "label": "أحمر"},
+                {"color": "#e67e22", "label": "برتقالي"},
+                {"color": "#f39c12", "label": "أصفر"},
+                {"color": "#27ae60", "label": "أخضر"},
+                {"color": "#3498db", "label": "أزرق"},
+                {"color": "#9b59b6", "label": "بنفسجي"},
+                {"color": "#6b4c7a", "label": "بنفسجي داكن"},
+            ]
+        },
+        "fontBackgroundColor": {
+            "colors": [
+                {"color": "#ffffff", "label": "أبيض"},
+                {"color": "#ffebee", "label": "أحمر فاتح"},
+                {"color": "#fff3e0", "label": "برتقالي فاتح"},
+                {"color": "#fff9c4", "label": "أصفر فاتح"},
+                {"color": "#e8f5e9", "label": "أخضر فاتح"},
+                {"color": "#e3f2fd", "label": "أزرق فاتح"},
+                {"color": "#f3e5f5", "label": "بنفسجي فاتح"},
+            ]
+        },
+        "alignment": {
+            "options": ["left", "right", "center", "justify"]
+        },
+        "table": {
+            "contentToolbar": [
+                "tableColumn",
+                "tableRow",
+                "mergeTableCells",
+                "tableProperties",
+                "tableCellProperties",
+            ],
+            "tableProperties": {
+                "borderColors": customColorPalette,
+                "backgroundColors": customColorPalette,
+            },
+            "tableCellProperties": {
+                "borderColors": customColorPalette,
+                "backgroundColors": customColorPalette,
+            },
+        },
+        "link": {
+            "decorators": {
+                "openInNewTab": {
+                    "mode": "manual",
+                    "label": "فتح في نافذة جديدة",
+                    "attributes": {
+                        "target": "_blank",
+                        "rel": "noopener noreferrer"
+                    }
+                }
+            },
+            "addTargetToExternalLinks": True,
+        },
+        "language": "ar",
+        "placeholder": "اكتب وصف الإعلان هنا... استخدم الأدوات لتنسيق النص",
+        "htmlSupport": {
+            "allow": [
+                {
+                    "name": "/.*/",
+                    "attributes": True,
+                    "classes": True,
+                    "styles": True,
+                }
+            ],
+            "disallow": [
+                {"name": "script"},
+                {"name": "style"},
+                {"name": "iframe"},
+                {"name": "object"},
+                {"name": "embed"},
+                {"name": "form"},
+                {"name": "input"},
+                {"name": "button"},
+            ],
+        },
+    },
     "admin": {
         "removePlugins": [
             "DocumentOutline",

@@ -153,7 +153,12 @@ def verification_settings(request):
 def site_configuration(request):
     """
     Context processor to add site configuration to all templates
+    Includes helper functions to get appropriate logo based on theme
     """
+    site_config = SiteConfiguration.get_solo()
+    
     return {
-        "site_config": SiteConfiguration.get_solo(),
+        "site_config": site_config,
+        "get_theme_logo": lambda theme='light': site_config.get_logo_for_theme(theme),
+        "get_loader_logo": lambda: site_config.get_loader_logo(),
     }

@@ -71,6 +71,7 @@ class MyClassifiedAdsView(LoginRequiredMixin, ListView):
     model = ClassifiedAd
     template_name = "classifieds/my_ads_list.html"
     context_object_name = "ads"
+    paginate_by = 20  # 20 ads per page
 
     def get_queryset(self):
         return ClassifiedAd.objects.filter(user=self.request.user).order_by(
@@ -303,23 +304,47 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
                 form_kwargs={"request": self.request},
             )
 
+        from django.db.models import Prefetch
+        
         context["ad_categories"] = Category.objects.filter(
             section_type=Category.SectionType.CLASSIFIED,
             is_active=True,
             parent__isnull=True,  # Only root categories
-        ).prefetch_related("subcategories")
+        ).defer(
+            "default_reservation_percentage",
+            "min_reservation_amount", 
+            "max_reservation_amount",
+            "ad_creation_price"
+        ).prefetch_related(
+            Prefetch(
+                "subcategories",
+                queryset=Category.objects.defer(
+                    "default_reservation_percentage",
+                    "min_reservation_amount",
+                    "max_reservation_amount", 
+                    "ad_creation_price"
+                )
+            )
+        )
         context["active_nav"] = "create_ad"
 
-        # Prepare categories data with pricing for JavaScript
+        # Prepare categories data with pricing for JavaScript (all levels)
+        import json
+        from django.core.serializers.json import DjangoJSONEncoder
+        
         categories_data = {}
         for category in Category.objects.filter(
             section_type=Category.SectionType.CLASSIFIED,
             is_active=True,
-        ).values("id", "ad_creation_price"):
+        ).values("id", "ad_creation_price", "name", "parent_id"):
             categories_data[category["id"]] = {
-                "ad_creation_price": float(category["ad_creation_price"] or 0)
+                "ad_creation_price": float(category["ad_creation_price"]) if category["ad_creation_price"] else 0.0,
+                "name": category["name"],
+                "parent_id": category["parent_id"] if category["parent_id"] is not None else None
             }
-        context["categories_pricing"] = categories_data
+        # Convert to JSON to ensure proper null handling
+        context["categories_pricing"] = json.dumps(categories_data, cls=DjangoJSONEncoder)
+        context["categories_pricing_safe"] = True  # Flag to indicate it's already JSON
 
         # Set default country from user profile or session
         if self.request.user.is_authenticated:
@@ -334,10 +359,13 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             if user_country:
                 context["default_country"] = user_country
 
-        # Add site configuration for pricing
+        # Get site configuration for pricing (local use only, not passed to template)
         from content.models import SiteConfiguration
-
-        context["site_config"] = SiteConfiguration.get_solo()
+        site_config = SiteConfiguration.get_solo()
+        
+        # Add only needed site config values (converted to avoid Decimal serialization issues)
+        context["ad_base_fee"] = float(site_config.ad_base_fee) if site_config.ad_base_fee else 0.0
+        context["cart_service_instructions"] = site_config.cart_service_instructions or "عند تفعيل السلة، سيتم خصم رسوم خدمة من ثمن المنتج عند البيع. يجب أن يكون السعر شاملاً لهذه الرسوم ورسوم التوصيل."
 
         # Get user's active package to determine feature prices
         if self.request.user.is_authenticated:
@@ -350,35 +378,54 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
                 .first()
             )
 
+            # Get all active packages for ads remaining count
+            active_packages = UserPackage.objects.filter(
+                user=self.request.user,
+                expiry_date__gte=timezone.now(),
+                ads_remaining__gt=0
+            )
+            total_ads_remaining = sum(pkg.ads_remaining for pkg in active_packages)
+
+            context["has_free_ads"] = total_ads_remaining > 0
+            context["free_ads_remaining"] = total_ads_remaining
+
             # Pass feature prices based on package or site defaults
             if active_package and active_package.package:
                 package = active_package.package
                 context["feature_prices"] = {
-                    "highlighted": package.feature_highlighted_price,
-                    "urgent": package.feature_urgent_price,
-                    "pinned": package.feature_pinned_price,
-                    "contact_for_price": package.feature_contact_for_price,
+                    "highlighted": float(package.feature_highlighted_price) if package.feature_highlighted_price else 0.0,
+                    "urgent": float(package.feature_urgent_price) if package.feature_urgent_price else 0.0,
+                    "pinned": float(package.feature_pinned_price) if package.feature_pinned_price else 0.0,
+                    "contact_for_price": float(package.feature_contact_for_price) if package.feature_contact_for_price else 0.0,
                 }
                 context["pricing_source"] = "package"
-                context["active_package"] = active_package
+                # Don't pass the active_package object itself, just its data
+                context["active_package_id"] = active_package.id
+                context["active_package_name"] = active_package.package.name if active_package.package else None
             else:
                 # Use site default prices
                 context["feature_prices"] = {
-                    "highlighted": context["site_config"].featured_ad_price,
-                    "urgent": context["site_config"].urgent_ad_price,
-                    "pinned": context["site_config"].pinned_ad_price,
-                    "contact_for_price": 0,  # Free or unavailable without package
+                    "highlighted": float(site_config.featured_ad_price) if site_config.featured_ad_price else 0.0,
+                    "urgent": float(site_config.urgent_ad_price) if site_config.urgent_ad_price else 0.0,
+                    "pinned": float(site_config.pinned_ad_price) if site_config.pinned_ad_price else 0.0,
+                    "contact_for_price": 0.0,  # Free or unavailable without package
                 }
                 context["pricing_source"] = "site_default"
+                context["active_package_id"] = None
+                context["active_package_name"] = None
         else:
             # Guest user - show site defaults
+            context["has_free_ads"] = False
+            context["free_ads_remaining"] = 0
             context["feature_prices"] = {
-                "highlighted": context["site_config"].featured_ad_price,
-                "urgent": context["site_config"].urgent_ad_price,
-                "pinned": context["site_config"].pinned_ad_price,
-                "contact_for_price": 0,
+                "highlighted": float(site_config.featured_ad_price) if site_config.featured_ad_price else 0.0,
+                "urgent": float(site_config.urgent_ad_price) if site_config.urgent_ad_price else 0.0,
+                "pinned": float(site_config.pinned_ad_price) if site_config.pinned_ad_price else 0.0,
+                "contact_for_price": 0.0,
             }
             context["pricing_source"] = "site_default"
+            context["active_package_id"] = None
+            context["active_package_name"] = None
 
         return context
 
@@ -566,14 +613,9 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
                 form_kwargs={"request": self.request},
             )
         else:
-            # Calculate extra forms needed
-            existing_images = self.object.images.count()
-            extra_forms = max(0, 5 - existing_images)
-
             context["image_formset"] = AdImageFormSet(
                 instance=self.object,
                 queryset=self.object.images.all(),
-                extra=extra_forms,
                 form_kwargs={"request": self.request},
             )
         context["ad_categories"] = Category.objects.filter(
@@ -604,17 +646,28 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
             needs_approval = False
             original_status = self.object.status
 
+            # Check if content has changed (title, description, or price)
+            # Get original values from database (before form changes)
+            original_ad = ClassifiedAd.objects.get(pk=self.object.pk)
+            content_changed = (
+                form.cleaned_data.get("title") != original_ad.title
+                or form.cleaned_data.get("description") != original_ad.description
+                or form.cleaned_data.get("price") != original_ad.price
+            )
+
+            # Check if images were added or changed
+            images_changed = False
+            for img_form in image_formset:
+                if img_form.has_changed() and img_form.cleaned_data.get("image"):
+                    images_changed = True
+                    break
+
             if not self.request.user.is_staff:
-                if self.request.user.is_verified:
-                    # Verified users: updates publish immediately
-                    needs_approval = False
-                    form.instance.is_resubmitted = False
-                else:
-                    # Non-verified users: need re-approval if ad was active
-                    if original_status == ClassifiedAd.AdStatus.ACTIVE:
-                        needs_approval = True
-                        form.instance.status = ClassifiedAd.AdStatus.PENDING
-                        form.instance.is_resubmitted = True
+                # If content or images changed, require admin approval
+                if (content_changed or images_changed) and original_status == ClassifiedAd.AdStatus.ACTIVE:
+                    needs_approval = True
+                    form.instance.status = ClassifiedAd.AdStatus.PENDING
+                    form.instance.is_resubmitted = True
 
             self.object = form.save()
             image_formset.instance = self.object
@@ -624,7 +677,7 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
                 messages.info(
                     self.request,
                     _(
-                        "تم تقديم التعديلات للمراجعة. سيظل إعلانك الحالي نشطاً حتى الموافقة على التعديلات."
+                        "تم تقديم التعديلات للمراجعة. سيتم نشر إعلانك بعد موافقة الإدارة على التغييرات."
                     ),
                 )
             else:
@@ -1729,6 +1782,38 @@ class AdUpgradeCheckoutView(LoginRequiredMixin, DetailView):
             config, "URGENT_AD_PRICE_30DAYS", Decimal("60.00")
         )
 
+        # Top Search pricing
+        context["top_search_price"] = getattr(
+            config, "TOP_SEARCH_AD_PRICE_7DAYS", Decimal("60.00")
+        )
+        context["top_search_price_14"] = getattr(
+            config, "TOP_SEARCH_AD_PRICE_14DAYS", Decimal("96.00")
+        )
+        context["top_search_price_30"] = getattr(
+            config, "TOP_SEARCH_AD_PRICE_30DAYS", Decimal("120.00")
+        )
+
+        # Contact for Price pricing
+        context["contact_price_price"] = getattr(
+            config, "CONTACT_PRICE_AD_PRICE_7DAYS", Decimal("25.00")
+        )
+        context["contact_price_price_14"] = getattr(
+            config, "CONTACT_PRICE_AD_PRICE_14DAYS", Decimal("40.00")
+        )
+        context["contact_price_price_30"] = getattr(
+            config, "CONTACT_PRICE_AD_PRICE_30DAYS", Decimal("50.00")
+        )
+
+        # Facebook Share pricing (one-time)
+        context["facebook_share_price"] = getattr(
+            config, "FACEBOOK_SHARE_AD_PRICE", Decimal("35.00")
+        )
+
+        # Video feature pricing (one-time)
+        context["video_price"] = getattr(
+            config, "VIDEO_AD_PRICE", Decimal("45.00")
+        )
+
         return context
 
 
@@ -1811,6 +1896,103 @@ class AdUpgradeProcessView(LoginRequiredMixin, View):
                     "name": _("إعلان عاجل"),
                 }
             )
+
+        # Top Search feature
+        upgrade_top_search = request.POST.get("upgrade_top_search") == "1"
+        top_search_duration = int(request.POST.get("top_search_duration") or 0)
+
+        if upgrade_top_search and top_search_duration > 0:
+            if top_search_duration == 7:
+                price = Decimal(str(getattr(config, "TOP_SEARCH_AD_PRICE_7DAYS", 60.00)))
+            elif top_search_duration == 14:
+                price = Decimal(str(getattr(config, "TOP_SEARCH_AD_PRICE_14DAYS", 96.00)))
+            else:  # 30
+                price = Decimal(str(getattr(config, "TOP_SEARCH_AD_PRICE_30DAYS", 120.00)))
+
+            total_amount += price
+            upgrades.append(
+                {
+                    "type": "top_search",
+                    "duration": top_search_duration,
+                    "price": str(price),
+                    "name": _("أعلى نتائج البحث"),
+                }
+            )
+
+        # Contact for Price feature
+        upgrade_contact_price = request.POST.get("upgrade_contact_price") == "1"
+        contact_price_duration = int(request.POST.get("contact_price_duration") or 0)
+
+        if upgrade_contact_price and contact_price_duration > 0:
+            if contact_price_duration == 7:
+                price = Decimal(str(getattr(config, "CONTACT_PRICE_AD_PRICE_7DAYS", 25.00)))
+            elif contact_price_duration == 14:
+                price = Decimal(str(getattr(config, "CONTACT_PRICE_AD_PRICE_14DAYS", 40.00)))
+            else:  # 30
+                price = Decimal(str(getattr(config, "CONTACT_PRICE_AD_PRICE_30DAYS", 50.00)))
+
+            total_amount += price
+            upgrades.append(
+                {
+                    "type": "contact_for_price",
+                    "duration": contact_price_duration,
+                    "price": str(price),
+                    "name": _("تواصل ليصلك عرض سعر"),
+                }
+            )
+
+        # Facebook Share feature (one-time, no duration)
+        upgrade_facebook_share = request.POST.get("upgrade_facebook_share") == "1"
+
+        if upgrade_facebook_share:
+            price = Decimal(str(getattr(config, "FACEBOOK_SHARE_AD_PRICE", 35.00)))
+            total_amount += price
+            upgrades.append(
+                {
+                    "type": "facebook_share",
+                    "duration": 0,  # One-time
+                    "price": str(price),
+                    "name": _("نشر على فيسبوك"),
+                }
+            )
+
+        # Video feature (one-time, no duration)
+        upgrade_video = request.POST.get("upgrade_video") == "1"
+        video_type = request.POST.get("video_type", "url")
+        video_url = request.POST.get("video_url", "").strip()
+        video_file = request.FILES.get("video_file")
+
+        if upgrade_video:
+            price = Decimal(str(getattr(config, "VIDEO_AD_PRICE", 45.00)))
+            total_amount += price
+
+            video_data = {
+                "type": "video",
+                "duration": 0,  # One-time
+                "price": str(price),
+                "name": _("إضافة فيديو"),
+                "video_type": video_type,
+            }
+
+            if video_type == "url" and video_url:
+                video_data["video_url"] = video_url
+            elif video_type == "file" and video_file:
+                # Store video file temporarily in session or handle it differently
+                # For now, we'll save it directly to the ad after payment
+                video_data["has_video_file"] = True
+
+            upgrades.append(video_data)
+
+            # Store video file in session for later processing
+            if video_file:
+                # Save the uploaded file temporarily
+                from django.core.files.storage import default_storage
+                from django.core.files.base import ContentFile
+                import uuid
+
+                temp_filename = f"temp_videos/{uuid.uuid4()}_{video_file.name}"
+                saved_path = default_storage.save(temp_filename, ContentFile(video_file.read()))
+                request.session["pending_video_file"] = saved_path
 
         if not upgrades:
             messages.warning(request, _("يرجى اختيار خيار ترقية واحد على الأقل"))
@@ -2234,6 +2416,7 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
             contact_price = Decimal("0.00")
 
         facebook_price = Decimal("100.00")
+        video_price = Decimal("75.00")
 
         # Process features
         if feature_contact and not ad.contact_for_price:
@@ -2243,6 +2426,29 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
         if feature_facebook and not ad.share_on_facebook:
             total_amount += facebook_price
             features_to_enable["facebook_share"] = True
+
+        # Video feature
+        feature_video = request.POST.get("feature_video") == "1"
+        video_type = request.POST.get("video_type", "url")
+        video_url = request.POST.get("video_url", "").strip()
+        video_file = request.FILES.get("video_file")
+
+        if feature_video and not ad.video_url and not ad.video_file:
+            total_amount += video_price
+            features_to_enable["video"] = True
+            features_to_enable["video_type"] = video_type
+            if video_type == "url" and video_url:
+                features_to_enable["video_url"] = video_url
+            elif video_type == "file" and video_file:
+                # Store video file temporarily
+                from django.core.files.storage import default_storage
+                from django.core.files.base import ContentFile
+                import uuid
+
+                temp_filename = f"temp_videos/{uuid.uuid4()}_{video_file.name}"
+                saved_path = default_storage.save(temp_filename, ContentFile(video_file.read()))
+                request.session["pending_video_file"] = saved_path
+                features_to_enable["has_video_file"] = True
 
         # If nothing selected
         if not upgrades and not features_to_enable:
@@ -2285,6 +2491,28 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
                     payment_confirmed=True,
                     payment_amount=Decimal("0.00"),
                 )
+
+            # Handle video feature
+            if features_to_enable.get("video"):
+                if features_to_enable.get("video_url"):
+                    ad.video_url = features_to_enable["video_url"]
+                    updated_items.append(_("إضافة فيديو"))
+                elif features_to_enable.get("has_video_file"):
+                    # Move temp video file to permanent location
+                    temp_path = request.session.get("pending_video_file")
+                    if temp_path:
+                        from django.core.files.storage import default_storage
+                        import os
+
+                        # Read temp file and save to ad
+                        with default_storage.open(temp_path) as f:
+                            filename = os.path.basename(temp_path)
+                            ad.video_file.save(filename, f, save=False)
+
+                        # Delete temp file
+                        default_storage.delete(temp_path)
+                        del request.session["pending_video_file"]
+                        updated_items.append(_("إضافة فيديو"))
 
             ad.save()
             messages.success(

@@ -679,12 +679,25 @@ def publisher_payment_history(request):
     عرض سجل المدفوعات للعضو
     Display payment history for the publisher
     """
-    payments = (
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
+    all_payments = (
         Payment.objects.filter(user=request.user)
         .select_related("user")
         .prefetch_related("packages")
         .order_by("-created_at")
     )
+
+    # Pagination
+    page = request.GET.get('page', 1)
+    paginator = Paginator(all_payments, 15)  # 15 payments per page
+    
+    try:
+        payments = paginator.page(page)
+    except PageNotAnInteger:
+        payments = paginator.page(1)
+    except EmptyPage:
+        payments = paginator.page(paginator.num_pages)
 
     # Add package info from metadata for each payment
     for payment in payments:
@@ -700,10 +713,10 @@ def publisher_payment_history(request):
 
     context = {
         "payments": payments,
-        "total_payments": payments.count(),
-        "completed_payments": payments.filter(status="completed").count(),
-        "pending_payments": payments.filter(status="pending").count(),
-        "total_spent": payments.filter(status="completed").aggregate(
+        "total_payments": all_payments.count(),
+        "completed_payments": all_payments.filter(status="completed").count(),
+        "pending_payments": all_payments.filter(status="pending").count(),
+        "total_spent": all_payments.filter(status="completed").aggregate(
             total=Sum("amount")
         )["total"]
         or 0,
@@ -782,3 +795,74 @@ def publisher_permanent_delete_ad(request, ad_id):
     return JsonResponse(
         {"success": False, "message": _("طريقة غير مسموحة")}, status=405
     )
+
+
+@publisher_required
+@require_POST
+def publisher_duplicate_ad(request, ad_id):
+    """
+    Allow publishers to duplicate their own ads.
+    Creates a copy with status DRAFT (pending review).
+    """
+    from main.models import AdImage
+    from django.utils.translation import gettext as _
+
+    try:
+        # Get the original ad - must belong to the current user
+        original_ad = get_object_or_404(
+            ClassifiedAd, pk=ad_id, user=request.user, deleted_at__isnull=True
+        )
+
+        # Create duplicate ad
+        new_ad = ClassifiedAd.objects.create(
+            user=request.user,
+            category=original_ad.category,
+            country=original_ad.country,
+            title=f"{original_ad.title} (نسخة)",
+            description=original_ad.description,
+            price=original_ad.price,
+            city=original_ad.city,
+            address=original_ad.address,
+            is_negotiable=original_ad.is_negotiable,
+            custom_fields=original_ad.custom_fields,
+            is_delivery_available=original_ad.is_delivery_available,
+            status=ClassifiedAd.AdStatus.DRAFT,  # New copy starts as draft
+        )
+
+        # Copy images
+        for image in original_ad.images.all():
+            AdImage.objects.create(
+                ad=new_ad,
+                image=image.image,
+                is_primary=image.is_primary,
+            )
+
+        # Create notification for user
+        Notification.objects.create(
+            user=request.user,
+            title=_("تم نسخ الإعلان"),
+            message=_('تم نسخ إعلانك "{}" بنجاح. يمكنك تعديله ونشره.').format(
+                original_ad.title
+            ),
+            notification_type="general",
+            link=f"/classifieds/{new_ad.pk}/edit/",
+        )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": _("تم نسخ الإعلان بنجاح"),
+                "new_ad_id": new_ad.id,
+                "redirect_url": f"/classifieds/{new_ad.pk}/edit/",
+            }
+        )
+
+    except Exception as e:
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error duplicating ad {ad_id}: {str(e)}")
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))},
+            status=500,
+        )

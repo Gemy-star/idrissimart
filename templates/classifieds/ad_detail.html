@@ -1348,7 +1348,7 @@
                         {% endif %}
                     </div>
 
-                    <!-- Video Section (Under Development) -->
+                    <!-- Video Section - Optimized with Lazy Loading -->
                     {% if ad.video_url or ad.video_file %}
                     <div class="modern-card card ad-content-card mb-4 border-0 shadow-sm rounded-3" style="background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary)); backdrop-filter: blur(10px);">
                         <div class="card-header bg-transparent border-bottom-0 pb-2">
@@ -1357,24 +1357,84 @@
                             </h4>
                         </div>
                         <div class="card-body pt-3">
-                            <!-- Coming Soon Notice -->
-                            <div class="alert alert-info mb-0" style="border-radius: 12px; border-left: 4px solid #2196f3;">
-                                <div class="d-flex align-items-center">
-                                    <div class="me-3" style="font-size: 2rem; color: #2196f3;">
-                                        <i class="fas fa-tools"></i>
+                            <div class="ad-video-container" id="ad-video-container">
+                                {% if ad.video_url %}
+                                    <!-- YouTube/Vimeo Video - Lazy Loading with Click-to-Play -->
+                                    <div class="video-play-overlay" id="video-play-overlay" data-video-url="{{ ad.video_url }}">
+                                        <!-- Thumbnail placeholder -->
+                                        <img class="video-thumbnail"
+                                             src="{% if 'youtube' in ad.video_url or 'youtu.be' in ad.video_url %}https://img.youtube.com/vi/{{ ad.video_url|cut:'https://www.youtube.com/watch?v='|cut:'https://youtu.be/'|cut:'https://youtube.com/watch?v=' }}/hqdefault.jpg{% else %}{% static 'images/video-placeholder.jpg' %}{% endif %}"
+                                             alt="{% trans 'معاينة الفيديو' %}"
+                                             loading="lazy">
+                                        <div class="play-btn">
+                                            <i class="fas fa-play"></i>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h5 class="alert-heading mb-1" style="color: #1976d2; font-weight: 600;">
-                                            {% trans "ميزة قيد التطوير" %}
-                                        </h5>
-                                        <p class="mb-0" style="color: #1565c0;">
-                                            {% trans "نعمل حالياً على تطوير ميزة إضافة الفيديو للإعلانات. سيتم إطلاق هذه الخدمة قريباً!" %}
-                                        </p>
-                                    </div>
-                                </div>
+                                    <div id="video-embed-container" style="display: none;"></div>
+                                {% elif ad.video_file %}
+                                    <!-- Uploaded Video File - Lazy Loading with Poster -->
+                                    <video id="ad-video-player"
+                                           controls
+                                           preload="metadata"
+                                           poster="{% if ad.images.first %}{{ ad.images.first.image.url }}{% endif %}"
+                                           style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; border-radius: 12px;">
+                                        <source src="{{ ad.video_file.url }}" type="video/mp4">
+                                        <source src="{{ ad.video_file.url }}" type="video/webm">
+                                        {% trans "متصفحك لا يدعم عرض الفيديو" %}
+                                    </video>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
+
+                    <script>
+                    // Video lazy loading script
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const playOverlay = document.getElementById('video-play-overlay');
+                        const embedContainer = document.getElementById('video-embed-container');
+
+                        if (playOverlay) {
+                            playOverlay.addEventListener('click', function() {
+                                const videoUrl = this.dataset.videoUrl;
+                                let embedUrl = '';
+
+                                // Parse YouTube URL
+                                const youtubeMatch = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+                                if (youtubeMatch) {
+                                    embedUrl = `https://www.youtube.com/embed/${youtubeMatch[1]}?autoplay=1&rel=0`;
+                                }
+
+                                // Parse Vimeo URL
+                                const vimeoMatch = videoUrl.match(/vimeo\.com\/(\d+)/);
+                                if (vimeoMatch) {
+                                    embedUrl = `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1`;
+                                }
+
+                                if (embedUrl) {
+                                    embedContainer.innerHTML = `<iframe src="${embedUrl}" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; border: none; border-radius: 12px;" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe>`;
+                                    embedContainer.style.display = 'block';
+                                    playOverlay.style.display = 'none';
+                                }
+                            });
+                        }
+
+                        // Optimize video file loading
+                        const videoPlayer = document.getElementById('ad-video-player');
+                        if (videoPlayer) {
+                            // Use Intersection Observer for lazy loading
+                            const observer = new IntersectionObserver((entries) => {
+                                entries.forEach(entry => {
+                                    if (entry.isIntersecting) {
+                                        videoPlayer.preload = 'auto';
+                                        observer.disconnect();
+                                    }
+                                });
+                            }, { threshold: 0.25 });
+
+                            observer.observe(videoPlayer);
+                        }
+                    });
+                    </script>
                     {% endif %}
 
                     <!-- Buyer Safety Notes Card -->

@@ -1669,6 +1669,11 @@ urlpatterns = [
         publisher_views.PublisherAdDeleteView.as_view(),
         name="publisher_ad_delete",
     ),
+    path(
+        "publisher/ads/<int:ad_id>/duplicate/",
+        publisher_views.publisher_duplicate_ad,
+        name="publisher_duplicate_ad",
+    ),
     # Publisher Expired Ads
     path(
         "publisher/expired-ads/",
