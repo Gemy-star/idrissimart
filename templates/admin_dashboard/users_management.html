@@ -918,6 +918,7 @@
             </div>
           </div>
           <button
+            type="button"
             class="action-btn success"
             data-action="verify-email"
             data-user-id="{{ user_obj.id }}"
@@ -927,6 +928,7 @@
             {% if user_obj.verification_status == 'VERIFIED' %}{% trans "إلغاء توثيق الإيميل" %}{% else %}{% trans "توثيق الإيميل" %}{% endif %}
           </button>
           <button
+            type="button"
             class="action-btn success"
             data-action="verify-phone"
             data-user-id="{{ user_obj.id }}"
@@ -944,6 +946,7 @@
             </div>
           </div>
           <button
+            type="button"
             class="action-btn warning"
             data-action="toggle-active"
             data-user-id="{{ user_obj.id }}"
@@ -953,6 +956,7 @@
             {% if user_obj.is_active %}{% trans "تعطيل الحساب" %}{% else %}{% trans "تفعيل الحساب" %}{% endif %}
           </button>
           <button
+            type="button"
             class="action-btn warning"
             data-action="user-action"
             data-user-id="{{ user_obj.id }}"
@@ -962,6 +966,7 @@
             {% if user_obj.is_suspended %}{% trans "إلغاء التعليق" %}{% else %}{% trans "تعليق مؤقت" %}{% endif %}
           </button>
           <button
+            type="button"
             class="action-btn warning"
             data-action="user-action"
             data-user-id="{{ user_obj.id }}"
@@ -972,6 +977,7 @@
           </button>
           {% if user_obj.verification_status != 'VERIFIED' %}
           <button
+            type="button"
             class="action-btn primary"
             data-action="user-action"
             data-user-id="{{ user_obj.id }}"
@@ -982,6 +988,7 @@
           </button>
           {% endif %}
           <button
+            type="button"
             class="action-btn info"
             data-action="change-role"
             data-user-id="{{ user_obj.id }}"
@@ -992,6 +999,7 @@
             {% trans "تغيير الدور" %}
           </button>
           <button
+            type="button"
             class="action-btn warning"
             data-action="reset-password"
             data-user-id="{{ user_obj.id }}"
@@ -1010,6 +1018,7 @@
           </div>
           {% with active_pkg=user_obj.ad_packages.all|first %}
           <button
+            type="button"
             class="action-btn success"
             data-action="add-balance"
             data-user-id="{{ user_obj.id }}"
@@ -1031,6 +1040,7 @@
             </div>
           </div>
           <button
+            type="button"
             class="action-btn info"
             data-action="send-notification"
             data-user-id="{{ user_obj.id }}"
@@ -1040,6 +1050,7 @@
             {% trans "إرسال إشعار" %}
           </button>
           <button
+            type="button"
             class="action-btn primary"
             data-action="open-chat"
             data-user-id="{{ user_obj.id }}"
@@ -1058,6 +1069,7 @@
             </div>
           </div>
           <button
+            type="button"
             class="action-btn danger"
             data-action="delete-user"
             data-user-id="{{ user_obj.id }}"
@@ -1301,10 +1313,16 @@
     </div>
   </div>
 </div>
+
+<!-- Toast Container -->
+<div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 10500;"></div>
 {% endblock modals %}
 
 {% block admin_extra_js %}
 <script>
+// Language code for i18n URLs
+const LANGUAGE_CODE = '{{ LANGUAGE_CODE }}';
+
 // Toggle Actions Panel
 function toggleActionsPanel(button) {
   const card = button.closest('.user-card');
@@ -1399,7 +1417,7 @@ function handleVerifyEmail(userId, isVerified) {
 
   showConfirmation('{% trans "تأكيد التوثيق" %}', message, () => {
     // Add your AJAX call here
-    fetch(`/admin/users/${userId}/verify-email/`, {
+    fetch(`/${LANGUAGE_CODE}/admin/users/${userId}/verify-email/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1428,7 +1446,7 @@ function handleVerifyPhone(userId, isVerified) {
 
   showConfirmation('{% trans "تأكيد التوثيق" %}', message, () => {
     // Add your AJAX call here
-    fetch(`/admin/users/${userId}/verify-phone/`, {
+    fetch(`/${LANGUAGE_CODE}/admin/users/${userId}/verify-phone/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1457,7 +1475,7 @@ function handleToggleActive(userId, isActive) {
 
   showConfirmation('{% trans "تأكيد العملية" %}', message, () => {
     // Add your AJAX call here
-    fetch(`/admin/users/${userId}/toggle-active/`, {
+    fetch(`/${LANGUAGE_CODE}/admin/users/${userId}/toggle-active/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1506,7 +1524,7 @@ function handleUserAction(userId, userAction) {
 
   showConfirmation(title, message, () => {
     // Add your AJAX call here
-    fetch(`/admin/users/${userId}/action/`, {
+    fetch(`/${LANGUAGE_CODE}/admin/users/${userId}/action/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1533,7 +1551,7 @@ function handleResetPassword(userId, username) {
     `{% trans "هل تريد إعادة تعيين كلمة المرور للمستخدم" %} "${username}"؟`,
     () => {
       // Add your AJAX call here
-      fetch(`/admin/users/${userId}/reset-password/`, {
+      fetch(`/${LANGUAGE_CODE}/admin/users/${userId}/reset-password/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1562,7 +1580,7 @@ function handleSendNotification(userId, username) {
 
 function handleOpenChat(userId, userName) {
   // Open chat with user - redirect or open in new tab
-  window.location.href = `/admin/chat/${userId}/`;
+  window.location.href = `/${LANGUAGE_CODE}/admin/chat/${userId}/`;
 }
 
 function handleDeleteUser(userId, username) {
@@ -1571,7 +1589,7 @@ function handleDeleteUser(userId, username) {
     `{% trans "هل أنت متأكد من حذف المستخدم" %} "${username}"؟\n{% trans "هذا الإجراء لا يمكن التراجع عنه!" %}`,
     () => {
       // Add your AJAX call here
-      fetch(`/admin/users/${userId}/delete/`, {
+      fetch(`/${LANGUAGE_CODE}/admin/users/${userId}/delete/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1597,7 +1615,7 @@ function submitChangeRole() {
   const formData = new FormData(form);
   const userId = document.getElementById('changeRoleUserId').value;
 
-  fetch(`/admin/users/${userId}/change-role/`, {
+  fetch(`/${LANGUAGE_CODE}/admin/users/${userId}/change-role/`, {
     method: 'POST',
     headers: {
       'X-CSRFToken': getCookie('csrftoken')
@@ -1623,7 +1641,7 @@ function submitAddBalance() {
   const formData = new FormData(form);
   const userId = document.getElementById('addBalanceUserId').value;
 
-  fetch(`/admin/users/${userId}/add-balance/`, {
+  fetch(`/${LANGUAGE_CODE}/admin/users/${userId}/add-balance/`, {
     method: 'POST',
     headers: {
       'X-CSRFToken': getCookie('csrftoken')
@@ -1649,7 +1667,7 @@ function submitSendNotification() {
   const formData = new FormData(form);
   const userId = document.getElementById('notificationUserId').value;
 
-  fetch(`/admin/users/${userId}/send-notification/`, {
+  fetch(`/${LANGUAGE_CODE}/admin/users/${userId}/send-notification/`, {
     method: 'POST',
     headers: {
       'X-CSRFToken': getCookie('csrftoken')
@@ -1683,14 +1701,46 @@ function getCookie(name) {
   return value;
 }
 
+// Toast notification function
 function showNotification(message, type = 'info') {
-  // Use your existing notification system or create a simple one
-  if (window.showNotification) {
-    window.showNotification(message, type);
-  } else {
-    // Fallback to alert if no notification system exists
-    alert(message);
-  }
+  const toastContainer = document.getElementById('toastContainer') || createToastContainer();
+  const toastId = 'toast-' + Date.now();
+  const bgClass = type === 'success' ? 'bg-success' : 
+                 type === 'error' ? 'bg-danger' : 
+                 type === 'warning' ? 'bg-warning' : 'bg-info';
+  const icon = type === 'success' ? 'check-circle' : 
+               type === 'error' ? 'exclamation-circle' : 
+               type === 'warning' ? 'exclamation-triangle' : 'info-circle';
+
+  const toastHTML = `
+    <div id="${toastId}" class="toast align-items-center ${bgClass} text-white border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">
+          <i class="fas fa-${icon} me-2"></i>
+          ${message}
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  `;
+
+  toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+  const toastElement = document.getElementById(toastId);
+  const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+  toast.show();
+
+  toastElement.addEventListener('hidden.bs.toast', function () {
+    this.remove();
+  });
+}
+
+function createToastContainer() {
+  const container = document.createElement('div');
+  container.id = 'toastContainer';
+  container.className = 'toast-container position-fixed top-0 end-0 p-3';
+  container.style.zIndex = '10500';
+  document.body.appendChild(container);
+  return container;
 }
 </script>
 {% endblock admin_extra_js %}
