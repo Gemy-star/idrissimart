@@ -2032,9 +2032,12 @@ class OrderAdmin(admin.ModelAdmin):
 
     def get_order_summary(self, obj):
         """Display order summary"""
+        from main.templatetags.idrissimart_tags import CURRENCY_SYMBOLS
+        currency_symbol = CURRENCY_SYMBOLS.get(obj.currency, obj.currency)
+        
         items_html = '<ul style="margin: 0; padding-left: 20px;">'
         for item in obj.items.all():
-            items_html += f"<li>{item.ad.title} - {item.price} ر.س</li>"
+            items_html += f"<li>{item.ad.title} - {item.price} {currency_symbol}</li>"
         items_html += "</ul>"
 
         return format_html(
@@ -2042,28 +2045,32 @@ class OrderAdmin(admin.ModelAdmin):
             '<h4 style="margin-top: 0;">ملخص الطلب</h4>'
             "<p><strong>عدد العناصر:</strong> {}</p>"
             "<p><strong>العناصر:</strong></p>{}"
-            "<p><strong>رسوم التوصيل:</strong> {} ر.س</p>"
-            '<p><strong>الإجمالي:</strong> <span style="color: #28a745; font-weight: bold;">{} ر.س</span></p>'
+            "<p><strong>رسوم التوصيل:</strong> {} {}</p>"
+            '<p><strong>الإجمالي:</strong> <span style="color: #28a745; font-weight: bold;">{} {}</span></p>'
             "</div>",
             obj.get_items_count(),
             items_html,
             obj.delivery_fee,
+            currency_symbol,
             obj.total_amount,
+            currency_symbol,
         )
 
     get_order_summary.short_description = _("ملخص الطلب")
 
     def get_payment_info(self, obj):
         """Display payment information"""
+        from main.templatetags.idrissimart_tags import CURRENCY_SYMBOLS
+        currency_symbol = CURRENCY_SYMBOLS.get(obj.currency, obj.currency)
         percentage = obj.get_payment_percentage()
         return format_html(
             '<div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">'
             '<h4 style="margin-top: 0;">معلومات الدفع</h4>'
             "<p><strong>طريقة الدفع:</strong> {}</p>"
             "<p><strong>حالة الدفع:</strong> {}</p>"
-            "<p><strong>المبلغ الإجمالي:</strong> {} ر.س</p>"
-            '<p><strong>المبلغ المدفوع:</strong> <span style="color: #28a745;">{} ر.س</span></p>'
-            '<p><strong>المبلغ المتبقي:</strong> <span style="color: #dc3545;">{} ر.س</span></p>'
+            "<p><strong>المبلغ الإجمالي:</strong> {} {}</p>"
+            '<p><strong>المبلغ المدفوع:</strong> <span style="color: #28a745;">{} {}</span></p>'
+            '<p><strong>المبلغ المتبقي:</strong> <span style="color: #dc3545;">{} {}</span></p>'
             '<div style="margin-top: 10px;">'
             '<div style="background: #e9ecef; height: 20px; border-radius: 10px; overflow: hidden;">'
             '<div style="background: #28a745; height: 100%; width: {}%; transition: width 0.3s;"></div>'
@@ -2074,8 +2081,11 @@ class OrderAdmin(admin.ModelAdmin):
             obj.get_payment_method_display(),
             obj.get_payment_status_display(),
             obj.total_amount,
+            currency_symbol,
             obj.paid_amount,
+            currency_symbol,
             obj.remaining_amount,
+            currency_symbol,
             percentage,
             percentage,
         )
@@ -2241,7 +2251,9 @@ class OrderAdmin(admin.ModelAdmin):
                             order.payment_status = "partial"
 
                         # Add note
-                        note = f"\n[{timezone.now().strftime('%Y-%m-%d %H:%M')}] دفعة جزئية: {amount} ر.س من قبل {request.user.username}"
+                        from main.templatetags.idrissimart_tags import CURRENCY_SYMBOLS
+                        currency_symbol = CURRENCY_SYMBOLS.get(order.currency, order.currency)
+                        note = f"\n[{timezone.now().strftime('%Y-%m-%d %H:%M')}] دفعة جزئية: {amount} {currency_symbol} من قبل {request.user.username}"
                         if payment_note:
                             note += f" - {payment_note}"
                         order.notes = (order.notes or "") + note
@@ -2250,7 +2262,7 @@ class OrderAdmin(admin.ModelAdmin):
                         count += 1
 
                 self.message_user(
-                    request, _(f"تم تسجيل دفعة جزئية بمبلغ {amount} ر.س لـ {count} طلب")
+                    request, _(f"تم تسجيل دفعة جزئية بمبلغ {amount} {currency_symbol} لـ {count} طلب")
                 )
                 return None
         else:
@@ -2398,7 +2410,10 @@ class CartItemAdmin(admin.ModelAdmin):
     readonly_fields = ("added_at",)
 
     def get_total_price(self, obj):
-        return f"{obj.get_total_price()} ر.س"
+        from main.templatetags.idrissimart_tags import CURRENCY_SYMBOLS
+        currency = obj.ad.country.currency if obj.ad and obj.ad.country else "SAR"
+        currency_symbol = CURRENCY_SYMBOLS.get(currency, currency)
+        return f"{obj.get_total_price()} {currency_symbol}"
 
     get_total_price.short_description = "المجموع"
 

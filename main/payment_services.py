@@ -51,8 +51,22 @@ class PaymentService:
             return False, _("مزود الدفع غير مدعوم")
 
     def get_supported_providers(self):
-        """Get list of supported payment providers based on django-constance configuration"""
+        """Get list of supported payment providers based on django-constance and site configuration"""
         providers = []
+
+        # Check global online payment setting from constance
+        if not config.ALLOW_ONLINE_PAYMENT:
+            return providers
+
+        # Also check SiteConfiguration for allow_online_payment
+        try:
+            from content.models import SiteConfiguration
+
+            site_config = SiteConfiguration.get_solo()
+            if not site_config.allow_online_payment:
+                return providers
+        except Exception:
+            pass  # If SiteConfiguration is not available, continue with constance check only
 
         # Check PayPal configuration from constance
         if PayPalService.is_enabled():
@@ -76,24 +90,23 @@ class PaymentService:
                 }
             )
 
-        # Always show Mastercard option (redirects to Paymob)
-        providers.append(
-            {
-                "id": "mastercard",
-                "name": "Mastercard",
-                "currencies": ["EGP", "SAR"],
-                "icon": "fab fa-cc-mastercard",
-            }
-        )
+            # Only show Mastercard and Visa if Paymob is enabled
+            providers.append(
+                {
+                    "id": "mastercard",
+                    "name": "Mastercard",
+                    "currencies": ["EGP", "SAR"],
+                    "icon": "fab fa-cc-mastercard",
+                }
+            )
 
-        # Always show Visa option (redirects to Paymob)
-        providers.append(
-            {
-                "id": "visa",
-                "name": "Visa",
-                "currencies": ["EGP", "SAR", "USD"],
-                "icon": "fab fa-cc-visa",
-            }
-        )
+            providers.append(
+                {
+                    "id": "visa",
+                    "name": "Visa",
+                    "currencies": ["EGP", "SAR", "USD"],
+                    "icon": "fab fa-cc-visa",
+                }
+            )
 
         return providers

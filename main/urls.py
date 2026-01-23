@@ -326,6 +326,11 @@ urlpatterns = [
         views.get_subcategories_ajax,
         name="ajax_get_subcategories",
     ),
+    path(
+        "ajax/category-custom-fields/<int:category_id>/",
+        views.get_category_custom_fields_ajax,
+        name="ajax_category_custom_fields",
+    ),
     # Admin Categories Management (AJAX endpoints)
     path(
         "admin/categories/save/",

@@ -20,7 +20,7 @@ class PaymentContext:
 def get_allowed_payment_methods(context=PaymentContext.AD_POSTING):
     """
     Get allowed payment methods based on payment context.
-    Now reads from database PaymentMethodConfig.
+    Now reads from database PaymentMethodConfig and respects global payment settings.
 
     Args:
         context: Payment context (ad_posting, ad_upgrade, package_purchase, product_purchase)
@@ -29,24 +29,59 @@ def get_allowed_payment_methods(context=PaymentContext.AD_POSTING):
         List of tuples (value, label) for allowed payment methods
     """
     try:
-        from content.models import PaymentMethodConfig
-        
+        from content.models import PaymentMethodConfig, SiteConfiguration
+        from constance import config as constance_config
+
         # Map legacy contexts to new contexts
         context_map = {
             "platform": PaymentContext.AD_POSTING,
             "cart": PaymentContext.PRODUCT_PURCHASE,
         }
         context = context_map.get(context, context)
-        
+
+        # Get site configuration for global payment flags
+        site_config = SiteConfiguration.get_solo()
+
         # Get config from database
-        config = PaymentMethodConfig.get_for_context(context)
-        
-        if config.is_active:
-            return config.get_enabled_methods()
-        else:
+        payment_config = PaymentMethodConfig.get_for_context(context)
+
+        if not payment_config.is_active:
             # If config is disabled, return empty list
             return []
-            
+
+        # Get enabled methods from PaymentMethodConfig
+        methods = payment_config.get_enabled_methods()
+
+        # Filter based on global payment settings
+        filtered_methods = []
+        for method_code, method_label in methods:
+            # Online payment methods: visa, paypal, paymob
+            if method_code in ["visa", "paypal", "paymob"]:
+                # Check both constance ALLOW_ONLINE_PAYMENT and site_config.allow_online_payment
+                if constance_config.ALLOW_ONLINE_PAYMENT and site_config.allow_online_payment:
+                    # Additionally check if specific provider is enabled
+                    if method_code == "paypal":
+                        from .services.paypal_service import PayPalService
+                        if PayPalService.is_enabled():
+                            filtered_methods.append((method_code, method_label))
+                    elif method_code in ["visa", "paymob"]:
+                        from .services.paymob_service import PaymobService
+                        if PaymobService.is_enabled() or constance_config.PAYMOB_ENABLED:
+                            filtered_methods.append((method_code, method_label))
+            # Offline payment methods: instapay, wallet
+            elif method_code in ["instapay", "wallet"]:
+                if site_config.allow_offline_payment:
+                    filtered_methods.append((method_code, method_label))
+            # COD and partial are for product purchase, controlled by PaymentMethodConfig
+            elif method_code in ["cod", "partial"]:
+                # These are already filtered by PaymentMethodConfig context
+                filtered_methods.append((method_code, method_label))
+            else:
+                # Unknown methods, include them
+                filtered_methods.append((method_code, method_label))
+
+        return filtered_methods
+
     except Exception as e:
         # Fallback to hardcoded methods if DB not available (e.g., during migrations)
         print(f"Warning: Could not load payment config from DB: {e}")
@@ -83,6 +118,7 @@ def _get_fallback_methods(context):
 def is_payment_method_allowed(payment_method, context=PaymentContext.AD_POSTING):
     """
     Check if a payment method is allowed for the given context.
+    Also checks global payment settings from SiteConfiguration and constance.
 
     Args:
         payment_method: Payment method to check
@@ -92,18 +128,47 @@ def is_payment_method_allowed(payment_method, context=PaymentContext.AD_POSTING)
         bool: True if allowed, False otherwise
     """
     try:
-        from content.models import PaymentMethodConfig
-        
+        from content.models import PaymentMethodConfig, SiteConfiguration
+        from constance import config as constance_config
+
         # Map legacy contexts
         context_map = {
             "platform": PaymentContext.AD_POSTING,
             "cart": PaymentContext.PRODUCT_PURCHASE,
         }
         context = context_map.get(context, context)
-        
-        config = PaymentMethodConfig.get_for_context(context)
-        return config.is_method_enabled(payment_method) and config.is_active
-        
+
+        payment_config = PaymentMethodConfig.get_for_context(context)
+
+        # First check if the method is enabled in PaymentMethodConfig
+        if not payment_config.is_method_enabled(payment_method) or not payment_config.is_active:
+            return False
+
+        # Get site configuration for global payment flags
+        site_config = SiteConfiguration.get_solo()
+
+        # Check global payment settings based on payment method type
+        # Online payment methods: visa, paypal, paymob
+        if payment_method in ["visa", "paypal", "paymob"]:
+            if not constance_config.ALLOW_ONLINE_PAYMENT or not site_config.allow_online_payment:
+                return False
+            # Additionally check if specific provider is enabled
+            if payment_method == "paypal":
+                from .services.paypal_service import PayPalService
+                if not PayPalService.is_enabled():
+                    return False
+            elif payment_method in ["visa", "paymob"]:
+                from .services.paymob_service import PaymobService
+                if not PaymobService.is_enabled() and not constance_config.PAYMOB_ENABLED:
+                    return False
+
+        # Offline payment methods: instapay, wallet
+        elif payment_method in ["instapay", "wallet"]:
+            if not site_config.allow_offline_payment:
+                return False
+
+        return True
+
     except Exception:
         # Fallback
         allowed_methods = get_allowed_payment_methods(context)

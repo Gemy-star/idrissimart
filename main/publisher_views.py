@@ -141,6 +141,7 @@ class PublisherMyAdsView(PublisherRequiredMixin, ListView):
         context["show_expired_to_publisher"] = config.show_expired_ads_to_publisher
         context["deleted_retention_days"] = config.deleted_ads_retention_days
         context["expired_retention_days"] = config.expired_ads_retention_days
+        context["active_nav"] = "my_ads"
 
         return context
 
@@ -179,6 +180,7 @@ class PublisherAdDetailView(PublisherRequiredMixin, DetailView):
 
         # Available upgrade packages
         context["upgrade_packages"] = AdPackage.objects.filter(is_active=True)
+        context["active_nav"] = "my_ads"
 
         return context
 
@@ -215,6 +217,7 @@ class PublisherAdUpdateView(PublisherRequiredMixin, UpdateView):
         context = super().get_context_data(**kwargs)
         context["page_title"] = f"تعديل الإعلان: {self.object.title}"
         context["form_action"] = "update"
+        context["active_nav"] = "my_ads"
         return context
 
     def form_valid(self, form):

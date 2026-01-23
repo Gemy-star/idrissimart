@@ -70,12 +70,13 @@ def auto_approve_verified_users(sender, instance, **kwargs):
 @receiver(pre_save, sender=ClassifiedAd)
 def send_ad_approval_notification(sender, instance, **kwargs):
     """
-    Send a notification and email to the user when their ad is approved.
+    Send a notification, email, and SMS to the user when their ad is approved or rejected.
     """
     if instance.pk:
         try:
             old_instance = ClassifiedAd.objects.get(pk=instance.pk)
-            # Check if the status is changing from 'pending' to 'active'
+
+            # Check if the status is changing from 'pending' to 'active' (APPROVED)
             if (
                 old_instance.status == ClassifiedAd.AdStatus.PENDING
                 and instance.status == ClassifiedAd.AdStatus.ACTIVE
@@ -90,12 +91,10 @@ def send_ad_approval_notification(sender, instance, **kwargs):
                 )
 
                 # 2. Send an email notification
-                # Check if email notifications are enabled
                 email_notifications_enabled = EmailService.is_enabled()
 
                 if email_notifications_enabled:
                     try:
-                        # Send email using EmailService
                         email_service = EmailService()
                         success = email_service.send_ad_approved_email(
                             user=instance.user,
@@ -109,8 +108,55 @@ def send_ad_approval_notification(sender, instance, **kwargs):
                             )
 
                     except Exception as e:
-                        # Log error but don't block the save operation
                         logger.error(f"Failed to send approval email: {str(e)}")
+
+                # 3. Send SMS notification for ad approval
+                if SMSService.is_enabled():
+                    try:
+                        user_phone = getattr(instance.user, "mobile", None) or getattr(
+                            instance.user, "phone", None
+                        )
+                        if user_phone:
+                            SMSService.send_ad_notification(
+                                phone_number=user_phone,
+                                ad_title=instance.title[:30],  # Truncate for SMS
+                                status=_("تمت الموافقة على إعلانك وهو الآن نشط"),
+                            )
+                    except Exception as e:
+                        logger.error(f"Failed to send ad approval SMS: {str(e)}")
+
+            # Check if the status is changing from 'pending' to 'rejected' (REJECTED)
+            elif (
+                old_instance.status == ClassifiedAd.AdStatus.PENDING
+                and instance.status == ClassifiedAd.AdStatus.REJECTED
+            ):
+                # 1. Create an in-app notification for rejection
+                rejection_reason = getattr(instance, "rejection_reason", "") or _(
+                    "يرجى مراجعة شروط النشر"
+                )
+                Notification.objects.create(
+                    user=instance.user,
+                    message=_(
+                        'للأسف، تم رفض إعلانك "{ad_title}". السبب: {reason}'
+                    ).format(ad_title=instance.title, reason=rejection_reason),
+                    link="/my-ads/",
+                    notification_type=Notification.NotificationType.GENERAL,
+                )
+
+                # 2. Send SMS notification for ad rejection
+                if SMSService.is_enabled():
+                    try:
+                        user_phone = getattr(instance.user, "mobile", None) or getattr(
+                            instance.user, "phone", None
+                        )
+                        if user_phone:
+                            SMSService.send_ad_notification(
+                                phone_number=user_phone,
+                                ad_title=instance.title[:30],
+                                status=_("تم رفض إعلانك. يرجى مراجعة التفاصيل"),
+                            )
+                    except Exception as e:
+                        logger.error(f"Failed to send ad rejection SMS: {str(e)}")
 
         except ClassifiedAd.DoesNotExist:
             pass  # This is a new ad, so no status change to handle
@@ -620,6 +666,24 @@ def activate_package_on_payment_completion(sender, instance, created, **kwargs):
                             logger.error(
                                 f"Failed to send package activation email: {str(e)}"
                             )
+
+                    # Send SMS notification for package activation
+                    if SMSService.is_enabled():
+                        try:
+                            user_phone = getattr(instance.user, "mobile", None) or getattr(
+                                instance.user, "phone", None
+                            )
+                            if user_phone:
+                                sms_message = _(
+                                    "تم تفعيل باقتك {package_name}! لديك {ad_count} إعلان. مبلغ: {amount}"
+                                ).format(
+                                    package_name=package.name[:15],
+                                    ad_count=package.ad_count,
+                                    amount=instance.amount,
+                                )
+                                SMSService.send_sms(user_phone, sms_message)
+                        except Exception as e:
+                            logger.error(f"Failed to send package activation SMS: {str(e)}")
 
                 except AdPackage.DoesNotExist:
                     logger.error(

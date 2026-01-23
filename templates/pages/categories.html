@@ -1051,6 +1051,54 @@
                                 </label>
                             </div>
                         </div>
+
+                        <!-- Custom Fields Filters (Dynamic based on selected category) -->
+                        <div id="customFieldsContainer">
+                            {% if custom_fields_for_filters %}
+                                {% for category_field in custom_fields_for_filters %}
+                                    {% with field=category_field.custom_field %}
+                                        <div class="filter-group custom-field-filter" data-field-name="{{ field.name }}">
+                                            <label class="filter-label">
+                                                <i class="fas fa-cog me-1"></i>
+                                                {{ field.label_ar|default:field.name }}
+                                            </label>
+                                            
+                                            {% if field.field_type == 'select' %}
+                                                <select class="filter-select custom-field-select" data-field-name="{{ field.name }}">
+                                                    <option value="">{% trans "الكل" %}</option>
+                                                    {% for option in field.field_options.all %}
+                                                        {% if option.is_active %}
+                                                            <option value="{{ option.value }}">
+                                                                {{ option.label_ar|default:option.value }}
+                                                            </option>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </select>
+                                            {% elif field.field_type == 'checkbox' or field.field_type == 'radio' %}
+                                                <div class="filter-checkbox-group">
+                                                    {% for option in field.field_options.all %}
+                                                        {% if option.is_active %}
+                                                            <label class="filter-checkbox">
+                                                                <input type="{% if field.field_type == 'radio' %}radio{% else %}checkbox{% endif %}" 
+                                                                       name="custom_{{ field.name }}" 
+                                                                       value="{{ option.value }}"
+                                                                       class="custom-field-checkbox">
+                                                                <span>{{ option.label_ar|default:option.value }}</span>
+                                                            </label>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </div>
+                                            {% elif field.field_type == 'text' or field.field_type == 'number' %}
+                                                <input type="{{ field.field_type }}" 
+                                                       class="filter-input custom-field-input" 
+                                                       data-field-name="{{ field.name }}"
+                                                       placeholder="{{ field.placeholder|default:field.label_ar }}">
+                                            {% endif %}
+                                        </div>
+                                    {% endwith %}
+                                {% endfor %}
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
 
@@ -1153,6 +1201,7 @@
 
             init() {
                 this.setupEventListeners();
+                // Don't apply filters on initial load - let server-side filtering work
                 console.log('✅ Categories Manager initialized');
             }
 
@@ -1284,6 +1333,11 @@
                 let visibleAds = [];
 
                 adCards.forEach(card => {
+                    // Skip already hidden cards (server-side filtered)
+                    if (card.classList.contains('d-none') || card.hasAttribute('data-server-hidden')) {
+                        return;
+                    }
+
                     const title = card.querySelector('.ad-title a')?.textContent.toLowerCase() || '';
                     const description = card.querySelector('.ad-location')?.textContent.toLowerCase() || '';
                     const locationText = card.querySelector('.ad-location')?.textContent.toLowerCase() || '';
@@ -1318,15 +1372,13 @@
                         visible = false;
                     }
 
-                    // Category filter - check by ID first, then fall back to name
-                    if (category) {
+                    // Category filter - only apply if explicitly set by user, not from URL
+                    if (category && !window.location.search.includes('category=')) {
                         const selectedOption = this.categoryFilter.querySelector(`option[value="${category}"]`);
                         const isParentCategory = selectedOption?.dataset.isParent === 'true';
 
                         if (isParentCategory) {
-                            // Parent category selected, check if card category matches parent or any of its descendants
-                            // For now, we'll just show all cards as server should handle parent filtering
-                            // In a future enhancement, we could store parent IDs on cards
+                            // Parent category selected, show all
                             visible = true;
                         } else if (cardCategoryId && cardCategoryId !== category) {
                             // Direct category ID match
@@ -1475,12 +1527,28 @@
         // Initialize on DOM ready
         document.addEventListener('DOMContentLoaded', () => {
             window.categoriesManager = new CategoriesManager();
+            
+            // Update counts for pre-filtered results (when coming from header category links)
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('category')) {
+                const visibleCards = document.querySelectorAll('.ad-card:not([style*="display: none"])');
+                const resultsCountEl = document.getElementById('resultsCount');
+                const visibleAdsEl = document.getElementById('visibleAds');
+                
+                if (resultsCountEl) {
+                    resultsCountEl.textContent = visibleCards.length;
+                }
+                if (visibleAdsEl) {
+                    visibleAdsEl.textContent = visibleCards.length;
+                }
+            }
         });
 
         // Function to filter by category using parent parameter
         function filterByCategory(categoryId) {
             if (!categoryId) {
-                // Reset to all categories
+                // Reset to all categories and clear custom fields
+                clearCustomFields();
                 filterAds();
                 return;
             }
@@ -1493,10 +1561,71 @@
                 // Load subcategories via AJAX
                 loadSubcategories(categoryId);
             } else {
+                // Load custom fields for this category
+                loadCustomFields(categoryId);
                 // Filter ads by this category
                 filterAds();
             }
         }
+
+        // Function to load custom fields for a category
+        function loadCustomFields(categoryId) {
+            const customFieldsContainer = document.getElementById('customFieldsContainer');
+            if (!customFieldsContainer) return;
+
+            // Show loading state
+            customFieldsContainer.innerHTML = '<div class="filter-group"><small class="text-muted">{% trans "جاري التحميل..." %}</small></div>';
+
+            // Fetch custom fields for this category
+            fetch(`/ajax/category-custom-fields/${categoryId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.html) {
+                        customFieldsContainer.innerHTML = data.html;
+                        
+                        // Attach event listeners to new custom field inputs
+                        attachCustomFieldListeners();
+                    } else {
+                        customFieldsContainer.innerHTML = '';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading custom fields:', error);
+                    customFieldsContainer.innerHTML = '';
+                });
+        }
+
+        // Function to clear custom fields
+        function clearCustomFields() {
+            const customFieldsContainer = document.getElementById('customFieldsContainer');
+            if (customFieldsContainer) {
+                customFieldsContainer.innerHTML = '';
+            }
+        }
+
+        // Function to attach event listeners to custom field inputs
+        function attachCustomFieldListeners() {
+            const customSelects = document.querySelectorAll('.custom-field-select');
+            const customInputs = document.querySelectorAll('.custom-field-input');
+            const customCheckboxes = document.querySelectorAll('.custom-field-checkbox');
+
+            customSelects.forEach(select => {
+                select.addEventListener('change', () => window.categoriesManager.applyFilters());
+            });
+
+            customInputs.forEach(input => {
+                input.addEventListener('input', () => window.categoriesManager.debouncedFilter());
+            });
+
+            customCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', () => window.categoriesManager.applyFilters());
+            });
+        }
+
+        // Initial setup for existing custom fields
+        document.addEventListener('DOMContentLoaded', () => {
+            attachCustomFieldListeners();
+        });
 
         function loadSubcategories(categoryId) {
             const categoryFilter = document.getElementById('categoryFilter');

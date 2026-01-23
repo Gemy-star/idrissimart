@@ -368,6 +368,29 @@ class CategoriesView(FilterView):
             "sort": self.request.GET.get("sort", "-created_at"),
         }
 
+        # Get custom fields for the selected category (for filters)
+        custom_fields_for_filters = []
+        category_slug = self.request.GET.get("category")
+        if category_slug:
+            try:
+                from .models import CategoryCustomField
+                selected_category = Category.objects.get(slug=category_slug, is_active=True)
+                # Get all custom fields that should be shown in filters for this category and its ancestors
+                categories_to_check = [selected_category] + list(selected_category.get_ancestors())
+                custom_fields_for_filters = (
+                    CategoryCustomField.objects.filter(
+                        category__in=categories_to_check,
+                        is_active=True,
+                        show_in_filters=True
+                    )
+                    .select_related("custom_field")
+                    .prefetch_related("custom_field__field_options")
+                    .order_by("order")
+                    .distinct()
+                )
+            except Category.DoesNotExist:
+                pass
+
         # Calculate statistics based on content type
         total_items = self.get_queryset().count()
         section_type_value = self._get_section_type_from_string(content_type)
@@ -435,6 +458,7 @@ class CategoriesView(FilterView):
                 "meta_description": content_labels["meta_description"],
                 "has_filters": any(current_filters.values()),
                 "parent_category": parent_category,  # Add parent category to context
+                "custom_fields_for_filters": custom_fields_for_filters,  # Add custom fields for filters
             }
         )
 
@@ -1892,6 +1916,46 @@ def get_subcategories_ajax(request, category_id):
                 },
             }
         )
+    except Category.DoesNotExist:
+        return JsonResponse({"error": _("القسم غير موجود")}, status=404)
+
+
+def get_category_custom_fields_ajax(request, category_id):
+    """Get custom fields for a category via AJAX for filter display"""
+    from django.template.loader import render_to_string
+    from .models import CategoryCustomField
+    
+    try:
+        category = Category.objects.get(id=category_id, is_active=True)
+        
+        # Get all custom fields that should be shown in filters for this category and its ancestors
+        categories_to_check = [category] + list(category.get_ancestors())
+        custom_fields = (
+            CategoryCustomField.objects.filter(
+                category__in=categories_to_check,
+                is_active=True,
+                show_in_filters=True
+            )
+            .select_related("custom_field")
+            .prefetch_related("custom_field__field_options")
+            .order_by("order")
+            .distinct()
+        )
+        
+        if not custom_fields.exists():
+            return JsonResponse({"success": True, "html": "", "has_fields": False})
+        
+        # Render custom fields HTML
+        html = render_to_string(
+            "partials/_custom_fields_filters.html",
+            {
+                "custom_fields_for_filters": custom_fields,
+                "LANGUAGE_CODE": request.LANGUAGE_CODE,
+            }
+        )
+        
+        return JsonResponse({"success": True, "html": html, "has_fields": True})
+        
     except Category.DoesNotExist:
         return JsonResponse({"error": _("القسم غير موجود")}, status=404)
 

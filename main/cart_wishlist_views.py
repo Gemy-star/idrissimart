@@ -291,6 +291,8 @@ def check_partial_payment_eligibility(request):
 @login_required
 def checkout_view(request):
     """Display checkout page"""
+    from main.payment_utils import get_allowed_payment_methods, is_payment_method_allowed, PaymentContext
+
     cart = get_or_create_cart(request.user)
     cart_items = (
         cart.items.select_related("ad", "ad__user", "ad__category")
@@ -303,6 +305,9 @@ def checkout_view(request):
 
         messages.warning(request, _("السلة فارغة"))
         return redirect("main:cart_view")
+
+    # Get allowed payment methods for product purchase context
+    allowed_payment_methods = get_allowed_payment_methods(PaymentContext.PRODUCT_PURCHASE)
 
     if (
         request.method == "POST"
@@ -322,6 +327,16 @@ def checkout_view(request):
             postal_code = request.POST.get("postal_code", "")
             notes = request.POST.get("notes", "")
             payment_method = request.POST.get("payment_method", "cod")
+
+            # Validate payment method is allowed
+            if not is_payment_method_allowed(payment_method, PaymentContext.PRODUCT_PURCHASE):
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": _("طريقة الدفع المختارة غير متاحة حالياً"),
+                    },
+                    status=400,
+                )
 
             # Validate partial payment eligibility
             if payment_method == "partial":
@@ -547,6 +562,7 @@ def checkout_view(request):
         "user_city": user_city,
         "site_config": site_config,
         "config": config,
+        "allowed_payment_methods": allowed_payment_methods,
     }
 
     return render(request, "cart/checkout.html", context)

@@ -98,16 +98,17 @@ CONSTANCE_CONFIG = {
         _('Ad Approval "From" Email Address'),
     ),
     # Payment Settings - PayPal
+    # Note: Sensitive keys are loaded from environment variables for security
     "PAYPAL_CLIENT_ID": (
-        "AQnjmPBtvIVbTH0Ims4qnmEMVXZ-NcI3aNugVKmEkHIKi7tbJQYIfl4OSPrhd6_w9tfNIn_LDjWD1foq",
-        _("PayPal Client ID"),
+        os.getenv("PAYPAL_CLIENT_ID", ""),
+        _("PayPal Client ID (loaded from environment)"),
     ),
     "PAYPAL_CLIENT_SECRET": (
-        "EJmH3ZcwaNpD-Mesof6fcMQws8JRDRJwdiVrb85NY_uxqyjUNaJYaPuZrIi46wnybdb38tWH_1UWwYYr",
-        _("PayPal Client Secret"),
+        os.getenv("PAYPAL_CLIENT_SECRET", ""),
+        _("PayPal Client Secret (loaded from environment)"),
     ),
     "PAYPAL_MODE": (
-        "sandbox",
+        os.getenv("PAYPAL_MODE", "sandbox"),
         _("PayPal Mode (sandbox or live)"),
     ),
     # Payment Settings - Paymob
@@ -222,17 +223,18 @@ CONSTANCE_CONFIG = {
         _("Facebook App Secret"),
     ),
     # SMS Settings - Twilio
+    # Note: Sensitive keys are loaded from environment variables for security
     "TWILIO_ACCOUNT_SID": (
-        os.getenv("TWILIO_ACCOUNT_SID", "ACbda2c87d81ac899a614f26b69c25c8af"),
-        _("Twilio Account SID"),
+        os.getenv("TWILIO_ACCOUNT_SID", ""),
+        _("Twilio Account SID (loaded from environment)"),
     ),
     "TWILIO_AUTH_TOKEN": (
-        os.getenv("TWILIO_AUTH_TOKEN", "f8cad167753ac2bacca2c70db8a4f541"),
-        _("Twilio Auth Token"),
+        os.getenv("TWILIO_AUTH_TOKEN", ""),
+        _("Twilio Auth Token (loaded from environment)"),
     ),
     "TWILIO_PHONE_NUMBER": (
-        "+12605822569",
-        _("Twilio Phone Number"),
+        os.getenv("TWILIO_PHONE_NUMBER", ""),
+        _("Twilio Phone Number (loaded from environment)"),
     ),
     "TWILIO_ENABLED": (
         True,

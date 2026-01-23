@@ -334,16 +334,34 @@ def payment_page_upgrade(request, payment_id):
 
     # Get upgrade data from payment metadata
     upgrade_data = payment.metadata
+    ad_id = payment.metadata.get("ad_id")
+    
+    # Get the ad to extract currency info
+    ad = None
+    if ad_id:
+        from .models import ClassifiedAd
+        try:
+            ad = ClassifiedAd.objects.select_related('country').get(id=ad_id)
+        except ClassifiedAd.DoesNotExist:
+            pass
 
     payment_service = PaymentService()
     supported_providers = payment_service.get_supported_providers()
 
+    # Get currency from payment or ad's country
+    currency = payment.currency
+    if ad and ad.country:
+        currency = ad.country.currency or payment.currency
+
     context = {
         "payment": payment,
+        "ad": ad,
         "upgrade_data": upgrade_data,
         "supported_providers": supported_providers,
         "site_url": config.SITE_URL,
         "is_upgrade": True,
+        "currency": currency,
+        "total_amount": payment.amount,
     }
 
     return render(request, "payments/payment_page.html", context)
@@ -364,6 +382,11 @@ def ad_payment(request, ad_id):
     base_fee = Decimal(request.session.get("ad_base_fee", "0"))
     features_cost = Decimal(request.session.get("ad_features_cost", "0"))
     features = request.session.get("ad_features", {})
+
+    # Get currency from ad's country
+    currency = "SAR"  # default
+    if ad.country:
+        currency = ad.country.currency or "SAR"
 
     # Get allowed payment methods for platform payments
     allowed_payment_methods = get_allowed_payment_methods(
@@ -404,6 +427,7 @@ def ad_payment(request, ad_id):
                         "features": features,
                         "site_config": site_config,
                         "allowed_payment_methods": allowed_payment_methods,
+                        "currency": currency,
                     },
                 )
 
@@ -412,7 +436,7 @@ def ad_payment(request, ad_id):
                 user=request.user,
                 provider=Payment.PaymentProvider.BANK_TRANSFER,
                 amount=total_amount,
-                currency="EGP",
+                currency=currency,
                 status=Payment.PaymentStatus.PENDING,
                 description=f"دفع إعلان: {ad.title}",
                 offline_payment_receipt=receipt,
@@ -450,7 +474,7 @@ def ad_payment(request, ad_id):
                     if payment_method in ["paymob", "visa"]
                     else Payment.PaymentProvider.PAYPAL
                 ),
-                amount=total_amount,
+                amount=tocurrencymount,
                 currency="EGP",
                 status=Payment.PaymentStatus.PENDING,
                 description=f"دفع إعلان: {ad.title}",
@@ -475,6 +499,7 @@ def ad_payment(request, ad_id):
         "features": features,
         "site_config": site_config,
         "allowed_payment_methods": allowed_payment_methods,
+        "currency": currency,
     }
 
     return render(request, "payments/ad_payment.html", context)
@@ -612,6 +637,16 @@ def package_checkout(request, package_id):
         return redirect("main:packages_list")
 
     total_amount = package.price
+    
+    # Get currency from session (selected country) or default
+    selected_country_code = request.session.get("selected_country", "SA")
+    currency = "SAR"  # default
+    try:
+        from content.models import Country
+        country = Country.objects.get(code=selected_country_code)
+        currency = country.currency or "SAR"
+    except:
+        pass
 
     # Get allowed payment methods for platform payments
     allowed_payment_methods = get_allowed_payment_methods(
@@ -653,7 +688,7 @@ def package_checkout(request, package_id):
                 user=request.user,
                 provider=Payment.PaymentProvider.BANK_TRANSFER,
                 amount=total_amount,
-                currency="EGP",
+                currency=currency,
                 status=Payment.PaymentStatus.PENDING,
                 description=f"شراء باقة: {package.name} ({payment_method})",
                 offline_payment_receipt=receipt,
@@ -691,7 +726,7 @@ def package_checkout(request, package_id):
                 user=request.user,
                 provider=provider,
                 amount=total_amount,
-                currency="EGP",
+                currency=currency,
                 status=Payment.PaymentStatus.PENDING,
                 description=f"شراء باقة: {package.name}",
                 metadata={
@@ -719,7 +754,7 @@ def package_checkout(request, package_id):
             result = payment_service.create_payment(
                 payment_method,
                 float(total_amount),
-                "EGP",
+                currency,
                 f"شراء باقة: {package.name}",
                 user_data,
                 payment_id=payment.id,
@@ -750,6 +785,7 @@ def package_checkout(request, package_id):
         "allowed_payment_methods": allowed_payment_methods,
         "allow_offline_payment": site_config.allow_offline_payment,
         "offline_payment_instructions": site_config.offline_payment_instructions,
+        "currency": currency,
     }
 
     return render(request, "payments/package_checkout.html", context)
@@ -811,6 +847,11 @@ def ad_upgrade_payment(request, ad_id):
     total_amount = Decimal(request.session.get("upgrade_total_cost", "0"))
     upgrade_features = request.session.get("upgrade_features", {})
 
+    # Get currency from ad's country
+    currency = "SAR"  # default
+    if ad.country:
+        currency = ad.country.currency or "SAR"
+
     # Get allowed payment methods for platform payments
     allowed_payment_methods = get_allowed_payment_methods(
         PaymentContext.PLATFORM_PAYMENT
@@ -819,7 +860,7 @@ def ad_upgrade_payment(request, ad_id):
     # If no payment needed, redirect
     if total_amount == 0:
         messages.info(request, _("لا توجد مميزات جديدة تتطلب دفع"))
-        return redirect("main:ad_detail", ad_id=ad.id)
+        return redirect("main:ad_detail", pk=ad.id, slug=ad.slug)
 
     if request.method == "POST":
         payment_method = request.POST.get("payment_method")
@@ -848,6 +889,7 @@ def ad_upgrade_payment(request, ad_id):
                         "upgrade_features": upgrade_features,
                         "site_config": site_config,
                         "allowed_payment_methods": allowed_payment_methods,
+                        "currency": currency,
                     },
                 )
 
@@ -856,7 +898,7 @@ def ad_upgrade_payment(request, ad_id):
                 user=request.user,
                 provider=Payment.PaymentProvider.BANK_TRANSFER,
                 amount=total_amount,
-                currency="EGP",
+                currency=currency,
                 status=Payment.PaymentStatus.PENDING,
                 description=f"ترقية مميزات الإعلان: {ad.title}",
                 offline_payment_receipt=receipt,
@@ -878,17 +920,17 @@ def ad_upgrade_payment(request, ad_id):
 
             return redirect("main:my_ads")
 
-        elif payment_method in ["paymob", "paypal", "visa"]:
+        elif payment_method in ["paymob", "paypal", "visa", "card"]:
             # Create payment record for online payment
             payment = Payment.objects.create(
                 user=request.user,
                 provider=(
                     Payment.PaymentProvider.PAYMOB
-                    if payment_method in ["paymob", "visa"]
+                    if payment_method in ["paymob", "visa", "card"]
                     else Payment.PaymentProvider.PAYPAL
                 ),
                 amount=total_amount,
-                currency="EGP",
+                currency=currency,
                 status=Payment.PaymentStatus.PENDING,
                 description=f"ترقية مميزات الإعلان: {ad.title}",
                 metadata={
@@ -898,9 +940,9 @@ def ad_upgrade_payment(request, ad_id):
                 },
             )
 
-            # Redirect to online payment gateway
+            # Redirect to upgrade payment page instead of generic payment page
             messages.info(request, _("جاري تحويلك إلى بوابة الدفع..."))
-            return redirect("main:payment_page")
+            return redirect("main:payment_page_upgrade", payment_id=payment.id)
 
     context = {
         "ad": ad,
@@ -908,6 +950,7 @@ def ad_upgrade_payment(request, ad_id):
         "upgrade_features": upgrade_features,
         "site_config": site_config,
         "allowed_payment_methods": allowed_payment_methods,
+        "currency": currency,
     }
 
     return render(request, "payments/ad_upgrade_payment.html", context)

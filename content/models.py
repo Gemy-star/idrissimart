@@ -509,28 +509,67 @@ class PaymentMethodConfig(models.Model):
     def __str__(self):
         return f"{self.get_context_display()}"
 
-    def get_enabled_methods(self):
+    def get_enabled_methods(self, check_global_settings=True):
         """
         Returns list of enabled payment methods for this context.
+        Optionally checks global payment settings from SiteConfiguration and constance.
+
+        Args:
+            check_global_settings: If True, filters methods based on global allow_online/offline_payment flags
+
         Returns: List of tuples [(method_code, method_name), ...]
         """
         methods = []
-        if self.visa_enabled:
+
+        # Get global settings if needed
+        allow_online = True
+        allow_offline = True
+
+        if check_global_settings:
+            try:
+                from content.site_config import SiteConfiguration
+                from constance import config as constance_config
+
+                site_config = SiteConfiguration.get_solo()
+                allow_online = constance_config.ALLOW_ONLINE_PAYMENT and site_config.allow_online_payment
+                allow_offline = site_config.allow_offline_payment
+            except Exception:
+                # If settings are not available, allow all methods
+                pass
+
+        # Online payment methods - check global online payment flag
+        if self.visa_enabled and allow_online:
             methods.append(("visa", _("بطاقة فيزا/ماستركارد")))
-        if self.paypal_enabled:
+        if self.paypal_enabled and allow_online:
             methods.append(("paypal", _("باي بال")))
-        if self.wallet_enabled:
+
+        # Offline payment methods - check global offline payment flag
+        if self.wallet_enabled and allow_offline:
             methods.append(("wallet", _("محفظة إلكترونية")))
-        if self.instapay_enabled:
+        if self.instapay_enabled and allow_offline:
             methods.append(("instapay", _("إنستا باي")))
+
+        # COD and partial are always controlled by PaymentMethodConfig
+        # (not affected by online/offline flags as they're in-person payments)
         if self.cod_enabled:
             methods.append(("cod", _("الدفع عند الاستلام")))
         if self.partial_enabled:
             methods.append(("partial", _("دفع جزئي")))
+
         return methods
 
-    def is_method_enabled(self, method_code):
-        """Check if a specific payment method is enabled"""
+    def is_method_enabled(self, method_code, check_global_settings=True):
+        """
+        Check if a specific payment method is enabled.
+        Optionally checks global payment settings from SiteConfiguration and constance.
+
+        Args:
+            method_code: The payment method code to check
+            check_global_settings: If True, also checks global allow_online/offline_payment flags
+
+        Returns:
+            bool: True if the method is enabled
+        """
         method_map = {
             "visa": self.visa_enabled,
             "paypal": self.paypal_enabled,
@@ -539,7 +578,36 @@ class PaymentMethodConfig(models.Model):
             "cod": self.cod_enabled,
             "partial": self.partial_enabled,
         }
-        return method_map.get(method_code, False)
+
+        # First check if the method is enabled in PaymentMethodConfig
+        if not method_map.get(method_code, False):
+            return False
+
+        # If global settings check is disabled, just return the config value
+        if not check_global_settings:
+            return True
+
+        # Check global settings for online/offline methods
+        try:
+            from content.site_config import SiteConfiguration
+            from constance import config as constance_config
+
+            site_config = SiteConfiguration.get_solo()
+
+            # Online payment methods
+            if method_code in ["visa", "paypal", "paymob"]:
+                return constance_config.ALLOW_ONLINE_PAYMENT and site_config.allow_online_payment
+
+            # Offline payment methods
+            if method_code in ["wallet", "instapay"]:
+                return site_config.allow_offline_payment
+
+            # COD and partial are not affected by online/offline flags
+            return True
+
+        except Exception:
+            # If settings are not available, return the config value
+            return True
 
     def calculate_cod_deposit(self, total_amount):
         """
