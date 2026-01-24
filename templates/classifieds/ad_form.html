@@ -2742,15 +2742,25 @@
                 const selectedOption = countrySelect.options[countrySelect.selectedIndex];
                 if (!selectedOption) return;
 
+                // Extract country code from the option text or use a data attribute
+                // Country options are rendered as: <option value="1">🇸🇦 Saudi Arabia</option>
+                // We need to find the country code to send to the API
+                const countries = {
+                    {% for country in countries %}
+                        '{{ country.id }}': '{{ country.code }}',
+                    {% endfor %}
+                };
+                const countryCode = countries[countryId];
+
                 // Find header country selector
                 const headerCountrySelect = document.querySelector('.country-selector select');
                 const headerCountryLinks = document.querySelectorAll('.country-selector .dropdown-item');
 
                 // Method 1: If header has a select dropdown
                 if (headerCountrySelect) {
-                    // Try to match by country ID
+                    // Try to match by country code
                     const matchingOption = Array.from(headerCountrySelect.options).find(opt => 
-                        opt.value == countryId || opt.dataset.countryId == countryId
+                        opt.value == countryCode || opt.dataset.country == countryCode
                     );
                     
                     if (matchingOption) {
@@ -2763,7 +2773,7 @@
                 // Method 2: If header has country links/buttons
                 if (headerCountryLinks.length > 0) {
                     headerCountryLinks.forEach(link => {
-                        if (link.dataset.countryId == countryId || link.dataset.country == countryId) {
+                        if (link.dataset.country == countryCode) {
                             // Trigger click on the matching country link
                             link.click();
                         }
@@ -2771,20 +2781,24 @@
                 }
 
                 // Method 3: Update via AJAX to set session country
-                fetch('/content/set-country/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken'),
-                    },
-                    body: JSON.stringify({ country_id: countryId })
-                }).then(response => {
-                    if (response.ok) {
-                        console.log('Header country synced successfully');
-                    }
-                }).catch(error => {
-                    console.error('Failed to sync header country:', error);
-                });
+                if (countryCode) {
+                    const formData = new FormData();
+                    formData.append('country_code', countryCode);
+
+                    fetch('/api/set-country/', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                        },
+                        body: formData
+                    }).then(response => {
+                        if (response.ok) {
+                            console.log('Header country synced successfully');
+                        }
+                    }).catch(error => {
+                        console.error('Failed to sync header country:', error);
+                    });
+                }
             }
 
             // ========== Cart Option Handler ==========

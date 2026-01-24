@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods, require_POST
 from django.db.models import Q, Max, Count
 from django.utils import timezone
+import json
 from django.contrib.auth import get_user_model
 from .models import ChatRoom, ChatMessage
 
@@ -173,7 +174,15 @@ def send_message(request, room_id):
         if request.user not in [chat_room.publisher, chat_room.client]:
             return JsonResponse({"error": "Unauthorized"}, status=403)
 
-    message_text = request.POST.get("message", "").strip()
+    # Handle both JSON and form data
+    try:
+        if request.content_type == 'application/json':
+            data = json.loads(request.body)
+            message_text = data.get("message", "").strip()
+        else:
+            message_text = request.POST.get("message", "").strip()
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     if not message_text:
         return JsonResponse({"error": "Message cannot be empty"}, status=400)
