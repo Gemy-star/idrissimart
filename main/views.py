@@ -7407,6 +7407,7 @@ class PublisherSettingsView(LoginRequiredMixin, TemplateView):
         context["active_nav"] = "settings"
         context["page_title"] = _("الإعدادات")
         context["user"] = self.request.user
+        context["is_verified"] = self.request.user.is_verified
         context["countries"] = Country.objects.filter(is_active=True).order_by(
             "order", "name"
         )
@@ -7429,16 +7430,34 @@ def publisher_update_profile(request):
         user.bio = request.POST.get("bio", "").strip()
         user.bio_ar = request.POST.get("bio_ar", "").strip()
         user.city = request.POST.get("city", "").strip()
-        user.country = request.POST.get("country", "").strip()
+        
+        # Handle country (ForeignKey)
+        country_code = request.POST.get("country", "").strip()
+        if country_code:
+            from content.models import Country
+            try:
+                user.country = Country.objects.get(code=country_code)
+            except Country.DoesNotExist:
+                pass
+        
         user.address = request.POST.get("address", "").strip()
 
         # Update company info if provided
         user.company_name = request.POST.get("company_name", "").strip()
         user.company_name_ar = request.POST.get("company_name_ar", "").strip()
 
-        # Handle avatar upload
+        # Handle profile image upload - only for verified users
         if "avatar" in request.FILES:
-            user.avatar = request.FILES["avatar"]
+            if user.verification_status == user.VerificationStatus.VERIFIED:
+                user.profile_image = request.FILES["avatar"]
+            else:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": _("يجب توثيق حسابك أولاً لرفع الصورة الشخصية"),
+                    },
+                    status=403,
+                )
 
         user.save()
 
@@ -7604,6 +7623,151 @@ def publisher_delete_account(request):
         logger.error(f"Error deleting account: {str(e)}")
         return JsonResponse(
             {"success": False, "message": _("حدث خطأ أثناء حذف الحساب")}, status=500
+        )
+
+
+@login_required
+@require_POST
+def publisher_update_business_profile(request):
+    """Update business profile information - Verified users only"""
+    user = request.user
+
+    # Check if user is verified
+    if not user.is_verified:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": _("يتطلب هذا الإعداد حساباً موثقاً"),
+            },
+            status=403,
+        )
+
+    try:
+        # Update business information
+        user.tax_number = request.POST.get("tax_number", "").strip()
+        user.commercial_register = request.POST.get("commercial_register", "").strip()
+        user.specialization = request.POST.get("specialization", "").strip()
+
+        user.save()
+
+        return JsonResponse(
+            {"success": True, "message": _("تم تحديث الملف التجاري بنجاح")}
+        )
+    except Exception as e:
+        logger.error(f"Error updating business profile: {str(e)}")
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ أثناء تحديث الملف التجاري")},
+            status=400,
+        )
+
+
+@login_required
+@require_POST
+def publisher_update_advanced_notifications(request):
+    """Update advanced notification preferences - Verified users only"""
+    user = request.user
+
+    # Check if user is verified
+    if not user.is_verified:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": _("يتطلب هذا الإعداد حساباً موثقاً"),
+            },
+            status=403,
+        )
+
+    try:
+        # Update notification preferences
+        if "notify_new_messages" in request.POST:
+            user.notify_new_messages = request.POST.get("notify_new_messages") == "true"
+        if "notify_ad_views" in request.POST:
+            user.notify_ad_views = request.POST.get("notify_ad_views") == "true"
+        if "notify_price_alerts" in request.POST:
+            user.notify_price_alerts = request.POST.get("notify_price_alerts") == "true"
+
+        user.save()
+
+        return JsonResponse(
+            {"success": True, "message": _("تم تحديث إعدادات الإشعارات بنجاح")}
+        )
+    except Exception as e:
+        logger.error(f"Error updating advanced notifications: {str(e)}")
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ أثناء تحديث الإشعارات")},
+            status=400,
+        )
+
+
+@login_required
+@require_POST
+def publisher_update_auto_publish_settings(request):
+    """Update auto-publish settings - Verified users only"""
+    user = request.user
+
+    # Check if user is verified
+    if not user.is_verified:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": _("يتطلب هذا الإعداد حساباً موثقاً"),
+            },
+            status=403,
+        )
+
+    try:
+        # Update auto-publish settings
+        if "auto_renew_ads" in request.POST:
+            user.auto_renew_ads = request.POST.get("auto_renew_ads") == "true"
+        if "auto_boost_ads" in request.POST:
+            user.auto_boost_ads = request.POST.get("auto_boost_ads") == "true"
+
+        user.save()
+
+        return JsonResponse(
+            {"success": True, "message": _("تم تحديث إعدادات النشر التلقائي بنجاح")}
+        )
+    except Exception as e:
+        logger.error(f"Error updating auto-publish settings: {str(e)}")
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ أثناء تحديث الإعدادات")},
+            status=400,
+        )
+
+
+@login_required
+@require_POST
+def publisher_update_analytics_settings(request):
+    """Update analytics settings - Verified users only"""
+    user = request.user
+
+    # Check if user is verified
+    if not user.is_verified:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": _("يتطلب هذا الإعداد حساباً موثقاً"),
+            },
+            status=403,
+        )
+
+    try:
+        # Update analytics settings
+        if "enable_analytics" in request.POST:
+            user.enable_analytics = request.POST.get("enable_analytics") == "true"
+        if "weekly_reports" in request.POST:
+            user.weekly_reports = request.POST.get("weekly_reports") == "true"
+
+        user.save()
+
+        return JsonResponse(
+            {"success": True, "message": _("تم تحديث إعدادات التحليلات بنجاح")}
+        )
+    except Exception as e:
+        logger.error(f"Error updating analytics settings: {str(e)}")
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ أثناء تحديث الإعدادات")},
+            status=400,
         )
 
 

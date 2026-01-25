@@ -653,6 +653,27 @@ urlpatterns = [
         views.publisher_delete_account,
         name="publisher_delete_account",
     ),
+    # Verified users only settings
+    path(
+        "dashboard/settings/update-business-profile/",
+        views.publisher_update_business_profile,
+        name="publisher_update_business_profile",
+    ),
+    path(
+        "dashboard/settings/update-advanced-notifications/",
+        views.publisher_update_advanced_notifications,
+        name="publisher_update_advanced_notifications",
+    ),
+    path(
+        "dashboard/settings/update-auto-publish-settings/",
+        views.publisher_update_auto_publish_settings,
+        name="publisher_update_auto_publish_settings",
+    ),
+    path(
+        "dashboard/settings/update-analytics-settings/",
+        views.publisher_update_analytics_settings,
+        name="publisher_update_analytics_settings",
+    ),
     # Verification URLs
     path(
         "verification/request/",
@@ -668,6 +689,37 @@ urlpatterns = [
         "verification/status/",
         verification_views.verification_status,
         name="verification_status",
+    ),
+    path(
+        "verification/payment/<int:request_id>/",
+        verification_views.verification_payment,
+        name="verification_payment",
+    ),
+    path(
+        "verification/payment/<int:request_id>/process/",
+        verification_views.verification_payment_process,
+        name="verification_payment_process",
+    ),
+    # Admin Verification Management URLs
+    path(
+        "admin/verification-requests/",
+        verification_views.admin_verification_requests,
+        name="admin_verification_requests",
+    ),
+    path(
+        "admin/verification-requests/<int:request_id>/",
+        verification_views.admin_verification_detail,
+        name="admin_verification_detail",
+    ),
+    path(
+        "admin/verification-requests/<int:request_id>/approve/",
+        verification_views.admin_verification_approve,
+        name="admin_verification_approve",
+    ),
+    path(
+        "admin/verification-requests/<int:request_id>/reject/",
+        verification_views.admin_verification_reject,
+        name="admin_verification_reject",
     ),
     path(
         "dashboard/ad/<int:ad_id>/toggle-status/",

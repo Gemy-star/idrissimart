@@ -1,0 +1,432 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n %}
+
+{% block title %}
+{% trans "تفاصيل طلب التوثيق - لوحة تحكم المدير" %}
+{% endblock title %}
+
+{% block admin_extra_css %}
+<style>
+  .detail-card {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    margin-bottom: 1.5rem;
+  }
+
+  .detail-card .card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.25rem 1.5rem;
+    border: none;
+  }
+
+  .detail-card .card-header h5 {
+    margin: 0;
+    font-weight: 600;
+    color: white;
+  }
+
+  .detail-row {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--bs-border-color);
+  }
+
+  .detail-row:last-child {
+    border-bottom: none;
+  }
+
+  .detail-row .label {
+    font-weight: 600;
+    color: #6c757d;
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .detail-row .value {
+    font-size: 1rem;
+    color: var(--bs-body-color);
+  }
+
+  .document-preview {
+    max-width: 100%;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+
+  .action-buttons .btn {
+    flex: 1;
+    padding: 0.75rem;
+    font-weight: 600;
+  }
+
+  .status-badge {
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 500;
+    display: inline-block;
+  }
+
+  .status-badge.pending {
+    background: #fff3cd;
+    color: #856404;
+  }
+
+  .status-badge.verified {
+    background: #d4edda;
+    color: #155724;
+  }
+
+  .status-badge.rejected {
+    background: #f8d7da;
+    color: #721c24;
+  }
+
+  [data-theme='dark'] .status-badge.pending {
+    background: rgba(246, 194, 62, 0.2);
+    color: #f6c23e;
+  }
+
+  [data-theme='dark'] .status-badge.verified {
+    background: rgba(28, 200, 138, 0.2);
+    color: #1cc88a;
+  }
+
+  [data-theme='dark'] .status-badge.rejected {
+    background: rgba(231, 74, 59, 0.2);
+    color: #e74a3b;
+  }
+
+  .user-profile-card {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+  }
+
+  [data-theme='dark'] .user-profile-card {
+    background: #2a2a3e;
+  }
+
+  .user-avatar-large {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  .user-avatar-placeholder-large {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 2rem;
+  }
+
+  .user-info h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.5rem;
+  }
+
+  .user-info p {
+    margin: 0.25rem 0;
+    color: #6c757d;
+  }
+</style>
+{% endblock admin_extra_css %}
+
+{% block admin_content %}
+<div class="container-fluid">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-0 text-gray-800">
+        <i class="fas fa-shield-alt me-2"></i>{% trans "تفاصيل طلب التوثيق" %}
+      </h1>
+      <p class="text-muted mb-0">{% trans "مراجعة طلب التوثيق واتخاذ الإجراء المناسب" %}</p>
+    </div>
+    <a href="{% url 'main:admin_verification_requests' %}" class="btn btn-secondary">
+      <i class="fas fa-arrow-right me-2"></i>{% trans "العودة للقائمة" %}
+    </a>
+  </div>
+
+  <div class="row">
+    <div class="col-lg-8">
+      <!-- User Information -->
+      <div class="detail-card">
+        <div class="card-header">
+          <h5><i class="fas fa-user me-2"></i>{% trans "معلومات المستخدم" %}</h5>
+        </div>
+        <div class="card-body">
+          <div class="user-profile-card">
+            {% if verification_request.user.profile_image %}
+              <img src="{{ verification_request.user.profile_image.url }}" alt="{{ verification_request.user.username }}" class="user-avatar-large">
+            {% else %}
+              <div class="user-avatar-placeholder-large">
+                {{ verification_request.user.username|first|upper }}
+              </div>
+            {% endif %}
+            <div class="user-info">
+              <h3>{{ verification_request.user.get_full_name|default:verification_request.user.username }}</h3>
+              <p><i class="fas fa-envelope me-2"></i>{{ verification_request.user.email }}</p>
+              <p><i class="fas fa-phone me-2"></i>{{ verification_request.user.phone|default:"غير محدد" }}</p>
+              <p><i class="fas fa-calendar me-2"></i>{% trans "انضم في" %}: {{ verification_request.user.date_joined|date:"Y/m/d" }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Verification Request Details -->
+      <div class="detail-card">
+        <div class="card-header">
+          <h5><i class="fas fa-file-alt me-2"></i>{% trans "تفاصيل الطلب" %}</h5>
+        </div>
+        <div class="card-body p-0">
+          <div class="detail-row">
+            <div class="label">{% trans "نوع الوثيقة" %}</div>
+            <div class="value">{{ verification_request.get_document_type_display }}</div>
+          </div>
+          <div class="detail-row">
+            <div class="label">{% trans "تاريخ الطلب" %}</div>
+            <div class="value">{{ verification_request.created_at|date:"Y/m/d H:i" }}</div>
+          </div>
+          <div class="detail-row">
+            <div class="label">{% trans "حالة الطلب" %}</div>
+            <div class="value">
+              {% if verification_request.status == 'pending' %}
+                <span class="status-badge pending">{% trans "قيد المراجعة" %}</span>
+              {% elif verification_request.status == 'verified' %}
+                <span class="status-badge verified">{% trans "موافق عليه" %}</span>
+              {% elif verification_request.status == 'rejected' %}
+                <span class="status-badge rejected">{% trans "مرفوض" %}</span>
+              {% endif %}
+            </div>
+          </div>
+          {% if verification_request.notes %}
+          <div class="detail-row">
+            <div class="label">{% trans "ملاحظات المستخدم" %}</div>
+            <div class="value">{{ verification_request.notes }}</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Document Preview -->
+      <div class="detail-card">
+        <div class="card-header">
+          <h5><i class="fas fa-file-image me-2"></i>{% trans "الوثيقة المرفقة" %}</h5>
+        </div>
+        <div class="card-body">
+          {% if verification_request.document_file %}
+            {% if verification_request.document_file.url|slice:"-4:" == ".pdf" %}
+              <a href="{{ verification_request.document_file.url }}" target="_blank" class="btn btn-primary">
+                <i class="fas fa-file-pdf me-2"></i>{% trans "فتح ملف PDF" %}
+              </a>
+            {% else %}
+              <img src="{{ verification_request.document_file.url }}" alt="{% trans 'وثيقة التوثيق' %}" class="document-preview">
+            {% endif %}
+          {% else %}
+            <p class="text-muted">{% trans "لم يتم رفع وثيقة" %}</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <!-- Payment Information -->
+      <div class="detail-card">
+        <div class="card-header">
+          <h5><i class="fas fa-credit-card me-2"></i>{% trans "معلومات الدفع" %}</h5>
+        </div>
+        <div class="card-body p-0">
+          <div class="detail-row">
+            <div class="label">{% trans "مطلوب دفع؟" %}</div>
+            <div class="value">
+              {% if verification_request.payment_required %}
+                <span class="badge bg-warning">{% trans "نعم" %}</span>
+              {% else %}
+                <span class="badge bg-secondary">{% trans "لا" %}</span>
+              {% endif %}
+            </div>
+          </div>
+          {% if verification_request.payment_required %}
+          <div class="detail-row">
+            <div class="label">{% trans "المبلغ" %}</div>
+            <div class="value">{{ verification_request.payment_amount }} {% trans "جنيه" %}</div>
+          </div>
+          <div class="detail-row">
+            <div class="label">{% trans "حالة الدفع" %}</div>
+            <div class="value">
+              {% if verification_request.payment_status == 'pending' %}
+                <span class="badge bg-warning">{% trans "قيد الانتظار" %}</span>
+              {% elif verification_request.payment_status == 'paid' %}
+                <span class="badge bg-success">{% trans "مدفوع" %}</span>
+              {% elif verification_request.payment_status == 'failed' %}
+                <span class="badge bg-danger">{% trans "فشل" %}</span>
+              {% endif %}
+            </div>
+          </div>
+          {% if verification_request.payment_transaction_id %}
+          <div class="detail-row">
+            <div class="label">{% trans "رقم المعاملة" %}</div>
+            <div class="value">{{ verification_request.payment_transaction_id }}</div>
+          </div>
+          {% endif %}
+          {% if verification_request.paid_at %}
+          <div class="detail-row">
+            <div class="label">{% trans "تاريخ الدفع" %}</div>
+            <div class="value">{{ verification_request.paid_at|date:"Y/m/d H:i" }}</div>
+          </div>
+          {% endif %}
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Review Information -->
+      {% if verification_request.reviewed_by %}
+      <div class="detail-card">
+        <div class="card-header">
+          <h5><i class="fas fa-check-circle me-2"></i>{% trans "معلومات المراجعة" %}</h5>
+        </div>
+        <div class="card-body p-0">
+          <div class="detail-row">
+            <div class="label">{% trans "تمت المراجعة بواسطة" %}</div>
+            <div class="value">{{ verification_request.reviewed_by.get_full_name|default:verification_request.reviewed_by.username }}</div>
+          </div>
+          <div class="detail-row">
+            <div class="label">{% trans "تاريخ المراجعة" %}</div>
+            <div class="value">{{ verification_request.reviewed_at|date:"Y/m/d H:i" }}</div>
+          </div>
+          {% if verification_request.admin_notes %}
+          <div class="detail-row">
+            <div class="label">{% trans "ملاحظات الإدارة" %}</div>
+            <div class="value">{{ verification_request.admin_notes }}</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Actions -->
+      {% if verification_request.status == 'pending' %}
+      <div class="detail-card">
+        <div class="card-header">
+          <h5><i class="fas fa-tasks me-2"></i>{% trans "الإجراءات" %}</h5>
+        </div>
+        <div class="card-body">
+          <form id="approveForm">
+            {% csrf_token %}
+            <div class="mb-3">
+              <label class="form-label">{% trans "ملاحظات الإدارة" %} ({% trans "اختياري" %})</label>
+              <textarea class="form-control" name="admin_notes" rows="3" placeholder="{% trans 'أضف أي ملاحظات...' %}"></textarea>
+            </div>
+            <div class="action-buttons">
+              <button type="button" class="btn btn-success" onclick="approveRequest()">
+                <i class="fas fa-check me-2"></i>{% trans "الموافقة" %}
+              </button>
+              <button type="button" class="btn btn-danger" onclick="rejectRequest()">
+                <i class="fas fa-times me-2"></i>{% trans "الرفض" %}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock admin_content %}
+
+{% block admin_extra_js %}
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function approveRequest() {
+    const adminNotes = document.querySelector('textarea[name="admin_notes"]').value;
+    
+    if (confirm('{% trans "هل أنت متأكد من الموافقة على طلب التوثيق؟" %}')) {
+        const formData = new FormData();
+        formData.append('admin_notes', adminNotes);
+        formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+
+        fetch('{% url "main:admin_verification_approve" verification_request.id %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            alert('{% trans "حدث خطأ" %}');
+        });
+    }
+}
+
+function rejectRequest() {
+    const adminNotes = document.querySelector('textarea[name="admin_notes"]').value;
+    
+    if (!adminNotes.trim()) {
+        alert('{% trans "يرجى إضافة سبب الرفض في ملاحظات الإدارة" %}');
+        return;
+    }
+    
+    if (confirm('{% trans "هل أنت متأكد من رفض طلب التوثيق؟" %}')) {
+        const formData = new FormData();
+        formData.append('admin_notes', adminNotes);
+        formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+
+        fetch('{% url "main:admin_verification_reject" verification_request.id %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            alert('{% trans "حدث خطأ" %}');
+        });
+    }
+}
+</script>
+{% endblock admin_extra_js %}

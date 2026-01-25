@@ -253,9 +253,23 @@ def get_messages(request, room_id):
         for msg in messages
     ]
 
+    # Build room info for header updates
+    room_info = {
+        "id": chat_room.id,
+        "client_name": (
+            f"{chat_room.client.first_name or ''} {chat_room.client.last_name or ''}".strip()
+            or chat_room.client.username
+            if chat_room.client else None
+        ),
+        "ad_title": chat_room.ad.title if chat_room.ad else None,
+        "ad_url": chat_room.ad.get_absolute_url() if chat_room.ad else None,
+    }
+
     return JsonResponse(
         {
+            "success": True,
             "messages": messages_data,
+            "room": room_info,
             "unread_count": chat_room.get_unread_count(request.user),
         }
     )

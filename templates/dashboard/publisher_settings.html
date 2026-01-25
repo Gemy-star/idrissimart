@@ -277,6 +277,48 @@
         margin: 0 auto 1rem;
     }
 
+    /* Button Styles */
+    .btn-upload {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn-upload input[type="file"] {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    .btn-upload:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    .btn-warning {
+        background: linear-gradient(135deg, #ff9800, #f57c00);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-warning:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
+        color: white;
+    }
+
+
     /* Form Styles */
     .form-label {
         font-weight: 600;
@@ -545,18 +587,33 @@
             <div class="accordion-content">
                 <!-- Avatar Section -->
                 <div class="profile-avatar-section">
-                    {% if user.avatar %}
-                        <img src="{{ user.avatar.url }}" alt="{% trans 'الصورة الشخصية' %}" class="profile-avatar" id="avatarPreview">
+                    {% if user.profile_image %}
+                        <img src="{{ user.profile_image.url }}" alt="{% trans 'الصورة الشخصية' %}" class="profile-avatar" id="avatarPreview">
                     {% else %}
                         <div class="profile-avatar-placeholder" id="avatarPlaceholder">
                             {{ user.first_name|first|default:user.username|first|upper }}
                         </div>
                     {% endif %}
                     <div>
-                        <button type="button" class="btn btn-primary btn-upload">
-                            <i class="fas fa-camera me-2"></i>{% trans "تغيير الصورة" %}
-                            <input type="file" id="avatarInput" accept="image/*">
-                        </button>
+                        {% if user.verification_status == 'verified' %}
+                            <button type="button" class="btn btn-primary btn-upload">
+                                <i class="fas fa-camera me-2"></i>{% trans "تغيير الصورة" %}
+                                <input type="file" id="avatarInput" accept="image/*">
+                            </button>
+                        {% else %}
+                            <button type="button" class="btn btn-secondary btn-upload" disabled title="{% trans 'يتطلب توثيق الحساب' %}">
+                                <i class="fas fa-lock me-2"></i>{% trans "تغيير الصورة" %}
+                            </button>
+                            <div class="mt-2">
+                                <small class="text-muted d-block mb-2">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    {% trans "يجب توثيق حسابك لرفع الصورة الشخصية" %}
+                                </small>
+                                <a href="{% url 'main:verification_request' %}" class="btn btn-warning">
+                                    <i class="fas fa-shield-alt me-2"></i>{% trans "طلب توثيق الحساب" %}
+                                </a>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -652,7 +709,7 @@
                                 <select class="form-select" id="country" name="country" required>
                                     <option value="">{% trans "اختر الدولة" %}</option>
                                     {% for country in countries %}
-                                    <option value="{{ country.code }}" {% if user.country == country.code %}selected{% endif %}>
+                                    <option value="{{ country.code }}" {% if user.country and user.country.code == country.code %}selected{% endif %}>
                                         {{ country.flag_emoji }} {{ country.name }}
                                     </option>
                                     {% endfor %}
@@ -814,6 +871,234 @@
             </div>
         </div>
     </div>
+
+    <!-- Verified Users: Advanced Settings -->
+    {% if is_verified %}
+    <div class="accordion-item">
+        <div class="accordion-header">
+            <div class="accordion-header-content">
+                <div class="accordion-icon">
+                    <i class="fas fa-star"></i>
+                </div>
+                <div class="accordion-title">
+                    <h3>
+                        {% trans "الإعدادات المتقدمة" %}
+                        <span class="badge-verified ms-2">
+                            <i class="fas fa-check-circle"></i> {% trans "للموثقين" %}
+                        </span>
+                    </h3>
+                    <small>{% trans "إعدادات متقدمة حصرية للمستخدمين الموثقين" %}</small>
+                </div>
+            </div>
+            <div class="accordion-toggle">
+                <i class="fas fa-chevron-down"></i>
+            </div>
+        </div>
+        <div class="accordion-body">
+            <div class="accordion-content">
+                <!-- Business Profile Settings -->
+                <div class="settings-section">
+                    <h6 class="settings-section-title">
+                        <i class="fas fa-briefcase"></i>
+                        {% trans "الملف التجاري" %}
+                    </h6>
+                    <form id="businessProfileForm">
+                        {% csrf_token %}
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">{% trans "الرقم الضريبي" %}</label>
+                                <input type="text" class="form-control" name="tax_number" value="{{ user.tax_number }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{% trans "السجل التجاري" %}</label>
+                                <input type="text" class="form-control" name="commercial_register" value="{{ user.commercial_register }}">
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label">{% trans "التخصص" %}</label>
+                                <input type="text" class="form-control" name="specialization" value="{{ user.specialization }}">
+                                <small class="form-text text-muted">{% trans "مجال عملك أو تخصصك المهني" %}</small>
+                            </div>
+                        </div>
+                        <div class="action-bar">
+                            <button type="submit" class="btn-save">
+                                <i class="fas fa-save"></i>{% trans "حفظ الملف التجاري" %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Advanced Notification Settings -->
+                <div class="settings-section">
+                    <h6 class="settings-section-title">
+                        <i class="fas fa-bell-plus"></i>
+                        {% trans "إشعارات متقدمة" %}
+                    </h6>
+                    <form id="advancedNotificationsForm">
+                        {% csrf_token %}
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="notifyNewMessages" {% if user.notify_new_messages %}checked{% endif %}>
+                            <label class="form-check-label" for="notifyNewMessages">
+                                <strong>{% trans "إشعار بالرسائل الجديدة" %}</strong>
+                                <small>{% trans "تلقي إشعارات فورية عند استلام رسائل جديدة" %}</small>
+                            </label>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="notifyAdViews" {% if user.notify_ad_views %}checked{% endif %}>
+                            <label class="form-check-label" for="notifyAdViews">
+                                <strong>{% trans "إحصائيات المشاهدات" %}</strong>
+                                <small>{% trans "تلقي تقارير أسبوعية عن مشاهدات إعلاناتك" %}</small>
+                            </label>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="notifyPriceAlerts" {% if user.notify_price_alerts %}checked{% endif %}>
+                            <label class="form-check-label" for="notifyPriceAlerts">
+                                <strong>{% trans "تنبيهات الأسعار" %}</strong>
+                                <small>{% trans "إشعارك بإعلانات مشابهة بأسعار تنافسية" %}</small>
+                            </label>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Auto-Publish Settings -->
+                <div class="settings-section">
+                    <h6 class="settings-section-title">
+                        <i class="fas fa-rocket"></i>
+                        {% trans "إعدادات النشر التلقائي" %}
+                    </h6>
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>
+                        {% trans "كمستخدم موثق، إعلاناتك تُنشر تلقائياً دون الحاجة للمراجعة اليدوية" %}
+                    </div>
+                    <form id="autoPublishForm">
+                        {% csrf_token %}
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="autoRenewAds" {% if user.auto_renew_ads %}checked{% endif %}>
+                            <label class="form-check-label" for="autoRenewAds">
+                                <strong>{% trans "تجديد تلقائي للإعلانات" %}</strong>
+                                <small>{% trans "تجديد إعلاناتك تلقائياً عند انتهاء صلاحيتها" %}</small>
+                            </label>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="autoBoostAds" {% if user.auto_boost_ads %}checked{% endif %}>
+                            <label class="form-check-label" for="autoBoostAds">
+                                <strong>{% trans "ترويج تلقائي" %}</strong>
+                                <small>{% trans "ترويج إعلاناتك تلقائياً خلال الأوقات الذروة" %}</small>
+                            </label>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Priority Support -->
+                <div class="settings-section">
+                    <h6 class="settings-section-title">
+                        <i class="fas fa-headset"></i>
+                        {% trans "الدعم المميز" %}
+                    </h6>
+                    <div class="info-card">
+                        <div class="info-item">
+                            <span class="info-label">{% trans "حالة الدعم" %}</span>
+                            <span class="info-value">
+                                <span class="badge-verified">
+                                    <i class="fas fa-check-circle"></i> {% trans "دعم مميز" %}
+                                </span>
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">{% trans "وقت الاستجابة" %}</span>
+                            <span class="info-value">{% trans "خلال 2-4 ساعات" %}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">{% trans "قنوات الاتصال" %}</span>
+                            <span class="info-value">{% trans "هاتف، واتساب، بريد إلكتروني" %}</span>
+                        </div>
+                    </div>
+                    <a href="{% url 'main:contact' %}" class="btn btn-primary mt-3">
+                        <i class="fas fa-phone me-2"></i>{% trans "تواصل مع الدعم" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Verified Users: Business Analytics -->
+    <div class="accordion-item">
+        <div class="accordion-header">
+            <div class="accordion-header-content">
+                <div class="accordion-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="accordion-title">
+                    <h3>
+                        {% trans "التحليلات والإحصائيات" %}
+                        <span class="badge-verified ms-2">
+                            <i class="fas fa-check-circle"></i> {% trans "للموثقين" %}
+                        </span>
+                    </h3>
+                    <small>{% trans "تحليلات متقدمة لأداء إعلاناتك" %}</small>
+                </div>
+            </div>
+            <div class="accordion-toggle">
+                <i class="fas fa-chevron-down"></i>
+            </div>
+        </div>
+        <div class="accordion-body">
+            <div class="accordion-content">
+                <div class="settings-section">
+                    <h6 class="settings-section-title">
+                        <i class="fas fa-chart-bar"></i>
+                        {% trans "تقارير الأداء" %}
+                    </h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <div class="info-card text-center">
+                                <i class="fas fa-eye text-primary mb-2" style="font-size: 2rem;"></i>
+                                <div class="info-item">
+                                    <span class="info-label">{% trans "إجمالي المشاهدات" %}</span>
+                                    <span class="info-value fw-bold fs-4">{{ user.total_ad_views|default:"0" }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="info-card text-center">
+                                <i class="fas fa-mouse-pointer text-success mb-2" style="font-size: 2rem;"></i>
+                                <div class="info-item">
+                                    <span class="info-label">{% trans "معدل التفاعل" %}</span>
+                                    <span class="info-value fw-bold fs-4">{{ user.engagement_rate|default:"0" }}%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="info-card text-center">
+                                <i class="fas fa-star text-warning mb-2" style="font-size: 2rem;"></i>
+                                <div class="info-item">
+                                    <span class="info-label">{% trans "التقييم" %}</span>
+                                    <span class="info-value fw-bold fs-4">{{ user.average_rating|default:"0.0" }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <form id="analyticsSettingsForm">
+                        {% csrf_token %}
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="enableAnalytics" {% if user.enable_analytics %}checked{% endif %}>
+                            <label class="form-check-label" for="enableAnalytics">
+                                <strong>{% trans "تفعيل التحليلات المتقدمة" %}</strong>
+                                <small>{% trans "الحصول على تحليلات مفصلة حول أداء إعلاناتك" %}</small>
+                            </label>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="weeklyReports" {% if user.weekly_reports %}checked{% endif %}>
+                            <label class="form-check-label" for="weeklyReports">
+                                <strong>{% trans "تقارير أسبوعية" %}</strong>
+                                <small>{% trans "استلام تقارير أسبوعية بالبريد الإلكتروني" %}</small>
+                            </label>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Account Settings -->
     <div class="accordion-item">
@@ -1162,6 +1447,121 @@ document.addEventListener('DOMContentLoaded', function() {
             citySelect.innerHTML = '<option value="">{% trans "اختر المدينة" %}</option>';
         });
     }
+
+    // Business Profile Form (Verified Users Only)
+    const businessProfileForm = document.getElementById('businessProfileForm');
+    if (businessProfileForm) {
+        businessProfileForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            fetch('{% url "main:publisher_update_business_profile" %}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                showToast(data.message, data.success ? 'success' : 'error');
+            })
+            .catch(error => {
+                showToast('{% trans "حدث خطأ أثناء الحفظ" %}', 'error');
+            });
+        });
+    }
+
+    // Advanced Notifications (Verified Users Only)
+    const advancedNotificationToggles = [
+        'notifyNewMessages',
+        'notifyAdViews',
+        'notifyPriceAlerts'
+    ];
+
+    advancedNotificationToggles.forEach(toggleId => {
+        const toggle = document.getElementById(toggleId);
+        if (toggle) {
+            toggle.addEventListener('change', function() {
+                const formData = new FormData();
+                formData.append(toggleId.replace(/([A-Z])/g, '_$1').toLowerCase(), this.checked ? 'true' : 'false');
+                formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+
+                fetch('{% url "main:publisher_update_advanced_notifications" %}', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    showToast(data.message, data.success ? 'success' : 'error');
+                    if (!data.success) {
+                        this.checked = !this.checked;
+                    }
+                })
+                .catch(error => {
+                    showToast('{% trans "حدث خطأ" %}', 'error');
+                    this.checked = !this.checked;
+                });
+            });
+        }
+    });
+
+    // Auto-Publish Settings (Verified Users Only)
+    const autoPublishToggles = ['autoRenewAds', 'autoBoostAds'];
+
+    autoPublishToggles.forEach(toggleId => {
+        const toggle = document.getElementById(toggleId);
+        if (toggle) {
+            toggle.addEventListener('change', function() {
+                const formData = new FormData();
+                formData.append(toggleId.replace(/([A-Z])/g, '_$1').toLowerCase(), this.checked ? 'true' : 'false');
+                formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+
+                fetch('{% url "main:publisher_update_auto_publish_settings" %}', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    showToast(data.message, data.success ? 'success' : 'error');
+                    if (!data.success) {
+                        this.checked = !this.checked;
+                    }
+                })
+                .catch(error => {
+                    showToast('{% trans "حدث خطأ" %}', 'error');
+                    this.checked = !this.checked;
+                });
+            });
+        }
+    });
+
+    // Analytics Settings (Verified Users Only)
+    const analyticsToggles = ['enableAnalytics', 'weeklyReports'];
+
+    analyticsToggles.forEach(toggleId => {
+        const toggle = document.getElementById(toggleId);
+        if (toggle) {
+            toggle.addEventListener('change', function() {
+                const formData = new FormData();
+                formData.append(toggleId.replace(/([A-Z])/g, '_$1').toLowerCase(), this.checked ? 'true' : 'false');
+                formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+
+                fetch('{% url "main:publisher_update_analytics_settings" %}', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    showToast(data.message, data.success ? 'success' : 'error');
+                    if (!data.success) {
+                        this.checked = !this.checked;
+                    }
+                })
+                .catch(error => {
+                    showToast('{% trans "حدث خطأ" %}', 'error');
+                    this.checked = !this.checked;
+                });
+            });
+        }
+    });
 });
 </script>
 {% endblock %}

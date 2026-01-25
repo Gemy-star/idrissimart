@@ -475,6 +475,31 @@ CONSTANCE_CONFIG = {
         _("Enable Educational registration type"),
         bool,
     ),
+    # User Verification Payment Settings
+    "VERIFICATION_FEE_ENABLED": (
+        False,
+        _("Enable verification fee requirement"),
+        bool,
+    ),
+    "VERIFICATION_FEE_AMOUNT": (
+        100.00,
+        _("Verification fee amount"),
+        float,
+    ),
+    "VERIFICATION_FEE_CURRENCY": (
+        "EGP",
+        _("Verification fee currency code"),
+    ),
+    "VERIFICATION_AUTO_APPROVE_ON_PAYMENT": (
+        False,
+        _("Auto-approve verification requests after successful payment"),
+        bool,
+    ),
+    "VERIFICATION_REVIEW_PERIOD_DAYS": (
+        3,
+        _("Number of days to review verification requests"),
+        int,
+    ),
 }
 
 CONSTANCE_CONFIG_FIELDSETS = {
@@ -611,5 +636,12 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "ENABLE_SERVICE_PROVIDER_REGISTRATION",
         "ENABLE_MERCHANT_REGISTRATION",
         "ENABLE_EDUCATIONAL_REGISTRATION",
+    ),
+    "Verification Payment Settings": (
+        "VERIFICATION_FEE_ENABLED",
+        "VERIFICATION_FEE_AMOUNT",
+        "VERIFICATION_FEE_CURRENCY",
+        "VERIFICATION_AUTO_APPROVE_ON_PAYMENT",
+        "VERIFICATION_REVIEW_PERIOD_DAYS",
     ),
 }

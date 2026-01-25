@@ -1,0 +1,532 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}
+    {% trans "دفع رسوم التوثيق - Verification Payment" %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .payment-container {
+        max-width: 800px;
+        margin: 3rem auto;
+        padding: 0 1rem;
+    }
+
+    .payment-card {
+        background: var(--bs-body-bg);
+        border-radius: 24px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+        border: 1px solid var(--bs-border-color);
+    }
+
+    [data-theme='dark'] .payment-card {
+        background: #1e1e2e;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .payment-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2.5rem 2rem;
+        text-align: center;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .payment-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: ripple-payment 3s ease-in-out infinite;
+    }
+
+    @keyframes ripple-payment {
+        0%, 100% { transform: scale(1); opacity: 0.5; }
+        50% { transform: scale(1.1); opacity: 0.8; }
+    }
+
+    .payment-icon {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 1.5rem;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        z-index: 1;
+    }
+
+    .payment-icon i {
+        font-size: 3rem;
+        color: white;
+    }
+
+    .payment-header h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .payment-header p {
+        font-size: 1.1rem;
+        opacity: 0.95;
+        margin: 0;
+        position: relative;
+        z-index: 1;
+    }
+
+    .payment-body {
+        padding: 2.5rem 2rem;
+    }
+
+    .amount-section {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 16px;
+        padding: 2rem;
+        text-align: center;
+        margin-bottom: 2rem;
+        border: 2px dashed var(--bs-border-color);
+    }
+
+    [data-theme='dark'] .amount-section {
+        background: linear-gradient(135deg, #2a2a3e 0%, #1e1e2e 100%);
+    }
+
+    .amount-label {
+        font-size: 0.9rem;
+        color: var(--bs-secondary-color);
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+
+    .amount-value {
+        font-size: 3rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.5rem;
+    }
+
+    .amount-currency {
+        font-size: 1rem;
+        color: var(--bs-secondary-color);
+    }
+
+    .payment-details {
+        background: var(--bs-secondary-bg);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    [data-theme='dark'] .payment-details {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 0;
+        border-bottom: 1px solid var(--bs-border-color);
+    }
+
+    .detail-row:last-child {
+        border-bottom: none;
+    }
+
+    .detail-label {
+        font-weight: 600;
+        color: var(--bs-body-color);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .detail-value {
+        color: var(--bs-secondary-color);
+        font-weight: 500;
+    }
+
+    .payment-methods {
+        margin-bottom: 2rem;
+    }
+
+    .payment-methods h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        color: var(--bs-body-color);
+    }
+
+    .method-card {
+        background: var(--bs-body-bg);
+        border: 2px solid var(--bs-border-color);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .method-card:hover {
+        border-color: #667eea;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    }
+
+    .method-card.selected {
+        border-color: #667eea;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+    }
+
+    .method-card input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+    }
+
+    .method-content {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .method-icon {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+    }
+
+    .method-info {
+        flex: 1;
+    }
+
+    .method-info h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        color: var(--bs-body-color);
+    }
+
+    .method-info p {
+        font-size: 0.875rem;
+        color: var(--bs-secondary-color);
+        margin: 0;
+    }
+
+    .method-check {
+        width: 24px;
+        height: 24px;
+        border: 2px solid var(--bs-border-color);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    }
+
+    .method-card.selected .method-check {
+        background: #667eea;
+        border-color: #667eea;
+    }
+
+    .method-card.selected .method-check i {
+        color: white;
+        font-size: 0.75rem;
+    }
+
+    .info-alert {
+        background: linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, rgba(33, 150, 243, 0.05) 100%);
+        border-right: 4px solid #2196f3;
+        border-radius: 12px;
+        padding: 1.25rem;
+        margin-bottom: 2rem;
+    }
+
+    [data-theme='dark'] .info-alert {
+        background: linear-gradient(135deg, rgba(33, 150, 243, 0.15) 0%, rgba(33, 150, 243, 0.08) 100%);
+    }
+
+    .info-alert h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #2196f3;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .info-alert ul {
+        margin: 0;
+        padding-right: 1.25rem;
+        color: var(--bs-body-color);
+    }
+
+    .info-alert li {
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .btn {
+        padding: 1rem 2rem;
+        border-radius: 12px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        border: none;
+        cursor: pointer;
+        font-size: 1rem;
+    }
+
+    .btn-primary {
+        flex: 1;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .btn-secondary {
+        background: var(--bs-secondary-bg);
+        color: var(--bs-body-color);
+        border: 2px solid var(--bs-border-color);
+    }
+
+    .btn-secondary:hover {
+        background: var(--bs-tertiary-bg);
+    }
+
+    @media (max-width: 768px) {
+        .payment-container {
+            margin: 1.5rem auto;
+        }
+
+        .payment-header {
+            padding: 2rem 1.5rem;
+        }
+
+        .payment-header h1 {
+            font-size: 1.5rem;
+        }
+
+        .payment-body {
+            padding: 2rem 1.5rem;
+        }
+
+        .amount-value {
+            font-size: 2.5rem;
+        }
+
+        .action-buttons {
+            flex-direction: column-reverse;
+        }
+
+        .btn {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="payment-container">
+    <div class="payment-card">
+        <!-- Header -->
+        <div class="payment-header">
+            <div class="payment-icon">
+                <i class="fas fa-shield-check"></i>
+            </div>
+            <h1>{% trans "دفع رسوم التوثيق" %}</h1>
+            <p>{% trans "أكمل الدفع لمتابعة طلب التوثيق" %}</p>
+        </div>
+
+        <!-- Body -->
+        <div class="payment-body">
+            <!-- Amount Section -->
+            <div class="amount-section">
+                <div class="amount-label">{% trans "المبلغ المطلوب" %}</div>
+                <div class="amount-value">{{ verification_request.payment_amount|floatformat:2 }}</div>
+                <div class="amount-currency">{{ verification_request.payment_method|default:"جنيه مصري" }}</div>
+            </div>
+
+            <!-- Payment Details -->
+            <div class="payment-details">
+                <div class="detail-row">
+                    <span class="detail-label">
+                        <i class="fas fa-user"></i>
+                        {% trans "المستخدم" %}
+                    </span>
+                    <span class="detail-value">{{ user.get_full_name|default:user.username }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">
+                        <i class="fas fa-file-alt"></i>
+                        {% trans "نوع الوثيقة" %}
+                    </span>
+                    <span class="detail-value">{{ verification_request.get_document_type_display }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">
+                        <i class="fas fa-calendar"></i>
+                        {% trans "تاريخ الطلب" %}
+                    </span>
+                    <span class="detail-value">{{ verification_request.created_at|date:"Y/m/d H:i" }}</span>
+                </div>
+            </div>
+
+            <!-- Payment Methods -->
+            <div class="payment-methods">
+                <h3>{% trans "اختر طريقة الدفع" %}</h3>
+
+                <form id="paymentForm" method="post" action="{% url 'main:verification_payment_process' verification_request.id %}">
+                    {% csrf_token %}
+
+                    <label class="method-card" for="card">
+                        <input type="radio" name="payment_method" id="card" value="card" checked>
+                        <div class="method-content">
+                            <div class="method-icon">
+                                <i class="fas fa-credit-card"></i>
+                            </div>
+                            <div class="method-info">
+                                <h4>{% trans "بطاقة ائتمان/خصم" %}</h4>
+                                <p>{% trans "الدفع الآمن عبر Visa أو Mastercard" %}</p>
+                            </div>
+                            <div class="method-check">
+                                <i class="fas fa-check"></i>
+                            </div>
+                        </div>
+                    </label>
+
+                    <label class="method-card" for="wallet">
+                        <input type="radio" name="payment_method" id="wallet" value="wallet">
+                        <div class="method-content">
+                            <div class="method-icon">
+                                <i class="fas fa-wallet"></i>
+                            </div>
+                            <div class="method-info">
+                                <h4>{% trans "المحفظة الإلكترونية" %}</h4>
+                                <p>{% trans "الدفع عبر فودافون كاش أو محافظ أخرى" %}</p>
+                            </div>
+                            <div class="method-check">
+                                <i class="fas fa-check"></i>
+                            </div>
+                        </div>
+                    </label>
+
+                    <label class="method-card" for="bank">
+                        <input type="radio" name="payment_method" id="bank" value="bank_transfer">
+                        <div class="method-content">
+                            <div class="method-icon">
+                                <i class="fas fa-university"></i>
+                            </div>
+                            <div class="method-info">
+                                <h4>{% trans "تحويل بنكي" %}</h4>
+                                <p>{% trans "الدفع عبر التحويل البنكي المباشر" %}</p>
+                            </div>
+                            <div class="method-check">
+                                <i class="fas fa-check"></i>
+                            </div>
+                        </div>
+                    </label>
+                </form>
+            </div>
+
+            <!-- Info Alert -->
+            <div class="info-alert">
+                <h4>
+                    <i class="fas fa-info-circle"></i>
+                    {% trans "معلومات مهمة" %}
+                </h4>
+                <ul>
+                    <li>{% trans "جميع المدفوعات آمنة ومشفرة" %}</li>
+                    <li>{% trans "ستتلقى إيصال الدفع على بريدك الإلكتروني" %}</li>
+                    <li>{% trans "سيتم مراجعة طلبك بعد تأكيد الدفع" %}</li>
+                    <li>{% trans "رسوم التوثيق غير قابلة للاسترداد" %}</li>
+                </ul>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <a href="{% url 'main:verification_request' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-right"></i>
+                    {% trans "إلغاء" %}
+                </a>
+                <button type="submit" form="paymentForm" class="btn btn-primary" id="payBtn">
+                    <i class="fas fa-lock"></i>
+                    {% trans "الدفع بشكل آمن" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle payment method selection
+    const methodCards = document.querySelectorAll('.method-card');
+    const radioInputs = document.querySelectorAll('input[name="payment_method"]');
+
+    radioInputs.forEach(radio => {
+        radio.addEventListener('change', function() {
+            methodCards.forEach(card => card.classList.remove('selected'));
+            this.closest('.method-card').classList.add('selected');
+        });
+    });
+
+    // Set initial selected state
+    const checkedRadio = document.querySelector('input[name="payment_method"]:checked');
+    if (checkedRadio) {
+        checkedRadio.closest('.method-card').classList.add('selected');
+    }
+
+    // Handle form submission
+    const paymentForm = document.getElementById('paymentForm');
+    const payBtn = document.getElementById('payBtn');
+
+    paymentForm.addEventListener('submit', function(e) {
+        payBtn.disabled = true;
+        payBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري المعالجة..." %}';
+    });
+});
+</script>
+{% endblock %}

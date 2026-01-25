@@ -413,6 +413,50 @@ class User(AbstractUser):  # This model is correct, no changes needed here.
         help_text=_("تلقي إشعارات حول الإعلانات والرسائل عبر البريد الإلكتروني"),
     )
 
+    # Advanced notification preferences (verified users only)
+    notify_new_messages = models.BooleanField(
+        default=True,
+        verbose_name=_("إشعار بالرسائل الجديدة"),
+    )
+    notify_ad_views = models.BooleanField(
+        default=False,
+        verbose_name=_("إحصائيات المشاهدات"),
+    )
+    notify_price_alerts = models.BooleanField(
+        default=False,
+        verbose_name=_("تنبيهات الأسعار"),
+    )
+
+    # Auto-publish settings (verified users only)
+    auto_renew_ads = models.BooleanField(
+        default=False,
+        verbose_name=_("تجديد تلقائي للإعلانات"),
+    )
+    auto_boost_ads = models.BooleanField(
+        default=False,
+        verbose_name=_("ترويج تلقائي"),
+    )
+
+    # Analytics settings (verified users only)
+    enable_analytics = models.BooleanField(
+        default=True,
+        verbose_name=_("تفعيل التحليلات المتقدمة"),
+    )
+    weekly_reports = models.BooleanField(
+        default=False,
+        verbose_name=_("تقارير أسبوعية"),
+    )
+    total_ad_views = models.IntegerField(
+        default=0,
+        verbose_name=_("إجمالي المشاهدات"),
+    )
+    engagement_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        verbose_name=_("معدل التفاعل"),
+    )
+
     # Timestamps
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -821,6 +865,45 @@ class UserVerificationRequest(
         related_name="reviewed_verifications",
     )
     reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    # Payment Information
+    payment_required = models.BooleanField(
+        default=False,
+        verbose_name=_("يتطلب دفع - Payment Required"),
+        help_text=_("Whether this verification requires payment"),
+    )
+    payment_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name=_("مبلغ الدفع - Payment Amount"),
+    )
+    payment_status = models.CharField(
+        max_length=20,
+        choices=[
+            ("pending", _("قيد الانتظار - Pending")),
+            ("paid", _("مدفوع - Paid")),
+            ("failed", _("فشل - Failed")),
+            ("refunded", _("مسترد - Refunded")),
+        ],
+        default="pending",
+        verbose_name=_("حالة الدفع - Payment Status"),
+    )
+    payment_transaction_id = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name=_("رقم المعاملة - Transaction ID"),
+    )
+    payment_method = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name=_("طريقة الدفع - Payment Method"),
+    )
+    paid_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_("تاريخ الدفع - Paid At"),
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -1,0 +1,386 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n %}
+
+{% block title %}
+{% trans "طلبات التوثيق - لوحة تحكم المدير" %}
+{% endblock title %}
+
+{% block admin_extra_css %}
+<style>
+  .verification-stat-card {
+    background: var(--bs-body-bg);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border-left: 4px solid;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .verification-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  }
+
+  .verification-stat-card.pending {
+    border-left-color: #f6c23e;
+  }
+
+  .verification-stat-card.approved {
+    border-left-color: #1cc88a;
+  }
+
+  .verification-stat-card.rejected {
+    border-left-color: #e74a3b;
+  }
+
+  .verification-stat-card.payment-pending {
+    border-left-color: #36b9cc;
+  }
+
+  .verification-stat-card .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+
+  .verification-stat-card .stat-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+  }
+
+  .verification-content-card {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  }
+
+  .verification-content-card .card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.25rem 1.5rem;
+    border: none;
+  }
+
+  .verification-content-card .card-header h5 {
+    margin: 0;
+    font-weight: 600;
+    color: white;
+  }
+
+  .filter-section {
+    background: #f8f9fa;
+    padding: 1.25rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+  }
+
+  [data-theme='dark'] .filter-section {
+    background: #1e1e2e;
+  }
+
+  .status-badge {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 20px;
+    font-weight: 500;
+  }
+
+  .status-badge.pending {
+    background: #fff3cd;
+    color: #856404;
+  }
+
+  .status-badge.verified {
+    background: #d4edda;
+    color: #155724;
+  }
+
+  .status-badge.rejected {
+    background: #f8d7da;
+    color: #721c24;
+  }
+
+  [data-theme='dark'] .status-badge.pending {
+    background: rgba(246, 194, 62, 0.2);
+    color: #f6c23e;
+  }
+
+  [data-theme='dark'] .status-badge.verified {
+    background: rgba(28, 200, 138, 0.2);
+    color: #1cc88a;
+  }
+
+  [data-theme='dark'] .status-badge.rejected {
+    background: rgba(231, 74, 59, 0.2);
+    color: #e74a3b;
+  }
+
+  .verification-table {
+    width: 100%;
+  }
+
+  .verification-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    padding: 1rem;
+    border-bottom: 2px solid #dee2e6;
+  }
+
+  [data-theme='dark'] .verification-table th {
+    background: #2a2a3e;
+    border-bottom-color: #3a3a4e;
+  }
+
+  .verification-table td {
+    padding: 1rem;
+    vertical-align: middle;
+  }
+
+  .verification-table tr:hover {
+    background: #f8f9fa;
+  }
+
+  [data-theme='dark'] .verification-table tr:hover {
+    background: #2a2a3e;
+  }
+
+  .action-btn {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.875rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  .user-avatar-placeholder {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+  }
+
+  .user-details h6 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .user-details small {
+    color: #6c757d;
+    font-size: 0.8rem;
+  }
+</style>
+{% endblock admin_extra_css %}
+
+{% block admin_content %}
+<div class="container-fluid">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-0 text-gray-800">
+        <i class="fas fa-shield-alt me-2"></i>{% trans "طلبات التوثيق" %}
+      </h1>
+      <p class="text-muted mb-0">{% trans "إدارة ومراجعة طلبات توثيق المستخدمين" %}</p>
+    </div>
+  </div>
+
+  <!-- Statistics Cards -->
+  <div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-3">
+      <div class="verification-stat-card pending">
+        <div class="stat-value text-warning">{{ stats.pending }}</div>
+        <div class="stat-label">{% trans "قيد المراجعة" %}</div>
+      </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-3">
+      <div class="verification-stat-card approved">
+        <div class="stat-value text-success">{{ stats.approved }}</div>
+        <div class="stat-label">{% trans "تم الموافقة" %}</div>
+      </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-3">
+      <div class="verification-stat-card rejected">
+        <div class="stat-value text-danger">{{ stats.rejected }}</div>
+        <div class="stat-label">{% trans "تم الرفض" %}</div>
+      </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-3">
+      <div class="verification-stat-card payment-pending">
+        <div class="stat-value text-info">{{ stats.payment_pending }}</div>
+        <div class="stat-label">{% trans "بانتظار الدفع" %}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Verification Requests Table -->
+  <div class="verification-content-card">
+    <div class="card-header">
+      <h5><i class="fas fa-list me-2"></i>{% trans "جميع طلبات التوثيق" %}</h5>
+    </div>
+    <div class="card-body p-0">
+      <!-- Filter Section -->
+      <div class="filter-section m-3">
+        <form method="get" class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label">{% trans "حالة الطلب" %}</label>
+            <select name="status" class="form-select">
+              <option value="">{% trans "الكل" %}</option>
+              <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>{% trans "قيد المراجعة" %}</option>
+              <option value="verified" {% if status_filter == 'verified' %}selected{% endif %}>{% trans "موافق عليه" %}</option>
+              <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>{% trans "مرفوض" %}</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">{% trans "حالة الدفع" %}</label>
+            <select name="payment_status" class="form-select">
+              <option value="">{% trans "الكل" %}</option>
+              <option value="pending" {% if payment_status_filter == 'pending' %}selected{% endif %}>{% trans "قيد الانتظار" %}</option>
+              <option value="paid" {% if payment_status_filter == 'paid' %}selected{% endif %}>{% trans "مدفوع" %}</option>
+              <option value="failed" {% if payment_status_filter == 'failed' %}selected{% endif %}>{% trans "فشل" %}</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">{% trans "البحث" %}</label>
+            <input type="text" name="search" class="form-control" placeholder="{% trans 'اسم المستخدم أو البريد الإلكتروني' %}" value="{{ search }}">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">&nbsp;</label>
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="fas fa-search me-2"></i>{% trans "بحث" %}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Table -->
+      <div class="table-responsive">
+        <table class="verification-table">
+          <thead>
+            <tr>
+              <th>{% trans "المستخدم" %}</th>
+              <th>{% trans "نوع الوثيقة" %}</th>
+              <th>{% trans "حالة الطلب" %}</th>
+              <th>{% trans "حالة الدفع" %}</th>
+              <th>{% trans "المبلغ" %}</th>
+              <th>{% trans "تاريخ الطلب" %}</th>
+              <th>{% trans "الإجراءات" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for request in verification_requests %}
+            <tr>
+              <td>
+                <div class="user-info">
+                  {% if request.user.profile_image %}
+                    <img src="{{ request.user.profile_image.url }}" alt="{{ request.user.username }}" class="user-avatar">
+                  {% else %}
+                    <div class="user-avatar-placeholder">
+                      {{ request.user.username|first|upper }}
+                    </div>
+                  {% endif %}
+                  <div class="user-details">
+                    <h6>{{ request.user.get_full_name|default:request.user.username }}</h6>
+                    <small>{{ request.user.email }}</small>
+                  </div>
+                </div>
+              </td>
+              <td>{{ request.get_document_type_display }}</td>
+              <td>
+                {% if request.status == 'pending' %}
+                  <span class="status-badge pending">{% trans "قيد المراجعة" %}</span>
+                {% elif request.status == 'verified' %}
+                  <span class="status-badge verified">{% trans "موافق عليه" %}</span>
+                {% elif request.status == 'rejected' %}
+                  <span class="status-badge rejected">{% trans "مرفوض" %}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if request.payment_required %}
+                  {% if request.payment_status == 'pending' %}
+                    <span class="badge bg-warning">{% trans "قيد الانتظار" %}</span>
+                  {% elif request.payment_status == 'paid' %}
+                    <span class="badge bg-success">{% trans "مدفوع" %}</span>
+                  {% elif request.payment_status == 'failed' %}
+                    <span class="badge bg-danger">{% trans "فشل" %}</span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if request.payment_required %}
+                  {{ request.payment_amount }} {% trans "جنيه" %}
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+              <td>{{ request.created_at|date:"Y/m/d H:i" }}</td>
+              <td>
+                <a href="{% url 'main:admin_verification_detail' request.id %}" class="action-btn btn btn-sm btn-primary">
+                  <i class="fas fa-eye me-1"></i>{% trans "عرض" %}
+                </a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="7" class="text-center text-muted py-5">
+                <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                {% trans "لا توجد طلبات توثيق" %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      {% if verification_requests.has_other_pages %}
+      <div class="p-3">
+        <nav>
+          <ul class="pagination justify-content-center mb-0">
+            {% if verification_requests.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ verification_requests.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if payment_status_filter %}&payment_status={{ payment_status_filter }}{% endif %}{% if search %}&search={{ search }}{% endif %}">{% trans "السابق" %}</a>
+            </li>
+            {% endif %}
+
+            {% for num in verification_requests.paginator.page_range %}
+              {% if verification_requests.number == num %}
+              <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+              {% elif num > verification_requests.number|add:'-3' and num < verification_requests.number|add:'3' %}
+              <li class="page-item"><a class="page-link" href="?page={{ num }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if payment_status_filter %}&payment_status={{ payment_status_filter }}{% endif %}{% if search %}&search={{ search }}{% endif %}">{{ num }}</a></li>
+              {% endif %}
+            {% endfor %}
+
+            {% if verification_requests.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ verification_requests.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if payment_status_filter %}&payment_status={{ payment_status_filter }}{% endif %}{% if search %}&search={{ search }}{% endif %}">{% trans "التالي" %}</a>
+            </li>
+            {% endif %}
+          </ul>
+        </nav>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock admin_content %}
