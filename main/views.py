@@ -374,14 +374,19 @@ class CategoriesView(FilterView):
         if category_slug:
             try:
                 from .models import CategoryCustomField
-                selected_category = Category.objects.get(slug=category_slug, is_active=True)
+
+                selected_category = Category.objects.get(
+                    slug=category_slug, is_active=True
+                )
                 # Get all custom fields that should be shown in filters for this category and its ancestors
-                categories_to_check = [selected_category] + list(selected_category.get_ancestors())
+                categories_to_check = [selected_category] + list(
+                    selected_category.get_ancestors()
+                )
                 custom_fields_for_filters = (
                     CategoryCustomField.objects.filter(
                         category__in=categories_to_check,
                         is_active=True,
-                        show_in_filters=True
+                        show_in_filters=True,
                     )
                     .select_related("custom_field")
                     .prefetch_related("custom_field__field_options")
@@ -662,8 +667,15 @@ def set_country(request):
 
         # Optional: Store in user model if authenticated
         if request.user.is_authenticated:
-            request.user.country = country_code
-            request.user.save(update_fields=["country"])
+            try:
+                request.user.country = country_code
+                request.user.save(update_fields=["country"])
+            except Exception as e:
+                # Log but don't fail the request
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to update user country: {e}")
 
         return JsonResponse(
             {
@@ -674,7 +686,11 @@ def set_country(request):
             }
         )
 
-    except Exception:
+    except Exception as e:
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in set_country: {e}", exc_info=True)
         return JsonResponse(
             {"success": False, "message": _("حدث خطأ في تغيير البلد")}, status=500
         )
@@ -779,6 +795,20 @@ class CategoryDetailView(FilterView):
             "verified_only": bool(self.request.GET.get("verified_only")),
         }
 
+        # Get custom fields for filters from this category and descendants
+        from main.models import CategoryCustomField
+
+        descendants = self.category.get_descendants(include_self=True)
+        custom_fields_for_filters = (
+            CategoryCustomField.objects.filter(
+                category__in=descendants, is_active=True, show_in_filters=True
+            )
+            .select_related("custom_field")
+            .prefetch_related("custom_field__field_options")
+            .order_by("order")
+            .distinct()
+        )
+
         context.update(
             {
                 "category": self.category,
@@ -788,6 +818,7 @@ class CategoryDetailView(FilterView):
                 "current_filters": current_filters,
                 "has_filters": any(v for v in current_filters.values() if v),
                 "selected_country": selected_country,
+                "custom_fields_for_filters": custom_fields_for_filters,
                 "page_title": (
                     self.category.name_ar
                     if self.category.name_ar
@@ -811,14 +842,6 @@ class CategoryDetailView(FilterView):
         )
 
         return context
-
-        # تطبيق الفلاتر الإضافية
-        queryset = self.apply_custom_filters(queryset)
-
-        # تطبيق الترتيب
-        queryset = self.apply_sorting(queryset)
-
-        return queryset
 
     def apply_custom_filters(self, queryset):
         """تطبيق فلاتر مخصصة إضافية"""
@@ -862,6 +885,16 @@ class CategoryDetailView(FilterView):
         if self.request.GET.get("verified_only"):
             queryset = queryset.filter(user__verification_status="verified")
 
+        # Custom fields filters
+        for key, value in self.request.GET.items():
+            if key.startswith("custom_") and value:
+                # Extract field name from custom_fieldname
+                field_name = key
+                # Filter by custom field value in JSONField
+                queryset = queryset.filter(
+                    **{f"custom_fields__{field_name}__icontains": value}
+                )
+
         return queryset
 
     def apply_sorting(self, queryset):
@@ -887,69 +920,6 @@ class CategoryDetailView(FilterView):
         )
 
         return queryset
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        # MPTT's get_ancestors is highly efficient for breadcrumbs
-        context["breadcrumbs"] = self.category.get_ancestors(include_self=True)
-        context["category"] = self.category
-
-        # Get direct subcategories for initial display
-        context["subcategories"] = (
-            self.category.get_children()
-            .filter(is_active=True)
-            .order_by("order", "name")[:12]
-        )
-
-        # إضافة قائمة المدن المتاحة للفلترة
-        descendants = self.category.get_descendants(include_self=True)
-        selected_country = get_selected_country_from_request(self.request)
-
-        context["cities"] = (
-            ClassifiedAd.objects.filter(
-                category__in=descendants,
-                status=ClassifiedAd.AdStatus.ACTIVE,
-                country__code=selected_country,
-            )
-            .values_list("city", flat=True)
-            .distinct()
-            .order_by("city")
-        )
-
-        # Pass the query string to the template for pagination
-        context["query_params"] = self.request.GET.urlencode()
-        context["page_title"] = f"{self.category.name} - {_('إدريسي مارت')}"
-
-        # Add category stats
-        context["ads_count"] = ClassifiedAd.objects.filter(
-            category__in=descendants,
-            status=ClassifiedAd.AdStatus.ACTIVE,
-            country__code=selected_country,
-        ).count()
-        context["subcategories_count"] = context["subcategories"].count()
-
-        # إضافة قائمة الأقسام الرئيسية للفلترة
-        context["categories"] = Category.objects.filter(
-            parent=None, is_active=True
-        ).order_by("name")
-
-        return context
-
-    def dispatch(self, request, *args, **kwargs):
-        """
-        Get the category object from the slug and make it available to other methods.
-        """
-        slug = self.kwargs.get("slug")
-        # Try to find category by both slug and slug_ar
-        try:
-            self.category = Category.objects.get(
-                models.Q(slug=slug) | models.Q(slug_ar=slug), is_active=True
-            )
-        except Category.DoesNotExist:
-            raise Http404("Category not found")
-
-        return super().dispatch(request, *args, **kwargs)
 
 
 class SubcategoryDetailView(FilterView):
@@ -1257,15 +1227,18 @@ def faq_increment_views(request, faq_id):
 
         logger.info(f"FAQ {faq_id} views updated to: {faq.views_count}")
 
-        return JsonResponse({
-            "success": True,
-            "views_count": faq.views_count,
-            "message": "Views incremented successfully"
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "views_count": faq.views_count,
+                "message": "Views incremented successfully",
+            }
+        )
     except FAQ.DoesNotExist:
         return JsonResponse({"success": False, "error": "FAQ not found"}, status=404)
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Error incrementing FAQ views: {str(e)}")
         return JsonResponse({"success": False, "error": str(e)}, status=500)
@@ -1469,11 +1442,16 @@ class AdDetailView(DetailView):
         if ad.custom_fields:
             from main.models import CategoryCustomField
 
-            # Get custom fields for this category
+            # Get custom fields for this category and its ancestors (to support subcategories)
+            categories_to_check = [ad.category] + list(ad.category.get_ancestors())
+
             category_fields = (
-                CategoryCustomField.objects.filter(category=ad.category, is_active=True)
+                CategoryCustomField.objects.filter(
+                    category__in=categories_to_check, is_active=True
+                )
                 .select_related("custom_field")
                 .order_by("order")
+                .distinct()
             )
 
             for cf in category_fields:
@@ -1485,9 +1463,10 @@ class AdDetailView(DetailView):
                 if value is not None and value != "":
                     custom_fields_with_labels.append(
                         {
-                            "label": field.label_ar or field.name,
+                            "label": field.label_ar or field.label,
                             "value": value,
                             "type": field.field_type,
+                            "name": field.name,
                         }
                     )
         context["custom_fields"] = custom_fields_with_labels
@@ -1546,6 +1525,7 @@ class AdCreateView(LoginRequiredMixin, CreateView):
 
         site_config = SiteConfiguration.get_solo()
         context["mobile_verification_enabled"] = site_config.require_phone_verification
+        context["allow_offline_payment"] = site_config.allow_offline_payment
 
         # Add countries list
         from content.models import Country
@@ -1612,6 +1592,38 @@ class AdCreateView(LoginRequiredMixin, CreateView):
             image_formset.instance = self.object
             image_formset.save()
 
+            # Handle offline payment receipt if provided
+            offline_payment_receipt = self.request.FILES.get("offline_payment_receipt")
+            if offline_payment_receipt:
+                from main.models import Payment
+
+                # Calculate total cost (base fee + features)
+                # This should match the frontend calculation
+                total_cost = 0
+                # You can add logic here to calculate from selected features
+                # For now, we'll create a pending payment record
+
+                # Create payment record with offline receipt
+                Payment.objects.create(
+                    payment_method="offline",
+                    description=f"Ad payment for: {self.object.title}",
+                    offline_payment_receipt=offline_payment_receipt,
+                    metadata={
+                        "ad_id": self.object.id,
+                        "ad_title": self.object.title,
+                        "payment_type": "ad_creation",
+                    },
+                )
+
+                # Link payment to ad (if there's such a field in ClassifiedAd model)
+                # self.object.payment = payment
+                # self.object.save()
+
+                messages.info(
+                    self.request,
+                    _("تم استلام إثبات الدفع. سيتم مراجعته من قبل الإدارة."),
+                )
+
             # Show appropriate success message based on ad status
             if self.object.status == ClassifiedAd.AdStatus.ACTIVE:
                 messages.success(self.request, _("تم نشر إعلانك بنجاح!"))
@@ -1668,6 +1680,7 @@ class AdUpdateView(LoginRequiredMixin, UpdateView):
 
         site_config = SiteConfiguration.get_solo()
         context["mobile_verification_enabled"] = site_config.require_phone_verification
+        context["allow_offline_payment"] = site_config.allow_offline_payment
 
         # Add countries list
         from content.models import Country
@@ -1924,38 +1937,36 @@ def get_category_custom_fields_ajax(request, category_id):
     """Get custom fields for a category via AJAX for filter display"""
     from django.template.loader import render_to_string
     from .models import CategoryCustomField
-    
+
     try:
         category = Category.objects.get(id=category_id, is_active=True)
-        
+
         # Get all custom fields that should be shown in filters for this category and its ancestors
         categories_to_check = [category] + list(category.get_ancestors())
         custom_fields = (
             CategoryCustomField.objects.filter(
-                category__in=categories_to_check,
-                is_active=True,
-                show_in_filters=True
+                category__in=categories_to_check, is_active=True, show_in_filters=True
             )
             .select_related("custom_field")
             .prefetch_related("custom_field__field_options")
             .order_by("order")
             .distinct()
         )
-        
+
         if not custom_fields.exists():
             return JsonResponse({"success": True, "html": "", "has_fields": False})
-        
+
         # Render custom fields HTML
         html = render_to_string(
             "partials/_custom_fields_filters.html",
             {
                 "custom_fields_for_filters": custom_fields,
                 "LANGUAGE_CODE": request.LANGUAGE_CODE,
-            }
+            },
         )
-        
+
         return JsonResponse({"success": True, "html": html, "has_fields": True})
-        
+
     except Category.DoesNotExist:
         return JsonResponse({"error": _("القسم غير موجود")}, status=404)
 
@@ -3541,13 +3552,13 @@ class AdminCustomFieldSaveView(SuperadminRequiredMixin, View):
 
                 # Update success message based on operation
                 if not field_id and added_count > 1:
-                    message = _(
-                        "تم إنشاء الحقل وإضافته إلى %(count)d أقسام بنجاح."
-                    ) % {"count": added_count}
+                    message = _("تم إنشاء الحقل وإضافته إلى %(count)d أقسام بنجاح.") % {
+                        "count": added_count
+                    }
                 elif field_id and added_count > 0:
-                    message = _(
-                        "تم تحديث الحقل وإضافته إلى %(count)d أقسام جديدة."
-                    ) % {"count": added_count}
+                    message = _("تم تحديث الحقل وإضافته إلى %(count)d أقسام جديدة.") % {
+                        "count": added_count
+                    }
 
             # Handle options for select/radio/checkbox fields
             options_str = data.get("options", "")
@@ -7259,7 +7270,9 @@ def visitor_analytics_data(request):
         total_duration = 0
         count = 0
         for visitor in visitors:
-            duration = (visitor.last_activity - visitor.first_visit).total_seconds() / 60
+            duration = (
+                visitor.last_activity - visitor.first_visit
+            ).total_seconds() / 60
             if duration > 0:  # Only count positive durations
                 total_duration += duration
                 count += 1
@@ -7430,16 +7443,17 @@ def publisher_update_profile(request):
         user.bio = request.POST.get("bio", "").strip()
         user.bio_ar = request.POST.get("bio_ar", "").strip()
         user.city = request.POST.get("city", "").strip()
-        
+
         # Handle country (ForeignKey)
         country_code = request.POST.get("country", "").strip()
         if country_code:
             from content.models import Country
+
             try:
                 user.country = Country.objects.get(code=country_code)
             except Country.DoesNotExist:
                 pass
-        
+
         user.address = request.POST.get("address", "").strip()
 
         # Update company info if provided

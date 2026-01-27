@@ -1136,7 +1136,7 @@
                                                 <i class="fas fa-cog me-1"></i>
                                                 {{ field.label_ar|default:field.name }}
                                             </label>
-                                            
+
                                             {% if field.field_type == 'select' %}
                                                 <select class="filter-select custom-field-select" data-field-name="{{ field.name }}">
                                                     <option value="">{% trans "الكل" %}</option>
@@ -1153,8 +1153,8 @@
                                                     {% for option in field.field_options.all %}
                                                         {% if option.is_active %}
                                                             <label class="filter-checkbox">
-                                                                <input type="{% if field.field_type == 'radio' %}radio{% else %}checkbox{% endif %}" 
-                                                                       name="custom_{{ field.name }}" 
+                                                                <input type="{% if field.field_type == 'radio' %}radio{% else %}checkbox{% endif %}"
+                                                                       name="custom_{{ field.name }}"
                                                                        value="{{ option.value }}"
                                                                        class="custom-field-checkbox">
                                                                 <span>{{ option.label_ar|default:option.value }}</span>
@@ -1163,8 +1163,8 @@
                                                     {% endfor %}
                                                 </div>
                                             {% elif field.field_type == 'text' or field.field_type == 'number' %}
-                                                <input type="{{ field.field_type }}" 
-                                                       class="filter-input custom-field-input" 
+                                                <input type="{{ field.field_type }}"
+                                                       class="filter-input custom-field-input"
                                                        data-field-name="{{ field.name }}"
                                                        placeholder="{{ field.placeholder|default:field.label_ar }}">
                                             {% endif %}
@@ -1210,7 +1210,12 @@
                                 <div class="col-xxl-4 col-xl-4 col-lg-4 col-md-6 col-sm-6 col-12"
                                      data-aos="fade-up"
                                      data-category-id="{{ ad.category.id }}"
-                                     data-category-name="{% if LANGUAGE_CODE == 'ar' and ad.category.name_ar %}{{ ad.category.name_ar }}{% else %}{{ ad.category.name }}{% endif %}">
+                                     data-category-name="{% if LANGUAGE_CODE == 'ar' and ad.category.name_ar %}{{ ad.category.name_ar }}{% else %}{{ ad.category.name }}{% endif %}"
+                                     {% if ad.custom_fields %}
+                                         {% for field_name, field_value in ad.custom_fields.items %}
+                                             data-{{ field_name|lower }}="{{ field_value }}"
+                                         {% endfor %}
+                                     {% endif %}>
                                     {% include "partials/_ad_card_component.html" with ad=ad %}
                                 </div>
                             {% endfor %}
@@ -1601,14 +1606,14 @@
         // Initialize on DOM ready
         document.addEventListener('DOMContentLoaded', () => {
             window.categoriesManager = new CategoriesManager();
-            
+
             // Update counts for pre-filtered results (when coming from header category links)
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.has('category')) {
                 const visibleCards = document.querySelectorAll('.ad-card:not([style*="display: none"])');
                 const resultsCountEl = document.getElementById('resultsCount');
                 const visibleAdsEl = document.getElementById('visibleAds');
-                
+
                 if (resultsCountEl) {
                     resultsCountEl.textContent = visibleCards.length;
                 }
@@ -1656,7 +1661,7 @@
                 .then(data => {
                     if (data.success && data.html) {
                         customFieldsContainer.innerHTML = data.html;
-                        
+
                         // Attach event listeners to new custom field inputs
                         attachCustomFieldListeners();
                     } else {

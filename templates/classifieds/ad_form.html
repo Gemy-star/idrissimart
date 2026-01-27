@@ -1032,55 +1032,6 @@
                                     <input type="hidden" name="{{ form.category.name }}" id="{{ form.category.id_for_label }}" value="{{ form.category.value|default:'' }}">
                                     {% endif %}
 
-                                    <!-- Ad Creation Pricing Display -->
-                                    <div class="alert alert-info" id="adPricingInfo" style="display: none;">
-                                        <h5 class="alert-heading">
-                                            <i class="fas fa-info-circle me-2"></i>
-                                            {% trans "معلومات التسعير" %}
-                                        </h5>
-                                        <div class="pricing-breakdown">
-                                            <!-- Free ads available -->
-                                            <div id="freeAdsInfo" style="display: none;">
-                                                <p class="mb-2">
-                                                    <i class="fas fa-gift text-success me-2"></i>
-                                                    <strong>{% trans "لديك" %} <span id="freeAdsCount">0</span> {% trans "إعلان مجاني متاح" %}</strong>
-                                                </p>
-                                                <p class="mb-0 text-success">
-                                                    <i class="fas fa-check-circle me-2"></i>
-                                                    {% trans "سيتم نشر هذا الإعلان مجاناً من باقتك" %}
-                                                </p>
-                                            </div>
-                                            
-                                            <!-- Paid ad info -->
-                                            <div id="paidAdInfo" style="display: none;">
-                                                <p class="mb-2">
-                                                    <i class="fas fa-dollar-sign text-warning me-2"></i>
-                                                    <strong>{% trans "تكلفة نشر الإعلان في هذا القسم:" %}</strong>
-                                                </p>
-                                                <h4 class="mb-2">
-                                                    <span id="adCreationPrice">0</span>
-                                                    {% get_country_currency as currency %}
-                                                    {{ currency|currency_symbol }}
-                                                </h4>
-                                                <p class="mb-0 text-muted small">
-                                                    <i class="fas fa-info-circle me-1"></i>
-                                                    {% trans "يمكنك شراء باقة للحصول على إعلانات مجانية" %}
-                                                    <a href="{% url 'main:packages_list' %}" target="_blank" class="alert-link">
-                                                        {% trans "عرض الباقات" %}
-                                                    </a>
-                                                </p>
-                                            </div>
-
-                                            <!-- No pricing info -->
-                                            <div id="noPricingInfo">
-                                                <p class="mb-0">
-                                                    <i class="fas fa-tag me-2"></i>
-                                                    {% trans "اختر القسم لمعرفة تكلفة النشر" %}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-
                                     <hr class="my-4">
 
                                     <!-- Basic Details (same step) -->
@@ -1731,6 +1682,52 @@
                                         <strong>{% trans "مهم:" %}</strong>
                                         {% trans "بالضغط على 'نشر الإعلان'، سيتم حفظ إعلانك وإذا كان هناك رسوم سيتم توجيهك لصفحة الدفع." %}
                                     </div>
+
+                                    <!-- Offline Payment Receipt Upload Section -->
+                                    {% if allow_offline_payment %}
+                                    <div class="card mb-4" id="offline-payment-section" style="display: none;">
+                                        <div class="card-header bg-info text-white">
+                                            <h5 class="mb-0">
+                                                <i class="fas fa-file-upload me-2"></i>
+                                                {% trans "إثبات الدفع (مطلوب)" %}
+                                            </h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="alert alert-info">
+                                                <i class="fas fa-info-circle me-2"></i>
+                                                {% trans "الدفع اليدوي متاح. يرجى رفع صورة إيصال التحويل البنكي أو لقطة شاشة للدفع قبل نشر الإعلان." %}
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="offline_payment_receipt" class="form-label">
+                                                    <i class="fas fa-receipt me-2"></i>
+                                                    {% trans "صورة الإيصال أو إثبات الدفع" %} <span class="text-danger">*</span>
+                                                </label>
+                                                <input type="file" class="form-control" id="offline_payment_receipt"
+                                                       name="offline_payment_receipt" accept="image/*" required>
+                                                <div class="form-text">
+                                                    <i class="fas fa-info-circle me-1"></i>
+                                                    {% trans "الصيغ المقبولة: JPG, PNG, PDF. الحجم الأقصى: 5 ميجا" %}
+                                                </div>
+                                                <div class="invalid-feedback" id="receipt-error">
+                                                    {% trans "يرجى رفع صورة إثبات الدفع" %}
+                                                </div>
+                                            </div>
+
+                                            <!-- Receipt Preview -->
+                                            <div id="receipt-preview" style="display: none;">
+                                                <label class="form-label">{% trans "معاينة الإيصال:" %}</label>
+                                                <div class="position-relative d-inline-block">
+                                                    <img id="receipt-preview-img" src="" alt="Receipt Preview"
+                                                         class="img-thumbnail" style="max-width: 300px; max-height: 300px;">
+                                                    <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2"
+                                                            id="remove-receipt-btn">
+                                                        <i class="fas fa-times"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
                                 </div>
 
                                 <!-- Navigation Buttons -->
@@ -2174,7 +2171,7 @@
 
                 if (selectedCategoryId && hasSubcats && subcategoriesData[selectedCategoryId]) {
                     console.log('Loading', subcategoriesData[selectedCategoryId].length, 'subcategories');
-                    
+
                     // Show subcategory container with animation
                     subcategoryContainer.style.display = 'block';
 
@@ -2191,12 +2188,12 @@
                     // Don't set hidden input yet - wait for subcategory selection
                     hiddenCategoryInput.value = '';
                     subcategorySelect.required = true;
-                    
+
                     // Show toast notification
                     showToast('{% trans "يرجى اختيار القسم الفرعي" %}', 'info');
                 } else {
                     console.log('No subcategories, using main category');
-                    
+
                     // No subcategories, hide container and use main category
                     subcategoryContainer.style.display = 'none';
                     hiddenCategoryInput.value = selectedCategoryId;
@@ -2210,11 +2207,17 @@
                     }
                 }
 
+                // Check for category change
+                checkCategoryChange();
+
                 // Note: Price alerts removed as per user request
             });
 
             // Handle subcategory change (Level 2)
             subcategorySelect.addEventListener('change', function() {
+                // Remove invalid class
+                this.classList.remove('is-invalid');
+
                 const selectedSubcatId = this.value;
                 const mainCategoryId = mainCategorySelect.value;
 
@@ -2241,7 +2244,7 @@
                         // Don't set hidden input yet - wait for sub-subcategory selection
                         hiddenCategoryInput.value = '';
                         subSubcategorySelect.required = true;
-                        
+
                         // Show toast notification
                         showToast('{% trans "يرجى اختيار القسم الفرعي الثاني" %}', 'info');
                     } else {
@@ -2264,6 +2267,9 @@
 
             // Handle sub-subcategory change (Level 3)
             subSubcategorySelect.addEventListener('change', function() {
+                // Remove invalid class
+                this.classList.remove('is-invalid');
+
                 const selectedSubSubcatId = this.value;
 
                 if (selectedSubSubcatId) {
@@ -2352,8 +2358,7 @@
                 }
             };
 
-            // Listen for category selection changes
-            mainCategorySelect.addEventListener('change', checkCategoryChange);
+            // Listen for category selection changes (removed mainCategorySelect as it has its own handler above)
             subcategorySelect.addEventListener('change', checkCategoryChange);
             subSubcategorySelect.addEventListener('change', checkCategoryChange);
 
@@ -2534,6 +2539,14 @@
             const freeAdsCountDisplay = document.getElementById('free-ads-count');
             const totalCostDisplay = document.getElementById('total-cost-display');
 
+            // Offline payment elements
+            const offlinePaymentSection = document.getElementById('offline-payment-section');
+            const offlinePaymentReceipt = document.getElementById('offline_payment_receipt');
+            const receiptPreview = document.getElementById('receipt-preview');
+            const receiptPreviewImg = document.getElementById('receipt-preview-img');
+            const removeReceiptBtn = document.getElementById('remove-receipt-btn');
+            const allowOfflinePayment = {% if allow_offline_payment %}true{% else %}false{% endif %};
+
             // Get pricing from context (package or site defaults)
             const baseFee = parseFloat('{{ ad_base_fee|default:"0" }}');
             const featuredPrice = parseFloat('{{ feature_prices.highlighted|floatformat:False|default:"50" }}');
@@ -2542,6 +2555,8 @@
 
             // Get user's free ads count
             const freeAdsCount = parseInt('{{ request.session.ads_remaining|default:"0" }}') || 0;
+
+            let currentTotalCost = 0;
 
             function calculateTotalCost() {
                 let featuresCost = 0;
@@ -2561,31 +2576,67 @@
                 let adBaseFee = baseFee;
                 if (freeAdsCount > 0) {
                     adBaseFee = 0; // Free if user has remaining free ads
-                    freeAdsDiscountRow.style.display = 'flex';
-                    freeAdsCountDisplay.textContent = freeAdsCount;
+                    if (freeAdsDiscountRow) {
+                        freeAdsDiscountRow.style.display = 'flex';
+                    }
+                    if (freeAdsCountDisplay) {
+                        freeAdsCountDisplay.textContent = freeAdsCount;
+                    }
                 } else {
-                    freeAdsDiscountRow.style.display = 'none';
+                    if (freeAdsDiscountRow) {
+                        freeAdsDiscountRow.style.display = 'none';
+                    }
                 }
 
                 const totalCost = adBaseFee + featuresCost;
+                currentTotalCost = totalCost; // Store for later use
 
                 // Update display
-                baseFeeDisplay.textContent = `${adBaseFee.toFixed(2)} ج.م`;
-                featuresCostDisplay.textContent = `${featuresCost.toFixed(2)} ج.م`;
-                totalCostDisplay.textContent = `${totalCost.toFixed(2)} ج.م`;
+                if (baseFeeDisplay) {
+                    baseFeeDisplay.textContent = `${adBaseFee.toFixed(2)} ج.م`;
+                }
+                if (featuresCostDisplay) {
+                    featuresCostDisplay.textContent = `${featuresCost.toFixed(2)} ج.م`;
+                }
+                if (totalCostDisplay) {
+                    totalCostDisplay.textContent = `${totalCost.toFixed(2)} ج.م`;
+                }
 
                 // Show/hide features cost row
-                if (featuresCost > 0) {
-                    featuresCostRow.style.display = 'flex';
-                } else {
-                    featuresCostRow.style.display = 'none';
+                if (featuresCostRow) {
+                    if (featuresCost > 0) {
+                        featuresCostRow.style.display = 'flex';
+                    } else {
+                        featuresCostRow.style.display = 'none';
+                    }
                 }
 
                 // Show price summary if there's any cost or features selected
-                if (totalCost > 0 || selectedFeatures.length > 0) {
-                    priceSummaryCard.style.display = 'block';
-                } else {
-                    priceSummaryCard.style.display = 'none';
+                if (priceSummaryCard) {
+                    if (totalCost > 0 || selectedFeatures.length > 0) {
+                        priceSummaryCard.style.display = 'block';
+                    } else {
+                        priceSummaryCard.style.display = 'none';
+                    }
+                }
+
+                // Show/hide offline payment section based on cost and setting
+                if (allowOfflinePayment && offlinePaymentSection) {
+                    if (totalCost > 0) {
+                        offlinePaymentSection.style.display = 'block';
+                        if (offlinePaymentReceipt) {
+                            offlinePaymentReceipt.required = true;
+                        }
+                    } else {
+                        offlinePaymentSection.style.display = 'none';
+                        if (offlinePaymentReceipt) {
+                            offlinePaymentReceipt.required = false;
+                            offlinePaymentReceipt.value = '';
+                        }
+                        if (receiptPreview) {
+                            receiptPreview.style.display = 'none';
+                        }
+                    }
                 }
 
                 return totalCost;
@@ -2625,6 +2676,39 @@
 
             // Initial calculation
             calculateTotalCost();
+
+            // ========== Offline Payment Receipt Preview ==========
+            if (offlinePaymentReceipt) {
+                offlinePaymentReceipt.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (file && file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = function(event) {
+                            if (receiptPreviewImg) {
+                                receiptPreviewImg.src = event.target.result;
+                            }
+                            if (receiptPreview) {
+                                receiptPreview.style.display = 'block';
+                            }
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
+
+            if (removeReceiptBtn) {
+                removeReceiptBtn.addEventListener('click', function() {
+                    if (offlinePaymentReceipt) {
+                        offlinePaymentReceipt.value = '';
+                    }
+                    if (receiptPreview) {
+                        receiptPreview.style.display = 'none';
+                    }
+                    if (receiptPreviewImg) {
+                        receiptPreviewImg.src = '';
+                    }
+                });
+            }
 
             // ========== Image Preview Logic ==========
             const imageInputs = document.querySelectorAll('input[type="file"][accept*="image"]');
@@ -2669,6 +2753,32 @@
                         showToast('{% trans "يجب التحقق من رقم الجوال قبل نشر الإعلان" %}', 'warning');
                         currentStep = 4;
                         showStep(currentStep);
+                        return false;
+                    }
+                }
+
+                // Check if offline payment receipt is required
+                if (allowOfflinePayment && currentTotalCost > 0) {
+                    if (!offlinePaymentReceipt || !offlinePaymentReceipt.files || offlinePaymentReceipt.files.length === 0) {
+                        e.preventDefault();
+                        console.log('Preventing submit - offline payment receipt required');
+                        showToast('{% trans "يرجى رفع صورة إثبات الدفع قبل نشر الإعلان" %}', 'warning');
+                        currentStep = 4;
+                        showStep(currentStep);
+
+                        // Highlight the receipt field
+                        if (offlinePaymentReceipt) {
+                            offlinePaymentReceipt.classList.add('is-invalid');
+                            setTimeout(() => {
+                                offlinePaymentReceipt.classList.remove('is-invalid');
+                            }, 3000);
+                        }
+
+                        // Scroll to offline payment section
+                        if (offlinePaymentSection) {
+                            offlinePaymentSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+
                         return false;
                     }
                 }
@@ -2793,10 +2903,10 @@
                 // Method 1: If header has a select dropdown
                 if (headerCountrySelect) {
                     // Try to match by country code
-                    const matchingOption = Array.from(headerCountrySelect.options).find(opt => 
+                    const matchingOption = Array.from(headerCountrySelect.options).find(opt =>
                         opt.value == countryCode || opt.dataset.country == countryCode
                     );
-                    
+
                     if (matchingOption) {
                         headerCountrySelect.value = matchingOption.value;
                         // Trigger change event to update header
@@ -2857,10 +2967,10 @@
                 // Get category name with full breadcrumb
                 const hiddenCategoryInput = document.getElementById('{{ form.category.id_for_label }}');
                 let categoryName = '-';
-                
+
                 if (hiddenCategoryInput && hiddenCategoryInput.value) {
                     const breadcrumbParts = [];
-                    
+
                     // Get main category text if selected
                     if (mainCategorySelect && mainCategorySelect.value) {
                         const mainCatOption = mainCategorySelect.options[mainCategorySelect.selectedIndex];
@@ -2868,7 +2978,7 @@
                             breadcrumbParts.push(mainCatOption.text);
                         }
                     }
-                    
+
                     // Get subcategory text if selected
                     if (subcategorySelect && subcategorySelect.value) {
                         const subCatOption = subcategorySelect.options[subcategorySelect.selectedIndex];
@@ -2876,7 +2986,7 @@
                             breadcrumbParts.push(subCatOption.text);
                         }
                     }
-                    
+
                     // Get sub-subcategory text if selected
                     if (subSubcategorySelect && subSubcategorySelect.value) {
                         const subSubCatOption = subSubcategorySelect.options[subSubcategorySelect.selectedIndex];
@@ -2884,11 +2994,11 @@
                             breadcrumbParts.push(subSubCatOption.text);
                         }
                     }
-                    
+
                     // Build breadcrumb with RTL arrow
                     categoryName = breadcrumbParts.length > 0 ? breadcrumbParts.join(' ← ') : '-';
                 }
-                
+
                 document.getElementById('review-category').textContent = categoryName;
 
                 // Get title
@@ -3000,10 +3110,10 @@
             // ========== CKEditor Initialization Check ==========
             // Ensure CKEditor is properly initialized
             setTimeout(function() {
-                const descriptionField = document.querySelector('[name="description"]');
+                const descriptionField = document.querySelector('textarea[name="description"], input[name="description"]');
                 if (descriptionField) {
                     console.log('CKEditor field found:', descriptionField);
-                    
+
                     // Check if CKEditor initialized
                     const ckEditorElement = document.querySelector('.ck-editor');
                     if (!ckEditorElement) {

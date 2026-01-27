@@ -867,7 +867,7 @@
                                                     <i class="fas fa-cog me-1"></i>
                                                     {{ field.label_ar|default:field.name }}
                                                 </label>
-                                                
+
                                                 {% if field.field_type == 'select' %}
                                                     <select class="filter-select custom-field-select" data-field-name="{{ field.name }}">
                                                         <option value="">{% trans "الكل" %}</option>
@@ -884,8 +884,8 @@
                                                         {% for option in field.field_options.all %}
                                                             {% if option.is_active %}
                                                                 <label class="filter-checkbox">
-                                                                    <input type="{% if field.field_type == 'radio' %}radio{% else %}checkbox{% endif %}" 
-                                                                           name="custom_{{ field.name }}" 
+                                                                    <input type="{% if field.field_type == 'radio' %}radio{% else %}checkbox{% endif %}"
+                                                                           name="custom_{{ field.name }}"
                                                                            value="{{ option.value }}"
                                                                            class="custom-field-checkbox">
                                                                     <span>{{ option.label_ar|default:option.value }}</span>
@@ -894,8 +894,8 @@
                                                         {% endfor %}
                                                     </div>
                                                 {% elif field.field_type == 'text' or field.field_type == 'number' %}
-                                                    <input type="{{ field.field_type }}" 
-                                                           class="filter-input custom-field-input" 
+                                                    <input type="{{ field.field_type }}"
+                                                           class="filter-input custom-field-input"
                                                            data-field-name="{{ field.name }}"
                                                            placeholder="{{ field.placeholder|default:field.label_ar }}">
                                                 {% endif %}
@@ -940,7 +940,12 @@
                                 <div class="col-xxl-4 col-xl-4 col-lg-4 col-md-6 col-sm-6 col-12"
                                      data-aos="fade-up"
                                      data-category-id="{{ ad.category.id }}"
-                                     data-category-name="{% if LANGUAGE_CODE == 'ar' and ad.category.name_ar %}{{ ad.category.name_ar }}{% else %}{{ ad.category.name }}{% endif %}">
+                                     data-category-name="{% if LANGUAGE_CODE == 'ar' and ad.category.name_ar %}{{ ad.category.name_ar }}{% else %}{{ ad.category.name }}{% endif %}"
+                                     {% if ad.custom_fields %}
+                                         {% for field_name, field_value in ad.custom_fields.items %}
+                                             data-{{ field_name|lower }}="{{ field_value }}"
+                                         {% endfor %}
+                                     {% endif %}>
                                     {% include "partials/_ad_card_component.html" with ad=ad %}
                                 </div>
                             {% empty %}
@@ -1131,6 +1136,26 @@
                 const withImages = this.imagesFilter?.checked || false;
                 const sortBy = this.sortFilter?.value || '-created_at';
 
+                // Collect custom field filters
+                const customFieldFilters = {};
+                document.querySelectorAll('.custom-field-select, .custom-field-input').forEach(input => {
+                    const fieldName = input.dataset.fieldName;
+                    if (fieldName && input.value) {
+                        customFieldFilters[fieldName] = input.value.toLowerCase();
+                    }
+                });
+
+                // Collect checkbox custom fields
+                document.querySelectorAll('.custom-field-checkbox:checked').forEach(checkbox => {
+                    const fieldName = checkbox.name.replace('custom_', '');
+                    if (fieldName) {
+                        if (!customFieldFilters[fieldName]) {
+                            customFieldFilters[fieldName] = [];
+                        }
+                        customFieldFilters[fieldName].push(checkbox.value.toLowerCase());
+                    }
+                });
+
                 const adCards = this.adsGrid.querySelectorAll('.col-xxl-4, .col-xl-4, .col-lg-4, .col-md-6');
                 let visibleCount = 0;
                 let visibleAds = [];
@@ -1149,6 +1174,15 @@
                     const categoryBadge = card.querySelector('.ad-category-badge')?.textContent.toLowerCase() || '';
                     const cardCategoryId = card.dataset.categoryId || '';
                     const cardCategoryName = card.dataset.categoryName?.toLowerCase() || '';
+
+                    // Get custom fields data from card (stored in data attributes)
+                    const cardCustomFields = {};
+                    Object.keys(card.dataset).forEach(key => {
+                        if (key.startsWith('custom')) {
+                            const fieldName = key.replace('custom', '').toLowerCase();
+                            cardCustomFields[fieldName] = card.dataset[key].toLowerCase();
+                        }
+                    });
 
                     // Check for badges
                     const isFeatured = card.querySelector('.highlighted-badge') !== null ||
@@ -1189,6 +1223,24 @@
                         } else if (!cardCategoryId && !categoryBadge.includes(category.toLowerCase()) && !cardCategoryName.includes(category.toLowerCase())) {
                             // Fallback to text-based matching
                             visible = false;
+                        }
+                    }
+
+                    // Custom field filters
+                    for (const [fieldName, filterValue] of Object.entries(customFieldFilters)) {
+                        const cardValue = cardCustomFields[fieldName];
+                        if (Array.isArray(filterValue)) {
+                            // Multiple values (checkboxes)
+                            if (!cardValue || !filterValue.some(v => cardValue.includes(v))) {
+                                visible = false;
+                                break;
+                            }
+                        } else {
+                            // Single value
+                            if (!cardValue || !cardValue.includes(filterValue)) {
+                                visible = false;
+                                break;
+                            }
                         }
                     }
 
@@ -1294,6 +1346,37 @@
                     params.delete('sort');
                 }
 
+                // Update custom field params
+                document.querySelectorAll('.custom-field-select, .custom-field-input').forEach(input => {
+                    const fieldName = input.dataset.fieldName;
+                    if (fieldName) {
+                        if (input.value) {
+                            params.set(`custom_${fieldName}`, input.value);
+                        } else {
+                            params.delete(`custom_${fieldName}`);
+                        }
+                    }
+                });
+
+                // Update custom field checkbox params
+                const customCheckboxGroups = {};
+                document.querySelectorAll('.custom-field-checkbox:checked').forEach(checkbox => {
+                    const fieldName = checkbox.name.replace('custom_', '');
+                    if (fieldName) {
+                        if (!customCheckboxGroups[fieldName]) {
+                            customCheckboxGroups[fieldName] = [];
+                        }
+                        customCheckboxGroups[fieldName].push(checkbox.value);
+                    }
+                });
+
+                // Add custom checkbox params
+                Object.entries(customCheckboxGroups).forEach(([fieldName, values]) => {
+                    if (values.length > 0) {
+                        params.set(`custom_${fieldName}`, values.join(','));
+                    }
+                });
+
                 // Update URL without reload
                 const newURL = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
                 window.history.pushState({}, '', newURL);
@@ -1330,14 +1413,14 @@
         // Initialize on DOM ready
         document.addEventListener('DOMContentLoaded', () => {
             window.categoriesManager = new CategoriesManager();
-            
+
             // Update counts for pre-filtered results (when coming from header category links)
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.has('category')) {
                 const visibleCards = document.querySelectorAll('.col-xxl-4:not([style*="display: none"]), .col-xl-4:not([style*="display: none"]), .col-lg-4:not([style*="display: none"]), .col-md-6:not([style*="display: none"])');
                 const resultsCountEl = document.getElementById('resultsCount');
                 const visibleAdsEl = document.getElementById('visibleAds');
-                
+
                 if (resultsCountEl) {
                     resultsCountEl.textContent = visibleCards.length;
                 }
@@ -1345,7 +1428,7 @@
                     visibleAdsEl.textContent = visibleCards.length;
                 }
             }
-            
+
             // Attach listeners to existing custom fields
             attachCustomFieldListeners();
         });
