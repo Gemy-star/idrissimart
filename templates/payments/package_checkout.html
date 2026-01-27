@@ -153,118 +153,138 @@
                     {% trans "طرق الدفع" %}
                 </h3>
 
+                {% if not allowed_payment_methods %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    {% trans "لا توجد طرق دفع متاحة حالياً. يرجى التواصل مع الإدارة." %}
+                </div>
+                {% else %}
+
                 <form method="post" enctype="multipart/form-data" id="paymentForm">
                     {% csrf_token %}
 
-                    <!-- Payment methods filtered for platform payments (Visa, Wallet, InstaPay only) -->
-
-                    <!-- Visa/Card Payment -->
-                    <div class="payment-method-card" data-payment="visa" onclick="selectPaymentMethod('visa')">
-                        <div class="d-flex align-items-center">
-                            <input type="radio" name="payment_method" value="visa" id="visa" style="margin-left: 15px;">
-                            <div class="flex-grow-1">
-                                <h5 class="mb-1">
-                                    <i class="fas fa-credit-card me-2 text-info"></i>
-                                    {% trans "بطاقة فيزا/ماستركارد" %}
-                                </h5>
-                                <p class="text-muted small mb-0">{% trans "الدفع الإلكتروني عبر بطاقة Visa أو Mastercard" %}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Wallet Payment -->
-                    <div class="payment-method-card" data-payment="wallet" onclick="selectPaymentMethod('wallet')">
-                        <div class="d-flex align-items-center">
-                            <input type="radio" name="payment_method" value="wallet" id="wallet" style="margin-left: 15px;">
-                            <div class="flex-grow-1">
-                                <h5 class="mb-1">
-                                    <i class="fas fa-wallet me-2 text-success"></i>
-                                    {% trans "محفظة إلكترونية" %}
-                                </h5>
-                                <p class="text-muted small mb-0">{% trans "الدفع عبر المحفظة الإلكترونية وإرفاق إيصال الدفع" %}</p>
-                            </div>
-                        </div>
-
-                        <div id="walletDetails" style="display: none;" class="mt-3">
-                            {% if offline_payment_instructions %}
-                            <div class="offline-instructions">
-                                <h6 class="mb-3">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    {% trans "تعليمات الدفع" %}
-                                </h6>
-                                {{ offline_payment_instructions|safe }}
+                    <!-- Payment methods filtered dynamically based on allowed_payment_methods -->
+                    {% for method_value, method_label in allowed_payment_methods %}
+                        {% if method_value == "visa" or method_value == "paymob" %}
+                            {% if method_value == "visa" %}
+                            <!-- Visa/Card Payment -->
+                            <div class="payment-method-card" data-payment="visa" onclick="selectPaymentMethod('visa')">
+                                <div class="d-flex align-items-center">
+                                    <input type="radio" name="payment_method" value="visa" id="visa" style="margin-left: 15px;">
+                                    <div class="flex-grow-1">
+                                        <h5 class="mb-1">
+                                            <i class="fas fa-credit-card me-2 text-info"></i>
+                                            {{ method_label }}
+                                        </h5>
+                                        <p class="text-muted small mb-0">{% trans "الدفع الإلكتروني عبر بطاقة Visa أو Mastercard" %}</p>
+                                    </div>
+                                </div>
                             </div>
                             {% endif %}
+                        {% elif method_value == "wallet" %}
+                            <!-- Wallet Payment -->
+                            <div class="payment-method-card" data-payment="wallet" onclick="selectPaymentMethod('wallet')">
+                                <div class="d-flex align-items-center">
+                                    <input type="radio" name="payment_method" value="wallet" id="wallet" style="margin-left: 15px;">
+                                    <div class="flex-grow-1">
+                                        <h5 class="mb-1">
+                                            <i class="fas fa-wallet me-2 text-success"></i>
+                                            {{ method_label }}
+                                        </h5>
+                                        <p class="text-muted small mb-0">{% trans "الدفع عبر المحفظة الإلكترونية وإرفاق إيصال الدفع" %}</p>
+                                    </div>
+                                </div>
 
-                            {% if site_config.qr_code %}
-                            <div class="text-center">
-                                <h6 class="mb-3">{% trans "امسح الكود للدفع" %}</h6>
-                                <img src="{{ site_config.qr_code.url }}" alt="QR Code" class="qr-code-img">
+                                <div id="walletDetails" style="display: none;" class="mt-3">
+                                    {% if offline_payment_instructions %}
+                                    <div class="offline-instructions">
+                                        <h6 class="mb-3">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            {% trans "تعليمات الدفع" %}
+                                        </h6>
+                                        {{ offline_payment_instructions|safe }}
+                                    </div>
+                                    {% endif %}
+
+                                    {% if site_config.qr_code %}
+                                    <div class="text-center">
+                                        <h6 class="mb-3">{% trans "امسح الكود للدفع" %}</h6>
+                                        <img src="{{ site_config.qr_code.url }}" alt="QR Code" class="qr-code-img">
+                                    </div>
+                                    {% endif %}
+
+                                    <div class="mb-3">
+                                        <label for="wallet_receipt" class="form-label">
+                                            <i class="fas fa-receipt me-2"></i>
+                                            {% trans "إيصال الدفع" %} <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="file" class="form-control payment-receipt" id="wallet_receipt" name="payment_receipt" accept="image/*,.pdf">
+                                        <small class="form-text text-muted">
+                                            {% trans "يرجى رفع صورة أو ملف PDF للإيصال" %}
+                                        </small>
+                                    </div>
+                                </div>
                             </div>
-                            {% endif %}
+                        {% elif method_value == "instapay" %}
+                            <!-- Instapay Payment -->
+                            <div class="payment-method-card" data-payment="instapay" onclick="selectPaymentMethod('instapay')">
+                                <div class="d-flex align-items-center">
+                                    <input type="radio" name="payment_method" value="instapay" id="instapay" style="margin-left: 15px;">
+                                    <div class="flex-grow-1">
+                                        <h5 class="mb-1">
+                                            <i class="fas fa-mobile-alt me-2 text-primary"></i>
+                                            {{ method_label }}
+                                        </h5>
+                                        <p class="text-muted small mb-0">{% trans "الدفع عبر إنستا باي وإرفاق إيصال الدفع" %}</p>
+                                    </div>
+                                </div>
 
-                            <div class="mb-3">
-                                <label for="wallet_receipt" class="form-label">
-                                    <i class="fas fa-receipt me-2"></i>
-                                    {% trans "إيصال الدفع" %} <span class="text-danger">*</span>
-                                </label>
-                                <input type="file" class="form-control payment-receipt" id="wallet_receipt" name="payment_receipt" accept="image/*,.pdf">
-                                <small class="form-text text-muted">
-                                    {% trans "يرجى رفع صورة أو ملف PDF للإيصال" %}
-                                </small>
+                                <div id="instapayDetails" style="display: none;" class="mt-3">
+                                    {% if offline_payment_instructions %}
+                                    <div class="offline-instructions">
+                                        <h6 class="mb-3">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            {% trans "تعليمات الدفع" %}
+                                        </h6>
+                                        {{ offline_payment_instructions|safe }}
+                                    </div>
+                                    {% endif %}
+
+                                    {% if site_config.qr_code %}
+                                    <div class="text-center">
+                                        <h6 class="mb-3">{% trans "امسح الكود للدفع" %}</h6>
+                                        <img src="{{ site_config.qr_code.url }}" alt="QR Code" class="qr-code-img">
+                                    </div>
+                                    {% endif %}
+
+                                    <div class="mb-3">
+                                        <label for="instapay_receipt" class="form-label">
+                                            <i class="fas fa-receipt me-2"></i>
+                                            {% trans "إيصال الدفع" %} <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="file" class="form-control payment-receipt" id="instapay_receipt" name="payment_receipt" accept="image/*,.pdf">
+                                        <small class="form-text text-muted">
+                                            {% trans "يرجى رفع صورة أو ملف PDF للإيصال" %}
+                                        </small>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Instapay Payment -->
-                    <div class="payment-method-card" data-payment="instapay" onclick="selectPaymentMethod('instapay')">
-                        <div class="d-flex align-items-center">
-                            <input type="radio" name="payment_method" value="instapay" id="instapay" style="margin-left: 15px;">
-                            <div class="flex-grow-1">
-                                <h5 class="mb-1">
-                                    <i class="fas fa-mobile-alt me-2 text-primary"></i>
-                                    {% trans "إنستا باي" %}
-                                </h5>
-                                <p class="text-muted small mb-0">{% trans "الدفع عبر إنستا باي وإرفاق إيصال الدفع" %}</p>
+                        {% elif method_value == "paypal" %}
+                            <!-- PayPal Payment -->
+                            <div class="payment-method-card" data-payment="paypal" onclick="selectPaymentMethod('paypal')">
+                                <div class="d-flex align-items-center">
+                                    <input type="radio" name="payment_method" value="paypal" id="paypal" style="margin-left: 15px;">
+                                    <div class="flex-grow-1">
+                                        <h5 class="mb-1">
+                                            <i class="fab fa-paypal me-2 text-info"></i>
+                                            {{ method_label }}
+                                        </h5>
+                                        <p class="text-muted small mb-0">{% trans "الدفع عبر حساب PayPal" %}</p>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-
-                        <div id="instapayDetails" style="display: none;" class="mt-3">
-                            {% if offline_payment_instructions %}
-                            <div class="offline-instructions">
-                                <h6 class="mb-3">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    {% trans "تعليمات الدفع" %}
-                                </h6>
-                                {{ offline_payment_instructions|safe }}
-                            </div>
-                            {% endif %}
-
-                            {% if site_config.qr_code %}
-                            <div class="text-center">
-                                <h6 class="mb-3">{% trans "امسح الكود للدفع" %}</h6>
-                                <img src="{{ site_config.qr_code.url }}" alt="QR Code" class="qr-code-img">
-                            </div>
-                            {% endif %}
-
-                            <div class="mb-3">
-                                <label for="instapay_receipt" class="form-label">
-                                    <i class="fas fa-receipt me-2"></i>
-                                    {% trans "إيصال الدفع" %} <span class="text-danger">*</span>
-                                </label>
-                                <input type="file" class="form-control payment-receipt" id="instapay_receipt" name="payment_receipt" accept="image/*,.pdf">
-                                <small class="form-text text-muted">
-                                    {% trans "يرجى رفع صورة أو ملف PDF للإيصال" %}
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Notice about payment methods -->
-                    <div class="alert alert-info mt-3">
-                        <i class="fas fa-info-circle me-2"></i>
-                        {% trans "للدفع من المستخدم للمنصة، الطرق المتاحة هي: بطاقة فيزا/ماستركارد، محفظة إلكترونية، أو إنستاباي فقط." %}
-                    </div>
+                        {% endif %}
+                    {% endfor %}
 
                     <div class="d-grid gap-2 mt-4">
                         <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
@@ -277,6 +297,7 @@
                         </a>
                     </div>
                 </form>
+                {% endif %}
             </div>
         </div>
     </div>

@@ -401,14 +401,24 @@ def ad_payment(request, ad_id):
     if request.method == "POST":
         payment_method = request.POST.get("payment_method")
 
-        # Validate payment method is allowed for platform payments
-        from .payment_utils import is_payment_method_allowed
-
-        if not is_payment_method_allowed(
-            payment_method, PaymentContext.PLATFORM_PAYMENT
-        ):
-            messages.error(request, _("طريقة الدفع المختارة غير متاحة للدفع للمنصة."))
-            return redirect("main:ad_payment", ad_id=ad.id)
+        # Handle legacy "offline" payment method by checking if instapay/wallet are allowed
+        if payment_method == "offline":
+            # Check if any offline method is allowed
+            from .payment_utils import is_payment_method_allowed
+            if not (is_payment_method_allowed("instapay", PaymentContext.PLATFORM_PAYMENT) or 
+                    is_payment_method_allowed("wallet", PaymentContext.PLATFORM_PAYMENT)):
+                messages.error(request, _("طريقة الدفع المختارة غير متاحة للدفع للمنصة."))
+                return redirect("main:ad_payment", ad_id=ad.id)
+            # Set to instapay as default for offline payments
+            payment_method = "instapay"
+        else:
+            # Validate payment method is allowed for platform payments
+            from .payment_utils import is_payment_method_allowed
+            if not is_payment_method_allowed(
+                payment_method, PaymentContext.PLATFORM_PAYMENT
+            ):
+                messages.error(request, _("طريقة الدفع المختارة غير متاحة للدفع للمنصة."))
+                return redirect("main:ad_payment", ad_id=ad.id)
 
         if payment_method in ["instapay", "wallet"]:
             # Handle offline payment with receipt
@@ -656,14 +666,24 @@ def package_checkout(request, package_id):
     if request.method == "POST":
         payment_method = request.POST.get("payment_method")
 
-        # Validate payment method is allowed for platform payments
-        from .payment_utils import is_payment_method_allowed
-
-        if not is_payment_method_allowed(
-            payment_method, PaymentContext.PLATFORM_PAYMENT
-        ):
-            messages.error(request, _("طريقة الدفع المختارة غير متاحة للدفع للمنصة."))
-            return redirect("main:package_checkout", package_id=package.id)
+        # Handle legacy "offline" payment method by checking if instapay/wallet are allowed
+        if payment_method == "offline":
+            # Check if any offline method is allowed
+            from .payment_utils import is_payment_method_allowed
+            if not (is_payment_method_allowed("instapay", PaymentContext.PLATFORM_PAYMENT) or 
+                    is_payment_method_allowed("wallet", PaymentContext.PLATFORM_PAYMENT)):
+                messages.error(request, _("طريقة الدفع المختارة غير متاحة للدفع للمنصة."))
+                return redirect("main:package_checkout", package_id=package.id)
+            # Set to instapay as default for offline payments
+            payment_method = "instapay"
+        else:
+            # Validate payment method is allowed for platform payments
+            from .payment_utils import is_payment_method_allowed
+            if not is_payment_method_allowed(
+                payment_method, PaymentContext.PLATFORM_PAYMENT
+            ):
+                messages.error(request, _("طريقة الدفع المختارة غير متاحة للدفع للمنصة."))
+                return redirect("main:package_checkout", package_id=package.id)
 
         if payment_method in ["instapay", "wallet"]:
             # Handle offline payment methods with receipt
@@ -865,14 +885,24 @@ def ad_upgrade_payment(request, ad_id):
     if request.method == "POST":
         payment_method = request.POST.get("payment_method")
 
-        # Validate payment method is allowed for platform payments
-        from .payment_utils import is_payment_method_allowed
-
-        if not is_payment_method_allowed(
-            payment_method, PaymentContext.PLATFORM_PAYMENT
-        ):
-            messages.error(request, _("طريقة الدفع المختارة غير متاحة للدفع للمنصة."))
-            return redirect("main:ad_upgrade_payment", ad_id=ad.id)
+        # Handle legacy "offline" payment method by checking if instapay/wallet are allowed
+        if payment_method == "offline":
+            # Check if any offline method is allowed
+            from .payment_utils import is_payment_method_allowed
+            if not (is_payment_method_allowed("instapay", PaymentContext.PLATFORM_PAYMENT) or 
+                    is_payment_method_allowed("wallet", PaymentContext.PLATFORM_PAYMENT)):
+                messages.error(request, _("طريقة الدفع المختارة غير متاحة للدفع للمنصة."))
+                return redirect("main:ad_upgrade_payment", ad_id=ad.id)
+            # Set to instapay as default for offline payments
+            payment_method = "instapay"
+        else:
+            # Validate payment method is allowed for platform payments
+            from .payment_utils import is_payment_method_allowed
+            if not is_payment_method_allowed(
+                payment_method, PaymentContext.PLATFORM_PAYMENT
+            ):
+                messages.error(request, _("طريقة الدفع المختارة غير متاحة للدفع للمنصة."))
+                return redirect("main:ad_upgrade_payment", ad_id=ad.id)
 
         if payment_method in ["instapay", "wallet"]:
             # Handle offline payment with receipt

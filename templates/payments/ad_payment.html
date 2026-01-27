@@ -157,94 +157,126 @@
                     {% trans "اختر طريقة الدفع" %}
                 </h3>
 
+                {% if not allowed_payment_methods %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    {% trans "لا توجد طرق دفع متاحة حالياً. يرجى التواصل مع الإدارة." %}
+                </div>
+                {% else %}
+
                 <form method="post" enctype="multipart/form-data" id="paymentForm">
                     {% csrf_token %}
 
-                    {% if site_config.allow_offline_payment %}
-                    <!-- Offline Payment -->
-                    <div class="payment-method-card" data-method="offline">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="payment_method"
-                                   id="payment_offline" value="offline" required>
-                            <label class="form-check-label w-100" for="payment_offline">
-                                <h5 class="mb-2">
-                                    <i class="fas fa-money-bill-wave me-2"></i>
-                                    {% trans "الدفع اليدوي" %}
-                                </h5>
-                                <p class="text-muted small mb-0">
-                                    {% trans "التحويل عبر InstaPay أو المحفظة الإلكترونية" %}
-                                </p>
-                            </label>
-                        </div>
-                    </div>
+                    {% if allowed_payment_methods %}
+                        {% for method_value, method_label in allowed_payment_methods %}
+                            {% if method_value == "instapay" or method_value == "wallet" %}
+                                {% if method_value == "instapay" %}
+                                <!-- Offline Payment - Show once for instapay/wallet -->
+                                <div class="payment-method-card" data-method="offline">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="payment_method"
+                                               id="payment_offline" value="offline" required>
+                                        <label class="form-check-label w-100" for="payment_offline">
+                                            <h5 class="mb-2">
+                                                <i class="fas fa-money-bill-wave me-2"></i>
+                                                {% trans "الدفع اليدوي" %}
+                                            </h5>
+                                            <p class="text-muted small mb-0">
+                                                {% trans "التحويل عبر InstaPay أو المحفظة الإلكترونية" %}
+                                            </p>
+                                        </label>
+                                    </div>
+                                </div>
 
-                    <!-- Offline Payment Details -->
-                    <div id="offline-payment-details" style="display: none;" class="mb-4">
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>
-                            {% trans "يرجى إتمام الدفع ورفع إيصال التحويل" %}
-                        </div>
+                                <!-- Offline Payment Details -->
+                                <div id="offline-payment-details" style="display: none;" class="mb-4">
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        {% trans "يرجى إتمام الدفع ورفع إيصال التحويل" %}
+                                    </div>
 
-                        {% if site_config.instapay_qr_code %}
-                        <div class="text-center mb-4">
-                            <h5>{% trans "InstaPay QR Code" %}</h5>
-                            <img src="{{ site_config.instapay_qr_code.url }}" alt="InstaPay QR" class="qr-code-img">
-                            {% if site_config.instapay_phone %}
-                            <p class="text-muted">{% trans "رقم الهاتف:" %} {{ site_config.instapay_phone }}</p>
+                                    {% if site_config.instapay_qr_code %}
+                                    <div class="text-center mb-4">
+                                        <h5>{% trans "InstaPay QR Code" %}</h5>
+                                        <img src="{{ site_config.instapay_qr_code.url }}" alt="InstaPay QR" class="qr-code-img">
+                                        {% if site_config.instapay_phone %}
+                                        <p class="text-muted">{% trans "رقم الهاتف:" %} {{ site_config.instapay_phone }}</p>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+
+                                    {% if site_config.wallet_payment_link %}
+                                    <div class="text-center mb-4">
+                                        <h5>{% trans "المحفظة الإلكترونية" %}</h5>
+                                        <a href="{{ site_config.wallet_payment_link }}" target="_blank" class="btn btn-primary">
+                                            <i class="fas fa-wallet me-2"></i>
+                                            {% trans "الدفع عبر المحفظة" %}
+                                        </a>
+                                        {% if site_config.wallet_phone %}
+                                        <p class="text-muted mt-2">{% trans "رقم الهاتف:" %} {{ site_config.wallet_phone }}</p>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+
+                                    <div class="mb-3">
+                                        <label for="payment_receipt" class="form-label">
+                                            {% trans "رفع إيصال الدفع" %} <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="file" class="form-control" id="payment_receipt"
+                                               name="payment_receipt" accept="image/*" required>
+                                        <div class="form-text">
+                                            {% trans "قم برفع صورة الإيصال أو لقطة شاشة للتحويل" %}
+                                        </div>
+                                    </div>
+
+                                    {% if site_config.offline_payment_instructions_ar %}
+                                    <div class="alert alert-warning">
+                                        <h6>{% trans "تعليمات:" %}</h6>
+                                        <div style="white-space: pre-line;">{{ site_config.offline_payment_instructions_ar }}</div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            {% elif method_value == "visa" or method_value == "paymob" or method_value == "paypal" %}
+                                {% if method_value == "visa" or method_value == "paymob" %}
+                                <!-- Online Payment (PayMob) - Show once -->
+                                {% if method_value == "visa" %}
+                                <div class="payment-method-card" data-method="paymob">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="payment_method"
+                                               id="payment_paymob" value="paymob">
+                                        <label class="form-check-label w-100" for="payment_paymob">
+                                            <h5 class="mb-2">
+                                                <i class="fas fa-credit-card me-2"></i>
+                                                {% trans "الدفع الإلكتروني" %}
+                                            </h5>
+                                            <p class="text-muted small mb-0">
+                                                {% trans "بطاقة ائتمان / فيزا / ماستركارد" %}
+                                            </p>
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% elif method_value == "paypal" %}
+                                <!-- PayPal Payment -->
+                                <div class="payment-method-card" data-method="paypal">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="payment_method"
+                                               id="payment_paypal" value="paypal">
+                                        <label class="form-check-label w-100" for="payment_paypal">
+                                            <h5 class="mb-2">
+                                                <i class="fab fa-paypal me-2"></i>
+                                                {% trans "باي بال" %}
+                                            </h5>
+                                            <p class="text-muted small mb-0">
+                                                {% trans "الدفع عبر حساب PayPal" %}
+                                            </p>
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endif %}
                             {% endif %}
-                        </div>
-                        {% endif %}
-
-                        {% if site_config.wallet_payment_link %}
-                        <div class="text-center mb-4">
-                            <h5>{% trans "المحفظة الإلكترونية" %}</h5>
-                            <a href="{{ site_config.wallet_payment_link }}" target="_blank" class="btn btn-primary">
-                                <i class="fas fa-wallet me-2"></i>
-                                {% trans "الدفع عبر المحفظة" %}
-                            </a>
-                            {% if site_config.wallet_phone %}
-                            <p class="text-muted mt-2">{% trans "رقم الهاتف:" %} {{ site_config.wallet_phone }}</p>
-                            {% endif %}
-                        </div>
-                        {% endif %}
-
-                        <div class="mb-3">
-                            <label for="payment_receipt" class="form-label">
-                                {% trans "رفع إيصال الدفع" %} <span class="text-danger">*</span>
-                            </label>
-                            <input type="file" class="form-control" id="payment_receipt"
-                                   name="payment_receipt" accept="image/*" required>
-                            <div class="form-text">
-                                {% trans "قم برفع صورة الإيصال أو لقطة شاشة للتحويل" %}
-                            </div>
-                        </div>
-
-                        {% if site_config.offline_payment_instructions_ar %}
-                        <div class="alert alert-warning">
-                            <h6>{% trans "تعليمات:" %}</h6>
-                            <div style="white-space: pre-line;">{{ site_config.offline_payment_instructions_ar }}</div>
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-
-                    {% if site_config.allow_online_payment %}
-                    <!-- Online Payment (PayMob/PayPal) -->
-                    <div class="payment-method-card" data-method="paymob">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="payment_method"
-                                   id="payment_paymob" value="paymob">
-                            <label class="form-check-label w-100" for="payment_paymob">
-                                <h5 class="mb-2">
-                                    <i class="fas fa-credit-card me-2"></i>
-                                    {% trans "الدفع الإلكتروني" %}
-                                </h5>
-                                <p class="text-muted small mb-0">
-                                    {% trans "بطاقة ائتمان / فيزا / ماستركارد" %}
-                                </p>
-                            </label>
-                        </div>
-                    </div>
+                        {% endfor %}
                     {% endif %}
 
                     <button type="submit" class="btn btn-primary btn-lg w-100 mt-4">
@@ -252,6 +284,7 @@
                         {% trans "تأكيد الدفع" %}
                     </button>
                 </form>
+                {% endif %}
             </div>
         </div>
     </div>
