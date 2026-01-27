@@ -305,24 +305,28 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             )
 
         from django.db.models import Prefetch
-        
-        context["ad_categories"] = Category.objects.filter(
-            section_type=Category.SectionType.CLASSIFIED,
-            is_active=True,
-            parent__isnull=True,  # Only root categories
-        ).defer(
-            "default_reservation_percentage",
-            "min_reservation_amount", 
-            "max_reservation_amount",
-            "ad_creation_price"
-        ).prefetch_related(
-            Prefetch(
-                "subcategories",
-                queryset=Category.objects.defer(
-                    "default_reservation_percentage",
-                    "min_reservation_amount",
-                    "max_reservation_amount", 
-                    "ad_creation_price"
+
+        context["ad_categories"] = (
+            Category.objects.filter(
+                section_type=Category.SectionType.CLASSIFIED,
+                is_active=True,
+                parent__isnull=True,  # Only root categories
+            )
+            .defer(
+                "default_reservation_percentage",
+                "min_reservation_amount",
+                "max_reservation_amount",
+                "ad_creation_price",
+            )
+            .prefetch_related(
+                Prefetch(
+                    "subcategories",
+                    queryset=Category.objects.defer(
+                        "default_reservation_percentage",
+                        "min_reservation_amount",
+                        "max_reservation_amount",
+                        "ad_creation_price",
+                    ),
                 )
             )
         )
@@ -331,41 +335,53 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         # Prepare categories data with pricing for JavaScript (all levels)
         import json
         from django.core.serializers.json import DjangoJSONEncoder
-        
+
         categories_data = {}
         for category in Category.objects.filter(
             section_type=Category.SectionType.CLASSIFIED,
             is_active=True,
         ).values("id", "ad_creation_price", "name", "parent_id"):
             categories_data[category["id"]] = {
-                "ad_creation_price": float(category["ad_creation_price"]) if category["ad_creation_price"] else 0.0,
+                "ad_creation_price": (
+                    float(category["ad_creation_price"])
+                    if category["ad_creation_price"]
+                    else 0.0
+                ),
                 "name": category["name"],
-                "parent_id": category["parent_id"] if category["parent_id"] is not None else None
+                "parent_id": (
+                    category["parent_id"] if category["parent_id"] is not None else None
+                ),
             }
         # Convert to JSON to ensure proper null handling
-        context["categories_pricing"] = json.dumps(categories_data, cls=DjangoJSONEncoder)
+        context["categories_pricing"] = json.dumps(
+            categories_data, cls=DjangoJSONEncoder
+        )
         context["categories_pricing_safe"] = True  # Flag to indicate it's already JSON
 
-        # Set default country from user profile or session
-        if self.request.user.is_authenticated:
-            user_country = None
-            # First try user's profile country
+        # Set country from session (header selection) or user profile
+        selected_country = self.request.session.get("selected_country")
+        if not selected_country and self.request.user.is_authenticated:
+            # Fall back to user's profile country
             if hasattr(self.request.user, "country") and self.request.user.country:
-                user_country = self.request.user.country.code
-            # Fall back to session country (from header selection)
-            if not user_country:
-                user_country = self.request.session.get("selected_country")
+                selected_country = self.request.user.country.code
 
-            if user_country:
-                context["default_country"] = user_country
+        # Pass selected_country to template for country field default
+        if selected_country:
+            context["selected_country"] = selected_country
 
         # Get site configuration for pricing (local use only, not passed to template)
         from content.models import SiteConfiguration
+
         site_config = SiteConfiguration.get_solo()
-        
+
         # Add only needed site config values (converted to avoid Decimal serialization issues)
-        context["ad_base_fee"] = float(site_config.ad_base_fee) if site_config.ad_base_fee else 0.0
-        context["cart_service_instructions"] = site_config.cart_service_instructions or "عند تفعيل السلة، سيتم خصم رسوم خدمة من ثمن المنتج عند البيع. يجب أن يكون السعر شاملاً لهذه الرسوم ورسوم التوصيل."
+        context["ad_base_fee"] = (
+            float(site_config.ad_base_fee) if site_config.ad_base_fee else 0.0
+        )
+        context["cart_service_instructions"] = (
+            site_config.cart_service_instructions
+            or "عند تفعيل السلة، سيتم خصم رسوم خدمة من ثمن المنتج عند البيع. يجب أن يكون السعر شاملاً لهذه الرسوم ورسوم التوصيل."
+        )
 
         # Get user's active package to determine feature prices
         if self.request.user.is_authenticated:
@@ -382,7 +398,7 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             active_packages = UserPackage.objects.filter(
                 user=self.request.user,
                 expiry_date__gte=timezone.now(),
-                ads_remaining__gt=0
+                ads_remaining__gt=0,
             )
             total_ads_remaining = sum(pkg.ads_remaining for pkg in active_packages)
 
@@ -393,21 +409,51 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             if active_package and active_package.package:
                 package = active_package.package
                 context["feature_prices"] = {
-                    "highlighted": float(package.feature_highlighted_price) if package.feature_highlighted_price else 0.0,
-                    "urgent": float(package.feature_urgent_price) if package.feature_urgent_price else 0.0,
-                    "pinned": float(package.feature_pinned_price) if package.feature_pinned_price else 0.0,
-                    "contact_for_price": float(package.feature_contact_for_price) if package.feature_contact_for_price else 0.0,
+                    "highlighted": (
+                        float(package.feature_highlighted_price)
+                        if package.feature_highlighted_price
+                        else 0.0
+                    ),
+                    "urgent": (
+                        float(package.feature_urgent_price)
+                        if package.feature_urgent_price
+                        else 0.0
+                    ),
+                    "pinned": (
+                        float(package.feature_pinned_price)
+                        if package.feature_pinned_price
+                        else 0.0
+                    ),
+                    "contact_for_price": (
+                        float(package.feature_contact_for_price)
+                        if package.feature_contact_for_price
+                        else 0.0
+                    ),
                 }
                 context["pricing_source"] = "package"
                 # Don't pass the active_package object itself, just its data
                 context["active_package_id"] = active_package.id
-                context["active_package_name"] = active_package.package.name if active_package.package else None
+                context["active_package_name"] = (
+                    active_package.package.name if active_package.package else None
+                )
             else:
                 # Use site default prices
                 context["feature_prices"] = {
-                    "highlighted": float(site_config.featured_ad_price) if site_config.featured_ad_price else 0.0,
-                    "urgent": float(site_config.urgent_ad_price) if site_config.urgent_ad_price else 0.0,
-                    "pinned": float(site_config.pinned_ad_price) if site_config.pinned_ad_price else 0.0,
+                    "highlighted": (
+                        float(site_config.featured_ad_price)
+                        if site_config.featured_ad_price
+                        else 0.0
+                    ),
+                    "urgent": (
+                        float(site_config.urgent_ad_price)
+                        if site_config.urgent_ad_price
+                        else 0.0
+                    ),
+                    "pinned": (
+                        float(site_config.pinned_ad_price)
+                        if site_config.pinned_ad_price
+                        else 0.0
+                    ),
                     "contact_for_price": 0.0,  # Free or unavailable without package
                 }
                 context["pricing_source"] = "site_default"
@@ -418,9 +464,21 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             context["has_free_ads"] = False
             context["free_ads_remaining"] = 0
             context["feature_prices"] = {
-                "highlighted": float(site_config.featured_ad_price) if site_config.featured_ad_price else 0.0,
-                "urgent": float(site_config.urgent_ad_price) if site_config.urgent_ad_price else 0.0,
-                "pinned": float(site_config.pinned_ad_price) if site_config.pinned_ad_price else 0.0,
+                "highlighted": (
+                    float(site_config.featured_ad_price)
+                    if site_config.featured_ad_price
+                    else 0.0
+                ),
+                "urgent": (
+                    float(site_config.urgent_ad_price)
+                    if site_config.urgent_ad_price
+                    else 0.0
+                ),
+                "pinned": (
+                    float(site_config.pinned_ad_price)
+                    if site_config.pinned_ad_price
+                    else 0.0
+                ),
                 "contact_for_price": 0.0,
             }
             context["pricing_source"] = "site_default"
@@ -667,7 +725,9 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
 
             if not self.request.user.is_staff:
                 # If content or images changed, require admin approval
-                if (content_changed or images_changed) and original_status == ClassifiedAd.AdStatus.ACTIVE:
+                if (
+                    content_changed or images_changed
+                ) and original_status == ClassifiedAd.AdStatus.ACTIVE:
                     needs_approval = True
                     form.instance.status = ClassifiedAd.AdStatus.PENDING
                     form.instance.is_resubmitted = True
@@ -1813,9 +1873,7 @@ class AdUpgradeCheckoutView(LoginRequiredMixin, DetailView):
         )
 
         # Video feature pricing (one-time)
-        context["video_price"] = getattr(
-            config, "VIDEO_AD_PRICE", Decimal("45.00")
-        )
+        context["video_price"] = getattr(config, "VIDEO_AD_PRICE", Decimal("45.00"))
 
         return context
 
@@ -1906,11 +1964,17 @@ class AdUpgradeProcessView(LoginRequiredMixin, View):
 
         if upgrade_top_search and top_search_duration > 0:
             if top_search_duration == 7:
-                price = Decimal(str(getattr(config, "TOP_SEARCH_AD_PRICE_7DAYS", 60.00)))
+                price = Decimal(
+                    str(getattr(config, "TOP_SEARCH_AD_PRICE_7DAYS", 60.00))
+                )
             elif top_search_duration == 14:
-                price = Decimal(str(getattr(config, "TOP_SEARCH_AD_PRICE_14DAYS", 96.00)))
+                price = Decimal(
+                    str(getattr(config, "TOP_SEARCH_AD_PRICE_14DAYS", 96.00))
+                )
             else:  # 30
-                price = Decimal(str(getattr(config, "TOP_SEARCH_AD_PRICE_30DAYS", 120.00)))
+                price = Decimal(
+                    str(getattr(config, "TOP_SEARCH_AD_PRICE_30DAYS", 120.00))
+                )
 
             total_amount += price
             upgrades.append(
@@ -1928,11 +1992,17 @@ class AdUpgradeProcessView(LoginRequiredMixin, View):
 
         if upgrade_contact_price and contact_price_duration > 0:
             if contact_price_duration == 7:
-                price = Decimal(str(getattr(config, "CONTACT_PRICE_AD_PRICE_7DAYS", 25.00)))
+                price = Decimal(
+                    str(getattr(config, "CONTACT_PRICE_AD_PRICE_7DAYS", 25.00))
+                )
             elif contact_price_duration == 14:
-                price = Decimal(str(getattr(config, "CONTACT_PRICE_AD_PRICE_14DAYS", 40.00)))
+                price = Decimal(
+                    str(getattr(config, "CONTACT_PRICE_AD_PRICE_14DAYS", 40.00))
+                )
             else:  # 30
-                price = Decimal(str(getattr(config, "CONTACT_PRICE_AD_PRICE_30DAYS", 50.00)))
+                price = Decimal(
+                    str(getattr(config, "CONTACT_PRICE_AD_PRICE_30DAYS", 50.00))
+                )
 
             total_amount += price
             upgrades.append(
@@ -1994,7 +2064,9 @@ class AdUpgradeProcessView(LoginRequiredMixin, View):
                 import uuid
 
                 temp_filename = f"temp_videos/{uuid.uuid4()}_{video_file.name}"
-                saved_path = default_storage.save(temp_filename, ContentFile(video_file.read()))
+                saved_path = default_storage.save(
+                    temp_filename, ContentFile(video_file.read())
+                )
                 request.session["pending_video_file"] = saved_path
 
         if not upgrades:
@@ -2449,7 +2521,9 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
                 import uuid
 
                 temp_filename = f"temp_videos/{uuid.uuid4()}_{video_file.name}"
-                saved_path = default_storage.save(temp_filename, ContentFile(video_file.read()))
+                saved_path = default_storage.save(
+                    temp_filename, ContentFile(video_file.read())
+                )
                 request.session["pending_video_file"] = saved_path
                 features_to_enable["has_video_file"] = True
 

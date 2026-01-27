@@ -66,14 +66,32 @@ def header_categories(request):
 
     selected_country = request.session.get("selected_country", "EG")
 
-    # Get only classified ad categories for the header
-    categories = (
-        Category.get_root_categories(
-            section_type="classified", country_code=selected_country
+    # Get classified ad subcategories for the header
+    # First find the classified root category, then show its children
+    from django.db import models as db_models
+    from content.models import Country
+
+    try:
+        country = Country.objects.get(code=selected_country, is_active=True)
+        root_categories = Category.objects.filter(
+            parent__isnull=True,
+            is_active=True,
+            section_type="classified",
+        ).filter(
+            db_models.Q(country=country)
+            | db_models.Q(countries=country)
+            | db_models.Q(country__isnull=True, countries__isnull=True)
         )
-        .filter(is_active=True)
-        .order_by("order", "name")[:8]
-    )  # Limit to 8 categories for header
+        if root_categories.exists():
+            # Show subcategories of the classified root category
+            categories = Category.objects.filter(
+                parent__in=root_categories,
+                is_active=True,
+            ).order_by("order", "name")[:8]
+        else:
+            categories = Category.objects.none()
+    except Country.DoesNotExist:
+        categories = Category.objects.none()
 
     return {
         "header_categories": categories,
