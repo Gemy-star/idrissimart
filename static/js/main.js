@@ -230,43 +230,45 @@
   // ===========================
   // ENHANCED COUNTRY SELECTOR (FIXED)
   // ===========================
-  function initEnhancedCountrySelector() {
-    const countryFlags = {
-      SA: '🇸🇦',
-      AE: '🇦🇪',
-      EG: '🇪🇬',
-      KW: '🇰🇼',
-      QA: '🇶🇦',
-      BH: '🇧🇭',
-      OM: '🇴🇲',
-      JO: '🇯🇴',
-    }
 
-    const countryNames = {
-      SA: 'السعودية',
-      AE: 'الإمارات',
-      EG: 'مصر',
-      KW: 'الكويت',
-      QA: 'قطر',
-      BH: 'البحرين',
-      OM: 'عُمان',
-      JO: 'الأردن',
-    }
+  // Global country data and update function
+  window.countryFlags = {
+    SA: '🇸🇦',
+    AE: '🇦🇪',
+    EG: '🇪🇬',
+    KW: '🇰🇼',
+    QA: '🇶🇦',
+    BH: '🇧🇭',
+    OM: '🇴🇲',
+    JO: '🇯🇴',
+  };
 
-    function updateUI(code) {
+  window.countryNames = {
+    SA: 'السعودية',
+    AE: 'الإمارات',
+    EG: 'مصر',
+    KW: 'الكويت',
+    QA: 'قطر',
+    BH: 'البحرين',
+    OM: 'عُمان',
+    JO: 'الأردن',
+  };
+
+  // Global function to update country UI
+  window.updateCountryUI = function(code) {
       // Update desktop dropdown current country
       const currentCountrySpan = document.querySelector('.current-country')
       if (currentCountrySpan) {
-        currentCountrySpan.textContent = countryFlags[code] || '🌍'
+        currentCountrySpan.textContent = window.countryFlags[code] || '🌍'
         currentCountrySpan.setAttribute('data-country-code', code)
       }
 
       // Update mobile country display
       const flagLarge = document.querySelector('.country-flag-large')
-      if (flagLarge) flagLarge.textContent = countryFlags[code] || '🌍'
+      if (flagLarge) flagLarge.textContent = window.countryFlags[code] || '🌍'
 
       const nameLarge = document.querySelector('.country-name-large')
-      if (nameLarge) nameLarge.textContent = countryNames[code] || code
+      if (nameLarge) nameLarge.textContent = window.countryNames[code] || code
 
       // Update active states for both desktop and mobile
       document.querySelectorAll('.country-item, .mobile-country-item').forEach((el) => {
@@ -287,8 +289,9 @@
         mobileItem.classList.add('active')
         mobileItem.insertAdjacentHTML('beforeend', '<i class="fas fa-check-circle check-icon"></i>')
       }
-    }
+    };
 
+  function initEnhancedCountrySelector() {
     async function handleCountryChange(e) {
       e.preventDefault()
       const item = this
@@ -317,7 +320,7 @@
           // Store in localStorage for persistence
           localStorage.setItem('selectedCountry', code)
 
-          updateUI(code)
+          window.updateCountryUI(code)
 
           showNotification(data.message || 'تم تغيير البلد بنجاح', 'success')
 

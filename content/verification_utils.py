@@ -67,10 +67,14 @@ def get_verification_requirements():
     """
     from constance import config as constance_config
 
+    from content.social_auth_config import is_google_auth_configured, is_facebook_auth_configured
+
     return {
         "email_required": is_email_verification_required(),
         "phone_required": is_phone_verification_required(),
         "services_require_verification": is_verification_required_for_services(),
         "verification_message": get_verification_message(),
         "social_auth_enabled": getattr(constance_config, "SOCIAL_AUTH_ENABLED", False),
+        "google_auth_enabled": is_google_auth_configured(),
+        "facebook_auth_enabled": is_facebook_auth_configured(),
     }

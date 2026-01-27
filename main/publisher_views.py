@@ -157,7 +157,9 @@ class PublisherAdDetailView(PublisherRequiredMixin, DetailView):
     pk_url_kwarg = "ad_id"
 
     def get_queryset(self):
-        # Only show user's own ads
+        # Only show user's own ads, or all ads for admins
+        if self.request.user.is_superuser or self.request.user.is_staff:
+            return ClassifiedAd.objects.all()
         return ClassifiedAd.objects.filter(user=self.request.user)
 
     def get_context_data(self, **kwargs):

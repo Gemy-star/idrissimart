@@ -501,11 +501,14 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         # Check if user has free ads remaining in package
         if not active_package or active_package.ads_remaining <= 0:
             # No package or no ads remaining, user must pay base fee
-            # First check if category has its own ad_creation_price
-            if form.instance.category and form.instance.category.ad_creation_price > 0:
+            # First check if category has its own ad_creation_price (including 0)
+            if (
+                form.instance.category
+                and form.instance.category.ad_creation_price is not None
+            ):
                 base_fee = Decimal(str(form.instance.category.ad_creation_price))
             else:
-                # Fall back to site default ad_base_fee
+                # Fall back to site default ad_base_fee only if not set
                 base_fee = Decimal(str(site_config.ad_base_fee))
 
         # Total cost = base publishing fee + features cost

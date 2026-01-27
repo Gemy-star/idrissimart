@@ -1652,38 +1652,6 @@
 
                                     <hr class="my-4">
 
-                                    <!-- Price Summary Card -->
-                                    <div class="card mb-4" id="price-summary-card">
-                                        <div class="card-body bg-light">
-                                            <h5 class="card-title mb-3">
-                                                <i class="fas fa-calculator me-2"></i>
-                                                {% trans "ملخص التكلفة" %}
-                                            </h5>
-                                            <div class="d-flex justify-content-between mb-2">
-                                                <span>{% trans "رسوم النشر الأساسية:" %}</span>
-                                                <span id="base-fee-display">0 ج.م</span>
-                                            </div>
-                                            <div class="d-flex justify-content-between mb-2" id="features-cost-row" style="display: none !important;">
-                                                <span>{% trans "الميزات الإضافية:" %}</span>
-                                                <span id="features-cost-display">0 ج.م</span>
-                                            </div>
-                                            <div class="d-flex justify-content-between mb-2" id="free-ads-discount-row" style="display: none !important;">
-                                                <span class="text-success">
-                                                    <i class="fas fa-gift me-1"></i>
-                                                    {% trans "إعلانات مجانية متاحة:" %}
-                                                </span>
-                                                <span class="text-success" id="free-ads-count">0</span>
-                                            </div>
-                                            <hr>
-                                            <div class="d-flex justify-content-between">
-                                                <strong>{% trans "المجموع:" %}</strong>
-                                                <strong id="total-cost-display" class="text-primary fs-4">0 ج.م</strong>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <hr class="my-4">
-
                                     <!-- Summary Card -->
                                     <div class="card mb-4">
                                         <div class="card-header bg-primary text-white">
@@ -1802,6 +1770,51 @@
             function initializeWishlistButtons() {
                 // Empty placeholder function
             }
+        }
+
+        // Helper function to get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Function to sync country selection to header and session
+        function syncCountryToHeader(countryCode) {
+            if (!countryCode) return;
+
+            fetch('/api/set-country/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: `country_code=${countryCode}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update localStorage
+                    localStorage.setItem('selectedCountry', countryCode);
+
+                    // Update header UI if the function exists
+                    if (typeof window.updateCountryUI === 'function') {
+                        window.updateCountryUI(countryCode);
+                    }
+
+                    console.log('Country synced to header:', countryCode);
+                }
+            })
+            .catch(error => console.error('Country sync error:', error));
         }
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -2196,6 +2209,8 @@
                         updatePricingDisplay(selectedCategoryId);
                     }
                 }
+
+                // Note: Price alerts removed as per user request
             });
 
             // Handle subcategory change (Level 2)
@@ -2682,6 +2697,25 @@
                         citySelect.innerHTML = '<option value="">{% trans "اختر المدينة..." %}</option>';
                         citySelect.disabled = true;
                         return;
+                    }
+
+                    // Get country code from the selected option
+                    const selectedOption = this.options[this.selectedIndex];
+                    const countryText = selectedOption.text;
+
+                    // Extract country code from data attribute or text
+                    // Try to find the country code by matching with available countries
+                    const countryData = {
+                        {% for country in countries %}
+                        '{{ country.id }}': '{{ country.code }}',
+                        {% endfor %}
+                    };
+
+                    const countryCode = countryData[countryId];
+
+                    // Sync country selection to header and session
+                    if (countryCode) {
+                        syncCountryToHeader(countryCode);
                     }
 
                     // Show loading state

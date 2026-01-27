@@ -704,9 +704,14 @@
     }
 
     /* Responsive Chart Adjustments */
+    .chart-container canvas {
+        width: 100% !important;
+        height: auto !important;
+    }
+
     @media (max-width: 991.98px) {
         .chart-container {
-            min-height: 300px;
+            min-height: 280px;
             padding: 1rem;
         }
 
@@ -718,8 +723,12 @@
 
     @media (max-width: 575.98px) {
         .chart-container {
-            min-height: 250px;
+            min-height: 220px;
             padding: 0.75rem;
+        }
+
+        .chart-container canvas {
+            max-height: 220px;
         }
 
         .date-range-selector .form-select {
@@ -738,9 +747,24 @@
     // Chart instances
     let sessionDurationChart, pagesPerVisitChart, returnVisitorsChart, visitorTrendChart;
 
+    // Mobile detection helper
+    function isMobile() {
+        return window.innerWidth < 768;
+    }
+
     // Initialize charts on page load
     document.addEventListener('DOMContentLoaded', function() {
         updateCharts(30); // Default: last 30 days
+    });
+
+    // Re-render charts on resize (debounced)
+    let resizeTimer;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function() {
+            const dateRange = document.getElementById('dateRangeSelect').value;
+            updateCharts(dateRange);
+        }, 300);
     });
 
     // Update charts based on selected date range
@@ -781,6 +805,8 @@
         const textColor = isDark ? '#f7fafc' : '#495057';
         const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
 
+        const mobile = isMobile();
+
         sessionDurationChart = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -790,8 +816,8 @@
                     data: data.values,
                     backgroundColor: 'rgba(75, 49, 94, 0.7)',
                     borderColor: 'rgba(75, 49, 94, 1)',
-                    borderWidth: 2,
-                    borderRadius: 8,
+                    borderWidth: mobile ? 1 : 2,
+                    borderRadius: mobile ? 4 : 8,
                 }]
             },
             options: {
@@ -799,7 +825,7 @@
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        display: true,
+                        display: !mobile,
                         labels: { color: textColor, font: { family: 'Cairo', size: 12 } }
                     },
                     tooltip: {
@@ -819,11 +845,17 @@
                 scales: {
                     y: {
                         beginAtZero: true,
-                        ticks: { color: textColor, font: { family: 'Cairo' } },
+                        ticks: { color: textColor, font: { family: 'Cairo', size: mobile ? 10 : 12 } },
                         grid: { color: gridColor }
                     },
                     x: {
-                        ticks: { color: textColor, font: { family: 'Cairo' } },
+                        ticks: {
+                            color: textColor,
+                            font: { family: 'Cairo', size: mobile ? 9 : 12 },
+                            maxRotation: mobile ? 45 : 0,
+                            autoSkip: true,
+                            maxTicksLimit: mobile ? 7 : 15
+                        },
                         grid: { display: false }
                     }
                 }
@@ -844,6 +876,8 @@
         const textColor = isDark ? '#f7fafc' : '#495057';
         const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
 
+        const mobile = isMobile();
+
         pagesPerVisitChart = new Chart(ctx, {
             type: 'line',
             data: {
@@ -853,14 +887,14 @@
                     data: data.values,
                     borderColor: 'rgba(255, 107, 53, 1)',
                     backgroundColor: 'rgba(255, 107, 53, 0.1)',
-                    borderWidth: 3,
+                    borderWidth: mobile ? 2 : 3,
                     fill: true,
                     tension: 0.4,
                     pointBackgroundColor: 'rgba(255, 107, 53, 1)',
                     pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    pointRadius: 5,
-                    pointHoverRadius: 7
+                    pointBorderWidth: mobile ? 1 : 2,
+                    pointRadius: mobile ? 2 : 5,
+                    pointHoverRadius: mobile ? 4 : 7
                 }]
             },
             options: {
@@ -868,7 +902,7 @@
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        display: true,
+                        display: !mobile,
                         labels: { color: textColor, font: { family: 'Cairo', size: 12 } }
                     },
                     tooltip: {
@@ -888,11 +922,17 @@
                 scales: {
                     y: {
                         beginAtZero: true,
-                        ticks: { color: textColor, font: { family: 'Cairo' } },
+                        ticks: { color: textColor, font: { family: 'Cairo', size: mobile ? 10 : 12 } },
                         grid: { color: gridColor }
                     },
                     x: {
-                        ticks: { color: textColor, font: { family: 'Cairo' } },
+                        ticks: {
+                            color: textColor,
+                            font: { family: 'Cairo', size: mobile ? 9 : 12 },
+                            maxRotation: mobile ? 45 : 0,
+                            autoSkip: true,
+                            maxTicksLimit: mobile ? 7 : 15
+                        },
                         grid: { display: false }
                     }
                 }
@@ -912,6 +952,8 @@
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
         const textColor = isDark ? '#f7fafc' : '#495057';
 
+        const mobile = isMobile();
+
         returnVisitorsChart = new Chart(ctx, {
             type: 'doughnut',
             data: {
@@ -926,7 +968,7 @@
                         'rgba(40, 167, 69, 1)',
                         'rgba(75, 49, 94, 1)'
                     ],
-                    borderWidth: 2
+                    borderWidth: mobile ? 1 : 2
                 }]
             },
             options: {
@@ -937,8 +979,9 @@
                         position: 'bottom',
                         labels: {
                             color: textColor,
-                            font: { family: 'Cairo', size: 13 },
-                            padding: 15
+                            font: { family: 'Cairo', size: mobile ? 11 : 13 },
+                            padding: mobile ? 8 : 15,
+                            boxWidth: mobile ? 12 : 40
                         }
                     },
                     tooltip: {
@@ -974,6 +1017,8 @@
         const textColor = isDark ? '#f7fafc' : '#495057';
         const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
 
+        const mobile = isMobile();
+
         visitorTrendChart = new Chart(ctx, {
             type: 'line',
             data: {
@@ -983,14 +1028,14 @@
                     data: data.values,
                     borderColor: 'rgba(23, 162, 184, 1)',
                     backgroundColor: 'rgba(23, 162, 184, 0.1)',
-                    borderWidth: 3,
+                    borderWidth: mobile ? 2 : 3,
                     fill: true,
                     tension: 0.4,
                     pointBackgroundColor: 'rgba(23, 162, 184, 1)',
                     pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    pointRadius: 5,
-                    pointHoverRadius: 7
+                    pointBorderWidth: mobile ? 1 : 2,
+                    pointRadius: mobile ? 2 : 5,
+                    pointHoverRadius: mobile ? 4 : 7
                 }]
             },
             options: {
@@ -998,7 +1043,7 @@
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        display: true,
+                        display: !mobile,
                         labels: { color: textColor, font: { family: 'Cairo', size: 12 } }
                     },
                     tooltip: {
@@ -1020,13 +1065,19 @@
                         beginAtZero: true,
                         ticks: {
                             color: textColor,
-                            font: { family: 'Cairo' },
+                            font: { family: 'Cairo', size: mobile ? 10 : 12 },
                             precision: 0
                         },
                         grid: { color: gridColor }
                     },
                     x: {
-                        ticks: { color: textColor, font: { family: 'Cairo' } },
+                        ticks: {
+                            color: textColor,
+                            font: { family: 'Cairo', size: mobile ? 9 : 12 },
+                            maxRotation: mobile ? 45 : 0,
+                            autoSkip: true,
+                            maxTicksLimit: mobile ? 7 : 15
+                        },
                         grid: { display: false }
                     }
                 }

@@ -52,8 +52,6 @@
                                                     {% elif field == 'phone' %}{% trans "رقم الهاتف" %}
                                                     {% elif field == 'password' %}{% trans "كلمة المرور" %}
                                                     {% elif field == 'password2' %}{% trans "تأكيد كلمة المرور" %}
-                                                    {% elif field == 'first_name' %}{% trans "الاسم الحقيقي كاملاً" %}
-                                                    {% elif field == 'last_name' %}{% trans "الاسم الأخير" %}
                                                     {% elif field == 'country' %}{% trans "الدولة" %}
                                                     {% elif field == 'captcha' %}{% trans "التحقق الأمني" %}
                                                     {% elif field == 'terms_accepted' %}{% trans "الشروط والأحكام" %}
@@ -70,23 +68,8 @@
                 </div>
                 {% endif %}
 
-                <!-- Name Fields -->
-                <div class="form-group">
-                    <label class="form-label">
-                        {% trans "الاسم الحقيقي كاملاً" %}
-                        <span class="required">*</span>
-                    </label>
-                    <div class="form-control-wrapper">
-                        <input type="text"
-                               name="first_name"
-                               class="form-control"
-                               placeholder="{% trans 'أدخل الاسم الحقيقي كاملاً' %}"
-                               value="{{ form_data.first_name|default:'' }}"
-                               required />
-                        <i class="fas fa-user"></i>
-                    </div>
-                </div>
-                <!-- Hidden Last Name Field -->
+                <!-- Hidden name fields - not shown in registration -->
+                <input type="hidden" name="first_name" value="-" />
                 <input type="hidden" name="last_name" value="-" />
                 <!-- Username -->
                 <div class="form-group">
@@ -135,7 +118,8 @@
                                 required>
                             <option value="">{% trans "اختر الدولة" %}</option>
                             {% for country in countries %}
-                            <option value="{{ country.code }}"
+                            <option value="{{ country.id }}"
+                                    data-code="{{ country.code }}"
                                     data-phone-code="{{ country.phone_code }}"
                                     {% if country.code == 'EG' %}selected{% endif %}>
                                 {{ country.flag_emoji }} {{ country.name }}
@@ -167,6 +151,11 @@
                         <input type="hidden" id="country_code" name="country_code" value="SA" />
                     </div>
                     <span class="form-helper" id="phone-helper">{% trans "أدخل رقم الجوال بدون الصفر أو كود الدولة" %}</span>
+                    <div class="alert alert-info mt-2 py-2 px-3" id="phone-format-help" style="font-size: 0.875rem;">
+                        <i class="fas fa-info-circle me-1"></i>
+                        <strong>{% trans "الصيغة الصحيحة:" %}</strong>
+                        <span id="phone-format-example">+966 5XXXXXXXX (9 أرقام)</span>
+                    </div>
                     {% if phone_verification_required %}
                     <div class="d-flex gap-2 mt-2">
                         <button type="button"
@@ -382,6 +371,26 @@
                     {% trans "إنشاء حساب" %}
                 </button>
             </form>
+            {% if verification_requirements.google_auth_enabled or verification_requirements.facebook_auth_enabled %}
+            <div class="divider">
+                <span>{% trans "أو سجل باستخدام" %}</span>
+            </div>
+            <div class="social-login">
+                {% load socialaccount %}
+                {% if verification_requirements.google_auth_enabled %}
+                    <a href="{% provider_login_url 'google' %}" class="btn-social google">
+                        <i class="fab fa-google"></i>
+                        Google
+                    </a>
+                {% endif %}
+                {% if verification_requirements.facebook_auth_enabled %}
+                    <a href="{% provider_login_url 'facebook' %}" class="btn-social facebook">
+                        <i class="fab fa-facebook-f"></i>
+                        Facebook
+                    </a>
+                {% endif %}
+            </div>
+            {% endif %}
             <div class="auth-footer">
                 <p>
                     {% trans "لديك حساب بالفعل؟" %}
@@ -683,10 +692,10 @@
         document.getElementById('country').addEventListener('change', function() {
             const selectedOption = this.options[this.selectedIndex];
             const phoneCode = selectedOption.getAttribute('data-phone-code');
-            const countryCode = selectedOption.value;
+            const countryCode = selectedOption.getAttribute('data-code');
 
             document.getElementById('phone-code-display').textContent = phoneCode;
-            document.getElementById('country_code').value = countryCode;
+            document.getElementById('country_code').value = countryCode || '';
 
             // Update phone placeholder based on country
             const phoneInput = document.getElementById('phone');
@@ -700,6 +709,22 @@
                 'OM': '91123456'
             };
             phoneInput.placeholder = placeholders[countryCode] || '501234567';
+
+            // Update phone format help text
+            const formatHelp = document.getElementById('phone-format-example');
+            const phoneFormats = {
+                'SA': phoneCode + ' 5XXXXXXXX (9 أرقام)',
+                'EG': phoneCode + ' 1XXXXXXXXX (10 أرقام)',
+                'AE': phoneCode + ' 5XXXXXXXX (9 أرقام)',
+                'KW': phoneCode + ' 5XXXXXXX (8 أرقام)',
+                'QA': phoneCode + ' 3XXXXXXX (8 أرقام)',
+                'BH': phoneCode + ' 3XXXXXXX (8 أرقام)',
+                'OM': phoneCode + ' 9XXXXXXX (8 أرقام)',
+                'JO': phoneCode + ' 7XXXXXXXX (9 أرقام)'
+            };
+            if (formatHelp) {
+                formatHelp.textContent = phoneFormats[countryCode] || phoneCode + ' XXXXXXXXX';
+            }
         });
 
         // Initialize phone code on page load
@@ -707,7 +732,7 @@
             const countrySelect = document.getElementById('country');
             const selectedOption = countrySelect.options[countrySelect.selectedIndex];
             const phoneCode = selectedOption.getAttribute('data-phone-code');
-            const countryCode = selectedOption.value;
+            const countryCode = selectedOption.getAttribute('data-code');
 
             // Update phone code display
             document.getElementById('phone-code-display').textContent = phoneCode || '+966';
@@ -726,10 +751,27 @@
                 'KW': '50123456',
                 'QA': '33123456',
                 'BH': '36123456',
-                'OM': '91123456'
+                'OM': '91123456',
+                'JO': '791234567'
             };
             if (countryCode) {
                 phoneInput.placeholder = placeholders[countryCode] || '501234567';
+            }
+
+            // Initialize phone format help text
+            const formatHelp = document.getElementById('phone-format-example');
+            const phoneFormats = {
+                'SA': phoneCode + ' 5XXXXXXXX (9 أرقام)',
+                'EG': phoneCode + ' 1XXXXXXXXX (10 أرقام)',
+                'AE': phoneCode + ' 5XXXXXXXX (9 أرقام)',
+                'KW': phoneCode + ' 5XXXXXXX (8 أرقام)',
+                'QA': phoneCode + ' 3XXXXXXX (8 أرقام)',
+                'BH': phoneCode + ' 3XXXXXXX (8 أرقام)',
+                'OM': phoneCode + ' 9XXXXXXX (8 أرقام)',
+                'JO': phoneCode + ' 7XXXXXXXX (9 أرقام)'
+            };
+            if (formatHelp && countryCode) {
+                formatHelp.textContent = phoneFormats[countryCode] || phoneCode + ' XXXXXXXXX';
             }
         });
     </script>

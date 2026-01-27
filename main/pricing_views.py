@@ -47,17 +47,19 @@ def ad_pricing_view(request):
     if category_id:
         try:
             category = Category.objects.get(id=category_id, is_active=True)
-            # Check if category has custom pricing
-            category_base_price = (
-                category.ad_base_fee
-                if hasattr(category, "ad_base_fee") and category.ad_base_fee
-                else site_config.ad_base_fee
-            )
+            # Check if category has custom pricing (including 0)
+            if (
+                hasattr(category, "ad_creation_price")
+                and category.ad_creation_price is not None
+            ):
+                category_base_price = category.ad_creation_price
+            else:
+                category_base_price = site_config.ad_base_fee
         except Category.DoesNotExist:
             pass
 
     # Default pricing
-    if not category_base_price:
+    if category_base_price is None:
         category_base_price = site_config.ad_base_fee
 
     # Get all active packages

@@ -434,8 +434,8 @@ class RegisterView(CreateView):
                 )
 
             # Set country - جعل الدولة الافتراضية عند التسجيل مصر
-            country_code = data.get("country", "EG")  # Default to Egypt
-            user.country = country_code
+            country_obj = data.get("country")
+            user.country = country_obj
 
             # Mark phone as verified if verification was required and completed
             if phone_verification_required:
@@ -445,7 +445,8 @@ class RegisterView(CreateView):
 
             # Clear phone verification from session if it was required
             if phone_verification_required:
-                normalized_phone = normalize_phone_number(phone, country_code)
+                phone_country_code = country_obj.code if country_obj else "EG"
+                normalized_phone = normalize_phone_number(phone, phone_country_code)
                 if f"phone_verified_{normalized_phone}" in request.session:
                     del request.session[f"phone_verified_{normalized_phone}"]
 

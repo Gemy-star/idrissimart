@@ -2198,35 +2198,36 @@
     </script>
 
     <script>
+        // Initialize lightbox data immediately (before DOMContentLoaded)
+        // Lightbox functionality
+        let currentLightboxIndex = 0;
+        let currentScale = 1;
+        let currentX = 0;
+        let currentY = 0;
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+
+        const lightboxImages = [
+            {% for image in ad.images.all %}
+                {
+                    url: "{{ image.image.url }}",
+                    alt: "{{ ad.title }} - {% trans "صورة" %} {{ forloop.counter }}"
+                }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+
+        // Debug: Check if images are loaded
+        console.log('Lightbox images initialized:', lightboxImages);
+        console.log('Number of images:', lightboxImages.length);
+
+        // Test lightbox functionality
+        if (lightboxImages.length === 0) {
+            console.warn('No images found for lightbox');
+        }
+
         // Wait for DOM to be fully loaded
         document.addEventListener('DOMContentLoaded', function() {
-            // Lightbox functionality
-            let currentLightboxIndex = 0;
-            let currentScale = 1;
-            let currentX = 0;
-            let currentY = 0;
-            let isDragging = false;
-            let startX = 0;
-            let startY = 0;
-
-            const lightboxImages = [
-                {% for image in ad.images.all %}
-                    {
-                        url: "{{ image.image.url }}",
-                        alt: "{{ ad.title }} - {% trans "صورة" %} {{ forloop.counter }}"
-                    }{% if not forloop.last %},{% endif %}
-                {% endfor %}
-            ];
-
-            // Debug: Check if images are loaded
-            console.log('Lightbox images:', lightboxImages);
-            console.log('Number of images:', lightboxImages.length);
-
-            // Test lightbox functionality
-            if (lightboxImages.length === 0) {
-                console.warn('No images found for lightbox');
-            }
-
             // Verify lightbox elements exist
             const lightboxElement = document.getElementById('imageLightbox');
             const lightboxImgElement = document.getElementById('lightboxImage');
@@ -2339,7 +2340,8 @@
                 }
             }
 
-            function openLightbox(index) {
+            // Lightbox functions - globally accessible
+            window.openLightbox = function(index) {
                 console.log('Opening lightbox with index:', index);
                 currentLightboxIndex = index;
                 const lightbox = document.getElementById('imageLightbox');
@@ -2348,9 +2350,16 @@
                 const lightboxImageTitle = document.getElementById('lightboxImageTitle');
                 const loadingIndicator = document.getElementById('lightboxLoading');
 
+                if (!lightbox || !lightboxImg) {
+                    console.error('Lightbox elements not found');
+                    return;
+                }
+
                 if (lightboxImages.length > 0) {
                     // Show loading indicator
-                    loadingIndicator.classList.add('active');
+                    if (loadingIndicator) {
+                        loadingIndicator.classList.add('active');
+                    }
 
                     const imageUrl = lightboxImages[currentLightboxIndex].url;
                     const imageAlt = lightboxImages[currentLightboxIndex].alt;
@@ -2385,26 +2394,30 @@
                     currentY = 0;
                     lightboxImg.style.transform = 'scale(1)';
                     lightboxImg.style.cursor = 'zoom-in';
-                    updateZoomIndicator();
+                    if (window.updateZoomIndicator) {
+                        window.updateZoomIndicator();
+                    }
                 } else {
                     console.error('No images found in lightboxImages array');
                 }
-            }
+            };
 
-            function closeLightbox() {
+            window.closeLightbox = function() {
                 const lightbox = document.getElementById('imageLightbox');
-                lightbox.classList.remove('active');
-                document.body.classList.remove('lightbox-open');
-                document.body.style.overflow = '';
-            }
-
-            function closeLightboxOnBackground(event) {
-                if (event.target.id === 'imageLightbox') {
-                    closeLightbox();
+                if (lightbox) {
+                    lightbox.classList.remove('active');
+                    document.body.classList.remove('lightbox-open');
+                    document.body.style.overflow = '';
                 }
-            }
+            };
 
-            function changeLightboxImage(direction) {
+            window.closeLightboxOnBackground = function(event) {
+                if (event.target.id === 'imageLightbox') {
+                    window.closeLightbox();
+                }
+            };
+
+            window.changeLightboxImage = function(direction) {
                 currentLightboxIndex += direction;
 
                 if (currentLightboxIndex >= lightboxImages.length) {
@@ -2437,12 +2450,16 @@
 
                 // Hide loading indicator after image loads
                 lightboxImg.onload = function() {
-                    loadingIndicator.classList.remove('active');
+                    if (loadingIndicator) {
+                        loadingIndicator.classList.remove('active');
+                    }
                 };
 
                 // Fallback timeout
                 setTimeout(() => {
-                    loadingIndicator.classList.remove('active');
+                    if (loadingIndicator) {
+                        loadingIndicator.classList.remove('active');
+                    }
                 }, 2000);
 
                 // Reset zoom when changing images
@@ -2451,24 +2468,30 @@
                 currentY = 0;
                 lightboxImg.style.transform = 'scale(1)';
                 lightboxImg.style.cursor = 'zoom-in';
-                updateZoomIndicator();
-            }
+                if (window.updateZoomIndicator) {
+                    window.updateZoomIndicator();
+                }
+            };
 
-            function updateZoomIndicator() {
+            window.updateZoomIndicator = function() {
                 const zoomIndicator = document.getElementById('zoomIndicator');
                 const zoomLevel = document.getElementById('zoomLevel');
 
-                if (currentScale > 1) {
-                    zoomIndicator.classList.add('visible');
-                    zoomLevel.textContent = `${Math.round(currentScale * 100)}%`;
-                } else {
-                    zoomIndicator.classList.remove('visible');
+                if (zoomIndicator && zoomLevel) {
+                    if (currentScale > 1) {
+                        zoomIndicator.classList.add('visible');
+                        zoomLevel.textContent = `${Math.round(currentScale * 100)}%`;
+                    } else {
+                        zoomIndicator.classList.remove('visible');
+                    }
                 }
-            }
+            };
 
             // Download current image
-            function downloadImage() {
+            window.downloadImage = function() {
                 const lightboxImg = document.getElementById('lightboxImage');
+                if (!lightboxImg) return;
+
                 const imageUrl = lightboxImg.src;
                 const imageName = lightboxImages[currentLightboxIndex].alt || 'image';
 
@@ -2482,36 +2505,46 @@
 
                 // Show feedback
                 const downloadBtn = event.target.closest('.lightbox-action-btn');
-                const originalHTML = downloadBtn.innerHTML;
-                downloadBtn.innerHTML = '<i class="fas fa-check"></i>';
-                setTimeout(() => {
-                    downloadBtn.innerHTML = originalHTML;
-                }, 1500);
-            }
+                if (downloadBtn) {
+                    const originalHTML = downloadBtn.innerHTML;
+                    downloadBtn.innerHTML = '<i class="fas fa-check"></i>';
+                    setTimeout(() => {
+                        downloadBtn.innerHTML = originalHTML;
+                    }, 1500);
+                }
+            };
 
             // Reset zoom to 100%
-            function resetZoom() {
+            window.resetZoom = function() {
                 const lightboxImg = document.getElementById('lightboxImage');
+                if (!lightboxImg) return;
+
                 currentScale = 1;
                 currentX = 0;
                 currentY = 0;
                 lightboxImg.style.transform = 'scale(1)';
                 lightboxImg.style.cursor = 'zoom-in';
-                updateZoomIndicator();
+                if (window.updateZoomIndicator) {
+                    window.updateZoomIndicator();
+                }
 
                 // Show feedback
                 const resetBtn = event.target.closest('.lightbox-action-btn');
-                const originalHTML = resetBtn.innerHTML;
-                resetBtn.innerHTML = '<i class="fas fa-check"></i>';
-                setTimeout(() => {
-                    resetBtn.innerHTML = originalHTML;
-                }, 1000);
-            }
+                if (resetBtn) {
+                    const originalHTML = resetBtn.innerHTML;
+                    resetBtn.innerHTML = '<i class="fas fa-check"></i>';
+                    setTimeout(() => {
+                        resetBtn.innerHTML = originalHTML;
+                    }, 1000);
+                }
+            };
 
             // Toggle fullscreen mode
-            function toggleFullscreen() {
+            window.toggleFullscreen = function() {
                 const lightbox = document.getElementById('imageLightbox');
                 const fullscreenIcon = document.getElementById('fullscreenIcon');
+
+                if (!lightbox) return;
 
                 if (!document.fullscreenElement) {
                     // Enter fullscreen
@@ -2522,7 +2555,9 @@
                     } else if (lightbox.msRequestFullscreen) {
                         lightbox.msRequestFullscreen();
                     }
-                    fullscreenIcon.className = 'fas fa-compress';
+                    if (fullscreenIcon) {
+                        fullscreenIcon.className = 'fas fa-compress';
+                    }
                 } else {
                     // Exit fullscreen
                     if (document.exitFullscreen) {
@@ -2532,9 +2567,11 @@
                     } else if (document.msExitFullscreen) {
                         document.msExitFullscreen();
                     }
-                    fullscreenIcon.className = 'fas fa-expand';
+                    if (fullscreenIcon) {
+                        fullscreenIcon.className = 'fas fa-expand';
+                    }
                 }
-            }
+            };
 
             // Listen for fullscreen changes
             document.addEventListener('fullscreenchange', function() {
@@ -2565,7 +2602,9 @@
                             if (currentScale < 4) {
                                 currentScale += 0.25;
                                 updateImageTransform();
-                                updateZoomIndicator();
+                                if (window.updateZoomIndicator) {
+                                    window.updateZoomIndicator();
+                                }
                             }
                             break;
                         case '-':
@@ -2574,7 +2613,9 @@
                                 currentScale -= 0.25;
                                 if (currentScale < 1) currentScale = 1;
                                 updateImageTransform();
-                                updateZoomIndicator();
+                                if (window.updateZoomIndicator) {
+                                    window.updateZoomIndicator();
+                                }
                             }
                             break;
                         case '0':
@@ -2584,47 +2625,7 @@
                 }
             });
 
-            // Make functions globally accessible
-            window.openLightbox = openLightbox;
-            window.closeLightbox = closeLightbox;
-            window.changeLightboxImage = changeLightboxImage;
-            window.updateZoomIndicator = updateZoomIndicator;
-            window.downloadImage = downloadImage;
-            window.resetZoom = resetZoom;
-            window.toggleFullscreen = toggleFullscreen;
-
         }); // End DOMContentLoaded
-
-        // Ensure functions are available globally before DOMContentLoaded
-        window.openLightbox = window.openLightbox || function(index) {
-            console.log('Global openLightbox called, waiting for initialization...');
-            // Wait for DOM to be ready and try again
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', function() {
-                    setTimeout(() => window.openLightbox(index), 100);
-                });
-            }
-        };
-
-        window.closeLightbox = window.closeLightbox || function() {
-            console.log('Global closeLightbox called');
-            const lightbox = document.getElementById('imageLightbox');
-            if (lightbox) {
-                lightbox.classList.remove('active');
-                document.body.classList.remove('lightbox-open');
-                document.body.style.overflow = '';
-            }
-        };
-
-        window.closeLightboxOnBackground = function(event) {
-            if (event.target.id === 'imageLightbox') {
-                window.closeLightbox();
-            }
-        };
-
-        window.changeLightboxImage = window.changeLightboxImage || function(direction) {
-            console.log('Global changeLightboxImage called with direction:', direction);
-        };
 
         // Helper function to get CSRF cookie
         function getCookie(name) {

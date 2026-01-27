@@ -646,11 +646,9 @@ class RegistrationForm(forms.Form):
     )
     first_name = forms.CharField(
         label=_("الاسم الحقيقي كاملاً"),
-        required=True,
-        widget=forms.TextInput(attrs={"placeholder": _("أدخل الاسم الحقيقي كاملاً")}),
-        error_messages={
-            "required": _("الاسم الحقيقي مطلوب."),
-        },
+        required=False,
+        widget=forms.HiddenInput(),
+        initial="-",
     )
     last_name = forms.CharField(
         label=_("الاسم الأخير"), required=False, widget=forms.HiddenInput(), initial="-"

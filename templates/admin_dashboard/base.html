@@ -101,150 +101,51 @@
         // Define dummy function early to prevent errors from base.html DOMContentLoaded
         function initializeWishlistButtons() {}
 
-        // Admin Navigation Enhancement
+        // Admin Sidebar Navigation
         document.addEventListener('DOMContentLoaded', function() {
-            // Add smooth scrolling for horizontal navigation
-            const navLinks = document.querySelector('.admin-nav-links');
-            const adminNav = document.querySelector('.admin-nav');
+            const sidebar = document.getElementById('adminSidebar');
+            const sidebarToggle = document.getElementById('adminSidebarToggle');
+            const sidebarOverlay = document.getElementById('adminSidebarOverlay');
+            const sidebarClose = document.getElementById('adminSidebarClose');
 
-            if (navLinks) {
-                // Auto-scroll to active item on page load
-                const activeItem = navLinks.querySelector('.nav-link-item.active');
-                if (activeItem) {
-                    setTimeout(() => {
-                        activeItem.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'nearest',
-                            inline: 'center'
-                        });
-                    }, 100);
-                }
-
-                // Update scroll fade indicators
-                function updateScrollIndicators() {
-                    if (!adminNav) return;
-
-                    const scrollLeft = navLinks.scrollLeft;
-                    const maxScroll = navLinks.scrollWidth - navLinks.clientWidth;
-
-                    // Add/remove classes based on scroll position
-                    if (scrollLeft > 10) {
-                        adminNav.classList.add('scrolled-left');
-                    } else {
-                        adminNav.classList.remove('scrolled-left');
-                    }
-
-                    if (scrollLeft < maxScroll - 10) {
-                        adminNav.classList.remove('scrolled-right');
-                    } else {
-                        adminNav.classList.add('scrolled-right');
-                    }
-                }
-
-                // Listen for scroll events
-                navLinks.addEventListener('scroll', updateScrollIndicators);
-
-                // Check on resize
-                window.addEventListener('resize', updateScrollIndicators);
-
-                // Initial check
-                setTimeout(updateScrollIndicators, 200);
-
-                // Add keyboard navigation
-                navLinks.addEventListener('keydown', function(e) {
-                    const items = Array.from(navLinks.querySelectorAll('.nav-link-item'));
-                    const currentIndex = items.findIndex(item => item === document.activeElement);
-
-                    if (e.key === 'ArrowRight' && currentIndex < items.length - 1) {
-                        e.preventDefault();
-                        items[currentIndex + 1].focus();
-                        items[currentIndex + 1].scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'nearest',
-                            inline: 'center'
-                        });
-                    } else if (e.key === 'ArrowLeft' && currentIndex > 0) {
-                        e.preventDefault();
-                        items[currentIndex - 1].focus();
-                        items[currentIndex - 1].scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'nearest',
-                            inline: 'center'
-                        });
-                    }
-                });
-
-                // Add touch/swipe support for mobile
-                let startX = 0;
-                let scrollLeft = 0;
-                let isDragging = false;
-
-                navLinks.addEventListener('touchstart', function(e) {
-                    isDragging = true;
-                    startX = e.touches[0].pageX - navLinks.offsetLeft;
-                    scrollLeft = navLinks.scrollLeft;
-                }, { passive: true });
-
-                navLinks.addEventListener('touchmove', function(e) {
-                    if (!isDragging) return;
-                    const x = e.touches[0].pageX - navLinks.offsetLeft;
-                    const walk = (x - startX) * 2;
-                    navLinks.scrollLeft = scrollLeft - walk;
-                }, { passive: true });
-
-                navLinks.addEventListener('touchend', function() {
-                    isDragging = false;
-                    startX = 0;
-                });
-
-                // Mouse drag support for desktop
-                let mouseDown = false;
-                let startMouseX = 0;
-                let scrollLeftMouse = 0;
-
-                navLinks.addEventListener('mousedown', function(e) {
-                    mouseDown = true;
-                    startMouseX = e.pageX - navLinks.offsetLeft;
-                    scrollLeftMouse = navLinks.scrollLeft;
-                    navLinks.style.cursor = 'grabbing';
-                    navLinks.style.userSelect = 'none';
-                });
-
-                navLinks.addEventListener('mouseleave', function() {
-                    mouseDown = false;
-                    navLinks.style.cursor = 'grab';
-                });
-
-                navLinks.addEventListener('mouseup', function() {
-                    mouseDown = false;
-                    navLinks.style.cursor = 'grab';
-                });
-
-                navLinks.addEventListener('mousemove', function(e) {
-                    if (!mouseDown) return;
-                    e.preventDefault();
-                    const x = e.pageX - navLinks.offsetLeft;
-                    const walk = (x - startMouseX) * 2;
-                    navLinks.scrollLeft = scrollLeftMouse - walk;
-                });
-
-                // Set initial cursor
-                if (navLinks.scrollWidth > navLinks.clientWidth) {
-                    navLinks.style.cursor = 'grab';
-                }
+            function openSidebar() {
+                if (sidebar) sidebar.classList.add('open');
+                if (sidebarOverlay) sidebarOverlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
             }
+
+            function closeSidebarNav() {
+                if (sidebar) sidebar.classList.remove('open');
+                if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+
+            if (sidebarToggle) sidebarToggle.addEventListener('click', openSidebar);
+            if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebarNav);
+            if (sidebarClose) sidebarClose.addEventListener('click', closeSidebarNav);
+
+            // Close sidebar on Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && sidebar && sidebar.classList.contains('open')) {
+                    closeSidebarNav();
+                }
+            });
+
+            // Close sidebar on window resize to desktop
+            window.addEventListener('resize', function() {
+                if (window.innerWidth >= 992 && sidebar && sidebar.classList.contains('open')) {
+                    closeSidebarNav();
+                }
+            });
 
             // Add loading states for navigation links
             const navItems = document.querySelectorAll('.nav-link-item:not(.active)');
             navItems.forEach(item => {
                 item.addEventListener('click', function(e) {
-                    // Add loading state
                     const icon = this.querySelector('i');
-                    if (icon) {
+                    if (icon && !this.getAttribute('data-bs-toggle')) {
                         const originalClass = icon.className;
                         icon.className = 'fas fa-spinner fa-spin';
-
-                        // Reset after a short delay (in case navigation is instant)
                         setTimeout(() => {
                             icon.className = originalClass;
                         }, 1000);
