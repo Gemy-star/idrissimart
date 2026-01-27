@@ -1921,6 +1921,12 @@
                 const adCreationPriceSpan = document.getElementById('adCreationPrice');
                 const freeAdsCountSpan = document.getElementById('freeAdsCount');
 
+                // If pricing elements don't exist, skip display update
+                if (!pricingInfo || !freeAdsInfo || !paidAdInfo || !noPricingInfo) {
+                    console.log('Pricing info elements not found, skipping display update');
+                    return;
+                }
+
                 if (!categoryId) {
                     // No category selected
                     pricingInfo.style.display = 'block';
@@ -1940,12 +1946,12 @@
                     // User has free ads
                     freeAdsInfo.style.display = 'block';
                     paidAdInfo.style.display = 'none';
-                    freeAdsCountSpan.textContent = freeAdsRemaining;
+                    if (freeAdsCountSpan) freeAdsCountSpan.textContent = freeAdsRemaining;
                 } else if (adPrice > 0) {
                     // Paid ad
                     freeAdsInfo.style.display = 'none';
                     paidAdInfo.style.display = 'block';
-                    adCreationPriceSpan.textContent = adPrice.toFixed(2);
+                    if (adCreationPriceSpan) adCreationPriceSpan.textContent = adPrice.toFixed(2);
                 } else {
                     // Free category
                     freeAdsInfo.style.display = 'none';
@@ -2981,18 +2987,37 @@
 
                 featuresDiv.innerHTML = selectedFeatures.length > 0 ? selectedFeatures.join('') : '<span class="text-muted">لا توجد ميزات إضافية</span>';
 
-                // Update payment summary
-                const totalCost = calculateTotalCost();
-                document.getElementById('final-base-fee').textContent = document.getElementById('base-fee-display').textContent;
-                document.getElementById('final-features-cost').textContent = document.getElementById('features-cost-display').textContent;
-                document.getElementById('final-total-cost').textContent = document.getElementById('total-cost-display').textContent;
+                // Update payment summary - calculate values directly
+                let featuresCost = 0;
+                featureCheckboxes.forEach(checkbox => {
+                    if (checkbox.checked) {
+                        const card = checkbox.closest('.feature-card');
+                        const price = parseFloat(card.dataset.price);
+                        featuresCost += price;
+                    }
+                });
 
+                // Get base fee for selected category
+                const categoryBaseFee = getCurrentCategoryPrice();
+                const adBaseFee = freeAdsCount > 0 ? 0 : categoryBaseFee;
+                const totalCost = adBaseFee + featuresCost;
+
+                // Update display elements
+                const finalBaseFeeEl = document.getElementById('final-base-fee');
+                const finalFeaturesCostEl = document.getElementById('final-features-cost');
+                const finalTotalCostEl = document.getElementById('final-total-cost');
                 const featuresRow = document.getElementById('final-features-row');
-                const featuresCostValue = parseFloat(document.getElementById('features-cost-display').textContent);
-                if (featuresCostValue > 0) {
-                    featuresRow.style.display = 'flex';
-                } else {
-                    featuresRow.style.display = 'none';
+
+                if (finalBaseFeeEl) finalBaseFeeEl.textContent = `${adBaseFee.toFixed(2)} ج.م`;
+                if (finalFeaturesCostEl) finalFeaturesCostEl.textContent = `${featuresCost.toFixed(2)} ج.م`;
+                if (finalTotalCostEl) finalTotalCostEl.textContent = `${totalCost.toFixed(2)} ج.م`;
+
+                if (featuresRow) {
+                    if (featuresCost > 0) {
+                        featuresRow.style.display = 'flex';
+                    } else {
+                        featuresRow.style.display = 'none';
+                    }
                 }
 
                 const packageInfo = document.getElementById('final-package-info');
