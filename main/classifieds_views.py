@@ -382,6 +382,9 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             site_config.cart_service_instructions
             or "عند تفعيل السلة، سيتم خصم رسوم خدمة من ثمن المنتج عند البيع. يجب أن يكون السعر شاملاً لهذه الرسوم ورسوم التوصيل."
         )
+        
+        # Add mobile verification setting for form validation
+        context["mobile_verification_enabled"] = site_config.require_phone_verification
 
         # Get user's active package to determine feature prices
         if self.request.user.is_authenticated:
@@ -486,6 +489,14 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             context["active_package_name"] = None
 
         return context
+
+    def form_invalid(self, form):
+        """Handle form validation errors and preserve data"""
+        messages.error(
+            self.request,
+            _("يوجد أخطاء في النموذج. يرجى مراجعة الحقول وتصحيح الأخطاء."),
+        )
+        return self.render_to_response(self.get_context_data(form=form))
 
     def form_valid(self, form):
         from content.models import SiteConfiguration
@@ -686,6 +697,12 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
         ).prefetch_related("subcategories")
         context["is_editing"] = True
         context["original_category"] = self.object.category
+        
+        # Add mobile verification setting
+        from content.models import SiteConfiguration
+        site_config = SiteConfiguration.get_solo()
+        context["mobile_verification_enabled"] = site_config.require_phone_verification
+        
         return context
 
     def form_valid(self, form):

@@ -17,9 +17,13 @@ def get_selected_country_from_request(request, default="EG"):
     """
     Get the selected country from request (middleware sets it) or session as fallback
     """
-    return getattr(
-        request, "selected_country", request.session.get("selected_country", default)
-    )
+    country = getattr(request, "selected_country", None)
+    if country:
+        return country
+    session = getattr(request, "session", None)
+    if session:
+        return session.get("selected_country", default)
+    return default
 
 
 def get_country_filtered_ads(request, queryset):

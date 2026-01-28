@@ -73,7 +73,8 @@ def header_categories(request):
 
     try:
         country = Country.objects.get(code=selected_country, is_active=True)
-        root_categories = Category.objects.filter(
+        # Show main (root) categories in the header
+        categories = Category.objects.filter(
             parent__isnull=True,
             is_active=True,
             section_type="classified",
@@ -81,15 +82,7 @@ def header_categories(request):
             db_models.Q(country=country)
             | db_models.Q(countries=country)
             | db_models.Q(country__isnull=True, countries__isnull=True)
-        )
-        if root_categories.exists():
-            # Show subcategories of the classified root category
-            categories = Category.objects.filter(
-                parent__in=root_categories,
-                is_active=True,
-            ).order_by("order", "name")[:8]
-        else:
-            categories = Category.objects.none()
+        ).order_by("order", "name")[:8]
     except Country.DoesNotExist:
         categories = Category.objects.none()
 

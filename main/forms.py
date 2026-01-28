@@ -102,7 +102,7 @@ class ClassifiedAdForm(forms.ModelForm):
         widget=forms.TextInput(
             attrs={
                 "class": "form-control",
-                "placeholder": _("مثال: 0501234567"),
+                "placeholder": _("مثال: 501234567"),
                 "id": "mobile_number",
             }
         ),
@@ -378,6 +378,7 @@ class ClassifiedAdForm(forms.ModelForm):
                 )
 
     def save(self, commit=True):
+        from decimal import Decimal
         instance = super().save(commit=False)
         from main.models import CategoryCustomField
 
@@ -417,6 +418,10 @@ class ClassifiedAdForm(forms.ModelForm):
                 # Convert date objects to strings for JSON serialization
                 if hasattr(value, "isoformat"):
                     value = value.isoformat()
+                
+                # Convert Decimal to float for JSON serialization
+                if isinstance(value, Decimal):
+                    value = float(value)
 
                 instance.custom_fields[field_name] = value
 
@@ -435,42 +440,55 @@ class ClassifiedAdForm(forms.ModelForm):
         # Remove spaces and special characters
         mobile_number = "".join(filter(str.isdigit, mobile_number))
 
-        # Validation rules per country
+        # Validation rules per country - accepting numbers without leading zero
         validation_rules = {
             "SA": {  # Saudi Arabia
-                "prefix": "05",
-                "length": 10,
-                "error": _("رقم الجوال السعودي يجب أن يبدأ بـ 05 ويتكون من 10 أرقام"),
+                "prefix": ("5",),  # Accept 5XXXXXXXX (9 digits)
+                "length": 9,
+                "error": _("رقم الجوال السعودي يجب أن يتكون من 9 أرقام ويبدأ بـ 5"),
+                "example": "501234567",
             },
             "EG": {  # Egypt
-                "prefix": "01",
-                "length": 11,
-                "error": _("رقم الجوال المصري يجب أن يبدأ بـ 01 ويتكون من 11 رقم"),
+                "prefix": ("1",),  # Accept 1XXXXXXXXX (10 digits)
+                "length": 10,
+                "error": _("رقم الجوال المصري يجب أن يتكون من 10 أرقام ويبدأ بـ 1"),
+                "example": "1012345678",
             },
             "AE": {  # UAE
-                "prefix": "05",
-                "length": 10,
-                "error": _("رقم الجوال الإماراتي يجب أن يبدأ بـ 05 ويتكون من 10 أرقام"),
+                "prefix": ("5",),  # Accept 5XXXXXXXX (9 digits)
+                "length": 9,
+                "error": _("رقم الجوال الإماراتي يجب أن يتكون من 9 أرقام ويبدأ بـ 5"),
+                "example": "501234567",
             },
             "KW": {  # Kuwait
                 "prefix": ("5", "6", "9"),
                 "length": 8,
                 "error": _("رقم الجوال الكويتي يجب أن يتكون من 8 أرقام"),
+                "example": "50123456",
             },
             "QA": {  # Qatar
                 "prefix": ("3", "5", "6", "7"),
                 "length": 8,
                 "error": _("رقم الجوال القطري يجب أن يتكون من 8 أرقام"),
+                "example": "33123456",
             },
             "BH": {  # Bahrain
-                "prefix": "3",
+                "prefix": ("3",),
                 "length": 8,
                 "error": _("رقم الجوال البحريني يجب أن يبدأ بـ 3 ويتكون من 8 أرقام"),
+                "example": "36123456",
             },
             "OM": {  # Oman
                 "prefix": ("9", "7"),
                 "length": 8,
                 "error": _("رقم الجوال العماني يجب أن يتكون من 8 أرقام"),
+                "example": "91123456",
+            },
+            "JO": {  # Jordan
+                "prefix": ("7",),
+                "length": 9,
+                "error": _("رقم الجوال الأردني يجب أن يتكون من 9 أرقام ويبدأ بـ 7"),
+                "example": "791234567",
             },
         }
 
@@ -481,18 +499,21 @@ class ClassifiedAdForm(forms.ModelForm):
         rule = validation_rules.get(country_code)
 
         if rule:
-            # Check length
-            if len(mobile_number) != rule["length"]:
-                raise forms.ValidationError(rule["error"])
-
-            # Check prefix
+            # Check length and prefix
             prefix = rule["prefix"]
-            if isinstance(prefix, tuple):
-                if not mobile_number.startswith(prefix):
-                    raise forms.ValidationError(rule["error"])
-            else:
-                if not mobile_number.startswith(prefix):
-                    raise forms.ValidationError(rule["error"])
+            expected_length = rule["length"]
+            
+            # Validate
+            valid = False
+            if len(mobile_number) == expected_length:
+                # Check if starts with valid prefix
+                if any(mobile_number.startswith(p) for p in prefix):
+                    valid = True
+            
+            if not valid:
+                raise forms.ValidationError(
+                    f"{rule['error']}. مثال: {rule.get('example', '')}"
+                )
         else:
             # Generic validation for other countries
             if len(mobile_number) < 8 or len(mobile_number) > 15:
@@ -511,26 +532,23 @@ class ClassifiedAdForm(forms.ModelForm):
             # Check if this is a new ad (not editing existing one)
             if not self.instance.pk:
                 # Check if mobile verification is required
-                from .services import MobileVerificationService
-                from constance import config
+                from content.site_config import SiteConfiguration
 
+                site_config = SiteConfiguration.get_solo()
+                
                 # Only check verification if it's enabled in settings
-                verification_enabled = getattr(
-                    config, "ENABLE_MOBILE_VERIFICATION", True
-                )
-
-                if verification_enabled:
-                    verification_service = MobileVerificationService()
-                    required, message = (
-                        verification_service.check_mobile_verification_required(
-                            self.user, mobile_number
-                        )
-                    )
-
-                    if required:
-                        raise forms.ValidationError(
-                            _("يجب التحقق من رقم الجوال قبل نشر الإعلان")
-                        )
+                if site_config.require_phone_verification:
+                    # Check if user's mobile is verified
+                    if not self.user.is_mobile_verified:
+                        raise forms.ValidationError({
+                            'mobile_number': _("يجب التحقق من رقم الجوال قبل نشر الإعلان")
+                        })
+                    
+                    # Also check if the mobile number matches the verified one
+                    if self.user.mobile and str(self.user.mobile).replace(' ', '') != mobile_number.replace(' ', ''):
+                        raise forms.ValidationError({
+                            'mobile_number': _("رقم الجوال يجب أن يطابق رقم الجوال المسجل والموثق في حسابك")
+                        })
 
         return cleaned_data
 
@@ -1293,6 +1311,7 @@ class AdminClassifiedAdForm(forms.ModelForm):
                 )
 
     def save(self, commit=True):
+        from decimal import Decimal
         instance = super().save(commit=False)
         from main.models import CategoryCustomField
 

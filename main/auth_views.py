@@ -456,7 +456,7 @@ class RegisterView(CreateView):
                 email_sent = send_email_verification(request, user)
 
             # Auto login after registration
-            login(request, user)
+            login(request, user, backend="django.contrib.auth.backends.ModelBackend")
 
             messages.success(
                 request, _("مرحباً بك في إدريسي مارت! 🎉 تم إنشاء حسابك بنجاح")
