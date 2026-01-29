@@ -29,6 +29,7 @@ app_name = "main"
 urlpatterns = [
     path("", views.HomeView.as_view(), name="home"),
     path("categories/", views.CategoriesView.as_view(), name="categories"),
+    re_path(r"^categories/(?P<category_slug>[\w\u0600-\u06FF-]+)/$", views.CategoriesView.as_view(), name="categories_by_slug"),
     path("about/", views.AboutView.as_view(), name="about"),
     path("contact/", views.ContactView.as_view(), name="contact"),
     path("faq/", views.FAQView.as_view(), name="faq"),

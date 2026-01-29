@@ -252,9 +252,14 @@ class CategoriesView(FilterView):
                 pass
         else:
             # Apply category filtering by slug - supports main, sub, and sub-sub categories
-            category_slug = self.request.GET.get("category")
+            # First check URL path parameter, then fall back to query parameter
+            category_slug = self.kwargs.get("category_slug") or self.request.GET.get("category")
             if category_slug:
                 try:
+                    # Decode URL-encoded Arabic characters (in case it comes from query param)
+                    from urllib.parse import unquote
+                    category_slug = unquote(category_slug)
+                    
                     category = Category.objects.get(slug=category_slug, is_active=True)
                     # Get all descendants (subcategories and sub-subcategories)
                     descendants = category.get_descendants(include_self=True)
@@ -1559,28 +1564,60 @@ class AdCreateView(LoginRequiredMixin, CreateView):
         if image_formset.is_valid():
             form.instance.user = self.request.user
 
+            # Check if user has selected any paid features
+            selected_features = self.request.POST.getlist('features', [])
+            has_paid_features = len(selected_features) > 0
+            
+            # Check for free ads credit
+            from main.models import UserPackage
+            active_package = UserPackage.objects.filter(
+                user=self.request.user,
+                ads_remaining__gt=0,
+                expiry_date__gte=timezone.now(),
+            ).first()
+
+            # Determine if payment is required
+            needs_payment = False
+            
+            if has_paid_features:
+                # User selected paid features - payment required
+                needs_payment = True
+            elif not active_package and not self.request.user.is_staff:
+                # No free ads remaining and not staff - payment required
+                needs_payment = True
+            
+            # If payment is needed, save as DRAFT and redirect to payment
+            if needs_payment:
+                # Save ad as DRAFT
+                form.instance.status = ClassifiedAd.AdStatus.DRAFT
+                self.object = form.save()
+                image_formset.instance = self.object
+                image_formset.save()
+                
+                # Store ad ID in session for payment processing
+                self.request.session['pending_ad_id'] = self.object.id
+                self.request.session['pending_ad_features'] = selected_features
+                
+                messages.info(
+                    self.request,
+                    _("تم حفظ إعلانك كمسودة. يرجى إكمال عملية الدفع لنشر الإعلان.")
+                )
+                
+                # Redirect to payment page
+                from django.shortcuts import redirect
+                return redirect('main:ad_payment', ad_id=self.object.id)
+            
+            # Free ad or staff user
             # Determine if ad needs approval
-            # Skip approval if:
-            # 1. User is staff, OR
-            # 2. User is verified AND has an active package with remaining ads
             needs_approval = True
 
             if self.request.user.is_staff:
                 needs_approval = False
-            elif self.request.user.is_verified:
-                # Check if user has an active package with remaining ads
-                from main.models import UserPackage
-
-                active_package = UserPackage.objects.filter(
-                    user=self.request.user,
-                    ads_remaining__gt=0,
-                    expiry_date__gte=timezone.now(),
-                ).first()
-
-                if active_package:
-                    needs_approval = False
-                    # Deduct one ad from the package
-                    active_package.use_ad()
+            elif active_package:
+                # User has free credit
+                needs_approval = False
+                # Deduct one ad from the package
+                active_package.use_ad()
 
             # Set status based on approval requirement
             if needs_approval:
@@ -1598,10 +1635,7 @@ class AdCreateView(LoginRequiredMixin, CreateView):
                 from main.models import Payment
 
                 # Calculate total cost (base fee + features)
-                # This should match the frontend calculation
                 total_cost = 0
-                # You can add logic here to calculate from selected features
-                # For now, we'll create a pending payment record
 
                 # Create payment record with offline receipt
                 Payment.objects.create(
@@ -1615,10 +1649,6 @@ class AdCreateView(LoginRequiredMixin, CreateView):
                     },
                 )
 
-                # Link payment to ad (if there's such a field in ClassifiedAd model)
-                # self.object.payment = payment
-                # self.object.save()
-
                 messages.info(
                     self.request,
                     _("تم استلام إثبات الدفع. سيتم مراجعته من قبل الإدارة."),
@@ -1627,10 +1657,15 @@ class AdCreateView(LoginRequiredMixin, CreateView):
             # Show appropriate success message based on ad status
             if self.object.status == ClassifiedAd.AdStatus.ACTIVE:
                 messages.success(self.request, _("تم نشر إعلانك بنجاح!"))
-            else:
+            elif self.object.status == ClassifiedAd.AdStatus.PENDING:
                 messages.success(
                     self.request,
                     _("تم إرسال إعلانك للمراجعة! سيتم نشره بعد موافقة الإدارة."),
+                )
+            else:
+                messages.info(
+                    self.request,
+                    _("تم حفظ إعلانك كمسودة.")
                 )
 
             return super().form_valid(form)

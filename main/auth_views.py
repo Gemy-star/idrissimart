@@ -450,6 +450,35 @@ class RegisterView(CreateView):
                 if f"phone_verified_{normalized_phone}" in request.session:
                     del request.session[f"phone_verified_{normalized_phone}"]
 
+            # Create free ads package for new user
+            from main.models import UserPackage
+            from content.site_config import SiteConfiguration
+            from datetime import timedelta
+            
+            site_config = SiteConfiguration.get_solo()
+            
+            # Check if verification is required for free package
+            can_grant_free_package = True
+            if site_config.require_verification_for_free_package:
+                # Only grant if both email and phone are verified
+                can_grant_free_package = (
+                    user.is_email_verified and user.is_mobile_verified
+                )
+            
+            if can_grant_free_package:
+                # Grant 3 free ads valid for 30 days
+                free_package = UserPackage.objects.create(
+                    user=user,
+                    package=None,  # Free package
+                    ads_remaining=3,
+                    ads_used=0,
+                    expiry_date=timezone.now() + timedelta(days=30),
+                )
+                messages.success(
+                    request,
+                    _("تم منحك 3 إعلانات مجانية صالحة لمدة 30 يوم! 🎁")
+                )
+
             # Send email verification (CONDITIONAL based on settings)
             email_verification_required = is_email_verification_required()
             if email_verification_required:
