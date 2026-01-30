@@ -195,6 +195,143 @@
             background: #1a1a1a;
         }
 
+        /* ===== SUBCATEGORIES SECTION ===== */
+        .subcategories-section {
+            margin-bottom: 3rem;
+        }
+
+        .subcategories-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        [data-theme='dark'] .subcategories-title,
+        [data-bs-theme="dark"] .subcategories-title {
+            color: #b794f6;
+        }
+
+        .subcategory-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+            transition: var(--transition-smooth);
+            text-decoration: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            height: 100%;
+            border: 2px solid transparent;
+        }
+
+        [data-theme='dark'] .subcategory-card,
+        [data-bs-theme="dark"] .subcategory-card {
+            background: #2a2a2a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .subcategory-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--card-hover-shadow);
+            border-color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .subcategory-icon {
+            width: 70px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border-radius: 50%;
+            margin-bottom: 1rem;
+            font-size: 2rem;
+            color: white;
+            transition: var(--transition-smooth);
+        }
+
+        .subcategory-card:hover .subcategory-icon {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .subcategory-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        [data-theme='dark'] .subcategory-name,
+        [data-bs-theme="dark"] .subcategory-name {
+            color: #e9ecef;
+        }
+
+        .subcategory-count {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        [data-theme='dark'] .subcategory-count,
+        [data-bs-theme="dark"] .subcategory-count {
+            color: #adb5bd;
+        }
+
+        @media (max-width: 768px) {
+            .subcategories-section {
+                margin-bottom: 2rem;
+            }
+
+            .subcategories-title {
+                font-size: 1.15rem;
+                margin-bottom: 1rem;
+            }
+
+            .subcategory-card {
+                padding: 1rem;
+            }
+
+            .subcategory-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 1.5rem;
+            }
+
+            .subcategory-name {
+                font-size: 0.9rem;
+            }
+
+            .subcategory-count {
+                font-size: 0.75rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .subcategory-card {
+                padding: 0.875rem;
+            }
+
+            .subcategory-icon {
+                width: 45px;
+                height: 45px;
+                font-size: 1.25rem;
+                margin-bottom: 0.75rem;
+            }
+
+            .subcategory-name {
+                font-size: 0.85rem;
+            }
+        }
+
         /* ===== FILTERS SIDEBAR ===== */
         .filters-card {
             background: white;
@@ -1002,6 +1139,86 @@
         </div>
     </section>
 
+    <!-- Subcategories Section (if viewing parent category) -->
+    {% if parent_category and subcategories %}
+    <section class="content-section" style="padding-top: 2rem; padding-bottom: 1rem;">
+        <div class="container">
+            <div class="subcategories-section" data-aos="fade-up">
+                <h2 class="subcategories-title">
+                    <i class="fas fa-layer-group"></i>
+                    {% trans "الأقسام الفرعية" %}
+                </h2>
+                <div class="row g-3">
+                    {% for subcategory in subcategories %}
+                    <div class="col-lg-2 col-md-3 col-sm-4 col-6">
+                        <a href="{% url 'main:category_detail' subcategory.slug %}" class="subcategory-card" data-aos="zoom-in" data-aos-delay="{{ forloop.counter0|add:'00' }}">
+                            <div class="subcategory-icon">
+                                {% if subcategory.icon %}
+                                    <i class="fas fa-{{ subcategory.icon }}"></i>
+                                {% else %}
+                                    <i class="fas fa-tag"></i>
+                                {% endif %}
+                            </div>
+                            <div class="subcategory-name">
+                                {% if LANGUAGE_CODE == 'ar' and subcategory.name_ar %}
+                                    {{ subcategory.name_ar }}
+                                {% else %}
+                                    {{ subcategory.name }}
+                                {% endif %}
+                            </div>
+                            <div class="subcategory-count">
+                                <i class="fas fa-bullhorn"></i>
+                                <span>{{ subcategory.ads_count|default:0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </section>
+    {% elif categories and not parent_category and not request.GET.category %}
+    <!-- Show all main categories as cards -->
+    <section class="content-section" style="padding-top: 2rem; padding-bottom: 1rem;">
+        <div class="container">
+            <div class="subcategories-section" data-aos="fade-up">
+                <h2 class="subcategories-title">
+                    <i class="fas fa-th-large"></i>
+                    {% trans "جميع الفئات" %}
+                </h2>
+                <div class="row g-3">
+                    {% for category in categories %}
+                    {% if not category.parent %}
+                    <div class="col-lg-2 col-md-3 col-sm-4 col-6">
+                        <a href="{% url 'main:category_detail' category.slug %}" class="subcategory-card" data-aos="zoom-in" data-aos-delay="{{ forloop.counter0|add:'00' }}">
+                            <div class="subcategory-icon">
+                                {% if category.icon %}
+                                    <i class="fas fa-{{ category.icon }}"></i>
+                                {% else %}
+                                    <i class="fas fa-tag"></i>
+                                {% endif %}
+                            </div>
+                            <div class="subcategory-name">
+                                {% if LANGUAGE_CODE == 'ar' and category.name_ar %}
+                                    {{ category.name_ar }}
+                                {% else %}
+                                    {{ category.name }}
+                                {% endif %}
+                            </div>
+                            <div class="subcategory-count">
+                                <i class="fas fa-bullhorn"></i>
+                                <span>{{ category.ads_count|default:0 }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
     <!-- Main Content -->
     <section class="content-section">
         <div class="container">
@@ -1404,6 +1621,11 @@
                 if (this.verifiedFilter) this.verifiedFilter.checked = false;
                 if (this.imagesFilter) this.imagesFilter.checked = false;
 
+                // Reset custom field inputs
+                document.querySelectorAll('.custom-field-select').forEach(select => select.value = '');
+                document.querySelectorAll('.custom-field-input').forEach(input => input.value = '');
+                document.querySelectorAll('.custom-field-checkbox').forEach(checkbox => checkbox.checked = false);
+
                 this.applyFilters();
             }
 
@@ -1438,6 +1660,30 @@
                 const withImages = this.imagesFilter?.checked || false;
                 const sortBy = this.sortFilter?.value || '-created_at';
 
+                // Collect custom field filters
+                const customFieldFilters = {};
+                document.querySelectorAll('.custom-field-select, .custom-field-input').forEach(input => {
+                    const fieldName = input.dataset.fieldName;
+                    if (fieldName && input.value) {
+                        customFieldFilters[fieldName] = input.value.toLowerCase();
+                    }
+                });
+
+                // Collect checkbox custom fields
+                document.querySelectorAll('.custom-field-checkbox:checked').forEach(checkbox => {
+                    const fieldName = checkbox.dataset.fieldName || checkbox.name.replace('custom_', '');
+                    if (fieldName) {
+                        if (!customFieldFilters[fieldName]) {
+                            customFieldFilters[fieldName] = [];
+                        }
+                        if (Array.isArray(customFieldFilters[fieldName])) {
+                            customFieldFilters[fieldName].push(checkbox.value.toLowerCase());
+                        } else {
+                            customFieldFilters[fieldName] = [customFieldFilters[fieldName], checkbox.value.toLowerCase()];
+                        }
+                    }
+                });
+
                 const adCards = this.adsGrid.querySelectorAll('[data-aos="fade-up"]');
                 let visibleCount = 0;
                 let visibleAds = [];
@@ -1456,6 +1702,15 @@
                     const categoryBadge = card.querySelector('.ad-category-badge')?.textContent.toLowerCase() || '';
                     const cardCategoryId = card.dataset.categoryId || '';
                     const cardCategoryName = card.dataset.categoryName?.toLowerCase() || '';
+
+                    // Get custom fields data from card (stored in data attributes)
+                    const cardCustomFields = {};
+                    Object.keys(card.dataset).forEach(key => {
+                        if (key.startsWith('custom')) {
+                            const fieldName = key.replace('custom', '').toLowerCase();
+                            cardCustomFields[fieldName] = card.dataset[key].toLowerCase();
+                        }
+                    });
 
                     // Check for badges
                     const isFeatured = card.querySelector('.highlighted-badge') !== null ||
@@ -1512,6 +1767,26 @@
                     // Images filter
                     if (withImages && !hasImages) {
                         visible = false;
+                    }
+
+                    // Custom field filters
+                    if (visible) {
+                        for (const [fieldName, filterValue] of Object.entries(customFieldFilters)) {
+                            const cardValue = cardCustomFields[fieldName];
+                            if (Array.isArray(filterValue)) {
+                                // Multiple values (checkboxes)
+                                if (!cardValue || !filterValue.some(v => cardValue.includes(v))) {
+                                    visible = false;
+                                    break;
+                                }
+                            } else {
+                                // Single value (text, select, number)
+                                if (!cardValue || !cardValue.includes(filterValue)) {
+                                    visible = false;
+                                    break;
+                                }
+                            }
+                        }
                     }
 
                     // Show/hide card
