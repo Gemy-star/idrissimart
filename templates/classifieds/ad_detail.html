@@ -842,6 +842,20 @@
             .ad-meta-pill-value {
                 font-size: 0.75rem !important;
             }
+
+            /* Custom fields responsive */
+            .custom-field-item {
+                margin-bottom: 0.5rem;
+            }
+
+            .custom-field-label {
+                font-size: 0.8rem !important;
+            }
+
+            .custom-field-value {
+                font-size: 0.85rem !important;
+                word-break: break-word;
+            }
         }
 
         /* Extra small mobile devices */
@@ -1143,11 +1157,17 @@
             }
 
             .related-products-swiper {
-                padding: 15px 15px 45px;
+                padding: 10px 10px 45px;
             }
 
             .related-products-swiper .swiper-slide {
-                padding: 0 5px;
+                padding: 0 6px;
+                width: 280px !important;
+            }
+
+            .related-products-swiper .modern-ad-card {
+                margin: 0 !important;
+                width: 100% !important;
             }
 
             .ad-thumbnails-swiper {
@@ -1172,11 +1192,28 @@
             }
 
             .related-products-swiper {
-                padding: 10px 10px 40px;
+                padding: 8px 8px 40px;
             }
 
             .related-products-swiper .swiper-slide {
-                padding: 0 4px;
+                padding: 0 5px;
+                width: 260px !important;
+            }
+
+            .related-products-swiper .modern-ad-card {
+                margin: 0 !important;
+                width: 100% !important;
+            }
+
+            /* Ensure safety notes are responsive on mobile */
+            .buyer-safety-notes .safety-notes-content {
+                font-size: 0.9rem !important;
+            }
+
+            .buyer-safety-notes .safety-notes-content ul,
+            .buyer-safety-notes .safety-notes-content ol {
+                padding-right: 1.2rem;
+                padding-left: 0;
             }
 
             .ad-thumbnails-swiper {
@@ -1437,25 +1474,6 @@
                     </script>
                     {% endif %}
 
-                    <!-- Buyer Safety Notes Card -->
-                    {% if site_config.buyer_safety_notes_enabled %}
-                    <div class="modern-card card ad-content-card mb-4 border-0 shadow-sm rounded-3" style="background: linear-gradient(135deg, #fff3e0, #ffe0b2); backdrop-filter: blur(10px);">
-                        <div class="card-header bg-transparent border-bottom-0 pb-2">
-                            <h4 class="card-title-main mb-0 d-flex align-items-center" style="color: #e65100; font-weight: 700;">
-                                <i class="fas fa-shield-alt me-2" style="font-size: 1.2em;"></i>
-                                <span>{{ site_config.buyer_safety_notes_title|default:"نصائح للأمان" }}</span>
-                            </h4>
-                        </div>
-                        <div class="card-body pt-3 buyer-safety-notes">
-                            {% autoescape off %}
-                            <div class="safety-notes-content" style="line-height: 1.8; color: #4e342e;">
-                                {{ site_config.buyer_safety_notes|safe }}
-                            </div>
-                            {% endautoescape %}
-                        </div>
-                    </div>
-                    {% endif %}
-
                     <!-- Ad Description Card -->
                     <div class="modern-card card ad-content-card mb-4 border-0 shadow-sm rounded-3" style="background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary)); backdrop-filter: blur(10px);">
                         <div class="card-header bg-transparent border-bottom-0 pb-2">
@@ -1540,22 +1558,43 @@
                             <div class="card-body pt-3">
                                 <div class="row g-3">
                                     {% for field in custom_fields %}
-                                        <div class="col-md-6">
+                                        <div class="col-12 col-md-6">
                                             <div class="custom-field-item p-3 rounded-3" style="background: var(--bg-primary); border: 1px solid var(--border-color);">
                                                 <label class="custom-field-label d-block mb-1" style="font-weight: 600; color: var(--text-muted); font-size: 0.85rem;">
                                                     {{ field.label }}
                                                 </label>
-                                                <div class="custom-field-value" style="color: var(--text-primary); font-weight: 500;">
+                                                <div class="custom-field-value" style="color: var(--text-primary); font-weight: 500; word-wrap: break-word; overflow-wrap: break-word;">
                                                     {% if field.type == 'checkbox' %}
-                                                        {% if field.value == True or field.value == 'true' or field.value == 'True' %}
+                                                        {% if field.value == True or field.value == 'true' or field.value == 'True' or field.value == '1' or field.value == 1 %}
                                                             <i class="fas fa-check-circle text-success me-1"></i>{% trans "نعم" %}
                                                         {% else %}
                                                             <i class="fas fa-times-circle text-danger me-1"></i>{% trans "لا" %}
                                                         {% endif %}
                                                     {% elif field.type == 'date' %}
                                                         <i class="far fa-calendar me-1"></i>{{ field.value }}
-                                                    {% elif field.type == 'number' %}
+                                                    {% elif field.type == 'time' %}
+                                                        <i class="far fa-clock me-1"></i>{{ field.value }}
+                                                    {% elif field.type == 'datetime' %}
+                                                        <i class="far fa-calendar-alt me-1"></i>{{ field.value }}
+                                                    {% elif field.type == 'number' or field.type == 'range' %}
                                                         <i class="fas fa-hashtag me-1"></i>{{ field.value }}
+                                                    {% elif field.type == 'email' %}
+                                                        <i class="far fa-envelope me-1"></i><a href="mailto:{{ field.value }}" class="text-decoration-none">{{ field.value }}</a>
+                                                    {% elif field.type == 'url' %}
+                                                        <i class="fas fa-link me-1"></i><a href="{{ field.value }}" target="_blank" rel="noopener noreferrer" class="text-decoration-none">{{ field.value|truncatewords:5 }}</a>
+                                                    {% elif field.type == 'phone' %}
+                                                        <i class="fas fa-phone me-1"></i><a href="tel:{{ field.value }}" class="text-decoration-none">{{ field.value }}</a>
+                                                    {% elif field.type == 'color' %}
+                                                        <span class="d-inline-flex align-items-center">
+                                                            <span class="me-2" style="display: inline-block; width: 20px; height: 20px; border-radius: 4px; background-color: {{ field.value }}; border: 1px solid var(--border-color);"></span>
+                                                            {{ field.value }}
+                                                        </span>
+                                                    {% elif field.type == 'textarea' %}
+                                                        <div style="white-space: pre-wrap;">{{ field.value|linebreaks }}</div>
+                                                    {% elif field.type == 'file' %}
+                                                        <i class="fas fa-file me-1"></i><a href="{{ field.value }}" target="_blank" class="text-decoration-none">{% trans "عرض الملف" %}</a>
+                                                    {% elif field.type == 'select' or field.type == 'radio' %}
+                                                        <i class="fas fa-check-circle me-1"></i>{{ field.value }}
                                                     {% else %}
                                                         {{ field.value }}
                                                     {% endif %}
@@ -1959,6 +1998,30 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Buyer Safety Notes Card - Moved before Related Ads -->
+            {% if site_config.buyer_safety_notes_enabled %}
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="modern-card card ad-content-card border-0 shadow-sm rounded-3" style="background: linear-gradient(135deg, #fff3e0, #ffe0b2); backdrop-filter: blur(10px);">
+                        <div class="card-header bg-transparent border-bottom-0 pb-2">
+                            <h4 class="card-title-main mb-0 d-flex align-items-center" style="color: #e65100; font-weight: 700;">
+                                <i class="fas fa-shield-alt me-2" style="font-size: 1.2em;"></i>
+                                <span>{{ site_config.buyer_safety_notes_title|default:"نصائح للأمان" }}</span>
+                            </h4>
+                        </div>
+                        <div class="card-body pt-3 buyer-safety-notes">
+                            {% autoescape off %}
+                            <div class="safety-notes-content" style="line-height: 1.8; color: #4e342e;">
+                                {{ site_config.buyer_safety_notes|safe }}
+                            </div>
+                            {% endautoescape %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Related Ads Section -->
             {% if related_ads %}
                 <div class="row mt-5">
@@ -2189,6 +2252,64 @@
 
             } catch (error) {
                 console.error('Error initializing gallery swiper:', error);
+            }
+
+            // Initialize Related Products Swiper
+            const relatedProductsContainer = document.querySelector('.related-products-swiper');
+            if (relatedProductsContainer) {
+                try {
+                    const relatedProductsSwiper = new Swiper('.related-products-swiper', {
+                        slidesPerView: 1,
+                        spaceBetween: 15,
+                        pagination: {
+                            el: '.related-products-pagination',
+                            clickable: true,
+                            dynamicBullets: true,
+                        },
+                        navigation: false,
+                        loop: false,
+                        autoplay: {
+                            delay: 4000,
+                            disableOnInteraction: true,
+                            pauseOnMouseEnter: true,
+                        },
+                        breakpoints: {
+                            320: {
+                                slidesPerView: 1.2,
+                                spaceBetween: 10,
+                            },
+                            480: {
+                                slidesPerView: 1.5,
+                                spaceBetween: 12,
+                            },
+                            640: {
+                                slidesPerView: 2,
+                                spaceBetween: 15,
+                            },
+                            768: {
+                                slidesPerView: 2.5,
+                                spaceBetween: 15,
+                            },
+                            1024: {
+                                slidesPerView: 3,
+                                spaceBetween: 20,
+                            },
+                            1280: {
+                                slidesPerView: 4,
+                                spaceBetween: 20,
+                            }
+                        },
+                        on: {
+                            init: function() {
+                                console.log('Related Products Swiper initialized successfully');
+                                console.log('Total related ads:', this.slides.length);
+                            },
+                        }
+                    });
+                    console.log('Related Products Swiper object:', relatedProductsSwiper);
+                } catch (error) {
+                    console.error('Error initializing related products swiper:', error);
+                }
             }
         });
     </script>
