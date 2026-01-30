@@ -463,7 +463,7 @@ class CategoriesView(FilterView):
             all_categories = (
                 parent_category.get_children()
                 .filter(is_active=True)
-                .prefetch_related("children")
+                .prefetch_related("subcategories")
                 .order_by("order", "name")
             )
         else:
