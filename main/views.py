@@ -259,7 +259,7 @@ class CategoriesView(FilterView):
                     # Decode URL-encoded Arabic characters (in case it comes from query param)
                     from urllib.parse import unquote
                     category_slug = unquote(category_slug)
-                    
+
                     category = Category.objects.get(slug=category_slug, is_active=True)
                     # Get all descendants (subcategories and sub-subcategories)
                     descendants = category.get_descendants(include_self=True)
@@ -451,6 +451,25 @@ class CategoriesView(FilterView):
                 .order_by("order", "name")
             )
 
+        # Get subcategories if parent_category exists
+        subcategories = []
+        if parent_category:
+            from django.db.models import Count
+            subcategories = (
+                parent_category.get_children()
+                .filter(is_active=True)
+                .annotate(
+                    ads_count=Count(
+                        'classifiedad',
+                        filter=models.Q(
+                            classifiedad__status=ClassifiedAd.AdStatus.ACTIVE,
+                            classifiedad__country__code=selected_country
+                        )
+                    )
+                )
+                .order_by("order", "name")
+            )
+
         context.update(
             {
                 "selected_country": selected_country,
@@ -468,6 +487,7 @@ class CategoriesView(FilterView):
                 "meta_description": content_labels["meta_description"],
                 "has_filters": any(current_filters.values()),
                 "parent_category": parent_category,  # Add parent category to context
+                "subcategories": subcategories,  # Add subcategories list to context
                 "custom_fields_for_filters": custom_fields_for_filters,  # Add custom fields for filters
             }
         )
@@ -1567,7 +1587,7 @@ class AdCreateView(LoginRequiredMixin, CreateView):
             # Check if user has selected any paid features
             selected_features = self.request.POST.getlist('features', [])
             has_paid_features = len(selected_features) > 0
-            
+
             # Check for free ads credit
             from main.models import UserPackage
             active_package = UserPackage.objects.filter(
@@ -1578,14 +1598,14 @@ class AdCreateView(LoginRequiredMixin, CreateView):
 
             # Determine if payment is required
             needs_payment = False
-            
+
             if has_paid_features:
                 # User selected paid features - payment required
                 needs_payment = True
             elif not active_package and not self.request.user.is_staff:
                 # No free ads remaining and not staff - payment required
                 needs_payment = True
-            
+
             # If payment is needed, save as DRAFT and redirect to payment
             if needs_payment:
                 # Save ad as DRAFT
@@ -1593,20 +1613,20 @@ class AdCreateView(LoginRequiredMixin, CreateView):
                 self.object = form.save()
                 image_formset.instance = self.object
                 image_formset.save()
-                
+
                 # Store ad ID in session for payment processing
                 self.request.session['pending_ad_id'] = self.object.id
                 self.request.session['pending_ad_features'] = selected_features
-                
+
                 messages.info(
                     self.request,
                     _("تم حفظ إعلانك كمسودة. يرجى إكمال عملية الدفع لنشر الإعلان.")
                 )
-                
+
                 # Redirect to payment page
                 from django.shortcuts import redirect
                 return redirect('main:ad_payment', ad_id=self.object.id)
-            
+
             # Free ad or staff user
             # Determine if ad needs approval
             needs_approval = True
