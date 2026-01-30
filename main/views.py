@@ -878,11 +878,7 @@ class CategoryDetailView(FilterView):
                 )
                 + " - "
                 + _("إدريسي مارت"),
-                "meta_description": (
-                    self.category.description_ar
-                    if self.category.description_ar
-                    else self.category.description
-                )
+                "meta_description": self.category.description
                 or _("تصفح إعلانات قسم {category}").format(
                     category=(
                         self.category.name_ar
