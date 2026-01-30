@@ -253,11 +253,14 @@ class CategoriesView(FilterView):
         else:
             # Apply category filtering by slug - supports main, sub, and sub-sub categories
             # First check URL path parameter, then fall back to query parameter
-            category_slug = self.kwargs.get("category_slug") or self.request.GET.get("category")
+            category_slug = self.kwargs.get("category_slug") or self.request.GET.get(
+                "category"
+            )
             if category_slug:
                 try:
                     # Decode URL-encoded Arabic characters (in case it comes from query param)
                     from urllib.parse import unquote
+
                     category_slug = unquote(category_slug)
 
                     category = Category.objects.get(slug=category_slug, is_active=True)
@@ -342,23 +345,28 @@ class CategoriesView(FilterView):
         parent_id = self.request.GET.get("parent")
         parent_category = None
         current_category = None
-        
+
         # First check if we have a parent ID
         if parent_id:
             try:
                 parent_category = Category.objects.get(id=parent_id, is_active=True)
             except (Category.DoesNotExist, ValueError):
                 parent_category = None
-        
+
         # If no parent_id, check if we have a category slug (from URL or query param)
         if not parent_category:
-            category_slug = self.kwargs.get("category_slug") or self.request.GET.get("category")
+            category_slug = self.kwargs.get("category_slug") or self.request.GET.get(
+                "category"
+            )
             if category_slug:
                 try:
                     from urllib.parse import unquote
+
                     category_slug = unquote(category_slug)
-                    current_category = Category.objects.get(slug=category_slug, is_active=True)
-                    
+                    current_category = Category.objects.get(
+                        slug=category_slug, is_active=True
+                    )
+
                     # If this category has children, treat it as a parent category
                     if current_category.get_children().filter(is_active=True).exists():
                         parent_category = current_category
@@ -473,16 +481,17 @@ class CategoriesView(FilterView):
         subcategories = []
         if parent_category:
             from django.db.models import Count
+
             subcategories = (
                 parent_category.get_children()
                 .filter(is_active=True)
                 .annotate(
                     ads_count=Count(
-                        'classifiedad',
+                        "classified_ads",
                         filter=models.Q(
-                            classifiedad__status=ClassifiedAd.AdStatus.ACTIVE,
-                            classifiedad__country__code=selected_country
-                        )
+                            classified_ads__status=ClassifiedAd.AdStatus.ACTIVE,
+                            classified_ads__country__code=selected_country,
+                        ),
                     )
                 )
                 .order_by("order", "name")
@@ -1603,11 +1612,12 @@ class AdCreateView(LoginRequiredMixin, CreateView):
             form.instance.user = self.request.user
 
             # Check if user has selected any paid features
-            selected_features = self.request.POST.getlist('features', [])
+            selected_features = self.request.POST.getlist("features", [])
             has_paid_features = len(selected_features) > 0
 
             # Check for free ads credit
             from main.models import UserPackage
+
             active_package = UserPackage.objects.filter(
                 user=self.request.user,
                 ads_remaining__gt=0,
@@ -1633,17 +1643,18 @@ class AdCreateView(LoginRequiredMixin, CreateView):
                 image_formset.save()
 
                 # Store ad ID in session for payment processing
-                self.request.session['pending_ad_id'] = self.object.id
-                self.request.session['pending_ad_features'] = selected_features
+                self.request.session["pending_ad_id"] = self.object.id
+                self.request.session["pending_ad_features"] = selected_features
 
                 messages.info(
                     self.request,
-                    _("تم حفظ إعلانك كمسودة. يرجى إكمال عملية الدفع لنشر الإعلان.")
+                    _("تم حفظ إعلانك كمسودة. يرجى إكمال عملية الدفع لنشر الإعلان."),
                 )
 
                 # Redirect to payment page
                 from django.shortcuts import redirect
-                return redirect('main:ad_payment', ad_id=self.object.id)
+
+                return redirect("main:ad_payment", ad_id=self.object.id)
 
             # Free ad or staff user
             # Determine if ad needs approval
@@ -1701,10 +1712,7 @@ class AdCreateView(LoginRequiredMixin, CreateView):
                     _("تم إرسال إعلانك للمراجعة! سيتم نشره بعد موافقة الإدارة."),
                 )
             else:
-                messages.info(
-                    self.request,
-                    _("تم حفظ إعلانك كمسودة.")
-                )
+                messages.info(self.request, _("تم حفظ إعلانك كمسودة."))
 
             return super().form_valid(form)
         else:
