@@ -338,14 +338,32 @@ class CategoriesView(FilterView):
         # Get selected country
         selected_country = get_selected_country_from_request(self.request)
 
-        # Check if filtering by parent category
+        # Check if filtering by parent category or category slug
         parent_id = self.request.GET.get("parent")
         parent_category = None
+        current_category = None
+        
+        # First check if we have a parent ID
         if parent_id:
             try:
                 parent_category = Category.objects.get(id=parent_id, is_active=True)
             except (Category.DoesNotExist, ValueError):
                 parent_category = None
+        
+        # If no parent_id, check if we have a category slug (from URL or query param)
+        if not parent_category:
+            category_slug = self.kwargs.get("category_slug") or self.request.GET.get("category")
+            if category_slug:
+                try:
+                    from urllib.parse import unquote
+                    category_slug = unquote(category_slug)
+                    current_category = Category.objects.get(slug=category_slug, is_active=True)
+                    
+                    # If this category has children, treat it as a parent category
+                    if current_category.get_children().filter(is_active=True).exists():
+                        parent_category = current_category
+                except Category.DoesNotExist:
+                    pass
 
         # Get categories by section with content counts (generic approach)
         # If parent is specified, get subcategories of that parent
