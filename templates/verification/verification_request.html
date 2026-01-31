@@ -1,347 +1,111 @@
-{% extends 'base.html' %}
+{% extends 'dashboard/base.html' %}
 {% load static i18n %}
 
-{% block title %}
-    {% trans "طلب توثيق الحساب - Account Verification Request" %}
+{% block publisher_title %}
+{% trans "طلب توثيق الحساب" %} - {% trans "إدريسي مارت" %}
 {% endblock %}
 
-{% block extra_css %}
+{% block publisher_extra_css %}
 <style>
-    /* ===== CSS VARIABLES ===== */
-    :root {
-        --verify-gradient-start: #4b315e;
-        --verify-gradient-end: #6B4C7A;
-        --card-shadow: 0 4px 20px rgba(75, 49, 94, 0.1);
-        --card-hover-shadow: 0 8px 30px rgba(75, 49, 94, 0.15);
-        --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    /* ===== HERO SECTION ===== */
-    .verification-hero {
-        min-height: 280px;
-        background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-purple, #6B4C7A) 100%);
-        position: relative;
-        overflow: hidden;
-        padding: 3rem 0;
-        margin-bottom: -80px;
-    }
-
-    .verification-hero::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.1), transparent 60%),
-                    radial-gradient(circle at bottom left, rgba(75, 49, 94, 0.3), transparent 60%);
-        pointer-events: none;
-    }
-
-    .verification-hero::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 100px;
-        background: linear-gradient(to top, var(--bg-primary), transparent);
-    }
-
-    [data-theme="dark"] .verification-hero::after,
-    [data-bs-theme="dark"] .verification-hero::after {
-        background: linear-gradient(to top, #1a1a2e, transparent);
-    }
-
-    .hero-content {
-        position: relative;
-        z-index: 2;
-        text-align: center;
-    }
-
-    .back-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.6rem 1.25rem;
-        background: rgba(255, 255, 255, 0.15);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 50px;
-        color: #ffffff;
-        font-size: 0.9rem;
-        font-weight: 500;
-        text-decoration: none;
-        margin-bottom: 1.5rem;
-        transition: var(--transition-smooth);
-    }
-
-    .back-btn:hover {
-        background: rgba(255, 255, 255, 0.25);
-        color: #ffffff;
-        transform: translateX(5px);
-    }
-
-    .back-btn i {
-        font-size: 0.85rem;
-        transition: transform 0.3s ease;
-    }
-
-    .back-btn:hover i {
-        transform: translateX(3px);
-    }
-
-    .hero-icon {
-        width: 100px;
-        height: 100px;
-        background: rgba(255, 255, 255, 0.15);
-        backdrop-filter: blur(10px);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 1.5rem;
-        font-size: 2.5rem;
-        color: #ffffff;
-        border: 2px solid rgba(255, 255, 255, 0.2);
-        animation: pulse-glow 2s ease-in-out infinite;
-    }
-
-    @keyframes pulse-glow {
-        0%, 100% { box-shadow: 0 0 20px rgba(255, 255, 255, 0.2); }
-        50% { box-shadow: 0 0 40px rgba(255, 255, 255, 0.4); }
-    }
-
-    .hero-title {
-        font-size: clamp(1.75rem, 4vw, 2.5rem);
-        font-weight: 700;
-        color: #ffffff;
-        margin-bottom: 0.75rem;
-        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-    }
-
-    .hero-subtitle {
-        font-size: clamp(0.95rem, 2vw, 1.15rem);
-        color: rgba(255, 255, 255, 0.9);
-        max-width: 500px;
-        margin: 0 auto;
-    }
-
-    /* ===== MAIN SECTION ===== */
-    .verification-section {
-        background: var(--bg-primary);
-        min-height: calc(100vh - 200px);
-        padding-bottom: 3rem;
-    }
-
-    [data-theme="dark"] .verification-section,
-    [data-bs-theme="dark"] .verification-section {
-        background: #1a1a2e;
-    }
-
-    /* ===== MAIN CONTAINER ===== */
-    .verification-container {
-        max-width: 900px;
-        margin: 0 auto;
-        padding: 0 1rem 3rem;
-        position: relative;
-        z-index: 3;
-    }
-
-    /* ===== MAIN CARD ===== */
-    .verification-main-card {
-        background: var(--bg-primary);
-        border-radius: 24px;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-    }
-
-    [data-theme="dark"] .verification-main-card,
-    [data-bs-theme="dark"] .verification-main-card {
-        background: #242438;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-    }
-
-    /* ===== BENEFITS GRID ===== */
-    .benefits-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 0;
-        background: linear-gradient(135deg, var(--accent-purple, #6B4C7A) 0%, var(--primary-color) 100%);
-        padding: 1.5rem;
-    }
-
-    .benefit-card {
-        text-align: center;
-        padding: 1.25rem 0.75rem;
-        border-right: 1px solid rgba(255, 255, 255, 0.15);
-        transition: var(--transition-smooth);
-    }
-
-    .benefit-card:last-child {
-        border-right: none;
-    }
-
-    .benefit-card:hover {
-        background: rgba(255, 255, 255, 0.1);
-    }
-
-    .benefit-card-icon {
-        width: 50px;
-        height: 50px;
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 0.75rem;
-        font-size: 1.25rem;
-        color: #ffffff;
-        transition: var(--transition-smooth);
-    }
-
-    .benefit-card:hover .benefit-card-icon {
-        transform: scale(1.1);
-        background: rgba(255, 255, 255, 0.3);
-    }
-
-    .benefit-card-title {
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: #ffffff;
-        margin-bottom: 0.25rem;
-    }
-
-    .benefit-card-text {
-        font-size: 0.75rem;
-        color: rgba(255, 255, 255, 0.8);
-        line-height: 1.4;
-    }
-
-    /* ===== FORM SECTION ===== */
-    .form-wrapper {
-        padding: 2rem;
-    }
-
-    [data-theme="dark"] .form-wrapper,
-    [data-bs-theme="dark"] .form-wrapper {
-        background: #242438;
-    }
-
-    /* ===== ALERT STYLES ===== */
-    .verification-alert {
-        display: flex;
-        align-items: flex-start;
-        gap: 1rem;
-        padding: 1rem 1.25rem;
-        border-radius: 12px;
-        margin-bottom: 1.5rem;
-        border: none;
-    }
-
-    .verification-alert.alert-warning {
-        background: linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 152, 0, 0.1) 100%);
-        border-left: 4px solid #ffc107;
-    }
-
-    .verification-alert .alert-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        background: rgba(255, 193, 7, 0.2);
-        color: #ffc107;
-    }
-
-    .verification-alert .alert-content {
-        flex: 1;
-    }
-
-    .verification-alert .alert-title {
-        font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: 0.25rem;
-    }
-
-    .verification-alert .alert-text {
-        font-size: 0.875rem;
-        color: var(--text-secondary);
-        margin: 0;
-    }
-
-    [data-theme="dark"] .verification-alert.alert-warning,
-    [data-bs-theme="dark"] .verification-alert.alert-warning {
-        background: linear-gradient(135deg, rgba(255, 193, 7, 0.15) 0%, rgba(255, 152, 0, 0.1) 100%);
-    }
-
-    [data-theme="dark"] .verification-alert .alert-title,
-    [data-bs-theme="dark"] .verification-alert .alert-title {
-        color: #ffc107;
-    }
-
-    [data-theme="dark"] .verification-alert .alert-text,
-    [data-bs-theme="dark"] .verification-alert .alert-text {
-        color: #adb5bd;
-    }
-
-    /* ===== REQUIREMENTS CHECKLIST ===== */
-    .requirements-section {
-        background: var(--bg-secondary);
-        border-radius: 16px;
-        padding: 1.5rem;
+    /* Verification Page Styles */
+    .dashboard-header {
         margin-bottom: 2rem;
-        border: 1px solid var(--border-color);
+        padding: 1.5rem;
+        background: linear-gradient(135deg, rgba(107, 76, 122, 0.08), rgba(107, 76, 122, 0.05));
+        border-radius: 12px;
+        border-left: 4px solid #6B4C7A;
     }
 
-    [data-theme="dark"] .requirements-section,
-    [data-bs-theme="dark"] .requirements-section {
-        background: rgba(255, 255, 255, 0.03);
+    .dashboard-header h1 {
+        color: #2c3e50;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    [data-theme='dark'] .dashboard-header {
+        background: linear-gradient(135deg, rgba(107, 76, 122, 0.15), rgba(107, 76, 122, 0.08));
+        border-left-color: #9b7ab0;
+    }
+
+    [data-theme='dark'] .dashboard-header h1 {
+        color: #e0e0e0;
+    }
+
+    /* Stats Cards */
+    .stats-card {
+        padding: 1.5rem;
+        border-radius: 12px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .stats-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+    }
+
+    [data-theme='dark'] .stats-card {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         border-color: rgba(255, 255, 255, 0.08);
     }
 
-    .requirements-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 1rem;
+    .stats-card h3 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: #fff;
     }
 
-    .requirements-title {
-        font-size: 1rem;
+    .stats-card p {
+        margin: 0;
+        font-size: 0.9rem;
+        opacity: 0.9;
+        color: #fff;
+    }
+
+    .stats-card i {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    /* Card Styles */
+    .card {
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    [data-theme='dark'] .card {
+        background: #1e1e2e;
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        padding: 1rem 1.25rem;
+    }
+
+    [data-theme='dark'] .card-header {
+        background: linear-gradient(135deg, #2a2a3e, #1e1e2e);
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .card-header h5 {
+        color: #2c3e50;
         font-weight: 600;
-        color: var(--text-primary);
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
         margin: 0;
     }
 
-    .requirements-title i {
-        color: var(--accent-purple, #6B4C7A);
+    [data-theme='dark'] .card-header h5 {
+        color: #e0e0e0;
     }
 
-    [data-theme="dark"] .requirements-title,
-    [data-bs-theme="dark"] .requirements-title {
-        color: #f8f9fa;
-    }
-
-    .requirements-progress {
-        font-size: 0.875rem;
-        color: var(--text-secondary);
-        background: var(--bg-primary);
-        padding: 0.35rem 0.75rem;
-        border-radius: 20px;
-        font-weight: 500;
-    }
-
-    [data-theme="dark"] .requirements-progress,
-    [data-bs-theme="dark"] .requirements-progress {
-        background: rgba(255, 255, 255, 0.08);
-        color: #adb5bd;
-    }
-
-    .requirements-list {
+    /* Requirements Section */
+    .requirements-grid {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
         gap: 0.75rem;
@@ -352,17 +116,16 @@
         align-items: center;
         gap: 0.75rem;
         padding: 0.75rem 1rem;
-        background: var(--bg-primary);
-        border-radius: 10px;
+        background: #f8f9fa;
+        border-radius: 8px;
         font-size: 0.9rem;
-        color: var(--text-secondary);
-        transition: var(--transition-smooth);
+        color: #495057;
+        transition: all 0.3s ease;
         border: 1px solid transparent;
     }
 
-    [data-theme="dark"] .requirement-item,
-    [data-bs-theme="dark"] .requirement-item {
-        background: rgba(255, 255, 255, 0.03);
+    [data-theme='dark'] .requirement-item {
+        background: rgba(255, 255, 255, 0.05);
         color: #adb5bd;
     }
 
@@ -376,13 +139,13 @@
         font-size: 0.7rem;
         background: rgba(108, 117, 125, 0.15);
         color: #6c757d;
-        transition: var(--transition-smooth);
+        transition: all 0.3s ease;
     }
 
     .requirement-item.checked {
         color: #198754;
         border-color: rgba(25, 135, 84, 0.2);
-        background: rgba(25, 135, 84, 0.05);
+        background: rgba(25, 135, 84, 0.08);
     }
 
     .requirement-item.checked i {
@@ -390,225 +153,147 @@
         color: #ffffff;
     }
 
-    [data-theme="dark"] .requirement-item.checked,
-    [data-bs-theme="dark"] .requirement-item.checked {
+    [data-theme='dark'] .requirement-item.checked {
         color: #4ade80;
         background: rgba(74, 222, 128, 0.1);
         border-color: rgba(74, 222, 128, 0.2);
     }
 
-    [data-theme="dark"] .requirement-item.checked i,
-    [data-bs-theme="dark"] .requirement-item.checked i {
-        background: #4ade80;
-        color: #1a1a2e;
-    }
-
-    /* ===== FORM STYLES ===== */
-    .form-row {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1.5rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .form-group {
-        margin-bottom: 0;
-    }
-
-    .form-group.full-width {
-        grid-column: 1 / -1;
-    }
-
+    /* Form Styles */
     .form-label {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
         font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: 0.75rem;
-        font-size: 0.95rem;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+    }
+
+    [data-theme='dark'] .form-label {
+        color: #e9ecef;
     }
 
     .form-label .required {
         color: #dc3545;
-        font-size: 0.8rem;
     }
 
-    .form-label .label-icon {
-        width: 28px;
-        height: 28px;
-        background: linear-gradient(135deg, var(--accent-purple, #6B4C7A) 0%, var(--primary-color) 100%);
+    .form-control, .form-select {
+        border: 2px solid #dee2e6;
         border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #ffffff;
-        font-size: 0.8rem;
+        padding: 0.75rem 1rem;
+        transition: all 0.3s ease;
     }
 
-    [data-theme="dark"] .form-label,
-    [data-bs-theme="dark"] .form-label {
-        color: #e9ecef;
+    .form-control:focus, .form-select:focus {
+        border-color: #6B4C7A;
+        box-shadow: 0 0 0 3px rgba(107, 76, 122, 0.15);
     }
 
-    .form-select,
-    .form-control {
-        width: 100%;
-        padding: 0.875rem 1rem;
-        border: 2px solid var(--border-color);
-        border-radius: 12px;
-        font-size: 1rem;
-        transition: var(--transition-smooth);
-        background: var(--bg-primary);
-        color: var(--text-primary);
-    }
-
-    .form-select:focus,
-    .form-control:focus {
-        border-color: var(--accent-purple, #6B4C7A);
-        outline: none;
-        box-shadow: 0 0 0 4px rgba(107, 76, 122, 0.15);
-    }
-
-    [data-theme="dark"] .form-select,
-    [data-theme="dark"] .form-control,
-    [data-bs-theme="dark"] .form-select,
-    [data-bs-theme="dark"] .form-control {
+    [data-theme='dark'] .form-control,
+    [data-theme='dark'] .form-select {
         background: rgba(30, 30, 46, 0.8);
         border-color: rgba(255, 255, 255, 0.12);
         color: #e9ecef;
     }
 
-    [data-theme="dark"] .form-select:focus,
-    [data-theme="dark"] .form-control:focus,
-    [data-bs-theme="dark"] .form-select:focus,
-    [data-bs-theme="dark"] .form-control:focus {
-        border-color: var(--accent-purple, #6B4C7A);
+    [data-theme='dark'] .form-control:focus,
+    [data-theme='dark'] .form-select:focus {
+        border-color: #9b7ab0;
         background: rgba(30, 30, 46, 1);
-        box-shadow: 0 0 0 4px rgba(107, 76, 122, 0.25);
-    }
-
-    [data-theme="dark"] .form-select option,
-    [data-bs-theme="dark"] .form-select option {
-        background: #1e1e2e;
-        color: #e9ecef;
     }
 
     .form-help {
         font-size: 0.8rem;
-        color: var(--text-secondary);
-        margin-top: 0.5rem;
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-    }
-
-    .form-help i {
-        font-size: 0.7rem;
-    }
-
-    [data-theme="dark"] .form-help,
-    [data-bs-theme="dark"] .form-help {
         color: #6c757d;
+        margin-top: 0.35rem;
     }
 
-    /* ===== FILE UPLOAD ===== */
-    .file-upload-area {
-        position: relative;
+    [data-theme='dark'] .form-help {
+        color: #adb5bd;
     }
 
+    /* File Upload */
     .file-upload-label {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         gap: 1rem;
-        padding: 2.5rem 1.5rem;
-        border: 2px dashed var(--border-color);
-        border-radius: 16px;
-        background: var(--bg-secondary);
+        padding: 2rem 1.5rem;
+        border: 2px dashed #dee2e6;
+        border-radius: 12px;
+        background: #f8f9fa;
         cursor: pointer;
-        transition: var(--transition-smooth);
+        transition: all 0.3s ease;
         text-align: center;
     }
 
     .file-upload-label:hover {
-        border-color: var(--accent-purple, #6B4C7A);
+        border-color: #6B4C7A;
         background: rgba(107, 76, 122, 0.05);
     }
 
-    [data-theme="dark"] .file-upload-label,
-    [data-bs-theme="dark"] .file-upload-label {
-        background: rgba(255, 255, 255, 0.02);
-        border-color: rgba(255, 255, 255, 0.12);
+    [data-theme='dark'] .file-upload-label {
+        background: rgba(255, 255, 255, 0.03);
+        border-color: rgba(255, 255, 255, 0.15);
     }
 
-    [data-theme="dark"] .file-upload-label:hover,
-    [data-bs-theme="dark"] .file-upload-label:hover {
-        background: rgba(107, 76, 122, 0.15);
-        border-color: var(--accent-purple, #6B4C7A);
+    [data-theme='dark'] .file-upload-label:hover {
+        background: rgba(107, 76, 122, 0.1);
+        border-color: #9b7ab0;
     }
 
-    .upload-icon-wrapper {
-        width: 70px;
-        height: 70px;
-        background: linear-gradient(135deg, var(--accent-purple, #6B4C7A) 0%, var(--primary-color) 100%);
+    .upload-icon {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #6B4C7A, #4b315e);
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.75rem;
+        font-size: 1.5rem;
         color: #ffffff;
-        transition: var(--transition-smooth);
+        transition: transform 0.3s ease;
     }
 
-    .file-upload-label:hover .upload-icon-wrapper {
+    .file-upload-label:hover .upload-icon {
         transform: scale(1.1);
     }
 
-    .file-upload-label.file-selected .upload-icon-wrapper {
-        background: linear-gradient(135deg, #198754 0%, #20c997 100%);
+    .file-upload-label.file-selected .upload-icon {
+        background: linear-gradient(135deg, #198754, #20c997);
     }
 
     .upload-text-main {
-        font-size: 1.05rem;
         font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: 0.25rem;
+        color: #2c3e50;
     }
 
     .upload-text-sub {
         font-size: 0.875rem;
-        color: var(--text-secondary);
+        color: #6c757d;
+    }
+
+    [data-theme='dark'] .upload-text-main {
+        color: #e9ecef;
+    }
+
+    [data-theme='dark'] .upload-text-sub {
+        color: #adb5bd;
     }
 
     .upload-formats {
         display: flex;
         gap: 0.5rem;
-        margin-top: 0.5rem;
     }
 
     .format-badge {
         padding: 0.25rem 0.6rem;
         background: rgba(107, 76, 122, 0.1);
-        color: var(--accent-purple, #6B4C7A);
+        color: #6B4C7A;
         border-radius: 6px;
         font-size: 0.75rem;
         font-weight: 600;
     }
 
-    [data-theme="dark"] .upload-text-main,
-    [data-bs-theme="dark"] .upload-text-main {
-        color: #e9ecef;
-    }
-
-    [data-theme="dark"] .upload-text-sub,
-    [data-bs-theme="dark"] .upload-text-sub {
-        color: #adb5bd;
-    }
-
-    [data-theme="dark"] .format-badge,
-    [data-bs-theme="dark"] .format-badge {
+    [data-theme='dark'] .format-badge {
         background: rgba(107, 76, 122, 0.25);
         color: #b794f6;
     }
@@ -623,9 +308,9 @@
         gap: 0.75rem;
         padding: 1rem;
         margin-top: 1rem;
-        background: var(--bg-secondary);
-        border-radius: 12px;
-        border: 1px solid var(--border-color);
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
     }
 
     .file-name-display.show {
@@ -660,293 +345,316 @@
 
     .file-name-display .file-name {
         font-weight: 600;
-        color: var(--text-primary);
+        color: #2c3e50;
         font-size: 0.9rem;
     }
 
     .file-name-display .file-size {
         font-size: 0.8rem;
-        color: var(--text-secondary);
+        color: #6c757d;
     }
 
-    [data-theme="dark"] .file-name-display,
-    [data-bs-theme="dark"] .file-name-display {
-        background: rgba(255, 255, 255, 0.03);
-        border-color: rgba(255, 255, 255, 0.08);
+    [data-theme='dark'] .file-name-display {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
     }
 
-    [data-theme="dark"] .file-name-display.success,
-    [data-bs-theme="dark"] .file-name-display.success {
-        background: rgba(74, 222, 128, 0.1);
-        border-color: rgba(74, 222, 128, 0.3);
-    }
-
-    [data-theme="dark"] .file-name-display.success i,
-    [data-bs-theme="dark"] .file-name-display.success i {
-        color: #4ade80;
-    }
-
-    [data-theme="dark"] .file-name-display .file-name,
-    [data-bs-theme="dark"] .file-name-display .file-name {
+    [data-theme='dark'] .file-name-display .file-name {
         color: #e9ecef;
     }
 
-    [data-theme="dark"] .file-name-display .file-size,
-    [data-bs-theme="dark"] .file-name-display .file-size {
-        color: #adb5bd;
-    }
-
-    /* ===== SUBMIT BUTTON ===== */
-    .submit-section {
-        margin-top: 2rem;
-        padding-top: 1.5rem;
-        border-top: 1px solid var(--border-color);
-    }
-
-    [data-theme="dark"] .submit-section,
-    [data-bs-theme="dark"] .submit-section {
-        border-top-color: rgba(255, 255, 255, 0.08);
-    }
-
-    .btn-submit {
-        width: 100%;
-        padding: 1rem 2rem;
-        background: linear-gradient(135deg, var(--accent-purple, #6B4C7A) 0%, var(--primary-color) 100%);
+    /* Submit Button */
+    .btn-verify {
+        padding: 0.875rem 2rem;
+        background: linear-gradient(135deg, #6B4C7A, #4b315e);
         color: #ffffff;
         border: none;
-        border-radius: 14px;
-        font-size: 1.1rem;
+        border-radius: 10px;
+        font-size: 1rem;
         font-weight: 600;
-        cursor: pointer;
-        transition: var(--transition-smooth);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.75rem;
-        position: relative;
-        overflow: hidden;
+        transition: all 0.3s ease;
     }
 
-    .btn-submit::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-        transition: 0.5s;
+    .btn-verify:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(107, 76, 122, 0.4);
+        color: #ffffff;
     }
 
-    .btn-submit:hover::before {
-        left: 100%;
-    }
-
-    .btn-submit:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 30px rgba(107, 76, 122, 0.4);
-    }
-
-    .btn-submit:active {
-        transform: translateY(-1px);
-    }
-
-    .btn-submit:disabled {
+    .btn-verify:disabled {
         opacity: 0.7;
         cursor: not-allowed;
         transform: none;
     }
 
-    .btn-submit:disabled:hover {
-        box-shadow: none;
+    /* Info Box */
+    .info-box {
+        background: linear-gradient(135deg, #f3e8ff, #faf5ff);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border-left: 4px solid #6B4C7A;
     }
 
-    .btn-submit:disabled::before {
-        display: none;
+    [data-theme='dark'] .info-box {
+        background: linear-gradient(135deg, #2d2640, #1e1a2e);
+        border-left-color: #9b7ab0;
     }
 
-    /* ===== RESPONSIVE ===== */
+    .info-box h5 {
+        color: #2c3e50;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+
+    [data-theme='dark'] .info-box h5 {
+        color: #e0e0e0;
+    }
+
+    .info-box ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .info-box li {
+        margin-bottom: 0.5rem;
+        padding-left: 1.5rem;
+        position: relative;
+        color: #495057;
+    }
+
+    [data-theme='dark'] .info-box li {
+        color: #adb5bd;
+    }
+
+    .info-box li:before {
+        content: '✓';
+        position: absolute;
+        left: 0;
+        color: #6B4C7A;
+        font-weight: bold;
+    }
+
+    /* Alert Styles */
+    .alert-rejection {
+        background: linear-gradient(135deg, rgba(220, 53, 69, 0.08), rgba(220, 53, 69, 0.05));
+        border: none;
+        border-left: 4px solid #dc3545;
+        border-radius: 8px;
+    }
+
+    [data-theme='dark'] .alert-rejection {
+        background: linear-gradient(135deg, rgba(248, 113, 113, 0.1), rgba(220, 53, 69, 0.08));
+    }
+
+    /* Responsive */
     @media (max-width: 768px) {
-        .verification-hero {
-            min-height: 220px;
-            padding: 2rem 0;
-            margin-bottom: -60px;
+        .dashboard-header {
+            padding: 1rem;
         }
 
-        .hero-icon {
-            width: 80px;
-            height: 80px;
-            font-size: 2rem;
+        .dashboard-header .d-flex {
+            flex-direction: column;
+            align-items: flex-start !important;
         }
 
-        .benefits-grid {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0;
+        .dashboard-header .btn {
+            margin-top: 1rem;
         }
 
-        .benefit-card {
-            border-right: none;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-        }
-
-        .benefit-card:nth-child(odd) {
-            border-right: 1px solid rgba(255, 255, 255, 0.15);
-        }
-
-        .benefit-card:nth-last-child(-n+2) {
-            border-bottom: none;
-        }
-
-        .form-wrapper {
-            padding: 1.5rem;
-        }
-
-        .form-row {
-            grid-template-columns: 1fr;
-            gap: 1.25rem;
-        }
-
-        .requirements-list {
+        .requirements-grid {
             grid-template-columns: 1fr;
         }
 
-        .requirement-item {
-            padding: 0.65rem 0.875rem;
-        }
-
-        .file-upload-label {
-            padding: 2rem 1rem;
-        }
-
-        .upload-icon-wrapper {
-            width: 60px;
-            height: 60px;
-            font-size: 1.5rem;
-        }
-    }
-
-    @media (max-width: 480px) {
-        .benefits-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .benefit-card {
-            border-right: none !important;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-        }
-
-        .benefit-card:last-child {
-            border-bottom: none;
-        }
-
-        .benefit-card-icon {
-            width: 45px;
-            height: 45px;
-        }
-
-        .upload-formats {
-            flex-wrap: wrap;
-            justify-content: center;
+        .stats-card {
+            margin-bottom: 1rem;
         }
     }
 </style>
 {% endblock %}
 
-{% block content %}
-<!-- Hero Section -->
-<section class="verification-hero">
-    <div class="container">
-        <div class="hero-content">
-            <a href="{% url 'main:publisher_settings' %}" class="back-btn">
-                <i class="fas fa-arrow-right"></i>
-                {% trans "العودة للإعدادات" %}
-            </a>
-            <div class="hero-icon">
-                <i class="fas fa-shield-halved"></i>
-            </div>
-            <h1 class="hero-title">{% trans "توثيق الحساب" %}</h1>
-            <p class="hero-subtitle">
+{% block publisher_content %}
+<!-- Page Header -->
+<div class="dashboard-header mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1><i class="fas fa-shield-halved me-2"></i>{% trans "توثيق الحساب" %}</h1>
+            <p class="text-muted mb-0">
                 {% trans "وثّق حسابك لتحصل على علامة التوثيق وزيادة ثقة المستخدمين" %}
             </p>
         </div>
+        <a href="/verification/request/" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-right me-1"></i> {% trans "العودة" %}
+        </a>
     </div>
-</section>
+</div>
 
-<!-- Main Content Section -->
-<section class="verification-section">
-    <div class="verification-container">
-        <div class="verification-main-card">
-        <!-- Benefits Grid -->
-        <div class="benefits-grid">
-            <div class="benefit-card">
-                <div class="benefit-card-icon">
-                    <i class="fas fa-certificate"></i>
-                </div>
-                <h4 class="benefit-card-title">{% trans "علامة التوثيق" %}</h4>
-                <p class="benefit-card-text">{% trans "شارة زرقاء مميزة" %}</p>
+<!-- Benefits Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-sm-6">
+        <div class="stats-card" style="background: linear-gradient(135deg, #6B4C7A, #4b315e);">
+            <i class="fas fa-certificate"></i>
+            <p>{% trans "علامة التوثيق" %}</p>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="stats-card" style="background: linear-gradient(135deg, #0d6efd, #0a58ca);">
+            <i class="fas fa-user-shield"></i>
+            <p>{% trans "زيادة الثقة" %}</p>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="stats-card" style="background: linear-gradient(135deg, #198754, #146c43);">
+            <i class="fas fa-rocket"></i>
+            <p>{% trans "أولوية الظهور" %}</p>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="stats-card" style="background: linear-gradient(135deg, #ffc107, #e0a800);">
+            <i class="fas fa-chart-line"></i>
+            <p>{% trans "زيادة المبيعات" %}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Previous Request Warning -->
+{% if latest_request and latest_request.status == 'rejected' %}
+<div class="alert alert-rejection mb-4">
+    <div class="d-flex align-items-start gap-3">
+        <i class="fas fa-exclamation-triangle text-danger fa-lg mt-1"></i>
+        <div>
+            <strong class="d-block mb-1">{% trans "طلبك السابق تم رفضه" %}</strong>
+            <span class="text-muted">
+                {% trans "السبب:" %} {{ latest_request.admin_notes|default:_("لم يتم تحديد سبب") }}<br>
+                {% trans "يمكنك تقديم طلب جديد مع التأكد من تقديم وثائق صحيحة وواضحة." %}
+            </span>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-4">
+    <!-- Main Form Card -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-file-alt me-2"></i>{% trans "نموذج طلب التوثيق" %}</h5>
             </div>
-            <div class="benefit-card">
-                <div class="benefit-card-icon">
-                    <i class="fas fa-user-shield"></i>
-                </div>
-                <h4 class="benefit-card-title">{% trans "زيادة الثقة" %}</h4>
-                <p class="benefit-card-text">{% trans "موثوقية أعلى لدى المستخدمين" %}</p>
-            </div>
-            <div class="benefit-card">
-                <div class="benefit-card-icon">
-                    <i class="fas fa-rocket"></i>
-                </div>
-                <h4 class="benefit-card-title">{% trans "أولوية الظهور" %}</h4>
-                <p class="benefit-card-text">{% trans "ترتيب أفضل في البحث" %}</p>
-            </div>
-            <div class="benefit-card">
-                <div class="benefit-card-icon">
-                    <i class="fas fa-chart-line"></i>
-                </div>
-                <h4 class="benefit-card-title">{% trans "زيادة المبيعات" %}</h4>
-                <p class="benefit-card-text">{% trans "نسبة مبيعات أعلى بـ 40%" %}</p>
+            <div class="card-body p-4">
+                <form method="post" enctype="multipart/form-data" id="verificationForm">
+                    {% csrf_token %}
+
+                    <div class="row g-4">
+                        <!-- Document Type -->
+                        <div class="col-md-6">
+                            <label class="form-label" for="{{ form.document_type.id_for_label }}">
+                                <i class="fas fa-file-alt me-1 text-primary"></i>
+                                {{ form.document_type.label }}
+                                <span class="required">*</span>
+                            </label>
+                            {{ form.document_type }}
+                            {% if form.document_type.errors %}
+                                <div class="text-danger small mt-1">{{ form.document_type.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-help">
+                                <i class="fas fa-info-circle me-1"></i>
+                                {% trans "بطاقة هوية، جواز سفر، سجل تجاري، إلخ" %}
+                            </div>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="col-md-6">
+                            <label class="form-label" for="{{ form.notes.id_for_label }}">
+                                <i class="fas fa-comment-alt me-1 text-primary"></i>
+                                {{ form.notes.label }}
+                            </label>
+                            {{ form.notes }}
+                            {% if form.notes.errors %}
+                                <div class="text-danger small mt-1">{{ form.notes.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-help">
+                                <i class="fas fa-info-circle me-1"></i>
+                                {% trans "ملاحظات إضافية (اختياري)" %}
+                            </div>
+                        </div>
+
+                        <!-- Document File -->
+                        <div class="col-12">
+                            <label class="form-label">
+                                <i class="fas fa-cloud-upload-alt me-1 text-primary"></i>
+                                {{ form.document_file.label }}
+                                <span class="required">*</span>
+                            </label>
+                            <div class="file-upload-area">
+                                <label for="{{ form.document_file.id_for_label }}" class="file-upload-label" id="fileLabel">
+                                    <div class="upload-icon">
+                                        <i class="fas fa-cloud-upload-alt"></i>
+                                    </div>
+                                    <div class="upload-text">
+                                        <div class="upload-text-main">{% trans "اضغط لرفع الوثيقة أو اسحب الملف هنا" %}</div>
+                                        <div class="upload-text-sub">{% trans "الحد الأقصى للحجم: 5MB" %}</div>
+                                    </div>
+                                    <div class="upload-formats">
+                                        <span class="format-badge">PNG</span>
+                                        <span class="format-badge">JPG</span>
+                                        <span class="format-badge">PDF</span>
+                                    </div>
+                                </label>
+                                {{ form.document_file }}
+                                <div class="file-name-display" id="fileNameDisplay">
+                                    <i class="fas fa-file"></i>
+                                    <div class="file-info">
+                                        <div class="file-name" id="fileName"></div>
+                                        <div class="file-size" id="fileSize"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% if form.document_file.errors %}
+                                <div class="text-danger small mt-1">{{ form.document_file.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Non-field Errors -->
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger mt-3">
+                            <i class="fas fa-times-circle me-2"></i>{{ form.non_field_errors.0 }}
+                        </div>
+                    {% endif %}
+
+                    <!-- Submit Button -->
+                    <div class="mt-4 pt-3 border-top">
+                        <button type="submit" class="btn btn-verify w-100" id="submitBtn">
+                            <i class="fas fa-paper-plane me-2"></i>
+                            {% trans "إرسال طلب التوثيق" %}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
+    </div>
 
-        <!-- Form Section -->
-        <div class="form-wrapper">
-            <!-- Previous Request Warning -->
-            {% if latest_request and latest_request.status == 'rejected' %}
-            <div class="verification-alert alert-warning">
-                <div class="alert-icon">
-                    <i class="fas fa-exclamation-triangle"></i>
-                </div>
-                <div class="alert-content">
-                    <div class="alert-title">{% trans "طلبك السابق تم رفضه" %}</div>
-                    <p class="alert-text">
-                        {% trans "السبب:" %} {{ latest_request.admin_notes|default:_("لم يتم تحديد سبب") }}<br>
-                        {% trans "يمكنك تقديم طلب جديد مع التأكد من تقديم وثائق صحيحة وواضحة." %}
-                    </p>
-                </div>
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Requirements Card -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>{% trans "المتطلبات" %}</h5>
+                <span class="badge bg-secondary" id="progressCounter">0/4</span>
             </div>
-            {% endif %}
-
-            <!-- Requirements Checklist -->
-            <div class="requirements-section">
-                <div class="requirements-header">
-                    <h4 class="requirements-title">
-                        <i class="fas fa-clipboard-check"></i>
-                        {% trans "متطلبات التوثيق" %}
-                    </h4>
-                    <span class="requirements-progress" id="progressCounter">0/4</span>
-                </div>
-                <div class="requirements-list">
+            <div class="card-body">
+                <div class="requirements-grid">
                     <div class="requirement-item" id="req-document-type">
                         <i class="fas fa-circle"></i>
-                        <span>{% trans "اختيار نوع الوثيقة" %}</span>
+                        <span>{% trans "نوع الوثيقة" %}</span>
                     </div>
                     <div class="requirement-item" id="req-document-file">
                         <i class="fas fa-circle"></i>
-                        <span>{% trans "رفع صورة الوثيقة" %}</span>
+                        <span>{% trans "رفع الوثيقة" %}</span>
                     </div>
                     <div class="requirement-item" id="req-file-size">
                         <i class="fas fa-circle"></i>
-                        <span>{% trans "حجم أقل من 5MB" %}</span>
+                        <span>{% trans "أقل من 5MB" %}</span>
                     </div>
                     <div class="requirement-item" id="req-file-format">
                         <i class="fas fa-circle"></i>
@@ -954,116 +662,26 @@
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Form -->
-            <form method="post" enctype="multipart/form-data" id="verificationForm">
-                {% csrf_token %}
-
-                <div class="form-row">
-                    <!-- Document Type -->
-                    <div class="form-group">
-                        <label class="form-label" for="{{ form.document_type.id_for_label }}">
-                            <span class="label-icon"><i class="fas fa-file-alt"></i></span>
-                            {{ form.document_type.label }}
-                            <span class="required">*</span>
-                        </label>
-                        {{ form.document_type }}
-                        {% if form.document_type.errors %}
-                            <div class="text-danger small mt-1">{{ form.document_type.errors.0 }}</div>
-                        {% endif %}
-                        <div class="form-help">
-                            <i class="fas fa-info-circle"></i>
-                            {% trans "بطاقة هوية، جواز سفر، سجل تجاري، إلخ" %}
-                        </div>
-                    </div>
-
-                    <!-- Notes -->
-                    <div class="form-group">
-                        <label class="form-label" for="{{ form.notes.id_for_label }}">
-                            <span class="label-icon"><i class="fas fa-comment-alt"></i></span>
-                            {{ form.notes.label }}
-                        </label>
-                        {{ form.notes }}
-                        {% if form.notes.errors %}
-                            <div class="text-danger small mt-1">{{ form.notes.errors.0 }}</div>
-                        {% endif %}
-                        <div class="form-help">
-                            <i class="fas fa-info-circle"></i>
-                            {% trans "ملاحظات إضافية (اختياري)" %}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Document File -->
-                <div class="form-group full-width">
-                    <label class="form-label">
-                        <span class="label-icon"><i class="fas fa-cloud-upload-alt"></i></span>
-                        {{ form.document_file.label }}
-                        <span class="required">*</span>
-                    </label>
-                    <div class="file-upload-area">
-                        <label for="{{ form.document_file.id_for_label }}" class="file-upload-label" id="fileLabel">
-                            <div class="upload-icon-wrapper">
-                                <i class="fas fa-cloud-upload-alt"></i>
-                            </div>
-                            <div class="upload-text">
-                                <div class="upload-text-main">{% trans "اضغط لرفع الوثيقة أو اسحب الملف هنا" %}</div>
-                                <div class="upload-text-sub">{% trans "الحد الأقصى للحجم: 5MB" %}</div>
-                            </div>
-                            <div class="upload-formats">
-                                <span class="format-badge">PNG</span>
-                                <span class="format-badge">JPG</span>
-                                <span class="format-badge">PDF</span>
-                            </div>
-                        </label>
-                        {{ form.document_file }}
-                        <div class="file-name-display" id="fileNameDisplay">
-                            <i class="fas fa-file"></i>
-                            <div class="file-info">
-                                <div class="file-name" id="fileName"></div>
-                                <div class="file-size" id="fileSize"></div>
-                            </div>
-                        </div>
-                    </div>
-                    {% if form.document_file.errors %}
-                        <div class="text-danger small mt-1">{{ form.document_file.errors.0 }}</div>
-                    {% endif %}
-                </div>
-
-                <!-- Non-field Errors -->
-                {% if form.non_field_errors %}
-                    <div class="verification-alert alert-danger mt-3">
-                        <div class="alert-icon" style="background: rgba(220, 53, 69, 0.2); color: #dc3545;">
-                            <i class="fas fa-times-circle"></i>
-                        </div>
-                        <div class="alert-content">
-                            <div class="alert-text">{{ form.non_field_errors.0 }}</div>
-                        </div>
-                    </div>
-                {% endif %}
-
-                <!-- Submit Button -->
-                <div class="submit-section">
-                    <button type="submit" class="btn-submit" id="submitBtn">
-                        <i class="fas fa-paper-plane"></i>
-                        {% trans "إرسال طلب التوثيق" %}
-                    </button>
-                </div>
-            </form>
+        <!-- Info Box -->
+        <div class="info-box">
+            <h5><i class="fas fa-info-circle me-2"></i>{% trans "معلومات مهمة" %}</h5>
+            <ul>
+                <li>{% trans "سيتم مراجعة طلبك خلال 24-48 ساعة" %}</li>
+                <li>{% trans "تأكد من وضوح صورة الوثيقة" %}</li>
+                <li>{% trans "يجب أن تكون الوثيقة سارية المفعول" %}</li>
+                <li>{% trans "ستحصل على إشعار بنتيجة الطلب" %}</li>
+            </ul>
         </div>
     </div>
 </div>
-</section>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // ===== THEME INITIALIZATION =====
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-
-    // ===== FORM ELEMENTS =====
+    // Form Elements
     const fileInput = document.getElementById('{{ form.document_file.id_for_label }}');
     const fileLabel = document.getElementById('fileLabel');
     const fileNameDisplay = document.getElementById('fileNameDisplay');
@@ -1073,7 +691,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('verificationForm');
     const progressCounter = document.getElementById('progressCounter');
 
-    // ===== REQUIREMENTS CHECKING =====
+    // Requirements
     const requirements = {
         documentType: document.getElementById('req-document-type'),
         documentFile: document.getElementById('req-document-file'),
@@ -1081,12 +699,11 @@ document.addEventListener('DOMContentLoaded', function() {
         fileFormat: document.getElementById('req-file-format')
     };
 
-    const maxFileSize = 5 * 1024 * 1024; // 5MB
+    const maxFileSize = 5 * 1024 * 1024;
     const allowedFormats = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'application/pdf'];
 
     function updateRequirement(element, isChecked) {
         if (!element) return;
-
         const icon = element.querySelector('i');
         if (isChecked) {
             element.classList.add('checked');
@@ -1100,22 +717,19 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateProgressCounter() {
         const checkedCount = document.querySelectorAll('.requirement-item.checked').length;
         progressCounter.textContent = `${checkedCount}/4`;
-
         if (checkedCount === 4) {
-            progressCounter.style.background = 'rgba(25, 135, 84, 0.2)';
-            progressCounter.style.color = '#198754';
+            progressCounter.classList.remove('bg-secondary');
+            progressCounter.classList.add('bg-success');
         } else {
-            progressCounter.style.background = '';
-            progressCounter.style.color = '';
+            progressCounter.classList.remove('bg-success');
+            progressCounter.classList.add('bg-secondary');
         }
     }
 
     function checkAllRequirements() {
-        // Check document type
         const hasDocType = documentType && documentType.value !== '';
         updateRequirement(requirements.documentType, hasDocType);
 
-        // Check file requirements
         if (fileInput && fileInput.files && fileInput.files[0]) {
             const file = fileInput.files[0];
             updateRequirement(requirements.documentFile, true);
@@ -1130,14 +744,12 @@ document.addEventListener('DOMContentLoaded', function() {
         updateProgressCounter();
     }
 
-    // ===== DOCUMENT TYPE CHANGE =====
+    // Document Type Change
     if (documentType) {
-        documentType.addEventListener('change', function() {
-            checkAllRequirements();
-        });
+        documentType.addEventListener('change', checkAllRequirements);
     }
 
-    // ===== FILE INPUT HANDLING =====
+    // File Input Handling
     if (fileInput) {
         fileInput.addEventListener('change', function() {
             if (this.files && this.files[0]) {
@@ -1181,7 +793,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         ['dragenter', 'dragover'].forEach(eventName => {
             fileLabel.addEventListener(eventName, () => {
-                fileLabel.style.borderColor = 'var(--accent-purple, #6B4C7A)';
+                fileLabel.style.borderColor = '#6B4C7A';
                 fileLabel.style.background = 'rgba(107, 76, 122, 0.1)';
             }, false);
         });
@@ -1204,7 +816,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ===== FORM SUBMISSION =====
+    // Form Submission
     if (form) {
         form.addEventListener('submit', function(e) {
             let isValid = true;
@@ -1239,7 +851,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const submitBtn = document.getElementById('submitBtn');
             if (submitBtn) {
                 submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جارٍ الإرسال..." %}';
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جارٍ الإرسال..." %}';
             }
         });
     }

@@ -675,6 +675,12 @@ def admin_edit_siteconfig(request):
                 "featured_ad_price",
                 "urgent_ad_price",
                 "pinned_ad_price",
+                # Safety Notes Fields
+                "buyer_safety_notes_enabled",
+                "buyer_safety_notes_title",
+                "buyer_safety_notes_title_ar",
+                "buyer_safety_notes",
+                "buyer_safety_notes_ar",
             ]
             widgets = {
                 "meta_keywords": forms.TextInput(
@@ -733,6 +739,15 @@ def admin_edit_siteconfig(request):
                 "pinned_ad_price": forms.NumberInput(
                     attrs={"class": "form-control", "step": "0.01", "min": "0"}
                 ),
+                # Safety Notes Widgets
+                "buyer_safety_notes_title": forms.TextInput(
+                    attrs={"class": "form-control", "placeholder": "نصائح للأمان"}
+                ),
+                "buyer_safety_notes_title_ar": forms.TextInput(
+                    attrs={"class": "form-control", "placeholder": "نصائح للأمان"}
+                ),
+                "buyer_safety_notes": CKEditor5Widget(config_name="default"),
+                "buyer_safety_notes_ar": CKEditor5Widget(config_name="default"),
             }
 
     site_config = SiteConfiguration.get_solo()
