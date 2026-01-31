@@ -1347,10 +1347,11 @@
                         <div class="swiper ad-gallery-swiper" style="border-radius: 20px;">
                             <div class="swiper-wrapper">
                                 {% for image in ad.images.all %}
-                                    <div class="swiper-slide">
+                                    <div class="swiper-slide" data-image-index="{{ forloop.counter0 }}">
                                         <img src="{{ image.image.url }}"
                                              alt="{{ ad.title }} - {% trans "صورة" %} {{ forloop.counter }}"
-                                             onclick="window.openLightbox({{ forloop.counter0 }})"
+                                             data-index="{{ forloop.counter0 }}"
+                                             class="gallery-image-clickable"
                                              style="cursor: pointer;"
                                              loading="lazy"
                                              onerror="this.src='{% static 'images/placeholder-ad.jpg' %}'">
@@ -2003,19 +2004,86 @@
             {% if site_config.buyer_safety_notes_enabled %}
             <div class="row mt-4">
                 <div class="col-12">
-                    <div class="modern-card card ad-content-card border-0 shadow-sm rounded-3" style="background: linear-gradient(135deg, #fff3e0, #ffe0b2); backdrop-filter: blur(10px);">
-                        <div class="card-header bg-transparent border-bottom-0 pb-2">
-                            <h4 class="card-title-main mb-0 d-flex align-items-center" style="color: #e65100; font-weight: 700;">
-                                <i class="fas fa-shield-alt me-2" style="font-size: 1.2em;"></i>
-                                <span>{{ site_config.buyer_safety_notes_title|default:"نصائح للأمان" }}</span>
-                            </h4>
-                        </div>
-                        <div class="card-body pt-3 buyer-safety-notes">
-                            {% autoescape off %}
-                            <div class="safety-notes-content" style="line-height: 1.8; color: #4e342e;">
-                                {{ site_config.buyer_safety_notes|safe }}
+                    <div class="safety-tips-modern rounded-4 overflow-hidden" style="background: linear-gradient(135deg, #1a237e 0%, #283593 50%, #3949ab 100%); box-shadow: 0 10px 40px rgba(26, 35, 126, 0.3);">
+                        <div class="p-4">
+                            <!-- Header -->
+                            <div class="d-flex align-items-center justify-content-center mb-4">
+                                <div class="safety-icon-wrapper me-3" style="width: 60px; height: 60px; background: linear-gradient(135deg, #ffd54f, #ffb300); border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 25px rgba(255, 193, 7, 0.4);">
+                                    <i class="fas fa-shield-alt" style="font-size: 1.8rem; color: #1a237e;"></i>
+                                </div>
+                                <h4 class="mb-0" style="color: #ffffff; font-weight: 800; font-size: 1.5rem; text-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+                                    {{ site_config.buyer_safety_notes_title|default:"نصائح للأمان" }}
+                                </h4>
                             </div>
-                            {% endautoescape %}
+
+                            <!-- Safety Tips Content -->
+                            <div class="safety-tips-content p-4 rounded-3" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
+                                <div class="row g-3">
+                                    <!-- Tip 1 -->
+                                    <div class="col-md-6">
+                                        <div class="d-flex align-items-start p-3 rounded-3 h-100" style="background: linear-gradient(135deg, #e3f2fd, #bbdefb); border-right: 4px solid #1976d2;">
+                                            <div class="tip-icon me-3" style="width: 40px; height: 40px; min-width: 40px; background: #1976d2; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                                <i class="fas fa-handshake" style="color: white; font-size: 1rem;"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-1" style="color: #1565c0; font-weight: 700;">{% trans "قابل البائع شخصياً" %}</h6>
+                                                <p class="mb-0 small" style="color: #37474f;">{% trans "تأكد من مقابلة البائع في مكان عام وآمن" %}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- Tip 2 -->
+                                    <div class="col-md-6">
+                                        <div class="d-flex align-items-start p-3 rounded-3 h-100" style="background: linear-gradient(135deg, #e8f5e9, #c8e6c9); border-right: 4px solid #388e3c;">
+                                            <div class="tip-icon me-3" style="width: 40px; height: 40px; min-width: 40px; background: #388e3c; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                                <i class="fas fa-search-dollar" style="color: white; font-size: 1rem;"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-1" style="color: #2e7d32; font-weight: 700;">{% trans "افحص المنتج جيداً" %}</h6>
+                                                <p class="mb-0 small" style="color: #37474f;">{% trans "تحقق من حالة المنتج قبل الدفع" %}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- Tip 3 -->
+                                    <div class="col-md-6">
+                                        <div class="d-flex align-items-start p-3 rounded-3 h-100" style="background: linear-gradient(135deg, #fff3e0, #ffe0b2); border-right: 4px solid #f57c00;">
+                                            <div class="tip-icon me-3" style="width: 40px; height: 40px; min-width: 40px; background: #f57c00; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                                <i class="fas fa-money-bill-wave" style="color: white; font-size: 1rem;"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-1" style="color: #e65100; font-weight: 700;">{% trans "لا تدفع مقدماً" %}</h6>
+                                                <p class="mb-0 small" style="color: #37474f;">{% trans "تجنب إرسال أموال قبل استلام المنتج" %}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- Tip 4 -->
+                                    <div class="col-md-6">
+                                        <div class="d-flex align-items-start p-3 rounded-3 h-100" style="background: linear-gradient(135deg, #fce4ec, #f8bbd9); border-right: 4px solid #c2185b;">
+                                            <div class="tip-icon me-3" style="width: 40px; height: 40px; min-width: 40px; background: #c2185b; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                                <i class="fas fa-exclamation-triangle" style="color: white; font-size: 1rem;"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-1" style="color: #ad1457; font-weight: 700;">{% trans "بلّغ عن المشبوه" %}</h6>
+                                                <p class="mb-0 small" style="color: #37474f;">{% trans "أبلغنا فوراً عن أي سلوك مريب" %}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Additional Notes from Admin -->
+                                {% if site_config.buyer_safety_notes %}
+                                <div class="mt-4 p-3 rounded-3" style="background: linear-gradient(135deg, #f5f5f5, #eeeeee); border-right: 4px solid #607d8b;">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-info-circle me-2" style="color: #607d8b;"></i>
+                                        <strong style="color: #455a64;">{% trans "ملاحظات إضافية" %}</strong>
+                                    </div>
+                                    {% autoescape off %}
+                                    <div class="safety-notes-content" style="line-height: 1.8; color: #37474f; font-size: 0.95rem;">
+                                        {{ site_config.buyer_safety_notes|safe }}
+                                    </div>
+                                    {% endautoescape %}
+                                </div>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2241,6 +2309,20 @@
                 });
 
                 console.log('Gallery Swiper object:', gallerySwiper);
+
+                // Add click event handler for gallery images using event delegation
+                const galleryContainer = document.querySelector('.ad-gallery-swiper');
+                if (galleryContainer) {
+                    galleryContainer.addEventListener('click', function(e) {
+                        const clickedImage = e.target.closest('.gallery-image-clickable');
+                        if (clickedImage) {
+                            // Use swiper's realIndex for loop mode compatibility
+                            const realIndex = gallerySwiper.realIndex;
+                            console.log('Gallery image clicked, realIndex:', realIndex);
+                            window.openLightbox(realIndex);
+                        }
+                    });
+                }
 
                 // Force update after a short delay to ensure images are loaded
                 setTimeout(function() {
