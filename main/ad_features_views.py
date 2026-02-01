@@ -83,7 +83,7 @@ def ad_features_upgrade(request, ad_id):
         # If no new features selected
         if not features_to_enable:
             messages.info(request, _("لم يتم تحديد أي مميزات جديدة"))
-            return redirect("main:ad_detail", ad_id=ad.id)
+            return redirect("main:ad_detail", slug=ad.slug)
 
         # Store upgrade info in session for payment
         request.session["upgrade_ad_id"] = ad.id
@@ -92,10 +92,11 @@ def ad_features_upgrade(request, ad_id):
 
         if total_cost > 0:
             # Redirect to payment
+            currency = ad.country.currency_symbol if ad.country else "ج.م"
             messages.info(
                 request,
-                _("يرجى إتمام الدفع لتفعيل المميزات. المبلغ المطلوب: {} ريال").format(
-                    total_cost
+                _("يرجى إتمام الدفع لتفعيل المميزات. المبلغ المطلوب: {} {}").format(
+                    total_cost, currency
                 ),
             )
             return redirect("main:ad_upgrade_payment", ad_id=ad.id)
@@ -118,12 +119,25 @@ def ad_features_upgrade(request, ad_id):
                     payment_amount=Decimal("0.00"),
                 )
 
+            if features_to_enable.get("video"):
+                # Handle video URL
+                video_url = request.POST.get("video_url", "").strip()
+                if video_url:
+                    ad.video_url = video_url
+                    updated_features.append(_("إضافة فيديو"))
+
+                # Handle video file upload
+                video_file = request.FILES.get("video_file")
+                if video_file:
+                    ad.video_file = video_file
+                    updated_features.append(_("رفع ملف فيديو"))
+
             ad.save()
             messages.success(
                 request,
                 _("تم تحديث مميزات الإعلان: ") + ", ".join(updated_features),
             )
-            return redirect("main:ad_detail", ad_id=ad.id)
+            return redirect("main:ad_detail", slug=ad.slug)
 
     # Get tax rate from Constance config (default 15%)
     tax_rate_percentage = getattr(config, "TAX_RATE", 15.0)
@@ -162,7 +176,7 @@ def toggle_contact_for_price(request, ad_id):
             _("تم إلغاء تفعيل ميزة 'تواصل ليصلك عرض سعر'. السعر الآن ظاهر."),
         )
 
-    return redirect("main:ad_detail", ad_id=ad.id)
+    return redirect("main:ad_detail", slug=ad.slug)
 
 
 @login_required
@@ -178,7 +192,7 @@ def request_facebook_share(request, ad_id):
             request,
             _("لديك طلب نشر على فيسبوك قيد المراجعة بالفعل لهذا الإعلان."),
         )
-        return redirect("main:ad_detail", ad_id=ad.id)
+        return redirect("main:ad_detail", slug=ad.slug)
 
     # Create Facebook share request
     FacebookShareRequest.objects.create(
@@ -200,4 +214,4 @@ def request_facebook_share(request, ad_id):
         ),
     )
 
-    return redirect("main:ad_detail", ad_id=ad.id)
+    return redirect("main:ad_detail", slug=ad.slug)

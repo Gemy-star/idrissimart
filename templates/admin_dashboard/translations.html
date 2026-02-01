@@ -672,7 +672,7 @@
                         </span>
                     </h4>
                 </div>
-                
+
                 <div class="progress-wrapper">
                     <div class="progress">
                         <div class="progress-bar" id="arProgressBar" style="width: 0%"></div>
@@ -694,7 +694,7 @@
                         <span id="arStats">{% trans "جاري التحميل..." %}</span>
                     </li>
                 </ul>
-                
+
                 <div class="d-flex gap-3">
                     <button type="button" onclick="loadLanguageTranslations('ar')" class="action-button primary flex-grow-1">
                         <i class="fas fa-edit"></i>
@@ -714,7 +714,7 @@
                         </span>
                     </h4>
                 </div>
-                
+
                 <div class="progress-wrapper">
                     <div class="progress">
                         <div class="progress-bar" id="enProgressBar" style="width: 0%"></div>
@@ -736,7 +736,7 @@
                         <span id="enStats">{% trans "جاري التحميل..." %}</span>
                     </li>
                 </ul>
-                
+
                 <div class="d-flex gap-3">
                     <button type="button" onclick="loadLanguageTranslations('en')" class="action-button primary flex-grow-1">
                         <i class="fas fa-edit"></i>
@@ -747,28 +747,70 @@
         </div>
     </div>
 
-    <!-- Inline Translation Editor -->
+    <!-- Enhanced Translation Editor -->
     <div id="translationEditor" class="translation-editor" style="display: none;">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
             <h4 class="mb-0">
                 <i class="fas fa-language me-2"></i>
                 <span id="editorTitle">{% trans "تحرير الترجمات" %}</span>
+                <span id="modifiedCount" class="badge bg-warning ms-2" style="display: none;">0 {% trans "معدّل" %}</span>
             </h4>
-            <div class="d-flex gap-2">
-                <button type="button" onclick="saveAllTranslations()" class="action-button primary">
+            <div class="d-flex gap-2 flex-wrap">
+                <button type="button" onclick="exportTranslations()" class="action-button outline" title="{% trans 'تصدير الترجمات' %}">
+                    <i class="fas fa-download"></i>
+                    <span class="d-none d-md-inline">{% trans "تصدير" %}</span>
+                </button>
+                <button type="button" onclick="saveAllTranslations()" class="action-button primary" id="saveBtn">
                     <i class="fas fa-save"></i>
-                    <span>{% trans "حفظ جميع التغييرات" %}</span>
+                    <span>{% trans "حفظ التغييرات" %}</span>
+                    <span id="saveBtnCount" style="display: none;"></span>
                 </button>
                 <button type="button" onclick="closeTranslationEditor()" class="action-button outline">
                     <i class="fas fa-times"></i>
-                    <span>{% trans "إغلاق" %}</span>
                 </button>
             </div>
         </div>
 
-        <div class="search-wrapper">
-            <i class="fas fa-search"></i>
-            <input type="text" id="translationSearch" class="translation-search" placeholder="{% trans 'ابحث في الترجمات...' %}" onkeyup="filterTranslations()">
+        <!-- Enhanced Filter & Search Bar -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="search-wrapper">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="translationSearch" class="translation-search" placeholder="{% trans 'ابحث في الترجمات... (مثال: ترحيب، login، email)' %}" onkeyup="filterTranslations()">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select id="filterStatus" class="translation-search" onchange="filterTranslations()" style="padding-left: 16px;">
+                    <option value="all">{% trans "جميع الترجمات" %}</option>
+                    <option value="translated">{% trans "مترجم" %}</option>
+                    <option value="untranslated">{% trans "غير مترجم" %}</option>
+                    <option value="modified">{% trans "معدّل" %}</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select id="itemsPerPageSelect" class="translation-search" onchange="changeItemsPerPage()" style="padding-left: 16px;">
+                    <option value="10">10 {% trans "لكل صفحة" %}</option>
+                    <option value="20" selected>20 {% trans "لكل صفحة" %}</option>
+                    <option value="50">50 {% trans "لكل صفحة" %}</option>
+                    <option value="100">100 {% trans "لكل صفحة" %}</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Quick Stats Bar -->
+        <div class="alert alert-info d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <i class="fas fa-info-circle me-2"></i>
+                <span id="totalTranslations">{% trans "إجمالي الترجمات:" %} <strong>0</strong></span>
+                <span class="mx-2">|</span>
+                <span id="translatedCount">{% trans "مترجم:" %} <strong>0</strong></span>
+                <span class="mx-2">|</span>
+                <span id="untranslatedCount">{% trans "غير مترجم:" %} <strong>0</strong></span>
+            </div>
+            <button type="button" class="btn btn-sm btn-light" onclick="resetFilters()">
+                <i class="fas fa-redo me-1"></i>
+                {% trans "إعادة تعيين" %}
+            </button>
         </div>
 
         <div id="translationsList" class="translations-list">
@@ -967,7 +1009,7 @@
     document.getElementById('confirmUpdateBtn').addEventListener('click', function() {
         updateConfirmModal.hide();
         showToast('{% trans "جاري تحديث الترجمات..." %}', 'info');
-        
+
         setTimeout(() => {
             showToast('{% trans "تم تحديث الترجمات بنجاح" %}', 'success');
             loadTranslationStats();
@@ -1035,6 +1077,7 @@
             if (data.success && data.translations) {
                 allTranslations = data.translations;
                 filteredTranslations = allTranslations;
+                updateTranslationStats();
                 renderTranslations();
                 showToast(`{% trans "تم تحميل" %} ${data.translations.length} {% trans "نص بنجاح" %}`, 'success', 3000);
             } else {
@@ -1088,9 +1131,9 @@
                     ${escapeHtml(item.msgid)}
                     ${isModified ? '<i class="fas fa-edit text-warning ms-2" title="تم التعديل"></i>' : ''}
                 </div>
-                <textarea 
-                    class="msgstr" 
-                    data-index="${globalIndex}" 
+                <textarea
+                    class="msgstr"
+                    data-index="${globalIndex}"
                     rows="${item.msgstr && item.msgstr.length > 50 ? '3' : '2'}"
                     oninput="markAsModified(${globalIndex})"
                 >${escapeHtml(item.msgstr || '')}</textarea>
@@ -1116,20 +1159,98 @@
         if (item) {
             item.classList.add('border-warning');
         }
+        updateModifiedCount();
     }
 
     function filterTranslations() {
         const searchTerm = document.getElementById('translationSearch').value.toLowerCase().trim();
-        if (!searchTerm) {
-            filteredTranslations = allTranslations;
-        } else {
-            filteredTranslations = allTranslations.filter(item =>
+        const filterStatus = document.getElementById('filterStatus').value;
+
+        filteredTranslations = allTranslations.filter(item => {
+            // Search filter
+            const matchesSearch = !searchTerm ||
                 item.msgid.toLowerCase().includes(searchTerm) ||
-                (item.msgstr && item.msgstr.toLowerCase().includes(searchTerm))
-            );
-        }
+                (item.msgstr && item.msgstr.toLowerCase().includes(searchTerm));
+
+            // Status filter
+            let matchesStatus = true;
+            if (filterStatus === 'translated') {
+                matchesStatus = item.msgstr && item.msgstr.trim() !== '';
+            } else if (filterStatus === 'untranslated') {
+                matchesStatus = !item.msgstr || item.msgstr.trim() === '';
+            } else if (filterStatus === 'modified') {
+                const index = allTranslations.indexOf(item);
+                matchesStatus = modifiedTranslations.has(index);
+            }
+
+            return matchesSearch && matchesStatus;
+        });
+
+        currentPage = 1;
+        updateTranslationStats();
+        renderTranslations();
+    }
+
+    function updateTranslationStats() {
+        const total = filteredTranslations.length;
+        const translated = filteredTranslations.filter(item => item.msgstr && item.msgstr.trim() !== '').length;
+        const untranslated = total - translated;
+
+        document.getElementById('totalTranslations').innerHTML = `{% trans "إجمالي الترجمات:" %} <strong>${total}</strong>`;
+        document.getElementById('translatedCount').innerHTML = `{% trans "مترجم:" %} <strong class="text-success">${translated}</strong>`;
+        document.getElementById('untranslatedCount').innerHTML = `{% trans "غير مترجم:" %} <strong class="text-warning">${untranslated}</strong>`;
+    }
+
+    function resetFilters() {
+        document.getElementById('translationSearch').value = '';
+        document.getElementById('filterStatus').value = 'all';
+        filterTranslations();
+    }
+
+    function changeItemsPerPage() {
+        itemsPerPage = parseInt(document.getElementById('itemsPerPageSelect').value);
         currentPage = 1;
         renderTranslations();
+    }
+
+    function exportTranslations() {
+        if (!allTranslations || allTranslations.length === 0) {
+            showToast('{% trans "لا توجد ترجمات للتصدير" %}', 'warning');
+            return;
+        }
+
+        const data = allTranslations.map(item => ({
+            msgid: item.msgid,
+            msgstr: item.msgstr || ''
+        }));
+
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `translations_${currentLanguage}_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showToast('{% trans "تم تصدير الترجمات بنجاح" %}', 'success');
+    }
+
+    function updateModifiedCount() {
+        const count = modifiedTranslations.size;
+        const badge = document.getElementById('modifiedCount');
+        const saveBtnCount = document.getElementById('saveBtnCount');
+
+        if (count > 0) {
+            badge.style.display = 'inline';
+            badge.textContent = `${count} {% trans "معدّل" %}`;
+            saveBtnCount.style.display = 'inline';
+            saveBtnCount.textContent = ` (${count})`;
+        } else {
+            badge.style.display = 'none';
+            saveBtnCount.style.display = 'none';
+        }
     }
 
     function prevPage() {
@@ -1157,7 +1278,7 @@
             const index = parseInt(textarea.getAttribute('data-index'));
             const newValue = textarea.value;
             const original = filteredTranslations[index];
-            
+
             if (original && original.msgstr !== newValue) {
                 updates.push({
                     msgid: original.msgid,
@@ -1190,7 +1311,7 @@
         .then(data => {
             saveBtn.disabled = false;
             saveBtn.innerHTML = originalText;
-            
+
             if (data.success) {
                 showToast(`✓ {% trans "تم حفظ" %} ${updates.length} {% trans "ترجمة بنجاح" %}`, 'success');
                 modifiedTranslations.clear();
@@ -1232,6 +1353,16 @@
     // Load translation stats on page load
     document.addEventListener('DOMContentLoaded', function() {
         loadTranslationStats();
+
+        // Add keyboard shortcut (Ctrl+S / Cmd+S) to save
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                if (modifiedTranslations.size > 0 && document.getElementById('translationEditor').style.display !== 'none') {
+                    saveAllTranslations();
+                }
+            }
+        });
     });
 
     function loadTranslationStats() {
@@ -1278,9 +1409,9 @@
         const steps = 30;
         const stepValue = targetValue / steps;
         let currentValue = 0;
-        
+
         element.textContent = '0' + suffix;
-        
+
         const interval = setInterval(() => {
             currentValue += stepValue;
             if (currentValue >= targetValue) {
@@ -1296,17 +1427,17 @@
         const statsEl = document.getElementById(`${langCode}Stats`);
         const progressBar = document.getElementById(`${langCode}ProgressBar`);
         const progressText = document.getElementById(`${langCode}ProgressText`);
-        
+
         if (statsEl) {
             statsEl.innerHTML = `<strong>${langData.translated}</strong> / ${langData.total} {% trans "نص" %} (<strong>${langData.percent}%</strong>)`;
         }
-        
+
         if (progressBar) {
             setTimeout(() => {
                 progressBar.style.width = langData.percent + '%';
             }, 100);
         }
-        
+
         if (progressText) {
             progressText.innerHTML = `<strong>${langData.percent}%</strong> {% trans "مكتملة" %}`;
         }

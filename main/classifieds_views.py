@@ -382,7 +382,7 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             site_config.cart_service_instructions
             or "عند تفعيل السلة، سيتم خصم رسوم خدمة من ثمن المنتج عند البيع. يجب أن يكون السعر شاملاً لهذه الرسوم ورسوم التوصيل."
         )
-        
+
         # Add mobile verification setting for form validation
         context["mobile_verification_enabled"] = site_config.require_phone_verification
 
@@ -697,12 +697,13 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
         ).prefetch_related("subcategories")
         context["is_editing"] = True
         context["original_category"] = self.object.category
-        
+
         # Add mobile verification setting
         from content.models import SiteConfiguration
+
         site_config = SiteConfiguration.get_solo()
         context["mobile_verification_enabled"] = site_config.require_phone_verification
-        
+
         return context
 
     def form_valid(self, form):
@@ -2557,11 +2558,12 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
 
         if total_amount > 0:
             # Redirect to payment
+            currency = ad.country.currency_symbol if ad.country else "ج.م"
             messages.info(
                 request,
                 _(
-                    "يرجى إتمام الدفع لتفعيل المميزات والترقيات. المبلغ المطلوب: {} ريال"
-                ).format(total_amount),
+                    "يرجى إتمام الدفع لتفعيل المميزات والترقيات. المبلغ المطلوب: {} {}"
+                ).format(total_amount, currency),
             )
             return redirect("main:ad_upgrade_payment", ad_id=ad.pk)
         else:

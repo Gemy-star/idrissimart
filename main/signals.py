@@ -369,14 +369,23 @@ def send_order_notifications(sender, instance, created, **kwargs):
     if created:
         # New order created - notify customer and admin
         try:
+            # Get currency from order's ad
+            currency = "ج.م"
+            if instance.items.exists():
+                first_item = instance.items.first()
+                if first_item.ad and first_item.ad.country:
+                    currency = first_item.ad.country.currency_symbol
+
             # 1. Send customer notification
             Notification.objects.create(
                 user=instance.user,
                 title=_("تم إنشاء طلبك بنجاح"),
                 message=_(
-                    "طلبك رقم {order_number} بمبلغ {amount} ريال تم إنشاؤه بنجاح."
+                    "طلبك رقم {order_number} بمبلغ {amount} {currency} تم إنشاؤه بنجاح."
                 ).format(
-                    order_number=instance.order_number, amount=instance.total_amount
+                    order_number=instance.order_number,
+                    amount=instance.total_amount,
+                    currency=currency,
                 ),
                 link=f"/orders/{instance.id}/",
                 notification_type=Notification.NotificationType.GENERAL,
@@ -412,9 +421,11 @@ def send_order_notifications(sender, instance, created, **kwargs):
                 try:
                     sms_service = SMSService()
                     message = _(
-                        "تم إنشاء طلبك {order_number} بنجاح. المبلغ: {amount} ريال. سنتواصل معك قريباً."
+                        "تم إنشاء طلبك {order_number} بنجاح. المبلغ: {amount} {currency}. سنتواصل معك قريباً."
                     ).format(
-                        order_number=instance.order_number, amount=instance.total_amount
+                        order_number=instance.order_number,
+                        amount=instance.total_amount,
+                        currency=currency,
                     )
                     sms_service.send_sms(instance.phone, message)
                 except Exception as e:
@@ -428,8 +439,12 @@ def send_order_notifications(sender, instance, created, **kwargs):
                     title=_("طلب جديد - {order_number}").format(
                         order_number=instance.order_number
                     ),
-                    message=_("طلب جديد من {customer} بمبلغ {amount} ريال").format(
-                        customer=instance.full_name, amount=instance.total_amount
+                    message=_(
+                        "طلب جديد من {customer} بمبلغ {amount} {currency}"
+                    ).format(
+                        customer=instance.full_name,
+                        amount=instance.total_amount,
+                        currency=currency,
                     ),
                     link=f"/admin/orders/{instance.id}/",
                     notification_type=Notification.NotificationType.GENERAL,
@@ -450,9 +465,11 @@ def send_order_notifications(sender, instance, created, **kwargs):
                     user=publisher,
                     title=_("طلب جديد يحتوي على منتجاتك"),
                     message=_(
-                        "طلب رقم {order_number} - إيراداتك: {revenue} ريال"
+                        "طلب رقم {order_number} - إيراداتك: {revenue} {currency}"
                     ).format(
-                        order_number=instance.order_number, revenue=publisher_revenue
+                        order_number=instance.order_number,
+                        revenue=publisher_revenue,
+                        currency=currency,
                     ),
                     link=f"/publisher/orders/{instance.id}/",
                     notification_type=Notification.NotificationType.GENERAL,
@@ -547,6 +564,13 @@ def send_order_status_notifications(sender, instance, created, **kwargs):
         ):
             try:
                 if instance.payment_status == "paid":
+                    # Get currency from order's ad
+                    currency = "ج.م"
+                    if instance.items.exists():
+                        first_item = instance.items.first()
+                        if first_item.ad and first_item.ad.country:
+                            currency = first_item.ad.country.currency_symbol
+
                     # Notify customer of full payment
                     Notification.objects.create(
                         user=instance.user,
@@ -554,8 +578,8 @@ def send_order_status_notifications(sender, instance, created, **kwargs):
                             order_number=instance.order_number
                         ),
                         message=_(
-                            "تم استلام الدفع الكامل لطلبك بمبلغ {amount} ريال"
-                        ).format(amount=instance.total_amount),
+                            "تم استلام الدفع الكامل لطلبك بمبلغ {amount} {currency}"
+                        ).format(amount=instance.total_amount, currency=currency),
                         link=f"/orders/{instance.id}/",
                         notification_type=Notification.NotificationType.GENERAL,
                     )
@@ -581,10 +605,11 @@ def send_order_status_notifications(sender, instance, created, **kwargs):
                             order_number=instance.order_number
                         ),
                         message=_(
-                            "تم استلام {paid} ريال. المبلغ المتبقي: {remaining} ريال"
+                            "تم استلام {paid} {currency}. المبلغ المتبقي: {remaining} {currency}"
                         ).format(
                             paid=instance.paid_amount,
                             remaining=instance.remaining_amount,
+                            currency=currency,
                         ),
                         link=f"/orders/{instance.id}/",
                         notification_type=Notification.NotificationType.GENERAL,
@@ -670,9 +695,9 @@ def activate_package_on_payment_completion(sender, instance, created, **kwargs):
                     # Send SMS notification for package activation
                     if SMSService.is_enabled():
                         try:
-                            user_phone = getattr(instance.user, "mobile", None) or getattr(
-                                instance.user, "phone", None
-                            )
+                            user_phone = getattr(
+                                instance.user, "mobile", None
+                            ) or getattr(instance.user, "phone", None)
                             if user_phone:
                                 sms_message = _(
                                     "تم تفعيل باقتك {package_name}! لديك {ad_count} إعلان. مبلغ: {amount}"
@@ -683,7 +708,9 @@ def activate_package_on_payment_completion(sender, instance, created, **kwargs):
                                 )
                                 SMSService.send_sms(user_phone, sms_message)
                         except Exception as e:
-                            logger.error(f"Failed to send package activation SMS: {str(e)}")
+                            logger.error(
+                                f"Failed to send package activation SMS: {str(e)}"
+                            )
 
                 except AdPackage.DoesNotExist:
                     logger.error(
