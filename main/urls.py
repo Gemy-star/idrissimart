@@ -29,7 +29,11 @@ app_name = "main"
 urlpatterns = [
     path("", views.HomeView.as_view(), name="home"),
     path("categories/", views.CategoriesView.as_view(), name="categories"),
-    re_path(r"^categories/(?P<category_slug>[\w\u0600-\u06FF-]+)/$", views.CategoriesView.as_view(), name="categories_by_slug"),
+    re_path(
+        r"^categories/(?P<category_slug>[\w\u0600-\u06FF-]+)/$",
+        views.CategoriesView.as_view(),
+        name="categories_by_slug",
+    ),
     path("about/", views.AboutView.as_view(), name="about"),
     path("contact/", views.ContactView.as_view(), name="contact"),
     path("faq/", views.FAQView.as_view(), name="faq"),
@@ -1020,22 +1024,22 @@ urlpatterns = [
         admin_content_views.admin_blog_category_delete,
         name="admin_blog_category_delete",
     ),
-    # Blog Management
-    path(
-        "admin/blogs/",
-        admin_content_views.admin_blogs,
-        name="admin_blogs",
-    ),
-    path(
-        "admin/blogs/<int:pk>/toggle-publish/",
-        admin_content_views.admin_blog_toggle_publish,
-        name="admin_blog_toggle_publish",
-    ),
-    path(
-        "admin/blogs/<int:pk>/delete/",
-        admin_content_views.admin_blog_delete,
-        name="admin_blog_delete",
-    ),
+    # Blog Management (OLD - DISABLED)
+    # path(
+    #     "admin/blogs/",
+    #     admin_content_views.admin_blogs,
+    #     name="admin_blogs_old",
+    # ),
+    # path(
+    #     "admin/blogs/<int:pk>/toggle-publish/",
+    #     admin_content_views.admin_blog_toggle_publish,
+    #     name="admin_blog_toggle_publish_old",
+    # ),
+    # path(
+    #     "admin/blogs/<int:pk>/delete/",
+    #     admin_content_views.admin_blog_delete,
+    #     name="admin_blog_delete_old",
+    # ),
     # Admin Orders Management
     path(
         "admin/orders/",
@@ -1155,6 +1159,11 @@ urlpatterns = [
         name="admin_payments",
     ),
     path(
+        "admin/payment/<int:payment_id>/refund/",
+        views.admin_payment_refund,
+        name="admin_payment_refund",
+    ),
+    path(
         "admin/payment-transaction/<int:transaction_id>/",
         views.admin_payment_transaction_detail,
         name="admin_payment_transaction_detail",
@@ -1240,6 +1249,11 @@ urlpatterns = [
         "admin/blogs/create/",
         blog_views.admin_blog_create,
         name="admin_blog_create",
+    ),
+    path(
+        "admin/blogs/<int:blog_id>/",
+        blog_views.admin_blog_detail,
+        name="admin_blog_detail",
     ),
     path(
         "admin/blogs/<int:blog_id>/update/",

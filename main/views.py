@@ -48,6 +48,7 @@ from main.models import (
     Notification,
     ChatRoom,
     ChatMessage,
+    Order,
 )
 from main.templatetags.idrissimart_tags import phone_format
 from main.utils import get_selected_country_from_request
@@ -3880,7 +3881,8 @@ class AdminSettingsView(SuperadminRequiredMixin, View):
 
 class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
     """
-    Admin interface for payment operations and premium members
+    Admin interface for comprehensive payment operations
+    Handles all payment types: packages, subscriptions, ad features, orders
     Restricted to superusers only
     """
 
@@ -3893,21 +3895,32 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
 
         context = super().get_context_data(**kwargs)
 
-        # Payment statistics
-        completed_payments = Payment.objects.filter(
-            status=Payment.PaymentStatus.COMPLETED
-        )
-        total_payments = Payment.objects.count()
-        total_revenue = completed_payments.aggregate(total=Sum("amount"))["total"] or 0
-        pending_payments = Payment.objects.filter(
-            status=Payment.PaymentStatus.PENDING
-        ).count()
-        failed_payments = Payment.objects.filter(
-            status=Payment.PaymentStatus.FAILED
-        ).count()
-        refunded_payments = Payment.objects.filter(
+        # Handle AJAX request for stats only
+        if self.request.GET.get("ajax_stats") == "1":
+            from django.http import JsonResponse
+
+            stats = self.get_payment_stats()
+            return JsonResponse({"success": True, "stats": stats})
+
+        # Get all payment types
+        all_payments = Payment.objects.select_related("user").all()
+        completed_payments = all_payments.filter(status=Payment.PaymentStatus.COMPLETED)
+        pending_payments_qs = all_payments.filter(status=Payment.PaymentStatus.PENDING)
+        failed_payments_qs = all_payments.filter(status=Payment.PaymentStatus.FAILED)
+        refunded_payments_qs = all_payments.filter(
             status=Payment.PaymentStatus.REFUNDED
-        ).count()
+        )
+        cancelled_payments_qs = all_payments.filter(
+            status=Payment.PaymentStatus.CANCELLED
+        )
+
+        # Payment statistics
+        total_payments = all_payments.count()
+        total_revenue = completed_payments.aggregate(total=Sum("amount"))["total"] or 0
+        pending_payments = pending_payments_qs.count()
+        failed_payments = failed_payments_qs.count()
+        refunded_payments = refunded_payments_qs.count()
+        cancelled_payments = cancelled_payments_qs.count()
 
         # Calculate monthly revenue (current month)
         current_month_start = timezone.now().replace(
@@ -3948,6 +3961,33 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
             is_premium=True, subscription_end__lt=today
         ).count()
 
+        # Orders statistics
+        all_orders = Order.objects.select_related("user").all()
+        total_orders = all_orders.count()
+        completed_orders = all_orders.filter(
+            status="delivered", payment_status="paid"
+        ).count()
+        pending_orders = all_orders.filter(payment_status="pending").count()
+        orders_revenue = (
+            all_orders.filter(payment_status="paid").aggregate(
+                total=Sum("total_amount")
+            )["total"]
+            or 0
+        )
+
+        # User packages statistics
+        all_packages = UserPackage.objects.select_related("user", "package").all()
+        active_packages = all_packages.filter(expiry_date__gte=today).count()
+        expired_packages = all_packages.filter(expiry_date__lt=today).count()
+
+        # Payment by provider statistics
+        paypal_payments = completed_payments.filter(provider="paypal").count()
+        paymob_payments = completed_payments.filter(provider="paymob").count()
+        bank_transfer_payments = completed_payments.filter(
+            provider="bank_transfer"
+        ).count()
+        offline_payments = completed_payments.filter(provider="offline").count()
+
         context["payment_stats"] = {
             "total_transactions": total_payments,
             "completed_transactions": completed_payments.count(),
@@ -3961,12 +4001,44 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
             "pending_payments": pending_payments,
             "failed_payments": failed_payments,
             "refunded_payments": refunded_payments,
+            "cancelled_payments": cancelled_payments,
+            "total_orders": total_orders,
+            "completed_orders": completed_orders,
+            "pending_orders": pending_orders,
+            "orders_revenue": orders_revenue,
+            "active_packages": active_packages,
+            "expired_packages": expired_packages,
+            "paypal_payments": paypal_payments,
+            "paymob_payments": paymob_payments,
+            "bank_transfer_payments": bank_transfer_payments,
+            "offline_payments": offline_payments,
         }
 
-        # Recent transactions
-        context["recent_transactions"] = Payment.objects.select_related(
-            "user"
-        ).order_by("-created_at")[:10]
+        # Recent transactions with pagination support
+        page_num = self.request.GET.get("page", 1)
+        status_filter = self.request.GET.get("status", "")
+        provider_filter = self.request.GET.get("provider", "")
+        search_query = self.request.GET.get("search", "")
+
+        transactions = all_payments.order_by("-created_at")
+
+        if status_filter:
+            transactions = transactions.filter(status=status_filter)
+        if provider_filter:
+            transactions = transactions.filter(provider=provider_filter)
+        if search_query:
+            transactions = transactions.filter(
+                Q(description__icontains=search_query)
+                | Q(user__username__icontains=search_query)
+                | Q(user__email__icontains=search_query)
+                | Q(provider_transaction_id__icontains=search_query)
+            )
+
+        from django.core.paginator import Paginator
+
+        paginator = Paginator(transactions, 20)
+        context["recent_transactions"] = paginator.get_page(page_num)
+        context["paginator"] = paginator
 
         # Monthly revenue chart data (last 6 months)
         monthly_data = []
@@ -4065,6 +4137,113 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
         context["active_nav"] = "payments"
 
         return context
+
+    def get_payment_stats(self):
+        """Get payment statistics for AJAX requests"""
+        from django.db.models import Sum, Q
+        from django.utils import timezone
+
+        all_payments = Payment.objects.all()
+        completed_payments = all_payments.filter(status=Payment.PaymentStatus.COMPLETED)
+        today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today = timezone.now().date()
+
+        # Calculate stats
+        total_revenue = completed_payments.aggregate(total=Sum("amount"))["total"] or 0
+        today_revenue = (
+            completed_payments.filter(completed_at__gte=today_start).aggregate(
+                total=Sum("amount")
+            )["total"]
+            or 0
+        )
+
+        # Orders stats
+        all_orders = Order.objects.all()
+
+        # Packages stats
+        all_packages = UserPackage.objects.all()
+
+        return {
+            "total_transactions": all_payments.count(),
+            "completed_transactions": completed_payments.count(),
+            "total_revenue": float(total_revenue),
+            "today_revenue": float(today_revenue),
+            "active_premium_members": User.objects.filter(
+                is_premium=True, subscription_end__gte=today
+            ).count(),
+            "pending_payments": all_payments.filter(
+                status=Payment.PaymentStatus.PENDING
+            ).count(),
+            "failed_payments": all_payments.filter(
+                status=Payment.PaymentStatus.FAILED
+            ).count(),
+            "refunded_payments": all_payments.filter(
+                status=Payment.PaymentStatus.REFUNDED
+            ).count(),
+            "cancelled_payments": all_payments.filter(
+                status=Payment.PaymentStatus.CANCELLED
+            ).count(),
+            "total_orders": all_orders.count(),
+            "completed_orders": all_orders.filter(
+                status="delivered", payment_status="paid"
+            ).count(),
+            "active_packages": all_packages.filter(expiry_date__gte=today).count(),
+            "expired_packages": all_packages.filter(expiry_date__lt=today).count(),
+            "paypal_payments": completed_payments.filter(provider="paypal").count(),
+            "paymob_payments": completed_payments.filter(provider="paymob").count(),
+            "bank_transfer_payments": completed_payments.filter(
+                provider="bank_transfer"
+            ).count(),
+            "offline_payments": completed_payments.filter(provider="offline").count(),
+        }
+
+    def render_to_response(self, context, **response_kwargs):
+        """Override to handle AJAX requests"""
+        if self.request.GET.get("ajax_stats") == "1":
+            from django.http import JsonResponse
+
+            stats = self.get_payment_stats()
+            return JsonResponse({"success": True, "stats": stats})
+        return super().render_to_response(context, **response_kwargs)
+
+
+@superadmin_required
+@require_POST
+def admin_payment_refund(request, payment_id):
+    """Refund a completed payment"""
+    try:
+        import json
+
+        data = json.loads(request.body)
+        refund_reason = data.get("refund_reason", "")
+
+        payment = get_object_or_404(Payment, id=payment_id)
+
+        # Check if payment can be refunded
+        if payment.status != Payment.PaymentStatus.COMPLETED:
+            return JsonResponse(
+                {"success": False, "error": _("يمكن فقط استرداد المدفوعات المكتملة")}
+            )
+
+        # Update payment status to refunded
+        payment.status = Payment.PaymentStatus.REFUNDED
+        payment.notes = f"{payment.notes or ''}\\n\\n[استرداد] {refund_reason} - {timezone.now().strftime('%Y-%m-%d %H:%M')}"
+        payment.save()
+
+        # Create notification for user
+        Notification.objects.create(
+            user=payment.user,
+            title=_("تم استرداد الدفعة"),
+            message=_("تم استرداد الدفعة #{} بمبلغ {} {}. السبب: {}").format(
+                payment.id, payment.amount, payment.currency, refund_reason
+            ),
+            notification_type="payment",
+        )
+
+        return JsonResponse({"success": True, "message": _("تم استرداد الدفعة بنجاح")})
+
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})
 
 
 @login_required

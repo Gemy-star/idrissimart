@@ -1,0 +1,1012 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n %}
+
+{% block title %}
+{% trans "إدارة المدونات" %} - {% trans "لوحة تحكم المدير" %}
+{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+    :root {
+        --primary: #6366f1;
+        --primary-dark: #4f46e5;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --info: #3b82f6;
+        --dark: #1e293b;
+        --light: #f8fafc;
+        --border: #e2e8f0;
+    }
+
+    /* Modern Page Layout */
+    .admin-blogs-container {
+        padding: 2rem;
+        background: var(--light);
+        min-height: 100vh;
+    }
+
+    /* Page Header */
+    .page-header {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        border-radius: 24px;
+        padding: 2.5rem;
+        margin-bottom: 2rem;
+        color: white;
+        box-shadow: 0 10px 40px rgba(99, 102, 241, 0.2);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .page-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 400px;
+        height: 400px;
+        background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+
+    .page-header-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .page-title {
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+    }
+
+    .page-subtitle {
+        font-size: 1rem;
+        opacity: 0.9;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .quick-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .quick-btn {
+        padding: 0.5rem 1.25rem;
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50px;
+        font-weight: 600;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        backdrop-filter: blur(10px);
+    }
+
+    .quick-btn:hover {
+        background: white;
+        color: var(--primary);
+        border-color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .quick-btn i {
+        font-size: 0.875rem;
+    }
+
+    .quick-btn.active {
+        background: white;
+        color: var(--primary);
+        border-color: white;
+    }
+
+    /* Stats Cards */
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        border-left: 4px solid var(--primary);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    }
+
+    .stat-card.success {
+        border-left-color: var(--success);
+    }
+
+    .stat-card.warning {
+        border-left-color: var(--warning);
+    }
+
+    .stat-card.info {
+        border-left-color: var(--info);
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .stat-card .stat-icon {
+        background: rgba(99, 102, 241, 0.1);
+        color: var(--primary);
+    }
+
+    .stat-card.success .stat-icon {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success);
+    }
+
+    .stat-card.warning .stat-icon {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--warning);
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--dark);
+        line-height: 1;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        color: #64748b;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    /* Filters Card */
+    .filters-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .filters-title {
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: var(--dark);
+        margin-bottom: 1rem;
+    }
+
+    /* Blog Grid */
+    .blogs-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* Blog Card */
+    .blog-card {
+        background: white;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .blog-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
+    }
+
+    .blog-image {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .blog-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.5s ease;
+    }
+
+    .blog-card:hover .blog-image img {
+        transform: scale(1.1);
+    }
+
+    .blog-body {
+        padding: 1.5rem;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .blog-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.375rem 0.875rem;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-bottom: 1rem;
+        width: fit-content;
+    }
+
+    .blog-status.published {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success);
+    }
+
+    .blog-status.draft {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--warning);
+    }
+
+    .blog-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--dark);
+        margin-bottom: 0.75rem;
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .blog-title a {
+        color: inherit;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .blog-title a:hover {
+        color: var(--primary);
+    }
+
+    .blog-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #64748b;
+        font-size: 0.875rem;
+    }
+
+    .meta-item i {
+        width: 16px;
+        text-align: center;
+    }
+
+    .blog-excerpt {
+        color: #64748b;
+        font-size: 0.875rem;
+        line-height: 1.6;
+        margin-bottom: 1rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .blog-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .tag {
+        padding: 0.25rem 0.75rem;
+        background: rgba(99, 102, 241, 0.1);
+        color: var(--primary);
+        border-radius: 50px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .blog-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: auto;
+    }
+
+    /* Buttons */
+    .btn {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.875rem;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: var(--primary-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    .btn-success {
+        background: var(--success);
+        color: white;
+    }
+
+    .btn-success:hover {
+        background: #059669;
+        transform: translateY(-2px);
+    }
+
+    .btn-info {
+        background: var(--info);
+        color: white;
+    }
+
+    .btn-info:hover {
+        background: #2563eb;
+        transform: translateY(-2px);
+    }
+
+    .btn-warning {
+        background: var(--warning);
+        color: white;
+    }
+
+    .btn-warning:hover {
+        background: #d97706;
+        transform: translateY(-2px);
+    }
+
+    .btn-danger {
+        background: var(--danger);
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #dc2626;
+        transform: translateY(-2px);
+    }
+
+    .btn-outline {
+        background: white;
+        color: var(--primary);
+        border: 2px solid var(--primary);
+    }
+
+    .btn-outline:hover {
+        background: var(--primary);
+        color: white;
+    }
+
+    .btn-white {
+        background: white;
+        color: var(--primary);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-white:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .empty-icon {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: rgba(99, 102, 241, 0.1);
+        color: var(--primary);
+        font-size: 3rem;
+    }
+
+    .empty-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--dark);
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-text {
+        color: #64748b;
+        margin-bottom: 2rem;
+    }
+
+    /* Pagination */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .page-link {
+        padding: 0.5rem 1rem;
+        background: white;
+        color: var(--dark);
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .page-link:hover {
+        background: var(--primary);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .page-link.active {
+        background: var(--primary);
+        color: white;
+    }
+
+    .page-link.disabled {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+
+    /* Form Elements */
+    .form-control, .form-select {
+        padding: 0.625rem 1rem;
+        border: 2px solid var(--border);
+        border-radius: 8px;
+        font-size: 0.875rem;
+        transition: all 0.3s ease;
+        width: 100%;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: var(--primary);
+        outline: none;
+        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: var(--dark);
+        margin-bottom: 0.5rem;
+        display: block;
+        font-size: 0.875rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .admin-blogs-container {
+            padding: 1rem;
+        }
+
+        .page-header {
+            padding: 1.5rem;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+        }
+
+        .blogs-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .stats-row {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .header-actions {
+            width: 100%;
+        }
+
+        .header-actions .btn {
+            flex: 1;
+            justify-content: center;
+        }
+    }
+
+    /* Dark Mode Support */
+    [data-theme='dark'] {
+        --light: #0f172a;
+        --dark: #f1f5f9;
+        --border: #334155;
+    }
+
+    [data-theme='dark'] .page-header,
+    [data-theme='dark'] .stat-card,
+    [data-theme='dark'] .filters-card,
+    [data-theme='dark'] .blog-card,
+    [data-theme='dark'] .empty-state,
+    [data-theme='dark'] .page-link {
+        background: #1e293b;
+        color: #f1f5f9;
+    }
+
+    [data-theme='dark'] .form-control,
+    [data-theme='dark'] .form-select {
+        background: #0f172a;
+        border-color: #334155;
+        color: #f1f5f9;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="admin-blogs-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div class="page-header-content">
+                <h1 class="page-title">
+                    <i class="fas fa-blog me-2"></i>
+                    {% trans "إدارة المدونات" %}
+                </h1>
+                <p class="page-subtitle mb-0">
+                    {% trans "إنشاء وتحرير وإدارة جميع منشورات المدونة" %}
+                </p>
+            </div>
+            <div class="header-actions">
+                <a href="{% url 'main:admin_blog_create' %}" class="btn btn-white">
+                    <i class="fas fa-plus-circle"></i>
+                    {% trans "مدونة جديدة" %}
+                </a>
+
+                <div class="quick-actions">
+                    <a href="{% url 'main:admin_blog_categories' %}" class="quick-btn">
+                        <i class="fas fa-folder"></i>
+                        {% trans "التصنيفات" %}
+                    </a>
+                    <a href="{% url 'main:admin_blog_category_create' %}" class="quick-btn">
+                        <i class="fas fa-folder-plus"></i>
+                        {% trans "إضافة تصنيف" %}
+                    </a>
+                    <a href="?status=published" class="quick-btn {% if status_filter == 'published' %}active{% endif %}">
+                        <i class="fas fa-check-circle"></i>
+                        {% trans "منشور" %}
+                    </a>
+                    <a href="?status=draft" class="quick-btn {% if status_filter == 'draft' %}active{% endif %}">
+                        <i class="fas fa-clock"></i>
+                        {% trans "مسودات" %}
+                    </a>
+                    <a href="{% url 'main:admin_blogs' %}" class="quick-btn {% if status_filter == 'all' or not status_filter %}active{% endif %}">
+                        <i class="fas fa-list"></i>
+                        {% trans "الكل" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-blog"></i>
+            </div>
+            <div class="stat-value">{{ total_blogs|default:0 }}</div>
+            <div class="stat-label">{% trans "إجمالي المدونات" %}</div>
+        </div>
+
+        <div class="stat-card success">
+            <div class="stat-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-value">{{ published_blogs|default:0 }}</div>
+            <div class="stat-label">{% trans "منشور" %}</div>
+        </div>
+
+        <div class="stat-card warning">
+            <div class="stat-icon">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-value">{{ draft_blogs|default:0 }}</div>
+            <div class="stat-label">{% trans "مسودات" %}</div>
+        </div>
+
+        <div class="stat-card info">
+            <div class="stat-icon">
+                <i class="fas fa-eye"></i>
+            </div>
+            <div class="stat-value">{{ total_views|default:0 }}</div>
+            <div class="stat-label">{% trans "المشاهدات" %}</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-card">
+        <h3 class="filters-title">
+            <i class="fas fa-filter me-2"></i>
+            {% trans "البحث والفلترة" %}
+        </h3>
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label" for="search">
+                    <i class="fas fa-search me-1"></i>
+                    {% trans "البحث" %}
+                </label>
+                <input type="text" id="search" name="search" class="form-control"
+                       placeholder="{% trans 'ابحث بالعنوان...' %}"
+                       value="{{ search_query }}">
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label" for="category">
+                    <i class="fas fa-folder me-1"></i>
+                    {% trans "التصنيف" %}
+                </label>
+                <select id="category" name="category" class="form-select">
+                    <option value="">{% trans "جميع التصنيفات" %}</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}" {% if selected_category == category.id|stringformat:'s' %}selected{% endif %}>
+                        {{ category.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label" for="status">
+                    <i class="fas fa-toggle-on me-1"></i>
+                    {% trans "الحالة" %}
+                </label>
+                <select id="status" name="status" class="form-select">
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>
+                        {% trans "الكل" %}
+                    </option>
+                    <option value="published" {% if status_filter == 'published' %}selected{% endif %}>
+                        {% trans "منشور" %}
+                    </option>
+                    <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>
+                        {% trans "مسودة" %}
+                    </option>
+                </select>
+            </div>
+
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search"></i>
+                    {% trans "تطبيق" %}
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Blogs Grid -->
+    {% if blogs %}
+        <div class="blogs-grid">
+            {% for blog in blogs %}
+            <div class="blog-card">
+                <div class="blog-image">
+                    {% if blog.image %}
+                        <img src="{{ blog.image.url }}" alt="{{ blog.title }}">
+                    {% else %}
+                        <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <i class="fas fa-blog" style="font-size: 3rem; color: white; opacity: 0.5;"></i>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="blog-body">
+                    <span class="blog-status {% if blog.is_published %}published{% else %}draft{% endif %}">
+                        <i class="fas fa-{% if blog.is_published %}check-circle{% else %}clock{% endif %}"></i>
+                        {% if blog.is_published %}{% trans "منشور" %}{% else %}{% trans "مسودة" %}{% endif %}
+                    </span>
+
+                    <h3 class="blog-title">
+                        <a href="{% url 'main:admin_blog_detail' blog.id %}">
+                            {{ blog.title }}
+                        </a>
+                    </h3>
+
+                    <div class="blog-meta">
+                        <div class="meta-item">
+                            <i class="fas fa-user"></i>
+                            <span>{{ blog.author.username }}</span>
+                        </div>
+                        {% if blog.category %}
+                        <div class="meta-item">
+                            <i class="fas fa-folder"></i>
+                            <span>{{ blog.category.name }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="meta-item">
+                            <i class="fas fa-calendar"></i>
+                            <span>{{ blog.published_date|date:"Y/m/d" }}</span>
+                        </div>
+                    </div>
+
+                    <div class="blog-meta">
+                        <div class="meta-item">
+                            <i class="fas fa-eye"></i>
+                            <span>{{ blog.views_count|default:0 }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <i class="fas fa-heart"></i>
+                            <span>{{ blog.get_likes_count|default:0 }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <i class="fas fa-comments"></i>
+                            <span>{{ blog.comments.count|default:0 }}</span>
+                        </div>
+                    </div>
+
+                    <p class="blog-excerpt">
+                        {{ blog.content|striptags|truncatewords:20 }}
+                    </p>
+
+                    {% if blog.tags.all %}
+                    <div class="blog-tags">
+                        {% for tag in blog.tags.all|slice:":3" %}
+                        <span class="tag">{{ tag.name }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="blog-actions">
+                        <a href="{% url 'main:admin_blog_detail' blog.id %}" class="btn btn-info btn-sm">
+                            <i class="fas fa-eye"></i>
+                            {% trans "عرض" %}
+                        </a>
+                        <a href="{% url 'main:admin_blog_update' blog.id %}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-edit"></i>
+                            {% trans "تعديل" %}
+                        </a>
+                        <button type="button" class="btn btn-warning btn-sm"
+                                data-action="toggle-publish"
+                                data-blog-id="{{ blog.id }}"
+                                data-is-published="{{ blog.is_published|lower }}">
+                            <i class="fas fa-sync-alt"></i>
+                            {% if blog.is_published %}{% trans "إخفاء" %}{% else %}{% trans "نشر" %}{% endif %}
+                        </button>
+                        <button type="button" class="btn btn-danger btn-sm"
+                                data-action="delete-blog"
+                                data-blog-id="{{ blog.id }}"
+                                data-blog-title="{{ blog.title }}">
+                            <i class="fas fa-trash-alt"></i>
+                            {% trans "حذف" %}
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if blogs.has_other_pages %}
+        <nav class="mt-4">
+            <ul class="pagination">
+                {% if blogs.has_previous %}
+                <li>
+                    <a class="page-link" href="?page={{ blogs.previous_page_number }}&status={{ status_filter }}&search={{ search_query }}&category={{ selected_category }}">
+                        <i class="fas fa-chevron-right me-1"></i>
+                        {% trans "السابق" %}
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in blogs.paginator.page_range %}
+                    {% if blogs.number == num %}
+                    <li>
+                        <span class="page-link active">{{ num }}</span>
+                    </li>
+                    {% elif num > blogs.number|add:'-3' and num < blogs.number|add:'3' %}
+                    <li>
+                        <a class="page-link" href="?page={{ num }}&status={{ status_filter }}&search={{ search_query }}&category={{ selected_category }}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if blogs.has_next %}
+                <li>
+                    <a class="page-link" href="?page={{ blogs.next_page_number }}&status={{ status_filter }}&search={{ search_query }}&category={{ selected_category }}">
+                        {% trans "التالي" %}
+                        <i class="fas fa-chevron-left ms-1"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    {% else %}
+        <!-- Empty State -->
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-blog"></i>
+            </div>
+            <h3 class="empty-title">{% trans "لا توجد مدونات" %}</h3>
+            <p class="empty-text">{% trans "ابدأ بإنشاء مدونة جديدة لعرض المحتوى الخاص بك" %}</p>
+            <a href="{% url 'main:admin_blog_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus-circle me-2"></i>
+                {% trans "إنشاء مدونة جديدة" %}
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    {% trans "تأكيد الحذف" %}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>{% trans "هل أنت متأكد من حذف المدونة:" %}</p>
+                <p class="fw-bold" id="deleteBlogTitle"></p>
+                <p class="text-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    {% trans "لا يمكن التراجع عن هذا الإجراء!" %}
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    {% trans "إلغاء" %}
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDelete">
+                    <i class="fas fa-trash-alt me-2"></i>
+                    {% trans "حذف" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block admin_extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let currentDeleteId = null;
+
+        // Delete Blog Handler
+        document.querySelectorAll('[data-action="delete-blog"]').forEach(button => {
+            button.addEventListener('click', function() {
+                currentDeleteId = this.dataset.blogId;
+                const blogTitle = this.dataset.blogTitle;
+                document.getElementById('deleteBlogTitle').textContent = blogTitle;
+
+                const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+                deleteModal.show();
+            });
+        });
+
+        // Confirm Delete
+        document.getElementById('confirmDelete')?.addEventListener('click', async function() {
+            if (!currentDeleteId) return;
+
+            try {
+                const response = await fetch(`{% url "main:admin_blog_delete" 0 %}`.replace('/0/', `/${currentDeleteId}/`), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    alert('{% trans "حدث خطأ أثناء الحذف" %}');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('{% trans "حدث خطأ أثناء الحذف" %}');
+            }
+        });
+
+        // Toggle Publish Handler
+        document.querySelectorAll('[data-action="toggle-publish"]').forEach(button => {
+            button.addEventListener('click', async function() {
+                const blogId = this.dataset.blogId;
+                const isPublished = this.dataset.isPublished === 'true';
+
+                try {
+                    const response = await fetch(`{% url "main:admin_blog_toggle_publish" 0 %}`.replace('/0/', `/${blogId}/`), {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                            'Content-Type': 'application/json',
+                        },
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        alert(data.error || '{% trans "حدث خطأ" %}');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('{% trans "حدث خطأ" %}');
+                }
+            });
+        });
+
+        // Helper function to get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    });
+</script>
+{% endblock %}

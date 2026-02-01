@@ -10,10 +10,13 @@ from django.http import JsonResponse, HttpResponseNotFound
 from django.db.models import Q, Count
 from django.utils.text import slugify
 from django.core.paginator import Paginator
+from django.db import transaction
 from content.models import Blog, BlogCategory
 from django.utils.translation import gettext_lazy as _
 from functools import wraps
 import json
+
+from .blog_forms import BlogForm
 
 
 def is_staff(user):
@@ -113,6 +116,9 @@ def admin_blogs(request):
     if category_filter:
         blogs = blogs.filter(category_id=category_filter)
 
+    # Create form instance for CKEditor 5 media files
+    blog_form = BlogForm()
+
     context = {
         "blogs": blogs_page,
         "total_blogs": total_blogs,
@@ -124,216 +130,230 @@ def admin_blogs(request):
         "status_filter": status_filter,
         "search_query": search_query,
         "sort_by": sort_by,
+        "blog_form": blog_form,
         "active_nav": "blogs",
         "page_title": _("إدارة المدونات"),
     }
 
-    return render(request, "admin_dashboard/blogs.html", context)
+    return render(request, "admin_dashboard/blogs_new.html", context)
 
 
 @staff_required
 def admin_blog_create(request):
     """
-    Create new blog post via AJAX
+    Create new blog post
     """
-    print(f"🔍 admin_blog_create called - Method: {request.method}")
-    print(f"🔍 Is AJAX: {request.headers.get('X-Requested-With') == 'XMLHttpRequest'}")
-    print(f"🔍 POST data: {request.POST.dict()}")
-    print(f"🔍 FILES: {list(request.FILES.keys())}")
+    from taggit.models import Tag
 
     if request.method == "POST":
         try:
-            title = request.POST.get("title", "").strip()
-            content = request.POST.get("content", "").strip()
-            is_published = request.POST.get("is_published") == "true"
-            tags = request.POST.get("tags", "").strip()
-            image = request.FILES.get("image")
-            category_id = request.POST.get("category")
+            with transaction.atomic():
+                title = request.POST.get("title", "").strip()
+                content = request.POST.get("content", "").strip()
+                is_published = request.POST.get("is_published") == "on"
+                allow_comments = request.POST.get("allow_comments") == "on"
+                featured = request.POST.get("featured") == "on"
+                tags = request.POST.get("tags", "").strip()
+                image = request.FILES.get("image")
+                category_id = request.POST.get("category")
 
-            print(f"📝 Title: {title[:50] if title else 'EMPTY'}")
-            print(f"📝 Content length: {len(content)}")
-            print(f"📝 Is Published: {is_published}")
-            print(f"📝 Tags: {tags}")
-            print(f"📝 Image: {image}")
+                # Validation
+                if not title or not content:
+                    messages.error(request, _("العنوان والمحتوى مطلوبان"))
+                    return redirect("main:admin_blog_create")
 
-            # Validation
-            if not title or not content:
-                print("❌ Validation failed: Missing title or content")
-                return JsonResponse(
-                    {"success": False, "error": _("العنوان والمحتوى مطلوبان")}
+                # Create blog
+                blog = Blog.objects.create(
+                    title=title,
+                    content=content,
+                    author=request.user,
+                    is_published=is_published,
+                    allow_comments=allow_comments,
+                    featured=featured if hasattr(Blog, "featured") else False,
+                    image=image,
                 )
 
-            # Create blog
-            blog = Blog.objects.create(
-                title=title,
-                content=content,
-                author=request.user,
-                is_published=is_published,
-                image=image,
-            )
+                # Set category if provided
+                if category_id:
+                    try:
+                        blog.category = BlogCategory.objects.get(id=int(category_id))
+                        blog.save(update_fields=["category"])
+                    except (BlogCategory.DoesNotExist, ValueError):
+                        pass
 
-            # Set category if provided
-            if category_id:
-                try:
-                    blog.category = BlogCategory.objects.get(id=int(category_id))
-                    blog.save(update_fields=["category"])
-                except (BlogCategory.DoesNotExist, ValueError):
-                    pass
+                # Add tags
+                if tags:
+                    tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
+                    blog.tags.add(*tag_list)
 
-            print(f"✅ Blog created with ID: {blog.id}")
-
-            # Add tags
-            if tags:
-                tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
-                blog.tags.add(*tag_list)
-                print(f"✅ Tags added: {tag_list}")
-
-            return JsonResponse(
-                {
-                    "success": True,
-                    "message": _("تم إنشاء المدونة بنجاح"),
-                    "blog_id": blog.id,
-                }
-            )
+                messages.success(request, _("تم إنشاء المدونة بنجاح"))
+                return redirect("main:admin_blogs")
 
         except Exception as e:
-            print(f"❌ Exception in admin_blog_create: {str(e)}")
-            import traceback
+            messages.error(request, f"حدث خطأ: {str(e)}")
+            return redirect("main:admin_blog_create")
 
-            traceback.print_exc()
-            return JsonResponse({"success": False, "error": str(e)})
+    # GET request - show form
+    categories = BlogCategory.objects.filter(is_active=True).order_by("name")
+    popular_tags = Tag.objects.all()[:10]
+    form = BlogForm()
 
-    print(f"❌ Method is not POST, returning error")
-    return JsonResponse({"success": False, "error": _("طريقة غير صالحة")})
+    context = {
+        "form": form,
+        "categories": categories,
+        "popular_tags": popular_tags,
+        "blog_form": form,  # For media files
+        "active_nav": "blogs",
+        "page_title": _("مدونة جديدة"),
+    }
+
+    return render(request, "admin_dashboard/blogs/form.html", context)
 
 
 @staff_required
 def admin_blog_update(request, blog_id):
     """
-    Update existing blog post via AJAX
+    Update existing blog post
     """
-    print(f"🔍 admin_blog_update called - Method: {request.method}, Blog ID: {blog_id}")
-    print(f"🔍 Is AJAX: {request.headers.get('X-Requested-With') == 'XMLHttpRequest'}")
+    from taggit.models import Tag
 
-    try:
-        blog = get_object_or_404(Blog, id=blog_id)
-        print(f"✅ Blog found: {blog.title}")
-    except Blog.DoesNotExist:
-        print(f"❌ Blog not found: {blog_id}")
-        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return JsonResponse(
-                {"success": False, "error": _("المدونة غير موجودة")}, status=404
-            )
-        return HttpResponseNotFound(_("المدونة غير موجودة"))
+    blog = get_object_or_404(Blog, id=blog_id)
 
     if request.method == "POST":
-        print(f"🔍 POST data: {request.POST.dict()}")
-        print(f"🔍 FILES: {list(request.FILES.keys())}")
-
         try:
-            title = request.POST.get("title", "").strip()
-            content = request.POST.get("content", "").strip()
-            is_published = request.POST.get("is_published") == "true"
-            tags = request.POST.get("tags", "").strip()
-            image = request.FILES.get("image")
-            category_id = request.POST.get("category")
+            with transaction.atomic():
+                title = request.POST.get("title", "").strip()
+                content = request.POST.get("content", "").strip()
+                is_published = request.POST.get("is_published") == "on"
+                allow_comments = request.POST.get("allow_comments") == "on"
+                featured = request.POST.get("featured") == "on"
+                tags = request.POST.get("tags", "").strip()
+                image = request.FILES.get("image")
+                remove_image = request.POST.get("remove_image") == "on"
+                category_id = request.POST.get("category")
 
-            print(f"📝 Title: {title[:50] if title else 'EMPTY'}")
-            print(f"📝 Content length: {len(content)}")
-            print(f"📝 Is Published: {is_published}")
+                # Validation
+                if not title or not content:
+                    messages.error(request, _("العنوان والمحتوى مطلوبان"))
+                    return redirect("main:admin_blog_update", blog_id=blog_id)
 
-            # Validation
-            if not title or not content:
-                print("❌ Validation failed: Missing title or content")
-                return JsonResponse(
-                    {"success": False, "error": _("العنوان والمحتوى مطلوبان")}
-                )
+                # Update blog
+                blog.title = title
+                blog.content = content
+                blog.is_published = is_published
+                blog.allow_comments = allow_comments
+                if hasattr(Blog, "featured"):
+                    blog.featured = featured
 
-            # Update blog
-            blog.title = title
-            blog.content = content
-            blog.is_published = is_published
+                # Handle image
+                if remove_image and blog.image:
+                    blog.image.delete()
+                    blog.image = None
+                elif image:
+                    blog.image = image
 
-            if image:
-                blog.image = image
-                print(f"📸 Image updated")
-
-            # Update category if provided
-            if category_id:
-                try:
-                    blog.category = BlogCategory.objects.get(id=int(category_id))
-                except (BlogCategory.DoesNotExist, ValueError):
+                # Update category
+                if category_id:
+                    try:
+                        blog.category = BlogCategory.objects.get(id=int(category_id))
+                    except (BlogCategory.DoesNotExist, ValueError):
+                        blog.category = None
+                else:
                     blog.category = None
-            else:
-                blog.category = None
 
-            blog.save()
-            print(f"✅ Blog updated: {blog.id}")
+                blog.save()
 
-            # Update tags
-            blog.tags.clear()
-            if tags:
-                tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
-                blog.tags.add(*tag_list)
-                print(f"✅ Tags updated: {tag_list}")
+                # Update tags
+                blog.tags.clear()
+                if tags:
+                    tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
+                    blog.tags.add(*tag_list)
 
-            return JsonResponse(
-                {"success": True, "message": _("تم تحديث المدونة بنجاح")}
-            )
+                messages.success(request, _("تم تحديث المدونة بنجاح"))
+                return redirect("main:admin_blogs")
 
         except Exception as e:
-            print(f"❌ Exception in admin_blog_update: {str(e)}")
-            import traceback
+            messages.error(request, f"حدث خطأ: {str(e)}")
+            return redirect("main:admin_blog_update", blog_id=blog_id)
 
-            traceback.print_exc()
-            return JsonResponse({"success": False, "error": str(e)})
+    # GET request - show form with current data
+    categories = BlogCategory.objects.filter(is_active=True).order_by("name")
+    popular_tags = Tag.objects.all()[:10]
 
-    # GET request - return blog data
-    print(f"📖 Returning blog data for GET request")
-    tags_str = ", ".join([tag.name for tag in blog.tags.all()])
+    # Create form instance with blog data
+    form = BlogForm(instance=blog)
 
-    return JsonResponse(
-        {
-            "success": True,
-            "blog": {
-                "id": blog.id,
-                "title": blog.title,
-                "content": blog.content,
-                "is_published": blog.is_published,
-                "tags": tags_str,
-                "category_id": blog.category.id if blog.category else None,
-                "image_url": blog.image.url if blog.image else None,
-            },
-        }
-    )
+    context = {
+        "blog": blog,
+        "form": form,
+        "categories": categories,
+        "popular_tags": popular_tags,
+        "blog_form": form,  # For media files
+        "active_nav": "blogs",
+        "page_title": _("تعديل المدونة"),
+    }
+
+    return render(request, "admin_dashboard/blogs/form.html", context)
 
 
 @staff_required
 def admin_blog_delete(request, blog_id):
     """
-    Delete blog post via AJAX
+    Delete blog post
     """
-    print(f"🔍 admin_blog_delete called - Method: {request.method}, Blog ID: {blog_id}")
+    blog = get_object_or_404(Blog, id=blog_id)
+    blog_title = blog.title
 
     if request.method == "POST":
-        blog = get_object_or_404(Blog, id=blog_id)
-        blog_title = blog.title
-
         try:
             blog.delete()
-            print(f"✅ Blog deleted: {blog_title}")
-            return JsonResponse(
-                {
-                    "success": True,
-                    "message": _('تم حذف المدونة "{}" بنجاح').format(blog_title),
-                }
-            )
-        except Exception as e:
-            print(f"❌ Exception in admin_blog_delete: {str(e)}")
-            return JsonResponse({"success": False, "error": str(e)})
 
-    print(f"❌ Method is not POST: {request.method}")
-    return JsonResponse({"success": False, "error": _("طريقة غير صالحة")})
+            # Check if AJAX request
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "message": _('تم حذف المدونة "{}" بنجاح').format(blog_title),
+                    }
+                )
+            else:
+                messages.success(
+                    request, _('تم حذف المدونة "{}" بنجاح').format(blog_title)
+                )
+                return redirect("main:admin_blogs")
+
+        except Exception as e:
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({"success": False, "error": str(e)})
+            else:
+                messages.error(request, f"حدث خطأ: {str(e)}")
+                return redirect("main:admin_blogs")
+
+    # GET request - show confirmation page
+    context = {
+        "blog": blog,
+        "active_nav": "blogs",
+    }
+    return render(request, "admin_dashboard/blogs/delete.html", context)
+
+
+@staff_required
+def admin_blog_detail(request, blog_id):
+    """
+    View blog details in admin dashboard
+    """
+    blog = get_object_or_404(
+        Blog.objects.select_related("author", "category").prefetch_related(
+            "tags", "comments"
+        ),
+        id=blog_id,
+    )
+
+    context = {
+        "blog": blog,
+        "active_nav": "blogs",
+    }
+    return render(request, "admin_dashboard/blogs/detail.html", context)
 
 
 @staff_required

@@ -1,0 +1,302 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n %}
+
+{% block title %}
+{% if blog %}{% trans "تعديل المدونة" %}{% else %}{% trans "مدونة جديدة" %}{% endif %} - {% trans "لوحة تحكم المدير" %}
+{% endblock %}
+
+{% block admin_extra_css %}
+{{ blog_form.media.css }}
+<style>
+    .form-section {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        border-left: 4px solid #6B4C7A;
+    }
+
+    [data-theme='dark'] .form-section {
+        background: #1e1e2e;
+        border-color: #9b7ab0;
+    }
+
+    .form-section h3 {
+        color: #2c3e50;
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    [data-theme='dark'] .form-section h3 {
+        color: #e0e0e0;
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .image-preview {
+        max-width: 300px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .ck-editor__editable {
+        min-height: 400px;
+    }
+
+    .form-actions {
+        position: sticky;
+        bottom: 0;
+        background: white;
+        padding: 1.5rem;
+        border-top: 1px solid #e9ecef;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+        z-index: 100;
+    }
+
+    [data-theme='dark'] .form-actions {
+        background: #1a1a2e;
+        border-top-color: rgba(255, 255, 255, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">
+                <i class="fas fa-blog me-2"></i>
+                {% if blog %}{% trans "تعديل المدونة" %}{% else %}{% trans "مدونة جديدة" %}{% endif %}
+            </h2>
+            <p class="text-muted mb-0">
+                {% if blog %}
+                    {% trans "تحديث محتوى وإعدادات المدونة" %}
+                {% else %}
+                    {% trans "إنشاء مدونة جديدة وإضافتها للموقع" %}
+                {% endif %}
+            </p>
+        </div>
+        <a href="{% url 'main:admin_blogs' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-right me-2"></i>
+            {% trans "العودة" %}
+        </a>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" id="blogForm">
+        {% csrf_token %}
+
+        <!-- Basic Information -->
+        <div class="form-section">
+            <h3><i class="fas fa-info-circle me-2"></i>{% trans "المعلومات الأساسية" %}</h3>
+
+            <div class="row g-4">
+                <div class="col-md-8">
+                    <label for="id_title" class="form-label">
+                        {% trans "العنوان" %} <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" class="form-control" id="id_title" name="title"
+                           value="{{ blog.title|default:'' }}" required>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="id_category" class="form-label">{% trans "الفئة" %}</label>
+                    <select class="form-select" id="id_category" name="category">
+                        <option value="">{% trans "بدون فئة" %}</option>
+                        {% for category in categories %}
+                        <option value="{{ category.id }}"
+                                {% if blog and blog.category_id == category.id %}selected{% endif %}>
+                            {{ category.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-12">
+                    <label for="id_content" class="form-label">
+                        {% trans "المحتوى" %} <span class="text-danger">*</span>
+                    </label>
+                    {{ form.content }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Media & Tags -->
+        <div class="form-section">
+            <h3><i class="fas fa-images me-2"></i>{% trans "الصورة والوسوم" %}</h3>
+
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <label for="id_image" class="form-label">{% trans "صورة المدونة" %}</label>
+                    <input type="file" class="form-control" id="id_image" name="image" accept="image/*">
+                    <small class="form-text text-muted">
+                        {% trans "الحجم الموصى به: 1200×630 بكسل" %}
+                    </small>
+
+                    {% if blog and blog.image %}
+                    <div class="mt-3">
+                        <p class="mb-2"><strong>{% trans "الصورة الحالية:" %}</strong></p>
+                        <img src="{{ blog.image.url }}" alt="{{ blog.title }}" class="image-preview">
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" id="remove_image" name="remove_image">
+                            <label class="form-check-label text-danger" for="remove_image">
+                                {% trans "حذف الصورة الحالية" %}
+                            </label>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6">
+                    <label for="id_tags" class="form-label">{% trans "الوسوم" %}</label>
+                    <input type="text" class="form-control" id="id_tags" name="tags"
+                           value="{% if blog %}{% for tag in blog.tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}"
+                           placeholder="{% trans 'افصل الوسوم بفاصلة' %}">
+                    <small class="form-text text-muted">
+                        {% trans "مثال: تقنية, برمجة, تطوير ويب" %}
+                    </small>
+
+                    <div class="mt-3">
+                        <label class="form-label">{% trans "الوسوم الشائعة:" %}</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for tag in popular_tags %}
+                            <button type="button" class="btn btn-sm btn-outline-secondary tag-suggestion"
+                                    data-tag="{{ tag.name }}">
+                                {{ tag.name }}
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Publishing Options -->
+        <div class="form-section">
+            <h3><i class="fas fa-cog me-2"></i>{% trans "خيارات النشر" %}</h3>
+
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="id_is_published"
+                               name="is_published" {% if not blog or blog.is_published %}checked{% endif %}>
+                        <label class="form-check-label" for="id_is_published">
+                            <i class="fas fa-eye me-2"></i>
+                            {% trans "نشر المدونة فوراً" %}
+                        </label>
+                        <small class="form-text text-muted d-block mt-1">
+                            {% trans "إذا تم إلغاء التحديد، سيتم حفظ المدونة كمسودة" %}
+                        </small>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="id_allow_comments"
+                               name="allow_comments" {% if not blog or blog.allow_comments %}checked{% endif %}>
+                        <label class="form-check-label" for="id_allow_comments">
+                            <i class="fas fa-comments me-2"></i>
+                            {% trans "السماح بالتعليقات" %}
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="id_featured"
+                               name="featured" {% if blog and blog.featured %}checked{% endif %}>
+                        <label class="form-check-label" for="id_featured">
+                            <i class="fas fa-star me-2"></i>
+                            {% trans "مدونة مميزة" %}
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="form-actions">
+            <div class="container-fluid">
+                <div class="d-flex justify-content-between align-items-center">
+                    <a href="{% url 'main:admin_blogs' %}" class="btn btn-secondary">
+                        <i class="fas fa-times me-2"></i>
+                        {% trans "إلغاء" %}
+                    </a>
+
+                    <div class="d-flex gap-2">
+                        {% if blog %}
+                        <button type="submit" name="save_draft" class="btn btn-outline-primary">
+                            <i class="fas fa-save me-2"></i>
+                            {% trans "حفظ كمسودة" %}
+                        </button>
+                        {% endif %}
+
+                        <button type="submit" name="save" class="btn btn-primary">
+                            <i class="fas fa-check me-2"></i>
+                            {% if blog %}{% trans "حفظ التعديلات" %}{% else %}{% trans "إنشاء المدونة" %}{% endif %}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block admin_extra_js %}
+{{ blog_form.media.js }}
+<script>
+    // Tag suggestions
+    document.querySelectorAll('.tag-suggestion').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tag = this.dataset.tag;
+            const tagsInput = document.getElementById('id_tags');
+            const currentTags = tagsInput.value;
+
+            if (!currentTags.includes(tag)) {
+                tagsInput.value = currentTags ? `${currentTags}, ${tag}` : tag;
+            }
+        });
+    });
+
+    // Save as draft
+    document.querySelector('[name="save_draft"]')?.addEventListener('click', function(e) {
+        document.getElementById('id_is_published').checked = false;
+    });
+
+    // Form validation
+    document.getElementById('blogForm').addEventListener('submit', function(e) {
+        const title = document.getElementById('id_title').value.trim();
+        const content = document.getElementById('id_content').value.trim();
+
+        if (!title || !content) {
+            e.preventDefault();
+            alert('{% trans "الرجاء إدخال العنوان والمحتوى" %}');
+            return false;
+        }
+    });
+
+    // Image preview
+    document.getElementById('id_image')?.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.querySelector('.image-preview');
+                if (preview) {
+                    preview.src = e.target.result;
+                } else {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'image-preview mt-3';
+                    document.getElementById('id_image').parentElement.appendChild(img);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+</script>
+{% endblock %}

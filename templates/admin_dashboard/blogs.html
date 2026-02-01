@@ -2,294 +2,758 @@
 {% load static i18n %}
 
 {% block title %}
-    {% trans "إدارة المدونات" %} - {% trans "لوحة تحكم المدير" %}
+{% trans "إدارة المدونات" %} - {% trans "لوحة تحكم المدير" %}
 {% endblock %}
 
 {% block admin_extra_css %}
-<script src="https://cdn.ckeditor.com/ckeditor5/40.0.0/super-build/ckeditor.js"></script>
 <style>
-    /* All modal styles are inherited from admin-dashboard.css */
-    /* Modal z-index hierarchy: backdrop (10500), modal (10600), dialog (10700) */
-
-    /* Ensure modals display correctly - Bootstrap 5 compatibility */
-    .modal.show {
-        display: block !important;
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --success-gradient: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+        --warning-gradient: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%);
+        --danger-gradient: linear-gradient(135deg, #fc8181 0%, #f56565 100%);
+        --info-gradient: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+        --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --card-shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     }
 
-    .modal-backdrop.show {
-        opacity: 0.5 !important;
-    }
-
-    .blog-stats-card {
-        background: linear-gradient(135deg, var(--primary-color, #4b315e) 0%, var(--secondary-color, #ff6001) 100%);
-        border-radius: 16px;
-        padding: 2rem;
+    /* Hero Header Section */
+    .hero-header {
+        background: var(--primary-gradient);
+        border-radius: 20px;
+        padding: 3rem 2.5rem;
+        margin-bottom: 2.5rem;
         color: white;
-        box-shadow: 0 10px 30px rgba(75, 49, 94, 0.3);
-        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 10px 40px rgba(102, 126, 234, 0.4);
     }
 
-    .stat-item {
+    .hero-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 500px;
+        height: 500px;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+
+    .hero-header h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 0.75rem;
+        color: white;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .hero-header p {
+        font-size: 1.1rem;
+        opacity: 0.95;
+        margin: 0;
+    }
+
+    .hero-header .btn {
+        background: white;
+        color: #667eea;
+        font-weight: 700;
+        padding: 0.75rem 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        transition: all 0.3s ease;
+    }
+
+    .hero-header .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        color: #764ba2;
+    }
+
+    [data-theme='dark'] .hero-header {
+        background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    [data-theme='dark'] .hero-header .btn {
+        background: #4a5568;
+        color: white;
+    }
+
+    /* Quick Actions Dropdown */
+    .quick-actions-dropdown {
+        position: relative;
+        display: inline-block;
+    }
+
+    .quick-actions-dropdown .dropdown-menu {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        border: none;
+        padding: 0.5rem;
+        min-width: 220px;
+    }
+
+    [data-theme='dark'] .quick-actions-dropdown .dropdown-menu {
+        background: #2d3748;
+    }
+
+    .quick-actions-dropdown .dropdown-item {
+        padding: 0.75rem 1.25rem;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-weight: 600;
+    }
+
+    .quick-actions-dropdown .dropdown-item:hover {
+        background: #f7fafc;
+        color: #667eea;
+        transform: translateX(-5px);
+    }
+
+    [data-theme='dark'] .quick-actions-dropdown .dropdown-item:hover {
+        background: #1a202c;
+    }
+
+    .quick-actions-dropdown .dropdown-item i {
+        width: 20px;
         text-align: center;
     }
 
+    /* Modern Stats Cards with Glassmorphism */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 20px;
+        padding: 2rem;
+        text-align: center;
+        box-shadow: var(--card-shadow);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+        background: var(--stat-gradient);
+        transition: height 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: var(--card-shadow-hover);
+    }
+
+    .stat-card:hover::before {
+        height: 100%;
+        opacity: 0.05;
+    }
+
+    .stat-icon {
+        width: 70px;
+        height: 70px;
+        margin: 0 auto 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: var(--stat-gradient);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .stat-icon i {
+        font-size: 2rem;
+        color: white;
+    }
+
     .stat-value {
-        font-size: 2.5rem;
-        font-weight: 700;
+        font-size: 3rem;
+        font-weight: 800;
+        line-height: 1;
         margin-bottom: 0.5rem;
+        background: var(--stat-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
     }
 
     .stat-label {
-        font-size: 0.9rem;
-        opacity: 0.9;
+        font-size: 1rem;
+        color: #718096;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
-    .blog-card {
+    .stat-card.total {
+        --stat-gradient: var(--primary-gradient);
+    }
+
+    .stat-card.published {
+        --stat-gradient: var(--success-gradient);
+    }
+
+    .stat-card.drafts {
+        --stat-gradient: var(--warning-gradient);
+    }
+
+    [data-theme='dark'] .stat-card {
+        background: #2d3748;
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    [data-theme='dark'] .stat-label {
+        color: #cbd5e0;
+    }
+
+    /* Search & Filter Bar with Modern Design */
+    .filter-container {
         background: white;
-        border-radius: 16px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: var(--card-shadow);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    [data-theme='dark'] .filter-container {
+        background: #2d3748;
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .form-control, .form-select {
+        border-radius: 12px;
+        border: 2px solid #e2e8f0;
+        padding: 0.75rem 1.25rem;
+        font-size: 0.95rem;
         transition: all 0.3s ease;
-        border-left: 4px solid #667eea;
+        background: white;
     }
 
-    .blog-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        outline: none;
     }
 
-    [data-theme='dark'] .blog-card {
+    .form-control::placeholder {
+        color: #a0aec0;
+    }
+
+    [data-theme='dark'] .form-control,
+    [data-theme='dark'] .form-select {
         background: #1a202c;
-        border-left-color: #a78bbd;
+        border-color: #4a5568;
+        color: #f7fafc;
+    }
+
+    /* Modern Blog Card Design */
+    .blog-item {
+        background: white;
+        border-radius: 20px;
+        padding: 0;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--card-shadow);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow: hidden;
+    }
+
+    .blog-item:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--card-shadow-hover);
+        border-color: #667eea;
+    }
+
+    [data-theme='dark'] .blog-item {
+        background: #2d3748;
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .blog-item-inner {
+        padding: 2rem;
+    }
+
+    .blog-image-container {
+        position: relative;
+        overflow: hidden;
+        border-radius: 16px;
+        height: 180px;
+    }
+
+    .blog-image-container img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.5s ease;
+    }
+
+    .blog-item:hover .blog-image-container img {
+        transform: scale(1.1);
     }
 
     .blog-header {
         display: flex;
         justify-content: space-between;
-        align-items: start;
-        margin-bottom: 1rem;
+        align-items: flex-start;
+        margin-bottom: 1.25rem;
+        gap: 1rem;
     }
 
     .blog-title {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: #1a202c;
-        margin-bottom: 0.5rem;
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #2d3748;
+        line-height: 1.3;
+        margin: 0;
+        flex: 1;
     }
 
     [data-theme='dark'] .blog-title {
-        color: #e9ecef;
+        color: #f7fafc;
     }
 
-    .blog-meta {
+    .blog-title a {
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .blog-title a::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background: var(--primary-gradient);
+        transition: width 0.3s ease;
+    }
+
+    .blog-title a:hover {
+        color: #667eea !important;
+    }
+
+    .blog-title a:hover::after {
+        width: 100%;
+    }
+
+    /* Status Badge with Modern Design */
+    .status-badge {
+        padding: 0.5rem 1.25rem;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+    }
+
+    .status-badge.published {
+        background: var(--success-gradient);
+        color: white;
+        box-shadow: 0 4px 15px rgba(72, 187, 120, 0.4);
+    }
+
+    .status-badge.draft {
+        background: var(--warning-gradient);
+        color: white;
+        box-shadow: 0 4px 15px rgba(246, 173, 85, 0.4);
+    }
+
+    /* Meta Information */
+    .blog-meta-grid {
         display: flex;
+        flex-wrap: wrap;
         gap: 1.5rem;
-        font-size: 0.875rem;
-        color: #6b7280;
-        margin-bottom: 1rem;
+        margin: 1.5rem 0;
+        padding: 1.25rem;
+        background: #f7fafc;
+        border-radius: 12px;
     }
 
-    [data-theme='dark'] .blog-meta {
-        color: #9ca3af;
+    [data-theme='dark'] .blog-meta-grid {
+        background: #1a202c;
     }
 
-    .blog-meta-item {
+    .meta-item {
         display: flex;
+        align-items: center;
+        gap: 0.625rem;
+        font-size: 0.9rem;
+        color: #4a5568;
+    }
+
+    [data-theme='dark'] .meta-item {
+        color: #cbd5e0;
+    }
+
+    .meta-item i {
+        width: 20px;
+        text-align: center;
+        color: #667eea;
+    }
+
+    .meta-item strong {
+        font-weight: 700;
+        color: #2d3748;
+    }
+
+    [data-theme='dark'] .meta-item strong {
+        color: #f7fafc;
+    }
+
+    /* Content Preview */
+    .blog-excerpt {
+        color: #718096;
+        line-height: 1.7;
+        margin: 1.25rem 0;
+        font-size: 1rem;
+    }
+
+    [data-theme='dark'] .blog-excerpt {
+        color: #a0aec0;
+    }
+
+    /* Tags */
+    .blog-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin: 1.25rem 0;
+    }
+
+    .tag-badge {
+        padding: 0.5rem 1rem;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        color: #667eea;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        transition: all 0.3s ease;
+    }
+
+    .tag-badge:hover {
+        background: var(--primary-gradient);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    [data-theme='dark'] .tag-badge {
+        background: rgba(102, 126, 234, 0.15);
+        border-color: rgba(102, 126, 234, 0.3);
+    }
+
+    /* Action Buttons */
+    .blog-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 2px solid #e2e8f0;
+    }
+
+    [data-theme='dark'] .blog-actions {
+        border-top-color: #4a5568;
+    }
+
+    .btn {
+        border-radius: 12px;
+        padding: 0.625rem 1.5rem;
+        font-weight: 700;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        border: none;
+        display: inline-flex;
         align-items: center;
         gap: 0.5rem;
     }
 
-    .blog-content-preview {
-        color: #4b5563;
-        line-height: 1.6;
-        margin-bottom: 1rem;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
+    .btn-primary {
+        background: var(--primary-gradient);
+        color: white;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     }
 
-    [data-theme='dark'] .blog-content-preview {
-        color: #cbd5e0;
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
     }
 
-    .blog-tags {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
+    .btn-warning {
+        background: var(--warning-gradient);
+        color: white;
+        box-shadow: 0 4px 15px rgba(246, 173, 85, 0.3);
     }
 
-    .blog-tag {
-        background: #e0e7ff;
-        color: #4c51bf;
-        padding: 0.25rem 0.75rem;
-        border-radius: 50px;
-        font-size: 0.75rem;
-        font-weight: 600;
+    .btn-warning:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(246, 173, 85, 0.4);
     }
 
-    [data-theme='dark'] .blog-tag {
-        background: rgba(167, 139, 189, 0.2);
-        color: #a78bbd;
+    .btn-info {
+        background: var(--info-gradient);
+        color: white;
+        box-shadow: 0 4px 15px rgba(66, 153, 225, 0.3);
     }
 
-    .blog-actions {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
+    .btn-info:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(66, 153, 225, 0.4);
     }
 
-    .blog-status-badge {
-        padding: 0.5rem 1rem;
-        border-radius: 50px;
+    .btn-danger {
+        background: var(--danger-gradient);
+        color: white;
+        box-shadow: 0 4px 15px rgba(252, 129, 129, 0.3);
+    }
+
+    .btn-danger:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(252, 129, 129, 0.4);
+    }
+
+    .btn-sm {
+        padding: 0.5rem 1.25rem;
         font-size: 0.875rem;
-        font-weight: 600;
     }
 
-    .status-published {
-        background: #d1fae5;
-        color: #065f46;
-    }
-
-    .status-draft {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    [data-theme='dark'] .status-published {
-        background: rgba(16, 185, 129, 0.2);
-        color: #6ee7b7;
-    }
-
-    [data-theme='dark'] .status-draft {
-        background: rgba(245, 158, 11, 0.2);
-        color: #fbbf24;
-    }
-
-    .blog-image-thumb {
-        width: 80px;
-        height: 80px;
-        object-fit: cover;
-        border-radius: 12px;
-        margin-left: 1rem;
-    }
-
-    .filter-bar {
-        background: white;
-        border-radius: 16px;
-        padding: 1.5rem;
-        margin-bottom: 2rem;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-    }
-
-    [data-theme='dark'] .filter-bar {
-        background: #1a202c;
-    }
-
-    .search-input-group {
-        position: relative;
-    }
-
-    .search-input-group i {
-        position: absolute;
-        right: 1rem;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #9ca3af;
-    }
-
-    .search-input {
-        padding-right: 3rem;
-        border-radius: 12px;
-        border: 2px solid #e5e7eb;
-    }
-
-    [data-theme='dark'] .search-input {
-        background: rgba(255, 255, 255, 0.05);
-        border-color: rgba(255, 255, 255, 0.1);
-        color: #e9ecef;
-    }
-
+    /* Empty State */
     .empty-state {
         text-align: center;
-        padding: 4rem 2rem;
+        padding: 5rem 2rem;
+        background: white;
+        border-radius: 20px;
+        box-shadow: var(--card-shadow);
     }
 
-    .empty-state i {
+    [data-theme='dark'] .empty-state {
+        background: #2d3748;
+    }
+
+    .empty-state-icon {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 2rem;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .empty-state-icon i {
         font-size: 4rem;
-        color: #cbd5e0;
-        margin-bottom: 1rem;
+        background: var(--primary-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
     }
 
     .empty-state h3 {
-        color: #4b5563;
-        margin-bottom: 0.5rem;
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #2d3748;
+        margin-bottom: 1rem;
     }
 
     [data-theme='dark'] .empty-state h3 {
+        color: #f7fafc;
+    }
+
+    .empty-state p {
+        color: #718096;
+        font-size: 1.1rem;
+        margin-bottom: 2rem;
+    }
+
+    /* Pagination */
+    .pagination {
+        margin-top: 3rem;
+        gap: 0.5rem;
+    }
+
+    .page-link {
+        border-radius: 12px;
+        border: 2px solid #e2e8f0;
+        padding: 0.75rem 1.25rem;
+        color: #4a5568;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .page-link:hover {
+        background: var(--primary-gradient);
+        color: white;
+        border-color: transparent;
+        transform: translateY(-2px);
+    }
+
+    .page-item.active .page-link {
+        background: var(--primary-gradient);
+        border-color: transparent;
+        color: white;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    [data-theme='dark'] .page-link {
+        background: #2d3748;
+        border-color: #4a5568;
         color: #cbd5e0;
     }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .hero-header {
+            padding: 2rem 1.5rem;
+        }
+
+        .hero-header h1 {
+            font-size: 1.75rem;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .blog-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .blog-actions {
+            flex-direction: column;
+        }
+
+        .blog-actions .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
 </style>
-{% endblock %}
+{% endblock admin_extra_css %}
 
 {% block admin_content %}
-<div class="container-fluid">
-    <!-- Page Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="mb-1">{% trans "إدارة المدونات" %}</h2>
-            <p class="text-muted mb-0">{% trans "إنشاء وتحرير وحذف المدونات" %}</p>
+<div class="container-fluid px-4 py-4">
+    <!-- Hero Header -->
+    <div class="hero-header">
+        <div class="d-flex justify-content-between align-items-center position-relative">
+            <div>
+                <h1><i class="fas fa-blog me-3"></i>{% trans "إدارة المدونات" %}</h1>
+                <p>{% trans "إنشاء وتحرير وحذف المدونات بسهولة وفعالية" %}</p>
+            </div>
+            <div class="d-flex gap-3">
+                <a href="{% url 'main:admin_blog_create' %}" class="btn">
+                    <i class="fas fa-plus-circle me-2"></i>
+                    {% trans "مدونة جديدة" %}
+                </a>
+                <div class="quick-actions-dropdown dropdown">
+                    <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-ellipsis-v me-2"></i>
+                        {% trans "إجراءات سريعة" %}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a class="dropdown-item" href="{% url 'main:admin_blogs' %}">
+                                <i class="fas fa-list"></i>
+                                {% trans "عرض جميع المدونات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{% url 'main:admin_blog_create' %}">
+                                <i class="fas fa-plus"></i>
+                                {% trans "إنشاء مدونة جديدة" %}
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="{% url 'main:admin_blog_categories' %}">
+                                <i class="fas fa-folder"></i>
+                                {% trans "إدارة التصنيفات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="?status=published">
+                                <i class="fas fa-check-circle"></i>
+                                {% trans "المدونات المنشورة" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="?status=draft">
+                                <i class="fas fa-clock"></i>
+                                {% trans "المسودات" %}
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
         </div>
-        <button type="button" class="btn btn-primary" data-action="create-blog">
-            <i class="fas fa-plus me-2"></i>
-            {% trans "مدونة جديدة" %}
-        </button>
     </div>
 
     <!-- Statistics Cards -->
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="blog-stats-card">
-                <div class="stat-item">
-                    <div class="stat-value">{{ total_blogs }}</div>
-                    <div class="stat-label">{% trans "إجمالي المدونات" %}</div>
-                </div>
+    <div class="stats-grid">
+        <div class="stat-card total">
+            <div class="stat-icon">
+                <i class="fas fa-blog"></i>
             </div>
+            <div class="stat-value">{{ total_blogs }}</div>
+            <div class="stat-label">{% trans "إجمالي المدونات" %}</div>
         </div>
-        <div class="col-md-4">
-            <div class="blog-stats-card" style="background: linear-gradient(135deg, rgba(75, 49, 94, 0.9) 0%, rgba(255, 96, 1, 0.8) 100%);">
-                <div class="stat-item">
-                    <div class="stat-value">{{ published_blogs }}</div>
-                    <div class="stat-label">{% trans "منشور" %}</div>
-                </div>
+
+        <div class="stat-card published">
+            <div class="stat-icon">
+                <i class="fas fa-check-circle"></i>
             </div>
+            <div class="stat-value">{{ published_blogs }}</div>
+            <div class="stat-label">{% trans "منشور" %}</div>
         </div>
-        <div class="col-md-4">
-            <div class="blog-stats-card" style="background: linear-gradient(135deg, rgba(75, 49, 94, 0.8) 0%, rgba(255, 96, 1, 0.9) 100%);">
-                <div class="stat-item">
-                    <div class="stat-value">{{ draft_blogs }}</div>
-                    <div class="stat-label">{% trans "مسودات" %}</div>
-                </div>
+
+        <div class="stat-card drafts">
+            <div class="stat-icon">
+                <i class="fas fa-clock"></i>
             </div>
+            <div class="stat-value">{{ draft_blogs }}</div>
+            <div class="stat-label">{% trans "مسودات" %}</div>
         </div>
     </div>
 
-    <!-- Filter Bar -->
-    <div class="filter-bar">
-        <form method="get" class="row g-3" id="filterForm">
+    <!-- Modern Filter Bar -->
+    <div class="filter-container">
+        <form method="get" class="row g-3 align-items-end" id="filterForm">
             <div class="col-md-4">
-                <div class="search-input-group">
-                    <i class="fas fa-search"></i>
-                    <input type="text" name="search" class="form-control search-input"
-                           placeholder="{% trans 'البحث في المدونات...' %}"
-                           value="{{ search_query }}">
-                </div>
+                <label class="form-label fw-bold">
+                    <i class="fas fa-search me-2"></i>{% trans "البحث" %}
+                </label>
+                <input type="text" name="search" class="form-control"
+                       placeholder="{% trans 'ابحث بالعنوان أو المحتوى...' %}"
+                       value="{{ search_query }}">
             </div>
-            <div class="col-md-2">
-                <select name="category" class="form-select" onchange="this.form.submit()">
-                    <option value="">{% trans "كل الفئات" %}</option>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">
+                    <i class="fas fa-list-ul me-2"></i>{% trans "التصنيف" %}
+                </label>
+                <select name="category" class="form-select">
+                    <option value="">{% trans "جميع التصنيفات" %}</option>
                     {% for category in categories %}
                     <option value="{{ category.id }}" {% if selected_category == category.id|stringformat:'s' %}selected{% endif %}>
                         {{ category.name }}
@@ -297,124 +761,137 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-2">
-                <select name="status" class="form-select" onchange="this.form.submit()">
+            <div class="col-md-3">
+                <label class="form-label fw-bold">
+                    <i class="fas fa-toggle-on me-2"></i>{% trans "الحالة" %}
+                </label>
+                <select name="status" class="form-select">
                     <option value="all" {% if status_filter == 'all' %}selected{% endif %}>{% trans "جميع الحالات" %}</option>
                     <option value="published" {% if status_filter == 'published' %}selected{% endif %}>{% trans "منشور" %}</option>
                     <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>{% trans "مسودة" %}</option>
                 </select>
             </div>
             <div class="col-md-2">
-                <select name="sort" class="form-select" onchange="this.form.submit()">
-                    <option value="-published_date" {% if sort_by == '-published_date' %}selected{% endif %}>{% trans "الأحدث أولاً" %}</option>
-                    <option value="published_date" {% if sort_by == 'published_date' %}selected{% endif %}>{% trans "الأقدم أولاً" %}</option>
-                    <option value="title" {% if sort_by == 'title' %}selected{% endif %}>{% trans "العنوان (أ-ي)" %}</option>
-                    <option value="-likes_count" {% if sort_by == '-likes_count' %}selected{% endif %}>{% trans "الأكثر إعجاباً" %}</option>
-                </select>
-            </div>
-            <div class="col-md-2">
                 <button type="submit" class="btn btn-primary w-100">
-                    <i class="fas fa-filter me-2"></i>
-                    {% trans "تطبيق" %}
+                    <i class="fas fa-filter me-2"></i>{% trans "تطبيق" %}
                 </button>
             </div>
         </form>
     </div>
 
-    <!-- Blogs List -->
+    <!-- Modern Blogs Grid -->
     {% if blogs %}
+        <div class="row g-4">
         {% for blog in blogs %}
-        <div class="blog-card">
-            <div class="d-flex">
-                <div class="flex-grow-1">
-                    <div class="blog-header">
-                        <div>
-                            <h3 class="blog-title">{{ blog.title }}</h3>
-                            <span class="blog-status-badge {% if blog.is_published %}status-published{% else %}status-draft{% endif %}">
-                                {% if blog.is_published %}
-                                    <i class="fas fa-check-circle me-1"></i> {% trans "منشور" %}
-                                {% else %}
-                                    <i class="fas fa-clock me-1"></i> {% trans "مسودة" %}
-                                {% endif %}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="blog-meta">
-                        <div class="blog-meta-item">
-                            <i class="fas fa-user"></i>
-                            <span>{{ blog.author.username }}</span>
-                        </div>
-                        {% if blog.category %}
-                        <div class="blog-meta-item">
-                            <i class="{{ blog.category.icon }}" style="color: {{ blog.category.color }}"></i>
-                            <span>{{ blog.category.name }}</span>
-                        </div>
-                        {% endif %}
-                        <div class="blog-meta-item">
-                            <i class="fas fa-calendar"></i>
-                            <span>{{ blog.published_date|date:"Y/m/d" }}</span>
-                        </div>
-                        <div class="blog-meta-item">
-                            <i class="fas fa-eye"></i>
-                            <span>{{ blog.views_count }} {% trans "مشاهدة" %}</span>
-                        </div>
-                        <div class="blog-meta-item">
-                            <i class="fas fa-heart"></i>
-                            <span>{{ blog.get_likes_count }} {% trans "إعجاب" %}</span>
-                        </div>
-                        <div class="blog-meta-item">
-                            <i class="fas fa-comments"></i>
-                            <span>{{ blog.comments.count }} {% trans "تعليق" %}</span>
-                        </div>
-                    </div>
-
-                    <p class="blog-content-preview">{{ blog.content|striptags|truncatewords:30 }}</p>
-
-                    {% if blog.tags.all %}
-                    <div class="blog-tags">
-                        {% for tag in blog.tags.all %}
-                        <span class="blog-tag">
-                            <i class="fas fa-tag me-1"></i>{{ tag.name }}
-                        </span>
-                        {% endfor %}
+            <div class="col-12">
+                <div class="blog-item">
+                    {% if blog.image %}
+                    <div class="blog-image-container">
+                        <img src="{{ blog.image.url }}" alt="{{ blog.title }}">
+                        <div class="image-overlay"></div>
                     </div>
                     {% endif %}
 
-                    <div class="blog-actions">
-                        <button type="button" class="btn btn-sm btn-primary" data-action="edit-blog" data-blog-id="{{ blog.id }}">
-                            <i class="fas fa-edit me-1"></i> {% trans "تعديل" %}
-                        </button>
-                        <button type="button" class="btn btn-sm btn-warning" data-action="toggle-publish" data-blog-id="{{ blog.id }}" data-is-published="{{ blog.is_published|lower }}">
-                            <i class="fas fa-sync-alt me-1"></i>
-                            {% if blog.is_published %}{% trans "تحويل لمسودة" %}{% else %}{% trans "نشر" %}{% endif %}
-                        </button>
-                        <a href="{{ blog.get_absolute_url }}" target="_blank" class="btn btn-sm btn-info">
-                            <i class="fas fa-eye me-1"></i> {% trans "عرض" %}
-                        </a>
-                        <button type="button" class="btn btn-sm btn-danger" data-action="delete-blog" data-blog-id="{{ blog.id }}" data-blog-title="{{ blog.title }}">
-                            <i class="fas fa-trash me-1"></i> {% trans "حذف" %}
-                        </button>
+                    <div class="blog-item-inner">
+                        <!-- Blog Header -->
+                        <div class="blog-header">
+                            <h3 class="blog-title">
+                                <a href="{% url 'main:admin_blog_detail' blog.id %}" style="text-decoration: none; color: inherit;">
+                                    {{ blog.title }}
+                                </a>
+                            </h3>
+                            <span class="status-badge {% if blog.is_published %}status-published{% else %}status-draft{% endif %}">
+                                {% if blog.is_published %}
+                                    <i class="fas fa-check-circle me-2"></i>{% trans "منشور" %}
+                                {% else %}
+                                    <i class="fas fa-clock me-2"></i>{% trans "مسودة" %}
+                                {% endif %}
+                            </span>
+                        </div>
+
+                        <!-- Blog Meta Information Grid -->
+                        <div class="blog-meta-grid">
+                            <div class="meta-item">
+                                <i class="fas fa-user"></i>
+                                <strong>{% trans "الكاتب" %}:</strong>
+                                <span>{{ blog.author.username }}</span>
+                            </div>
+                            {% if blog.category %}
+                            <div class="meta-item">
+                                <i class="fas fa-folder"></i>
+                                <strong>{% trans "التصنيف" %}:</strong>
+                                <span>{{ blog.category.name }}</span>
+                            </div>
+                            {% endif %}
+                            <div class="meta-item">
+                                <i class="fas fa-calendar"></i>
+                                <strong>{% trans "التاريخ" %}:</strong>
+                                <span>{{ blog.published_date|date:"Y/m/d" }}</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-eye"></i>
+                                <strong>{% trans "المشاهدات" %}:</strong>
+                                <span>{{ blog.views_count }}</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-heart"></i>
+                                <strong>{% trans "الإعجابات" %}:</strong>
+                                <span>{{ blog.get_likes_count }}</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-comments"></i>
+                                <strong>{% trans "التعليقات" %}:</strong>
+                                <span>{{ blog.comments.count }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Blog Excerpt -->
+                        <p class="blog-excerpt">{{ blog.content|striptags|truncatewords:40 }}</p>
+
+                        <!-- Tags -->
+                        {% if blog.tags.all %}
+                        <div class="blog-tags">
+                            {% for tag in blog.tags.all %}
+                            <span class="tag-badge">
+                                <i class="fas fa-tag me-1"></i>{{ tag.name }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <!-- Action Buttons -->
+                        <div class="blog-actions">
+                            <a href="{% url 'main:admin_blog_detail' blog.id %}" class="btn btn-info">
+                                <i class="fas fa-eye"></i>{% trans "عرض التفاصيل" %}
+                            </a>
+                            <a href="{% url 'main:admin_blog_update' blog.id %}" class="btn btn-primary">
+                                <i class="fas fa-edit"></i>{% trans "تعديل" %}
+                            </a>
+                            <button type="button" class="btn btn-warning" data-action="toggle-publish" data-blog-id="{{ blog.id }}" data-is-published="{{ blog.is_published|lower }}">
+                                <i class="fas fa-sync-alt"></i>
+                                {% if blog.is_published %}{% trans "تحويل لمسودة" %}{% else %}{% trans "نشر" %}{% endif %}
+                            </button>
+                            <a href="{{ blog.get_absolute_url }}" target="_blank" class="btn btn-success">
+                                <i class="fas fa-external-link-alt"></i>{% trans "معاينة الموقع" %}
+                            </a>
+                            <button type="button" class="btn btn-danger" data-action="delete-blog" data-blog-id="{{ blog.id }}" data-blog-title="{{ blog.title }}">
+                                <i class="fas fa-trash-alt"></i>{% trans "حذف" %}
+                            </button>
+                        </div>
                     </div>
                 </div>
-
-                {% if blog.image %}
-                <div>
-                    <img src="{{ blog.image.url }}" alt="{{ blog.title }}" class="blog-image-thumb">
-                </div>
-                {% endif %}
             </div>
-        </div>
         {% endfor %}
+        </div>
 
-        <!-- Pagination -->
+        <!-- Modern Pagination -->
         {% if blogs.has_other_pages %}
-        <nav aria-label="Page navigation">
+        <nav aria-label="Page navigation" class="mt-5">
             <ul class="pagination justify-content-center">
                 {% if blogs.has_previous %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ blogs.previous_page_number }}&status={{ status_filter }}&search={{ search_query }}&sort={{ sort_by }}">
-                        {% trans "السابق" %}
+                    <a class="page-link" href="?page={{ blogs.previous_page_number }}&status={{ status_filter }}&search={{ search_query }}&category={{ selected_category }}">
+                        <i class="fas fa-chevron-right me-2"></i>{% trans "السابق" %}
                     </a>
                 </li>
                 {% endif %}
@@ -424,15 +901,15 @@
                     <li class="page-item active"><span class="page-link">{{ num }}</span></li>
                     {% elif num > blogs.number|add:'-3' and num < blogs.number|add:'3' %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ num }}&status={{ status_filter }}&search={{ search_query }}&sort={{ sort_by }}">{{ num }}</a>
+                        <a class="page-link" href="?page={{ num }}&status={{ status_filter }}&search={{ search_query }}&category={{ selected_category }}">{{ num }}</a>
                     </li>
                     {% endif %}
                 {% endfor %}
 
                 {% if blogs.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ blogs.next_page_number }}&status={{ status_filter }}&search={{ search_query }}&sort={{ sort_by }}">
-                        {% trans "التالي" %}
+                    <a class="page-link" href="?page={{ blogs.next_page_number }}&status={{ status_filter }}&search={{ search_query }}&category={{ selected_category }}">
+                        {% trans "التالي" %}<i class="fas fa-chevron-left ms-2"></i>
                     </a>
                 </li>
                 {% endif %}
@@ -440,92 +917,33 @@
         </nav>
         {% endif %}
     {% else %}
+        <!-- Modern Empty State -->
         <div class="empty-state">
-            <i class="fas fa-blog"></i>
+            <div class="icon-circle">
+                <i class="fas fa-blog"></i>
+            </div>
             <h3>{% trans "لا توجد مدونات" %}</h3>
-            <p class="text-muted">{% trans "ابدأ بإنشاء مدونة جديدة" %}</p>
+            <p>{% trans "ابدأ بإنشاء مدونة جديدة لعرض المحتوى الخاص بك" %}</p>
+            <a href="{% url 'main:admin_blog_create' %}" class="btn btn-primary btn-lg mt-3">
+                <i class="fas fa-plus-circle me-2"></i>{% trans "إنشاء مدونة جديدة" %}
+                </a>
+            </div>
         </div>
     {% endif %}
 </div>
 {% endblock %}
 
 {% block modals %}
-<!-- IMPORTANT: Modals MUST be placed outside the main content container to avoid z-index/overflow issues -->
-
-<!-- Create/Edit Blog Modal -->
-<div class="modal fade" id="blogModal" tabindex="-1" aria-labelledby="blogModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="blogModalLabel">
-                    <i class="fas fa-blog me-2"></i>
-                    <span id="modalTitle">{% trans "مدونة جديدة" %}</span>
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="blogForm" enctype="multipart/form-data">
-                    {% csrf_token %}
-                    <input type="hidden" id="blogId" name="blog_id">
-
-                    <div class="mb-3">
-                        <label for="blogTitle" class="form-label">{% trans "العنوان" %} <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="blogTitle" name="title" required>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="blogContent" class="form-label">{% trans "المحتوى" %} <span class="text-danger">*</span></label>
-                        <textarea class="form-control" id="blogContent" name="content" rows="10" required></textarea>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="blogImage" class="form-label">{% trans "الصورة" %}</label>
-                        <input type="file" class="form-control" id="blogImage" name="image" accept="image/*">
-                        <div id="currentImage" class="mt-2" style="display: none;">
-                            <img id="currentImagePreview" src="" alt="Current image" style="max-width: 200px; border-radius: 8px;">
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="blogTags" class="form-label">{% trans "الوسوم" %}</label>
-                        <input type="text" class="form-control" id="blogTags" name="tags" placeholder="{% trans 'افصل الوسوم بفاصلة' %}">
-                        <small class="form-text text-muted">{% trans "مثال: تقنية, برمجة, تطوير" %}</small>
-                    </div>
-
-                    <div class="mb-3">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="blogPublished" name="is_published" checked>
-                            <label class="form-check-label" for="blogPublished">
-                                {% trans "نشر المدونة" %}
-                            </label>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="fas fa-times me-2"></i>
-                    {% trans "إلغاء" %}
-                </button>
-                <button type="button" class="btn btn-primary" id="saveBlogBtn">
-                    <i class="fas fa-save me-2"></i>
-                    {% trans "حفظ" %}
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Delete Confirmation Modal -->
 <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title" id="deleteModalLabel">
-                    <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                    <i class="fas fa-exclamation-triangle me-2"></i>
                     {% trans "تأكيد الحذف" %}
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <p>{% trans "هل أنت متأكد من حذف المدونة" %} "<strong id="deleteBlogTitle"></strong>"؟</p>
@@ -551,17 +969,7 @@
 
 {% block admin_extra_js %}
 <script>
-    let currentBlogId = null;
     let currentDeleteId = null;
-    let editorInstance = null;
-
-    // URL patterns with language prefix
-    const BLOG_URLS = {
-        create: '{% url "main:admin_blog_create" %}',
-        update: (id) => `{% url "main:admin_blog_update" 0 %}`.replace('/0/', `/${id}/`),
-        delete: (id) => `{% url "main:admin_blog_delete" 0 %}`.replace('/0/', `/${id}/`),
-        togglePublish: (id) => `{% url "main:admin_blog_toggle_publish" 0 %}`.replace('/0/', `/${id}/`)
-    };
 
     // CSRF Token
     function getCookie(name) {
@@ -594,386 +1002,32 @@
         }, 3000);
     }
 
-    // Initialize Bootstrap modals on page load with debugging
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('🎯 Initializing modals...');
-        console.log('Bootstrap available:', typeof bootstrap !== 'undefined');
-        console.log('Bootstrap.Modal available:', typeof bootstrap !== 'undefined' && typeof bootstrap.Modal !== 'undefined');
-
-        const modalElements = document.querySelectorAll('.modal');
-        console.log('Found modals:', modalElements.length);
-
-        modalElements.forEach(function(modalEl) {
-            console.log('Initializing modal:', modalEl.id);
-            if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                try {
-                    const existingModal = bootstrap.Modal.getInstance(modalEl);
-                    if (!existingModal) {
-                        const newModal = new bootstrap.Modal(modalEl);
-                        console.log('✅ Modal initialized:', modalEl.id);
-                    } else {
-                        console.log('✅ Modal already initialized:', modalEl.id);
-                    }
-                } catch (error) {
-                    console.error('❌ Modal initialization error:', modalEl.id, error);
-                }
-            }
-        });
-
-        // Test event delegation
-        console.log('🔍 Testing buttons with data-action...');
-        const buttons = document.querySelectorAll('[data-action]');
-        console.log('Found buttons with data-action:', buttons.length);
-        buttons.forEach(btn => {
-            console.log('  - Button:', btn.dataset.action, btn.textContent.trim());
-        });
-
-        console.log('✅ Modal initialization complete');
-    });
-
     // Event Delegation
     document.addEventListener('click', function(e) {
         const target = e.target.closest('[data-action]');
         if (!target) return;
 
         const action = target.dataset.action;
-        console.log('👉 Button clicked:', action, target.dataset);
 
         switch(action) {
-            case 'create-blog':
-                console.log('✅ Opening create modal...');
-                openCreateModal();
-                break;
-
-            case 'edit-blog':
-                console.log('✅ Opening edit modal for blog:', target.dataset.blogId);
-                openEditModal(target.dataset.blogId);
-                break;
-
             case 'delete-blog':
-                console.log('✅ Opening delete modal for blog:', target.dataset.blogId);
                 openDeleteModal(target.dataset.blogId, target.dataset.blogTitle);
                 break;
-
             case 'toggle-publish':
-                console.log('✅ Toggling publish status for blog:', target.dataset.blogId);
-                togglePublishStatus(target.dataset.blogId, target.dataset.isPublished === 'true');
+                togglePublishStatus(target.dataset.blogId);
                 break;
-        }
-    });
-
-    // Initialize CKEditor
-    function initializeCKEditor() {
-        if (editorInstance) {
-            editorInstance.destroy().then(() => {
-                createEditor();
-            });
-        } else {
-            createEditor();
-        }
-    }
-
-    function createEditor() {
-        CKEDITOR.ClassicEditor.create(document.getElementById('blogContent'), {
-            language: 'ar',
-            // Remove plugins that require collaboration features, special containers, or premium license
-            removePlugins: [
-                'RealTimeCollaborativeEditing', 'RealTimeCollaborativeComments', 'RealTimeCollaborativeTrackChanges',
-                'RealTimeCollaborativeRevisionHistory', 'PresenceList', 'Comments', 'TrackChanges', 'TrackChangesData',
-                'RevisionHistory', 'Pagination', 'WProofreader', 'MathType', 'SlashCommand', 'DocumentOutline',
-                'AIAssistant', 'TableOfContents', 'FormatPainter', 'Template', 'PasteFromOfficeEnhanced',
-                'CKBox', 'CKFinder', 'EasyImage', 'RealTimeCollaboration', 'ExportPdf', 'ExportWord',
-                'MultiLevelList', 'CaseChange'
-            ],
-            toolbar: {
-                items: [
-                    'heading', '|',
-                    'fontSize', 'fontFamily', 'fontColor', 'fontBackgroundColor', '|',
-                    'bold', 'italic', 'underline', 'strikethrough', 'code', 'subscript', 'superscript', '|',
-                    'link', 'bulletedList', 'numberedList', 'todoList', '|',
-                    'alignment', 'indent', 'outdent', '|',
-                    'blockQuote', 'codeBlock', 'htmlEmbed', '|',
-                    'imageUpload', 'insertTable', 'mediaEmbed', 'horizontalLine', 'pageBreak', '|',
-                    'highlight', 'removeFormat', '|',
-                    'findAndReplace', '|',
-                    'undo', 'redo', '|',
-                    'sourceEditing'
-                ],
-                shouldNotGroupWhenFull: true
-            },
-            fontSize: {
-                options: [9, 11, 13, 'default', 17, 19, 21, 24, 28, 32, 36]
-            },
-            fontFamily: {
-                options: [
-                    'default',
-                    'Arial, Helvetica, sans-serif',
-                    'Courier New, Courier, monospace',
-                    'Georgia, serif',
-                    'Lucida Sans Unicode, Lucida Grande, sans-serif',
-                    'Tahoma, Geneva, sans-serif',
-                    'Times New Roman, Times, serif',
-                    'Trebuchet MS, Helvetica, sans-serif',
-                    'Verdana, Geneva, sans-serif'
-                ]
-            },
-            htmlEmbed: {
-                showPreviews: true
-            },
-            codeBlock: {
-                languages: [
-                    { language: 'plaintext', label: 'Plain text' },
-                    { language: 'c', label: 'C' },
-                    { language: 'cs', label: 'C#' },
-                    { language: 'cpp', label: 'C++' },
-                    { language: 'css', label: 'CSS' },
-                    { language: 'diff', label: 'Diff' },
-                    { language: 'html', label: 'HTML' },
-                    { language: 'java', label: 'Java' },
-                    { language: 'javascript', label: 'JavaScript' },
-                    { language: 'php', label: 'PHP' },
-                    { language: 'python', label: 'Python' },
-                    { language: 'ruby', label: 'Ruby' },
-                    { language: 'typescript', label: 'TypeScript' },
-                    { language: 'xml', label: 'XML' }
-                ]
-            },
-            image: {
-                toolbar: [
-                    'imageTextAlternative', '|',
-                    'imageStyle:inline', 'imageStyle:wrapText', 'imageStyle:breakText', '|',
-                    'imageStyle:block', 'imageStyle:side', 'imageStyle:alignLeft', 'imageStyle:alignRight', 'imageStyle:alignCenter', '|',
-                    'toggleImageCaption', 'linkImage'
-                ]
-            },
-            table: {
-                contentToolbar: [
-                    'tableColumn', 'tableRow', 'mergeTableCells',
-                    'tableProperties', 'tableCellProperties', 'toggleTableCaption'
-                ]
-            },
-            heading: {
-                options: [
-                    { model: 'paragraph', title: 'Paragraph', class: 'ck-heading_paragraph' },
-                    { model: 'heading1', view: 'h1', title: 'Heading 1', class: 'ck-heading_heading1' },
-                    { model: 'heading2', view: 'h2', title: 'Heading 2', class: 'ck-heading_heading2' },
-                    { model: 'heading3', view: 'h3', title: 'Heading 3', class: 'ck-heading_heading3' },
-                    { model: 'heading4', view: 'h4', title: 'Heading 4', class: 'ck-heading_heading4' }
-                ]
-            }
-        }).then(editor => {
-            editorInstance = editor;
-            console.log('✅ CKEditor initialized with enhanced toolbar (40+ tools)');
-        }).catch(error => {
-            console.error('❌ CKEditor initialization error:', error);
-        });
-    }
-
-    // Open Create Modal
-    function openCreateModal() {
-        console.log('📝 Opening create modal...');
-        currentBlogId = null;
-        document.getElementById('modalTitle').textContent = '{% trans "مدونة جديدة" %}';
-        document.getElementById('blogForm').reset();
-        document.getElementById('blogId').value = '';
-        document.getElementById('currentImage').style.display = 'none';
-
-        const modalEl = document.getElementById('blogModal');
-        console.log('Modal element found:', !!modalEl);
-
-        if (modalEl) {
-            let modal = bootstrap.Modal.getInstance(modalEl);
-            if (!modal) {
-                console.log('Creating new modal instance...');
-                modal = new bootstrap.Modal(modalEl);
-            }
-            console.log('Showing modal...');
-            modal.show();
-            console.log('✅ Modal shown');
-
-            // Initialize CKEditor after modal is shown
-            setTimeout(() => initializeCKEditor(), 300);
-        } else {
-            console.error('❌ Modal element not found!');
-        }
-    }
-
-    // Open Edit Modal
-    async function openEditModal(blogId) {
-        currentBlogId = blogId;
-
-        try {
-            const response = await fetch(BLOG_URLS.update(blogId), {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-
-            // Check if response is JSON
-            const contentType = response.headers.get("content-type");
-            if (!contentType || !contentType.includes("application/json")) {
-                console.error('❌ Response is not JSON:', response.status);
-                if (response.status === 403 || response.status === 401) {
-                    showNotification('{% trans "ليس لديك صلاحية للوصول. يرجى تسجيل الدخول كمسؤول." %}', 'error');
-                    setTimeout(() => {
-                        window.location.href = '{% url "main:login" %}';
-                    }, 2000);
-                } else {
-                    showNotification('{% trans "حدث خطأ في تحميل بيانات المدونة" %}', 'error');
-                }
-                return;
-            }
-
-            const data = await response.json();
-
-            if (data.success) {
-                document.getElementById('modalTitle').textContent = '{% trans "تعديل المدونة" %}';
-                document.getElementById('blogId').value = data.blog.id;
-                document.getElementById('blogTitle').value = data.blog.title;
-                document.getElementById('blogTags').value = data.blog.tags;
-                document.getElementById('blogPublished').checked = data.blog.is_published;
-
-                if (data.blog.image_url) {
-                    document.getElementById('currentImagePreview').src = data.blog.image_url;
-                    document.getElementById('currentImage').style.display = 'block';
-                }
-
-                const modalEl = document.getElementById('blogModal');
-                if (modalEl) {
-                    let modal = bootstrap.Modal.getInstance(modalEl);
-                    if (!modal) {
-                        modal = new bootstrap.Modal(modalEl);
-                    }
-                    modal.show();
-                    console.log('✅ Edit modal shown');
-
-                    // Initialize CKEditor and set content after modal is shown
-                    setTimeout(() => {
-                        initializeCKEditor();
-                        setTimeout(() => {
-                            if (editorInstance) {
-                                editorInstance.setData(data.blog.content);
-                            }
-                        }, 500);
-                    }, 300);
-                }
-            } else {
-                showNotification(data.error || '{% trans "خطأ في تحميل البيانات" %}', 'error');
-            }
-        } catch (error) {
-            console.error('Error loading blog:', error);
-            showNotification('{% trans "خطأ في تحميل بيانات المدونة" %}', 'error');
-        }
-    }
-
-    // Save Blog
-    document.getElementById('saveBlogBtn').addEventListener('click', async function() {
-        console.log('💾 Save button clicked');
-        const form = document.getElementById('blogForm');
-        const formData = new FormData(form);
-
-        // Get content from CKEditor
-        if (editorInstance) {
-            const content = editorInstance.getData();
-            formData.set('content', content);
-            console.log('📝 Content from CKEditor:', content.substring(0, 100) + '...');
-        }
-
-        const isPublished = document.getElementById('blogPublished').checked;
-        formData.set('is_published', isPublished);
-        console.log('📢 Is Published:', isPublished);
-
-        const url = currentBlogId
-            ? BLOG_URLS.update(currentBlogId)
-            : BLOG_URLS.create;
-
-        console.log('🌐 Request URL:', url);
-        console.log('📦 Current Blog ID:', currentBlogId);
-
-        // Log form data
-        console.log('📋 Form Data:');
-        for (let pair of formData.entries()) {
-            if (pair[0] !== 'content') {
-                console.log(`  ${pair[0]}: ${pair[1]}`);
-            } else {
-                console.log(`  ${pair[0]}: [content]`);
-            }
-        }
-
-        try {
-            const csrfToken = getCookie('csrftoken');
-            console.log('🔐 CSRF Token:', csrfToken ? 'Found' : 'Missing');
-
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: formData
-            });
-
-            console.log('📡 Response Status:', response.status);
-            console.log('📡 Response OK:', response.ok);
-
-            // Check if response is JSON
-            const contentType = response.headers.get("content-type");
-            console.log('📄 Response Content-Type:', contentType);
-
-            if (!contentType || !contentType.includes("application/json")) {
-                console.error('❌ Response is not JSON');
-                if (response.status === 403 || response.status === 401) {
-                    showNotification('ليس لديك صلاحية. يرجى تسجيل الدخول كمسؤول.', 'error');
-                    setTimeout(() => window.location.href = '{% url "main:login" %}', 2000);
-                } else {
-                    // Try to get the text response for debugging
-                    const text = await response.text();
-                    console.error('Response text:', text.substring(0, 500));
-                    showNotification('{% trans "حدث خطأ في حفظ المدونة" %}', 'error');
-                }
-                return;
-            }
-
-            const data = await response.json();
-            console.log('✅ Response Data:', data);
-
-            if (data.success) {
-                showNotification(data.message, 'success');
-                bootstrap.Modal.getInstance(document.getElementById('blogModal')).hide();
-
-                // Destroy editor instance before reload
-                if (editorInstance) {
-                    editorInstance.destroy().then(() => {
-                        editorInstance = null;
-                        setTimeout(() => location.reload(), 1000);
-                    });
-                } else {
-                    setTimeout(() => location.reload(), 1000);
-                }
-            } else {
-                console.error('❌ Error from server:', data.error);
-                showNotification(data.error, 'error');
-            }
-        } catch (error) {
-            console.error('❌ Error saving blog:', error);
-            showNotification('{% trans "خطأ في حفظ المدونة" %}', 'error');
         }
     });
 
     // Open Delete Modal
     function openDeleteModal(blogId, blogTitle) {
-        console.log('🗑️ Opening delete modal...');
         currentDeleteId = blogId;
         document.getElementById('deleteBlogTitle').textContent = blogTitle;
 
         const modalEl = document.getElementById('deleteModal');
         if (modalEl) {
-            let modal = bootstrap.Modal.getInstance(modalEl);
-            if (!modal) {
-                modal = new bootstrap.Modal(modalEl);
-            }
+            const modal = new bootstrap.Modal(modalEl);
             modal.show();
-            console.log('✅ Delete modal shown');
         }
     }
 
@@ -982,25 +1036,13 @@
         if (!currentDeleteId) return;
 
         try {
-            const response = await fetch(BLOG_URLS.delete(currentDeleteId), {
+            const response = await fetch(`{% url "main:admin_blog_delete" 0 %}`.replace('/0/', `/${currentDeleteId}/`), {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': getCookie('csrftoken'),
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             });
-
-            // Check if response is JSON
-            const contentType = response.headers.get("content-type");
-            if (!contentType || !contentType.includes("application/json")) {
-                if (response.status === 403 || response.status === 401) {
-                    showNotification('ليس لديك صلاحية. يرجى تسجيل الدخول كمسؤول.', 'error');
-                    setTimeout(() => window.location.href = '{% url "main:login" %}', 2000);
-                } else {
-                    showNotification('{% trans "حدث خطأ في حذف المدونة" %}', 'error');
-                }
-                return;
-            }
 
             const data = await response.json();
 
@@ -1018,27 +1060,15 @@
     });
 
     // Toggle Publish Status
-    async function togglePublishStatus(blogId, currentStatus) {
+    async function togglePublishStatus(blogId) {
         try {
-            const response = await fetch(BLOG_URLS.togglePublish(blogId), {
+            const response = await fetch(`{% url "main:admin_blog_toggle_publish" 0 %}`.replace('/0/', `/${blogId}/`), {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': getCookie('csrftoken'),
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             });
-
-            // Check if response is JSON
-            const contentType = response.headers.get("content-type");
-            if (!contentType || !contentType.includes("application/json")) {
-                if (response.status === 403 || response.status === 401) {
-                    showNotification('ليس لديك صلاحية. يرجى تسجيل الدخول كمسؤول.', 'error');
-                    setTimeout(() => window.location.href = '{% url "main:login" %}', 2000);
-                } else {
-                    showNotification('{% trans "حدث خطأ في تغيير حالة المدونة" %}', 'error');
-                }
-                return;
-            }
 
             const data = await response.json();
 
