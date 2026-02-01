@@ -694,9 +694,9 @@ def publisher_payment_history(request):
     )
 
     # Pagination
-    page = request.GET.get('page', 1)
+    page = request.GET.get("page", 1)
     paginator = Paginator(all_payments, 15)  # 15 payments per page
-    
+
     try:
         payments = paginator.page(page)
     except PageNotAnInteger:
@@ -871,3 +871,27 @@ def publisher_duplicate_ad(request, ad_id):
             {"success": False, "message": _("حدث خطأ: {error}").format(error=str(e))},
             status=500,
         )
+
+
+@publisher_required
+def publisher_verification_status(request):
+    """
+    Publisher's verification request status page
+    Shows all verification requests and their status
+    """
+    from main.models import UserVerificationRequest
+    from django.utils.translation import gettext as _
+
+    user = request.user
+
+    # Get all verification requests ordered by creation date (newest first)
+    verification_requests = UserVerificationRequest.objects.filter(user=user).order_by(
+        "-created_at"
+    )
+
+    context = {
+        "verification_requests": verification_requests,
+        "active_nav": "verification_status",
+    }
+
+    return render(request, "dashboard/publisher_verification_status.html", context)

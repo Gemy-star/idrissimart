@@ -639,6 +639,11 @@ urlpatterns = [
         name="publisher_update_profile",
     ),
     path(
+        "dashboard/verification-status/",
+        publisher_views.publisher_verification_status,
+        name="publisher_verification_status",
+    ),
+    path(
         "dashboard/settings/update-notifications/",
         views.publisher_update_notifications,
         name="publisher_update_notifications",

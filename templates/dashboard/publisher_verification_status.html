@@ -1,0 +1,446 @@
+{% extends 'dashboard/base.html' %}
+{% load static i18n %}
+
+{% block publisher_title %}
+{% trans "حالة طلب التوثيق" %} - {{ block.super }}
+{% endblock %}
+
+{% block publisher_extra_css %}
+<style>
+    .verification-status-container {
+        padding: 2rem 0;
+    }
+
+    .page-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2.5rem;
+        border-radius: 16px;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+    }
+
+    .page-header h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .page-header h1 i {
+        font-size: 2.5rem;
+    }
+
+    .page-header p {
+        margin: 0;
+        opacity: 0.95;
+        font-size: 1.05rem;
+    }
+
+    .verified-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+        padding: 0.75rem 1.25rem;
+        border-radius: 50px;
+        font-weight: 600;
+        border: 2px solid #10b981;
+        margin-top: 1rem;
+    }
+
+    .verified-badge i {
+        font-size: 1.5rem;
+    }
+
+    .verification-card {
+        background: var(--bs-body-bg);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+    }
+
+    .verification-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .verification-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 1.25rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--bs-border-color);
+    }
+
+    .card-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--bs-body-color);
+        margin: 0;
+    }
+
+    .status-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        font-weight: 600;
+        font-size: 0.875rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .status-badge.pending {
+        background: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+        border: 2px solid #f59e0b;
+    }
+
+    .status-badge.approved {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+        border: 2px solid #10b981;
+    }
+
+    .status-badge.rejected {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+        border: 2px solid #ef4444;
+    }
+
+    .status-badge.under_review {
+        background: rgba(59, 130, 246, 0.15);
+        color: #3b82f6;
+        border: 2px solid #3b82f6;
+    }
+
+    .verification-details {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.25rem;
+    }
+
+    .detail-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .detail-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+        font-weight: 600;
+    }
+
+    .detail-value {
+        font-size: 1rem;
+        color: var(--bs-body-color);
+        font-weight: 500;
+    }
+
+    .admin-notes-section {
+        background: rgba(59, 130, 246, 0.05);
+        padding: 1rem;
+        border-radius: 12px;
+        border-left: 4px solid #3b82f6;
+        margin-top: 1rem;
+    }
+
+    .admin-notes-section h6 {
+        color: #3b82f6;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .admin-notes-text {
+        color: var(--bs-body-color);
+        margin: 0;
+        line-height: 1.6;
+    }
+
+    .rejection-notes {
+        background: rgba(239, 68, 68, 0.05);
+        border-left-color: #ef4444;
+    }
+
+    .rejection-notes h6 {
+        color: #ef4444;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: var(--bs-body-bg);
+        border: 2px dashed var(--bs-border-color);
+        border-radius: 16px;
+        margin-top: 2rem;
+    }
+
+    .empty-state i {
+        font-size: 5rem;
+        color: #cbd5e0;
+        margin-bottom: 1.5rem;
+    }
+
+    .empty-state h3 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--bs-body-color);
+        margin-bottom: 1rem;
+    }
+
+    .empty-state p {
+        color: #6c757d;
+        font-size: 1.05rem;
+        margin-bottom: 2rem;
+    }
+
+    .btn-request-verification {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.875rem 2rem;
+        border-radius: 50px;
+        font-weight: 700;
+        border: none;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        text-decoration: none;
+    }
+
+    .btn-request-verification:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+
+    .info-card {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .info-card h5 {
+        color: #3b82f6;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .info-card ul {
+        margin: 0;
+        padding-right: 1.5rem;
+    }
+
+    .info-card li {
+        color: var(--bs-body-color);
+        margin-bottom: 0.5rem;
+        line-height: 1.6;
+    }
+
+    [data-theme='dark'] .page-header {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    }
+
+    [data-theme='dark'] .verification-card {
+        background: #1e293b;
+        border-color: #334155;
+    }
+
+    [data-theme='dark'] .empty-state {
+        background: #1e293b;
+        border-color: #334155;
+    }
+
+    @media (max-width: 768px) {
+        .page-header {
+            padding: 1.5rem;
+        }
+
+        .page-header h1 {
+            font-size: 1.5rem;
+        }
+
+        .verification-details {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block publisher_content %}
+<div class="verification-status-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="header-content">
+            <h1>
+                <i class="fas fa-shield-check"></i>
+                {% trans "حالة طلب التوثيق" %}
+            </h1>
+            <p>{% trans "تابع حالة طلبات التوثيق الخاصة بك وتاريخها" %}</p>
+
+            {% if request.user.is_verified %}
+            <div class="verified-badge">
+                <i class="fas fa-check-circle"></i>
+                <span>{% trans "حسابك موثق بنجاح" %}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Info Card -->
+    <div class="info-card">
+        <h5>
+            <i class="fas fa-info-circle"></i>
+            {% trans "عن توثيق الحساب" %}
+        </h5>
+        <ul>
+            <li>{% trans "التوثيق يمنحك شارة موثوق تظهر على حسابك وإعلاناتك" %}</li>
+            <li>{% trans "يزيد من ثقة المشترين ويساعد في بيع منتجاتك بشكل أسرع" %}</li>
+            <li>{% trans "عملية التوثيق تستغرق عادة من 1-3 أيام عمل" %}</li>
+            <li>{% trans "يمكنك تقديم طلب توثيق جديد في حال رفض طلبك السابق" %}</li>
+        </ul>
+    </div>
+
+    <!-- Verification Requests -->
+    {% if verification_requests %}
+        <div class="verification-requests-list">
+            <h4 class="mb-4" style="font-weight: 700; color: var(--bs-body-color);">
+                <i class="fas fa-list me-2"></i>
+                {% trans "طلبات التوثيق" %}
+            </h4>
+
+            {% for ver_request in verification_requests %}
+            <div class="verification-card">
+                <div class="verification-card-header">
+                    <h5 class="card-title">
+                        <i class="fas fa-file-alt me-2"></i>
+                        {% trans "طلب رقم" %} #{{ ver_request.id }}
+                    </h5>
+                    <span class="status-badge {{ ver_request.status }}">
+                        {% if ver_request.status == 'pending' %}
+                            <i class="fas fa-clock"></i>
+                            {% trans "قيد الانتظار" %}
+                        {% elif ver_request.status == 'under_review' %}
+                            <i class="fas fa-search"></i>
+                            {% trans "قيد المراجعة" %}
+                        {% elif ver_request.status == 'approved' %}
+                            <i class="fas fa-check-circle"></i>
+                            {% trans "موافق عليه" %}
+                        {% elif ver_request.status == 'rejected' %}
+                            <i class="fas fa-times-circle"></i>
+                            {% trans "مرفوض" %}
+                        {% endif %}
+                    </span>
+                </div>
+
+                <div class="verification-details">
+                    <div class="detail-item">
+                        <span class="detail-label">
+                            <i class="fas fa-calendar-alt me-1"></i>
+                            {% trans "تاريخ التقديم" %}
+                        </span>
+                        <span class="detail-value">{{ ver_request.created_at|date:"Y/m/d - H:i" }}</span>
+                    </div>
+
+                    <div class="detail-item">
+                        <span class="detail-label">
+                            <i class="fas fa-id-card me-1"></i>
+                            {% trans "نوع المستند" %}
+                        </span>
+                        <span class="detail-value">{{ ver_request.get_document_type_display }}</span>
+                    </div>
+
+                    {% if ver_request.payment_required %}
+                    <div class="detail-item">
+                        <span class="detail-label">
+                            <i class="fas fa-money-bill-wave me-1"></i>
+                            {% trans "حالة الدفع" %}
+                        </span>
+                        <span class="detail-value">
+                            {% if ver_request.payment_status == 'paid' %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check me-1"></i>
+                                    {% trans "تم الدفع" %}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-warning">
+                                    <i class="fas fa-clock me-1"></i>
+                                    {% trans "بانتظار الدفع" %}
+                                </span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% endif %}
+
+                    {% if ver_request.reviewed_at %}
+                    <div class="detail-item">
+                        <span class="detail-label">
+                            <i class="fas fa-user-check me-1"></i>
+                            {% trans "تاريخ المراجعة" %}
+                        </span>
+                        <span class="detail-value">{{ ver_request.reviewed_at|date:"Y/m/d - H:i" }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if ver_request.admin_notes %}
+                <div class="admin-notes-section {% if ver_request.status == 'rejected' %}rejection-notes{% endif %}">
+                    <h6>
+                        <i class="fas fa-comment-alt"></i>
+                        {% if ver_request.status == 'rejected' %}
+                            {% trans "سبب الرفض" %}
+                        {% else %}
+                            {% trans "ملاحظات الإدارة" %}
+                        {% endif %}
+                    </h6>
+                    <p class="admin-notes-text">{{ ver_request.admin_notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <!-- Empty State -->
+        <div class="empty-state">
+            <i class="fas fa-shield-alt"></i>
+            <h3>{% trans "لم تقدم أي طلبات توثيق بعد" %}</h3>
+            <p>{% trans "قم بتوثيق حسابك للحصول على شارة الموثوق وزيادة ثقة العملاء" %}</p>
+            <a href="{% url 'main:verification_request' %}" class="btn-request-verification">
+                <i class="fas fa-plus-circle"></i>
+                <span>{% trans "طلب توثيق الحساب" %}</span>
+            </a>
+        </div>
+    {% endif %}
+
+    <!-- Action Button for new request if rejected or no requests -->
+    {% if verification_requests and not request.user.is_verified %}
+        {% with last_request=verification_requests.first %}
+            {% if last_request.status == 'rejected' %}
+                <div class="text-center mt-4">
+                    <a href="{% url 'main:verification_request' %}" class="btn-request-verification">
+                        <i class="fas fa-redo-alt"></i>
+                        <span>{% trans "تقديم طلب توثيق جديد" %}</span>
+                    </a>
+                </div>
+            {% endif %}
+        {% endwith %}
+    {% endif %}
+</div>
+{% endblock %}
