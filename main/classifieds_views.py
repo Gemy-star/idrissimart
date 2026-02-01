@@ -537,6 +537,17 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             .first()
         )
 
+        # Get all active packages with remaining ads to check total free ads
+        active_packages_with_ads = UserPackage.objects.filter(
+            user=self.request.user,
+            expiry_date__gte=timezone.now(),
+            ads_remaining__gt=0,
+        )
+        total_free_ads_remaining = sum(
+            pkg.ads_remaining for pkg in active_packages_with_ads
+        )
+        has_free_ads = total_free_ads_remaining > 0
+
         # Calculate features cost based on package-specific pricing
         features_cost = Decimal("0.00")
 
@@ -567,9 +578,9 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
 
         # Determine base fee (publishing cost)
         base_fee = Decimal("0.00")
-        # Check if user has free ads remaining in package
-        if not active_package or active_package.ads_remaining <= 0:
-            # No package or no ads remaining, user must pay base fee
+        # Check if user has free ads remaining in ANY package
+        if not has_free_ads:
+            # No free ads remaining, user must pay base fee
             # First check if category has its own ad_creation_price (including 0)
             if (
                 form.instance.category
@@ -645,9 +656,12 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
                 self.object.features_price = features_cost
                 self.object.save()
 
-                # Decrement ad count from user's package if they have one
-                if active_package:
-                    active_package.use_ad()
+                # Decrement ad count from user's package if they have free ads
+                if has_free_ads:
+                    # Find first package with remaining ads and decrement
+                    package_with_ads = active_packages_with_ads.first()
+                    if package_with_ads:
+                        package_with_ads.use_ad()
 
                 return redirect("main:ad_create_success", pk=self.object.pk)
         else:

@@ -143,9 +143,7 @@
         }
 
         .lightbox.active {
-            display: flex !important;
-            justify-content: center;
-            align-items: center;
+            display: block !important;
         }
 
         /* Prevent scrolling when lightbox is active */
@@ -154,19 +152,25 @@
         }
 
         .lightbox-content {
-            position: relative;
-            max-width: 95%;
-            max-height: 90vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            height: 100vh;
             animation: zoomIn 0.3s ease;
             touch-action: pan-x pan-y pinch-zoom;
             overflow: visible;
             display: flex;
             align-items: center;
             justify-content: center;
+            z-index: 10002;
+            background: transparent;
         }
 
         .lightbox-content img {
-            max-width: 100%;
+            max-width: 90vw;
             max-height: 90vh;
             width: auto;
             height: auto;
@@ -174,6 +178,19 @@
             transition: transform 0.3s ease;
             cursor: zoom-in;
             user-select: none;
+            display: block !important;
+            background: transparent;
+            border: none;
+            outline: none;
+            visibility: visible !important;
+            opacity: 1 !important;
+            position: relative;
+            z-index: 10003;
+            filter: none !important;
+            mix-blend-mode: normal !important;
+            margin: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
         }
 
         .lightbox-content img.zoomed {
@@ -2386,6 +2403,22 @@
         </div>
     </div>
 
+    <!-- Debug Panel (only visible in development) -->
+    {% if settings.DEBUG %}
+    <div style="position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 10px; z-index: 10000; font-size: 12px; max-width: 300px;">
+        <h6 style="color: #ffd700; margin-bottom: 10px;"><i class="fas fa-bug"></i> Lightbox Debug Panel</h6>
+        <div id="debugInfo">
+            <div>Images in lightboxImages: <span id="debugImageCount">Loading...</span></div>
+            <div>Gallery element found: <span id="debugGalleryFound">Loading...</span></div>
+            <div>Lightbox element found: <span id="debugLightboxFound">Loading...</span></div>
+            <div style="margin-top: 10px;">
+                <button onclick="testLightbox()" style="background: #007bff; border: none; color: white; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-right: 5px;">Test Lightbox</button>
+                <button onclick="showImages()" style="background: #28a745; border: none; color: white; padding: 5px 10px; border-radius: 5px; cursor: pointer;">Show Images</button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
 {% endblock content %}
 
 {% block extra_js %}
@@ -2536,15 +2569,37 @@
                 // Add click event handler for gallery images using event delegation
                 const galleryContainer = document.querySelector('.ad-gallery-swiper');
                 if (galleryContainer) {
+                    console.log('Gallery container found, adding click handler');
                     galleryContainer.addEventListener('click', function(e) {
+                        console.log('Gallery container clicked, target:', e.target);
                         const clickedImage = e.target.closest('.gallery-image-clickable');
                         if (clickedImage) {
-                            // Use swiper's realIndex for loop mode compatibility
-                            const realIndex = gallerySwiper.realIndex;
-                            console.log('Gallery image clicked, realIndex:', realIndex);
-                            window.openLightbox(realIndex);
+                            console.log('Clicked image element:', clickedImage);
+                            // Prevent any default behavior
+                            e.preventDefault();
+                            e.stopPropagation();
+
+                            // Get the index from data attribute or swiper
+                            let imageIndex;
+                            if (clickedImage.hasAttribute('data-index')) {
+                                imageIndex = parseInt(clickedImage.getAttribute('data-index'));
+                                console.log('Using data-index:', imageIndex);
+                            } else if (gallerySwiper) {
+                                imageIndex = gallerySwiper.realIndex;
+                                console.log('Using swiper realIndex:', imageIndex);
+                            } else {
+                                console.error('Could not determine image index');
+                                return;
+                            }
+
+                            console.log('Opening lightbox with index:', imageIndex);
+                            window.openLightbox(imageIndex);
+                        } else {
+                            console.log('Click was not on gallery image');
                         }
                     });
+                } else {
+                    console.error('Gallery container not found');
                 }
 
                 // Force update after a short delay to ensure images are loaded
@@ -2643,9 +2698,254 @@
         console.log('Lightbox images initialized:', lightboxImages);
         console.log('Number of images:', lightboxImages.length);
 
+        // Define lightbox functions globally and immediately
+        // Lightbox functions - globally accessible
+        window.openLightbox = function(index) {
+            console.log('Opening lightbox with index:', index);
+            console.log('Available images:', lightboxImages);
+
+            if (!lightboxImages || lightboxImages.length === 0) {
+                console.error('No images available in lightboxImages array');
+                alert('{% trans "لا توجد صور لعرضها" %}');
+                return;
+            }
+
+            if (index < 0 || index >= lightboxImages.length) {
+                console.error('Invalid image index:', index);
+                return;
+            }
+
+            currentLightboxIndex = index;
+            const lightbox = document.getElementById('imageLightbox');
+            const lightboxImg = document.getElementById('lightboxImage');
+            const lightboxCounter = document.getElementById('lightboxCounter');
+            const lightboxImageTitle = document.getElementById('lightboxImageTitle');
+            const loadingIndicator = document.getElementById('lightboxLoading');
+
+            if (!lightbox) {
+                console.error('Lightbox element #imageLightbox not found');
+                return;
+            }
+
+            if (!lightboxImg) {
+                console.error('Lightbox image element #lightboxImage not found');
+                return;
+            }
+
+            try {
+                // Show loading indicator
+                if (loadingIndicator) {
+                    loadingIndicator.classList.add('active');
+                }
+
+                const imageData = lightboxImages[currentLightboxIndex];
+                const rawImageUrl = imageData.url;
+                const imageUrl = rawImageUrl && rawImageUrl.startsWith('http')
+                    ? rawImageUrl
+                    : `${window.location.origin}${rawImageUrl}`;
+                const imageAlt = imageData.alt;
+
+                console.log('Loading image:', imageUrl);
+                console.log('Image alt:', imageAlt);
+
+                // Clear previous image
+                lightboxImg.src = '';
+                lightboxImg.style.display = 'none';
+
+                // Show lightbox first
+                lightbox.classList.add('active');
+                document.body.classList.add('lightbox-open');
+                document.body.style.overflow = 'hidden';
+
+                // Create a new image to test loading
+                const testImg = new Image();
+                testImg.onload = function() {
+                    console.log('Image loaded successfully, setting src');
+                    console.log('Test image natural size:', testImg.naturalWidth, testImg.naturalHeight);
+
+                    lightboxImg.onload = function() {
+                        lightboxImg.style.display = 'block';
+                        lightboxImg.style.visibility = 'visible';
+                        lightboxImg.style.opacity = '1';
+                        lightboxImg.style.position = 'relative';
+                        lightboxImg.style.zIndex = '10003';
+                        lightboxImg.style.maxWidth = '90vw';
+                        lightboxImg.style.maxHeight = '90vh';
+                        lightboxImg.style.filter = 'none';
+                        lightboxImg.style.mixBlendMode = 'normal';
+                        lightboxImg.style.transform = 'translate(0px, 0px) scale(1)';
+                        lightboxImg.style.margin = 'auto';
+                        console.log('Lightbox image displayed successfully');
+
+                        if (loadingIndicator) {
+                            loadingIndicator.classList.remove('active');
+                        }
+                    };
+
+                    lightboxImg.onerror = function() {
+                        console.error('Lightbox image failed to load:', imageUrl);
+                        if (loadingIndicator) {
+                            loadingIndicator.classList.remove('active');
+                        }
+                        // Hide lightbox on error
+                        lightbox.classList.remove('active');
+                        document.body.classList.remove('lightbox-open');
+                        document.body.style.overflow = '';
+                    };
+
+                    lightboxImg.src = imageUrl;
+                    lightboxImg.alt = imageAlt;
+
+                    // Immediate fallback for loading indicator
+                    setTimeout(() => {
+                        if (loadingIndicator && loadingIndicator.classList.contains('active')) {
+                            loadingIndicator.classList.remove('active');
+                        }
+                    }, 1000);
+                };
+
+                testImg.onerror = function() {
+                    console.error('Failed to load image:', imageUrl);
+                    if (loadingIndicator) {
+                        loadingIndicator.classList.remove('active');
+                    }
+                    // Hide lightbox on error
+                    lightbox.classList.remove('active');
+                    document.body.classList.remove('lightbox-open');
+                    document.body.style.overflow = '';
+                    alert('{% trans "خطأ في تحميل الصورة" %}');
+                };
+
+                // Start loading the image
+                testImg.src = imageUrl;
+
+                if (lightboxCounter) {
+                    lightboxCounter.textContent = `${currentLightboxIndex + 1} / ${lightboxImages.length}`;
+                }
+
+                if (lightboxImageTitle) {
+                    lightboxImageTitle.textContent = imageAlt;
+                }
+
+                // Reset zoom
+                currentScale = 1;
+                currentX = 0;
+                currentY = 0;
+                lightboxImg.style.transform = 'scale(1)';
+                lightboxImg.style.cursor = 'zoom-in';
+                if (window.updateZoomIndicator) {
+                    window.updateZoomIndicator();
+                }
+
+                console.log('Lightbox opened successfully');
+            } catch (error) {
+                console.error('Error in openLightbox:', error);
+                if (loadingIndicator) {
+                    loadingIndicator.classList.remove('active');
+                }
+            }
+        };
+
+        window.closeLightbox = function() {
+            const lightbox = document.getElementById('imageLightbox');
+            if (lightbox) {
+                lightbox.classList.remove('active');
+                document.body.classList.remove('lightbox-open');
+                document.body.style.overflow = '';
+                console.log('Lightbox closed');
+            }
+        };
+
+        window.changeLightboxImage = function(direction) {
+            if (!lightboxImages || lightboxImages.length === 0) return;
+
+            const newIndex = currentLightboxIndex + direction;
+            if (newIndex >= 0 && newIndex < lightboxImages.length) {
+                window.openLightbox(newIndex);
+            }
+        };
+
+        window.closeLightboxOnBackground = function(event) {
+            if (event.target.id === 'imageLightbox') {
+                window.closeLightbox();
+            }
+        };
+
+        // Debug functions (global scope for testing)
+        window.testLightbox = function() {
+            console.log('=== LIGHTBOX DEBUG TEST ===');
+            console.log('lightboxImages array:', lightboxImages);
+            console.log('Images count:', lightboxImages.length);
+
+            if (lightboxImages.length > 0) {
+                console.log('First image URL:', lightboxImages[0].url);
+                console.log('First image alt:', lightboxImages[0].alt);
+                console.log('Testing lightbox with first image...');
+                window.openLightbox(0);
+            } else {
+                console.error('No images available to test');
+                alert('No images available to test');
+            }
+        };
+
+        window.showImages = function() {
+            console.log('Available images:', lightboxImages);
+            if (lightboxImages.length > 0) {
+                let imageList = lightboxImages.map((img, index) => `${index + 1}. ${img.alt}: ${img.url}`).join('\\n');
+                alert('Available images:\\n' + imageList);
+            } else {
+                alert('No images available');
+            }
+        };
+
         // Test lightbox functionality
         if (lightboxImages.length === 0) {
             console.warn('No images found for lightbox');
+        }
+
+        // Debug functions (global scope for testing)
+        window.testLightbox = function() {
+            console.log('=== LIGHTBOX DEBUG TEST ===');
+            console.log('lightboxImages array:', lightboxImages);
+            console.log('Images count:', lightboxImages.length);
+
+            if (lightboxImages.length > 0) {
+                console.log('First image URL:', lightboxImages[0].url);
+                console.log('First image alt:', lightboxImages[0].alt);
+                console.log('Testing lightbox with first image...');
+                window.openLightbox(0);
+            } else {
+                console.error('No images available to test');
+                alert('No images available to test');
+            }
+        };
+
+        window.showImages = function() {
+            console.log('Available images:', lightboxImages);
+            if (lightboxImages.length > 0) {
+                let imageList = lightboxImages.map((img, index) => `${index + 1}. ${img.alt}: ${img.url}`).join('\\n');
+                alert('Available images:\\n' + imageList);
+            } else {
+                alert('No images available');
+            }
+        };
+
+        // Update debug panel
+        function updateDebugPanel() {
+            // Check if debug elements exist before accessing them
+            const debugImageCount = document.getElementById('debugImageCount');
+            const debugGalleryFound = document.getElementById('debugGalleryFound');
+            const debugLightboxFound = document.getElementById('debugLightboxFound');
+
+            if (debugImageCount) {
+                debugImageCount.textContent = lightboxImages.length;
+            }
+            if (debugGalleryFound) {
+                debugGalleryFound.textContent = !!document.querySelector('.ad-gallery-swiper');
+            }
+            if (debugLightboxFound) {
+                debugLightboxFound.textContent = !!document.getElementById('imageLightbox');
+            }
         }
 
         // Wait for DOM to be fully loaded
@@ -2655,6 +2955,15 @@
             const lightboxImgElement = document.getElementById('lightboxImage');
             console.log('Lightbox element found:', !!lightboxElement);
             console.log('Lightbox image element found:', !!lightboxImgElement);
+
+            // Update debug panel if it exists
+            try {
+                if (typeof updateDebugPanel === 'function') {
+                    updateDebugPanel();
+                }
+            } catch (error) {
+                console.log('Debug panel not available:', error.message);
+            }
 
             // Add zoom functionality
             if (lightboxImgElement) {
@@ -2762,138 +3071,7 @@
                 }
             }
 
-            // Lightbox functions - globally accessible
-            window.openLightbox = function(index) {
-                console.log('Opening lightbox with index:', index);
-                currentLightboxIndex = index;
-                const lightbox = document.getElementById('imageLightbox');
-                const lightboxImg = document.getElementById('lightboxImage');
-                const lightboxCounter = document.getElementById('lightboxCounter');
-                const lightboxImageTitle = document.getElementById('lightboxImageTitle');
-                const loadingIndicator = document.getElementById('lightboxLoading');
-
-                if (!lightbox || !lightboxImg) {
-                    console.error('Lightbox elements not found');
-                    return;
-                }
-
-                if (lightboxImages.length > 0) {
-                    // Show loading indicator
-                    if (loadingIndicator) {
-                        loadingIndicator.classList.add('active');
-                    }
-
-                    const imageUrl = lightboxImages[currentLightboxIndex].url;
-                    const imageAlt = lightboxImages[currentLightboxIndex].alt;
-                    console.log('Loading image:', imageUrl);
-
-                    // Set image source directly without preloading for faster display
-                    lightboxImg.src = imageUrl;
-                    lightboxImg.alt = imageAlt;
-                    lightboxCounter.textContent = `${currentLightboxIndex + 1} / ${lightboxImages.length}`;
-                    if (lightboxImageTitle) {
-                        lightboxImageTitle.textContent = imageAlt;
-                    }
-
-                    // Show lightbox immediately
-                    lightbox.classList.add('active');
-                    document.body.classList.add('lightbox-open');
-                    document.body.style.overflow = 'hidden';
-
-                    // Hide loading indicator after image loads
-                    lightboxImg.onload = function() {
-                        loadingIndicator.classList.remove('active');
-                    };
-
-                    // Fallback: hide loading indicator after a delay
-                    setTimeout(() => {
-                        loadingIndicator.classList.remove('active');
-                    }, 2000);
-
-                    // Reset zoom
-                    currentScale = 1;
-                    currentX = 0;
-                    currentY = 0;
-                    lightboxImg.style.transform = 'scale(1)';
-                    lightboxImg.style.cursor = 'zoom-in';
-                    if (window.updateZoomIndicator) {
-                        window.updateZoomIndicator();
-                    }
-                } else {
-                    console.error('No images found in lightboxImages array');
-                }
-            };
-
-            window.closeLightbox = function() {
-                const lightbox = document.getElementById('imageLightbox');
-                if (lightbox) {
-                    lightbox.classList.remove('active');
-                    document.body.classList.remove('lightbox-open');
-                    document.body.style.overflow = '';
-                }
-            };
-
-            window.closeLightboxOnBackground = function(event) {
-                if (event.target.id === 'imageLightbox') {
-                    window.closeLightbox();
-                }
-            };
-
-            window.changeLightboxImage = function(direction) {
-                currentLightboxIndex += direction;
-
-                if (currentLightboxIndex >= lightboxImages.length) {
-                    currentLightboxIndex = 0;
-                } else if (currentLightboxIndex < 0) {
-                    currentLightboxIndex = lightboxImages.length - 1;
-                }
-
-                const lightboxImg = document.getElementById('lightboxImage');
-                const lightboxCounter = document.getElementById('lightboxCounter');
-                const lightboxImageTitle = document.getElementById('lightboxImageTitle');
-                const loadingIndicator = document.getElementById('lightboxLoading');
-
-                console.log('Changing to image:', currentLightboxIndex);
-
-                // Show loading indicator
-                loadingIndicator.classList.add('active');
-
-                const imageUrl = lightboxImages[currentLightboxIndex].url;
-                const imageAlt = lightboxImages[currentLightboxIndex].alt;
-                console.log('Loading new image:', imageUrl);
-
-                // Set image source directly
-                lightboxImg.src = imageUrl;
-                lightboxImg.alt = imageAlt;
-                lightboxCounter.textContent = `${currentLightboxIndex + 1} / ${lightboxImages.length}`;
-                if (lightboxImageTitle) {
-                    lightboxImageTitle.textContent = imageAlt;
-                }
-
-                // Hide loading indicator after image loads
-                lightboxImg.onload = function() {
-                    if (loadingIndicator) {
-                        loadingIndicator.classList.remove('active');
-                    }
-                };
-
-                // Fallback timeout
-                setTimeout(() => {
-                    if (loadingIndicator) {
-                        loadingIndicator.classList.remove('active');
-                    }
-                }, 2000);
-
-                // Reset zoom when changing images
-                currentScale = 1;
-                currentX = 0;
-                currentY = 0;
-                lightboxImg.style.transform = 'scale(1)';
-                lightboxImg.style.cursor = 'zoom-in';
-                if (window.updateZoomIndicator) {
-                    window.updateZoomIndicator();
-                }
-            };
+            // Lightbox functions are now defined globally above - no need to redefine here
 
             window.updateZoomIndicator = function() {
                 const zoomIndicator = document.getElementById('zoomIndicator');

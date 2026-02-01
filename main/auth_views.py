@@ -452,11 +452,11 @@ class RegisterView(CreateView):
 
             # Create free ads package for new user
             from main.models import UserPackage
-            from content.site_config import SiteConfiguration
+            from content.models import SiteConfiguration
             from datetime import timedelta
-            
+
             site_config = SiteConfiguration.get_solo()
-            
+
             # Check if verification is required for free package
             can_grant_free_package = True
             if site_config.require_verification_for_free_package:
@@ -464,7 +464,7 @@ class RegisterView(CreateView):
                 can_grant_free_package = (
                     user.is_email_verified and user.is_mobile_verified
                 )
-            
+
             if can_grant_free_package:
                 # Grant 3 free ads valid for 30 days
                 free_package = UserPackage.objects.create(
@@ -475,8 +475,7 @@ class RegisterView(CreateView):
                     expiry_date=timezone.now() + timedelta(days=30),
                 )
                 messages.success(
-                    request,
-                    _("تم منحك 3 إعلانات مجانية صالحة لمدة 30 يوم! 🎁")
+                    request, _("تم منحك 3 إعلانات مجانية صالحة لمدة 30 يوم! 🎁")
                 )
 
             # Send email verification (CONDITIONAL based on settings)

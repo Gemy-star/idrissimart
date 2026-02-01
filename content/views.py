@@ -103,6 +103,26 @@ class BlogDetailView(SingleObjectMixin, FormView):
             same_tags=Count("tags")
         ).order_by("-same_tags", "-published_date")[:6]
 
+        # Get popular tags (tags used in published blogs, ordered by usage count)
+        from taggit.models import Tag
+
+        popular_tags = (
+            Tag.objects.filter(blog__is_published=True)
+            .annotate(blog_count=Count("blog"))
+            .order_by("-blog_count")[:10]
+        )
+        context["popular_tags"] = popular_tags
+
+        # Get blog categories with blog counts
+        from .models import BlogCategory
+
+        blog_categories = (
+            BlogCategory.objects.filter(blogs__is_published=True)
+            .annotate(blog_count=Count("blogs"))
+            .order_by("-blog_count")
+        )
+        context["blog_categories"] = blog_categories
+
         # Add social share URLs
         full_url = self.request.build_absolute_uri(post.get_absolute_url())
         context["encoded_url"] = quote(full_url)
