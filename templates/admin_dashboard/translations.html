@@ -613,7 +613,9 @@
             <div class="stat-icon">
                 <i class="fas fa-globe"></i>
             </div>
-            <div class="stat-number">2</div>
+            <div class="stat-number" id="languageCount">
+                <div class="loading-skeleton" style="width: 60px; margin: 0 auto;"></div>
+            </div>
             <div class="stat-label">{% trans "اللغات المتاحة" %}</div>
         </div>
         <div class="stat-box">
@@ -1366,6 +1368,7 @@
     });
 
     function loadTranslationStats() {
+        console.log('Loading translation stats...');
         fetch('{% url "main:admin_translations_stats" %}', {
             method: 'GET',
             headers: {
@@ -1373,12 +1376,18 @@
                 'X-CSRFToken': getCookie('csrftoken')
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Stats response status:', response.status);
+            return response.json();
+        })
         .then(data => {
+            console.log('Stats data received:', data);
             if (data.success && data.stats) {
                 const stats = data.stats;
+                console.log('Updating stats:', stats);
 
                 // Animate counters
+                animateCounter('languageCount', stats.languages ? stats.languages.length : 0);
                 animateCounter('totalStrings', stats.total_strings);
                 animateCounter('translatedStrings', stats.translated_strings);
                 animateCounter('completionRate', stats.completion_rate, '%');
@@ -1394,6 +1403,7 @@
                     });
                 }
             } else {
+                console.warn('Stats not successful or empty:', data);
                 setDefaultStats();
             }
         })
@@ -1444,6 +1454,7 @@
     }
 
     function setDefaultStats() {
+        document.getElementById('languageCount').textContent = '0';
         document.getElementById('totalStrings').textContent = '0';
         document.getElementById('translatedStrings').textContent = '0';
         document.getElementById('completionRate').textContent = '0%';
