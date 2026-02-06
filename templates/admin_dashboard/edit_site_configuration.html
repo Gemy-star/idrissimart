@@ -1,0 +1,586 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n %}
+
+{% block admin_title %}
+    {{ page_title }}
+{% endblock %}
+
+{% block admin_extra_css %}
+{{ form.media.css }}
+<style>
+    .form-section {
+        background: var(--bs-body-bg);
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--bs-border-color);
+    }
+
+    .form-section h4 {
+        color: #6b4c7a;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--bs-border-color);
+        font-weight: 600;
+    }
+
+    .form-section h4 i {
+        color: #6b4c7a;
+    }
+
+    .form-actions {
+        position: sticky;
+        bottom: 0;
+        background: var(--bs-body-bg);
+        padding: 1.5rem;
+        border-top: 2px solid var(--bs-border-color);
+        margin-top: 2rem;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+        border-radius: 0 0 12px 12px;
+        z-index: 100;
+    }
+
+    .form-label {
+        color: var(--bs-body-color);
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    [data-theme='dark'] .form-label {
+        color: #e0e0e0 !important;
+    }
+
+    .form-control, .form-select {
+        background-color: var(--bs-body-bg);
+        border: 1px solid var(--bs-border-color);
+        color: var(--bs-body-color);
+        padding: 0.75rem;
+        border-radius: 8px;
+    }
+
+    .form-control:focus, .form-select:focus {
+        background-color: var(--bs-body-bg);
+        border-color: #ff8534;
+        color: var(--bs-body-color);
+        box-shadow: 0 0 0 0.2rem rgba(255, 133, 52, 0.25);
+    }
+
+    .form-text {
+        color: var(--bs-secondary-color);
+        font-size: 0.875rem;
+    }
+
+    /* Dark Theme */
+    [data-theme='dark'] .form-control,
+    [data-theme='dark'] .form-select,
+    [data-theme='dark'] input,
+    [data-theme='dark'] textarea {
+        background-color: rgba(30, 30, 46, 0.8) !important;
+        border-color: rgba(107, 76, 122, 0.3) !important;
+        color: #e0e0e0 !important;
+    }
+
+    [data-theme='dark'] .form-control:focus,
+    [data-theme='dark'] .form-select:focus,
+    [data-theme='dark'] input:focus,
+    [data-theme='dark'] textarea:focus {
+        background-color: rgba(30, 30, 46, 0.9) !important;
+        border-color: #ff8534 !important;
+    }
+
+    .image-preview {
+        max-width: 200px;
+        max-height: 150px;
+        margin-top: 0.5rem;
+        border-radius: 8px;
+        border: 1px solid var(--bs-border-color);
+    }
+
+    .form-check-input {
+        width: 1.5rem;
+        height: 1.5rem;
+        cursor: pointer;
+    }
+
+    .form-check-label {
+        padding-left: 0.5rem;
+        cursor: pointer;
+    }
+
+    .logo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">
+                <i class="fas fa-cog me-2"></i>
+                {% trans "إعدادات الموقع" %}
+            </h2>
+            <p class="text-muted mb-0">{% trans "إدارة إعدادات الموقع والتكوينات العامة" %}</p>
+        </div>
+        <a href="{% url 'main:admin_site_content' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-right me-2"></i>
+            {% trans "رجوع" %}
+        </a>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" id="siteConfigForm">
+        {% csrf_token %}
+
+        <!-- SEO Settings -->
+        <div class="form-section">
+            <h4>
+                <i class="fas fa-search me-2"></i>
+                {% trans "إعدادات SEO" %}
+            </h4>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.meta_keywords.id_for_label }}" class="form-label">
+                        {% trans "الكلمات المفتاحية (English)" %}
+                    </label>
+                    {{ form.meta_keywords }}
+                    <div class="form-text">{{ form.meta_keywords.help_text }}</div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.meta_keywords_ar.id_for_label }}" class="form-label">
+                        {% trans "الكلمات المفتاحية (عربي)" %}
+                    </label>
+                    {{ form.meta_keywords_ar }}
+                    <div class="form-text">{{ form.meta_keywords_ar.help_text }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer & Copyright -->
+        <div class="form-section">
+            <h4>
+                <i class="fas fa-copyright me-2"></i>
+                {% trans "التذييل وحقوق النشر" %}
+            </h4>
+            <div class="mb-3">
+                <label for="{{ form.footer_text.id_for_label }}" class="form-label">
+                    {% trans "نص التذييل (English)" %}
+                </label>
+                {{ form.footer_text }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.footer_text_ar.id_for_label }}" class="form-label">
+                    {% trans "نص التذييل (عربي)" %}
+                </label>
+                {{ form.footer_text_ar }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.copyright_text.id_for_label }}" class="form-label">
+                    {% trans "نص حقوق النشر" %}
+                </label>
+                {{ form.copyright_text }}
+                <div class="form-text">{{ form.copyright_text.help_text }}</div>
+            </div>
+        </div>
+
+        <!-- Site Logos -->
+        <div class="form-section">
+            <h4>
+                <i class="fas fa-image me-2"></i>
+                {% trans "شعارات الموقع" %}
+            </h4>
+            <div class="logo-grid">
+                <!-- Default Logo -->
+                <div>
+                    <label for="{{ form.logo.id_for_label }}" class="form-label">
+                        {% trans "الشعار الافتراضي" %}
+                    </label>
+                    {{ form.logo }}
+                    <div class="form-text">{{ form.logo.help_text }}</div>
+                    {% if site_config.logo %}
+                        <img src="{{ site_config.logo.url }}" alt="Logo" class="image-preview">
+                    {% endif %}
+                </div>
+
+                <!-- Light Mode Logo -->
+                <div>
+                    <label for="{{ form.logo_light.id_for_label }}" class="form-label">
+                        {% trans "شعار الوضع الفاتح" %}
+                    </label>
+                    {{ form.logo_light }}
+                    <div class="form-text">{{ form.logo_light.help_text }}</div>
+                    {% if site_config.logo_light %}
+                        <img src="{{ site_config.logo_light.url }}" alt="Light Logo" class="image-preview">
+                    {% endif %}
+                </div>
+
+                <!-- Dark Mode Logo -->
+                <div>
+                    <label for="{{ form.logo_dark.id_for_label }}" class="form-label">
+                        {% trans "شعار الوضع الداكن" %}
+                    </label>
+                    {{ form.logo_dark }}
+                    <div class="form-text">{{ form.logo_dark.help_text }}</div>
+                    {% if site_config.logo_dark %}
+                        <img src="{{ site_config.logo_dark.url }}" alt="Dark Logo" class="image-preview">
+                    {% endif %}
+                </div>
+
+                <!-- Mini Logo -->
+                <div>
+                    <label for="{{ form.logo_mini.id_for_label }}" class="form-label">
+                        {% trans "الشعار المصغر (Loader)" %}
+                    </label>
+                    {{ form.logo_mini }}
+                    <div class="form-text">{{ form.logo_mini.help_text }}</div>
+                    {% if site_config.logo_mini %}
+                        <img src="{{ site_config.logo_mini.url }}" alt="Mini Logo" class="image-preview">
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Verification Settings -->
+        <div class="form-section">
+            <h4>
+                <i class="fas fa-user-check me-2"></i>
+                {% trans "إعدادات التحقق" %}
+            </h4>
+            <div class="mb-3 form-check">
+                {{ form.require_email_verification }}
+                <label for="{{ form.require_email_verification.id_for_label }}" class="form-check-label">
+                    {% trans "التحقق من البريد الإلكتروني إلزامي" %}
+                </label>
+                <div class="form-text">{{ form.require_email_verification.help_text }}</div>
+            </div>
+            <div class="mb-3 form-check">
+                {{ form.require_phone_verification }}
+                <label for="{{ form.require_phone_verification.id_for_label }}" class="form-check-label">
+                    {% trans "التحقق من رقم الهاتف إلزامي" %}
+                </label>
+                <div class="form-text">{{ form.require_phone_verification.help_text }}</div>
+            </div>
+            <div class="mb-3 form-check">
+                {{ form.require_verification_for_services }}
+                <label for="{{ form.require_verification_for_services.id_for_label }}" class="form-check-label">
+                    {% trans "التحقق مطلوب لاستخدام الخدمات" %}
+                </label>
+                <div class="form-text">{{ form.require_verification_for_services.help_text }}</div>
+            </div>
+            <div class="mb-3 form-check">
+                {{ form.require_verification_for_free_package }}
+                <label for="{{ form.require_verification_for_free_package.id_for_label }}" class="form-check-label">
+                    {% trans "التحقق مطلوب للباقة المجانية" %}
+                </label>
+                <div class="form-text">{{ form.require_verification_for_free_package.help_text }}</div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.verification_services_message.id_for_label }}" class="form-label">
+                        {% trans "رسالة التحقق (English)" %}
+                    </label>
+                    {{ form.verification_services_message }}
+                    <div class="form-text">{{ form.verification_services_message.help_text }}</div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.verification_services_message_ar.id_for_label }}" class="form-label">
+                        {% trans "رسالة التحقق (عربي)" %}
+                    </label>
+                    {{ form.verification_services_message_ar }}
+                    <div class="form-text">{{ form.verification_services_message_ar.help_text }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Settings -->
+        <div class="form-section">
+            <h4>
+                <i class="fas fa-credit-card me-2"></i>
+                {% trans "إعدادات الدفع" %}
+            </h4>
+            <div class="mb-3 form-check">
+                {{ form.allow_online_payment }}
+                <label for="{{ form.allow_online_payment.id_for_label }}" class="form-check-label">
+                    {% trans "السماح بالدفع الإلكتروني" %}
+                </label>
+                <div class="form-text">{{ form.allow_online_payment.help_text }}</div>
+            </div>
+            <div class="mb-3 form-check">
+                {{ form.allow_offline_payment }}
+                <label for="{{ form.allow_offline_payment.id_for_label }}" class="form-check-label">
+                    {% trans "السماح بالدفع اليدوي" %}
+                </label>
+                <div class="form-text">{{ form.allow_offline_payment.help_text }}</div>
+            </div>
+
+            <hr class="my-4">
+
+            <!-- InstaPay Settings -->
+            <h5 class="mb-3">{% trans "إعدادات InstaPay" %}</h5>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.instapay_qr_code.id_for_label }}" class="form-label">
+                        {% trans "رمز QR لـ InstaPay" %}
+                    </label>
+                    {{ form.instapay_qr_code }}
+                    <div class="form-text">{{ form.instapay_qr_code.help_text }}</div>
+                    {% if site_config.instapay_qr_code %}
+                        <img src="{{ site_config.instapay_qr_code.url }}" alt="InstaPay QR" class="image-preview">
+                    {% endif %}
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.instapay_phone.id_for_label }}" class="form-label">
+                        {% trans "رقم هاتف InstaPay" %}
+                    </label>
+                    {{ form.instapay_phone }}
+                    <div class="form-text">{{ form.instapay_phone.help_text }}</div>
+                </div>
+            </div>
+
+            <!-- Wallet Settings -->
+            <h5 class="mb-3">{% trans "إعدادات المحفظة الإلكترونية" %}</h5>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.wallet_payment_link.id_for_label }}" class="form-label">
+                        {% trans "رابط المحفظة" %}
+                    </label>
+                    {{ form.wallet_payment_link }}
+                    <div class="form-text">{{ form.wallet_payment_link.help_text }}</div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.wallet_phone.id_for_label }}" class="form-label">
+                        {% trans "رقم المحفظة" %}
+                    </label>
+                    {{ form.wallet_phone }}
+                    <div class="form-text">{{ form.wallet_phone.help_text }}</div>
+                </div>
+            </div>
+
+            <!-- Offline Payment Instructions -->
+            <h5 class="mb-3">{% trans "تعليمات الدفع اليدوي" %}</h5>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.offline_payment_instructions.id_for_label }}" class="form-label">
+                        {% trans "التعليمات (English)" %}
+                    </label>
+                    {{ form.offline_payment_instructions }}
+                    <div class="form-text">{{ form.offline_payment_instructions.help_text }}</div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.offline_payment_instructions_ar.id_for_label }}" class="form-label">
+                        {% trans "التعليمات (عربي)" %}
+                    </label>
+                    {{ form.offline_payment_instructions_ar }}
+                    <div class="form-text">{{ form.offline_payment_instructions_ar.help_text }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ad Pricing -->
+        <div class="form-section">
+            <h4>
+                <i class="fas fa-tag me-2"></i>
+                {% trans "أسعار الإعلانات والميزات" %}
+            </h4>
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label for="{{ form.ad_base_fee.id_for_label }}" class="form-label">
+                        {% trans "رسوم نشر إعلان عادي" %}
+                    </label>
+                    {{ form.ad_base_fee }}
+                    <div class="form-text">{{ form.ad_base_fee.help_text }}</div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="{{ form.featured_ad_price.id_for_label }}" class="form-label">
+                        {% trans "سعر الإعلان المميز" %}
+                    </label>
+                    {{ form.featured_ad_price }}
+                    <div class="form-text">{{ form.featured_ad_price.help_text }}</div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="{{ form.urgent_ad_price.id_for_label }}" class="form-label">
+                        {% trans "سعر الإعلان العاجل" %}
+                    </label>
+                    {{ form.urgent_ad_price }}
+                    <div class="form-text">{{ form.urgent_ad_price.help_text }}</div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="{{ form.pinned_ad_price.id_for_label }}" class="form-label">
+                        {% trans "سعر تثبيت الإعلان" %}
+                    </label>
+                    {{ form.pinned_ad_price }}
+                    <div class="form-text">{{ form.pinned_ad_price.help_text }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cart Service Fee -->
+        <div class="form-section">
+            <h4>
+                <i class="fas fa-shopping-cart me-2"></i>
+                {% trans "رسوم خدمة السلة" %}
+            </h4>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label for="{{ form.cart_service_fee_type.id_for_label }}" class="form-label">
+                        {% trans "نوع الرسوم" %}
+                    </label>
+                    {{ form.cart_service_fee_type }}
+                    <div class="form-text">{{ form.cart_service_fee_type.help_text }}</div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="{{ form.cart_service_fixed_fee.id_for_label }}" class="form-label">
+                        {% trans "الرسوم الثابتة" %}
+                    </label>
+                    {{ form.cart_service_fixed_fee }}
+                    <div class="form-text">{{ form.cart_service_fixed_fee.help_text }}</div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="{{ form.cart_service_percentage.id_for_label }}" class="form-label">
+                        {% trans "النسبة المئوية" %}
+                    </label>
+                    {{ form.cart_service_percentage }}
+                    <div class="form-text">{{ form.cart_service_percentage.help_text }}</div>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.cart_service_instructions.id_for_label }}" class="form-label">
+                    {% trans "تعليمات خدمة السلة" %}
+                </label>
+                {{ form.cart_service_instructions }}
+                <div class="form-text">{{ form.cart_service_instructions.help_text }}</div>
+            </div>
+        </div>
+
+        <!-- Ads Retention -->
+        <div class="form-section">
+            <h4>
+                <i class="fas fa-trash-restore me-2"></i>
+                {% trans "إعدادات الاحتفاظ بالإعلانات" %}
+            </h4>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.deleted_ads_retention_days.id_for_label }}" class="form-label">
+                        {% trans "مدة الاحتفاظ بالإعلانات المحذوفة (يوم)" %}
+                    </label>
+                    {{ form.deleted_ads_retention_days }}
+                    <div class="form-text">{{ form.deleted_ads_retention_days.help_text }}</div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.expired_ads_retention_days.id_for_label }}" class="form-label">
+                        {% trans "مدة الاحتفاظ بالإعلانات المنتهية (يوم)" %}
+                    </label>
+                    {{ form.expired_ads_retention_days }}
+                    <div class="form-text">{{ form.expired_ads_retention_days.help_text }}</div>
+                </div>
+            </div>
+            <div class="mb-3 form-check">
+                {{ form.show_deleted_ads_to_publisher }}
+                <label for="{{ form.show_deleted_ads_to_publisher.id_for_label }}" class="form-check-label">
+                    {% trans "إظهار الإعلانات المحذوفة للناشر" %}
+                </label>
+                <div class="form-text">{{ form.show_deleted_ads_to_publisher.help_text }}</div>
+            </div>
+            <div class="mb-3 form-check">
+                {{ form.show_expired_ads_to_publisher }}
+                <label for="{{ form.show_expired_ads_to_publisher.id_for_label }}" class="form-check-label">
+                    {% trans "إظهار الإعلانات المنتهية للناشر" %}
+                </label>
+                <div class="form-text">{{ form.show_expired_ads_to_publisher.help_text }}</div>
+            </div>
+        </div>
+
+        <!-- Buyer Safety Notes -->
+        <div class="form-section">
+            <h4>
+                <i class="fas fa-shield-alt me-2"></i>
+                {% trans "نصائح الأمان للمشترين" %}
+            </h4>
+            <div class="mb-3 form-check">
+                {{ form.buyer_safety_notes_enabled }}
+                <label for="{{ form.buyer_safety_notes_enabled.id_for_label }}" class="form-check-label">
+                    {% trans "تفعيل نصائح الأمان" %}
+                </label>
+                <div class="form-text">{{ form.buyer_safety_notes_enabled.help_text }}</div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.buyer_safety_notes_title.id_for_label }}" class="form-label">
+                        {% trans "عنوان نصائح الأمان (English)" %}
+                    </label>
+                    {{ form.buyer_safety_notes_title }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.buyer_safety_notes_title_ar.id_for_label }}" class="form-label">
+                        {% trans "عنوان نصائح الأمان (عربي)" %}
+                    </label>
+                    {{ form.buyer_safety_notes_title_ar }}
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.buyer_safety_notes.id_for_label }}" class="form-label">
+                    {% trans "نصائح الأمان (English)" %}
+                </label>
+                {{ form.buyer_safety_notes }}
+                <div class="form-text">{{ form.buyer_safety_notes.help_text }}</div>
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.buyer_safety_notes_ar.id_for_label }}" class="form-label">
+                    {% trans "نصائح الأمان (عربي)" %}
+                </label>
+                {{ form.buyer_safety_notes_ar }}
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+            <div class="d-flex justify-content-between align-items-center">
+                <a href="{% url 'main:admin_site_content' %}" class="btn btn-secondary btn-lg">
+                    <i class="fas fa-times me-2"></i>
+                    {% trans "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-save me-2"></i>
+                    {% trans "حفظ التعديلات" %}
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block admin_extra_js %}
+{{ form.media.js }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Site Configuration Edit Page Loaded');
+
+    // Form submission handling
+    const form = document.getElementById('siteConfigForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            // Show loading state
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري الحفظ..." %}';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

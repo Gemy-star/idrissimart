@@ -1,0 +1,205 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n %}
+
+{% block admin_title %}
+    {{ page_title }}
+{% endblock %}
+
+{% block admin_extra_css %}
+{{ form.media.css }}
+<style>
+    .form-section {
+        background: var(--bs-body-bg);
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--bs-border-color);
+    }
+
+    .form-section h4 {
+        color: #6b4c7a;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--bs-border-color);
+        font-weight: 600;
+    }
+
+    .form-actions {
+        position: sticky;
+        bottom: 0;
+        background: var(--bs-body-bg);
+        padding: 1.5rem;
+        border-top: 2px solid var(--bs-border-color);
+        margin-top: 2rem;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+        border-radius: 0 0 12px 12px;
+        z-index: 100;
+    }
+
+    .form-label {
+        color: var(--bs-body-color);
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    [data-theme='dark'] .form-label {
+        color: #e0e0e0 !important;
+    }
+
+    .form-control {
+        background-color: var(--bs-body-bg);
+        border: 1px solid var(--bs-border-color);
+        color: var(--bs-body-color);
+        padding: 0.75rem;
+        border-radius: 8px;
+    }
+
+    .form-control:focus {
+        background-color: var(--bs-body-bg);
+        border-color: #ff8534;
+        color: var(--bs-body-color);
+        box-shadow: 0 0 0 0.2rem rgba(255, 133, 52, 0.25);
+    }
+
+    [data-theme='dark'] .form-control,
+    [data-theme='dark'] input,
+    [data-theme='dark'] textarea {
+        background-color: rgba(30, 30, 46, 0.8) !important;
+        border-color: rgba(107, 76, 122, 0.3) !important;
+        color: #e0e0e0 !important;
+    }
+
+    [data-theme='dark'] .form-control:focus,
+    [data-theme='dark'] input:focus,
+    [data-theme='dark'] textarea:focus {
+        background-color: rgba(30, 30, 46, 0.9) !important;
+        border-color: #ff8534 !important;
+    }
+
+    .last-updated-badge {
+        background: linear-gradient(135deg, #6b4c7a, #ff8534);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">
+                <i class="fas fa-file-contract me-2"></i>
+                {% trans "الشروط والأحكام" %}
+            </h2>
+            <p class="text-muted mb-0">{% trans "إدارة محتوى صفحة الشروط والأحكام" %}</p>
+            {% if terms_page.last_updated %}
+                <div class="mt-2">
+                    <span class="last-updated-badge">
+                        <i class="fas fa-clock me-1"></i>
+                        {% trans "آخر تحديث:" %} {{ terms_page.last_updated|date:"d M Y" }}
+                    </span>
+                </div>
+            {% endif %}
+        </div>
+        <a href="{% url 'main:admin_site_content' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-right me-2"></i>
+            {% trans "رجوع" %}
+        </a>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post" id="termsForm">
+        {% csrf_token %}
+
+        <!-- Title Section -->
+        <div class="form-section">
+            <h4>
+                <i class="fas fa-heading me-2"></i>
+                {% trans "العنوان" %}
+            </h4>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.title.id_for_label }}" class="form-label">
+                        {% trans "العنوان (English)" %}
+                    </label>
+                    {{ form.title }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.title_ar.id_for_label }}" class="form-label">
+                        {% trans "العنوان (عربي)" %}
+                    </label>
+                    {{ form.title_ar }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Section -->
+        <div class="form-section">
+            <h4>
+                <i class="fas fa-file-alt me-2"></i>
+                {% trans "المحتوى" %}
+            </h4>
+            <div class="mb-3">
+                <label for="{{ form.content.id_for_label }}" class="form-label">
+                    {% trans "المحتوى (English)" %}
+                </label>
+                {{ form.content }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.content_ar.id_for_label }}" class="form-label">
+                    {% trans "المحتوى (عربي)" %}
+                </label>
+                {{ form.content_ar }}
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+            <div class="d-flex justify-content-between align-items-center">
+                <a href="{% url 'main:admin_site_content' %}" class="btn btn-secondary btn-lg">
+                    <i class="fas fa-times me-2"></i>
+                    {% trans "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-save me-2"></i>
+                    {% trans "حفظ التعديلات" %}
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block admin_extra_js %}
+{{ form.media.js }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Terms Page Edit Loaded');
+
+    const form = document.getElementById('termsForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري الحفظ..." %}';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

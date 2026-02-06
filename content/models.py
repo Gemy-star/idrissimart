@@ -451,15 +451,19 @@ class PaymentMethodConfig(models.Model):
         unique=True,
         verbose_name=_("سياق الدفع"),
     )
-    
+
     # Payment methods availability
     visa_enabled = models.BooleanField(default=True, verbose_name=_("فيزا/ماستركارد"))
     paypal_enabled = models.BooleanField(default=False, verbose_name=_("باي بال"))
-    wallet_enabled = models.BooleanField(default=True, verbose_name=_("محفظة إلكترونية"))
+    wallet_enabled = models.BooleanField(
+        default=True, verbose_name=_("محفظة إلكترونية")
+    )
     instapay_enabled = models.BooleanField(default=True, verbose_name=_("إنستا باي"))
-    cod_enabled = models.BooleanField(default=False, verbose_name=_("الدفع عند الاستلام"))
+    cod_enabled = models.BooleanField(
+        default=False, verbose_name=_("الدفع عند الاستلام")
+    )
     partial_enabled = models.BooleanField(default=False, verbose_name=_("دفع جزئي"))
-    
+
     # COD Deposit Configuration (for product purchase with COD)
     cod_requires_deposit = models.BooleanField(
         default=True,
@@ -489,16 +493,18 @@ class PaymentMethodConfig(models.Model):
         verbose_name=_("نسبة مبلغ الحجز %"),
         help_text=_("يستخدم إذا كان النوع 'نسبة مئوية' (مثال: 20 = 20%)"),
     )
-    
+
     # Notes
     notes = models.TextField(
         blank=True,
         verbose_name=_("ملاحظات"),
         help_text=_("ملاحظات إضافية حول هذا السياق"),
     )
-    
+
     is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإنشاء"))
+    created_at = models.DateTimeField(
+        auto_now_add=True, verbose_name=_("تاريخ الإنشاء")
+    )
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_("تاريخ التحديث"))
 
     class Meta:
@@ -528,10 +534,9 @@ class PaymentMethodConfig(models.Model):
         if check_global_settings:
             try:
                 from content.site_config import SiteConfiguration
-                from constance import config as constance_config
 
                 site_config = SiteConfiguration.get_solo()
-                allow_online = constance_config.ALLOW_ONLINE_PAYMENT and site_config.allow_online_payment
+                allow_online = site_config.allow_online_payment
                 allow_offline = site_config.allow_offline_payment
             except Exception:
                 # If settings are not available, allow all methods
@@ -590,13 +595,12 @@ class PaymentMethodConfig(models.Model):
         # Check global settings for online/offline methods
         try:
             from content.site_config import SiteConfiguration
-            from constance import config as constance_config
 
             site_config = SiteConfiguration.get_solo()
 
             # Online payment methods
             if method_code in ["visa", "paypal", "paymob"]:
-                return constance_config.ALLOW_ONLINE_PAYMENT and site_config.allow_online_payment
+                return site_config.allow_online_payment
 
             # Offline payment methods
             if method_code in ["wallet", "instapay"]:
@@ -612,24 +616,24 @@ class PaymentMethodConfig(models.Model):
     def calculate_cod_deposit(self, total_amount):
         """
         Calculate the required deposit amount for COD orders.
-        
+
         Args:
             total_amount: Total order amount (Decimal)
-            
+
         Returns:
             Decimal: Deposit amount required
         """
         from decimal import Decimal
-        
+
         if not self.cod_requires_deposit:
             return Decimal("0.00")
-        
+
         if self.cod_deposit_type == "fixed":
             return self.cod_deposit_amount
         else:  # percentage
-            return (total_amount * self.cod_deposit_percentage / Decimal("100")).quantize(
-                Decimal("0.01")
-            )
+            return (
+                total_amount * self.cod_deposit_percentage / Decimal("100")
+            ).quantize(Decimal("0.01"))
 
     @classmethod
     def get_for_context(cls, context):
@@ -653,37 +657,45 @@ class PaymentMethodConfig(models.Model):
             "wallet_enabled": True,
             "instapay_enabled": True,
         }
-        
+
         if context == "ad_posting":
             # Ad posting: Online methods only, no COD
-            defaults.update({
-                "cod_enabled": False,
-                "partial_enabled": False,
-                "notes": _("نشر الإعلان - وسائل الدفع الإلكتروني فقط"),
-            })
+            defaults.update(
+                {
+                    "cod_enabled": False,
+                    "partial_enabled": False,
+                    "notes": _("نشر الإعلان - وسائل الدفع الإلكتروني فقط"),
+                }
+            )
         elif context == "ad_upgrade":
             # Ad upgrade: Online methods only
-            defaults.update({
-                "cod_enabled": False,
-                "partial_enabled": False,
-                "notes": _("ترقية الإعلان - وسائل الدفع الإلكتروني فقط"),
-            })
+            defaults.update(
+                {
+                    "cod_enabled": False,
+                    "partial_enabled": False,
+                    "notes": _("ترقية الإعلان - وسائل الدفع الإلكتروني فقط"),
+                }
+            )
         elif context == "package_purchase":
             # Package purchase: Online methods only
-            defaults.update({
-                "cod_enabled": False,
-                "partial_enabled": False,
-                "notes": _("شراء الباقات - وسائل الدفع الإلكتروني فقط"),
-            })
+            defaults.update(
+                {
+                    "cod_enabled": False,
+                    "partial_enabled": False,
+                    "notes": _("شراء الباقات - وسائل الدفع الإلكتروني فقط"),
+                }
+            )
         elif context == "product_purchase":
             # Product purchase: All methods including COD with deposit
-            defaults.update({
-                "cod_enabled": True,
-                "partial_enabled": True,
-                "cod_requires_deposit": True,
-                "cod_deposit_type": "percentage",
-                "cod_deposit_percentage": 20.00,
-                "notes": _("شراء المنتجات - جميع وسائل الدفع متاحة"),
-            })
-        
+            defaults.update(
+                {
+                    "cod_enabled": True,
+                    "partial_enabled": True,
+                    "cod_requires_deposit": True,
+                    "cod_deposit_type": "percentage",
+                    "cod_deposit_percentage": 20.00,
+                    "notes": _("شراء المنتجات - جميع وسائل الدفع متاحة"),
+                }
+            )
+
         return defaults

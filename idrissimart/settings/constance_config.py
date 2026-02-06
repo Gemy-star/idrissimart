@@ -156,11 +156,7 @@ CONSTANCE_CONFIG = {
         _("Paymob payment currency"),
     ),
     # Payment General Settings
-    "ALLOW_ONLINE_PAYMENT": (
-        True,
-        _("Enable online payment option in checkout"),
-        bool,
-    ),
+    # Note: ALLOW_ONLINE_PAYMENT moved to SiteConfiguration model
     "TAX_RATE": (
         15.0,
         _("نسبة الضريبة (%) - Tax Rate"),
@@ -263,25 +259,13 @@ CONSTANCE_CONFIG = {
         int,
     ),
     # Verification Settings
-    "REQUIRE_EMAIL_VERIFICATION": (
-        False,
-        _("التحقق من البريد الإلكتروني إلزامي أثناء التسجيل"),
-        bool,
-    ),
-    "REQUIRE_PHONE_VERIFICATION": (
-        False,
-        _("التحقق من رقم الهاتف إلزامي أثناء التسجيل"),
-        bool,
-    ),
-    "REQUIRE_VERIFICATION_FOR_SERVICES": (
-        False,
-        _("التحقق مطلوب لاستخدام خدمات الموقع (نشر إعلانات، إضافة للسلة، إلخ)"),
-        bool,
-    ),
-    "VERIFICATION_SERVICES_MESSAGE": (
-        "يجب التحقق من حسابك (البريد الإلكتروني أو رقم الهاتف) لاستخدام هذه الخدمة",
-        _("رسالة التحقق المطلوبة للخدمات"),
-    ),
+    # Note: Verification settings moved to SiteConfiguration model for better multi-language support
+    # and to avoid duplication. Use SiteConfiguration instead of constance for:
+    # - require_email_verification
+    # - require_phone_verification
+    # - require_verification_for_services
+    # - require_verification_for_free_package
+    # - verification_services_message / verification_services_message_ar
     # Publishing Settings
     "PUBLISHING_MODE": (
         "direct",
@@ -552,7 +536,7 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "PAYMOB_MASTERCARD_INTEGRATION_ID",
         "PAYMOB_VISA_INTEGRATION_ID",
     ),
-    "Payment General Settings": ("ALLOW_ONLINE_PAYMENT", "TAX_RATE"),
+    "Payment General Settings": ("TAX_RATE",),
     "Email Settings - SendGrid": (
         "SENDGRID_ENABLED",
         "SENDGRID_API_KEY",
@@ -583,12 +567,7 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "OTP_EXPIRY_MINUTES",
         "MAX_OTP_ATTEMPTS",
     ),
-    "Verification Settings": (
-        "REQUIRE_EMAIL_VERIFICATION",
-        "REQUIRE_PHONE_VERIFICATION",
-        "REQUIRE_VERIFICATION_FOR_SERVICES",
-        "VERIFICATION_SERVICES_MESSAGE",
-    ),
+    # Note: Verification Settings section removed - now in SiteConfiguration model
     "Publishing Settings": (
         "PUBLISHING_MODE",
         "VERIFIED_AUTO_PUBLISH",

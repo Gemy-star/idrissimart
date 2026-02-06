@@ -3,30 +3,46 @@ Utilities for handling verification requirements
 """
 
 from django.utils.translation import get_language
-from constance import config
 
 
 def is_email_verification_required():
     """Check if email verification is required during registration"""
-    return getattr(config, "REQUIRE_EMAIL_VERIFICATION", False)
+    from content.site_config import SiteConfiguration
+
+    site_config = SiteConfiguration.get_solo()
+    return site_config.require_email_verification
 
 
 def is_phone_verification_required():
     """Check if phone verification is required during registration"""
-    return getattr(config, "REQUIRE_PHONE_VERIFICATION", False)
+    from content.site_config import SiteConfiguration
+
+    site_config = SiteConfiguration.get_solo()
+    return site_config.require_phone_verification
 
 
 def is_verification_required_for_services():
     """Check if verification is required to use site services"""
-    return getattr(config, "REQUIRE_VERIFICATION_FOR_SERVICES", False)
+    from content.site_config import SiteConfiguration
+
+    site_config = SiteConfiguration.get_solo()
+    return site_config.require_verification_for_services
 
 
 def get_verification_message():
     """Get the verification message for services"""
-    return getattr(
-        config,
-        "VERIFICATION_SERVICES_MESSAGE",
-        "يجب التحقق من حسابك لاستخدام هذه الخدمة",
+    from content.site_config import SiteConfiguration
+
+    site_config = SiteConfiguration.get_solo()
+    current_lang = get_language()
+    if current_lang == "ar":
+        return (
+            site_config.verification_services_message_ar
+            or "يجب التحقق من حسابك لاستخدام هذه الخدمة"
+        )
+    return (
+        site_config.verification_services_message
+        or "You must verify your account to use this service"
     )
 
 
@@ -67,7 +83,10 @@ def get_verification_requirements():
     """
     from constance import config as constance_config
 
-    from content.social_auth_config import is_google_auth_configured, is_facebook_auth_configured
+    from content.social_auth_config import (
+        is_google_auth_configured,
+        is_facebook_auth_configured,
+    )
 
     return {
         "email_required": is_email_verification_required(),

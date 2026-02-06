@@ -13,8 +13,15 @@ from django.views.generic.detail import SingleObjectMixin
 from django.views.generic.edit import FormView
 from taggit.models import Tag
 
-from .forms import CommentForm, PaymentMethodConfigForm
+from .forms import (
+    CommentForm,
+    PaymentMethodConfigForm,
+    SiteConfigurationForm,
+    TermsPageForm,
+    PrivacyPageForm,
+)
 from .models import Blog, Comment, BlogCategory, PaymentMethodConfig
+from .site_config import SiteConfiguration, TermsPage, PrivacyPage
 
 
 class BlogListView(ListView):
@@ -291,3 +298,89 @@ def payment_methods_config(request):
     }
 
     return render(request, "admin_dashboard/payment_methods_config.html", context)
+
+
+def is_admin(user):
+    """Check if user is admin or superadmin"""
+    return user.is_authenticated and (user.is_staff or user.is_superuser)
+
+
+@user_passes_test(is_admin)
+def site_configuration_edit(request):
+    """Edit site configuration settings"""
+    site_config = SiteConfiguration.get_solo()
+
+    if request.method == "POST":
+        form = SiteConfigurationForm(request.POST, request.FILES, instance=site_config)
+
+        if form.is_valid():
+            form.save()
+            messages.success(request, "تم تحديث إعدادات الموقع بنجاح")
+            return redirect("main:admin_site_content")
+        else:
+            messages.error(request, "حدث خطأ في حفظ التعديلات. يرجى مراجعة البيانات.")
+    else:
+        form = SiteConfigurationForm(instance=site_config)
+
+    context = {
+        "form": form,
+        "site_config": site_config,
+        "page_title": "تعديل إعدادات الموقع",
+        "active_nav": "site_content",
+    }
+
+    return render(request, "admin_dashboard/edit_site_configuration.html", context)
+
+
+@user_passes_test(is_admin)
+def terms_page_edit(request):
+    """Edit terms and conditions page"""
+    terms_page = TermsPage.get_solo()
+
+    if request.method == "POST":
+        form = TermsPageForm(request.POST, instance=terms_page)
+
+        if form.is_valid():
+            form.save()
+            messages.success(request, "تم تحديث صفحة الشروط والأحكام بنجاح")
+            return redirect("main:admin_site_content")
+        else:
+            messages.error(request, "حدث خطأ في حفظ التعديلات. يرجى مراجعة البيانات.")
+    else:
+        form = TermsPageForm(instance=terms_page)
+
+    context = {
+        "form": form,
+        "terms_page": terms_page,
+        "page_title": "تعديل الشروط والأحكام",
+        "active_nav": "site_content",
+    }
+
+    return render(request, "admin_dashboard/edit_terms_page.html", context)
+
+
+@user_passes_test(is_admin)
+def privacy_page_edit(request):
+    """Edit privacy policy page"""
+    privacy_page = PrivacyPage.get_solo()
+
+    if request.method == "POST":
+        form = PrivacyPageForm(request.POST, instance=privacy_page)
+
+        if form.is_valid():
+            form.save()
+            messages.success(request, "تم تحديث صفحة سياسة الخصوصية بنجاح")
+            return redirect("main:admin_site_content")
+        else:
+            messages.error(request, "حدث خطأ في حفظ التعديلات. يرجى مراجعة البيانات.")
+    else:
+        form = PrivacyPageForm(instance=privacy_page)
+
+    context = {
+        "form": form,
+        "privacy_page": privacy_page,
+        "page_title": "تعديل سياسة الخصوصية",
+        "active_nav": "site_content",
+    }
+
+    return render(request, "admin_dashboard/edit_privacy_page.html", context)

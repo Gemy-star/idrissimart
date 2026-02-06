@@ -7,6 +7,9 @@ from .views import (
     get_cities,
     get_cities_by_id,
     payment_methods_config,
+    site_configuration_edit,
+    terms_page_edit,
+    privacy_page_edit,
 )
 
 app_name = "content"
@@ -25,6 +28,24 @@ urlpatterns = [
         "admin/payment-methods/",
         payment_methods_config,
         name="payment_methods_config",
+    ),
+    # Site Configuration (Admin only)
+    path(
+        "admin/site-configuration/",
+        site_configuration_edit,
+        name="site_configuration_edit",
+    ),
+    # Terms Page (Admin only)
+    path(
+        "admin/terms-page/",
+        terms_page_edit,
+        name="terms_page_edit",
+    ),
+    # Privacy Page (Admin only)
+    path(
+        "admin/privacy-page/",
+        privacy_page_edit,
+        name="privacy_page_edit",
     ),
     # Tag filter MUST come before blog detail to avoid conflicts (supports Arabic)
     re_path(

@@ -8,7 +8,14 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils.translation import gettext as _
 from django.core.paginator import Paginator
 from content.models import HomeSlider, Country, Blog, BlogCategory
-from content.site_config import ContactPage, AboutPage, HomePage, SiteConfiguration
+from content.site_config import (
+    ContactPage,
+    AboutPage,
+    HomePage,
+    SiteConfiguration,
+    TermsPage,
+    PrivacyPage,
+)
 
 
 def is_admin(user):
@@ -192,6 +199,8 @@ def admin_site_content(request):
         "about_page": AboutPage.get_solo(),
         "home_page": HomePage.get_solo(),
         "site_config": SiteConfiguration.get_solo(),
+        "terms_page": TermsPage.get_solo(),
+        "privacy_page": PrivacyPage.get_solo(),
     }
     return render(request, "admin_dashboard/site_content.html", context)
 
@@ -299,7 +308,7 @@ def admin_edit_homepage(request):
 
             # Statistics section
             home_page.show_statistics = request.POST.get("show_statistics") == "on"
-            
+
             # Statistic 1
             home_page.stat1_value = int(request.POST.get("stat1_value", 15))
             home_page.stat1_title = request.POST.get("stat1_title", "")
@@ -307,7 +316,7 @@ def admin_edit_homepage(request):
             home_page.stat1_subtitle = request.POST.get("stat1_subtitle", "")
             home_page.stat1_subtitle_ar = request.POST.get("stat1_subtitle_ar", "")
             home_page.stat1_icon = request.POST.get("stat1_icon", "fas fa-user-friends")
-            
+
             # Statistic 2
             home_page.stat2_value = int(request.POST.get("stat2_value", 150))
             home_page.stat2_title = request.POST.get("stat2_title", "")
@@ -315,7 +324,7 @@ def admin_edit_homepage(request):
             home_page.stat2_subtitle = request.POST.get("stat2_subtitle", "")
             home_page.stat2_subtitle_ar = request.POST.get("stat2_subtitle_ar", "")
             home_page.stat2_icon = request.POST.get("stat2_icon", "fas fa-bullhorn")
-            
+
             # Statistic 3
             home_page.stat3_value = int(request.POST.get("stat3_value", 500))
             home_page.stat3_title = request.POST.get("stat3_title", "")
@@ -323,7 +332,7 @@ def admin_edit_homepage(request):
             home_page.stat3_subtitle = request.POST.get("stat3_subtitle", "")
             home_page.stat3_subtitle_ar = request.POST.get("stat3_subtitle_ar", "")
             home_page.stat3_icon = request.POST.get("stat3_icon", "fas fa-chart-line")
-            
+
             # Statistic 4
             home_page.stat4_value = int(request.POST.get("stat4_value", 250))
             home_page.stat4_title = request.POST.get("stat4_title", "")
@@ -333,7 +342,9 @@ def admin_edit_homepage(request):
             home_page.stat4_icon = request.POST.get("stat4_icon", "fas fa-th-large")
 
             # Featured sections
-            home_page.show_featured_categories = request.POST.get("show_featured_categories") == "on"
+            home_page.show_featured_categories = (
+                request.POST.get("show_featured_categories") == "on"
+            )
             home_page.show_featured_ads = request.POST.get("show_featured_ads") == "on"
 
             home_page.save()
