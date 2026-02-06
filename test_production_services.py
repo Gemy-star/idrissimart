@@ -71,19 +71,24 @@ def print_result(key, value):
 
 
 def get_config_value(key, default=""):
-    """Get config value from environment or constance"""
-    # First try environment variable
+    """Get config value from constance (which reads from environment) or direct environment"""
+    # Try constance first (it reads from environment variables in constance_config.py)
+    try:
+        from constance import config
+
+        value = getattr(config, key, None)
+        if value is not None and value != "":
+            return value
+    except Exception as e:
+        # If DB not available, fall back to environment
+        pass
+
+    # Fallback to direct environment variable
     env_value = os.getenv(key)
     if env_value:
         return env_value
 
-    # Then try constance (requires DB connection)
-    try:
-        from constance import config
-
-        return getattr(config, key, default)
-    except:
-        return default
+    return default
 
 
 def test_paymob():
@@ -282,7 +287,28 @@ def test_paypal():
                 return False
 
         except Exception as e:
-            print_error(f"API connection failed: {str(e)}")
+            error_msg = str(e)
+            print_error(f"API connection failed: {error_msg}")
+
+            # Provide helpful hints
+            if "client_id" in error_msg.lower() or "client_secret" in error_msg.lower():
+                print_info("\n💡 Hint: PayPal configuration error. This usually means:")
+                print_info(
+                    "   1. PAYPAL_CLIENT_ID or PAYPAL_CLIENT_SECRET is missing/incorrect"
+                )
+                print_info(
+                    "   2. The credentials don't match the mode (sandbox vs live)"
+                )
+                print_info(
+                    "   3. Check PayPal Developer Dashboard: https://developer.paypal.com/"
+                )
+                print_info(f"\n   Current Mode: {mode}")
+                print_info(
+                    f"   Current Client ID: {client_id[:20]}..."
+                    if client_id
+                    else "   Client ID: NOT SET"
+                )
+
             return False
 
         # Test payment creation (test mode)
@@ -379,7 +405,20 @@ def test_twilio(phone_number=None):
                 return False
 
         except Exception as e:
-            print_error(f"API connection failed: {str(e)}")
+            error_msg = str(e)
+            print_error(f"API connection failed: {error_msg}")
+
+            # Provide helpful hints based on error
+            if "20003" in error_msg or "Authenticate" in error_msg:
+                print_info("\n💡 Hint: Authentication failed. This usually means:")
+                print_info("   1. TWILIO_ACCOUNT_SID or TWILIO_AUTH_TOKEN is incorrect")
+                print_info("   2. The credentials have expired or been revoked")
+                print_info(
+                    "   3. Check your Twilio Console: https://console.twilio.com/"
+                )
+                print_info(f"\n   Current Account SID: {account_sid}")
+                print_info(f"   Current Auth Token: {auth_token[:10]}...")
+
             return False
 
         # Test SMS sending (only if phone number provided)
@@ -427,7 +466,12 @@ Examples:
   python test_production_services.py --paypal           # Test PayPal only
   python test_production_services.py --twilio           # Test Twilio only
   python test_production_services.py --sms +2010000000 # Test SMS to specific number
-        """,
+Note:
+  This script uses django-constance which loads credentials from environment variables.
+  Credentials are configured in:
+  - .env file (development)
+  - environment.production file (production)
+  - System environment variables (docker/production)        """,
     )
 
     parser.add_argument("--all", action="store_true", help="Test all services")
