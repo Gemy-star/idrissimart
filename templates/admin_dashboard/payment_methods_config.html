@@ -1,0 +1,492 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static i18n %}
+
+{% block title %}
+    إدارة وسائل الدفع - لوحة تحكم المدير
+{% endblock title %}
+
+{% block admin_extra_css %}
+<style>
+    .payment-config-card {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+    }
+
+    .payment-config-card:hover {
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.15);
+        transform: translateY(-3px);
+    }
+
+    [data-theme='dark'] .payment-config-card {
+        background: #1a202c;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    .context-title {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    [data-theme='dark'] .context-title {
+        color: #f1f5f9;
+    }
+
+    .context-icon {
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border-radius: 12px;
+        font-size: 1.3rem;
+    }
+
+    .payment-methods-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .payment-method-item {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: all 0.3s ease;
+    }
+
+    .payment-method-item:hover {
+        border-color: #667eea;
+    }
+
+    [data-theme='dark'] .payment-method-item {
+        background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .payment-method-item.enabled {
+        border-color: #10b981;
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    }
+
+    [data-theme='dark'] .payment-method-item.enabled {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.1) 100%);
+        border-color: #10b981;
+    }
+
+    .payment-method-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .payment-method-icon {
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        border-radius: 8px;
+        font-size: 1.1rem;
+    }
+
+    [data-theme='dark'] .payment-method-icon {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .cod-config-section {
+        background: #fef3c7;
+        border: 2px solid #fbbf24;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    [data-theme='dark'] .cod-config-section {
+        background: rgba(251, 191, 36, 0.1);
+        border-color: #fbbf24;
+    }
+
+    .form-switch {
+        padding-right: 2.5rem;
+    }
+
+    .form-check-input {
+        width: 3rem;
+        height: 1.5rem;
+        cursor: pointer;
+    }
+
+    .form-check-input:checked {
+        background-color: #10b981;
+        border-color: #10b981;
+    }
+
+    .btn-save-config {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        padding: 0.75rem 2rem;
+        border-radius: 12px;
+        color: white;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-save-config:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+    }
+
+    .badge-status {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+
+    .badge-active {
+        background: #d1fae5;
+        color: #047857;
+    }
+
+    .badge-inactive {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+
+    [data-theme='dark'] .badge-active {
+        background: rgba(16, 185, 129, 0.2);
+        color: #10b981;
+    }
+
+    [data-theme='dark'] .badge-inactive {
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+    }
+</style>
+{% endblock admin_extra_css %}
+
+{% block admin_content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="payment-config-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <h1 class="mb-2" style="color: white;">
+            <i class="fas fa-credit-card me-3"></i>إدارة وسائل الدفع
+        </h1>
+        <p class="mb-0" style="opacity: 0.95;">
+            تحكم في وسائل الدفع المتاحة لكل سياق في الموقع
+        </p>
+    </div>
+
+    <!-- Payment Method Configurations -->
+    {% for item in config_forms %}
+    <div class="payment-config-card">
+        <form method="post" class="payment-config-form" data-context="{{ item.config.context }}">
+            {% csrf_token %}
+            <input type="hidden" name="context" value="{{ item.config.context }}">
+
+            <!-- Context Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="context-title">
+                    <span class="context-icon">
+                        {% if item.config.context == 'ad_posting' %}
+                            <i class="fas fa-bullhorn"></i>
+                        {% elif item.config.context == 'ad_upgrade' %}
+                            <i class="fas fa-arrow-up"></i>
+                        {% elif item.config.context == 'package_purchase' %}
+                            <i class="fas fa-box"></i>
+                        {% elif item.config.context == 'product_purchase' %}
+                            <i class="fas fa-shopping-cart"></i>
+                        {% endif %}
+                    </span>
+                    <div>
+                        <div>{{ item.config.get_context_display }}</div>
+                        <small class="text-muted" style="font-weight: 400; font-size: 0.9rem;">
+                            {{ item.config.notes|default:"" }}
+                        </small>
+                    </div>
+                </div>
+                <span class="badge-status {% if item.config.is_active %}badge-active{% else %}badge-inactive{% endif %}">
+                    {% if item.config.is_active %}نشط{% else %}غير نشط{% endif %}
+                </span>
+            </div>
+
+            <!-- Payment Methods Grid -->
+            <div class="payment-methods-grid">
+                <!-- Visa/Mastercard -->
+                <div class="payment-method-item {% if item.config.visa_enabled %}enabled{% endif %}">
+                    <div class="payment-method-info">
+                        <div class="payment-method-icon">
+                            <i class="fab fa-cc-visa"></i>
+                        </div>
+                        <span>فيزا/ماستركارد</span>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input type="checkbox" class="form-check-input" name="visa_enabled"
+                               id="visa_{{ item.config.context }}"
+                               {% if item.config.visa_enabled %}checked{% endif %}>
+                    </div>
+                </div>
+
+                <!-- PayPal -->
+                <div class="payment-method-item {% if item.config.paypal_enabled %}enabled{% endif %}">
+                    <div class="payment-method-info">
+                        <div class="payment-method-icon">
+                            <i class="fab fa-paypal"></i>
+                        </div>
+                        <span>باي بال</span>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input type="checkbox" class="form-check-input" name="paypal_enabled"
+                               id="paypal_{{ item.config.context }}"
+                               {% if item.config.paypal_enabled %}checked{% endif %}>
+                    </div>
+                </div>
+
+                <!-- Wallet -->
+                <div class="payment-method-item {% if item.config.wallet_enabled %}enabled{% endif %}">
+                    <div class="payment-method-info">
+                        <div class="payment-method-icon">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <span>محفظة إلكترونية</span>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input type="checkbox" class="form-check-input" name="wallet_enabled"
+                               id="wallet_{{ item.config.context }}"
+                               {% if item.config.wallet_enabled %}checked{% endif %}>
+                    </div>
+                </div>
+
+                <!-- Instapay -->
+                <div class="payment-method-item {% if item.config.instapay_enabled %}enabled{% endif %}">
+                    <div class="payment-method-info">
+                        <div class="payment-method-icon">
+                            <i class="fas fa-mobile-alt"></i>
+                        </div>
+                        <span>إنستا باي</span>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input type="checkbox" class="form-check-input" name="instapay_enabled"
+                               id="instapay_{{ item.config.context }}"
+                               {% if item.config.instapay_enabled %}checked{% endif %}>
+                    </div>
+                </div>
+
+                <!-- COD -->
+                <div class="payment-method-item {% if item.config.cod_enabled %}enabled{% endif %}">
+                    <div class="payment-method-info">
+                        <div class="payment-method-icon">
+                            <i class="fas fa-hand-holding-usd"></i>
+                        </div>
+                        <span>الدفع عند الاستلام</span>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input type="checkbox" class="form-check-input cod-toggle" name="cod_enabled"
+                               id="cod_{{ item.config.context }}"
+                               {% if item.config.cod_enabled %}checked{% endif %}
+                               data-context="{{ item.config.context }}">
+                    </div>
+                </div>
+
+                <!-- Partial -->
+                <div class="payment-method-item {% if item.config.partial_enabled %}enabled{% endif %}">
+                    <div class="payment-method-info">
+                        <div class="payment-method-icon">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                        <span>دفع جزئي</span>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input type="checkbox" class="form-check-input" name="partial_enabled"
+                               id="partial_{{ item.config.context }}"
+                               {% if item.config.partial_enabled %}checked{% endif %}>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COD Configuration (show only if COD is enabled) -->
+            <div class="cod-config-section" id="cod_config_{{ item.config.context }}"
+                 style="{% if not item.config.cod_enabled %}display: none;{% endif %}">
+                <h5 class="mb-3">
+                    <i class="fas fa-cog me-2"></i>إعدادات الدفع عند الاستلام
+                </h5>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">يتطلب مبلغ حجز</label>
+                        <div class="form-check form-switch">
+                            <input type="checkbox" class="form-check-input" name="cod_requires_deposit"
+                                   {% if item.config.cod_requires_deposit %}checked{% endif %}>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">نوع مبلغ الحجز</label>
+                        <select name="cod_deposit_type" class="form-select">
+                            <option value="fixed" {% if item.config.cod_deposit_type == 'fixed' %}selected{% endif %}>
+                                مبلغ ثابت
+                            </option>
+                            <option value="percentage" {% if item.config.cod_deposit_type == 'percentage' %}selected{% endif %}>
+                                نسبة مئوية
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">مبلغ الحجز الثابت</label>
+                        <input type="number" step="0.01" name="cod_deposit_amount" class="form-control"
+                               value="{{ item.config.cod_deposit_amount }}">
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">نسبة مبلغ الحجز %</label>
+                        <input type="number" step="0.01" name="cod_deposit_percentage" class="form-control"
+                               value="{{ item.config.cod_deposit_percentage }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-3">
+                <label class="form-label">ملاحظات</label>
+                <textarea name="notes" class="form-control" rows="2">{{ item.config.notes|default:"" }}</textarea>
+            </div>
+
+            <!-- Active Status -->
+            <div class="form-check form-switch mb-4">
+                <input type="checkbox" class="form-check-input" name="is_active" id="active_{{ item.config.context }}"
+                       {% if item.config.is_active %}checked{% endif %}>
+                <label class="form-check-label" for="active_{{ item.config.context }}">
+                    تفعيل هذا السياق
+                </label>
+            </div>
+
+            <!-- Save Button -->
+            <div class="text-end">
+                <button type="submit" class="btn btn-save-config">
+                    <i class="fas fa-save me-2"></i>حفظ التغييرات
+                </button>
+            </div>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% endblock admin_content %}
+
+{% block admin_extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle COD configuration section
+    document.querySelectorAll('.cod-toggle').forEach(toggle => {
+        toggle.addEventListener('change', function() {
+            const context = this.dataset.context;
+            const codSection = document.getElementById(`cod_config_${context}`);
+            if (codSection) {
+                codSection.style.display = this.checked ? 'block' : 'none';
+            }
+        });
+    });
+
+    // Handle form submission via AJAX
+    document.querySelectorAll('.payment-config-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+
+            // Disable button and show loading
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الحفظ...';
+
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    showNotification(data.message, 'success');
+
+                    // Update payment method items styling
+                    const context = formData.get('context');
+                    const formElement = document.querySelector(`form[data-context="${context}"]`);
+                    formElement.querySelectorAll('.payment-method-item').forEach(item => {
+                        const checkbox = item.querySelector('input[type="checkbox"]');
+                        if (checkbox && checkbox.checked) {
+                            item.classList.add('enabled');
+                        } else {
+                            item.classList.remove('enabled');
+                        }
+                    });
+                } else {
+                    showNotification(data.message || 'حدث خطأ أثناء الحفظ', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('حدث خطأ أثناء الحفظ', 'error');
+            })
+            .finally(() => {
+                // Re-enable button
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            });
+        });
+    });
+
+    // Update payment method items when checkboxes change
+    document.querySelectorAll('.payment-method-item input[type="checkbox"]').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const item = this.closest('.payment-method-item');
+            if (this.checked) {
+                item.classList.add('enabled');
+            } else {
+                item.classList.remove('enabled');
+            }
+        });
+    });
+
+    function showNotification(message, type) {
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+
+        const notification = document.createElement('div');
+        notification.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+        notification.style.cssText = 'top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; min-width: 300px;';
+        notification.innerHTML = `
+            <i class="fas ${icon} me-2"></i>${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    }
+});
+</script>
+{% endblock admin_extra_js %}

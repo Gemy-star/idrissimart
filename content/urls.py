@@ -6,6 +6,7 @@ from .views import (
     BlogListView,
     get_cities,
     get_cities_by_id,
+    payment_methods_config,
 )
 
 app_name = "content"
@@ -18,6 +19,12 @@ urlpatterns = [
         "api/countries/<int:country_id>/cities/",
         get_cities_by_id,
         name="get_cities_by_id",
+    ),
+    # Payment Methods Configuration (Admin only)
+    path(
+        "admin/payment-methods/",
+        payment_methods_config,
+        name="payment_methods_config",
     ),
     # Tag filter MUST come before blog detail to avoid conflicts (supports Arabic)
     re_path(

@@ -1,9 +1,11 @@
 from urllib.parse import quote
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import user_passes_test
+from django.contrib import messages
 from django.db.models import Count
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse_lazy
 from django.views import View
 from django.views.generic import ListView
@@ -11,8 +13,8 @@ from django.views.generic.detail import SingleObjectMixin
 from django.views.generic.edit import FormView
 from taggit.models import Tag
 
-from .forms import CommentForm
-from .models import Blog, Comment, BlogCategory
+from .forms import CommentForm, PaymentMethodConfigForm
+from .models import Blog, Comment, BlogCategory, PaymentMethodConfig
 
 
 class BlogListView(ListView):
@@ -223,3 +225,69 @@ def get_cities_by_id(request, country_id):
         return JsonResponse(
             {"success": False, "error": "Country not found"}, status=404
         )
+
+
+def is_superadmin(user):
+    """Check if user is superadmin"""
+    return user.is_authenticated and user.is_superuser
+
+
+@user_passes_test(is_superadmin)
+def payment_methods_config(request):
+    """
+    Custom admin page to manage payment method configurations for different contexts.
+    Allows admin to enable/disable payment methods and configure COD settings.
+    """
+    # Initialize all payment contexts if they don't exist
+    for context_choice in PaymentMethodConfig.PaymentContext.choices:
+        PaymentMethodConfig.get_for_context(context_choice[0])
+
+    # Get all configurations
+    configs = PaymentMethodConfig.objects.all().order_by("context")
+
+    # Handle POST request (AJAX form submission)
+    if request.method == "POST":
+        context_value = request.POST.get("context")
+
+        try:
+            config_instance = PaymentMethodConfig.objects.get(context=context_value)
+            form = PaymentMethodConfigForm(request.POST, instance=config_instance)
+
+            if form.is_valid():
+                form.save()
+                messages.success(
+                    request,
+                    f"تم تحديث إعدادات {config_instance.get_context_display()} بنجاح",
+                )
+
+                if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                    return JsonResponse(
+                        {
+                            "success": True,
+                            "message": f"تم تحديث إعدادات {config_instance.get_context_display()} بنجاح",
+                        }
+                    )
+                return redirect("content:payment_methods_config")
+            else:
+                if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                    return JsonResponse(
+                        {"success": False, "errors": form.errors}, status=400
+                    )
+        except PaymentMethodConfig.DoesNotExist:
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse(
+                    {"success": False, "message": "Configuration not found"}, status=404
+                )
+
+    # Prepare forms for each configuration
+    config_forms = []
+    for config in configs:
+        form = PaymentMethodConfigForm(instance=config)
+        config_forms.append({"config": config, "form": form})
+
+    context = {
+        "config_forms": config_forms,
+        "page_title": "إدارة وسائل الدفع",
+    }
+
+    return render(request, "admin_dashboard/payment_methods_config.html", context)
