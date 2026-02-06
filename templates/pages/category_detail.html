@@ -851,10 +851,49 @@
                                 </label>
                                 <select id="categoryFilter" class="filter-select" onchange="filterBySubcategory(this.value)">
                                     <option value="">{% trans "جميع الأقسام الفرعية" %}</option>
-                                    {% for subcat in category.get_children %}
-                                        <option value="{{ subcat.id }}" data-has-children="{% if subcat.get_children %}true{% else %}false{% endif %}">{{ subcat.name_ar|default:subcat.name }}</option>
+                                    {% for subcat_data in subcategories %}
+                                        <option value="{{ subcat_data.category.id }}"
+                                                data-has-children="{% if subcat_data.has_children %}true{% else %}false{% endif %}"
+                                                data-custom-fields-count="{{ subcat_data.custom_fields|length }}">
+                                            {{ subcat_data.category.name_ar|default:subcat_data.category.name }}
+                                            {% if subcat_data.custom_fields %}
+                                                ({{ subcat_data.custom_fields|length }} {% trans "فلتر" %})
+                                            {% endif %}
+                                        </option>
                                     {% endfor %}
                                 </select>
+
+                                <!-- Display custom fields info for subcategories -->
+                                {% if subcategories %}
+                                <div class="subcategory-custom-fields-info mt-3">
+                                    <details class="custom-fields-preview" style="border: 1px solid rgba(75, 49, 94, 0.15); border-radius: 10px; padding: 1rem; background: rgba(75, 49, 94, 0.03);">
+                                        <summary style="cursor: pointer; font-weight: 600; color: var(--primary-color); font-size: 0.9rem;">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            {% trans "حقول الفلترة حسب القسم" %}
+                                        </summary>
+                                        <div class="mt-3" style="max-height: 300px; overflow-y: auto;">
+                                            {% for subcat_data in subcategories %}
+                                                {% if subcat_data.custom_fields %}
+                                                <div class="mb-3 pb-2" style="border-bottom: 1px solid rgba(75, 49, 94, 0.1);">
+                                                    <div style="font-weight: 600; color: var(--primary-color); font-size: 0.85rem; margin-bottom: 0.5rem;">
+                                                        <i class="fas fa-folder me-1"></i>
+                                                        {{ subcat_data.category.name_ar|default:subcat_data.category.name }}
+                                                    </div>
+                                                    <div class="d-flex flex-wrap gap-1">
+                                                        {% for cf in subcat_data.custom_fields %}
+                                                        <span class="badge" style="background: var(--primary-color); font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+                                                            <i class="fas fa-{{ cf.custom_field.icon|default:'filter' }} me-1"></i>
+                                                            {{ cf.custom_field.label_ar|default:cf.custom_field.label }}
+                                                        </span>
+                                                        {% endfor %}
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    </details>
+                                </div>
+                                {% endif %}
                             </div>
                             {% endif %}
 
@@ -1549,6 +1588,73 @@
             }
         }
 
+        // Function to update custom fields info section with new data
+        function updateCustomFieldsInfoSection(subcategories, currentLang) {
+            const categoryFilter = document.getElementById('categoryFilter');
+            const filterGroup = categoryFilter.closest('.filter-group');
+
+            // Remove existing info section if present
+            const existingInfo = filterGroup.querySelector('.subcategory-custom-fields-info');
+            if (existingInfo) {
+                existingInfo.remove();
+            }
+
+            // Check if any subcategory has custom fields
+            const hasCustomFields = subcategories.some(subcat => subcat.custom_fields && subcat.custom_fields.length > 0);
+
+            if (!hasCustomFields) return;
+
+            // Create new info section
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'subcategory-custom-fields-info mt-3';
+
+            let infoHTML = `
+                <details class="custom-fields-preview" style="border: 1px solid rgba(75, 49, 94, 0.15); border-radius: 10px; padding: 1rem; background: rgba(75, 49, 94, 0.03);">
+                    <summary style="cursor: pointer; font-weight: 600; color: var(--primary-color); font-size: 0.9rem;">
+                        <i class="fas fa-info-circle me-1"></i>
+                        ${currentLang === 'ar' ? 'حقول الفلترة حسب القسم' : 'Filter fields by category'}
+                    </summary>
+                    <div class="mt-3" style="max-height: 300px; overflow-y: auto;">
+            `;
+
+            subcategories.forEach(subcat => {
+                if (subcat.custom_fields && subcat.custom_fields.length > 0) {
+                    infoHTML += `
+                        <div class="mb-3 pb-2" style="border-bottom: 1px solid rgba(75, 49, 94, 0.1);">
+                            <div style="font-weight: 600; color: var(--primary-color); font-size: 0.85rem; margin-bottom: 0.5rem;">
+                                <i class="fas fa-folder me-1"></i>
+                                ${currentLang === 'ar' ? (subcat.name_ar || subcat.name) : subcat.name}
+                            </div>
+                            <div class="d-flex flex-wrap gap-1">
+                    `;
+
+                    subcat.custom_fields.forEach(cf => {
+                        const label = currentLang === 'ar' ? (cf.custom_field__label_ar || cf.custom_field__label) : cf.custom_field__label;
+                        const icon = cf.custom_field__icon || 'filter';
+                        infoHTML += `
+                            <span class="badge" style="background: var(--primary-color); font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+                                <i class="fas fa-${icon} me-1"></i>
+                                ${label}
+                            </span>
+                        `;
+                    });
+
+                    infoHTML += `
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            infoHTML += `
+                    </div>
+                </details>
+            `;
+
+            infoDiv.innerHTML = infoHTML;
+            filterGroup.appendChild(infoDiv);
+        }
+
         // Function to filter by subcategory using parent parameter
         function filterBySubcategory(subcategoryId) {
             if (!subcategoryId) {
@@ -1618,10 +1724,16 @@
                     data.subcategories.forEach(subcat => {
                         const option = document.createElement('option');
                         option.value = subcat.id;
-                        option.textContent = currentLang === 'ar' ? subcat.name_ar || subcat.name : subcat.name;
+                        const customFieldsText = subcat.custom_fields_count > 0 ?
+                            ` (${subcat.custom_fields_count} ${currentLang === 'ar' ? 'فلتر' : 'filters'})` : '';
+                        option.textContent = (currentLang === 'ar' ? subcat.name_ar || subcat.name : subcat.name) + customFieldsText;
                         option.dataset.hasChildren = subcat.has_children;
+                        option.dataset.customFieldsCount = subcat.custom_fields_count;
                         categoryFilter.appendChild(option);
                     });
+
+                    // Update custom fields info section if exists
+                    updateCustomFieldsInfoSection(data.subcategories, currentLang);
 
                     // Re-enable dropdown
                     categoryFilter.disabled = false;
@@ -1641,11 +1753,14 @@
         }
 
         // Handle back to subcategories
-        document.getElementById('categoryFilter').addEventListener('change', function(e) {
-            if (this.value === 'back') {
-                // Reload the page to show parent subcategories
-                window.location.reload();
-            }
-        });
+        const categoryFilterEl = document.getElementById('categoryFilter');
+        if (categoryFilterEl) {
+            categoryFilterEl.addEventListener('change', function(e) {
+                if (this.value === 'back') {
+                    // Reload the page to show parent subcategories
+                    window.location.reload();
+                }
+            });
+        }
     </script>
 {% endblock extra_js %}

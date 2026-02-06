@@ -849,18 +849,43 @@ class CategoryDetailView(FilterView):
         }
 
         # Get custom fields for filters from this category and descendants
+        # Deduplicate by custom_field_id so each field appears only once
         from main.models import CategoryCustomField
 
         descendants = self.category.get_descendants(include_self=True)
-        custom_fields_for_filters = (
+        all_category_fields = (
             CategoryCustomField.objects.filter(
                 category__in=descendants, is_active=True, show_in_filters=True
             )
             .select_related("custom_field")
             .prefetch_related("custom_field__field_options")
             .order_by("order")
-            .distinct()
         )
+        seen_field_ids = set()
+        custom_fields_for_filters = []
+        for ccf in all_category_fields:
+            if ccf.custom_field_id not in seen_field_ids:
+                seen_field_ids.add(ccf.custom_field_id)
+                custom_fields_for_filters.append(ccf)
+
+        # Get subcategories with their custom fields
+        subcategories_list = []
+        subcategories = self.category.get_children().filter(is_active=True)
+        for subcat in subcategories:
+            # Get custom fields for this subcategory
+            subcat_custom_fields = (
+                CategoryCustomField.objects.filter(
+                    category=subcat, is_active=True, show_in_filters=True
+                )
+                .select_related("custom_field")
+                .prefetch_related("custom_field__field_options")
+                .order_by("order")
+            )
+            subcategories_list.append({
+                'category': subcat,
+                'custom_fields': subcat_custom_fields,
+                'has_children': subcat.get_children().exists()
+            })
 
         context.update(
             {
@@ -868,6 +893,7 @@ class CategoryDetailView(FilterView):
                 "breadcrumbs": breadcrumbs,
                 "total_ads": total_ads,
                 "subcategories_count": subcategories_count,
+                "subcategories": subcategories_list,
                 "current_filters": current_filters,
                 "has_filters": any(v for v in current_filters.values() if v),
                 "selected_country": selected_country,
@@ -1978,13 +2004,30 @@ def ad_creation_success_view(request):
 
 
 def get_subcategories_ajax(request, category_id):
-    """Get subcategories via AJAX with Arabic support"""
+    """Get subcategories via AJAX with Arabic support and custom fields"""
     try:
+        from .models import CategoryCustomField
+
         category = Category.objects.get(id=category_id)
         subcategories = category.get_children().filter(is_active=True)
 
-        subcategories_data = [
-            {
+        subcategories_data = []
+        for subcat in subcategories:
+            # Get custom fields for this subcategory
+            custom_fields = (
+                CategoryCustomField.objects.filter(
+                    category=subcat, is_active=True, show_in_filters=True
+                )
+                .select_related("custom_field")
+                .values(
+                    "custom_field__name",
+                    "custom_field__label",
+                    "custom_field__label_ar",
+                    "custom_field__icon",
+                )
+            )
+
+            subcategories_data.append({
                 "id": subcat.id,
                 "name": subcat.name,
                 "name_ar": subcat.name_ar,
@@ -1992,9 +2035,9 @@ def get_subcategories_ajax(request, category_id):
                 "slug": subcat.slug,
                 "url": f"/category/{subcat.slug}/",
                 "has_children": subcat.get_children().exists(),
-            }
-            for subcat in subcategories
-        ]
+                "custom_fields": list(custom_fields),
+                "custom_fields_count": len(custom_fields),
+            })
 
         return JsonResponse(
             {

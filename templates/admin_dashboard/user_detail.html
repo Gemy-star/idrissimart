@@ -1273,8 +1273,11 @@
             };
             const buttonText = buttonTextMap[action] || '{% trans "تأكيد" %}';
 
-            document.getElementById('userActionMessage').textContent = confirmMsg;
-            document.getElementById('userActionButtonText').textContent = buttonText;
+            const userActionMessage = document.getElementById('userActionMessage');
+            const userActionButtonText = document.getElementById('userActionButtonText');
+
+            if (userActionMessage) userActionMessage.textContent = confirmMsg;
+            if (userActionButtonText) userActionButtonText.textContent = buttonText;
             openModal('userActionModal');
         };
 
@@ -1395,10 +1398,15 @@
             editButton.textContent = '{% trans "تعديل" %}';
 
             // Reset form
-            document.getElementById('userEditForm').reset();
+            const userEditForm = document.getElementById('userEditForm');
+            if (userEditForm) {
+                userEditForm.reset();
+            }
             // Clear password fields
-            document.getElementById('newPassword').value = '';
-            document.getElementById('confirmPassword').value = '';
+            const newPasswordField = document.getElementById('newPassword');
+            const confirmPasswordField = document.getElementById('confirmPassword');
+            if (newPasswordField) newPasswordField.value = '';
+            if (confirmPasswordField) confirmPasswordField.value = '';
         }
 
         // Toggle Password Visibility
@@ -1419,8 +1427,15 @@
 
         // Validate password match
         function validatePasswords() {
-            const newPassword = document.getElementById('newPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
+            const newPasswordField = document.getElementById('newPassword');
+            const confirmPasswordField = document.getElementById('confirmPassword');
+
+            if (!newPasswordField || !confirmPasswordField) {
+                return true; // If fields don't exist, skip validation
+            }
+
+            const newPassword = newPasswordField.value;
+            const confirmPassword = confirmPasswordField.value;
 
             if (newPassword && confirmPassword && newPassword !== confirmPassword) {
                 showNotification('{% trans "كلمات المرور غير متطابقة" %}', 'error');
@@ -1436,65 +1451,81 @@
         }
 
         // Handle form submission
-        document.getElementById('userEditForm').addEventListener('submit', function(e) {
-            e.preventDefault();
+        const userEditForm = document.getElementById('userEditForm');
+        if (userEditForm) {
+            userEditForm.addEventListener('submit', function(e) {
+                e.preventDefault();
 
-            // Validate passwords before submission
-            if (!validatePasswords()) {
-                return;
-            }
-
-            const formData = new FormData(this);
-            const url = this.action;
-
-            // Show loading state
-            const submitBtn = this.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري الحفظ..." %}';
-
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
-                body: formData
-            })
-            .then(r => r.json())
-            .then(data => {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
-
-                if (data.success) {
-                    showNotification(data.message || '{% trans "تم حفظ التغييرات بنجاح" %}', 'success');
-                    setTimeout(() => location.reload(), 1500);
-                } else {
-                    showNotification(data.message || '{% trans "حدث خطأ أثناء الحفظ" %}', 'error');
+                // Validate passwords before submission
+                if (!validatePasswords()) {
+                    return;
                 }
-            })
-            .catch(error => {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
-                console.error('Error:', error);
-                showNotification('{% trans "خطأ في الاتصال بالخادم" %}', 'error');
+
+                const formData = new FormData(this);
+                const url = this.action;
+
+                // Show loading state
+                const submitBtn = this.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري الحفظ..." %}';
+
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: formData
+                })
+                .then(r => r.json())
+                .then(data => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+
+                    if (data.success) {
+                        showNotification(data.message || '{% trans "تم حفظ التغييرات بنجاح" %}', 'success');
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        showNotification(data.message || '{% trans "حدث خطأ أثناء الحفظ" %}', 'error');
+                    }
+                })
+                .catch(error => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                    console.error('Error:', error);
+                    showNotification('{% trans "خطأ في الاتصال بالخادم" %}', 'error');
+                });
             });
-        });
+        }
 
         // Reset Password Modal Functions
         let currentResetUserId = null;
 
         window.openResetPasswordModal = function(userId) {
             currentResetUserId = userId;
-            document.getElementById('adminNewPassword').value = '';
-            document.getElementById('adminConfirmPassword').value = '';
-            document.getElementById('sendPasswordEmail').checked = false;
+            const adminNewPassword = document.getElementById('adminNewPassword');
+            const adminConfirmPassword = document.getElementById('adminConfirmPassword');
+            const sendPasswordEmail = document.getElementById('sendPasswordEmail');
+
+            if (adminNewPassword) adminNewPassword.value = '';
+            if (adminConfirmPassword) adminConfirmPassword.value = '';
+            if (sendPasswordEmail) sendPasswordEmail.checked = false;
             openModal('resetPasswordModal');
         };
 
         window.confirmResetPassword = function() {
-            const newPassword = document.getElementById('adminNewPassword').value;
-            const confirmPassword = document.getElementById('adminConfirmPassword').value;
-            const sendEmail = document.getElementById('sendPasswordEmail').checked;
+            const adminNewPassword = document.getElementById('adminNewPassword');
+            const adminConfirmPassword = document.getElementById('adminConfirmPassword');
+            const sendPasswordEmail = document.getElementById('sendPasswordEmail');
+
+            if (!adminNewPassword || !adminConfirmPassword || !sendPasswordEmail) {
+                showNotification('{% trans "الرجاء إدخال كلمة المرور" %}', 'error');
+                return;
+            }
+
+            const newPassword = adminNewPassword.value;
+            const confirmPassword = adminConfirmPassword.value;
+            const sendEmail = sendPasswordEmail.checked;
 
             if (!newPassword || !confirmPassword) {
                 showNotification('{% trans "الرجاء إدخال كلمة المرور" %}', 'error');
