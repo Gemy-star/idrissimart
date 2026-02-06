@@ -128,28 +128,6 @@ def test_paymob():
         )
         print_result("Integration ID", integration_id or "Not set")
 
-        # Check if service is enabled
-        try:
-            paymob_service = PaymobService()
-            if paymob_service.is_enabled():
-                print_success("Paymob service is ENABLED")
-            else:
-                print_error("Paymob service is DISABLED in configuration")
-                return False
-        except:
-            # Fallback to environment check
-            paymob_enabled_val = get_config_value("PAYMOB_ENABLED", "True")
-            paymob_enabled = str(paymob_enabled_val).lower() in (
-                "true",
-                "1",
-                "yes",
-            )
-            if paymob_enabled and api_key:
-                print_success("Paymob service is ENABLED (from environment)")
-            else:
-                print_error("Paymob service is DISABLED in configuration")
-                return False
-
         # Test authentication
         print_info("\nTesting Paymob authentication...")
         try:
@@ -242,27 +220,7 @@ def test_paypal():
         else:
             print_info("PayPal is in SANDBOX mode - test transactions only")
 
-        # Check if service is enabled
-        try:
-            paypal_service = PayPalService()
-            if paypal_service.is_enabled():
-                print_success("PayPal service is ENABLED")
-            else:
-                print_error("PayPal service is DISABLED in configuration")
-                return False
-        except:
-            # Fallback to environment check
-            paypal_enabled_val = get_config_value("PAYPAL_ENABLED", "True")
-            paypal_enabled = str(paypal_enabled_val).lower() in (
-                "true",
-                "1",
-                "yes",
-            )
-            if paypal_enabled and client_id:
-                print_success("PayPal service is ENABLED (from environment)")
-            else:
-                print_error("PayPal service is DISABLED")
-                return False
+        paypal_service = PayPalService()
 
         # Test API connection
         print_info("\nTesting PayPal API connection...")
@@ -372,19 +330,7 @@ def test_twilio(phone_number=None):
         )
         print_result("From Number", from_number)
 
-        # Check if service is enabled
         sms_service = SMSService()
-        twilio_enabled_val = get_config_value("TWILIO_ENABLED", "True")
-        twilio_enabled = str(twilio_enabled_val).lower() in (
-            "true",
-            "1",
-            "yes",
-        )
-        if twilio_enabled:
-            print_success("Twilio service is ENABLED")
-        else:
-            print_error("Twilio service is DISABLED in configuration")
-            return False
 
         # Test API connection
         print_info("\nTesting Twilio API connection...")
