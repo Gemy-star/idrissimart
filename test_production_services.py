@@ -133,7 +133,8 @@ def test_paymob():
                 return False
         except:
             # Fallback to environment check
-            paymob_enabled = get_config_value("PAYMOB_ENABLED", "True").lower() in (
+            paymob_enabled_val = get_config_value("PAYMOB_ENABLED", "True")
+            paymob_enabled = str(paymob_enabled_val).lower() in (
                 "true",
                 "1",
                 "yes",
@@ -246,7 +247,8 @@ def test_paypal():
                 return False
         except:
             # Fallback to environment check
-            paypal_enabled = get_config_value("PAYPAL_ENABLED", "True").lower() in (
+            paypal_enabled_val = get_config_value("PAYPAL_ENABLED", "True")
+            paypal_enabled = str(paypal_enabled_val).lower() in (
                 "true",
                 "1",
                 "yes",
@@ -346,7 +348,8 @@ def test_twilio(phone_number=None):
 
         # Check if service is enabled
         sms_service = SMSService()
-        twilio_enabled = get_config_value("TWILIO_ENABLED", "True").lower() in (
+        twilio_enabled_val = get_config_value("TWILIO_ENABLED", "True")
+        twilio_enabled = str(twilio_enabled_val).lower() in (
             "true",
             "1",
             "yes",
