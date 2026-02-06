@@ -138,6 +138,62 @@ $ poetry run python test_production_services.py --paymob
 | `Service is DISABLED` | فعّل الخدمة في django-constance |
 | `SMS failed` | تحقق من صيغة رقم الهاتف |
 
+### 📋 فحص السجلات (Logs)
+
+#### 1. سجلات Django
+```bash
+# عرض سجلات Django
+tail -f /var/log/django/idrissimart.log
+
+# أو على Windows
+type C:\var\log\django\idrissimart.log
+
+# استخدام أداة فحص السجلات
+poetry run python check_logs.py
+```
+
+#### 2. سجلات الخدمات
+
+**Paymob:**
+- Dashboard: https://accept.paymob.com/portal2/en/dashboard
+- API Logs: Dashboard > Developers > API Logs
+- Transactions: Dashboard > Transactions
+
+**PayPal:**
+- Developer Dashboard: https://developer.paypal.com/dashboard/
+- Sandbox Logs: Apps & Credentials > [Your App] > Sandbox Logs
+- Check credentials في: Apps & Credentials
+
+**Twilio:**
+- Console: https://console.twilio.com/
+- Error Logs: Monitor > Logs > Error Logs
+- API Credentials: Settings > General
+
+#### 3. تشغيل الاختبار مع تفاصيل كاملة
+```bash
+# حفظ المخرجات في ملف
+poetry run python test_production_services.py --all 2>&1 | tee test_output.log
+
+# عرض آخر 50 سطر من السجلات
+tail -50 test_output.log
+```
+
+### 🔍 أدوات التشخيص
+
+```bash
+# فحص شامل للسجلات والإعدادات
+poetry run python check_logs.py
+
+# فحص الإعدادات فقط
+poetry run python check_services.py
+
+# فحص قاعدة البيانات
+poetry run python manage.py check --database default
+
+# عرض إعدادات Django
+poetry run python manage.py diffsettings
+```
+
 ## 📞 الدعم
 
 - 📚 [Paymob Docs](https://docs.paymob.com/)
