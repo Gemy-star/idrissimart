@@ -245,6 +245,46 @@ status: ## Show git status and pending changes
 	@git diff --stat
 
 # ============================================
+# Production Services Testing
+# ============================================
+
+check-services: ## Quick check if services are configured
+	@echo '$(BLUE)🔍 Checking services configuration...$(NC)'
+	python check_services.py
+
+check-services-prod: ## Check services using production settings
+	@echo '$(BLUE)🔍 Checking services (Production Mode)...$(NC)'
+	set DJANGO_SETTINGS_MODULE=idrissimart.settings.docker && python check_services.py
+
+test-services: ## Test all production services (Paymob, PayPal, Twilio)
+	@echo '$(BLUE)🧪 Testing production services...$(NC)'
+	python test_production_services.py --all
+
+test-services-prod: ## Test services using production settings/environment
+	@echo '$(BLUE)🧪 Testing production services (Production Mode)...$(NC)'
+	python test_production_mode.py --all
+
+test-paymob: ## Test Paymob payment gateway
+	@echo '$(BLUE)💳 Testing Paymob...$(NC)'
+	python test_production_services.py --paymob
+
+test-paymob-prod: ## Test Paymob using production settings
+	@echo '$(BLUE)💳 Testing Paymob (Production Mode)...$(NC)'
+	set DJANGO_SETTINGS_MODULE=idrissimart.settings.docker && python test_production_services.py --paymob
+
+test-paypal: ## Test PayPal payment gateway
+	@echo '$(BLUE)💳 Testing PayPal...$(NC)'
+	python test_production_services.py --paypal
+
+test-twilio: ## Test Twilio SMS service
+	@echo '$(BLUE)📱 Testing Twilio SMS...$(NC)'
+	python test_production_services.py --twilio
+
+test-sms: ## Test SMS sending to a phone number (usage: make test-sms PHONE=+201234567890)
+	@echo '$(BLUE)📱 Testing SMS to $(PHONE)...$(NC)'
+	python test_production_services.py --sms $(PHONE)
+
+# ============================================
 # Aliases
 # ============================================
 
