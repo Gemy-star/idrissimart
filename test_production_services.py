@@ -9,6 +9,8 @@ Usage:
     python test_production_services.py --paypal
     python test_production_services.py --twilio
     python test_production_services.py --sms +201234567890
+    python test_production_services.py --settings=idrissimart.settings.local --all
+    python test_production_services.py --settings=idrissimart.settings.docker --paypal
 """
 
 import os
@@ -21,18 +23,31 @@ from colorama import init, Fore, Style
 # Initialize colorama for colored output
 init(autoreset=True)
 
-# Setup Django environment
-# Use docker settings for production testing (can be changed via --settings flag)
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "idrissimart.settings.docker")
+# Parse --settings argument early (before Django setup)
+settings_module = "idrissimart.settings.docker"
+for i, arg in enumerate(sys.argv[1:]):  # Skip script name
+    if arg.startswith("--settings="):
+        settings_module = arg.split("=", 1)[1]
+        sys.argv.pop(i + 1)  # Remove from argv (i+1 because we skipped index 0)
+        break
+    elif arg == "--settings" and i + 2 < len(sys.argv):
+        # Handle --settings without equals: --settings idrissimart.settings.local
+        settings_module = sys.argv[i + 2]
+        sys.argv.pop(i + 2)
+        sys.argv.pop(i + 1)
+        break
 
-# Set log file path for testing
+# Setup Django environment with specified settings
+os.environ["DJANGO_SETTINGS_MODULE"] = settings_module
 os.environ["DJANGO_LOG_FILE"] = "/tmp/test.log"
+
+print(f"Using Django settings: {settings_module}")
 
 try:
     django.setup()
 except Exception as e:
     # If setup fails, fallback to local settings
-    print(f"Warning: Failed to use docker settings, falling back to local: {e}")
+    print(f"Warning: Failed to use {settings_module}, falling back to local: {e}")
     os.environ["DJANGO_SETTINGS_MODULE"] = "idrissimart.settings.local"
     django.setup()
 
@@ -425,6 +440,14 @@ Examples:
   python test_production_services.py --paypal           # Test PayPal only
   python test_production_services.py --twilio           # Test Twilio only
   python test_production_services.py --sms +2010000000 # Test SMS to specific number
+  python test_production_services.py --settings=idrissimart.settings.local --all
+  python test_production_services.py --settings=idrissimart.settings.docker --paypal
+
+Available settings modules:
+  - idrissimart.settings.local     (development with SQLite)
+  - idrissimart.settings.docker    (production with MySQL in Docker)
+  - idrissimart.settings.common    (shared settings)
+
 Note:
   This script uses django-constance which loads credentials from environment variables.
   Credentials are configured in:
@@ -433,6 +456,11 @@ Note:
   - System environment variables (docker/production)        """,
     )
 
+    parser.add_argument(
+        "--settings",
+        metavar="MODULE",
+        help="Django settings module to use (default: idrissimart.settings.docker)",
+    )
     parser.add_argument("--all", action="store_true", help="Test all services")
     parser.add_argument(
         "--paymob", action="store_true", help="Test Paymob payment gateway"
