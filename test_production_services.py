@@ -71,16 +71,14 @@ def print_result(key, value):
 
 
 def get_config_value(key, default=""):
-    """Get config value from constance (which reads from environment) or direct environment"""
-    # Try constance first (it reads from environment variables in constance_config.py)
+    """Get config value from django-constance (with database fallback to environment)"""
     try:
-        from constance import config
-
+        # Try constance config (reads from database first, then falls back to defaults)
         value = getattr(config, key, None)
         if value is not None and value != "":
             return value
     except Exception as e:
-        # If DB not available, fall back to environment
+        # If constance is not available, fall back to environment
         pass
 
     # Fallback to direct environment variable
@@ -96,24 +94,16 @@ def test_paymob():
     print_header("TESTING PAYMOB PAYMENT GATEWAY")
 
     try:
-        # Check configuration
-        print_info("Checking Paymob configuration...")
+        # Check configuration from constance
+        print_info("Checking Paymob configuration from django-constance...")
 
-        api_key = get_config_value("PAYMOB_API_KEY")
-        secret_key = get_config_value("PAYMOB_SECRET_KEY")
-        public_key = get_config_value("PAYMOB_PUBLIC_KEY")
-        integration_id = get_config_value("PAYMOB_INTEGRATION_ID")
+        api_key = config.PAYMOB_API_KEY
+        secret_key = config.PAYMOB_SECRET_KEY
+        public_key = config.PAYMOB_PUBLIC_KEY
 
-        if not api_key or api_key == "":
-            print_error("PAYMOB_API_KEY is not configured")
-            return False
-
-        if not secret_key or secret_key == "":
-            print_error("PAYMOB_SECRET_KEY is not configured")
-            return False
-
-        if not public_key or public_key == "":
-            print_error("PAYMOB_PUBLIC_KEY is not configured")
+        if not api_key or not secret_key or not public_key:
+            print_error("Paymob credentials not configured in constance")
+            print_info("Configure via .env and update database, or via admin panel")
             return False
 
         print_success("Configuration keys are present")
@@ -126,7 +116,6 @@ def test_paymob():
             "Public Key",
             f"{public_key[:20]}..." if len(public_key) > 20 else public_key,
         )
-        print_result("Integration ID", integration_id or "Not set")
 
         # Test authentication
         print_info("\nTesting Paymob authentication...")
@@ -143,16 +132,18 @@ def test_paymob():
             auth_token = response.json().get("token")
 
             if auth_token:
-                print_success(f"Authentication successful! Token: {auth_token[:30]}...")
+                print_success(f"Authentication successful!")
+                print_result("Token", f"{auth_token[:30]}...")
             else:
                 print_error("Authentication failed - no token returned")
                 return False
+
         except Exception as e:
             print_error(f"Authentication failed: {str(e)}")
             return False
 
-        # Test payment creation (test mode) - Simplified
-        print_info("\nTesting payment order creation (test transaction)...")
+        # Test payment creation
+        print_info("\nTesting payment order creation...")
         try:
             import requests
 
@@ -180,7 +171,7 @@ def test_paymob():
                 return False
 
         except Exception as e:
-            print_error(f"Payment creation error: {str(e)}")
+            print_error(f"Order creation error: {str(e)}")
             return False
 
     except Exception as e:
@@ -196,12 +187,17 @@ def test_paypal():
     print_header("TESTING PAYPAL PAYMENT GATEWAY")
 
     try:
-        # Check configuration
-        print_info("Checking PayPal configuration...")
+        # Check configuration from constance
+        print_info("Checking PayPal configuration from django-constance...")
 
-        client_id = get_config_value("PAYPAL_CLIENT_ID")
-        client_secret = get_config_value("PAYPAL_CLIENT_SECRET")
-        mode = get_config_value("PAYPAL_MODE", "sandbox")
+        client_id = config.PAYPAL_CLIENT_ID
+        client_secret = config.PAYPAL_CLIENT_SECRET
+        mode = config.PAYPAL_MODE
+
+        if not client_id or not client_secret:
+            print_error("PayPal credentials not configured in constance")
+            print_info("Configure via admin panel or .env + update_paypal_config.py")
+            return False
 
         print_success("Configuration keys are present")
         print_result(
@@ -220,79 +216,96 @@ def test_paypal():
         else:
             print_info("PayPal is in SANDBOX mode - test transactions only")
 
-        paypal_service = PayPalService()
-
-        # Test API connection
+        # Test API connection using requests library (more reliable)
         print_info("\nTesting PayPal API connection...")
         try:
-            import paypalrestsdk
+            import requests
 
-            # Configure PayPal SDK
-            paypalrestsdk.configure(
-                {"mode": mode, "client_id": client_id, "client_secret": client_secret}
+            # Determine API endpoint based on mode
+            if mode.lower() == "sandbox":
+                base_url = "https://api-m.sandbox.paypal.com"
+            else:
+                base_url = "https://api-m.paypal.com"
+
+            url = f"{base_url}/v1/oauth2/token"
+            headers = {"Accept": "application/json", "Accept-Language": "en_US"}
+            data = {"grant_type": "client_credentials"}
+
+            response = requests.post(
+                url,
+                headers=headers,
+                data=data,
+                auth=(client_id, client_secret),
+                timeout=10,
             )
 
-            # Try to get access token
-            api = paypalrestsdk.Api()
-            token = api.get_access_token()
+            if response.status_code == 200:
+                token_data = response.json()
+                access_token = token_data.get("access_token")
 
-            if token:
-                print_success(
-                    f"API connection successful! Token received: {token[:30]}..."
-                )
+                print_success(f"API connection successful!")
+                print_result("Token", f"{access_token[:30]}...")
+                print_result("Expires In", f"{token_data.get('expires_in')} seconds")
+
+                # Test order creation
+                print_info("\nTesting PayPal order creation...")
+                try:
+                    order_url = f"{base_url}/v2/checkout/orders"
+                    order_headers = {
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {access_token}",
+                    }
+                    order_data = {
+                        "intent": "CAPTURE",
+                        "purchase_units": [
+                            {
+                                "amount": {"currency_code": "USD", "value": "10.00"},
+                                "description": "Test Payment",
+                            }
+                        ],
+                        "payer": {"name": {"given_name": "Test", "surname": "User"}},
+                    }
+
+                    order_response = requests.post(
+                        order_url, json=order_data, headers=order_headers, timeout=10
+                    )
+
+                    if order_response.status_code == 201:
+                        order_result = order_response.json()
+                        print_success("Test order created successfully!")
+                        print_result("Order ID", order_result.get("id", "N/A"))
+                        print_result("Status", order_result.get("status", "N/A"))
+                        return True
+                    else:
+                        print_error(
+                            f"Order creation failed: {order_response.status_code}"
+                        )
+                        print_error(f"Response: {order_response.text}")
+                        return False
+
+                except Exception as e:
+                    print_error(f"Order creation error: {str(e)}")
+                    return False
+
             else:
-                print_error("API connection failed - no token received")
+                print_error(f"API authentication failed: {response.status_code}")
+                print_error(f"Response: {response.text}")
+
+                if response.status_code == 401:
+                    print_info("\n💡 Hint: Authentication failed. This usually means:")
+                    print_info("   1. PAYPAL_CLIENT_ID is incorrect")
+                    print_info("   2. PAYPAL_CLIENT_SECRET is incorrect")
+                    print_info(
+                        "   3. Credentials don't match the mode (sandbox vs live)"
+                    )
+                    print_info(
+                        "   4. Check PayPal Developer: https://developer.paypal.com/"
+                    )
+
                 return False
 
-        except Exception as e:
-            error_msg = str(e)
-            print_error(f"API connection failed: {error_msg}")
-
-            # Provide helpful hints
-            if "client_id" in error_msg.lower() or "client_secret" in error_msg.lower():
-                print_info("\n💡 Hint: PayPal configuration error. This usually means:")
-                print_info(
-                    "   1. PAYPAL_CLIENT_ID or PAYPAL_CLIENT_SECRET is missing/incorrect"
-                )
-                print_info(
-                    "   2. The credentials don't match the mode (sandbox vs live)"
-                )
-                print_info(
-                    "   3. Check PayPal Developer Dashboard: https://developer.paypal.com/"
-                )
-                print_info(f"\n   Current Mode: {mode}")
-                print_info(
-                    f"   Current Client ID: {client_id[:20]}..."
-                    if client_id
-                    else "   Client ID: NOT SET"
-                )
-
-            return False
-
-        # Test payment creation (test mode)
-        print_info("\nTesting payment creation (test transaction)...")
-        try:
-            success, result = paypal_service.process_payment(
-                amount=Decimal("10.00"),
-                currency="USD",
-                description="Test Payment",
-                return_url="http://localhost:8000/payment/success",
-                cancel_url="http://localhost:8000/payment/cancel",
-            )
-
-            if success:
-                print_success("Test payment created successfully!")
-                if isinstance(result, dict):
-                    print_result("Payment ID", result.get("id", "N/A"))
-                    if "approval_url" in result:
-                        print_result("Approval URL", result["approval_url"][:80])
-                return True
-            else:
-                print_error(f"Payment creation failed: {result}")
-                return False
-
-        except Exception as e:
-            print_error(f"Payment creation error: {str(e)}")
+        except requests.exceptions.RequestException as e:
+            print_error(f"Network error: {str(e)}")
             return False
 
     except Exception as e:
@@ -308,15 +321,16 @@ def test_twilio(phone_number=None):
     print_header("TESTING TWILIO SMS SERVICE")
 
     try:
-        # Check configuration
-        print_info("Checking Twilio configuration...")
+        # Check configuration from constance
+        print_info("Checking Twilio configuration from django-constance...")
 
-        account_sid = get_config_value("TWILIO_ACCOUNT_SID")
-        auth_token = get_config_value("TWILIO_AUTH_TOKEN")
-        from_number = get_config_value("TWILIO_PHONE_NUMBER")
+        account_sid = config.TWILIO_ACCOUNT_SID
+        auth_token = config.TWILIO_AUTH_TOKEN
+        from_number = config.TWILIO_PHONE_NUMBER
 
-        if not from_number or from_number == "":
-            print_error("TWILIO_PHONE_NUMBER is not configured")
+        if not account_sid or not auth_token or not from_number:
+            print_error("Twilio credentials not configured in constance")
+            print_info("Configure via .env or admin panel")
             return False
 
         print_success("Configuration keys are present")
@@ -329,8 +343,6 @@ def test_twilio(phone_number=None):
             f"{auth_token[:20]}..." if len(auth_token) > 20 else auth_token,
         )
         print_result("From Number", from_number)
-
-        sms_service = SMSService()
 
         # Test API connection
         print_info("\nTesting Twilio API connection...")
@@ -371,17 +383,18 @@ def test_twilio(phone_number=None):
         if phone_number:
             print_info(f"\nTesting SMS sending to {phone_number}...")
             try:
-                success, result = sms_service.send_sms(
-                    phone_number=phone_number,
-                    message="Test message from IdrissiMart - Production test",
+                message = client.messages.create(
+                    body="Test SMS from IdrissiMart - Production test",
+                    from_=from_number,
+                    to=phone_number,
                 )
 
-                if success:
+                if message.sid:
                     print_success("Test SMS sent successfully!")
-                    print_result("Message SID", result)
+                    print_result("Message SID", message.sid)
                     return True
                 else:
-                    print_error(f"SMS sending failed: {result}")
+                    print_error("SMS sending failed - no message SID")
                     return False
 
             except Exception as e:
@@ -437,7 +450,7 @@ Note:
     # If no arguments provided, show help
     if not any([args.all, args.paymob, args.paypal, args.twilio, args.sms]):
         parser.print_help()
-        return
+        return 0
 
     print_header("IDRISSIMART PRODUCTION SERVICES TEST")
     print_info("Testing services configuration and connectivity...\n")
