@@ -156,7 +156,7 @@ sudo supervisorctl restart idrissimart
 
 #### إذا كنت تستخدم Docker:
 ```bash
-docker-compose restart web
+docker compose restart web
 ```
 
 ---

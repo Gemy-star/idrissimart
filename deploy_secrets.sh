@@ -130,28 +130,15 @@ python3 -m venv venv
 # Activate virtual environment
 source venv/bin/activate
 
-# Upgrade pip
-pip install --upgrade pip
+# Install Poetry if not already installed
+if ! command -v poetry &> /dev/null; then
+    echo "Installing Poetry..."
+    curl -sSL https://install.python-poetry.org | python3 -
+    export PATH="$HOME/.local/bin:$PATH"
+fi
 
-# Install Python packages
-cat > requirements.txt << 'EOF'
-Django>=4.2,<5.0
-psycopg2-binary>=2.9.0
-redis>=4.0.0
-celery>=5.3.0
-gunicorn>=21.0.0
-whitenoise>=6.5.0
-Pillow>=10.0.0
-django-mptt>=0.14.0
-django-filter>=23.0.0
-twilio>=8.10.0
-requests>=2.31.0
-python-decouple>=3.8.0
-django-cors-headers>=4.3.0
-django-extensions>=3.2.0
-EOF
-
-pip install -r requirements.txt
+# Install Python packages using Poetry
+poetry install --only main --no-interaction
 
 echo "✅ Python environment setup complete!"
 
@@ -231,7 +218,7 @@ cat > /etc/nginx/sites-available/idrissimart << 'EOF'
 server {
     listen 80;
     server_name yourdomain.com www.yourdomain.com;
-    
+
     # Redirect HTTP to HTTPS
     return 301 https://$server_name$request_uri;
 }
@@ -239,51 +226,51 @@ server {
 server {
     listen 443 ssl http2;
     server_name yourdomain.com www.yourdomain.com;
-    
+
     # SSL Configuration (you'll need to obtain SSL certificates)
     ssl_certificate /etc/ssl/certs/idrissimart.crt;
     ssl_certificate_key /etc/ssl/private/idrissimart.key;
-    
+
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "no-referrer-when-downgrade" always;
     add_header Content-Security-Policy "default-src 'self' http: https: data: blob: 'unsafe-inline'" always;
-    
+
     # Gzip compression
     gzip on;
     gzip_vary on;
     gzip_min_length 1024;
     gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
-    
+
     # Static files
     location /static/ {
         alias /var/www/idrissimart/static/;
         expires 1y;
         add_header Cache-Control "public, immutable";
     }
-    
+
     # Media files
     location /media/ {
         alias /var/www/idrissimart/media/;
         expires 1y;
         add_header Cache-Control "public";
     }
-    
+
     # Django application
     location / {
         include proxy_params;
         proxy_pass http://unix:/var/www/idrissimart/idrissimart.sock;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
-    
+
     # Security: Block access to sensitive files
     location ~ /\. {
         deny all;
     }
-    
-    location ~ /(\.env|requirements\.txt|manage\.py) {
+
+    location ~ /(\.env|pyproject\.toml|poetry\.lock|manage\.py) {
         deny all;
     }
 }

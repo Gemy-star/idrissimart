@@ -1,0 +1,180 @@
+# =============================================================================
+# Makefile for Docker Commands - Idrissimart
+# =============================================================================
+
+.PHONY: help build up down restart logs shell migrate collectstatic createsuperuser backup clean
+
+# Default target
+.DEFAULT_GOAL := help
+
+# Color output
+BLUE := \033[0;34m
+GREEN := \033[0;32m
+YELLOW := \033[1;33m
+NC := \033[0m # No Color
+
+help: ## Show this help message
+	@echo "$(BLUE)Idrissimart Docker Commands$(NC)"
+	@echo ""
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-20s$(NC) %s\n", $$1, $$2}'
+
+## Setup Commands
+build: ## Build Docker images
+	@echo "$(YELLOW)Building Docker images...$(NC)"
+	docker compose build
+
+up: ## Start all services
+	@echo "$(GREEN)Starting all services...$(NC)"
+	docker compose up -d
+	@echo "$(GREEN)✓ Services started$(NC)"
+	@make ps
+
+down: ## Stop all services
+	@echo "$(YELLOW)Stopping all services...$(NC)"
+	docker compose down
+
+down-volumes: ## Stop all services and remove volumes (⚠️ removes data)
+	@echo "$(YELLOW)⚠️  Stopping services and removing volumes...$(NC)"
+	docker compose down -v
+
+restart: ## Restart all services
+	@echo "$(YELLOW)Restarting all services...$(NC)"
+	docker compose restart
+
+restart-web: ## Restart web service
+	docker compose restart web
+
+restart-daphne: ## Restart daphne service
+	docker compose restart daphne
+
+restart-qcluster: ## Restart qcluster service
+	docker compose restart qcluster
+
+restart-nginx: ## Restart nginx service
+	docker compose restart nginx
+
+## Logs Commands
+logs: ## View logs from all services
+	docker compose logs -f
+
+logs-web: ## View web service logs
+	docker compose logs -f web
+
+logs-daphne: ## View daphne service logs
+	docker compose logs -f daphne
+
+logs-qcluster: ## View qcluster service logs
+	docker compose logs -f qcluster
+
+logs-nginx: ## View nginx service logs
+	docker compose logs -f nginx
+
+logs-db: ## View database service logs
+	docker compose logs -f db
+
+## Django Commands
+shell: ## Open Django shell
+	docker compose exec web python manage.py shell
+
+dbshell: ## Open database shell
+	docker compose exec db mysql -u root -p
+
+migrate: ## Run database migrations
+	@echo "$(GREEN)Running migrations...$(NC)"
+	docker compose exec web python manage.py migrate
+
+makemigrations: ## Create new migrations
+	docker compose exec web python manage.py makemigrations
+
+collectstatic: ## Collect static files
+	@echo "$(GREEN)Collecting static files...$(NC)"
+	docker compose exec web python manage.py collectstatic --noinput
+
+createsuperuser: ## Create Django superuser
+	docker compose exec web python manage.py createsuperuser
+
+## Service Status
+ps: ## Show service status
+	@docker compose ps
+
+stats: ## Show container resource usage
+	@docker stats --no-stream
+
+## Database Commands
+backup: ## Backup database
+	@echo "$(GREEN)Creating database backup...$(NC)"
+	@mkdir -p backups
+	docker compose exec -T db mysqldump -u root -p$${DB_ROOT_PASSWORD} $${DB_NAME} > backups/backup_$$(date +%Y%m%d_%H%M%S).sql
+	@echo "$(GREEN)✓ Backup created in backups/$(NC)"
+
+restore: ## Restore database from backup (Usage: make restore FILE=backups/backup.sql)
+	@if [ -z "$(FILE)" ]; then \
+		echo "$(YELLOW)Usage: make restore FILE=backups/backup.sql$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)Restoring database from $(FILE)...$(NC)"
+	docker compose exec -T db mysql -u root -p$${DB_ROOT_PASSWORD} $${DB_NAME} < $(FILE)
+	@echo "$(GREEN)✓ Database restored$(NC)"
+
+## Maintenance Commands
+clean: ## Clean up Docker resources
+	@echo "$(YELLOW)Cleaning up Docker resources...$(NC)"
+	docker system prune -f
+
+clean-all: ## Clean up all Docker resources including volumes
+	@echo "$(YELLOW)⚠️  Cleaning up all Docker resources...$(NC)"
+	docker system prune -af --volumes
+
+update: ## Update application (pull, build, migrate, collect static)
+	@echo "$(GREEN)Updating application...$(NC)"
+	git pull
+	docker compose build
+	docker compose up -d
+	docker compose exec web python manage.py migrate
+	docker compose exec web python manage.py collectstatic --noinput
+	@echo "$(GREEN)✓ Application updated$(NC)"
+
+## Testing Commands
+test: ## Run tests
+	docker compose exec web python manage.py test
+
+test-coverage: ## Run tests with coverage
+	docker compose exec web coverage run --source='.' manage.py test
+	docker compose exec web coverage report
+
+## Quick Start
+init: ## Initialize project (first time setup)
+	@echo "$(GREEN)Initializing project...$(NC)"
+	@if [ ! -f .env ]; then \
+		echo "$(YELLOW)Creating .env from .env.example...$(NC)"; \
+		cp .env.example .env; \
+		echo "$(YELLOW)⚠️  Please edit .env file with your settings$(NC)"; \
+		exit 1; \
+	fi
+	@make build
+	@make up
+	@sleep 10
+	@make migrate
+	@make collectstatic
+	@echo "$(GREEN)✓ Project initialized$(NC)"
+	@echo "$(BLUE)Run 'make createsuperuser' to create admin user$(NC)"
+
+## Development Commands
+dev-shell: ## Open bash shell in web container
+	docker compose exec web bash
+
+redis-cli: ## Open Redis CLI
+	docker compose exec redis redis-cli -a $${REDIS_PASSWORD}
+
+flush-redis: ## Flush Redis cache
+	docker compose exec redis redis-cli -a $${REDIS_PASSWORD} FLUSHALL
+
+## Health Checks
+health: ## Check service health
+	@echo "$(BLUE)Service Health Status:$(NC)"
+	@docker compose ps
+	@echo ""
+	@echo "$(BLUE)Web Service:$(NC)"
+	@curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" http://localhost:8000/health/ || echo "Not responding"
+	@echo "$(BLUE)Nginx:$(NC)"
+	@curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" http://localhost/health/ || echo "Not responding"

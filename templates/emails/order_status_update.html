@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تحديث حالة الطلب - {{ order.order_number }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            line-height: 1.6;
+            direction: rtl;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4b315e 0%, #6b4c7a 100%);
+            color: #ffffff;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 26px;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 15px;
+            opacity: 0.95;
+        }
+
+        .status-icon {
+            background-color: rgba(255, 255, 255, 0.15);
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .greeting {
+            font-size: 18px;
+            color: #333333;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .message {
+            font-size: 16px;
+            color: #555555;
+            margin-bottom: 25px;
+            line-height: 1.8;
+        }
+
+        .status-card {
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+            text-align: center;
+        }
+
+        /* Status-specific colors */
+        .status-processing {
+            background: linear-gradient(135deg, #fff8e1 0%, #ffe8a1 100%);
+            border: 2px solid #ffc107;
+        }
+
+        .status-shipped {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border: 2px solid #2196f3;
+        }
+
+        .status-delivered {
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            border: 2px solid #4caf50;
+        }
+
+        .status-cancelled {
+            background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+            border: 2px solid #f44336;
+        }
+
+        .status-refunded {
+            background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+            border: 2px solid #9c27b0;
+        }
+
+        .status-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .status-processing .status-title { color: #f57c00; }
+        .status-shipped .status-title { color: #1976d2; }
+        .status-delivered .status-title { color: #388e3c; }
+        .status-cancelled .status-title { color: #d32f2f; }
+        .status-refunded .status-title { color: #7b1fa2; }
+
+        .status-message {
+            font-size: 15px;
+            color: #555555;
+            margin-top: 10px;
+        }
+
+        .order-info {
+            background-color: #f8f6f9;
+            border-radius: 10px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+
+        .order-info h3 {
+            color: #4b315e;
+            font-size: 18px;
+            margin-bottom: 15px;
+            text-align: center;
+            border-bottom: 2px solid #4b315e;
+            padding-bottom: 10px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-size: 14px;
+            color: #666666;
+        }
+
+        .info-value {
+            font-size: 15px;
+            color: #4b315e;
+            font-weight: 600;
+        }
+
+        .tracking-info {
+            background-color: #fff8f0;
+            border-right: 4px solid #ff6001;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+
+        .tracking-info h3 {
+            color: #ff6001;
+            font-size: 17px;
+            margin-bottom: 10px;
+        }
+
+        .tracking-info p {
+            color: #555555;
+            font-size: 15px;
+            margin: 5px 0;
+        }
+
+        .note-box {
+            background-color: #f0f9ff;
+            border-right: 4px solid #4b315e;
+            padding: 18px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+
+        .note-box p {
+            color: #555555;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #ff6001 0%, #ff8534 100%);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 14px 35px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            margin: 20px 0;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 12px rgba(255, 96, 1, 0.3);
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(255, 96, 1, 0.4);
+        }
+
+        .footer {
+            background-color: #f8f8f8;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .footer p {
+            color: #666666;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+
+        .footer a {
+            color: #4b315e;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .footer a:hover {
+            color: #ff6001;
+        }
+
+        .divider {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #4b315e, transparent);
+            margin: 25px 0;
+        }
+
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .content {
+                padding: 30px 20px;
+            }
+
+            .status-card {
+                padding: 20px;
+            }
+
+            .status-title {
+                font-size: 20px;
+            }
+
+            .cta-button {
+                display: block;
+                padding: 12px 25px;
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            {% if order.status == 'processing' %}
+            <div class="status-icon">⏳</div>
+            {% elif order.status == 'shipped' %}
+            <div class="status-icon">🚚</div>
+            {% elif order.status == 'delivered' %}
+            <div class="status-icon">✅</div>
+            {% elif order.status == 'cancelled' %}
+            <div class="status-icon">❌</div>
+            {% elif order.status == 'refunded' %}
+            <div class="status-icon">💰</div>
+            {% else %}
+            <div class="status-icon">📦</div>
+            {% endif %}
+
+            <h1>تحديث حالة طلبك</h1>
+            <p>رقم الطلب: {{ order.order_number }}</p>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <p class="greeting">مرحباً {{ order.user.get_full_name|default:order.full_name }}،</p>
+
+            <p class="message">
+                {% if order.status == 'processing' %}
+                طلبك الآن قيد المعالجة. نقوم حالياً بمراجعة وتجهيز طلبك للشحن.
+                {% elif order.status == 'shipped' %}
+                رائع! تم شحن طلبك وهو في الطريق إليك.
+                {% elif order.status == 'delivered' %}
+                تم تسليم طلبك بنجاح! نتمنى أن تكون راضياً عن المنتجات.
+                {% elif order.status == 'cancelled' %}
+                تم إلغاء طلبك. إذا كان لديك أي استفسار، لا تتردد في التواصل معنا.
+                {% elif order.status == 'refunded' %}
+                تم استرداد مبلغ طلبك بنجاح. سيصل المبلغ إلى حسابك خلال 5-7 أيام عمل.
+                {% endif %}
+            </p>
+
+            <!-- Status Card -->
+            <div class="status-card status-{{ order.status }}">
+                <div class="status-title">
+                    {% if order.status == 'processing' %}
+                    قيد المعالجة
+                    {% elif order.status == 'shipped' %}
+                    تم الشحن
+                    {% elif order.status == 'delivered' %}
+                    تم التسليم
+                    {% elif order.status == 'cancelled' %}
+                    ملغى
+                    {% elif order.status == 'refunded' %}
+                    مسترد
+                    {% endif %}
+                </div>
+                <div class="status-message">
+                    {% if order.status == 'processing' %}
+                    سنتواصل معك قريباً لتأكيد الشحن
+                    {% elif order.status == 'shipped' %}
+                    تتبع شحنتك وتابع موعد الوصول
+                    {% elif order.status == 'delivered' %}
+                    شكراً لتسوقك معنا!
+                    {% elif order.status == 'cancelled' %}
+                    تم إلغاء الطلب بنجاح
+                    {% elif order.status == 'refunded' %}
+                    سيتم إرجاع المبلغ إلى حسابك قريباً
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Order Information -->
+            <div class="order-info">
+                <h3>📋 تفاصيل الطلب</h3>
+
+                <div class="info-row">
+                    <span class="info-label">رقم الطلب</span>
+                    <span class="info-value">{{ order.order_number }}</span>
+                </div>
+
+                <div class="info-row">
+                    <span class="info-label">تاريخ الطلب</span>
+                    <span class="info-value">{{ order.created_at|date:"Y/m/d H:i" }}</span>
+                </div>
+
+                <div class="info-row">
+                    <span class="info-label">المبلغ الإجمالي</span>
+                    <span class="info-value">{{ order.total_amount }} {{ currency|default:"ج.م" }}</span>
+                </div>
+
+                {% if order.payment_status == 'paid' %}
+                <div class="info-row">
+                    <span class="info-label">حالة الدفع</span>
+                    <span class="info-value" style="color: #4caf50;">مدفوع ✓</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Tracking Info (for shipped status) -->
+            {% if order.status == 'shipped' and order.tracking_number %}
+            <div class="tracking-info">
+                <h3>🚚 معلومات الشحن</h3>
+                <p><strong>رقم التتبع:</strong> {{ order.tracking_number }}</p>
+                {% if order.shipping_carrier %}
+                <p><strong>شركة الشحن:</strong> {{ order.shipping_carrier }}</p>
+                {% endif %}
+                <p><strong>العنوان:</strong> {{ order.address }}, {{ order.city }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Delivery Note -->
+            {% if order.status == 'delivered' %}
+            <div class="note-box">
+                <p><strong>💡 تقييمك يهمنا!</strong></p>
+                <p>نأمل أن تشاركنا تجربتك مع المنتجات. تقييمك يساعد البائعين ويساعد المشترين الآخرين في اتخاذ قراراتهم.</p>
+            </div>
+            {% endif %}
+
+            <!-- Refund Note -->
+            {% if order.status == 'refunded' %}
+            <div class="note-box">
+                <p><strong>💰 معلومات الاسترداد</strong></p>
+                <p>سيتم إرجاع المبلغ <strong>{{ order.total_amount }} {{ currency|default:"ج.م" }}</strong> إلى نفس طريقة الدفع المستخدمة.</p>
+                <p>قد يستغرق ظهور المبلغ في حسابك من 5 إلى 7 أيام عمل حسب البنك الخاص بك.</p>
+            </div>
+            {% endif %}
+
+            <div class="divider"></div>
+
+            <!-- CTA Button -->
+            <div style="text-align: center;">
+                <a href="{{ site_url }}/orders/{{ order.id }}/" class="cta-button">
+                    عرض تفاصيل الطلب
+                </a>
+            </div>
+
+            <p class="message" style="margin-top: 25px; font-size: 14px; color: #666; text-align: center;">
+                إذا كان لديك أي استفسار، يمكنك <a href="{{ site_url }}/contact/" style="color: #4b315e; font-weight: 600;">التواصل معنا</a> في أي وقت.
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>{{ site_name|default:"إدريسي مارت" }}</strong></p>
+            <p>منصة التجارة الإلكترونية الرائدة</p>
+            <p style="margin-top: 15px;">
+                <a href="{{ site_url }}">زيارة الموقع</a> |
+                <a href="{{ site_url }}/orders/">طلباتي</a> |
+                <a href="{{ site_url }}/help/">المساعدة</a>
+            </p>
+            <p style="margin-top: 15px; font-size: 12px; color: #999999;">
+                هذا البريد الإلكتروني تم إرساله تلقائياً، يرجى عدم الرد عليه مباشرة.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

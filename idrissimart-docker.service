@@ -1,0 +1,74 @@
+# =============================================================================
+# Systemd Service for Docker Compose - Idrissimart
+# This service starts Docker containers on system boot
+# =============================================================================
+
+[Unit]
+Description=Idrissimart Docker Compose Application
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/WORK/idrissimart
+Environment="COMPOSE_FILE=docker compose.prod.yml"
+
+# Start all containers
+ExecStart=/usr/bin/docker compose -f ${COMPOSE_FILE} up -d
+
+# Stop all containers
+ExecStop=/usr/bin/docker compose -f ${COMPOSE_FILE} down
+
+# Restart policy
+Restart=on-failure
+RestartSec=10s
+
+# User and group
+User=root
+Group=root
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=idrissimart-docker
+
+[Install]
+WantedBy=multi-user.target
+
+# =============================================================================
+# Installation Instructions
+# =============================================================================
+#
+# 1. Copy this file to systemd directory:
+#    sudo cp idrissimart-docker.service /etc/systemd/system/
+#
+# 2. Reload systemd:
+#    sudo systemctl daemon-reload
+#
+# 3. Enable service to start on boot:
+#    sudo systemctl enable idrissimart-docker.service
+#
+# 4. Start the service:
+#    sudo systemctl start idrissimart-docker.service
+#
+# 5. Check status:
+#    sudo systemctl status idrissimart-docker.service
+#
+# 6. View logs:
+#    sudo journalctl -u idrissimart-docker.service -f
+#
+# =============================================================================
+# Commands
+# =============================================================================
+#
+# Start:    sudo systemctl start idrissimart-docker
+# Stop:     sudo systemctl stop idrissimart-docker
+# Restart:  sudo systemctl restart idrissimart-docker
+# Status:   sudo systemctl status idrissimart-docker
+# Logs:     sudo journalctl -u idrissimart-docker -f
+# Enable:   sudo systemctl enable idrissimart-docker
+# Disable:  sudo systemctl disable idrissimart-docker
+#
+# =============================================================================

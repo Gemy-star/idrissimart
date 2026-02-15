@@ -42,3 +42,26 @@ DATABASES = {
         "NAME": BASE_DIR / "db.sqlite3",
     }
 }
+
+# =======================
+# Email Configuration - SMTP4Dev (Local Development)
+# =======================
+# Using smtp4dev for local email testing
+# All emails are captured and displayed in web UI at http://localhost:3100
+# No real emails are sent - perfect for development and testing
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp4dev"  # Docker container name
+EMAIL_PORT = 25  # Internal container port
+EMAIL_HOST_USER = ""  # No authentication needed
+EMAIL_HOST_PASSWORD = ""  # No authentication needed
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = False
+DEFAULT_FROM_EMAIL = "noreply@idrissimart.local"
+SERVER_EMAIL = "server@idrissimart.local"
+
+# For local development without Docker, use:
+# EMAIL_HOST = "localhost"
+# EMAIL_PORT = 2525  # Host port mapping
+
+# To view sent emails, open: http://localhost:3100
