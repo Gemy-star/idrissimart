@@ -2360,7 +2360,27 @@
             // ========== Phone Number Formatting ==========
             function formatPhoneNumber(value) {
                 // Remove all non-digit characters
-                const cleaned = value.replace(/\D/g, '');
+                let cleaned = value.replace(/\D/g, '');
+
+                // Strip common country codes if present
+                // Saudi Arabia: +966 (3 digits)
+                // Egypt: +20 (2 digits)
+                // UAE: +971 (3 digits)
+                // Kuwait: +965 (3 digits)
+                if (cleaned.startsWith('966')) {
+                    cleaned = cleaned.substring(3); // Remove Saudi code
+                } else if (cleaned.startsWith('20')) {
+                    cleaned = cleaned.substring(2); // Remove Egypt code
+                } else if (cleaned.startsWith('971')) {
+                    cleaned = cleaned.substring(3); // Remove UAE code
+                } else if (cleaned.startsWith('965')) {
+                    cleaned = cleaned.substring(3); // Remove Kuwait code
+                }
+
+                // Remove leading zero if present
+                if (cleaned.startsWith('0')) {
+                    cleaned = cleaned.substring(1);
+                }
 
                 // Format based on length
                 // Saudi format: 50 123 4567 (9 digits)
@@ -2372,7 +2392,7 @@
                 } else if (cleaned.length <= 9) {
                     return cleaned.slice(0, 2) + ' ' + cleaned.slice(2, 5) + ' ' + cleaned.slice(5);
                 } else {
-                    // For longer numbers (like Egyptian)
+                    // For longer numbers (like Egyptian: 10 digits)
                     return cleaned.slice(0, 2) + ' ' + cleaned.slice(2, 6) + ' ' + cleaned.slice(6, 10);
                 }
             }
