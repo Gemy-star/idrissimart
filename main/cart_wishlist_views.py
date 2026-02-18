@@ -243,6 +243,8 @@ def get_cart_count_view(request):
 @login_required
 def cart_view(request):
     """Display cart page - only for authenticated users"""
+    from constance import config
+
     # Authenticated user - use database cart
     cart = get_or_create_cart(request.user)
     cart_items = (
@@ -253,10 +255,31 @@ def cart_view(request):
     total_amount = cart.get_total_amount()
     is_guest = False
 
+    # Calculate delivery fee from constance settings
+    delivery_fee_percentage = Decimal(str(config.DELIVERY_FEE_PERCENTAGE)) / 100
+    delivery_fee = total_amount * delivery_fee_percentage
+    delivery_fee_min = Decimal(str(config.DELIVERY_FEE_MIN))
+    delivery_fee_max = Decimal(str(config.DELIVERY_FEE_MAX))
+    if delivery_fee < delivery_fee_min:
+        delivery_fee = delivery_fee_min
+    elif delivery_fee > delivery_fee_max:
+        delivery_fee = delivery_fee_max
+
+    # Calculate tax from constance settings
+    tax_rate = Decimal(str(getattr(config, "TAX_RATE", 0))) / 100
+    tax_amount = total_amount * tax_rate
+
+    final_total = total_amount + delivery_fee + tax_amount
+
     context = {
         "cart": cart,
         "cart_items": cart_items,
         "total_amount": total_amount,
+        "delivery_fee": delivery_fee,
+        "delivery_fee_percentage": config.DELIVERY_FEE_PERCENTAGE,
+        "tax_amount": tax_amount,
+        "tax_rate": config.TAX_RATE if hasattr(config, "TAX_RATE") else 0,
+        "final_total": final_total,
         "is_guest": is_guest,
     }
 

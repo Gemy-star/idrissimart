@@ -305,30 +305,6 @@
         font-size: 1.45rem; font-weight: 800; color: var(--brand);
     }
 
-    /* promo code */
-    .promo-wrap {
-        display: flex; gap: .5rem; margin: 1.1rem 0;
-    }
-    .promo-input {
-        flex: 1;
-        border: 1.5px solid var(--border);
-        border-radius: var(--radius-sm);
-        padding: .55rem .9rem;
-        font-size: .88rem;
-        outline: none;
-        transition: border-color .2s;
-        direction: ltr;
-    }
-    .promo-input:focus { border-color: var(--brand); }
-    .promo-apply {
-        background: var(--brand-light); color: var(--brand);
-        border: none; border-radius: var(--radius-sm);
-        padding: .55rem 1rem; font-size: .85rem; font-weight: 700;
-        cursor: pointer; white-space: nowrap;
-        transition: background .2s;
-    }
-    .promo-apply:hover { background: var(--brand); color: #fff; }
-
     /* checkout button */
     .checkout-btn {
         width: 100%;
@@ -571,24 +547,28 @@
                         <span class="val" id="summary-subtotal">{{ total_amount|floatformat:"-2" }} {{ selected_currency }}</span>
                     </div>
                     <div class="summary-row">
-                        <span class="label"><i class="fas fa-truck"></i>{% trans "التوصيل" %}</span>
-                        <span class="val" style="color:var(--success)">{% trans "مجاني" %}</span>
+                        <span class="label"><i class="fas fa-truck"></i>{% trans "التوصيل" %}
+                            {% if delivery_fee_percentage %}<small class="text-muted">({{ delivery_fee_percentage }}%)</small>{% endif %}
+                        </span>
+                        {% if delivery_fee and delivery_fee > 0 %}
+                            <span class="val" id="summary-delivery">{{ delivery_fee|floatformat:"-2" }} {{ selected_currency }}</span>
+                        {% else %}
+                            <span class="val" id="summary-delivery" style="color:var(--success)">{% trans "مجاني" %}</span>
+                        {% endif %}
                     </div>
+                    {% if tax_rate and tax_rate > 0 %}
                     <div class="summary-row">
-                        <span class="label"><i class="fas fa-percent"></i>{% trans "الضريبة" %}</span>
-                        <span class="val">0 {{ selected_currency }}</span>
+                        <span class="label"><i class="fas fa-percent"></i>{% trans "الضريبة" %}
+                            <small class="text-muted">({{ tax_rate }}%)</small>
+                        </span>
+                        <span class="val" id="summary-tax">{{ tax_amount|floatformat:"-2" }} {{ selected_currency }}</span>
                     </div>
-
-                    <!-- Promo -->
-                    <div class="promo-wrap">
-                        <input type="text" class="promo-input" placeholder="{% trans 'كود الخصم' %}">
-                        <button class="promo-apply">{% trans "تطبيق" %}</button>
-                    </div>
+                    {% endif %}
 
                     <!-- Total -->
                     <div class="summary-total">
                         <span class="label">{% trans "الإجمالي" %}</span>
-                        <span class="val" id="summary-total">{{ total_amount|floatformat:"-2" }} {{ selected_currency }}</span>
+                        <span class="val" id="summary-total">{{ final_total|floatformat:"-2" }} {{ selected_currency }}</span>
                     </div>
 
                     <!-- CTA -->
@@ -650,15 +630,17 @@
 
 </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
 <script>
-const CURRENCY = '{{ selected_currency }}';
-const CSRF     = '{{ csrf_token }}';
+const CURRENCY             = '{{ selected_currency }}';
+const CSRF                 = '{{ csrf_token }}';
+const DELIVERY_FEE_PCT     = {{ delivery_fee_percentage|default:0 }} / 100;
+const DELIVERY_FEE_MIN     = {{ delivery_fee|default:0 }};   // server-computed value as floor reference
+const TAX_RATE             = {{ tax_rate|default:0 }} / 100;
+
 const itemPrices = {
     {% for item in cart_items %}
-    {{ item.ad.id }}: {{ item.ad.price }},
+    {{ item.ad.id }}: {{ item.ad.price|default:0 }},
     {% endfor %}
 };
 const itemQtys = {
@@ -677,10 +659,27 @@ function recalcSummary() {
     for (const [id, qty] of Object.entries(itemQtys)) {
         sub += (itemPrices[id] || 0) * qty;
     }
-    const el1 = document.getElementById('summary-subtotal');
-    const el2 = document.getElementById('summary-total');
-    if (el1) el1.textContent = fmt(sub);
-    if (el2) el2.textContent = fmt(sub);
+    const delivery = sub > 0 ? Math.max(sub * DELIVERY_FEE_PCT, DELIVERY_FEE_MIN) : 0;
+    const tax      = sub * TAX_RATE;
+    const total    = sub + delivery + tax;
+
+    const elSub = document.getElementById('summary-subtotal');
+    const elDel = document.getElementById('summary-delivery');
+    const elTax = document.getElementById('summary-tax');
+    const elTot = document.getElementById('summary-total');
+
+    if (elSub) elSub.textContent = fmt(sub);
+    if (elDel) {
+        if (delivery > 0) {
+            elDel.textContent = fmt(delivery);
+            elDel.style.color = '';
+        } else {
+            elDel.textContent = '{% trans "مجاني" %}';
+            elDel.style.color = 'var(--success)';
+        }
+    }
+    if (elTax) elTax.textContent = fmt(tax);
+    if (elTot) elTot.textContent = fmt(total);
 }
 
 /* ── qty update ── */
@@ -725,9 +724,14 @@ async function removeItem(adId) {
     });
     if (!ok) return;
 
-    if (typeof window.removeFromCart === 'function') {
-        const result = await window.removeFromCart(adId);
-        if (result && result.success) {
+    try {
+        const resp = await fetch('{% url "main:cart_remove" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ ad_id: adId })
+        });
+        const data = await resp.json();
+        if (data.success) {
             const card = document.getElementById(`cart-card-${adId}`);
             if (card) {
                 card.style.transition = 'opacity .3s, transform .3s';
@@ -746,7 +750,11 @@ async function removeItem(adId) {
                     }
                 }, 300);
             }
+        } else {
+            showToast(data.message || '{% trans "حدث خطأ" %}', 'danger');
         }
+    } catch (e) {
+        showToast('{% trans "خطأ في الاتصال" %}', 'danger');
     }
 }
 
@@ -803,3 +811,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 {% endblock %}
+
