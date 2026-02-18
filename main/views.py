@@ -3501,11 +3501,9 @@ class AdminCustomFieldsView(SuperadminRequiredMixin, ListView):
         # Add field type choices for the modal
         context["field_type_choices"] = CustomField.FieldType.choices
 
-        # Get all categories hierarchically (main -> sub -> sub-sub)
-        context["all_categories"] = (
-            Category.objects.filter(parent__isnull=True)
-            .prefetch_related("subcategories__subcategories")
-            .order_by("order", "name_ar")
+        # Get all categories (flat list; JS builds the hierarchy client-side)
+        context["all_categories"] = Category.objects.all().order_by(
+            "tree_id", "lft"
         )
 
         # Get all fields with their category relationships
@@ -3652,7 +3650,7 @@ class AdminCustomFieldSaveView(SuperadminRequiredMixin, View):
                             show_in_filters = data.get("show_in_filters") == "on"
 
                         # Create or update CategoryCustomField relationship
-                        _, created = CategoryCustomField.objects.update_or_create(
+                        _obj, created = CategoryCustomField.objects.update_or_create(
                             category=category,
                             custom_field=field,
                             defaults={

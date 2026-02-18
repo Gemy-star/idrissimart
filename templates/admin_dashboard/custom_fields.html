@@ -1048,17 +1048,23 @@
 
 {% block admin_extra_js %}
 <script>
-// Categories hierarchy
+// Categories hierarchy (flat list; children arrays built client-side)
 const CATEGORIES_HIERARCHY = {
     {% for category in all_categories %}
     {{ category.id }}: {
         id: {{ category.id }},
         name: "{{ category.name_ar|default:category.name|escapejs }}",
-        parent: {{ category.parent.id|default:'null' }},
-        children: [{% for sub in category.get_children %}{{ sub.id }}{% if not forloop.last %},{% endif %}{% endfor %}]
+        parent: {{ category.parent_id|default:'null' }},
+        children: []
     }{% if not forloop.last %},{% endif %}
     {% endfor %}
 };
+// Populate children arrays from parent references
+Object.values(CATEGORIES_HIERARCHY).forEach(cat => {
+    if (cat.parent !== null && CATEGORIES_HIERARCHY[cat.parent]) {
+        CATEGORIES_HIERARCHY[cat.parent].children.push(cat.id);
+    }
+});
 
 // URLs
 const CUSTOM_FIELD_URLS = {
@@ -1082,70 +1088,124 @@ function initializeTooltips() {
     });
 }
 
+// ── Collapsible tree helpers ────────────────────────────────────────────────
+
+/** Toggle a subcategory panel and flip its toggle-button chevron. */
+function toggleSubcategories(containerId, btnEl) {
+    const sub = document.getElementById(containerId);
+    if (!sub) return;
+    const isHidden = sub.style.display === 'none';
+    sub.style.display = isHidden ? 'block' : 'none';
+    const icon = btnEl.querySelector('i');
+    if (icon) icon.className = isHidden ? 'fas fa-chevron-down fa-xs' : 'fas fa-chevron-left fa-xs';
+}
+
+/** When a main-category checkbox is checked, auto-expand its subcategory panel. */
+function expandSubcategoriesOnCheck(checkboxEl, subId) {
+    if (checkboxEl.checked) {
+        const sub = document.getElementById(subId);
+        if (sub && sub.style.display === 'none') {
+            sub.style.display = 'block';
+            const btn = sub.previousElementSibling && sub.previousElementSibling.querySelector('.cat-toggle-btn');
+            if (btn) { const i = btn.querySelector('i'); if (i) i.className = 'fas fa-chevron-down fa-xs'; }
+        }
+    }
+}
+
+/** Build a sub-row (level 2 or 3) element for tree functions. */
+function _buildSubRow(c, prefix, cbClass, checked, extraAttrs) {
+    const hasGc = c.children && c.children.length > 0;
+    const wrap = document.createElement('div');
+    wrap.className = 'mb-1';
+
+    const row = document.createElement('div');
+    row.className = 'd-flex align-items-center gap-2 py-1';
+    row.innerHTML = `
+        <input class="form-check-input ${cbClass} flex-shrink-0" type="checkbox"
+               value="${c.id}" id="${prefix}_cat_${c.id}" ${checked} ${extraAttrs || ''}>
+        <label class="form-check-label flex-grow-1 mb-0" for="${prefix}_cat_${c.id}"
+               style="color:#475569;cursor:pointer;">
+            <i class="fas fa-folder-open text-info me-2"></i>${c.name}
+        </label>
+        ${hasGc ? `<button type="button" class="btn btn-link btn-sm p-0 text-muted cat-toggle-btn"
+                    onclick="toggleSubcategories('${prefix}_subs_${c.id}', this)"
+                    style="line-height:1;" title="">
+            <i class="fas fa-chevron-left fa-xs"></i></button>` : ''}
+    `;
+    wrap.appendChild(row);
+
+    if (hasGc) {
+        const gcBox = document.createElement('div');
+        gcBox.id = `${prefix}_subs_${c.id}`;
+        gcBox.className = 'ms-4 ps-2 border-start border-2 border-info border-opacity-10 mt-1';
+        gcBox.style.display = 'none';
+        c.children.forEach(gcId => {
+            const gc = CATEGORIES_HIERARCHY[gcId];
+            if (!gc) return;
+            const gcRow = document.createElement('div');
+            gcRow.className = 'd-flex align-items-center gap-2 py-1';
+            gcRow.innerHTML = `
+                <input class="form-check-input ${cbClass} flex-shrink-0" type="checkbox"
+                       value="${gc.id}" id="${prefix}_cat_${gc.id}" data-parent="${c.id}" ${extraAttrs || ''}>
+                <label class="form-check-label flex-grow-1 mb-0" for="${prefix}_cat_${gc.id}"
+                       style="color:#64748b;font-size:.9rem;cursor:pointer;">
+                    <i class="fas fa-circle fa-xs text-secondary me-2"></i>${gc.name}
+                </label>
+            `;
+            gcBox.appendChild(gcRow);
+        });
+        wrap.appendChild(gcBox);
+    }
+    return wrap;
+}
+
+// ── Add-field tree ──────────────────────────────────────────────────────────
+
 function buildAddCategoryTree() {
     const container = document.getElementById('addCategoryTree');
     if (!container) return;
-
     container.innerHTML = '';
+
     const mains = Object.values(CATEGORIES_HIERARCHY).filter(c => !c.parent);
-
     mains.forEach(mc => {
+        const hasChildren = mc.children && mc.children.length > 0;
         const wrap = document.createElement('div');
-        wrap.className = 'mb-3';
-        wrap.innerHTML = `
-            <div class="form-check mb-2">
-                <input class="form-check-input add-category-checkbox" type="checkbox" value="${mc.id}" id="add_cat_${mc.id}" data-type="main">
-                <label class="form-check-label fw-semibold" for="add_cat_${mc.id}" style="font-size: 1.05rem; color: #1e293b;">
-                    <i class="fas fa-folder text-primary me-2"></i>
-                    ${mc.name}
-                </label>
-            </div>
-        `;
+        wrap.className = 'mb-1';
 
-        if (mc.children && mc.children.length) {
-            const childBox = document.createElement('div');
-            childBox.className = 'ms-4 ps-3 border-start border-2 border-primary' + (document.querySelector('[data-theme="dark"]') ? ' border-opacity-25' : ' border-opacity-10');
+        const mainRow = document.createElement('div');
+        mainRow.className = 'd-flex align-items-center gap-2 py-1';
+        mainRow.innerHTML = `
+            <input class="form-check-input add-category-checkbox flex-shrink-0" type="checkbox"
+                   value="${mc.id}" id="add_cat_${mc.id}" data-type="main"
+                   onchange="expandSubcategoriesOnCheck(this,'add_subs_${mc.id}')">
+            <label class="form-check-label fw-semibold flex-grow-1 mb-0"
+                   for="add_cat_${mc.id}" style="font-size:1rem;color:#1e293b;cursor:pointer;">
+                <i class="fas fa-folder text-primary me-2"></i>${mc.name}
+            </label>
+            ${hasChildren ? `<button type="button" class="btn btn-link btn-sm p-0 text-muted cat-toggle-btn"
+                    onclick="toggleSubcategories('add_subs_${mc.id}', this)"
+                    style="line-height:1;" title="{% trans 'عرض الأقسام الفرعية' %}">
+                <i class="fas fa-chevron-left fa-xs"></i></button>` : ''}
+        `;
+        wrap.appendChild(mainRow);
+
+        if (hasChildren) {
+            const subBox = document.createElement('div');
+            subBox.id = `add_subs_${mc.id}`;
+            subBox.className = 'ms-4 ps-3 border-start border-2 border-primary border-opacity-10 mt-1';
+            subBox.style.display = 'none';
 
             mc.children.forEach(cid => {
                 const c = CATEGORIES_HIERARCHY[cid];
                 if (!c) return;
-
-                const row = document.createElement('div');
-                row.className = 'form-check mb-2';
-                row.innerHTML = `
-                    <input class="form-check-input add-category-checkbox" type="checkbox" value="${c.id}" id="add_cat_${c.id}" data-parent="${mc.id}">
-                    <label class="form-check-label" for="add_cat_${c.id}" style="color: #475569;">
-                        <i class="fas fa-folder-open text-info me-2"></i>
-                        ${c.name}
-                    </label>
-                `;
-                childBox.appendChild(row);
-
-                // Add grandchildren if any
-                if (c.children && c.children.length) {
-                    c.children.forEach(gcId => {
-                        const gc = CATEGORIES_HIERARCHY[gcId];
-                        if (!gc) return;
-
-                        const gcRow = document.createElement('div');
-                        gcRow.className = 'form-check mb-2 ms-3';
-                        gcRow.innerHTML = `
-                            <input class="form-check-input add-category-checkbox" type="checkbox" value="${gc.id}" id="add_cat_${gc.id}" data-parent="${c.id}">
-                            <label class="form-check-label" for="add_cat_${gc.id}" style="color: #64748b; font-size: 0.95rem;">
-                                <i class="fas fa-level-down-alt text-secondary me-2"></i>
-                                ${gc.name}
-                            </label>
-                        `;
-                        childBox.appendChild(gcRow);
-                    });
-                }
+                const subWrap = _buildSubRow(c, 'add', 'add-category-checkbox', '', `data-parent="${mc.id}"`);
+                subBox.appendChild(subWrap);
             });
-            wrap.appendChild(childBox);
+            wrap.appendChild(subBox);
         }
         container.appendChild(wrap);
     });
 
-    // Add select all / deselect all buttons
     const actionButtons = document.createElement('div');
     actionButtons.className = 'mt-3 pt-3 border-top';
     actionButtons.innerHTML = `
@@ -1160,78 +1220,112 @@ function buildAddCategoryTree() {
 }
 
 function toggleAllCategories(select) {
-    document.querySelectorAll('.add-category-checkbox').forEach(cb => {
-        cb.checked = select;
-    });
+    document.querySelectorAll('.add-category-checkbox').forEach(cb => { cb.checked = select; });
 }
+
+// ── Edit-field tree ─────────────────────────────────────────────────────────
 
 function buildEditCategoryTree(existingCategoryIds = []) {
     const container = document.getElementById('editCategoryTree');
     if (!container) return;
-
     container.innerHTML = '';
-    const mains = Object.values(CATEGORIES_HIERARCHY).filter(c => !c.parent);
 
+    const mains = Object.values(CATEGORIES_HIERARCHY).filter(c => !c.parent);
     mains.forEach(mc => {
         const isLinked = existingCategoryIds.includes(mc.id);
-        const wrap = document.createElement('div');
-        wrap.className = 'mb-3';
-        wrap.innerHTML = `
-            <div class="form-check mb-2">
-                <input class="form-check-input edit-category-checkbox" type="checkbox" value="${mc.id}" id="edit_cat_${mc.id}" ${isLinked ? 'checked' : ''}>
-                <label class="form-check-label fw-semibold" for="edit_cat_${mc.id}" style="font-size: 1.05rem; color: #1e293b;">
-                    <i class="fas fa-folder text-primary me-2"></i>
-                    ${mc.name}
-                </label>
-            </div>
-        `;
+        const hasChildren = mc.children && mc.children.length > 0;
 
-        if (mc.children && mc.children.length) {
-            const childBox = document.createElement('div');
-            childBox.className = 'ms-4 ps-3 border-start border-2 border-primary' + (document.querySelector('[data-theme="dark"]') ? ' border-opacity-25' : ' border-opacity-10');
+        // Auto-expand if any descendant is already linked
+        const hasLinkedDescendant = hasChildren && mc.children.some(cid => {
+            const c = CATEGORIES_HIERARCHY[cid];
+            if (!c) return false;
+            return existingCategoryIds.includes(c.id) ||
+                   (c.children && c.children.some(gcId => existingCategoryIds.includes(gcId)));
+        });
+        const startExpanded = isLinked || hasLinkedDescendant;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'mb-1';
+
+        const mainRow = document.createElement('div');
+        mainRow.className = 'd-flex align-items-center gap-2 py-1';
+        mainRow.innerHTML = `
+            <input class="form-check-input edit-category-checkbox flex-shrink-0" type="checkbox"
+                   value="${mc.id}" id="edit_cat_${mc.id}" ${isLinked ? 'checked' : ''}
+                   onchange="expandSubcategoriesOnCheck(this,'edit_subs_${mc.id}')">
+            <label class="form-check-label fw-semibold flex-grow-1 mb-0"
+                   for="edit_cat_${mc.id}" style="font-size:1rem;color:#1e293b;cursor:pointer;">
+                <i class="fas fa-folder text-primary me-2"></i>${mc.name}
+            </label>
+            ${hasChildren ? `<button type="button" class="btn btn-link btn-sm p-0 text-muted cat-toggle-btn"
+                    onclick="toggleSubcategories('edit_subs_${mc.id}', this)"
+                    style="line-height:1;" title="{% trans 'عرض الأقسام الفرعية' %}">
+                <i class="fas fa-chevron-${startExpanded ? 'down' : 'left'} fa-xs"></i></button>` : ''}
+        `;
+        wrap.appendChild(mainRow);
+
+        if (hasChildren) {
+            const subBox = document.createElement('div');
+            subBox.id = `edit_subs_${mc.id}`;
+            subBox.className = 'ms-4 ps-3 border-start border-2 border-primary border-opacity-10 mt-1';
+            subBox.style.display = startExpanded ? 'block' : 'none';
 
             mc.children.forEach(cid => {
                 const c = CATEGORIES_HIERARCHY[cid];
                 if (!c) return;
-
                 const isChildLinked = existingCategoryIds.includes(c.id);
-                const row = document.createElement('div');
-                row.className = 'form-check mb-2';
-                row.innerHTML = `
-                    <input class="form-check-input edit-category-checkbox" type="checkbox" value="${c.id}" id="edit_cat_${c.id}" ${isChildLinked ? 'checked' : ''}>
-                    <label class="form-check-label" for="edit_cat_${c.id}" style="color: #475569;">
-                        <i class="fas fa-folder-open text-info me-2"></i>
-                        ${c.name}
-                    </label>
-                `;
-                childBox.appendChild(row);
+                const hasLinkedGc = c.children && c.children.some(gcId => existingCategoryIds.includes(gcId));
 
-                // Add grandchildren if any
-                if (c.children && c.children.length) {
+                const subWrap = document.createElement('div');
+                subWrap.className = 'mb-1';
+                const hasGc = c.children && c.children.length > 0;
+                const subRow = document.createElement('div');
+                subRow.className = 'd-flex align-items-center gap-2 py-1';
+                subRow.innerHTML = `
+                    <input class="form-check-input edit-category-checkbox flex-shrink-0" type="checkbox"
+                           value="${c.id}" id="edit_cat_${c.id}" data-parent="${mc.id}" ${isChildLinked ? 'checked' : ''}
+                           onchange="expandSubcategoriesOnCheck(this,'edit_subs_${c.id}')">
+                    <label class="form-check-label flex-grow-1 mb-0" for="edit_cat_${c.id}"
+                           style="color:#475569;cursor:pointer;">
+                        <i class="fas fa-folder-open text-info me-2"></i>${c.name}
+                    </label>
+                    ${hasGc ? `<button type="button" class="btn btn-link btn-sm p-0 text-muted cat-toggle-btn"
+                            onclick="toggleSubcategories('edit_subs_${c.id}', this)"
+                            style="line-height:1;" title="">
+                        <i class="fas fa-chevron-${hasLinkedGc ? 'down' : 'left'} fa-xs"></i></button>` : ''}
+                `;
+                subWrap.appendChild(subRow);
+
+                if (hasGc) {
+                    const gcBox = document.createElement('div');
+                    gcBox.id = `edit_subs_${c.id}`;
+                    gcBox.className = 'ms-4 ps-2 border-start border-2 border-info border-opacity-10 mt-1';
+                    gcBox.style.display = hasLinkedGc ? 'block' : 'none';
                     c.children.forEach(gcId => {
                         const gc = CATEGORIES_HIERARCHY[gcId];
                         if (!gc) return;
-
-                        const isGrandchildLinked = existingCategoryIds.includes(gc.id);
                         const gcRow = document.createElement('div');
-                        gcRow.className = 'form-check mb-2 ms-3';
+                        gcRow.className = 'd-flex align-items-center gap-2 py-1';
                         gcRow.innerHTML = `
-                            <input class="form-check-input edit-category-checkbox" type="checkbox" value="${gc.id}" id="edit_cat_${gc.id}" ${isGrandchildLinked ? 'checked' : ''}>
-                            <label class="form-check-label" for="edit_cat_${gc.id}" style="color: #64748b; font-size: 0.95rem;">
-                                <i class="fas fa-level-down-alt text-secondary me-2"></i>
-                                ${gc.name}
+                            <input class="form-check-input edit-category-checkbox flex-shrink-0" type="checkbox"
+                                   value="${gc.id}" id="edit_cat_${gc.id}" data-parent="${c.id}"
+                                   ${existingCategoryIds.includes(gc.id) ? 'checked' : ''}>
+                            <label class="form-check-label flex-grow-1 mb-0" for="edit_cat_${gc.id}"
+                                   style="color:#64748b;font-size:.9rem;cursor:pointer;">
+                                <i class="fas fa-circle fa-xs text-secondary me-2"></i>${gc.name}
                             </label>
                         `;
-                        childBox.appendChild(gcRow);
+                        gcBox.appendChild(gcRow);
                     });
+                    subWrap.appendChild(gcBox);
                 }
+                subBox.appendChild(subWrap);
             });
-            wrap.appendChild(childBox);
+            wrap.appendChild(subBox);
         }
         container.appendChild(wrap);
     });
 
-    // Add select all / deselect all buttons
     const actionButtons = document.createElement('div');
     actionButtons.className = 'mt-3 pt-3 border-top';
     actionButtons.innerHTML = `
@@ -1246,9 +1340,7 @@ function buildEditCategoryTree(existingCategoryIds = []) {
 }
 
 function toggleEditCategories(select) {
-    document.querySelectorAll('.edit-category-checkbox').forEach(cb => {
-        cb.checked = select;
-    });
+    document.querySelectorAll('.edit-category-checkbox').forEach(cb => { cb.checked = select; });
 }
 
 function setupCategoryHandlers() {
@@ -1330,45 +1422,107 @@ function openAddToCategoriesModal(fieldId) {
         .catch(() => showError('{% trans "حدث خطأ أثناء جلب بيانات الحقل" %}'));
 }
 
+// ── Bulk add-to-categories tree ─────────────────────────────────────────────
+
 function buildCategoryTree(existingIds) {
     const container = document.getElementById('categoryTreeContainer');
+    if (!container) return;
     container.innerHTML = '';
 
     const mains = Object.values(CATEGORIES_HIERARCHY).filter(c => !c.parent);
-
     mains.forEach(mc => {
         const isExisting = existingIds.includes(mc.id);
-        const wrap = document.createElement('div');
-        wrap.className = 'mb-3';
-        wrap.innerHTML = `
-            <div class="form-check">
-                <input class="form-check-input category-checkbox" type="checkbox" value="${mc.id}" id="cat_${mc.id}" ${isExisting ? 'checked disabled' : ''}>
-                <label class="form-check-label fw-semibold" for="cat_${mc.id}">
-                    ${mc.name}
-                    ${isExisting ? '<span class="badge bg-secondary ms-2">موجود</span>' : ''}
-                </label>
-            </div>
-        `;
+        const hasChildren = mc.children && mc.children.length > 0;
+        const hasLinkedDescendant = hasChildren && mc.children.some(cid => {
+            const c = CATEGORIES_HIERARCHY[cid];
+            return c && (existingIds.includes(c.id) || (c.children && c.children.some(gcId => existingIds.includes(gcId))));
+        });
+        const startExpanded = isExisting || hasLinkedDescendant;
 
-        if (mc.children && mc.children.length) {
-            const childBox = document.createElement('div');
-            childBox.className = 'ms-4 mt-2';
+        const wrap = document.createElement('div');
+        wrap.className = 'mb-1';
+
+        const mainRow = document.createElement('div');
+        mainRow.className = 'd-flex align-items-center gap-2 py-1';
+        mainRow.innerHTML = `
+            <input class="form-check-input category-checkbox flex-shrink-0" type="checkbox"
+                   value="${mc.id}" id="bulk_cat_${mc.id}"
+                   ${isExisting ? 'checked disabled' : ''}
+                   ${!isExisting ? `onchange="expandSubcategoriesOnCheck(this,'bulk_subs_${mc.id}')"` : ''}>
+            <label class="form-check-label fw-semibold flex-grow-1 mb-0"
+                   for="bulk_cat_${mc.id}" style="font-size:1rem;cursor:pointer;">
+                <i class="fas fa-folder text-primary me-2"></i>${mc.name}
+                ${isExisting ? '<span class="badge bg-secondary ms-2">{% trans "موجود" %}</span>' : ''}
+            </label>
+            ${hasChildren ? `<button type="button" class="btn btn-link btn-sm p-0 text-muted cat-toggle-btn"
+                    onclick="toggleSubcategories('bulk_subs_${mc.id}', this)"
+                    style="line-height:1;" title="{% trans 'عرض الأقسام الفرعية' %}">
+                <i class="fas fa-chevron-${startExpanded ? 'down' : 'left'} fa-xs"></i></button>` : ''}
+        `;
+        wrap.appendChild(mainRow);
+
+        if (hasChildren) {
+            const subBox = document.createElement('div');
+            subBox.id = `bulk_subs_${mc.id}`;
+            subBox.className = 'ms-4 ps-3 border-start border-2 border-primary border-opacity-10 mt-1';
+            subBox.style.display = startExpanded ? 'block' : 'none';
+
             mc.children.forEach(cid => {
                 const c = CATEGORIES_HIERARCHY[cid];
                 if (!c) return;
                 const isChildExisting = existingIds.includes(c.id);
-                const row = document.createElement('div');
-                row.className = 'form-check';
-                row.innerHTML = `
-                    <input class="form-check-input category-checkbox" type="checkbox" value="${c.id}" id="cat_${c.id}" ${isChildExisting ? 'checked disabled' : ''}>
-                    <label class="form-check-label" for="cat_${c.id}">
-                        ${c.name}
-                        ${isChildExisting ? '<span class="badge bg-secondary ms-2">موجود</span>' : ''}
+                const hasGc = c.children && c.children.length > 0;
+                const hasLinkedGc = hasGc && c.children.some(gcId => existingIds.includes(gcId));
+
+                const subWrap = document.createElement('div');
+                subWrap.className = 'mb-1';
+                const subRow = document.createElement('div');
+                subRow.className = 'd-flex align-items-center gap-2 py-1';
+                subRow.innerHTML = `
+                    <input class="form-check-input category-checkbox flex-shrink-0" type="checkbox"
+                           value="${c.id}" id="bulk_cat_${c.id}" data-parent="${mc.id}"
+                           ${isChildExisting ? 'checked disabled' : ''}
+                           ${!isChildExisting && hasGc ? `onchange="expandSubcategoriesOnCheck(this,'bulk_subs_${c.id}')"` : ''}>
+                    <label class="form-check-label flex-grow-1 mb-0" for="bulk_cat_${c.id}"
+                           style="color:#475569;cursor:pointer;">
+                        <i class="fas fa-folder-open text-info me-2"></i>${c.name}
+                        ${isChildExisting ? '<span class="badge bg-secondary ms-2">{% trans "موجود" %}</span>' : ''}
                     </label>
+                    ${hasGc ? `<button type="button" class="btn btn-link btn-sm p-0 text-muted cat-toggle-btn"
+                            onclick="toggleSubcategories('bulk_subs_${c.id}', this)"
+                            style="line-height:1;" title="">
+                        <i class="fas fa-chevron-${hasLinkedGc ? 'down' : 'left'} fa-xs"></i></button>` : ''}
                 `;
-                childBox.appendChild(row);
+                subWrap.appendChild(subRow);
+
+                if (hasGc) {
+                    const gcBox = document.createElement('div');
+                    gcBox.id = `bulk_subs_${c.id}`;
+                    gcBox.className = 'ms-4 ps-2 border-start border-2 border-info border-opacity-10 mt-1';
+                    gcBox.style.display = hasLinkedGc ? 'block' : 'none';
+                    c.children.forEach(gcId => {
+                        const gc = CATEGORIES_HIERARCHY[gcId];
+                        if (!gc) return;
+                        const isGcExisting = existingIds.includes(gc.id);
+                        const gcRow = document.createElement('div');
+                        gcRow.className = 'd-flex align-items-center gap-2 py-1';
+                        gcRow.innerHTML = `
+                            <input class="form-check-input category-checkbox flex-shrink-0" type="checkbox"
+                                   value="${gc.id}" id="bulk_cat_${gc.id}" data-parent="${c.id}"
+                                   ${isGcExisting ? 'checked disabled' : ''}>
+                            <label class="form-check-label flex-grow-1 mb-0" for="bulk_cat_${gc.id}"
+                                   style="color:#64748b;font-size:.9rem;cursor:pointer;">
+                                <i class="fas fa-circle fa-xs text-secondary me-2"></i>${gc.name}
+                                ${isGcExisting ? '<span class="badge bg-secondary ms-2">{% trans "موجود" %}</span>' : ''}
+                            </label>
+                        `;
+                        gcBox.appendChild(gcRow);
+                    });
+                    subWrap.appendChild(gcBox);
+                }
+                subBox.appendChild(subWrap);
             });
-            wrap.appendChild(childBox);
+            wrap.appendChild(subBox);
         }
         container.appendChild(wrap);
     });

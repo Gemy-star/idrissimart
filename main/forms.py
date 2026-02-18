@@ -102,8 +102,14 @@ class ClassifiedAdForm(forms.ModelForm):
         widget=forms.TextInput(
             attrs={
                 "class": "form-control",
-                "placeholder": _("مثال: 501234567"),
+                "placeholder": _("مثال: 50 123 4567"),
                 "id": "mobile_number",
+                "type": "tel",
+                "pattern": "[0-9\\s]+",
+                "inputmode": "numeric",
+                "data-phone-format": "true",
+                "maxlength": "15",
+                "dir": "ltr",
             }
         ),
     )
@@ -131,7 +137,12 @@ class ClassifiedAdForm(forms.ModelForm):
                 config_name="public_ad",
                 attrs={"class": "django-ckeditor-5"}
             ),
-            "price": forms.NumberInput(attrs={"class": "form-control"}),
+            "price": forms.NumberInput(attrs={
+                "class": "form-control",
+                "step": "0.01",
+                "min": "0",
+                "placeholder": _("أدخل السعر")
+            }),
             "city": forms.Select(attrs={"class": "form-select", "id": "id_city"}),
             "address": forms.TextInput(attrs={"class": "form-control"}),
             "video_url": forms.URLInput(
@@ -420,7 +431,7 @@ class ClassifiedAdForm(forms.ModelForm):
                 # Convert date objects to strings for JSON serialization
                 if hasattr(value, "isoformat"):
                     value = value.isoformat()
-                
+
                 # Convert Decimal to float for JSON serialization
                 if isinstance(value, Decimal):
                     value = float(value)
@@ -504,14 +515,14 @@ class ClassifiedAdForm(forms.ModelForm):
             # Check length and prefix
             prefix = rule["prefix"]
             expected_length = rule["length"]
-            
+
             # Validate
             valid = False
             if len(mobile_number) == expected_length:
                 # Check if starts with valid prefix
                 if any(mobile_number.startswith(p) for p in prefix):
                     valid = True
-            
+
             if not valid:
                 raise forms.ValidationError(
                     f"{rule['error']}. مثال: {rule.get('example', '')}"
@@ -537,7 +548,7 @@ class ClassifiedAdForm(forms.ModelForm):
                 from content.site_config import SiteConfiguration
 
                 site_config = SiteConfiguration.get_solo()
-                
+
                 # Only check verification if it's enabled in settings
                 if site_config.require_phone_verification:
                     # Check if user's mobile is verified
@@ -545,7 +556,7 @@ class ClassifiedAdForm(forms.ModelForm):
                         raise forms.ValidationError({
                             'mobile_number': _("يجب التحقق من رقم الجوال قبل نشر الإعلان")
                         })
-                    
+
                     # Also check if the mobile number matches the verified one
                     if self.user.mobile and str(self.user.mobile).replace(' ', '') != mobile_number.replace(' ', ''):
                         raise forms.ValidationError({

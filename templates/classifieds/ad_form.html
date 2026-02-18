@@ -850,6 +850,36 @@
             width: 100%;
         }
     }
+
+    /* Phone Number Field Styling */
+    #mobile_number {
+        direction: ltr !important;
+        text-align: left !important;
+        font-family: 'Courier New', monospace;
+        font-size: 1rem;
+        letter-spacing: 0.05em;
+        font-weight: 500;
+    }
+
+    #ad-phone-code-display {
+        font-weight: 600;
+        background-color: #f8f9fa;
+        color: #495057;
+        min-width: 65px;
+        justify-content: center;
+    }
+
+    [data-theme='dark'] #ad-phone-code-display {
+        background-color: #374151;
+        color: #e5e7eb;
+        border-color: #4b5563;
+    }
+
+    [data-theme='dark'] #mobile_number {
+        background-color: #1f2937;
+        color: #f3f4f6;
+        border-color: #4b5563;
+    }
 </style>
 {% endblock extra_css %}
 
@@ -1131,7 +1161,7 @@
                                             {% if form.mobile_number.field.required %}<span class="text-danger">*</span>{% endif %}
                                         </label>
                                         <div class="input-group {% if form.mobile_number.errors %}is-invalid{% endif %}">
-                                            <span class="input-group-text" id="ad-phone-code-display">{{ form.country.initial.phone_code|default:"+966" }}</span>
+                                            <span class="input-group-text" id="ad-phone-code-display" style="font-weight: 600; background-color: #f8f9fa;">{{ form.country.initial.phone_code|default:"+966" }}</span>
                                             {{ form.mobile_number }}
                                         </div>
                                         {% if form.mobile_number.errors %}
@@ -1141,12 +1171,12 @@
                                         {% endif %}
                                         <small class="form-text text-muted d-block mt-1">
                                             <i class="fas fa-info-circle me-1"></i>
-                                            {% trans "أدخل رقم الجوال بدون الصفر أو كود الدولة" %}
+                                            {% trans "أدخل رقم الجوال بدون الصفر أو كود الدولة (مثال: 50 123 4567)" %}
                                         </small>
                                         <div class="alert alert-info mt-2 py-2 px-3" id="ad-phone-format-help" style="font-size: 0.875rem;">
                                             <i class="fas fa-info-circle me-1"></i>
                                             <strong>{% trans "الصيغة الصحيحة:" %}</strong>
-                                            <span id="ad-phone-format-example">+966 5XXXXXXXX (9 أرقام)</span>
+                                            <span id="ad-phone-format-example">+966 50 123 4567 (9 أرقام)</span>
                                         </div>
 
                                         <!-- Mobile Verification UI -->
@@ -1726,10 +1756,10 @@
 
             // Check if there are form errors and navigate to the step with errors
             const hasFormErrors = {% if form.errors %}true{% else %}false{% endif %};
-            
+
             // Start from step 1 always (category + details combined)
             let currentStep = 1;
-            
+
             // If there are errors, find the first step with errors
             if (hasFormErrors) {
                 const errorFields = document.querySelectorAll('.is-invalid, .invalid-feedback');
@@ -1743,7 +1773,7 @@
                         }
                     });
                 }
-                
+
                 // Scroll to error message
                 setTimeout(() => {
                     const errorAlert = document.querySelector('.alert-danger');
@@ -2310,6 +2340,49 @@
             const verificationCodeInput = document.getElementById('verification_code');
             const verificationSuccess = document.getElementById('verification-success');
 
+            // ========== Phone Number Formatting ==========
+            function formatPhoneNumber(value) {
+                // Remove all non-digit characters
+                const cleaned = value.replace(/\D/g, '');
+
+                // Format based on length
+                // Saudi format: 50 123 4567 (9 digits)
+                // Egyptian format: 10 1234 5678 (10 digits)
+                if (cleaned.length <= 2) {
+                    return cleaned;
+                } else if (cleaned.length <= 5) {
+                    return cleaned.slice(0, 2) + ' ' + cleaned.slice(2);
+                } else if (cleaned.length <= 9) {
+                    return cleaned.slice(0, 2) + ' ' + cleaned.slice(2, 5) + ' ' + cleaned.slice(5);
+                } else {
+                    // For longer numbers (like Egyptian)
+                    return cleaned.slice(0, 2) + ' ' + cleaned.slice(2, 6) + ' ' + cleaned.slice(6, 10);
+                }
+            }
+
+            // Apply formatting on input
+            if (mobileInput) {
+                mobileInput.addEventListener('input', function(e) {
+                    const cursorPosition = this.selectionStart;
+                    const oldValue = this.value;
+                    const formattedValue = formatPhoneNumber(this.value);
+
+                    this.value = formattedValue;
+
+                    // Restore cursor position (adjust for added spaces)
+                    if (formattedValue.length > oldValue.length) {
+                        this.setSelectionRange(cursorPosition + 1, cursorPosition + 1);
+                    } else {
+                        this.setSelectionRange(cursorPosition, cursorPosition);
+                    }
+                });
+
+                // Format on page load if there's a value
+                if (mobileInput.value) {
+                    mobileInput.value = formatPhoneNumber(mobileInput.value);
+                }
+            }
+
             // Check if user's mobile is already verified
             const userMobile = '{{ request.user.mobile|default:"" }}';
             const isMobileVerified = {% if request.user.is_authenticated and request.user.is_mobile_verified %}true{% else %}false{% endif %};
@@ -2623,20 +2696,20 @@
             featureCheckboxes.forEach(checkbox => {
                 checkbox.addEventListener('change', function() {
                     console.log('Feature checkbox changed:', this.id, 'Checked:', this.checked);
-                    
+
                     const card = this.closest('.feature-card');
                     if (this.checked) {
                         card.classList.add('selected');
                     } else {
                         card.classList.remove('selected');
                     }
-                    
+
                     // Handle video feature toggle
                     if (this.id === 'feature_add_video') {
                         console.log('Video feature toggled. Checked:', this.checked);
                         const videoSection = document.getElementById('video-upload-section');
                         console.log('Video section element:', videoSection);
-                        
+
                         if (videoSection) {
                             if (this.checked) {
                                 console.log('Showing video section');
@@ -2658,11 +2731,11 @@
                             console.error('Video section not found!');
                         }
                     }
-                    
+
                     calculateTotalCost();
                 });
             });
-            
+
             // Log initialization
             console.log('Feature checkboxes initialized:', featureCheckboxes.length);
             console.log('Video section exists:', document.getElementById('video-upload-section') !== null);
@@ -2848,7 +2921,7 @@
                     // Update phone placeholder and format help based on country
                     const mobileInput = document.getElementById('mobile_number');
                     const formatHelp = document.getElementById('ad-phone-format-example');
-                    
+
                     if (mobileInput && countryCode) {
                         const placeholders = {
                             'SA': '501234567',
@@ -2933,7 +3006,7 @@
                     const phoneCodeDisplay = document.getElementById('ad-phone-code-display');
                     const formatHelp = document.getElementById('ad-phone-format-example');
                     const mobileInput = document.getElementById('mobile_number');
-                    
+
                     // Find default country (first in the list)
                     const firstOption = countrySelect.options[0];
                     if (firstOption && firstOption.value) {
@@ -2947,14 +3020,14 @@
                             '{{ country.id }}': '{{ country.phone_code }}',
                             {% endfor %}
                         };
-                        
+
                         const defaultCountryCode = countryData[firstOption.value];
                         const defaultPhoneCode = phoneCodeData[firstOption.value];
-                        
+
                         if (phoneCodeDisplay && defaultPhoneCode) {
                             phoneCodeDisplay.textContent = defaultPhoneCode;
                         }
-                        
+
                         if (mobileInput && defaultCountryCode) {
                             const placeholders = {
                                 'SA': '501234567',
@@ -2968,7 +3041,7 @@
                             };
                             mobileInput.placeholder = placeholders[defaultCountryCode] || '501234567';
                         }
-                        
+
                         if (formatHelp && defaultPhoneCode && defaultCountryCode) {
                             const phoneFormats = {
                                 'SA': defaultPhoneCode + ' 5XXXXXXXX (9 أرقام)',
