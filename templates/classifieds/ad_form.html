@@ -2579,17 +2579,20 @@
             // Get user's free ads count
             const freeAdsCount = parseInt('{{ request.session.ads_remaining|default:"0" }}') || 0;
 
-            console.log('Site Default Base Fee:', siteDefaultBaseFee, 'Free Ads Count:', freeAdsCount);
+            console.log('💵 Site Default Base Fee:', siteDefaultBaseFee, '| 🎁 Free Ads Count:', freeAdsCount);
 
             // Function to get current category price
             function getCurrentCategoryPrice() {
                 const categoryId = hiddenCategoryInput.value;
-                if (!categoryId) return siteDefaultBaseFee;
+                if (!categoryId) {
+                    console.log('⚠️ No category selected, using site default:', siteDefaultBaseFee);
+                    return siteDefaultBaseFee;
+                }
 
                 const categoryData = categoriesPricing[categoryId];
                 const categoryPrice = categoryData ? categoryData.ad_creation_price : siteDefaultBaseFee;
 
-                console.log('Category', categoryId, 'price:', categoryPrice);
+                console.log('🏷️ Category', categoryId, 'price:', categoryPrice, '| Data:', categoryData);
                 return categoryPrice;
             }
 
@@ -2622,16 +2625,27 @@
                     if (freeAdsCountDisplay) {
                         freeAdsCountDisplay.textContent = freeAdsCount;
                     }
-                    console.log('Using free ad (overriding category price of', categoryBaseFee, ')');
+                    console.log('✅ Using free ad (overriding category price of', categoryBaseFee, ')');
                 } else {
                     if (freeAdsDiscountRow) {
                         freeAdsDiscountRow.style.display = 'none';
                     }
-                    console.log('Using category price:', categoryBaseFee);
+                    console.log('💰 Using category price:', categoryBaseFee);
                 }
 
                 const totalCost = adBaseFee + featuresCost;
                 currentTotalCost = totalCost; // Store for later use
+
+                // Enhanced debugging
+                console.log('📊 Price Calculation:', {
+                    categoryId: hiddenCategoryInput.value,
+                    categoryBaseFee: categoryBaseFee,
+                    freeAdsCount: freeAdsCount,
+                    adBaseFee: adBaseFee,
+                    featuresCost: featuresCost,
+                    totalCost: totalCost,
+                    selectedFeatures: selectedFeatures
+                });
 
                 // Update final summary display directly
                 const finalBaseFeeEl = document.getElementById('final-base-fee');
@@ -2749,6 +2763,11 @@
                     }
 
                     calculateTotalCost();
+
+                    // Update review step if we're on step 4
+                    if (currentStep === 4) {
+                        populateReviewStep();
+                    }
                 });
             });
 
@@ -3224,39 +3243,59 @@
                 }
                 document.getElementById('review-location').textContent = locationText || '-';
 
-                // Get selected features
+                // Get selected features with prices
                 const featuresDiv = document.getElementById('review-features');
                 const selectedFeatures = [];
+                let totalFeaturesCost = 0;
 
-                if (document.getElementById('feature_highlighted')?.checked) {
-                    selectedFeatures.push('<span class="badge bg-warning text-dark me-2 mb-1"><i class="fas fa-certificate me-1"></i>إعلان مميز</span>');
+                const highlightedCheckbox = document.getElementById('feature_highlighted');
+                if (highlightedCheckbox?.checked) {
+                    const highlightedCard = highlightedCheckbox.closest('.feature-card');
+                    const highlightedPrice = highlightedCard ? parseFloat(highlightedCard.dataset.price) : 0;
+                    selectedFeatures.push(`<span class="badge bg-warning text-dark me-2 mb-1"><i class="fas fa-certificate me-1"></i>إعلان مميز (${highlightedPrice.toFixed(2)} ج.م)</span>`);
+                    totalFeaturesCost += highlightedPrice;
                 }
-                if (document.getElementById('feature_pinned')?.checked) {
-                    selectedFeatures.push('<span class="badge bg-success me-2 mb-1"><i class="fas fa-thumbtack me-1"></i>إعلان مثبت</span>');
+
+                const pinnedCheckbox = document.getElementById('feature_pinned');
+                if (pinnedCheckbox?.checked) {
+                    const pinnedCard = pinnedCheckbox.closest('.feature-card');
+                    const pinnedPrice = pinnedCard ? parseFloat(pinnedCard.dataset.price) : 0;
+                    selectedFeatures.push(`<span class="badge bg-success me-2 mb-1"><i class="fas fa-thumbtack me-1"></i>إعلان مثبت (${pinnedPrice.toFixed(2)} ج.م)</span>`);
+                    totalFeaturesCost += pinnedPrice;
                 }
+
                 if (document.getElementById('feature_auto_refresh')?.checked) {
                     selectedFeatures.push('<span class="badge bg-info me-2 mb-1"><i class="fas fa-sync-alt me-1"></i>تحديث تلقائي يومي</span>');
                 }
+
                 if (document.getElementById('publisher_cart_enabled')?.checked) {
                     selectedFeatures.push('<span class="badge bg-info me-2 mb-1"><i class="fas fa-shopping-cart me-1"></i>تفعيل السلة</span>');
                 }
 
-                featuresDiv.innerHTML = selectedFeatures.length > 0 ? selectedFeatures.join('') : '<span class="text-muted">لا توجد ميزات إضافية</span>';
-
-                // Update payment summary - calculate values directly
-                let featuresCost = 0;
-                featureCheckboxes.forEach(checkbox => {
-                    if (checkbox.checked) {
-                        const card = checkbox.closest('.feature-card');
-                        const price = parseFloat(card.dataset.price);
-                        featuresCost += price;
+                // Show features with total cost if any features selected
+                if (selectedFeatures.length > 0) {
+                    let featuresHtml = selectedFeatures.join('');
+                    if (totalFeaturesCost > 0) {
+                        featuresHtml += `<div class="mt-2 text-primary fw-bold"><i class="fas fa-tag me-1"></i>تكلفة الميزات: ${totalFeaturesCost.toFixed(2)} ج.م</div>`;
                     }
-                });
+                    featuresDiv.innerHTML = featuresHtml;
+                } else {
+                    featuresDiv.innerHTML = '<span class="text-muted">لا توجد ميزات إضافية</span>';
+                }
 
+                // Update payment summary - already calculated totalFeaturesCost above
                 // Get base fee for selected category
                 const categoryBaseFee = getCurrentCategoryPrice();
                 const adBaseFee = freeAdsCount > 0 ? 0 : categoryBaseFee;
-                const totalCost = adBaseFee + featuresCost;
+                const totalCost = adBaseFee + totalFeaturesCost;
+
+                // Add category price info to review section if user has no free ads
+                if (freeAdsCount === 0 && categoryBaseFee > 0) {
+                    const reviewPriceEl = document.getElementById('review-price');
+                    if (reviewPriceEl && priceText) {
+                        reviewPriceEl.innerHTML = priceText + `<div class="mt-1 text-info small"><i class="fas fa-info-circle me-1"></i>رسوم النشر: ${categoryBaseFee.toFixed(2)} ج.م</div>`;
+                    }
+                }
 
                 // Update display elements
                 const finalBaseFeeEl = document.getElementById('final-base-fee');
@@ -3265,11 +3304,11 @@
                 const featuresRow = document.getElementById('final-features-row');
 
                 if (finalBaseFeeEl) finalBaseFeeEl.textContent = `${adBaseFee.toFixed(2)} ج.م`;
-                if (finalFeaturesCostEl) finalFeaturesCostEl.textContent = `${featuresCost.toFixed(2)} ج.م`;
+                if (finalFeaturesCostEl) finalFeaturesCostEl.textContent = `${totalFeaturesCost.toFixed(2)} ج.م`;
                 if (finalTotalCostEl) finalTotalCostEl.textContent = `${totalCost.toFixed(2)} ج.م`;
 
                 if (featuresRow) {
-                    if (featuresCost > 0) {
+                    if (totalFeaturesCost > 0) {
                         featuresRow.style.display = 'flex';
                     } else {
                         featuresRow.style.display = 'none';
