@@ -271,6 +271,34 @@ def cart_view(request):
 
     final_total = total_amount + delivery_fee + tax_amount
 
+    from django.middleware.csrf import get_token
+    from content.models import Country as _Country
+
+    tax_rate_pct = float(getattr(config, "TAX_RATE", 0))
+    try:
+        _country = _Country.objects.get(
+            code=request.session.get("selected_country", "EG"), is_active=True
+        )
+        _currency = _country.currency or "SAR"
+    except Exception:
+        _currency = "SAR"
+
+    cart_js_data = {
+        "currency": _currency,
+        "csrf": get_token(request),
+        "delivery_pct": float(config.DELIVERY_FEE_PERCENTAGE) / 100,
+        "delivery_min": float(delivery_fee),
+        "tax_rate": tax_rate_pct / 100,
+        "prices": {
+            item.ad.id: float(item.ad.price or 0)
+            for item in cart_items
+        },
+        "qtys": {
+            item.ad.id: item.quantity
+            for item in cart_items
+        },
+    }
+
     context = {
         "cart": cart,
         "cart_items": cart_items,
@@ -278,9 +306,10 @@ def cart_view(request):
         "delivery_fee": delivery_fee,
         "delivery_fee_percentage": config.DELIVERY_FEE_PERCENTAGE,
         "tax_amount": tax_amount,
-        "tax_rate": config.TAX_RATE if hasattr(config, "TAX_RATE") else 0,
+        "tax_rate": tax_rate_pct,
         "final_total": final_total,
         "is_guest": is_guest,
+        "cart_js_data": cart_js_data,
     }
 
     return render(request, "cart/cart.html", context)

@@ -572,11 +572,11 @@
                     </div>
 
                     <!-- CTA -->
-                    <button class="checkout-btn" id="checkoutBtn" onclick="proceedToCheckout()">
+                    <a href="{% url 'main:checkout' %}" class="checkout-btn" id="checkoutBtn">
                         <i class="fas fa-lock"></i>
                         {% trans "إتمام الشراء" %}
                         <i class="fas fa-arrow-left"></i>
-                    </button>
+                    </a>
 
                     <a href="{% url 'main:home' %}" class="continue-link">
                         <i class="fas fa-arrow-right"></i>
@@ -630,24 +630,35 @@
 
 </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{{ cart_js_data|json_script:"cart-js-data" }}
 
 <script>
-const CURRENCY             = '{{ selected_currency }}';
-const CSRF                 = '{{ csrf_token }}';
-const DELIVERY_FEE_PCT     = {{ delivery_fee_percentage|default:0 }} / 100;
-const DELIVERY_FEE_MIN     = {{ delivery_fee|default:0 }};   // server-computed value as floor reference
-const TAX_RATE             = {{ tax_rate|default:0 }} / 100;
+/* ── Cart JavaScript ── */
+const cartData = JSON.parse(document.getElementById('cart-js-data').textContent);
+const CSRF = cartData.csrf_token;
+const CURRENCY = cartData.currency;
+const DELIVERY_FEE_PCT = cartData.delivery_fee_percentage;
+const DELIVERY_FEE_MIN = cartData.delivery_fee_min;
+const TAX_RATE = cartData.tax_rate;
 
-const itemPrices = {
-    {% for item in cart_items %}
-    {{ item.ad.id }}: {{ item.ad.price|default:0 }},
-    {% endfor %}
-};
-const itemQtys = {
-    {% for item in cart_items %}
-    {{ item.ad.id }}: {{ item.quantity }},
-    {% endfor %}
-};
+// Track current quantities and prices
+const itemQtys = {};
+const itemPrices = {};
+
+// Initialize from page
+document.querySelectorAll('.cart-card').forEach(card => {
+    const id = card.dataset.itemId;
+    const qtyEl = document.getElementById(`qty-${id}`);
+    const priceText = card.querySelector('.unit-price').textContent;
+    const price = parseFloat(priceText.match(/[\d.]+/)?.[0] || 0);
+    if (qtyEl && id) {
+        itemQtys[id] = parseInt(qtyEl.textContent) || 1;
+        itemPrices[id] = price;
+    }
+});
 
 /* ── helpers ── */
 function fmt(n) {
@@ -787,23 +798,6 @@ async function clearAllCart() {
     }
 }
 
-/* ── checkout ── */
-function proceedToCheckout() {
-    const btn = document.getElementById('checkoutBtn');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري التحميل..." %}';
-    }
-    try {
-        window.location.href = "{% url 'main:checkout' %}";
-    } catch (e) {
-        showToast('{% trans "حدث خطأ في الانتقال" %}', 'danger');
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-lock"></i> {% trans "إتمام الشراء" %} <i class="fas fa-arrow-left"></i>';
-        }
-    }
-}
 
 </script>
 {% endblock %}
