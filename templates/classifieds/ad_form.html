@@ -2066,7 +2066,15 @@
                 const categoryId = hiddenCategoryInput.value;
                 const customFieldsContainer = document.getElementById('custom-fields-container');
 
-                if (!categoryId) {
+                // Clear container if no category selected
+                if (!categoryId || categoryId === '' || categoryId === 'null') {
+                    customFieldsContainer.innerHTML = '';
+                    return;
+                }
+
+                // Validate that categoryId is a valid number
+                if (isNaN(parseInt(categoryId))) {
+                    console.warn('Invalid category ID:', categoryId);
                     customFieldsContainer.innerHTML = '';
                     return;
                 }
@@ -2083,18 +2091,27 @@
 
                 // Fetch custom fields for the selected category
                 fetch(`/classifieds/category/${categoryId}/custom-fields/`)
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
                         if (data.success) {
-                            customFieldsContainer.innerHTML = data.html;
+                            customFieldsContainer.innerHTML = data.html || '';
                         } else {
                             customFieldsContainer.innerHTML = '';
-                            console.error('Failed to load custom fields:', data.error);
+                            console.warn('No custom fields for category:', categoryId, '-', data.error || 'Unknown error');
                         }
                     })
                     .catch(error => {
                         customFieldsContainer.innerHTML = '';
-                        console.error('Error loading custom fields:', error);
+                        console.error('Error loading custom fields for category', categoryId + ':', error);
+                        // Show user-friendly message only if it's a real error (not just "no fields")
+                        if (!error.message.includes('404')) {
+                            showToast('{% trans "حدث خطأ في تحميل الحقول المخصصة" %}', 'warning');
+                        }
                     });
             }
 
