@@ -5,373 +5,582 @@
 
 {% block extra_css %}
 <style>
+    :root {
+        --brand: #ff6001;
+        --brand-dark: #e05500;
+        --brand-light: rgba(255,96,1,.1);
+        --radius: 16px;
+        --shadow: 0 4px 24px rgba(0,0,0,.07);
+        --border: #e8ecf0;
+    }
+
     .checkout-page {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        background: #f5f6f8;
         min-height: 100vh;
-        padding: 3rem 0;
+        padding: 2rem 0 4rem;
     }
 
-    .checkout-header {
-        background: white;
-        border-radius: 20px;
-        padding: 2rem;
-        margin-bottom: 2rem;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
-        text-align: center;
-    }
-
-    .checkout-header-icon {
-        display: inline-flex;
+    /* ── Step bar ────────────────────────── */
+    .step-bar {
+        display: flex;
         align-items: center;
         justify-content: center;
-        width: 60px;
-        height: 60px;
-        background: linear-gradient(135deg, #4b315e, #3a2449);
+        gap: 0;
+        margin-bottom: 2rem;
+    }
+    .step-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: .35rem;
+        position: relative;
+    }
+    .step-item + .step-item::before {
+        content: '';
+        position: absolute;
+        top: 18px;
+        right: 100%;
+        width: 80px;
+        height: 2px;
+        background: var(--border);
+        margin-right: -40px;
+    }
+    .step-item.done + .step-item::before,
+    .step-item.active + .step-item::before { background: var(--brand); }
+    .step-circle {
+        width: 38px; height: 38px;
         border-radius: 50%;
-        margin-bottom: 1rem;
+        display: flex; align-items: center; justify-content: center;
+        font-size: .9rem; font-weight: 700;
+        background: var(--border); color: #aaa;
+        border: 2px solid var(--border);
+        transition: all .3s;
+    }
+    .step-item.done .step-circle  { background: var(--brand); border-color: var(--brand); color: #fff; }
+    .step-item.active .step-circle { background: var(--brand); border-color: var(--brand); color: #fff;
+                                     box-shadow: 0 0 0 5px rgba(255,96,1,.2); }
+    .step-label { font-size: .72rem; color: #aaa; font-weight: 600; white-space: nowrap; }
+    .step-item.done .step-label,
+    .step-item.active .step-label { color: var(--brand); }
+
+    @media (max-width: 576px) {
+        .step-item + .step-item::before { width: 40px; margin-right: -20px; }
+        .step-label { font-size: .65rem; }
     }
 
-    .checkout-header-icon i {
-        font-size: 1.5rem;
-        color: white;
-    }
-
-    .checkout-title {
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: #2c3e50;
-        margin-bottom: 0;
-    }
-
-    .checkout-container {
+    /* ── Layout ────────────────────────── */
+    .checkout-grid {
         display: grid;
-        grid-template-columns: 1fr 400px;
-        gap: 2rem;
+        grid-template-columns: 1fr 360px;
+        gap: 1.5rem;
+        align-items: start;
     }
-
     @media (max-width: 992px) {
-        .checkout-container {
-            grid-template-columns: 1fr;
-        }
+        .checkout-grid { grid-template-columns: 1fr; }
     }
 
-    .checkout-section {
-        background: white;
-        border-radius: 15px;
-        padding: 2rem;
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+    /* ── Back link ────────────────────── */
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        color: var(--brand);
+        font-weight: 600;
+        font-size: .9rem;
+        text-decoration: none;
+        margin-bottom: 1.25rem;
+        transition: gap .2s;
     }
+    .back-link:hover { gap: .7rem; color: var(--brand-dark); }
 
-    .section-title {
-        font-size: 1.3rem;
+    /* ── Section cards ──────────────── */
+    .section-card {
+        background: #fff;
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        margin-bottom: 1.25rem;
+    }
+    .section-card-header {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        padding: 1.1rem 1.5rem;
+        border-bottom: 1px solid var(--border);
+    }
+    .section-num {
+        width: 32px; height: 32px;
+        border-radius: 50%;
+        background: var(--brand);
+        color: #fff;
         font-weight: 700;
-        color: #2c3e50;
-        margin-bottom: 1.5rem;
-        padding-bottom: 0.75rem;
-        border-bottom: 2px solid #e0e0e0;
+        font-size: .85rem;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
     }
-
-    .form-group {
-        margin-bottom: 1.5rem;
+    .section-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #1a2332;
+        margin: 0;
     }
+    .section-card-body { padding: 1.5rem; }
 
+    /* ── Form controls ────────────────── */
     .form-label {
         font-weight: 600;
         color: #34495e;
-        margin-bottom: 0.5rem;
+        margin-bottom: .4rem;
         display: block;
+        font-size: .9rem;
     }
-
-    .form-label .required {
-        color: #e74c3c;
-        margin-right: 0.25rem;
-    }
-
-    .form-control {
-        width: 100%;
-        padding: 0.75rem 1rem;
-        border: 2px solid #e0e0e0;
+    .form-label .req { color: var(--brand); margin-inline-end: .25rem; }
+    .form-control, .form-select {
+        border: 2px solid var(--border);
         border-radius: 10px;
-        font-size: 1rem;
-        transition: all 0.3s;
+        padding: .65rem 1rem;
+        font-size: .95rem;
+        transition: border-color .25s, box-shadow .25s;
+        background: #fff;
+        width: 100%;
+    }
+    .form-control:focus, .form-select:focus {
+        outline: none;
+        border-color: var(--brand);
+        box-shadow: 0 0 0 3px rgba(255,96,1,.12);
+    }
+    textarea.form-control { resize: vertical; }
+
+    /* ── Phone field ──────────────────── */
+    .phone-field-wrap {
+        display: flex;
+        gap: .5rem;
+    }
+    .phone-field-wrap .form-control { flex: 1; }
+    .btn-verify {
+        padding: .65rem 1rem;
+        border-radius: 10px;
+        border: 2px solid var(--brand);
+        background: transparent;
+        color: var(--brand);
+        font-weight: 600;
+        font-size: .85rem;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: all .25s;
+        display: flex; align-items: center; gap: .35rem;
+    }
+    .btn-verify:hover { background: var(--brand); color: #fff; }
+    .btn-verify.verified { border-color: #22c55e; color: #22c55e; }
+    .btn-verify.verified:hover { background: #22c55e; color: #fff; }
+    .field-hint {
+        font-size: .78rem;
+        color: #6b7280;
+        margin-top: .35rem;
+    }
+    .field-hint.success { color: #22c55e; }
+    .field-hint.warn { color: #f59e0b; }
+
+    /* OTP box */
+    .otp-box {
+        background: #fffbf7;
+        border: 2px dashed var(--brand);
+        border-radius: 12px;
+        padding: 1rem;
+        margin-top: .75rem;
+    }
+    .otp-box .form-control {
+        letter-spacing: .25rem;
+        font-size: 1.2rem;
+        text-align: center;
     }
 
-    .form-control:focus {
-        outline: none;
-        border-color: #4b315e;
-        box-shadow: 0 0 0 3px rgba(75, 49, 94, 0.1);
+    /* ── Payment method cards ─────────── */
+    .payment-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: .85rem;
     }
+    @media (max-width: 576px) {
+        .payment-grid { grid-template-columns: 1fr; }
+    }
+    .pay-card {
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        padding: 1rem;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: .5rem;
+        text-align: center;
+        transition: all .25s;
+        position: relative;
+        user-select: none;
+    }
+    .pay-card:hover { border-color: var(--brand); }
+    .pay-card.active {
+        border-color: var(--brand);
+        background: var(--brand-light);
+    }
+    .pay-card.active::after {
+        content: '\f00c';
+        font-family: 'Font Awesome 5 Free';
+        font-weight: 900;
+        position: absolute;
+        top: 8px;
+        left: 10px;
+        font-size: .7rem;
+        width: 18px; height: 18px;
+        background: var(--brand);
+        color: #fff;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        line-height: 18px;
+    }
+    .pay-card input[type=radio] { display: none; }
+    .pay-icon {
+        width: 48px; height: 48px;
+        border-radius: 12px;
+        background: var(--brand-light);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.4rem;
+        color: var(--brand);
+    }
+    .pay-card.active .pay-icon { background: var(--brand); color: #fff; }
+    .pay-label { font-weight: 700; font-size: .9rem; color: #1a2332; }
+    .pay-sub { font-size: .75rem; color: #6b7280; }
+
+    /* ── Payment detail panels ─────────── */
+    .pay-panel {
+        margin-top: 1rem;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+    }
+    .pay-panel-header {
+        display: flex; align-items: center; gap: .6rem;
+        padding: .85rem 1rem;
+        background: var(--brand-light);
+        border-bottom: 1px solid var(--border);
+        font-weight: 700;
+        font-size: .9rem;
+        color: var(--brand);
+    }
+    .pay-panel-body { padding: 1rem; }
+    .pay-info-row {
+        display: flex; align-items: center; gap: .5rem;
+        padding: .4rem 0;
+        font-size: .9rem;
+        color: #374151;
+    }
+    .pay-info-row strong { color: #1a2332; }
+    .pay-amount-badge {
+        background: var(--brand);
+        color: #fff;
+        padding: .25rem .75rem;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: .9rem;
+    }
+
+    /* QR image */
+    .qr-wrap {
+        text-align: center;
+        margin: 1rem 0;
+    }
+    .qr-wrap img {
+        max-width: 220px;
+        border: 3px solid var(--brand);
+        border-radius: 12px;
+        padding: 8px;
+        background: #fff;
+    }
+
+    /* Upload zone */
+    .upload-zone {
+        border: 2px dashed var(--border);
+        border-radius: 12px;
+        padding: 1.25rem;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color .25s, background .25s;
+        position: relative;
+    }
+    .upload-zone:hover, .upload-zone.has-file {
+        border-color: var(--brand);
+        background: var(--brand-light);
+    }
+    .upload-zone input[type=file] {
+        position: absolute; inset: 0;
+        opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .upload-icon { font-size: 1.8rem; color: #cbd5e1; margin-bottom: .35rem; }
+    .upload-zone.has-file .upload-icon { color: var(--brand); }
+    .upload-title { font-weight: 600; font-size: .88rem; color: #374151; }
+    .upload-sub { font-size: .75rem; color: #9ca3af; }
+    .upload-preview img {
+        max-width: 140px;
+        border: 2px solid #22c55e;
+        border-radius: 8px;
+        margin-top: .5rem;
+    }
+
+    /* Partial payment */
+    .partial-panel .form-control {
+        font-size: 1.1rem;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    /* ── Order summary sidebar ─────────── */
+    .summary-sidebar {
+        position: sticky;
+        top: 1rem;
+    }
+    .summary-card {
+        background: #fff;
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+    }
+    .summary-header {
+        background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+        padding: 1.1rem 1.5rem;
+        color: #fff;
+    }
+    .summary-header h2 {
+        font-size: 1rem;
+        font-weight: 700;
+        margin: 0;
+    }
+    .summary-body { padding: 1.25rem; }
 
     .order-item {
         display: flex;
         align-items: center;
-        gap: 1rem;
-        padding: 1rem;
-        background: #f8f9fa;
-        border-radius: 10px;
-        margin-bottom: 1rem;
+        gap: .85rem;
+        padding: .75rem 0;
+        border-bottom: 1px solid var(--border);
     }
-
-    .order-item-image {
-        width: 80px;
-        height: 80px;
+    .order-item:last-child { border-bottom: none; }
+    .order-item-img {
+        width: 56px; height: 56px;
         object-fit: cover;
         border-radius: 8px;
+        flex-shrink: 0;
     }
-
-    .order-item-details {
-        flex: 1;
-    }
-
-    .order-item-title {
+    .order-item-info { flex: 1; min-width: 0; }
+    .order-item-name {
         font-weight: 600;
-        color: #2c3e50;
-        margin-bottom: 0.25rem;
-        font-size: 0.95rem;
+        font-size: .88rem;
+        color: #1a2332;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
+    .order-item-price { font-size: .82rem; color: var(--brand); font-weight: 600; }
 
-    .order-item-price {
-        color: #7f8c8d;
-        font-size: 0.9rem;
-    }
-
-    .order-item-quantity {
-        color: #95a5a6;
-        font-size: 0.85rem;
-    }
-
-    .order-summary {
-        background: #f8f9fa;
-        padding: 1.5rem;
-        border-radius: 10px;
-        margin-bottom: 1.5rem;
-    }
+    .summary-divider { height: 1px; background: var(--border); margin: .75rem 0; }
 
     .summary-row {
         display: flex;
         justify-content: space-between;
-        padding: 0.75rem 0;
-        color: #5a6c7d;
+        align-items: center;
+        padding: .5rem 0;
+        font-size: .9rem;
+        color: #6b7280;
     }
-
     .summary-row.total {
-        border-top: 2px solid #dee2e6;
-        margin-top: 1rem;
-        padding-top: 1rem;
-        font-size: 1.2rem;
-        font-weight: 700;
-        color: #2c3e50;
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #1a2332;
+        border-top: 2px solid var(--border);
+        padding-top: .75rem;
+        margin-top: .25rem;
     }
+    .summary-row.total span:last-child { color: var(--brand); }
 
-    .checkout-btn {
+    /* Place order button */
+    .btn-place-order {
         width: 100%;
         padding: 1rem;
-        background: linear-gradient(135deg, #4b315e, #3a2449);
-        color: white;
+        background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+        color: #fff;
         border: none;
         border-radius: 12px;
-        font-size: 1.1rem;
-        font-weight: 600;
+        font-size: 1.05rem;
+        font-weight: 700;
         cursor: pointer;
-        transition: all 0.3s;
-        box-shadow: 0 5px 15px rgba(75, 49, 94, 0.3);
+        transition: all .25s;
+        box-shadow: 0 6px 20px rgba(255,96,1,.35);
+        display: flex; align-items: center; justify-content: center; gap: .5rem;
+        margin-top: 1rem;
     }
-
-    .checkout-btn:hover {
+    .btn-place-order:hover:not(:disabled) {
         transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(75, 49, 94, 0.4);
+        box-shadow: 0 10px 28px rgba(255,96,1,.45);
     }
+    .btn-place-order:disabled { opacity: .65; cursor: not-allowed; transform: none; }
 
-    .checkout-btn:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        transform: none;
+    /* Trust badges */
+    .trust-badges {
+        display: flex;
+        gap: .75rem;
+        justify-content: center;
+        margin-top: 1rem;
+        flex-wrap: wrap;
     }
-
-    .payment-methods {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
-        margin-bottom: 1.5rem;
+    .trust-badge {
+        display: flex; align-items: center; gap: .3rem;
+        font-size: .72rem; color: #6b7280;
     }
+    .trust-badge i { color: var(--brand); }
 
-    .payment-method {
-        padding: 1rem;
-        border: 2px solid #e0e0e0;
+    /* Payment option sub-radios */
+    .payment-sub-options { margin-top: .75rem; }
+    .sub-radio {
+        display: flex; align-items: center; gap: .6rem;
+        padding: .6rem .85rem;
+        border: 2px solid var(--border);
         border-radius: 10px;
+        margin-bottom: .5rem;
         cursor: pointer;
-        transition: all 0.3s;
-        text-align: center;
+        transition: border-color .2s, background .2s;
+        font-size: .9rem;
     }
-
-    .payment-method:hover {
-        border-color: #4b315e;
-    }
-
-    .payment-method.active {
-        border-color: #4b315e;
-        background: rgba(75, 49, 94, 0.05);
-    }
-
-    .payment-method input[type="radio"] {
-        display: none;
-    }
-
-    .payment-method-icon {
-        font-size: 2rem;
-        margin-bottom: 0.5rem;
-        color: #4b315e;
-    }
-
-    .payment-method-label {
-        font-weight: 600;
-        color: #2c3e50;
-    }
-
-    .back-to-cart {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        color: #4b315e;
-        text-decoration: none;
-        font-weight: 600;
-        margin-bottom: 1rem;
-        transition: all 0.3s;
-    }
-
-    .back-to-cart:hover {
-        gap: 0.75rem;
-    }
+    .sub-radio:hover { border-color: var(--brand); }
+    .sub-radio input { accent-color: var(--brand); }
+    .sub-radio label { cursor: pointer; margin: 0; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="checkout-page">
+<div class="checkout-page" dir="rtl">
     <div class="container">
-        <!-- Header -->
-        <div class="checkout-header">
-            <div class="checkout-header-icon">
-                <i class="fas fa-credit-card"></i>
+
+        <!-- Step bar -->
+        <div class="step-bar">
+            <div class="step-item done">
+                <div class="step-circle"><i class="fas fa-check"></i></div>
+                <span class="step-label">{% trans "السلة" %}</span>
             </div>
-            <h1 class="checkout-title">{% trans "إتمام الطلب" %}</h1>
+            <div class="step-item active">
+                <div class="step-circle">2</div>
+                <span class="step-label">{% trans "البيانات والدفع" %}</span>
+            </div>
+            <div class="step-item">
+                <div class="step-circle">3</div>
+                <span class="step-label">{% trans "تأكيد الطلب" %}</span>
+            </div>
         </div>
 
-        <a href="{% url 'main:cart_view' %}" class="back-to-cart">
+        <!-- Back link -->
+        <a href="{% url 'main:cart_view' %}" class="back-link">
             <i class="fas fa-arrow-right"></i>
             {% trans "العودة للسلة" %}
         </a>
 
-        <div class="checkout-container">
-            <!-- Delivery & Payment Info -->
+        <div class="checkout-grid">
+
+            <!-- LEFT: form + payment -->
             <div>
-                <!-- Delivery Information -->
-                <div class="checkout-section">
-                    <h2 class="section-title">
-                        <i class="fas fa-map-marker-alt me-2"></i>
-                        {% trans "معلومات التوصيل" %}
-                    </h2>
 
-                    <form id="checkoutForm">
-                        {% csrf_token %}
+                <!-- 1. Delivery info -->
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <div class="section-num">1</div>
+                        <h2 class="section-title">
+                            <i class="fas fa-map-marker-alt me-2 text-muted" style="font-size:.85rem;"></i>
+                            {% trans "معلومات التوصيل" %}
+                        </h2>
+                    </div>
+                    <div class="section-card-body">
+                        <form id="checkoutForm">
+                            {% csrf_token %}
 
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label class="form-label">
-                                        <span class="required">*</span>
-                                        {% trans "الاسم الكامل" %}
-                                    </label>
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label"><span class="req">*</span>{% trans "الاسم الكامل" %}</label>
                                     <input type="text" name="full_name" class="form-control"
-                                           value="{{ user.get_full_name }}" required>
+                                           value="{{ user.get_full_name }}" required
+                                           placeholder="{% trans 'أدخل اسمك الكامل' %}">
                                 </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label class="form-label">
-                                        <span class="required">*</span>
-                                        {% trans "رقم الهاتف" %}
-                                    </label>
-                                    <div class="input-group">
+                                <div class="col-md-6">
+                                    <label class="form-label"><span class="req">*</span>{% trans "رقم الهاتف" %}</label>
+                                    <div class="phone-field-wrap">
                                         <input type="tel"
                                                name="phone"
                                                id="checkoutPhone"
                                                class="form-control"
                                                value="{{ user.mobile|default:user.phone }}"
                                                {% if user.is_mobile_verified %}readonly{% endif %}
-                                               required>
+                                               required
+                                               placeholder="{% trans 'رقم الهاتف' %}">
                                         {% if site_config.require_phone_verification %}
                                             {% if user.is_mobile_verified %}
                                                 <button type="button"
-                                                        class="btn btn-outline-success"
+                                                        class="btn-verify verified"
                                                         id="changePhoneBtn"
                                                         onclick="enablePhoneChange()">
-                                                    <i class="fas fa-check-circle me-1"></i>
+                                                    <i class="fas fa-check-circle"></i>
                                                     {% trans "موثق" %}
                                                 </button>
                                             {% else %}
                                                 <button type="button"
-                                                        class="btn btn-outline-primary"
+                                                        class="btn-verify"
                                                         id="verifyPhoneBtn"
                                                         onclick="sendVerificationCode()">
-                                                    <i class="fas fa-shield-alt me-1"></i>
+                                                    <i class="fas fa-shield-alt"></i>
                                                     {% trans "توثيق" %}
                                                 </button>
                                             {% endif %}
                                         {% endif %}
                                     </div>
                                     {% if site_config.require_phone_verification %}
-                                    <small class="text-muted" id="phoneHint">
+                                    <div class="field-hint {% if user.is_mobile_verified %}success{% else %}warn{% endif %}" id="phoneHint">
                                         {% if user.is_mobile_verified %}
-                                            <i class="fas fa-info-circle"></i> {% trans "لتغيير الرقم، اضغط على زر موثق" %}
+                                            <i class="fas fa-check-circle"></i> {% trans "لتغيير الرقم اضغط على زر موثق" %}
                                         {% else %}
-                                            <i class="fas fa-exclamation-triangle text-warning"></i> {% trans "يجب توثيق رقم الهاتف قبل إتمام الطلب" %}
+                                            <i class="fas fa-exclamation-triangle"></i> {% trans "يجب توثيق رقم الهاتف قبل إتمام الطلب" %}
                                         {% endif %}
-                                    </small>
+                                    </div>
+                                    {% endif %}
+
+                                    {% if site_config.require_phone_verification %}
+                                    <div id="verificationCodeGroup" style="display:none;" class="otp-box mt-2">
+                                        <div class="field-hint mb-2">
+                                            <i class="fas fa-envelope-open-text"></i> {% trans "أدخل رمز التحقق المرسل إلى هاتفك" %}
+                                        </div>
+                                        <div class="phone-field-wrap">
+                                            <input type="text"
+                                                   id="verificationCode"
+                                                   class="form-control"
+                                                   placeholder="● ● ● ● ● ●"
+                                                   maxlength="6">
+                                            <button type="button"
+                                                    class="btn-verify"
+                                                    onclick="verifyCode()">
+                                                <i class="fas fa-check"></i> {% trans "تأكيد" %}
+                                            </button>
+                                        </div>
+                                        <div class="field-hint mt-1">
+                                            <i class="fas fa-clock"></i> {% trans "سينتهي الرمز في 10 دقائق" %}
+                                        </div>
+                                    </div>
                                     {% endif %}
                                 </div>
-
-                                <!-- Verification Code Input (hidden by default) -->
-                                {% if site_config.require_phone_verification %}
-                                <div class="form-group" id="verificationCodeGroup" style="display: none;">
-                                    <label class="form-label">
-                                        <span class="required">*</span>
-                                        {% trans "رمز التحقق" %}
-                                    </label>
-                                    <div class="input-group">
-                                        <input type="text"
-                                               id="verificationCode"
-                                               class="form-control"
-                                               placeholder="{% trans 'أدخل رمز التحقق' %}"
-                                               maxlength="6">
-                                        <button type="button"
-                                                class="btn btn-primary"
-                                                onclick="verifyCode()">
-                                            <i class="fas fa-check"></i> {% trans "تأكيد" %}
-                                        </button>
-                                    </div>
-                                    <small class="text-muted">
-                                        <i class="fas fa-clock"></i> {% trans "سينتهي الرمز في 10 دقائق" %}
-                                    </small>
-                                </div>
-                                {% endif %}
                             </div>
-                        </div>
 
-                        <div class="form-group">
-                            <label class="form-label">
-                                <span class="required">*</span>
-                                {% trans "العنوان" %}
-                            </label>
-                            <textarea name="address" class="form-control" rows="3" required>{{ user.address }}</textarea>
-                        </div>
+                            <div class="mb-3">
+                                <label class="form-label"><span class="req">*</span>{% trans "العنوان" %}</label>
+                                <textarea name="address" class="form-control" rows="2" required
+                                          placeholder="{% trans 'أدخل عنوانك بالتفصيل' %}">{{ user.address }}</textarea>
+                            </div>
 
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label class="form-label">
-                                        <span class="required">*</span>
-                                        {% trans "الدولة" %}
-                                    </label>
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label"><span class="req">*</span>{% trans "الدولة" %}</label>
                                     <select name="country" id="checkout-country" class="form-control" required>
                                         <option value="">{% trans "اختر الدولة" %}</option>
                                         {% for country in countries %}
@@ -381,275 +590,277 @@
                                         {% endfor %}
                                     </select>
                                 </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label class="form-label">
-                                        <span class="required">*</span>
-                                        {% trans "المدينة" %}
-                                    </label>
+                                <div class="col-md-6">
+                                    <label class="form-label"><span class="req">*</span>{% trans "المدينة" %}</label>
                                     <select name="city" id="checkout-city" class="form-control" required>
                                         <option value="">{% trans "اختر الدولة أولاً" %}</option>
                                     </select>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label class="form-label">
-                                        {% trans "الرمز البريدي" %}
-                                    </label>
-                                    <input type="text" name="postal_code" class="form-control">
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">{% trans "الرمز البريدي" %}</label>
+                                    <input type="text" name="postal_code" class="form-control"
+                                           placeholder="{% trans 'اختياري' %}">
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="form-group">
-                            <label class="form-label">
-                                {% trans "ملاحظات إضافية" %}
-                            </label>
-                            <textarea name="notes" class="form-control" rows="3"
-                                      placeholder="{% trans 'أي ملاحظات خاصة بالطلب...' %}"></textarea>
-                        </div>
-                    </form>
+                            <div class="mb-1">
+                                <label class="form-label">{% trans "ملاحظات إضافية" %}</label>
+                                <textarea name="notes" class="form-control" rows="2"
+                                          placeholder="{% trans 'أي ملاحظات خاصة بالطلب...' %}"></textarea>
+                            </div>
+                        </form>
+                    </div>
                 </div>
 
-                <!-- Payment Method -->
-                <div class="checkout-section mt-4">
-                    <h2 class="section-title">
-                        <i class="fas fa-wallet me-2"></i>
-                        {% trans "طريقة الدفع" %}
-                    </h2>
-
-                    <div class="payment-methods">
-                        {% if site_config.allow_offline_payment %}
-                            {% if site_config.instapay_qr_code %}
-                            <div class="payment-method active" onclick="selectPaymentMethod('instapay')">
-                                <input type="radio" name="payment_method" value="instapay" checked>
-                                <div class="payment-method-icon">
-                                    <i class="fas fa-qrcode"></i>
-                                </div>
-                                <div class="payment-method-label">
-                                    {% trans "InstaPay (QR)" %}
-                                </div>
-                            </div>
-                            {% endif %}
-
-                            {% if site_config.wallet_payment_link %}
-                            <div class="payment-method {% if not site_config.instapay_qr_code %}active{% endif %}" onclick="selectPaymentMethod('wallet')">
-                                <input type="radio" name="payment_method" value="wallet" {% if not site_config.instapay_qr_code %}checked{% endif %}>
-                                <div class="payment-method-icon">
-                                    <i class="fas fa-wallet"></i>
-                                </div>
-                                <div class="payment-method-label">
-                                    {% trans "محفظة إلكترونية" %}
-                                </div>
-                            </div>
-                            {% endif %}
-                        {% else %}
-                            {% if site_config.allow_online_payment %}
-                            <div class="payment-method active" onclick="selectPaymentMethod('online')">
-                                <input type="radio" name="payment_method" value="online" checked>
-                                <div class="payment-method-icon">
-                                    <i class="fas fa-credit-card"></i>
-                                </div>
-                                <div class="payment-method-label">
-                                    {% trans "الدفع الإلكتروني" %}
-                                </div>
-                            </div>
-                            {% endif %}
-
-                            <div class="payment-method {% if not site_config.allow_online_payment %}active{% endif %}" id="partialPaymentMethod" onclick="selectPaymentMethod('partial')">
-                                <input type="radio" name="payment_method" value="partial" id="partialPaymentRadio" {% if not site_config.allow_online_payment %}checked{% endif %}>
-                                <div class="payment-method-icon">
-                                    <i class="fas fa-percentage"></i>
-                                </div>
-                                <div class="payment-method-label">
-                                    {% trans "دفع جزئي" %}
-                                </div>
-                            </div>
-                        {% endif %}
+                <!-- 2. Payment method -->
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <div class="section-num">2</div>
+                        <h2 class="section-title">
+                            <i class="fas fa-wallet me-2 text-muted" style="font-size:.85rem;"></i>
+                            {% trans "طريقة الدفع" %}
+                        </h2>
                     </div>
+                    <div class="section-card-body">
 
-                    {% if site_config.allow_online_payment %}
-                    <div id="onlinePaymentNote" style="display: none;" class="alert alert-info">
-                        <div class="text-center">
-                            <i class="fas fa-credit-card me-2"></i>
-                            <h5>{% trans "الدفع الإلكتروني" %}</h5>
-
-                            {% if not site_config.allow_offline_payment %}
-                            <p class="mb-3">{% trans "سيتم تحويلك لبوابة الدفع الإلكتروني لإتمام العملية" %}</p>
-                            <div class="mt-3">
-                                <label class="form-label fw-bold">{% trans "اختر طريقة الدفع:" %}</label>
-                                <div class="payment-options">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="radio" name="payment_option" id="paymentDefault" value="default" checked>
-                                        <label class="form-check-label" for="paymentDefault">
-                                            <i class="fas fa-credit-card me-2"></i>{% trans "الدفع الإلكتروني (الافتراضي)" %}
-                                        </label>
-                                    </div>
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="radio" name="payment_option" id="paymentVisa" value="visa">
-                                        <label class="form-check-label" for="paymentVisa">
-                                            <i class="fab fa-cc-visa me-2 text-primary"></i>{% trans "فيزا" %}
-                                        </label>
-                                    </div>
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="radio" name="payment_option" id="paymentMastercard" value="mastercard">
-                                        <label class="form-check-label" for="paymentMastercard">
-                                            <i class="fab fa-cc-mastercard me-2 text-warning"></i>{% trans "ماستركارد" %}
-                                        </label>
-                                    </div>
+                        <div class="payment-grid">
+                            {% if site_config.allow_offline_payment %}
+                                {% if site_config.instapay_qr_code %}
+                                <div class="pay-card active" id="pc-instapay" onclick="selectPaymentMethod('instapay')">
+                                    <input type="radio" name="payment_method" value="instapay" checked>
+                                    <div class="pay-icon"><i class="fas fa-qrcode"></i></div>
+                                    <div class="pay-label">InstaPay</div>
+                                    <div class="pay-sub">{% trans "QR Code" %}</div>
                                 </div>
-                            </div>
+                                {% endif %}
+
+                                {% if site_config.wallet_payment_link %}
+                                <div class="pay-card {% if not site_config.instapay_qr_code %}active{% endif %}" id="pc-wallet" onclick="selectPaymentMethod('wallet')">
+                                    <input type="radio" name="payment_method" value="wallet" {% if not site_config.instapay_qr_code %}checked{% endif %}>
+                                    <div class="pay-icon"><i class="fas fa-wallet"></i></div>
+                                    <div class="pay-label">{% trans "محفظة إلكترونية" %}</div>
+                                    <div class="pay-sub">Vodafone / Orange</div>
+                                </div>
+                                {% endif %}
                             {% else %}
-                            <p class="mb-3">{% trans "قم بمسح رمز QR ثم ارفع صورة الإيصال" %}</p>
+                                {% if site_config.allow_online_payment %}
+                                <div class="pay-card active" id="pc-online" onclick="selectPaymentMethod('online')">
+                                    <input type="radio" name="payment_method" value="online" checked>
+                                    <div class="pay-icon"><i class="fas fa-credit-card"></i></div>
+                                    <div class="pay-label">{% trans "دفع إلكتروني" %}</div>
+                                    <div class="pay-sub">Visa / Mastercard</div>
+                                </div>
+                                {% endif %}
 
-                            {% if site_config.instapay_qr_code %}
-                            <div class="mb-4">
-                                <img src="{{ site_config.instapay_qr_code.url }}"
-                                     alt="Payment QR Code"
-                                     class="img-fluid"
-                                     style="max-width: 300px; border: 2px solid #4b315e; border-radius: 10px; padding: 10px;">
-                            </div>
-                            {% endif %}
-
-                            <div class="mt-4">
-                                <label class="form-label fw-bold">
-                                    <i class="fas fa-camera me-2"></i>
-                                    {% trans "تحميل صورة إيصال التحويل" %}
-                                </label>
-                                <input type="file"
-                                       id="onlineTransactionPhoto"
-                                       name="transaction_photo"
-                                       class="form-control"
-                                       accept="image/*"
-                                       required
-                                       onchange="previewTransactionPhoto(this, 'onlinePreview')">
-                                <small class="text-muted d-block mt-1">
-                                    <i class="fas fa-info-circle"></i> {% trans "قم بتحميل صورة واضحة لإيصال التحويل لتأكيد الدفع" %}
-                                </small>
-                                <div id="onlinePreview" class="mt-2"></div>
-                            </div>
+                                <div class="pay-card {% if not site_config.allow_online_payment %}active{% endif %}"
+                                     id="pc-partial" id-radio="partialPaymentMethod"
+                                     onclick="selectPaymentMethod('partial')">
+                                    <input type="radio" name="payment_method" value="partial" id="partialPaymentRadio"
+                                           {% if not site_config.allow_online_payment %}checked{% endif %}>
+                                    <div class="pay-icon"><i class="fas fa-percentage"></i></div>
+                                    <div class="pay-label">{% trans "دفع جزئي" %}</div>
+                                    <div class="pay-sub">{% trans "دفعة مقدمة" %}</div>
+                                </div>
                             {% endif %}
                         </div>
-                    </div>
-                    {% endif %}
 
-                    {% if site_config.instapay_qr_code %}
-                    <div id="instapayPaymentNote" style="display: none;" class="alert alert-info">
-                        <div class="text-center">
-                            <i class="fas fa-qrcode me-2"></i>
-                            <h5>{% trans "الدفع عبر InstaPay" %}</h5>
-                            <p class="mb-3">{% trans "قم بمسح رمز QR باستخدام تطبيق البنك الخاص بك" %}</p>
-                            <img src="{{ site_config.instapay_qr_code.url }}"
-                                 alt="InstaPay QR Code"
-                                 class="img-fluid"
-                                 style="max-width: 300px; border: 2px solid #4b315e; border-radius: 10px; padding: 10px;">
-                            <div class="mt-4">
-                                <label class="form-label fw-bold">
-                                    <i class="fas fa-camera me-2"></i>
-                                    {% trans "تحميل صورة إيصال التحويل" %}
-                                </label>
-                                <input type="file"
-                                       id="instapayTransactionPhoto"
-                                       name="transaction_photo"
-                                       class="form-control"
-                                       accept="image/*"
-                                       onchange="previewTransactionPhoto(this, 'instapayPreview')">
-                                <small class="text-muted d-block mt-1">
-                                    <i class="fas fa-info-circle"></i> {% trans "قم بتحميل صورة واضحة لإيصال التحويل لتأكيد الدفع" %}
-                                </small>
-                                <div id="instapayPreview" class="mt-2"></div>
+                        <!-- InstaPay panel -->
+                        {% if site_config.instapay_qr_code %}
+                        <div id="instapayPaymentNote" class="pay-panel"
+                             style="{% if not site_config.allow_offline_payment or not site_config.instapay_qr_code %}display:none{% endif %}">
+                            <div class="pay-panel-header">
+                                <i class="fas fa-qrcode"></i>
+                                {% trans "الدفع عبر InstaPay" %}
+                            </div>
+                            <div class="pay-panel-body">
+                                {% if site_config.instapay_phone %}
+                                <div class="pay-info-row">
+                                    <i class="fas fa-phone text-muted"></i>
+                                    <span>{% trans "رقم InstaPay:" %}</span>
+                                    <strong>{{ site_config.instapay_phone }}</strong>
+                                </div>
+                                {% endif %}
+                                <div class="pay-info-row">
+                                    <i class="fas fa-money-bill-wave text-muted"></i>
+                                    <span>{% trans "المبلغ المطلوب:" %}</span>
+                                    <span class="pay-amount-badge">{{ final_total|floatformat:"-2" }} {{ selected_currency }}</span>
+                                </div>
+
+                                <div class="qr-wrap">
+                                    <img src="{{ site_config.instapay_qr_code.url }}" alt="InstaPay QR">
+                                </div>
+                                <p class="text-center text-muted" style="font-size:.85rem;">
+                                    {% trans "امسح الرمز باستخدام تطبيق البنك الخاص بك" %}
+                                </p>
+
+                                <div class="upload-zone" id="instapayZone">
+                                    <input type="file" id="instapayTransactionPhoto" name="transaction_photo"
+                                           accept="image/*" onchange="previewFile(this,'instapayZone','instapayPreview')">
+                                    <div class="upload-icon"><i class="fas fa-camera"></i></div>
+                                    <div class="upload-title">{% trans "ارفع صورة إيصال التحويل" %}</div>
+                                    <div class="upload-sub">{% trans "JPG أو PNG - حجم أقصى 5 MB" %}</div>
+                                </div>
+                                <div id="instapayPreview" class="upload-preview text-center"></div>
                             </div>
                         </div>
-                    </div>
-                    {% endif %}
-
-                    {% if site_config.wallet_payment_link %}
-                    <div id="walletPaymentNote" style="display: none;" class="alert alert-info">
-                        <div class="text-center">
-                            <i class="fas fa-wallet me-2"></i>
-                            <h5>{% trans "الدفع عبر المحفظة الإلكترونية" %}</h5>
-                            <p class="mb-3">{% trans "سيتم تحويلك إلى رابط الدفع عبر المحفظة الإلكترونية" %}</p>
-                            <a href="{{ site_config.wallet_payment_link }}"
-                               target="_blank"
-                               class="btn btn-primary mb-3">
-                                <i class="fas fa-external-link-alt me-2"></i>
-                                {% trans "الدفع عبر المحفظة" %}
-                            </a>
-                            <div class="mt-4">
-                                <label class="form-label fw-bold">
-                                    <i class="fas fa-camera me-2"></i>
-                                    {% trans "تحميل صورة إيصال التحويل" %}
-                                </label>
-                                <input type="file"
-                                       id="walletTransactionPhoto"
-                                       name="transaction_photo"
-                                       class="form-control"
-                                       accept="image/*"
-                                       onchange="previewTransactionPhoto(this, 'walletPreview')">
-                                <small class="text-muted d-block mt-1">
-                                    <i class="fas fa-info-circle"></i> {% trans "قم بتحميل صورة واضحة لإيصال التحويل لتأكيد الدفع" %}
-                                </small>
-                                <div id="walletPreview" class="mt-2"></div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    <div id="partialPaymentNote" style="display: none;" class="alert alert-warning">
-                        <i class="fas fa-info-circle me-2"></i>
-                        {% trans "يمكنك دفع جزء من المبلغ الآن وإكمال الدفع لاحقاً" %}
-                        <div class="mt-3">
-                            <label class="form-label">{% trans "المبلغ المدفوع الآن" %}</label>
-                            <input type="number"
-                                   name="paid_amount"
-                                   id="paidAmount"
-                                   class="form-control"
-                                   min="0"
-                                   step="0.01"
-                                   placeholder="{% trans 'أدخل المبلغ المدفوع' %}">
-                            <small class="text-muted">
-                                {% trans "المبلغ الإجمالي:" %} <span id="totalForPartial">{{ final_total|floatformat:"-2" }}</span> {{ selected_currency }}
-                            </small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Order Summary -->
-            <div>
-                <div class="checkout-section">
-                    <h2 class="section-title">
-                        <i class="fas fa-receipt me-2"></i>
-                        {% trans "ملخص الطلب" %}
-                    </h2>
-
-                    <!-- Cart Items -->
-                    {% for item in cart_items %}
-                    <div class="order-item">
-                        {% if item.ad.images.first %}
-                            <img src="{{ item.ad.images.first.image.url }}"
-                                 alt="{{ item.ad.title }}"
-                                 class="order-item-image">
-                        {% else %}
-                            <img src="{% static 'images/placeholder.png' %}"
-                                 alt="{{ item.ad.title }}"
-                                 class="order-item-image">
                         {% endif %}
 
-                        <div class="order-item-details">
-                            <div class="order-item-title">{{ item.ad.title }}</div>
-                            <div class="order-item-price">{{ item.ad.price|floatformat:"-2" }} {{ selected_currency }}</div>
-                        </div>
-                    </div>
-                    {% endfor %}
+                        <!-- Wallet panel -->
+                        {% if site_config.wallet_payment_link %}
+                        <div id="walletPaymentNote" class="pay-panel" style="display:none;">
+                            <div class="pay-panel-header">
+                                <i class="fas fa-wallet"></i>
+                                {% trans "الدفع عبر المحفظة الإلكترونية" %}
+                            </div>
+                            <div class="pay-panel-body">
+                                {% if site_config.wallet_phone %}
+                                <div class="pay-info-row">
+                                    <i class="fas fa-phone text-muted"></i>
+                                    <span>{% trans "رقم المحفظة:" %}</span>
+                                    <strong>{{ site_config.wallet_phone }}</strong>
+                                </div>
+                                {% endif %}
+                                <div class="pay-info-row">
+                                    <i class="fas fa-money-bill-wave text-muted"></i>
+                                    <span>{% trans "المبلغ المطلوب:" %}</span>
+                                    <span class="pay-amount-badge">{{ final_total|floatformat:"-2" }} {{ selected_currency }}</span>
+                                </div>
 
-                    <!-- Summary -->
-                    <div class="order-summary">
+                                <div class="text-center my-3">
+                                    <a href="{{ site_config.wallet_payment_link }}" target="_blank"
+                                       class="btn-place-order" style="display:inline-flex;width:auto;padding:.7rem 1.5rem;text-decoration:none;">
+                                        <i class="fas fa-external-link-alt"></i>
+                                        {% trans "افتح رابط الدفع" %}
+                                    </a>
+                                </div>
+
+                                <div class="upload-zone" id="walletZone">
+                                    <input type="file" id="walletTransactionPhoto" name="transaction_photo"
+                                           accept="image/*" onchange="previewFile(this,'walletZone','walletPreview')">
+                                    <div class="upload-icon"><i class="fas fa-camera"></i></div>
+                                    <div class="upload-title">{% trans "ارفع صورة إيصال التحويل" %}</div>
+                                    <div class="upload-sub">{% trans "JPG أو PNG - حجم أقصى 5 MB" %}</div>
+                                </div>
+                                <div id="walletPreview" class="upload-preview text-center"></div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Online payment panel -->
+                        {% if site_config.allow_online_payment %}
+                        <div id="onlinePaymentNote" class="pay-panel" style="display:none;">
+                            <div class="pay-panel-header">
+                                <i class="fas fa-credit-card"></i>
+                                {% trans "الدفع الإلكتروني" %}
+                            </div>
+                            <div class="pay-panel-body">
+                                {% if not site_config.allow_offline_payment %}
+                                <p class="text-muted mb-3" style="font-size:.9rem;">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    {% trans "سيتم تحويلك لبوابة الدفع الإلكتروني لإتمام العملية" %}
+                                </p>
+                                <div class="payment-sub-options">
+                                    <label class="sub-radio">
+                                        <input type="radio" name="payment_option" value="default" checked>
+                                        <label><i class="fas fa-credit-card me-2"></i>{% trans "الدفع الإلكتروني (الافتراضي)" %}</label>
+                                    </label>
+                                    <label class="sub-radio">
+                                        <input type="radio" name="payment_option" value="visa">
+                                        <label><i class="fab fa-cc-visa me-2 text-primary"></i>{% trans "فيزا" %}</label>
+                                    </label>
+                                    <label class="sub-radio">
+                                        <input type="radio" name="payment_option" value="mastercard">
+                                        <label><i class="fab fa-cc-mastercard me-2 text-warning"></i>{% trans "ماستركارد" %}</label>
+                                    </label>
+                                </div>
+                                {% else %}
+                                <p class="text-muted mb-2" style="font-size:.9rem;">
+                                    {% trans "قم بمسح رمز QR ثم ارفع صورة الإيصال" %}
+                                </p>
+                                {% if site_config.instapay_qr_code %}
+                                <div class="qr-wrap">
+                                    <img src="{{ site_config.instapay_qr_code.url }}" alt="Payment QR Code">
+                                </div>
+                                {% endif %}
+                                <div class="upload-zone" id="onlineZone">
+                                    <input type="file" id="onlineTransactionPhoto" name="transaction_photo"
+                                           accept="image/*" required
+                                           onchange="previewFile(this,'onlineZone','onlinePreview')">
+                                    <div class="upload-icon"><i class="fas fa-camera"></i></div>
+                                    <div class="upload-title">{% trans "ارفع صورة إيصال التحويل" %}</div>
+                                    <div class="upload-sub">{% trans "مطلوب لتأكيد الدفع" %}</div>
+                                </div>
+                                <div id="onlinePreview" class="upload-preview text-center"></div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Partial payment panel -->
+                        <div id="partialPaymentNote" class="pay-panel partial-panel" style="display:none;">
+                            <div class="pay-panel-header">
+                                <i class="fas fa-percentage"></i>
+                                {% trans "الدفع الجزئي" %}
+                            </div>
+                            <div class="pay-panel-body">
+                                <p class="text-muted mb-3" style="font-size:.88rem;">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    {% trans "يمكنك دفع جزء من المبلغ الآن وإكمال الدفع لاحقاً" %}
+                                </p>
+                                <label class="form-label">{% trans "المبلغ المدفوع الآن" %}</label>
+                                <input type="number" name="paid_amount" id="paidAmount"
+                                       class="form-control" min="0" step="0.01"
+                                       placeholder="{% trans 'أدخل المبلغ' %}">
+                                <div class="field-hint mt-1">
+                                    {% trans "المبلغ الإجمالي:" %}
+                                    <strong id="totalForPartial">{{ final_total|floatformat:"-2" }}</strong>
+                                    {{ selected_currency }}
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div><!-- /left -->
+
+            <!-- RIGHT: sticky summary -->
+            <div class="summary-sidebar">
+                <div class="summary-card">
+                    <div class="summary-header">
+                        <h2><i class="fas fa-receipt me-2"></i>{% trans "ملخص الطلب" %}</h2>
+                    </div>
+                    <div class="summary-body">
+
+                        <!-- Items -->
+                        {% for item in cart_items %}
+                        <div class="order-item">
+                            {% if item.ad.images.first %}
+                                <img src="{{ item.ad.images.first.image.url }}"
+                                     alt="{{ item.ad.title }}"
+                                     class="order-item-img">
+                            {% else %}
+                                <img src="{% static 'images/placeholder.png' %}"
+                                     alt="{{ item.ad.title }}"
+                                     class="order-item-img">
+                            {% endif %}
+                            <div class="order-item-info">
+                                <div class="order-item-name">{{ item.ad.title }}</div>
+                                <div class="order-item-price">
+                                    {{ item.ad.price|floatformat:"-2" }} {{ selected_currency }}
+                                    {% if item.quantity > 1 %}
+                                    <span class="text-muted fw-normal">× {{ item.quantity }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        <div class="summary-divider"></div>
+
                         <div class="summary-row">
                             <span>{% trans "المجموع الفرعي" %}</span>
                             <span>{{ total_amount|floatformat:"-2" }} {{ selected_currency }}</span>
@@ -662,15 +873,23 @@
                             <span>{% trans "المجموع الكلي" %}</span>
                             <span>{{ final_total|floatformat:"-2" }} {{ selected_currency }}</span>
                         </div>
-                    </div>
 
-                    <button type="button" class="checkout-btn" onclick="placeOrder()">
-                        <i class="fas fa-check-circle me-2"></i>
-                        {% trans "تأكيد الطلب" %}
-                    </button>
+                        <button type="button" class="btn-place-order" onclick="placeOrder()">
+                            <i class="fas fa-check-circle"></i>
+                            {% trans "تأكيد الطلب" %}
+                        </button>
+
+                        <div class="trust-badges">
+                            <div class="trust-badge"><i class="fas fa-lock"></i> {% trans "دفع آمن" %}</div>
+                            <div class="trust-badge"><i class="fas fa-shield-alt"></i> {% trans "بيانات محمية" %}</div>
+                            <div class="trust-badge"><i class="fas fa-undo"></i> {% trans "ضمان الاسترداد" %}</div>
+                        </div>
+
+                    </div>
                 </div>
             </div>
-        </div>
+
+        </div><!-- /checkout-grid -->
     </div>
 </div>
 {% endblock %}
@@ -678,297 +897,221 @@
 {% block extra_js %}
 <script src="{% static 'js/dynamic-cities.js' %}"></script>
 <script>
-// Initialize dynamic cities for checkout form
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize the dynamic cities system
     initializeDynamicCities('checkout-country', 'checkout-city');
 
-    // The initializeDynamicCities function will automatically load cities
-    // for the selected country ({{ selected_country }})
-
-    // Pre-select user's city if available
     {% if user_city %}
     setTimeout(function() {
         const citySelect = document.getElementById('checkout-city');
         if (citySelect && !citySelect.disabled) {
-            const cityOption = Array.from(citySelect.options).find(
-                option => option.value === "{{ user_city }}"
-            );
-            if (cityOption) {
-                citySelect.value = "{{ user_city }}";
-            }
+            const opt = Array.from(citySelect.options).find(o => o.value === "{{ user_city }}");
+            if (opt) citySelect.value = "{{ user_city }}";
         }
     }, 600);
     {% endif %}
+
+    // Show first active payment panel on load
+    const firstChecked = document.querySelector('input[name="payment_method"]:checked');
+    if (firstChecked) showPaymentPanel(firstChecked.value);
+
+    // Check partial payment eligibility
+    fetch("{% url 'main:check_partial_payment_eligibility' %}", {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(data => {
+        if (!data.allowed) {
+            const pc = document.getElementById('pc-partial');
+            const pr = document.getElementById('partialPaymentRadio');
+            if (pc) { pc.style.opacity = '.45'; pc.style.pointerEvents = 'none'; pc.title = '{% trans "بعض المنتجات لا تدعم الدفع الجزئي" %}'; }
+            if (pr) { pr.disabled = true; if (pr.checked) selectPaymentMethod('online'); }
+        }
+    })
+    .catch(() => {});
 });
 
 let isPhoneVerified = {{ user.is_mobile_verified|yesno:"true,false" }};
-let originalPhone = "{{ user.mobile|default:user.phone }}";
-let currentPhone = originalPhone;
+let currentPhone    = "{{ user.mobile|default:user.phone }}";
 
 function enablePhoneChange() {
-    const phoneInput = document.getElementById('checkoutPhone');
-    const changeBtn = document.getElementById('changePhoneBtn');
+    const inp = document.getElementById('checkoutPhone');
+    const btn = document.getElementById('changePhoneBtn');
     const hint = document.getElementById('phoneHint');
-
-    phoneInput.readOnly = false;
-    phoneInput.focus();
-    changeBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>{% trans "إرسال رمز" %}';
-    changeBtn.onclick = sendVerificationCode;
+    inp.readOnly = false;
+    inp.focus();
+    btn.innerHTML = '<i class="fas fa-paper-plane"></i> {% trans "إرسال رمز" %}';
+    btn.className = 'btn-verify';
+    btn.onclick = sendVerificationCode;
+    hint.className = 'field-hint';
     hint.innerHTML = '<i class="fas fa-info-circle"></i> {% trans "أدخل الرقم الجديد واضغط إرسال رمز" %}';
     isPhoneVerified = false;
 }
 
 function sendVerificationCode() {
-    const phoneInput = document.getElementById('checkoutPhone');
-    const phone = phoneInput.value.trim();
-
-    if (!phone) {
-        showToast('{% trans "يرجى إدخال رقم الهاتف" %}', 'warning');
-        return;
-    }
-
+    const phone = document.getElementById('checkoutPhone').value.trim();
+    if (!phone) { showToast('{% trans "يرجى إدخال رقم الهاتف" %}', 'warning'); return; }
     currentPhone = phone;
     const btn = document.getElementById('verifyPhoneBtn') || document.getElementById('changePhoneBtn');
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>{% trans "جاري الإرسال..." %}';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري الإرسال..." %}';
 
     fetch('{% url "main:send_phone_code" %}', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRFToken': '{{ csrf_token }}'
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': '{{ csrf_token }}' },
         body: `phone=${encodeURIComponent(phone)}&country_code={{ selected_country }}`
     })
-    .then(response => response.json())
+    .then(r => r.json())
     .then(data => {
         if (data.success) {
             document.getElementById('verificationCodeGroup').style.display = 'block';
             document.getElementById('verificationCode').focus();
-            alert('{% trans "تم إرسال رمز التحقق إلى رقمك" %}');
+            showToast('{% trans "تم إرسال رمز التحقق إلى رقمك" %}', 'success');
         } else {
             showToast(data.message || '{% trans "حدث خطأ في إرسال الرمز" %}', 'error');
         }
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>{% trans "إرسال رمز" %}';
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> {% trans "إرسال رمز" %}';
     })
-    .catch(error => {
-        console.error('Error:', error);
+    .catch(() => {
         showToast('{% trans "حدث خطأ في إرسال الرمز" %}', 'error');
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>{% trans "إرسال رمز" %}';
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> {% trans "إرسال رمز" %}';
     });
 }
 
 function verifyCode() {
     const code = document.getElementById('verificationCode').value.trim();
-
-    if (!code) {
-        showToast('{% trans "يرجى إدخال رمز التحقق" %}', 'warning');
-        return;
-    }
+    if (!code) { showToast('{% trans "يرجى إدخال رمز التحقق" %}', 'warning'); return; }
 
     fetch('{% url "main:verify_phone_code" %}', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRFToken': '{{ csrf_token }}'
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': '{{ csrf_token }}' },
         body: `phone=${encodeURIComponent(currentPhone)}&code=${code}&country_code={{ selected_country }}`
     })
-    .then(response => response.json())
+    .then(r => r.json())
     .then(data => {
         if (data.success) {
             isPhoneVerified = true;
             document.getElementById('verificationCodeGroup').style.display = 'none';
             document.getElementById('checkoutPhone').readOnly = true;
-
-            const verifyBtn = document.getElementById('verifyPhoneBtn') || document.getElementById('changePhoneBtn');
-            verifyBtn.className = 'btn btn-outline-success';
-            verifyBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i>{% trans "موثق" %}';
-            verifyBtn.onclick = enablePhoneChange;
-
-            document.getElementById('phoneHint').innerHTML = '<i class="fas fa-check-circle text-success"></i> {% trans "تم توثيق رقم الهاتف بنجاح" %}';
-            alert('{% trans "تم توثيق رقم الهاتف بنجاح" %}');
+            const btn = document.getElementById('verifyPhoneBtn') || document.getElementById('changePhoneBtn');
+            btn.className = 'btn-verify verified';
+            btn.innerHTML = '<i class="fas fa-check-circle"></i> {% trans "موثق" %}';
+            btn.onclick = enablePhoneChange;
+            const hint = document.getElementById('phoneHint');
+            hint.className = 'field-hint success';
+            hint.innerHTML = '<i class="fas fa-check-circle"></i> {% trans "تم توثيق رقم الهاتف بنجاح" %}';
+            showToast('{% trans "تم توثيق رقم الهاتف بنجاح" %}', 'success');
         } else {
             showToast(data.message || '{% trans "رمز التحقق غير صحيح" %}', 'error');
         }
     })
-    .catch(error => {
-        console.error('Error:', error);
-        showToast('{% trans "حدث خطأ في التحقق" %}', 'error');
+    .catch(() => showToast('{% trans "حدث خطأ في التحقق" %}', 'error'));
+}
+
+function showPaymentPanel(method) {
+    ['instapayPaymentNote','walletPaymentNote','onlinePaymentNote','partialPaymentNote'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
     });
+    const map = { instapay:'instapayPaymentNote', wallet:'walletPaymentNote', online:'onlinePaymentNote', partial:'partialPaymentNote' };
+    const panel = document.getElementById(map[method]);
+    if (panel) panel.style.display = 'block';
 }
 
 function selectPaymentMethod(method) {
-    // Remove active class from all
-    document.querySelectorAll('.payment-method').forEach(el => {
-        el.classList.remove('active');
-    });
-
-    // Add active to selected
-    const selected = document.querySelector(`input[value="${method}"]`).closest('.payment-method');
-    selected.classList.add('active');
-
-    // Check radio
-    document.querySelector(`input[value="${method}"]`).checked = true;
-
-    // Show/hide payment notes
-    const onlineNote = document.getElementById('onlinePaymentNote');
-    const instapayNote = document.getElementById('instapayPaymentNote');
-    const walletNote = document.getElementById('walletPaymentNote');
-    const partialNote = document.getElementById('partialPaymentNote');
-
-    // Hide all notes first
-    if (onlineNote) onlineNote.style.display = 'none';
-    if (instapayNote) instapayNote.style.display = 'none';
-    if (walletNote) walletNote.style.display = 'none';
-    if (partialNote) partialNote.style.display = 'none';
-
-    // Show relevant note
-    if (method === 'online' && onlineNote) {
-        onlineNote.style.display = 'block';
-    } else if (method === 'instapay' && instapayNote) {
-        instapayNote.style.display = 'block';
-    } else if (method === 'wallet' && walletNote) {
-        walletNote.style.display = 'block';
-    } else if (method === 'partial' && partialNote) {
-        partialNote.style.display = 'block';
-    }
+    document.querySelectorAll('.pay-card').forEach(c => c.classList.remove('active'));
+    const card = document.getElementById('pc-' + method);
+    if (card) card.classList.add('active');
+    const radio = document.querySelector(`input[value="${method}"]`);
+    if (radio) radio.checked = true;
+    showPaymentPanel(method);
 }
 
-function previewTransactionPhoto(input, previewId) {
-    const previewDiv = document.getElementById(previewId);
-    previewDiv.innerHTML = '';
+function previewFile(input, zoneId, previewId) {
+    const zone = document.getElementById(zoneId);
+    const preview = document.getElementById(previewId);
+    preview.innerHTML = '';
+    if (!input.files || !input.files[0]) { zone.classList.remove('has-file'); return; }
+    zone.classList.add('has-file');
+    const reader = new FileReader();
+    reader.onload = e => {
+        preview.innerHTML = `<img src="${e.target.result}" alt="preview"><p class="text-success mt-1" style="font-size:.8rem;"><i class="fas fa-check-circle me-1"></i>{% trans "تم تحميل الصورة بنجاح" %}</p>`;
+    };
+    reader.readAsDataURL(input.files[0]);
+}
 
-    if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            previewDiv.innerHTML = `
-                <div class="mt-2">
-                    <img src="${e.target.result}"
-                         alt="Transaction Preview"
-                         class="img-fluid"
-                         style="max-width: 200px; border: 2px solid #28a745; border-radius: 8px; padding: 5px;">
-                    <p class="small text-success mt-2">
-                        <i class="fas fa-check-circle"></i> تم تحميل الصورة بنجاح
-                    </p>
-                </div>
-            `;
-        };
-        reader.readAsDataURL(input.files[0]);
-    }
+// Legacy helper kept for any inline onchange that references previewTransactionPhoto
+function previewTransactionPhoto(input, previewId) {
+    previewFile(input, '', previewId);
 }
 
 function placeOrder() {
     const form = document.getElementById('checkoutForm');
+    if (!form.checkValidity()) { form.reportValidity(); return; }
 
-    // Validate form
-    if (!form.checkValidity()) {
-        form.reportValidity();
-        return;
-    }
-
-    // Check phone verification (only if enabled in site config)
     {% if site_config.require_phone_verification %}
     if (!isPhoneVerified) {
-        alert('{% trans "يجب توثيق رقم الهاتف قبل إتمام الطلب" %}');
+        showToast('{% trans "يجب توثيق رقم الهاتف قبل إتمام الطلب" %}', 'warning');
         document.getElementById('checkoutPhone').focus();
         return;
     }
     {% endif %}
 
-    const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
+    const paymentMethod = document.querySelector('input[name="payment_method"]:checked')?.value;
+    if (!paymentMethod) { showToast('{% trans "يرجى اختيار طريقة الدفع" %}', 'warning'); return; }
 
-    // Validate transaction photo for offline payments
     {% if site_config.allow_offline_payment %}
     if (paymentMethod === 'online') {
-        const onlinePhoto = document.getElementById('onlineTransactionPhoto');
-        if (!onlinePhoto || !onlinePhoto.files || !onlinePhoto.files[0]) {
-            showToast('{% trans "يرجى تحميل صورة إيصال التحويل لتأكيد الدفع" %}', 'warning');
-            return;
-        }
+        const p = document.getElementById('onlineTransactionPhoto');
+        if (!p || !p.files || !p.files[0]) { showToast('{% trans "يرجى تحميل صورة إيصال التحويل" %}', 'warning'); return; }
     }
     {% endif %}
 
     if (paymentMethod === 'instapay') {
-        const instapayPhoto = document.getElementById('instapayTransactionPhoto');
-        if (!instapayPhoto || !instapayPhoto.files || !instapayPhoto.files[0]) {
-            showToast('{% trans "يرجى تحميل صورة إيصال التحويل لتأكيد الدفع" %}', 'warning');
-            return;
-        }
+        const p = document.getElementById('instapayTransactionPhoto');
+        if (!p || !p.files || !p.files[0]) { showToast('{% trans "يرجى تحميل صورة إيصال InstaPay" %}', 'warning'); return; }
     }
-
     if (paymentMethod === 'wallet') {
-        const walletPhoto = document.getElementById('walletTransactionPhoto');
-        if (!walletPhoto || !walletPhoto.files || !walletPhoto.files[0]) {
-            showToast('{% trans "يرجى تحميل صورة إيصال التحويل لتأكيد الدفع" %}', 'warning');
-            return;
-        }
+        const p = document.getElementById('walletTransactionPhoto');
+        if (!p || !p.files || !p.files[0]) { showToast('{% trans "يرجى تحميل صورة إيصال المحفظة" %}', 'warning'); return; }
     }
-
-    // Validate partial payment amount
     if (paymentMethod === 'partial') {
-        const paidAmount = parseFloat(document.getElementById('paidAmount').value);
-        const totalAmount = parseFloat(document.getElementById('totalForPartial').textContent);
-
-        if (!paidAmount || paidAmount <= 0) {
-            showToast('{% trans "يرجى إدخال المبلغ المدفوع" %}', 'warning');
-            return;
-        }
-
-        if (paidAmount > totalAmount) {
-            showToast('{% trans "المبلغ المدفوع لا يمكن أن يكون أكبر من المبلغ الإجمالي" %}', 'warning');
-            return;
-        }
+        const amt = parseFloat(document.getElementById('paidAmount').value);
+        const total = parseFloat(document.getElementById('totalForPartial').textContent);
+        if (!amt || amt <= 0) { showToast('{% trans "يرجى إدخال المبلغ المدفوع" %}', 'warning'); return; }
+        if (amt > total) { showToast('{% trans "المبلغ المدفوع لا يمكن أن يكون أكبر من الإجمالي" %}', 'warning'); return; }
     }
 
-    // Disable button
-    const btn = event.target;
+    const btn = document.querySelector('.btn-place-order');
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري المعالجة..." %}';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري المعالجة..." %}';
 
-    // Collect form data
     const formData = new FormData(form);
     formData.append('payment_method', paymentMethod);
 
-    // Add transaction photo for offline payments
     if (paymentMethod === 'instapay') {
-        const instapayPhoto = document.getElementById('instapayTransactionPhoto');
-        if (instapayPhoto && instapayPhoto.files[0]) {
-            formData.append('transaction_photo', instapayPhoto.files[0]);
-        }
+        const p = document.getElementById('instapayTransactionPhoto');
+        if (p && p.files[0]) formData.append('transaction_photo', p.files[0]);
     } else if (paymentMethod === 'wallet') {
-        const walletPhoto = document.getElementById('walletTransactionPhoto');
-        if (walletPhoto && walletPhoto.files[0]) {
-            formData.append('transaction_photo', walletPhoto.files[0]);
-        }
+        const p = document.getElementById('walletTransactionPhoto');
+        if (p && p.files[0]) formData.append('transaction_photo', p.files[0]);
     } else if (paymentMethod === 'online') {
         {% if site_config.allow_offline_payment %}
-        const onlinePhoto = document.getElementById('onlineTransactionPhoto');
-        if (onlinePhoto && onlinePhoto.files[0]) {
-            formData.append('transaction_photo', onlinePhoto.files[0]);
-        }
+        const p = document.getElementById('onlineTransactionPhoto');
+        if (p && p.files[0]) formData.append('transaction_photo', p.files[0]);
         {% endif %}
     }
 
-    // Send request
     fetch("{% url 'main:checkout' %}", {
         method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'X-Requested-With': 'XMLHttpRequest'
-        },
+        headers: { 'X-CSRFToken': '{{ csrf_token }}', 'X-Requested-With': 'XMLHttpRequest' },
         body: formData
     })
-    .then(response => response.json())
+    .then(r => r.json())
     .then(data => {
         if (data.success) {
-            // Show success message
             showToast('{% trans "تم تأكيد الطلب بنجاح!" %}', 'success');
-
-            // Redirect based on payment method
             if (paymentMethod === 'online' && data.payment_url) {
                 window.location.href = data.payment_url;
             } else {
@@ -977,109 +1120,38 @@ function placeOrder() {
         } else {
             showToast(data.error || '{% trans "حدث خطأ" %}', 'error');
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-check-circle me-2"></i>{% trans "تأكيد الطلب" %}';
+            btn.innerHTML = '<i class="fas fa-check-circle"></i> {% trans "تأكيد الطلب" %}';
         }
     })
-    .catch(error => {
-        console.error('Error:', error);
+    .catch(() => {
         showToast('{% trans "حدث خطأ في معالجة الطلب" %}', 'error');
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-check-circle me-2"></i>{% trans "تأكيد الطلب" %}';
+        btn.innerHTML = '<i class="fas fa-check-circle"></i> {% trans "تأكيد الطلب" %}';
     });
 }
 
-// Check partial payment eligibility on page load
-document.addEventListener('DOMContentLoaded', function() {
-    fetch("{% url 'main:check_partial_payment_eligibility' %}", {
-        method: 'GET',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        const partialMethod = document.getElementById('partialPaymentMethod');
-        const partialRadio = document.getElementById('partialPaymentRadio');
-
-        if (!data.allowed) {
-            // Disable partial payment option
-            partialMethod.style.opacity = '0.5';
-            partialMethod.style.cursor = 'not-allowed';
-            partialRadio.disabled = true;
-
-            // Add tooltip
-            partialMethod.title = '{% trans "بعض المنتجات لا تدعم الدفع الجزئي" %}';
-
-            // If partial payment is selected, switch to COD
-            if (partialRadio.checked) {
-                selectPaymentMethod('cod');
-            }
-        }
-    })
-    .catch(error => {
-        console.error('Error checking partial payment eligibility:', error);
-        // Silently fail - partial payment will just remain enabled if check fails
-    });
-});
-
-// Toast notifications
 function showToast(message, type = 'info') {
-    const iconClass = type === 'success' ? 'fa-check-circle' :
-                      type === 'error' ? 'fa-exclamation-circle' :
-                      type === 'warning' ? 'fa-exclamation-triangle' :
-                      'fa-info-circle';
-
-    const bgClass = type === 'success' ? 'bg-success' :
-                    type === 'error' ? 'bg-danger' :
-                    type === 'warning' ? 'bg-warning' :
-                    'bg-info';
-
-    // Create toast container if it doesn't exist
-    let toastContainer = document.querySelector('.toast-container');
-    if (!toastContainer) {
-        toastContainer = document.createElement('div');
-        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
-        toastContainer.style.zIndex = '9999';
-        document.body.appendChild(toastContainer);
+    const icons = { success:'fa-check-circle', error:'fa-exclamation-circle', warning:'fa-exclamation-triangle', info:'fa-info-circle' };
+    const bgs   = { success:'bg-success', error:'bg-danger', warning:'bg-warning text-dark', info:'bg-info' };
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        container.style.zIndex = '9999';
+        document.body.appendChild(container);
     }
-
-    // Create toast element
-    const toastId = 'toast-' + Date.now();
-    const toastEl = document.createElement('div');
-    toastEl.id = toastId;
-    toastEl.className = `toast align-items-center text-white ${bgClass} border-0`;
-    toastEl.setAttribute('role', 'alert');
-    toastEl.setAttribute('aria-live', 'assertive');
-    toastEl.setAttribute('aria-atomic', 'true');
-
-    toastEl.innerHTML = `
-        <div class="d-flex">
-            <div class="toast-body">
-                <i class="fas ${iconClass} me-2"></i>${message}
-            </div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
-    `;
-
-    toastContainer.appendChild(toastEl);
-
-    // Initialize and show toast
-    const toast = new bootstrap.Toast(toastEl, {
-        autohide: true,
-        delay: 4000
-    });
-
+    const id = 'toast-' + Date.now();
+    const el = document.createElement('div');
+    el.id = id;
+    el.className = `toast align-items-center text-white ${bgs[type]} border-0`;
+    el.setAttribute('role','alert');
+    el.setAttribute('aria-live','assertive');
+    el.setAttribute('aria-atomic','true');
+    el.innerHTML = `<div class="d-flex"><div class="toast-body"><i class="fas ${icons[type]} me-2"></i>${message}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
+    container.appendChild(el);
+    const toast = new bootstrap.Toast(el, { autohide: true, delay: 4000 });
     toast.show();
-
-    // Remove toast element after it's hidden
-    toastEl.addEventListener('hidden.bs.toast', () => {
-        toastEl.remove();
-    });
+    el.addEventListener('hidden.bs.toast', () => el.remove());
 }
 </script>
 {% endblock %}
