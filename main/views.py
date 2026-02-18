@@ -797,6 +797,15 @@ class CategoryDetailView(FilterView):
         # تطبيق الفلاتر الإضافية
         queryset = self.apply_custom_filters(queryset)
 
+        # Apply custom field filters with cf_ prefix
+        from django.db.models import Q
+        for key, value in self.request.GET.items():
+            if key.startswith('cf_') and value:
+                field_name = key[3:]  # Remove 'cf_' prefix
+                # Create Q filter for JSONField lookup
+                q_filter = Q(**{f'custom_fields__{field_name}__icontains': value})
+                queryset = queryset.filter(q_filter)
+
         # تطبيق الترتيب
         queryset = self.apply_sorting(queryset)
 
@@ -898,6 +907,7 @@ class CategoryDetailView(FilterView):
                 "has_filters": any(v for v in current_filters.values() if v),
                 "selected_country": selected_country,
                 "custom_fields_for_filters": custom_fields_for_filters,
+                "category_filter_fields": custom_fields_for_filters,  # Alias for consistency
                 "page_title": (
                     self.category.name_ar
                     if self.category.name_ar

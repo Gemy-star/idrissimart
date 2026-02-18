@@ -62,7 +62,42 @@ class ClassifiedAdListView(FilterView):
         # Start with only active ads for the selected country
         selected_country = get_selected_country_from_request(self.request)
         queryset = ClassifiedAd.objects.active_for_country(selected_country)
+
+        # Apply custom field filters if provided
+        for key, value in self.request.GET.items():
+            if key.startswith('cf_') and value:
+                field_name = key[3:]  # Remove 'cf_' prefix
+                queryset = queryset.filter(**{f'custom_fields__{field_name}__icontains': value})
+
         return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Get custom fields for filtering if category is selected
+        category_id = self.request.GET.get('category') or self.request.GET.get('subcategory')
+        if category_id:
+            from .models import CategoryCustomField
+
+            try:
+                category = Category.objects.get(pk=category_id)
+                # Get all custom fields that should show in filters
+                filter_fields = (
+                    CategoryCustomField.objects.filter(
+                        category=category,
+                        show_in_filters=True,
+                        is_active=True
+                    )
+                    .select_related('custom_field')
+                    .order_by('order')
+                )
+
+                context['category_filter_fields'] = filter_fields
+                context['selected_category'] = category
+            except Category.DoesNotExist:
+                pass
+
+        return context
 
 
 class MyClassifiedAdsView(LoginRequiredMixin, ListView):

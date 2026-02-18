@@ -985,45 +985,72 @@
 
                             <!-- Custom Fields Filters (Dynamic based on category) -->
                             <div id="customFieldsContainer">
-                                {% if custom_fields_for_filters %}
-                                    {% for category_field in custom_fields_for_filters %}
-                                        {% with field=category_field.custom_field %}
+                                {% if category_filter_fields %}
+                                    {% for cat_field in category_filter_fields %}
+                                        {% with field=cat_field.custom_field %}
                                             <div class="filter-group custom-field-filter" data-field-name="{{ field.name }}">
                                                 <label class="filter-label">
-                                                    <i class="fas fa-cog me-1"></i>
-                                                    {{ field.label_ar|default:field.name }}
+                                                    <i class="fas fa-{{ field.icon|default:'cog' }} me-1"></i>
+                                                    {{ field.label_ar|default:field.label }}
+                                                    {% if cat_field.is_required %}
+                                                        <span class="text-danger">*</span>
+                                                    {% endif %}
                                                 </label>
 
-                                                {% if field.field_type == 'select' %}
-                                                    <select class="filter-select custom-field-select" data-field-name="{{ field.name }}">
+                                                {% if field.field_type == 'select' or field.field_type == 'radio' %}
+                                                    <select class="filter-select custom-field-select"
+                                                            name="cf_{{ field.name }}"
+                                                            data-field-name="{{ field.name }}">
                                                         <option value="">{% trans "الكل" %}</option>
                                                         {% for option in field.field_options.all %}
                                                             {% if option.is_active %}
-                                                                <option value="{{ option.value }}">
-                                                                    {{ option.label_ar|default:option.value }}
+                                                                <option value="{{ option.value }}"
+                                                                        {% if request.GET|get_item:"cf_"|add:field.name == option.value %}selected{% endif %}>
+                                                                    {{ option.label_ar|default:option.label|default:option.value }}
                                                                 </option>
                                                             {% endif %}
                                                         {% endfor %}
                                                     </select>
-                                                {% elif field.field_type == 'checkbox' or field.field_type == 'radio' %}
+
+                                                {% elif field.field_type == 'number' or field.field_type == 'range' %}
+                                                    <div class="row g-2">
+                                                        <div class="col-6">
+                                                            <input type="number"
+                                                                   class="filter-input"
+                                                                   name="cf_{{ field.name }}_min"
+                                                                   placeholder="{% trans 'من' %}"
+                                                                   value="{{ request.GET|get_item:'cf_'|add:field.name|add:'_min' }}">
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <input type="number"
+                                                                   class="filter-input"
+                                                                   name="cf_{{ field.name }}_max"
+                                                                   placeholder="{% trans 'إلى' %}"
+                                                                   value="{{ request.GET|get_item:'cf_'|add:field.name|add:'_max' }}">
+                                                        </div>
+                                                    </div>
+
+                                                {% elif field.field_type == 'checkbox' %}
                                                     <div class="filter-checkbox-group">
                                                         {% for option in field.field_options.all %}
                                                             {% if option.is_active %}
                                                                 <label class="filter-checkbox">
-                                                                    <input type="{% if field.field_type == 'radio' %}radio{% else %}checkbox{% endif %}"
-                                                                           name="custom_{{ field.name }}"
+                                                                    <input type="checkbox"
+                                                                           name="cf_{{ field.name }}"
                                                                            value="{{ option.value }}"
-                                                                           class="custom-field-checkbox">
-                                                                    <span>{{ option.label_ar|default:option.value }}</span>
+                                                                           {% if option.value in request.GET.getlist|with_arg:"cf_"|add:field.name %}checked{% endif %}>
+                                                                    <span>{{ option.label_ar|default:option.label|default:option.value }}</span>
                                                                 </label>
                                                             {% endif %}
                                                         {% endfor %}
                                                     </div>
-                                                {% elif field.field_type == 'text' or field.field_type == 'number' %}
-                                                    <input type="{{ field.field_type }}"
+
+                                                {% elif field.field_type == 'text' or field.field_type == 'textarea' %}
+                                                    <input type="text"
                                                            class="filter-input custom-field-input"
-                                                           data-field-name="{{ field.name }}"
-                                                           placeholder="{{ field.placeholder|default:field.label_ar }}">
+                                                           name="cf_{{ field.name }}"
+                                                           placeholder="{{ field.placeholder|default:field.label_ar|default:field.label }}"
+                                                           value="{{ request.GET|get_item:'cf_'|add:field.name }}">
                                                 {% endif %}
                                             </div>
                                         {% endwith %}

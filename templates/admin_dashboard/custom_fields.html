@@ -1,302 +1,386 @@
 {% extends 'admin_dashboard/base.html' %}
 {% load static i18n %}
 
-{% block admin_title %}
-    {% trans "إدارة الحقول المخصصة" %}
-{% endblock %}
+{% block admin_title %}{% trans "الحقول المخصصة" %}{% endblock %}
 
 {% block admin_extra_css %}
 <style>
-    /* Modern Page Header */
-    .custom-fields-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 20px;
-        padding: 2.5rem;
-        margin-bottom: 2rem;
-        color: white;
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
-        position: relative;
-        overflow: hidden;
-    }
+/* ── Design tokens ─────────────────────────────────────────────────────────── */
+:root {
+    --cf-primary:       #7c3aed;
+    --cf-primary-d:     #6d28d9;
+    --cf-primary-bg:    #ede9fe;
+    --cf-surface:       #ffffff;
+    --cf-surface-2:     #f8fafc;
+    --cf-border:        #e2e8f0;
+    --cf-text:          #0f172a;
+    --cf-text-2:        #475569;
+    --cf-text-3:        #94a3b8;
+    --cf-radius:        12px;
+    --cf-shadow:        0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04);
+    --cf-shadow-md:     0 4px 16px rgba(0,0,0,.08);
+}
+[data-theme="dark"] {
+    --cf-primary:       #a78bfa;
+    --cf-primary-d:     #8b5cf6;
+    --cf-primary-bg:    rgba(124,58,237,.18);
+    --cf-surface:       #1e293b;
+    --cf-surface-2:     #0f172a;
+    --cf-border:        rgba(255,255,255,.08);
+    --cf-text:          #f1f5f9;
+    --cf-text-2:        #94a3b8;
+    --cf-text-3:        #475569;
+    --cf-shadow:        0 1px 3px rgba(0,0,0,.3);
+    --cf-shadow-md:     0 4px 16px rgba(0,0,0,.3);
+}
 
-    .custom-fields-header::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -10%;
-        width: 400px;
-        height: 400px;
-        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-        border-radius: 50%;
-    }
+/* ── Page header ───────────────────────────────────────────────────────────── */
+.cf-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.cf-page-title {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin: 0;
+    font-size: 1.55rem;
+    font-weight: 700;
+    color: var(--cf-text);
+}
+.cf-title-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, #7c3aed, #6366f1);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 1.1rem; flex-shrink: 0;
+}
+.cf-page-subtitle { color: var(--cf-text-2); font-size: .88rem; margin: .15rem 0 0; }
 
-    .custom-fields-header h1 {
-        font-size: 2rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        position: relative;
-        z-index: 1;
-    }
+/* ── Stat cards ────────────────────────────────────────────────────────────── */
+.cf-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+.cf-stat {
+    background: var(--cf-surface);
+    border: 1px solid var(--cf-border);
+    border-radius: var(--cf-radius);
+    padding: 1rem 1.2rem;
+    display: flex; align-items: center; gap: .9rem;
+    box-shadow: var(--cf-shadow);
+}
+.cf-stat-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .95rem; flex-shrink: 0;
+}
+.si-violet { background:#ede9fe; color:#7c3aed; }
+.si-green  { background:#d1fae5; color:#059669; }
+.si-blue   { background:#dbeafe; color:#2563eb; }
+.si-orange { background:#ffedd5; color:#ea580c; }
+[data-theme="dark"] .si-violet { background:rgba(124,58,237,.2); color:#a78bfa; }
+[data-theme="dark"] .si-green  { background:rgba(5,150,105,.2);  color:#34d399; }
+[data-theme="dark"] .si-blue   { background:rgba(37,99,235,.2);  color:#60a5fa; }
+[data-theme="dark"] .si-orange { background:rgba(234,88,12,.2);  color:#fb923c; }
+.cf-stat-val   { font-size: 1.5rem; font-weight: 700; color: var(--cf-text); line-height: 1; }
+.cf-stat-label { font-size: .76rem; color: var(--cf-text-2); margin-top: .15rem; }
 
-    .custom-fields-header .subtitle {
-        opacity: 0.95;
-        font-size: 1.05rem;
-        position: relative;
-        z-index: 1;
-    }
+/* ── Toolbar ───────────────────────────────────────────────────────────────── */
+.cf-toolbar {
+    display: flex; align-items: center; gap: .75rem;
+    background: var(--cf-surface);
+    border: 1px solid var(--cf-border);
+    border-radius: var(--cf-radius);
+    padding: .65rem .9rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--cf-shadow);
+}
+.cf-search-wrap { flex: 1; position: relative; }
+.cf-search-wrap .fa-search {
+    position: absolute; right: .85rem; top: 50%;
+    transform: translateY(-50%); color: var(--cf-text-3); pointer-events: none;
+}
+.cf-search-wrap input {
+    width: 100%;
+    padding: .55rem 2.4rem .55rem .85rem;
+    border: 1.5px solid var(--cf-border);
+    border-radius: 8px; font-size: .88rem;
+    background: var(--cf-surface-2); color: var(--cf-text);
+    transition: border-color .2s, box-shadow .2s;
+}
+.cf-search-wrap input:focus {
+    outline: none; border-color: var(--cf-primary);
+    box-shadow: 0 0 0 3px rgba(124,58,237,.1);
+}
+[data-theme="dark"] .cf-search-wrap input {
+    background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.1); color: var(--cf-text);
+}
+.cf-btn-add {
+    display: inline-flex; align-items: center; gap: .45rem;
+    padding: .6rem 1.2rem;
+    background: linear-gradient(135deg, #7c3aed, #6366f1);
+    color: #fff; border: none; border-radius: 8px;
+    font-size: .88rem; font-weight: 600; cursor: pointer;
+    white-space: nowrap; transition: all .2s;
+}
+.cf-btn-add:hover { color: #fff; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(124,58,237,.4); }
 
-    .header-actions {
-        position: relative;
-        z-index: 1;
-    }
+/* ── 2-col layout ──────────────────────────────────────────────────────────── */
+.cf-layout { display: grid; grid-template-columns: 210px 1fr; gap: 1rem; align-items: start; }
 
-    /* Search & Filter Bar */
-    .filter-bar {
-        background: white;
-        border-radius: 16px;
-        padding: 1.5rem;
-        margin-bottom: 2rem;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-    }
+/* ── Sidebar ───────────────────────────────────────────────────────────────── */
+.cf-sidebar {
+    background: var(--cf-surface);
+    border: 1px solid var(--cf-border);
+    border-radius: var(--cf-radius);
+    padding: .9rem;
+    box-shadow: var(--cf-shadow);
+    position: sticky; top: 80px;
+}
+.cf-sidebar-title {
+    font-size: .72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .07em; color: var(--cf-text-3);
+    padding-bottom: .5rem; margin-bottom: .6rem;
+    border-bottom: 1px solid var(--cf-border);
+}
+.cf-cat-btn {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; padding: .45rem .7rem;
+    border: none; background: transparent;
+    border-radius: 7px; color: var(--cf-text-2); font-size: .84rem;
+    cursor: pointer; transition: all .15s;
+    text-align: right; margin-bottom: 2px;
+}
+.cf-cat-btn:hover { background: var(--cf-surface-2); color: var(--cf-text); }
+.cf-cat-btn.active { background: var(--cf-primary-bg); color: var(--cf-primary); font-weight: 600; }
+.cf-cat-count {
+    font-size: .7rem; background: var(--cf-border); color: var(--cf-text-2);
+    padding: .1rem .42rem; border-radius: 20px; min-width: 20px; text-align: center;
+}
+.cf-cat-btn.active .cf-cat-count { background: var(--cf-primary); color: #fff; }
 
-    [data-theme='dark'] .filter-bar {
-        background: #1a202c;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
-    }
+/* ── Table ─────────────────────────────────────────────────────────────────── */
+.cf-table-wrap {
+    background: var(--cf-surface);
+    border: 1px solid var(--cf-border);
+    border-radius: var(--cf-radius);
+    box-shadow: var(--cf-shadow); overflow: hidden;
+}
+.cf-table { width: 100%; border-collapse: collapse; }
+.cf-table thead th {
+    background: var(--cf-surface-2); padding: .6rem 1rem;
+    font-size: .72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--cf-text-3);
+    border-bottom: 1px solid var(--cf-border); white-space: nowrap;
+}
+.cf-table tbody tr { border-bottom: 1px solid var(--cf-border); transition: background .1s; }
+.cf-table tbody tr:last-child { border-bottom: none; }
+.cf-table tbody tr:hover { background: var(--cf-surface-2); }
+.cf-table td { padding: .8rem 1rem; vertical-align: middle; }
 
-    .search-input-wrapper {
-        position: relative;
-    }
+/* Field identity */
+.cf-field-id { display: flex; align-items: center; gap: .7rem; min-width: 150px; }
+.cf-avatar {
+    width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: .85rem;
+}
+.av-text     { background:#d1fae5; color:#065f46; }
+.av-number   { background:#dbeafe; color:#1e40af; }
+.av-select   { background:#ede9fe; color:#5b21b6; }
+.av-radio    { background:#ffedd5; color:#9a3412; }
+.av-checkbox { background:#d1fae5; color:#065f46; }
+.av-date     { background:#fef3c7; color:#92400e; }
+.av-email    { background:#e0f2fe; color:#0369a1; }
+.av-url      { background:#f0f9ff; color:#0c4a6e; }
+.av-phone    { background:#f0fdf4; color:#15803d; }
+.av-file     { background:#fdf2f8; color:#9d174d; }
+.av-default  { background:#f1f5f9; color:#475569; }
+[data-theme="dark"] .av-text     { background:rgba(5,150,105,.15); color:#34d399; }
+[data-theme="dark"] .av-number   { background:rgba(37,99,235,.15); color:#60a5fa; }
+[data-theme="dark"] .av-select   { background:rgba(91,33,182,.2);  color:#c084fc; }
+[data-theme="dark"] .av-radio    { background:rgba(154,52,18,.15); color:#fb923c; }
+[data-theme="dark"] .av-checkbox { background:rgba(5,150,105,.15); color:#34d399; }
+[data-theme="dark"] .av-date     { background:rgba(146,64,14,.15); color:#fbbf24; }
+[data-theme="dark"] .av-default  { background:rgba(71,85,105,.2);  color:#94a3b8; }
 
-    .search-input-wrapper .search-icon {
-        position: absolute;
-        left: 1rem;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #94a3b8;
-        font-size: 1.1rem;
-    }
+.cf-field-label { font-weight: 600; color: var(--cf-text); font-size: .88rem; line-height: 1.2; }
+.cf-field-slug  { font-size: .72rem; color: var(--cf-text-3); font-family: monospace; margin-top: 1px; }
 
-    .search-input-wrapper input {
-        padding-left: 3rem;
-        border-radius: 12px;
-        border: 2px solid #e2e8f0;
-        padding: 0.875rem 1rem 0.875rem 3rem;
-        font-size: 0.95rem;
-        transition: all 0.3s ease;
-    }
+/* Type badge */
+.cf-type {
+    display: inline-flex; align-items: center; gap: .3rem;
+    padding: .28rem .65rem; border-radius: 6px;
+    font-size: .7rem; font-weight: 600; white-space: nowrap;
+}
+.ct-text     { background:#f0fdf4; color:#166534; }
+.ct-number   { background:#eff6ff; color:#1d4ed8; }
+.ct-select   { background:#fdf4ff; color:#7e22ce; }
+.ct-radio    { background:#fff7ed; color:#c2410c; }
+.ct-checkbox { background:#ecfdf5; color:#065f46; }
+.ct-date,
+.ct-datetime { background:#fef9c3; color:#854d0e; }
+.ct-textarea { background:#f8fafc; color:#334155; }
+.ct-file     { background:#fdf2f8; color:#9d174d; }
+.ct-email    { background:#e0f2fe; color:#0369a1; }
+.ct-url      { background:#f0f9ff; color:#0c4a6e; }
+.ct-phone    { background:#f0fdf4; color:#15803d; }
+.ct-default  { background:#f1f5f9; color:#334155; }
+[data-theme="dark"] .ct-text     { background:rgba(22,163,74,.12); color:#4ade80; }
+[data-theme="dark"] .ct-number   { background:rgba(29,78,216,.12); color:#60a5fa; }
+[data-theme="dark"] .ct-select   { background:rgba(126,34,206,.12);color:#c084fc; }
+[data-theme="dark"] .ct-radio    { background:rgba(194,65,12,.12); color:#fb923c; }
+[data-theme="dark"] .ct-checkbox { background:rgba(5,150,105,.12); color:#34d399; }
+[data-theme="dark"] .ct-date,
+[data-theme="dark"] .ct-datetime { background:rgba(133,77,14,.12); color:#fbbf24; }
+[data-theme="dark"] .ct-default  { background:rgba(51,65,85,.3);   color:#94a3b8; }
 
-    .search-input-wrapper input:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-    }
+/* Category chips */
+.cf-cats { display: flex; flex-wrap: wrap; gap: .25rem; max-width: 200px; }
+.cf-chip {
+    display: inline-flex; align-items: center; gap: .2rem;
+    padding: .18rem .5rem; border-radius: 20px; font-size: .68rem;
+    font-weight: 500; background: var(--cf-primary-bg); color: var(--cf-primary);
+    white-space: nowrap;
+}
 
-    [data-theme='dark'] .search-input-wrapper input {
-        background: rgba(45, 55, 72, 0.5);
-        border-color: rgba(255, 255, 255, 0.1);
-        color: #e2e8f0;
-    }
+/* Status badges */
+.cf-badges { display: flex; flex-direction: column; gap: .25rem; }
+.cf-badge {
+    display: inline-flex; align-items: center; gap: .28rem;
+    padding: .22rem .55rem; border-radius: 20px; font-size: .68rem; font-weight: 600;
+}
+.cb-active   { background:#d1fae5; color:#065f46; }
+.cb-inactive { background:#f1f5f9; color:#64748b; }
+.cb-required { background:#fef3c7; color:#92400e; }
+[data-theme="dark"] .cb-active   { background:rgba(5,150,105,.18); color:#34d399; }
+[data-theme="dark"] .cb-inactive { background:rgba(71,85,105,.2);  color:#94a3b8; }
+[data-theme="dark"] .cb-required { background:rgba(217,119,6,.18); color:#fbbf24; }
 
-    /* Category Sections */
-    .category-section {
-        background: white;
-        border-radius: 16px;
-        overflow: hidden;
-        margin-bottom: 2rem;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-        transition: all 0.3s ease;
-    }
+/* Row actions */
+.cf-actions { display: flex; gap: .3rem; justify-content: flex-end; }
+.cf-icon-btn {
+    width: 30px; height: 30px; border-radius: 7px;
+    border: 1px solid var(--cf-border); background: transparent;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .75rem; cursor: pointer; transition: all .15s; color: var(--cf-text-2);
+}
+.cf-icon-btn:hover            { background: var(--cf-surface-2); }
+.cf-icon-btn.ib-edit:hover    { border-color:#3b82f6; color:#3b82f6; background:#eff6ff; }
+.cf-icon-btn.ib-cats:hover    { border-color:var(--cf-primary); color:var(--cf-primary); background:var(--cf-primary-bg); }
+.cf-icon-btn.ib-delete:hover  { border-color:#ef4444; color:#ef4444; background:#fef2f2; }
+[data-theme="dark"] .cf-icon-btn.ib-edit:hover   { background:rgba(59,130,246,.12); }
+[data-theme="dark"] .cf-icon-btn.ib-cats:hover   { background:var(--cf-primary-bg); }
+[data-theme="dark"] .cf-icon-btn.ib-delete:hover { background:rgba(239,68,68,.12); }
 
-    .category-section:hover {
-        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.15);
-    }
+/* Empty state */
+.cf-empty { text-align: center; padding: 4rem 2rem; }
+.cf-empty-icon {
+    width: 72px; height: 72px; background: var(--cf-primary-bg); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem; color: var(--cf-primary); margin: 0 auto 1.1rem;
+}
+.cf-empty h5 { color: var(--cf-text); font-weight: 700; margin-bottom: .4rem; }
+.cf-empty p  { color: var(--cf-text-2); font-size: .88rem; }
 
-    [data-theme='dark'] .category-section {
-        background: #1a202c;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
-    }
+/* ── Modals ────────────────────────────────────────────────────────────────── */
+.modal-content {
+    border: none; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,.18);
+}
+[data-theme="dark"] .modal-content { background: #1e293b; }
+.modal-header {
+    background: linear-gradient(135deg, #7c3aed, #6366f1);
+    color: #fff; padding: 1.2rem 1.5rem; border: none;
+}
+.modal-header .btn-close { filter: brightness(0) invert(1); opacity: 1; }
+.modal-title { font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: .55rem; }
+.modal-body   { padding: 1.4rem; }
+.modal-footer { padding: .9rem 1.4rem; border-top: 1px solid var(--cf-border); }
+[data-theme="dark"] .modal-footer { border-top-color: rgba(255,255,255,.08); }
 
-    .category-header {
-        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-        padding: 1.5rem 2rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-bottom: 2px solid #e2e8f0;
-    }
+.form-label {
+    font-weight: 600; color: var(--cf-text-2); font-size: .83rem; margin-bottom: .35rem;
+}
+.form-control, .form-select {
+    border: 1.5px solid var(--cf-border); border-radius: 8px;
+    padding: .58rem .88rem; font-size: .88rem;
+    background: var(--cf-surface); color: var(--cf-text);
+    transition: border-color .2s, box-shadow .2s;
+}
+.form-control:focus, .form-select:focus {
+    border-color: var(--cf-primary);
+    box-shadow: 0 0 0 3px rgba(124,58,237,.1); outline: none;
+}
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+    background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.1); color: var(--cf-text);
+}
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+    background: rgba(255,255,255,.09); border-color: var(--cf-primary);
+}
+.form-text { color: var(--cf-text-3); font-size: .78rem; margin-top: .3rem; }
 
-    [data-theme='dark'] .category-header {
-        background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
-        border-bottom-color: rgba(255, 255, 255, 0.08);
-    }
+/* Modal form sections */
+.cf-section {
+    border: 1px solid var(--cf-border);
+    border-radius: 10px; padding: .9rem 1rem; margin-bottom: .75rem;
+}
+.cf-section-title {
+    font-size: .71rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .07em; color: var(--cf-text-3);
+    display: flex; align-items: center; gap: .35rem; margin-bottom: .7rem;
+}
+/* Category tree in modals */
+.cf-tree-box {
+    border: 1.5px solid var(--cf-border); border-radius: 9px;
+    padding: .7rem .9rem; max-height: 260px; overflow-y: auto;
+    background: var(--cf-surface-2);
+}
+[data-theme="dark"] .cf-tree-box { background: rgba(255,255,255,.03); }
 
-    .category-title {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
+/* Pill checkboxes */
+.cf-pills { display: flex; flex-wrap: wrap; gap: .6rem; }
+.cf-pill {
+    display: flex; align-items: center; gap: .4rem;
+    padding: .38rem .78rem;
+    border: 1.5px solid var(--cf-border); border-radius: 20px;
+    cursor: pointer; font-size: .8rem; font-weight: 500;
+    color: var(--cf-text-2); transition: all .15s; user-select: none;
+}
+.cf-pill:has(input:checked) {
+    border-color: var(--cf-primary); background: var(--cf-primary-bg); color: var(--cf-primary);
+}
+.cf-pill input { display: none; }
 
-    .category-icon {
-        width: 48px;
-        height: 48px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: white;
-        border-radius: 12px;
-        font-size: 1.25rem;
-    }
+/* Primary button */
+.btn-cf-primary {
+    display: inline-flex; align-items: center; gap: .4rem;
+    padding: .58rem 1.4rem;
+    background: linear-gradient(135deg, #7c3aed, #6366f1);
+    color: #fff; border: none; border-radius: 8px;
+    font-size: .88rem; font-weight: 600; cursor: pointer; transition: all .2s;
+}
+.btn-cf-primary:hover { color:#fff; transform:translateY(-1px); box-shadow:0 4px 12px rgba(124,58,237,.4); }
 
-    .category-name {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: #1e293b;
-        margin: 0;
-    }
-
-    [data-theme='dark'] .category-name {
-        color: #f1f5f9;
-    }
-
-    .category-count {
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        font-size: 0.875rem;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .category-body {
-        padding: 2rem;
-    }
-
-    /* Field Cards - Modern Design */
-    .field-card {
-        background: linear-gradient(135deg, #fafbfc 0%, #f8fafc 100%);
-        border: 2px solid #e2e8f0;
-        border-radius: 16px;
-        padding: 1.5rem;
-        height: 100%;
-        position: relative;
-        overflow: hidden;
-        transition: all 0.3s ease;
-    }
-
-    .field-card::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 5px;
-        background: linear-gradient(180deg, #667eea, #764ba2);
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-
-    .field-card:hover {
-        border-color: #cbd5e1;
-        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.15);
-        transform: translateY(-4px);
-    }
-
-    .field-card:hover::before {
-        opacity: 1;
-    }
-
-    [data-theme='dark'] .field-card {
-        background: linear-gradient(135deg, rgba(45, 55, 72, 0.5) 0%, rgba(26, 32, 44, 0.7) 100%);
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-
-    [data-theme='dark'] .field-card:hover {
-        border-color: rgba(255, 255, 255, 0.2);
-        box-shadow: 0 8px 24px rgba(129, 140, 248, 0.2);
-    }
-
-    .field-card-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 1.25rem;
-        padding-bottom: 1.25rem;
-        border-bottom: 2px solid #f1f5f9;
-    }
-
-    [data-theme='dark'] .field-card-top {
-        border-bottom-color: rgba(255, 255, 255, 0.08);
-    }
-
-    .field-info {
-        flex: 1;
-    }
-
-    .field-name {
-        font-weight: 700;
-        font-size: 1.15rem;
-        color: #1e293b;
-        margin-bottom: 0.75rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    [data-theme='dark'] .field-name {
-        color: #f1f5f9;
-    }
-
-    .field-type-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: white;
-        padding: 0.4rem 1rem;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    /* Action Buttons */
-    .field-actions {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-    }
-
-    .btn-field-action {
-        padding: 0.625rem;
-        border-radius: 10px;
-        border: 2px solid;
-        font-size: 0.875rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-    }
-
-    .btn-edit-field {
-        background: linear-gradient(135deg, #3b82f6, #2563eb);
-        border-color: #3b82f6;
-        color: white;
-    }
-
-    .btn-edit-field:hover {
-        background: linear-gradient(135deg, #2563eb, #1d4ed8);
-        border-color: #2563eb;
+/* Responsive */
+@media (max-width: 991px) {
+    .cf-table .col-cats,
+    .cf-table .col-status { display: none; }
+}
+@media (max-width: 767px) {
+    .cf-layout { grid-template-columns: 1fr; }
+    .cf-stats   { grid-template-columns: repeat(2,1fr); }
+    .cf-sidebar { position: static; }
+}
         color: white;
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
@@ -577,454 +661,443 @@
 {% endblock %}
 
 {% block admin_content %}
-<div class="custom-fields-page">
-    <!-- Modern Page Header -->
-    <div class="custom-fields-header">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <div>
-                <h1>
-                    <i class="fas fa-sliders-h"></i>
-                    {% trans "إدارة الحقول المخصصة" %}
-                </h1>
-                <div class="subtitle">
-                    {% trans "إنشاء وإدارة الحقول المخصصة لأقسام الموقع بسهولة وفعالية" %}
-                </div>
-            </div>
-            <div class="header-actions">
-                <button class="btn btn-primary-gradient" data-bs-toggle="modal" data-bs-target="#addFieldModal">
-                    <i class="fas fa-plus-circle"></i>
-                    {% trans "حقل جديد" %}
+{% regroup category_fields by category as category_groups %}
+
+<!-- Page header -->
+<div class="cf-page-header">
+    <div>
+        <h1 class="cf-page-title">
+            <span class="cf-title-icon"><i class="fas fa-sliders-h"></i></span>
+            {% trans "الحقول المخصصة" %}
+        </h1>
+        <p class="cf-page-subtitle">{% trans "إنشاء وإدارة الحقول المخصصة لأقسام الموقع" %}</p>
+    </div>
+</div>
+
+<!-- Stats row -->
+<div class="cf-stats">
+    <div class="cf-stat">
+        <div class="cf-stat-icon si-violet"><i class="fas fa-layer-group"></i></div>
+        <div>
+            <div class="cf-stat-val">{{ fields|length }}</div>
+            <div class="cf-stat-label">{% trans "إجمالي الحقول" %}</div>
+        </div>
+    </div>
+    <div class="cf-stat">
+        <div class="cf-stat-icon si-green"><i class="fas fa-check-circle"></i></div>
+        <div>
+            <div class="cf-stat-val" id="stat-active">–</div>
+            <div class="cf-stat-label">{% trans "حقول نشطة" %}</div>
+        </div>
+    </div>
+    <div class="cf-stat">
+        <div class="cf-stat-icon si-blue"><i class="fas fa-asterisk"></i></div>
+        <div>
+            <div class="cf-stat-val" id="stat-required">–</div>
+            <div class="cf-stat-label">{% trans "حقول إلزامية" %}</div>
+        </div>
+    </div>
+    <div class="cf-stat">
+        <div class="cf-stat-icon si-orange"><i class="fas fa-folder-open"></i></div>
+        <div>
+            <div class="cf-stat-val">{{ category_groups|length }}</div>
+            <div class="cf-stat-label">{% trans "أقسام مرتبطة" %}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Toolbar: search + add -->
+<div class="cf-toolbar">
+    <div class="cf-search-wrap">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" autocomplete="off"
+               placeholder="{% trans 'ابحث باسم الحقل أو نوعه...' %}"
+               value="{{ search_query }}" oninput="filterFields()" />
+    </div>
+    <button class="cf-btn-add" data-bs-toggle="modal" data-bs-target="#addFieldModal">
+        <i class="fas fa-plus"></i>
+        {% trans "إضافة حقل" %}
+    </button>
+</div>
+
+<!-- Main: sidebar + table -->
+<div class="cf-layout">
+
+    <!-- Sidebar: category filter -->
+    <div class="cf-sidebar">
+        <div class="cf-sidebar-title"><i class="fas fa-filter me-1"></i>{% trans "تصفية بالقسم" %}</div>
+        <button class="cf-cat-btn active" onclick="filterByCategory('all', this)">
+            <span>{% trans "الكل" %}</span>
+            <span class="cf-cat-count" id="count-all">{{ fields|length }}</span>
+        </button>
+        {% for group in category_groups %}
+        <button class="cf-cat-btn" onclick="filterByCategory('{{ group.grouper.id }}', this)">
+            <span>{{ group.grouper.name_ar|default:group.grouper.name }}</span>
+            <span class="cf-cat-count">{{ group.list|length }}</span>
+        </button>
+        {% endfor %}
+    </div>
+
+    <!-- Fields table -->
+    <div>
+        {% if fields %}
+        <div class="cf-table-wrap">
+            <table class="cf-table">
+                <thead>
+                    <tr>
+                        <th>{% trans "الحقل" %}</th>
+                        <th>{% trans "النوع" %}</th>
+                        <th class="col-cats">{% trans "الأقسام" %}</th>
+                        <th class="col-status">{% trans "الحالة" %}</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="fields-tbody">
+                {% for field in fields %}
+                <tr class="field-row"
+                    data-field-name="{{ field.label_ar|lower|default:'' }} {{ field.name|lower }}"
+                    data-category-ids="{% for cat in field.categories.all %}{{ cat.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                    data-is-active="{{ field.is_active|yesno:'true,false' }}"
+                    data-is-required="{{ field.is_required|yesno:'true,false' }}">
+
+                    <!-- Identity -->
+                    <td>
+                        <div class="cf-field-id">
+                            <div class="cf-avatar av-{{ field.field_type|default:'default' }}">
+                                {% if field.field_type == 'text' or field.field_type == 'textarea' %}<i class="fas fa-font"></i>
+                                {% elif field.field_type == 'number' or field.field_type == 'range' %}<i class="fas fa-hashtag"></i>
+                                {% elif field.field_type == 'select' %}<i class="fas fa-list"></i>
+                                {% elif field.field_type == 'radio' %}<i class="fas fa-dot-circle"></i>
+                                {% elif field.field_type == 'checkbox' %}<i class="fas fa-check-square"></i>
+                                {% elif field.field_type == 'date' or field.field_type == 'datetime' %}<i class="fas fa-calendar-alt"></i>
+                                {% elif field.field_type == 'file' %}<i class="fas fa-file"></i>
+                                {% elif field.field_type == 'email' %}<i class="fas fa-envelope"></i>
+                                {% elif field.field_type == 'url' %}<i class="fas fa-link"></i>
+                                {% elif field.field_type == 'phone' %}<i class="fas fa-phone"></i>
+                                {% else %}<i class="fas fa-tag"></i>{% endif %}
+                            </div>
+                            <div>
+                                <div class="cf-field-label">{{ field.label_ar|default:field.name }}</div>
+                                <div class="cf-field-slug">{{ field.name }}</div>
+                            </div>
+                        </div>
+                    </td>
+
+                    <!-- Type -->
+                    <td>
+                        <span class="cf-type ct-{{ field.field_type|default:'default' }}">
+                            {{ field.field_type }}
+                        </span>
+                    </td>
+
+                    <!-- Categories -->
+                    <td class="col-cats">
+                        <div class="cf-cats">
+                            {% for cat in field.categories.all %}
+                            <span class="cf-chip"><i class="fas fa-folder fa-xs"></i>{{ cat.name_ar|default:cat.name }}</span>
+                            {% empty %}
+                            <span style="color:var(--cf-text-3);font-size:.75rem;">–</span>
+                            {% endfor %}
+                        </div>
+                    </td>
+
+                    <!-- Status -->
+                    <td class="col-status">
+                        <div class="cf-badges">
+                            {% if field.is_active %}
+                            <span class="cf-badge cb-active"><i class="fas fa-circle" style="font-size:.4rem;"></i>{% trans "نشط" %}</span>
+                            {% else %}
+                            <span class="cf-badge cb-inactive"><i class="fas fa-circle" style="font-size:.4rem;"></i>{% trans "معطل" %}</span>
+                            {% endif %}
+                            {% if field.is_required %}
+                            <span class="cf-badge cb-required"><i class="fas fa-asterisk" style="font-size:.55rem;"></i>{% trans "إلزامي" %}</span>
+                            {% endif %}
+                        </div>
+                    </td>
+
+                    <!-- Actions -->
+                    <td>
+                        <div class="cf-actions">
+                            <button class="cf-icon-btn ib-edit"
+                                    data-action="edit-field" data-field-id="{{ field.id }}"
+                                    title="{% trans 'تعديل' %}">
+                                <i class="fas fa-pen"></i>
+                            </button>
+                            <button class="cf-icon-btn ib-cats"
+                                    data-action="add-to-categories" data-field-id="{{ field.id }}"
+                                    title="{% trans 'ربط بأقسام' %}">
+                                <i class="fas fa-sitemap"></i>
+                            </button>
+                            <button class="cf-icon-btn ib-delete"
+                                    data-action="delete-field" data-field-id="{{ field.id }}"
+                                    data-field-name="{{ field.label_ar|default:field.name }}"
+                                    title="{% trans 'حذف' %}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="cf-table-wrap">
+            <div class="cf-empty">
+                <div class="cf-empty-icon"><i class="fas fa-sliders-h"></i></div>
+                <h5>{% trans "لا توجد حقول مخصصة" %}</h5>
+                <p>{% trans "أضف أول حقل مخصص لتخصيص أقسام موقعك" %}</p>
+                <button class="cf-btn-add" data-bs-toggle="modal" data-bs-target="#addFieldModal">
+                    <i class="fas fa-plus"></i> {% trans "إضافة حقل" %}
                 </button>
             </div>
         </div>
+        {% endif %}
     </div>
 
-    <!-- Search & Filter Bar -->
-    <div class="filter-bar">
-        <form method="get">
-            <div class="row g-3 align-items-center">
-                <div class="col-lg-10">
-                    <div class="search-input-wrapper">
-                        <i class="fas fa-search search-icon"></i>
-                        <input
-                            id="searchInput"
-                            type="text"
-                            name="search"
-                            class="form-control"
-                            placeholder="{% trans 'ابحث باسم الحقل أو القسم أو نوع الحقل...' %}"
-                            value="{{ search_query }}"
-                        />
-                    </div>
-                </div>
-                <div class="col-lg-2">
-                    <button type="submit" class="btn btn-primary-gradient w-100">
-                        <i class="fas fa-search"></i>
-                        {% trans "بحث" %}
-                    </button>
-                </div>
-            </div>
-        </form>
-    </div>
-
-    <!-- Fields by Category -->
-    {% if category_fields %}
-        {% regroup category_fields by category as category_groups %}
-        {% for group in category_groups %}
-        <div class="category-section">
-            <div class="category-header">
-                <div class="category-title">
-                    <div class="category-icon">
-                        <i class="fas fa-folder-open"></i>
-                    </div>
-                    <h3 class="category-name">
-                        {{ group.grouper.name_ar|default:group.grouper.name }}
-                    </h3>
-                </div>
-                <div class="category-count">
-                    <i class="fas fa-list"></i>
-                    <span>{{ group.list|length }} {% trans "حقول" %}</span>
-                </div>
-            </div>
-            <div class="category-body">
-                {% if group.list %}
-                <div class="row g-3" id="category-{{ group.grouper.id }}-fields">
-                    {% for cf in group.list %}
-                    {% with field=cf.custom_field|default:cf %}
-                    <div class="col-12 col-md-6 col-xl-4 field-card-wrapper">
-                        <div class="field-card">
-                            <!-- Field Info -->
-                            <div class="field-card-top">
-                                <div class="field-info">
-                                    <div class="field-name">
-                                        <i class="fas fa-tag"></i>
-                                        {{ field.label_ar|default:field.name }}
-                                    </div>
-                                    <span class="field-type-badge">
-                                        <i class="fas fa-code"></i>
-                                        {{ field.field_type }}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <!-- Action Buttons -->
-                            <div class="field-actions">
-                                <button
-                                    type="button"
-                                    class="btn btn-field-action btn-edit-field"
-                                    data-action="edit-field"
-                                    data-field-id="{{ field.id }}"
-                                    title="{% trans 'تعديل الحقل' %}"
-                                >
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button
-                                    type="button"
-                                    class="btn btn-field-action btn-delete-field"
-                                    data-action="delete-field"
-                                    data-field-id="{{ field.id }}"
-                                    data-field-name="{{ field.label_ar|default:field.name }}"
-                                    title="{% trans 'حذف الحقل' %}"
-                                >
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
-                                <button
-                                    type="button"
-                                    class="btn btn-field-action btn-add-categories"
-                                    data-action="add-to-categories"
-                                    data-field-id="{{ field.id }}"
-                                    title="{% trans 'إضافة لأقسام أخرى' %}"
-                                >
-                                    <i class="fas fa-sitemap"></i>
-                                </button>
-                            </div>
-
-                            <!-- Status Badges -->
-                            <div class="field-status-badges">
-                                {% if field.is_required %}
-                                <span class="status-badge badge-required">
-                                    <i class="fas fa-asterisk"></i>
-                                    {% trans "إلزامي" %}
-                                </span>
-                                {% endif %}
-                                {% if field.show_on_card %}
-                                <span class="status-badge badge-card">
-                                    <i class="fas fa-id-card"></i>
-                                    {% trans "بطاقة" %}
-                                </span>
-                                {% endif %}
-                                {% if field.show_in_filters %}
-                                <span class="status-badge badge-filter">
-                                    <i class="fas fa-filter"></i>
-                                    {% trans "فلتر" %}
-                                </span>
-                                {% endif %}
-                                {% if field.is_active %}
-                                <span class="status-badge badge-active">
-                                    <i class="fas fa-check-circle"></i>
-                                    {% trans "نشط" %}
-                                </span>
-                                {% else %}
-                                <span class="status-badge badge-inactive">
-                                    <i class="fas fa-times-circle"></i>
-                                    {% trans "غير نشط" %}
-                                </span>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    {% endwith %}
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="text-center py-5">
-                    <div class="empty-state-icon">
-                        <i class="fas fa-inbox"></i>
-                    </div>
-                    <p class="text-muted mb-0">{% trans "لا توجد حقول في هذا القسم" %}</p>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
-    {% else %}
-    <div class="empty-state">
-        <div class="empty-state-icon">
-            <i class="fas fa-sliders-h"></i>
-        </div>
-        <h4>{% trans "لا توجد حقول مخصصة" %}</h4>
-        <p>
-            {% trans "ابدأ بإضافة حقل مخصص جديد لتخصيص أقسام موقعك وتحسين تجربة المستخدم" %}
-        </p>
-        <button class="btn btn-primary-gradient" data-bs-toggle="modal" data-bs-target="#addFieldModal">
-            <i class="fas fa-plus-circle"></i>
-            {% trans "إضافة حقل جديد" %}
-        </button>
-    </div>
-    {% endif %}
-</div>
+</div><!-- .cf-layout -->
 {% endblock %}
 
 {% block modals %}
-<!-- Add Field Modal -->
+
+<!-- ── Confirm Modal ─────────────────────────────────────────────────────────── -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:420px">
+    <div class="modal-content" style="border:none;border-radius:var(--cf-radius);overflow:hidden;">
+      <div class="modal-body p-0">
+        <div style="background:var(--cf-primary);padding:24px 24px 20px;text-align:center;">
+          <div style="width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+            <i class="fas fa-exclamation-triangle" style="color:#fff;font-size:22px;"></i>
+          </div>
+          <h5 id="confirmModalTitle" style="color:#fff;font-weight:700;margin:0;font-size:1.05rem;"></h5>
+        </div>
+        <div style="padding:20px 24px 8px;text-align:center;">
+          <p id="confirmModalBody" style="color:var(--cf-text-2);margin:0;font-size:.95rem;line-height:1.6;"></p>
+        </div>
+      </div>
+      <div class="modal-footer border-0 justify-content-center gap-2 pb-4">
+        <button type="button" class="btn btn-sm" data-bs-dismiss="modal"
+          style="min-width:90px;border:1.5px solid var(--cf-border);color:var(--cf-text-2);border-radius:8px;font-weight:600;">
+          {% trans "إلغاء" %}
+        </button>
+        <button type="button" id="confirmModalOkBtn"
+          style="min-width:90px;background:var(--cf-danger,#ef4444);border:none;color:#fff;border-radius:8px;font-weight:600;padding:6px 18px;font-size:.9rem;">
+          {% trans "تأكيد الحذف" %}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add Field Modal ──────────────────────────────────────────────────────── -->
 <div class="modal fade" id="addFieldModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-plus-circle me-2"></i>
-                    {% trans "إضافة حقل مخصص جديد" %}
-                </h5>
+                <h5 class="modal-title"><i class="fas fa-plus-circle"></i> {% trans "إضافة حقل مخصص جديد" %}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="addFieldForm">
-                    <div class="row g-3">
-                        <!-- Category Selection Section -->
-                        <div class="col-12">
-                            <label class="form-label">
-                                {% trans "الأقسام" %} <span class="text-danger">*</span>
-                                <i class="fas fa-info-circle text-muted ms-1"
-                                   data-bs-toggle="tooltip"
-                                   title="{% trans 'اختر قسم رئيسي و/أو أقسام فرعية. يمكنك اختيار أكثر من قسم.' %}"></i>
-                            </label>
-                            <div class="card" style="max-height: 350px; overflow-y: auto; border: 2px solid #e2e8f0; border-radius: 12px;">
-                                <div class="card-body p-3" id="addCategoryTree">
-                                    <!-- Category tree will be rendered here by JavaScript -->
-                                </div>
-                            </div>
-                            <small class="form-text text-muted">
-                                <i class="fas fa-lightbulb"></i>
-                                {% trans "يمكنك اختيار عدة أقسام (رئيسية و/أو فرعية). يمكنك اختيار أقسام فرعية فقط دون الرئيسي." %}
-                            </small>
+                    <!-- Categories -->
+                    <div class="cf-section">
+                        <div class="cf-section-title">
+                            <i class="fas fa-folder"></i>
+                            {% trans "الأقسام" %} <span class="text-danger">*</span>
                         </div>
+                        <div class="cf-tree-box" id="addCategoryTree"></div>
+                    </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label">{% trans "الاسم (نظامي)" %} <span class="text-danger">*</span></label>
-                            <input name="name" type="text" class="form-control" required placeholder="field_name" />
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">{% trans "الاسم (عربي)" %} <span class="text-danger">*</span></label>
-                            <input name="label_ar" type="text" class="form-control" required placeholder="اسم الحقل" dir="rtl" />
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">{% trans "الاسم (إنجليزي)" %}</label>
-                            <input name="label_en" type="text" class="form-control" placeholder="Field Name" />
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">{% trans "نوع الحقل" %} <span class="text-danger">*</span></label>
-                            <select name="field_type" id="addFieldType" class="form-select" required>
-                                <option value="text">{% trans "نص" %} (text)</option>
-                                <option value="number">{% trans "رقم" %} (number)</option>
-                                <option value="select">{% trans "قائمة منسدلة" %} (select)</option>
-                                <option value="checkbox">{% trans "خانة اختيار" %} (checkbox)</option>
-                                <option value="radio">{% trans "اختيار واحد" %} (radio)</option>
-                                <option value="date">{% trans "تاريخ" %} (date)</option>
-                            </select>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">{% trans "خيارات (لأنواع select/radio/checkbox)" %}</label>
-                            <textarea name="options" id="addFieldOptions" class="form-control" rows="3"
-                                placeholder="{% trans 'خيار 1, خيار 2, خيار 3' %}"></textarea>
-                            <small class="form-text text-muted">{% trans "افصل بين الخيارات بفواصل أو أسطر جديدة" %}</small>
-                        </div>
-                        <div class="col-12">
-                            <div class="row">
-                                <div class="col-md-3">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="addIsRequired" name="is_required" />
-                                        <label class="form-check-label" for="addIsRequired">
-                                            <i class="fas fa-asterisk text-warning"></i> {% trans "إلزامي" %}
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="addIsActive" name="is_active" checked />
-                                        <label class="form-check-label" for="addIsActive">
-                                            <i class="fas fa-check-circle text-success"></i> {% trans "نشط" %}
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="addShowOnCard" name="show_on_card" />
-                                        <label class="form-check-label" for="addShowOnCard">
-                                            <i class="fas fa-id-card text-info"></i> {% trans "في البطاقة" %}
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="addShowInFilters" name="show_in_filters" />
-                                        <label class="form-check-label" for="addShowInFilters">
-                                            <i class="fas fa-filter text-primary"></i> {% trans "في الفلاتر" %}
-                                        </label>
-                                    </div>
-                                </div>
+                    <!-- Field info -->
+                    <div class="cf-section">
+                        <div class="cf-section-title"><i class="fas fa-info-circle"></i> {% trans "معلومات الحقل" %}</div>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label">{% trans "الاسم (نظامي)" %} <span class="text-danger">*</span></label>
+                                <input name="name" type="text" class="form-control" required placeholder="field_name" />
                             </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{% trans "الاسم بالعربية" %} <span class="text-danger">*</span></label>
+                                <input name="label_ar" type="text" class="form-control" required placeholder="اسم الحقل" dir="rtl" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{% trans "الاسم بالإنجليزية" %}</label>
+                                <input name="label_en" type="text" class="form-control" placeholder="Field Name" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{% trans "نوع الحقل" %} <span class="text-danger">*</span></label>
+                                <select name="field_type" id="addFieldType" class="form-select" required>
+                                    <option value="text">{% trans "نص" %} (text)</option>
+                                    <option value="number">{% trans "رقم" %} (number)</option>
+                                    <option value="select">{% trans "قائمة منسدلة" %} (select)</option>
+                                    <option value="checkbox">{% trans "خانة اختيار" %} (checkbox)</option>
+                                    <option value="radio">{% trans "اختيار واحد" %} (radio)</option>
+                                    <option value="date">{% trans "تاريخ" %} (date)</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">
+                                    {% trans "الخيارات" %}
+                                    <small class="text-muted">({% trans "لأنواع select / radio / checkbox" %})</small>
+                                </label>
+                                <textarea name="options" id="addFieldOptions" class="form-control" rows="2"
+                                    placeholder="{% trans 'خيار 1, خيار 2, خيار 3' %}"></textarea>
+                                <span class="form-text">{% trans "افصل بين الخيارات بفواصل أو أسطر جديدة" %}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Settings -->
+                    <div class="cf-section">
+                        <div class="cf-section-title"><i class="fas fa-cog"></i> {% trans "الإعدادات" %}</div>
+                        <div class="cf-pills">
+                            <label class="cf-pill">
+                                <input type="checkbox" id="addIsRequired" name="is_required" />
+                                <i class="fas fa-asterisk" style="color:#d97706;font-size:.7rem;"></i> {% trans "إلزامي" %}
+                            </label>
+                            <label class="cf-pill">
+                                <input type="checkbox" id="addIsActive" name="is_active" checked />
+                                <i class="fas fa-check-circle" style="color:#059669;font-size:.75rem;"></i> {% trans "نشط" %}
+                            </label>
+                            <label class="cf-pill">
+                                <input type="checkbox" id="addShowOnCard" name="show_on_card" />
+                                <i class="fas fa-id-card" style="color:#0891b2;font-size:.75rem;"></i> {% trans "في البطاقة" %}
+                            </label>
+                            <label class="cf-pill">
+                                <input type="checkbox" id="addShowInFilters" name="show_in_filters" />
+                                <i class="fas fa-filter" style="color:#7c3aed;font-size:.75rem;"></i> {% trans "في الفلاتر" %}
+                            </label>
                         </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="fas fa-times me-2"></i>
-                    {% trans "إلغاء" %}
-                </button>
-                <button type="button" class="btn btn-primary-gradient" onclick="addNewCustomField()">
-                    <i class="fas fa-save me-2"></i>
-                    {% trans "حفظ" %}
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                <button type="button" class="btn-cf-primary" onclick="addNewCustomField()">
+                    <i class="fas fa-save"></i> {% trans "حفظ" %}
                 </button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Edit Field Modal -->
+<!-- ── Edit Field Modal ─────────────────────────────────────────────────────── -->
 <div class="modal fade" id="editFieldModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-edit me-2"></i>
-                    {% trans "تعديل الحقل" %}
-                </h5>
+                <h5 class="modal-title"><i class="fas fa-pen"></i> {% trans "تعديل الحقل" %}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="editFieldForm">
                     <input type="hidden" name="id" id="editFieldId" />
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">{% trans "الاسم (نظامي)" %}</label>
-                            <input name="name" id="editFieldName" type="text" class="form-control" required />
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">{% trans "الاسم (عربي)" %}</label>
-                            <input name="label_ar" id="editFieldLabelAr" type="text" class="form-control" required dir="rtl" />
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">{% trans "الاسم (إنجليزي)" %}</label>
-                            <input name="label_en" id="editFieldLabelEn" type="text" class="form-control" />
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">{% trans "نوع الحقل" %}</label>
-                            <select name="field_type" id="editFieldType" class="form-select" required>
-                                <option value="text">{% trans "نص" %} (text)</option>
-                                <option value="number">{% trans "رقم" %} (number)</option>
-                                <option value="select">{% trans "قائمة منسدلة" %} (select)</option>
-                                <option value="checkbox">{% trans "خانة اختيار" %} (checkbox)</option>
-                                <option value="radio">{% trans "اختيار واحد" %} (radio)</option>
-                                <option value="date">{% trans "تاريخ" %} (date)</option>
-                            </select>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">{% trans "خيارات" %}</label>
-                            <textarea name="options" id="editFieldOptions" class="form-control" rows="3"></textarea>
-                        </div>
 
-                        <!-- Category Management Section -->
-                        <div class="col-12">
-                            <label class="form-label">
-                                {% trans "الأقسام المرتبطة" %}
-                                <i class="fas fa-info-circle text-muted ms-1"
-                                   data-bs-toggle="tooltip"
-                                   title="{% trans 'يمكنك إضافة أو إزالة الأقسام المرتبطة بهذا الحقل' %}"></i>
+                    <!-- Categories -->
+                    <div class="cf-section">
+                        <div class="cf-section-title"><i class="fas fa-folder"></i> {% trans "الأقسام المرتبطة" %}</div>
+                        <div class="cf-tree-box" id="editCategoryTree"></div>
+                    </div>
+
+                    <!-- Field info -->
+                    <div class="cf-section">
+                        <div class="cf-section-title"><i class="fas fa-info-circle"></i> {% trans "معلومات الحقل" %}</div>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label">{% trans "الاسم (نظامي)" %}</label>
+                                <input name="name" id="editFieldName" type="text" class="form-control" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{% trans "الاسم بالعربية" %}</label>
+                                <input name="label_ar" id="editFieldLabelAr" type="text" class="form-control" required dir="rtl" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{% trans "الاسم بالإنجليزية" %}</label>
+                                <input name="label_en" id="editFieldLabelEn" type="text" class="form-control" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{% trans "نوع الحقل" %}</label>
+                                <select name="field_type" id="editFieldType" class="form-select" required>
+                                    <option value="text">{% trans "نص" %} (text)</option>
+                                    <option value="number">{% trans "رقم" %} (number)</option>
+                                    <option value="select">{% trans "قائمة منسدلة" %} (select)</option>
+                                    <option value="checkbox">{% trans "خانة اختيار" %} (checkbox)</option>
+                                    <option value="radio">{% trans "اختيار واحد" %} (radio)</option>
+                                    <option value="date">{% trans "تاريخ" %} (date)</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">{% trans "الخيارات" %}</label>
+                                <textarea name="options" id="editFieldOptions" class="form-control" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Settings -->
+                    <div class="cf-section">
+                        <div class="cf-section-title"><i class="fas fa-cog"></i> {% trans "الإعدادات العامة" %}</div>
+                        <p class="form-text mb-2">
+                            <i class="fas fa-info-circle me-1 text-primary"></i>
+                            {% trans "إعدادات 'البطاقة' و'الفلاتر' تُعدَّل لكل قسم عبر زر ربط بأقسام." %}
+                        </p>
+                        <div class="cf-pills">
+                            <label class="cf-pill">
+                                <input type="checkbox" id="editFieldIsRequired" name="is_required" />
+                                <i class="fas fa-asterisk" style="color:#d97706;font-size:.7rem;"></i> {% trans "إلزامي (افتراضي)" %}
                             </label>
-                            <div class="card" style="max-height: 300px; overflow-y: auto; border: 2px solid #e2e8f0; border-radius: 12px;">
-                                <div class="card-body p-3" id="editCategoryTree">
-                                    <!-- Category tree will be rendered here by JavaScript -->
-                                </div>
-                            </div>
-                            <small class="form-text text-muted">
-                                <i class="fas fa-lightbulb"></i>
-                                {% trans "حدد الأقسام التي تريد ربط هذا الحقل بها. يمكنك اختيار أقسام فرعية فقط." %}
-                            </small>
-                        </div>
-
-                        <div class="col-12">
-                            <div class="alert alert-info mb-3" style="font-size: 0.9rem;">
-                                <i class="fas fa-info-circle me-2"></i>
-                                {% trans "ملاحظة: إعدادات 'في البطاقة' و 'في الفلاتر' خاصة بكل قسم. لتعديلها، استخدم زر 'إضافة لأقسام أخرى' من بطاقة الحقل." %}
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="editFieldIsRequired" name="is_required" />
-                                        <label class="form-check-label" for="editFieldIsRequired">
-                                            <i class="fas fa-asterisk text-warning"></i> {% trans "إلزامي (افتراضي)" %}
-                                        </label>
-                                        <small class="form-text text-muted d-block">{% trans "يمكن تجاوزه لكل قسم على حدة" %}</small>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="editFieldIsActive" name="is_active" />
-                                        <label class="form-check-label" for="editFieldIsActive">
-                                            <i class="fas fa-check-circle text-success"></i> {% trans "نشط (عام)" %}
-                                        </label>
-                                        <small class="form-text text-muted d-block">{% trans "تعطيل الحقل في جميع الأقسام" %}</small>
-                                    </div>
-                                </div>
-                            </div>
+                            <label class="cf-pill">
+                                <input type="checkbox" id="editFieldIsActive" name="is_active" />
+                                <i class="fas fa-check-circle" style="color:#059669;font-size:.75rem;"></i> {% trans "نشط (عام)" %}
+                            </label>
                         </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="fas fa-times me-2"></i>
-                    {% trans "إلغاء" %}
-                </button>
-                <button type="button" class="btn btn-primary-gradient" onclick="saveCustomField()">
-                    <i class="fas fa-save me-2"></i>
-                    {% trans "حفظ التغييرات" %}
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                <button type="button" class="btn-cf-primary" onclick="saveCustomField()">
+                    <i class="fas fa-save"></i> {% trans "حفظ التغييرات" %}
                 </button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Add To Categories Modal -->
+<!-- ── Add to Categories Modal ─────────────────────────────────────────────── -->
 <div class="modal fade" id="addToCategoriesModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-sitemap me-2"></i>
-                    {% trans "إضافة لأقسام أخرى" %}
-                </h5>
+                <h5 class="modal-title"><i class="fas fa-sitemap"></i> {% trans "ربط بأقسام" %}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="bulkFieldId" />
-                <div class="alert alert-info mb-3">
-                    <i class="fas fa-info-circle me-2"></i>
-                    <strong id="bulkFieldName"></strong>
+                <div class="d-flex align-items-center gap-2 p-2 mb-3 rounded"
+                     style="background:var(--cf-primary-bg);font-size:.88rem;">
+                    <i class="fas fa-layer-group" style="color:var(--cf-primary);"></i>
+                    <strong id="bulkFieldName" style="color:var(--cf-primary);"></strong>
                 </div>
                 <div class="row g-3">
-                    <div class="col-lg-8">
-                        <div class="border rounded p-3" id="categoryTreeContainer" style="max-height: 400px; overflow-y: auto;"></div>
+                    <div class="col-lg-12">
+                        <label class="form-label">{% trans "اختر الأقسام" %}</label>
+                        <div class="cf-tree-box" id="categoryTreeContainer" style="max-height:340px;"></div>
                     </div>
-                    <div class="col-lg-4">
-                        <div class="border rounded p-3">
-                            <h6 class="mb-3">{% trans "إعدادات الحقل" %}</h6>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="bulkIsRequired" />
-                                <label class="form-check-label" for="bulkIsRequired">
-                                    <i class="fas fa-asterisk text-warning"></i> {% trans "إلزامي" %}
+                    <div class="col-lg-12">
+                        <div class="cf-section h-100">
+                            <div class="cf-section-title"><i class="fas fa-cog"></i> {% trans "إعدادات" %}</div>
+                            <div class="cf-pills" style="flex-direction:column;">
+                                <label class="cf-pill">
+                                    <input type="checkbox" id="bulkIsRequired" />
+                                    <i class="fas fa-asterisk" style="color:#d97706;font-size:.7rem;"></i> {% trans "إلزامي" %}
                                 </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="bulkShowOnCard" />
-                                <label class="form-check-label" for="bulkShowOnCard">
-                                    <i class="fas fa-id-card text-info"></i> {% trans "في البطاقة" %}
+                                <label class="cf-pill">
+                                    <input type="checkbox" id="bulkShowOnCard" />
+                                    <i class="fas fa-id-card" style="color:#0891b2;font-size:.75rem;"></i> {% trans "في البطاقة" %}
                                 </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="bulkShowInFilters" />
-                                <label class="form-check-label" for="bulkShowInFilters">
-                                    <i class="fas fa-filter text-primary"></i> {% trans "في الفلاتر" %}
+                                <label class="cf-pill">
+                                    <input type="checkbox" id="bulkShowInFilters" />
+                                    <i class="fas fa-filter" style="color:#7c3aed;font-size:.75rem;"></i> {% trans "في الفلاتر" %}
                                 </label>
                             </div>
                         </div>
@@ -1032,18 +1105,15 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="fas fa-times me-2"></i>
-                    {% trans "إلغاء" %}
-                </button>
-                <button type="button" class="btn btn-primary-gradient" onclick="addFieldToCategories()">
-                    <i class="fas fa-plus-circle me-2"></i>
-                    {% trans "إضافة" %}
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                <button type="button" class="btn-cf-primary" onclick="addFieldToCategories()">
+                    <i class="fas fa-plus"></i> {% trans "إضافة" %}
                 </button>
             </div>
         </div>
     </div>
 </div>
+
 {% endblock %}
 
 {% block admin_extra_js %}
@@ -1076,9 +1146,9 @@ const CUSTOM_FIELD_URLS = {
 
 document.addEventListener('DOMContentLoaded', () => {
     setupCategoryHandlers();
-    setupSearch();
     buildAddCategoryTree();
     initializeTooltips();
+    computeStats();
 });
 
 function initializeTooltips() {
@@ -1344,21 +1414,40 @@ function toggleEditCategories(select) {
 }
 
 function setupCategoryHandlers() {
-    // No longer needed - keeping for backward compatibility
+    // kept for compatibility
 }
 
-function setupSearch() {
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            document.querySelectorAll('.field-card-wrapper').forEach(wrapper => {
-                const name = (wrapper.querySelector('.field-name')?.textContent || '').toLowerCase();
-                const type = (wrapper.querySelector('.field-type')?.textContent || '').toLowerCase();
-                wrapper.style.display = (name.includes(query) || type.includes(query)) ? '' : 'none';
-            });
-        });
-    }
+// ── Page filter helpers ───────────────────────────────────────────────────────
+let _activeCatFilter = 'all';
+
+function filterFields() {
+    const query = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
+    document.querySelectorAll('.field-row').forEach(row => {
+        const name   = row.dataset.fieldName || '';
+        const cats   = row.dataset.categoryIds || '';
+        const matchQ = !query || name.includes(query);
+        const matchC = _activeCatFilter === 'all' || cats.split(',').includes(_activeCatFilter);
+        row.style.display = (matchQ && matchC) ? '' : 'none';
+    });
+}
+
+function filterByCategory(catId, btnEl) {
+    _activeCatFilter = String(catId);
+    document.querySelectorAll('.cf-cat-btn').forEach(b => b.classList.remove('active'));
+    if (btnEl) btnEl.classList.add('active');
+    filterFields();
+}
+
+function computeStats() {
+    let active = 0, required = 0;
+    document.querySelectorAll('.field-row').forEach(r => {
+        if (r.dataset.isActive   === 'true') active++;
+        if (r.dataset.isRequired === 'true') required++;
+    });
+    const ea = document.getElementById('stat-active');
+    const er = document.getElementById('stat-required');
+    if (ea) ea.textContent = active;
+    if (er) er.textContent = required;
 }
 
 function updateSubCategories(prefix, parentId) {
@@ -1685,19 +1774,39 @@ function saveCustomField() {
 }
 
 function deleteCustomField(id, name) {
-    if (!confirm(`{% trans "هل أنت متأكد من حذف الحقل" %} "${name}"؟`)) return;
+    showConfirmModal(
+        '{% trans "حذف الحقل" %}',
+        `{% trans "هل أنت متأكد من حذف الحقل" %} "<strong>${name}</strong>"؟<br><small style="color:var(--cf-danger,#ef4444)">{% trans "لا يمكن التراجع عن هذا الإجراء" %}</small>`,
+        () => {
+            fetch(CUSTOM_FIELD_URLS.delete(id), {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCookie('csrftoken') }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) return showError(data.message || '{% trans "فشل حذف الحقل" %}');
+                showSuccess(data.message || '{% trans "تم حذف الحقل بنجاح" %}');
+                setTimeout(() => location.reload(), 800);
+            })
+            .catch(() => showError('{% trans "حدث خطأ أثناء حذف الحقل" %}'));
+        }
+    );
+}
 
-    fetch(CUSTOM_FIELD_URLS.delete(id), {
-        method: 'POST',
-        headers: { 'X-CSRFToken': getCookie('csrftoken') }
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (!data.success) return showError(data.message || '{% trans "فشل حذف الحقل" %}');
-        showSuccess(data.message || '{% trans "تم حذف الحقل بنجاح" %}');
-        setTimeout(() => location.reload(), 800);
-    })
-    .catch(() => showError('{% trans "حدث خطأ أثناء حذف الحقل" %}'));
+function showConfirmModal(title, body, onConfirm) {
+    const modal = document.getElementById('confirmModal');
+    document.getElementById('confirmModalTitle').textContent = title;
+    document.getElementById('confirmModalBody').innerHTML = body;
+    const okBtn = document.getElementById('confirmModalOkBtn');
+    const bsModal = bootstrap.Modal.getOrCreateInstance(modal);
+    // Clone to remove any previous listener
+    const newOkBtn = okBtn.cloneNode(true);
+    okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+    newOkBtn.addEventListener('click', () => {
+        bsModal.hide();
+        onConfirm();
+    });
+    bsModal.show();
 }
 
 function getCookie(name) {
@@ -1717,7 +1826,7 @@ function showSuccess(msg) {
     if (window.showNotification) {
         window.showNotification(msg, 'success');
     } else {
-        alert(msg);
+        console.log('[success]', msg);
     }
 }
 
@@ -1725,7 +1834,7 @@ function showError(msg) {
     if (window.showNotification) {
         window.showNotification(msg, 'error');
     } else {
-        alert(msg);
+        console.error('[error]', msg);
     }
 }
 </script>

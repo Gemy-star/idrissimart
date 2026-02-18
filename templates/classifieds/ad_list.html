@@ -288,6 +288,68 @@
 
 </select>
                         </div>
+
+                        <!-- Dynamic Custom Field Filters -->
+                        {% if category_filter_fields %}
+                        <div class="mb-3">
+                            <h5 class="form-label mb-3" style="color: var(--text-primary); font-weight: 600;">
+                                <i class="fas fa-sliders-h me-2"></i>
+                                {% trans "تصفية حسب المواصفات" %}
+                            </h5>
+                            {% for cat_field in category_filter_fields %}
+                            {% with field=cat_field.custom_field %}
+                            <div class="mb-3">
+                                <label for="cf_{{ field.name }}" class="form-label">{{ field.label_ar|default:field.name }}</label>
+
+                                {% if field.field_type == 'select' or field.field_type == 'radio' %}
+                                    <select name="cf_{{ field.name }}" id="cf_{{ field.name }}" class="form-select">
+                                        <option value="">{% trans "الكل" %}</option>
+                                        {% for option in field.field_options.all %}
+                                        <option value="{{ option.value }}" {% if request.GET|get_item:field.name|add:"cf_" == option.value %}selected{% endif %}>
+                                            {{ option.label_ar|default:option.label }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+
+                                {% elif field.field_type == 'number' or field.field_type == 'range' %}
+                                    <input type="number"
+                                           name="cf_{{ field.name }}"
+                                           id="cf_{{ field.name }}"
+                                           class="form-control"
+                                           placeholder="{{ field.placeholder }}"
+                                           value="{{ request.GET|get_item:field.name|add:'cf_' }}">
+
+                                {% elif field.field_type == 'checkbox' %}
+                                    <div class="form-check">
+                                        <input class="form-check-input"
+                                               type="checkbox"
+                                               name="cf_{{ field.name }}"
+                                               id="cf_{{ field.name }}"
+                                               value="true"
+                                               {% if request.GET|get_item:field.name|add:"cf_" == "true" %}checked{% endif %}>
+                                        <label class="form-check-label" for="cf_{{ field.name }}">
+                                            {{ field.help_text|default:field.label_ar }}
+                                        </label>
+                                    </div>
+
+                                {% else %}
+                                    <input type="text"
+                                           name="cf_{{ field.name }}"
+                                           id="cf_{{ field.name }}"
+                                           class="form-control"
+                                           placeholder="{{ field.placeholder }}"
+                                           value="{{ request.GET|get_item:field.name|add:'cf_' }}">
+                                {% endif %}
+
+                                {% if field.help_text %}
+                                <small class="form-text text-muted d-block mt-1">{{ field.help_text }}</small>
+                                {% endif %}
+                            </div>
+                            {% endwith %}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
                         <!-- Filter by Price -->
                         <div class="mb-3">
                             <label class="form-label"></label>

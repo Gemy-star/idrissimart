@@ -148,6 +148,22 @@ class ClassifiedAdFilter(django_filters.FilterSet):
             )
         return queryset
 
+    def filter_queryset(self, queryset):
+        """Override to apply dynamic custom field filters"""
+        queryset = super().filter_queryset(queryset)
+
+        # Apply custom field filters from request GET params
+        for key, value in self.request.GET.items():
+            if key.startswith('cf_') and value:
+                field_name = key[3:]  # Remove 'cf_' prefix
+                # Apply filter based on field type (handle both exact and contains)
+                queryset = queryset.filter(
+                    Q(**{f'custom_fields__{field_name}': value}) |
+                    Q(**{f'custom_fields__{field_name}__icontains': value})
+                )
+
+        return queryset
+
     class Meta:
         model = ClassifiedAd
         fields = [
