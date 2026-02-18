@@ -584,6 +584,13 @@ def send_phone_verification_code(request):
     Send verification code to phone number via SMS
     إمكانية الدخول برقم الهاتف المسجل والتحقق منه مسبقاً وكاتبه اليه
     """
+    from constance import config
+
+    if not is_phone_verification_required() and not getattr(config, "ENABLE_MOBILE_VERIFICATION", True):
+        return JsonResponse(
+            {"success": False, "message": _("التحقق من الجوال غير مفعّل")}, status=400
+        )
+
     try:
         data = json.loads(request.body)
         phone = data.get("phone", "").strip()
@@ -679,6 +686,13 @@ def verify_phone_code(request):
     Verify the phone verification code entered by user
     اليه الفرق عند التسجيل بين حساب غداء وعشاء ؟
     """
+    from constance import config
+
+    if not is_phone_verification_required() and not getattr(config, "ENABLE_MOBILE_VERIFICATION", True):
+        return JsonResponse(
+            {"success": False, "message": _("التحقق من الجوال غير مفعّل")}, status=400
+        )
+
     try:
         data = json.loads(request.body)
         phone = data.get("phone", "").strip()
@@ -963,6 +977,13 @@ def resend_email_verification(request):
                 {"success": False, "message": _("يجب تسجيل الدخول أولاً")}, status=401
             )
         return redirect("main:login")
+
+    if not is_email_verification_required():
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse(
+                {"success": False, "message": _("التحقق من البريد الإلكتروني غير مطلوب")}
+            )
+        return redirect("main:home")
 
     if request.user.is_email_verified:
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":

@@ -25,10 +25,15 @@ class MobileVerificationService:
 
     def check_mobile_verification_required(self, user, mobile_number):
         """Check if mobile verification is required for ad creation"""
-        # Check if mobile verification is enabled in constance
+        # Check constance kill-switch first
         verification_enabled = getattr(config, "ENABLE_MOBILE_VERIFICATION", True)
-
         if not verification_enabled:
+            return False, _("التحقق من الجوال غير مطلوب")
+
+        # Check SiteConfiguration setting
+        from content.site_config import SiteConfiguration
+        site_config = SiteConfiguration.get_solo()
+        if not site_config.require_phone_verification:
             return False, _("التحقق من الجوال غير مطلوب")
 
         if not mobile_number:

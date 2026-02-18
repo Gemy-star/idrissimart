@@ -229,9 +229,11 @@ class ClassifiedAdForm(forms.ModelForm):
                 ]
                 self.fields["city"].choices = city_choices
 
-        # Initialize mobile number from user's profile
-        if self.user and self.user.mobile:
-            self.fields["mobile_number"].initial = self.user.mobile
+        # Initialize mobile number from user's profile (mobile first, then phone)
+        if self.user:
+            phone_value = self.user.mobile or self.user.phone
+            if phone_value:
+                self.fields["mobile_number"].initial = phone_value
 
         category = None
         if "category" in self.data:

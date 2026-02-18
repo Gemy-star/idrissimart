@@ -67,6 +67,36 @@
         max-width: 300px;
         margin: 20px auto;
         display: block;
+        border: 3px solid var(--primary-color, #6b4c7a);
+        border-radius: 12px;
+        padding: 10px;
+        background: white;
+    }
+
+    [data-theme='dark'] .qr-code-img {
+        background: #1a202c;
+        border-color: var(--accent-purple, #a78bbd);
+    }
+
+    .offline-payment-details {
+        background: var(--bg-secondary, #f8f9fa);
+        padding: 20px;
+        border-radius: 12px;
+        border-left: 4px solid var(--primary-color, #6b4c7a);
+    }
+
+    [data-theme='dark'] .offline-payment-details {
+        background: rgba(255, 255, 255, 0.05);
+        border-left-color: var(--accent-purple, #a78bbd);
+    }
+
+    .offline-receipt {
+        border: 2px dashed var(--border-color, #dee2e6);
+    }
+
+    .offline-receipt:focus {
+        border-color: var(--primary-color, #6b4c7a);
+        box-shadow: 0 0 0 0.2rem rgba(107, 76, 122, 0.25);
     }
 
     .feature-badge {
@@ -198,46 +228,79 @@
                         </div>
 
                         <!-- Upload Receipt for offline methods -->
-                        {% if method_value in 'wallet,instapay' %}
+                        {% if method_value == 'instapay' or method_value == 'wallet' %}
                         <div class="offline-payment-details mt-3" id="details_{{ method_value }}" style="display: none;">
-                            <div class="alert alert-warning mb-3">
+                            <div class="alert alert-info mb-3">
                                 <h6 class="mb-2">
                                     <i class="fas fa-info-circle me-2"></i>
                                     {% trans "معلومات الدفع:" %}
                                 </h6>
                                 {% if method_value == 'wallet' %}
-                                    <p class="mb-1"><strong>{% trans "رقم المحفظة:" %}</strong> {{ site_config.wallet_number }}</p>
-                                    <p class="mb-1"><strong>{% trans "الاسم:" %}</strong> {{ site_config.wallet_name }}</p>
+                                    {% if site_config.wallet_phone %}
+                                        <p class="mb-1">
+                                            <i class="fas fa-phone me-2"></i>
+                                            <strong>{% trans "رقم المحفظة:" %}</strong> {{ site_config.wallet_phone }}
+                                        </p>
+                                    {% endif %}
                                 {% elif method_value == 'instapay' %}
-                                    <p class="mb-1"><strong>{% trans "رقم InstaPay:" %}</strong> {{ site_config.instapay_username }}</p>
-                                    <p class="mb-1"><strong>{% trans "الاسم:" %}</strong> {{ site_config.instapay_name }}</p>
+                                    {% if site_config.instapay_phone %}
+                                        <p class="mb-1">
+                                            <i class="fas fa-phone me-2"></i>
+                                            <strong>{% trans "رقم InstaPay:" %}</strong> {{ site_config.instapay_phone }}
+                                        </p>
+                                    {% endif %}
                                 {% endif %}
                                 {% load idrissimart_tags %}
                                 {% get_country_currency as currency %}
-                                <p class="mb-0"><strong>{% trans "المبلغ المطلوب:" %}</strong> {{ total_amount }} {{ currency|currency_symbol }}</p>
+                                <p class="mb-0">
+                                    <i class="fas fa-money-bill-wave me-2"></i>
+                                    <strong>{% trans "المبلغ المطلوب:" %}</strong>
+                                    <span class="text-primary fw-bold">{{ total_amount }} {{ currency|currency_symbol }}</span>
+                                </p>
                             </div>
 
-                            {% if method_value == 'wallet' and site_config.wallet_qr_code %}
-                            <div class="text-center mb-3">
-                                <p class="fw-bold">{% trans "QR Code للمحفظة:" %}</p>
-                                <img src="{{ site_config.wallet_qr_code.url }}" alt="Wallet QR" class="qr-code-img">
-                            </div>
-                            {% elif method_value == 'instapay' and site_config.instapay_qr_code %}
-                            <div class="text-center mb-3">
-                                <p class="fw-bold">{% trans "QR Code لـ InstaPay:" %}</p>
+                            {% if method_value == 'instapay' and site_config.instapay_qr_code %}
+                            <div class="text-center mb-3 p-3 border rounded bg-light">
+                                <h6 class="mb-3">
+                                    <i class="fas fa-qrcode me-2"></i>
+                                    {% trans "امسح رمز QR للدفع" %}
+                                </h6>
                                 <img src="{{ site_config.instapay_qr_code.url }}" alt="InstaPay QR" class="qr-code-img">
+                            </div>
+                            {% elif method_value == 'wallet' and site_config.wallet_payment_link %}
+                            <div class="text-center mb-3 p-3 border rounded bg-light">
+                                <h6 class="mb-3">
+                                    <i class="fas fa-link me-2"></i>
+                                    {% trans "رابط الدفع" %}
+                                </h6>
+                                <a href="{{ site_config.wallet_payment_link }}" target="_blank" class="btn btn-primary">
+                                    <i class="fas fa-external-link-alt me-2"></i>
+                                    {% trans "افتح رابط الدفع" %}
+                                </a>
                             </div>
                             {% endif %}
 
                             <div class="mb-3">
                                 <label for="payment_receipt_{{ method_value }}" class="form-label">
                                     <i class="fas fa-file-upload me-2"></i>
-                                    {% trans "رفع إيصال الدفع" %} *
+                                    {% trans "رفع إيصال الدفع" %} <span class="text-danger">*</span>
                                 </label>
-                                <input type="file" class="form-control" name="payment_receipt"
+                                <input type="file" class="form-control offline-receipt" name="payment_receipt"
                                        id="payment_receipt_{{ method_value }}" accept="image/*,.pdf">
-                                <small class="text-muted">{% trans "صورة أو PDF للإيصال" %}</small>
+                                <small class="text-muted">
+                                    {% trans "قم برفع صورة الإيصال أو لقطة شاشة للتحويل" %}
+                                </small>
                             </div>
+
+                            {% if site_config.offline_payment_instructions_ar %}
+                            <div class="alert alert-warning">
+                                <h6>
+                                    <i class="fas fa-exclamation-circle me-2"></i>
+                                    {% trans "تعليمات مهمة:" %}
+                                </h6>
+                                <div style="white-space: pre-line;">{{ site_config.offline_payment_instructions_ar }}</div>
+                            </div>
+                            {% endif %}
                         </div>
                         {% endif %}
                     </div>

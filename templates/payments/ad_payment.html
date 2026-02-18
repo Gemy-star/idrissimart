@@ -67,6 +67,38 @@
         max-width: 300px;
         margin: 20px auto;
         display: block;
+        border: 3px solid var(--primary-color, #6b4c7a);
+        border-radius: 12px;
+        padding: 10px;
+        background: white;
+    }
+
+    [data-theme='dark'] .qr-code-img {
+        background: #1a202c;
+        border-color: var(--accent-purple, #a78bbd);
+    }
+
+    #instapay-payment-details,
+    #wallet-payment-details {
+        background: var(--bg-secondary, #f8f9fa);
+        padding: 20px;
+        border-radius: 12px;
+        border-left: 4px solid var(--primary-color, #6b4c7a);
+    }
+
+    [data-theme='dark'] #instapay-payment-details,
+    [data-theme='dark'] #wallet-payment-details {
+        background: rgba(255, 255, 255, 0.05);
+        border-left-color: var(--accent-purple, #a78bbd);
+    }
+
+    .offline-receipt {
+        border: 2px dashed var(--border-color, #dee2e6);
+    }
+
+    .offline-receipt:focus {
+        border-color: var(--primary-color, #6b4c7a);
+        box-shadow: 0 0 0 0.2rem rgba(107, 76, 122, 0.25);
     }
 </style>
 {% endblock %}
@@ -169,61 +201,119 @@
 
                     {% if allowed_payment_methods %}
                         {% for method_value, method_label in allowed_payment_methods %}
-                            {% if method_value == "instapay" or method_value == "wallet" %}
-                                {% if method_value == "instapay" %}
-                                <!-- Offline Payment - Show once for instapay/wallet -->
-                                <div class="payment-method-card" data-method="offline">
+                            {% if method_value == "instapay" %}
+                                <!-- InstaPay Payment -->
+                                <div class="payment-method-card" data-method="instapay">
                                     <div class="form-check">
                                         <input class="form-check-input" type="radio" name="payment_method"
-                                               id="payment_offline" value="offline" required>
-                                        <label class="form-check-label w-100" for="payment_offline">
+                                               id="payment_instapay" value="instapay" required>
+                                        <label class="form-check-label w-100" for="payment_instapay">
                                             <h5 class="mb-2">
-                                                <i class="fas fa-money-bill-wave me-2"></i>
-                                                {% trans "الدفع اليدوي" %}
+                                                <i class="fas fa-mobile-alt me-2"></i>
+                                                {% trans "إنستا باي" %} (InstaPay)
                                             </h5>
                                             <p class="text-muted small mb-0">
-                                                {% trans "التحويل عبر InstaPay أو المحفظة الإلكترونية" %}
+                                                {% trans "التحويل السريع عبر InstaPay" %}
                                             </p>
                                         </label>
                                     </div>
                                 </div>
 
-                                <!-- Offline Payment Details -->
-                                <div id="offline-payment-details" style="display: none;" class="mb-4">
+                                <!-- InstaPay Payment Details -->
+                                <div id="instapay-payment-details" style="display: none;" class="mb-4 ms-4">
                                     <div class="alert alert-info">
                                         <i class="fas fa-info-circle me-2"></i>
-                                        {% trans "يرجى إتمام الدفع ورفع إيصال التحويل" %}
+                                        {% trans "يرجى إتمام الدفع عبر InstaPay ورفع إيصال التحويل" %}
                                     </div>
 
                                     {% if site_config.instapay_qr_code %}
-                                    <div class="text-center mb-4">
-                                        <h5>{% trans "InstaPay QR Code" %}</h5>
+                                    <div class="text-center mb-4 p-3 border rounded bg-light">
+                                        <h6 class="mb-3">
+                                            <i class="fas fa-qrcode me-2"></i>
+                                            {% trans "امسح رمز QR للدفع" %}
+                                        </h6>
                                         <img src="{{ site_config.instapay_qr_code.url }}" alt="InstaPay QR" class="qr-code-img">
                                         {% if site_config.instapay_phone %}
-                                        <p class="text-muted">{% trans "رقم الهاتف:" %} {{ site_config.instapay_phone }}</p>
+                                        <p class="text-muted mb-0 mt-2">
+                                            <i class="fas fa-phone me-2"></i>
+                                            {% trans "رقم الهاتف:" %} <strong>{{ site_config.instapay_phone }}</strong>
+                                        </p>
                                         {% endif %}
                                     </div>
-                                    {% endif %}
-
-                                    {% if site_config.wallet_payment_link %}
-                                    <div class="text-center mb-4">
-                                        <h5>{% trans "المحفظة الإلكترونية" %}</h5>
-                                        <a href="{{ site_config.wallet_payment_link }}" target="_blank" class="btn btn-primary">
-                                            <i class="fas fa-wallet me-2"></i>
-                                            {% trans "الدفع عبر المحفظة" %}
-                                        </a>
-                                        {% if site_config.wallet_phone %}
-                                        <p class="text-muted mt-2">{% trans "رقم الهاتف:" %} {{ site_config.wallet_phone }}</p>
-                                        {% endif %}
+                                    {% elif site_config.instapay_phone %}
+                                    <div class="alert alert-secondary text-center">
+                                        <i class="fas fa-phone me-2"></i>
+                                        {% trans "رقم InstaPay:" %} <strong>{{ site_config.instapay_phone }}</strong>
                                     </div>
                                     {% endif %}
 
                                     <div class="mb-3">
-                                        <label for="payment_receipt" class="form-label">
+                                        <label for="payment_receipt_instapay" class="form-label">
                                             {% trans "رفع إيصال الدفع" %} <span class="text-danger">*</span>
                                         </label>
-                                        <input type="file" class="form-control" id="payment_receipt"
-                                               name="payment_receipt" accept="image/*" required>
+                                        <input type="file" class="form-control offline-receipt" id="payment_receipt_instapay"
+                                               name="payment_receipt" accept="image/*">
+                                        <div class="form-text">
+                                            {% trans "قم برفع صورة الإيصال أو لقطة شاشة للتحويل" %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                            {% elif method_value == "wallet" %}
+                                <!-- Wallet Payment -->
+                                <div class="payment-method-card" data-method="wallet">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="payment_method"
+                                               id="payment_wallet" value="wallet" required>
+                                        <label class="form-check-label w-100" for="payment_wallet">
+                                            <h5 class="mb-2">
+                                                <i class="fas fa-wallet me-2"></i>
+                                                {% trans "المحفظة الإلكترونية" %}
+                                            </h5>
+                                            <p class="text-muted small mb-0">
+                                                {% trans "الدفع عبر Vodafone Cash أو Orange Money" %}
+                                            </p>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Wallet Payment Details -->
+                                <div id="wallet-payment-details" style="display: none;" class="mb-4 ms-4">
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        {% trans "يرجى إتمام الدفع عبر المحفظة ورفع إيصال التحويل" %}
+                                    </div>
+
+                                    {% if site_config.wallet_payment_link %}
+                                    <div class="text-center mb-4 p-3 border rounded bg-light">
+                                        <h6 class="mb-3">
+                                            <i class="fas fa-link me-2"></i>
+                                            {% trans "رابط الدفع" %}
+                                        </h6>
+                                        <a href="{{ site_config.wallet_payment_link }}" target="_blank" class="btn btn-primary btn-lg">
+                                            <i class="fas fa-external-link-alt me-2"></i>
+                                            {% trans "افتح رابط الدفع" %}
+                                        </a>
+                                        {% if site_config.wallet_phone %}
+                                        <p class="text-muted mb-0 mt-3">
+                                            <i class="fas fa-phone me-2"></i>
+                                            {% trans "رقم المحفظة:" %} <strong>{{ site_config.wallet_phone }}</strong>
+                                        </p>
+                                        {% endif %}
+                                    </div>
+                                    {% elif site_config.wallet_phone %}
+                                    <div class="alert alert-secondary text-center">
+                                        <i class="fas fa-phone me-2"></i>
+                                        {% trans "رقم المحفظة:" %} <strong>{{ site_config.wallet_phone }}</strong>
+                                    </div>
+                                    {% endif %}
+
+                                    <div class="mb-3">
+                                        <label for="payment_receipt_wallet" class="form-label">
+                                            {% trans "رفع إيصال الدفع" %} <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="file" class="form-control offline-receipt" id="payment_receipt_wallet"
+                                               name="payment_receipt" accept="image/*">
                                         <div class="form-text">
                                             {% trans "قم برفع صورة الإيصال أو لقطة شاشة للتحويل" %}
                                         </div>
@@ -231,12 +321,14 @@
 
                                     {% if site_config.offline_payment_instructions_ar %}
                                     <div class="alert alert-warning">
-                                        <h6>{% trans "تعليمات:" %}</h6>
+                                        <h6>
+                                            <i class="fas fa-exclamation-circle me-2"></i>
+                                            {% trans "تعليمات مهمة:" %}
+                                        </h6>
                                         <div style="white-space: pre-line;">{{ site_config.offline_payment_instructions_ar }}</div>
                                     </div>
                                     {% endif %}
                                 </div>
-                                {% endif %}
                             {% elif method_value == "visa" or method_value == "paymob" or method_value == "paypal" %}
                                 {% if method_value == "visa" or method_value == "paymob" %}
                                 <!-- Online Payment (PayMob) - Show once -->
@@ -295,9 +387,12 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const paymentMethodCards = document.querySelectorAll('.payment-method-card');
-    const offlineDetails = document.getElementById('offline-payment-details');
-    const offlineRadio = document.getElementById('payment_offline');
-    const receiptInput = document.getElementById('payment_receipt');
+    const instapayDetails = document.getElementById('instapay-payment-details');
+    const walletDetails = document.getElementById('wallet-payment-details');
+    const instapayRadio = document.getElementById('payment_instapay');
+    const walletRadio = document.getElementById('payment_wallet');
+    const instapayReceipt = document.getElementById('payment_receipt_instapay');
+    const walletReceipt = document.getElementById('payment_receipt_wallet');
 
     paymentMethodCards.forEach(card => {
         card.addEventListener('click', function() {
@@ -308,13 +403,21 @@ document.addEventListener('DOMContentLoaded', function() {
             paymentMethodCards.forEach(c => c.classList.remove('selected'));
             this.classList.add('selected');
 
-            // Show/hide offline payment details
-            if (radio.value === 'offline') {
-                offlineDetails.style.display = 'block';
-                if (receiptInput) receiptInput.required = true;
-            } else {
-                offlineDetails.style.display = 'none';
-                if (receiptInput) receiptInput.required = false;
+            // Hide all offline payment details
+            if (instapayDetails) instapayDetails.style.display = 'none';
+            if (walletDetails) walletDetails.style.display = 'none';
+
+            // Reset all offline receipts required state
+            if (instapayReceipt) instapayReceipt.required = false;
+            if (walletReceipt) walletReceipt.required = false;
+
+            // Show specific offline payment details
+            if (radio.value === 'instapay' && instapayDetails) {
+                instapayDetails.style.display = 'block';
+                if (instapayReceipt) instapayReceipt.required = true;
+            } else if (radio.value === 'wallet' && walletDetails) {
+                walletDetails.style.display = 'block';
+                if (walletReceipt) walletReceipt.required = true;
             }
         });
     });
@@ -330,10 +433,19 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
 
-        if (selectedMethod.value === 'offline') {
-            if (!receiptInput.files.length) {
+        // Validate offline payment methods
+        if (selectedMethod.value === 'instapay') {
+            if (instapayReceipt && !instapayReceipt.files.length) {
                 e.preventDefault();
-                alert('{% trans "يرجى رفع إيصال الدفع" %}');
+                alert('{% trans "يرجى رفع إيصال الدفع عبر InstaPay" %}');
+                instapayReceipt.focus();
+                return false;
+            }
+        } else if (selectedMethod.value === 'wallet') {
+            if (walletReceipt && !walletReceipt.files.length) {
+                e.preventDefault();
+                alert('{% trans "يرجى رفع إيصال الدفع عبر المحفظة" %}');
+                walletReceipt.focus();
                 return false;
             }
         }

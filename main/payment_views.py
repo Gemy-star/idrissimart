@@ -335,7 +335,7 @@ def payment_page_upgrade(request, payment_id):
     # Get upgrade data from payment metadata
     upgrade_data = payment.metadata
     ad_id = payment.metadata.get("ad_id")
-    
+
     # Get the ad to extract currency info
     ad = None
     if ad_id:
@@ -393,6 +393,27 @@ def ad_payment(request, ad_id):
         PaymentContext.PLATFORM_PAYMENT
     )
 
+    # Check if payment is actually required based on site configuration
+    # If ad posting is free (ad_base_fee = 0) and no features selected, no payment needed
+    if site_config.ad_base_fee == 0 and features_cost == 0:
+        # Ad posting is free, activate immediately if auto-approve is enabled
+        if ad.status == ClassifiedAd.AdStatus.DRAFT:
+            # Check if auto-approve is enabled (ads go to ACTIVE) or manual review (PENDING)
+            try:
+                from constance import config
+                if config.AUTO_APPROVE_ADS:
+                    ad.status = ClassifiedAd.AdStatus.ACTIVE
+                    messages.success(request, _("تم نشر إعلانك بنجاح"))
+                else:
+                    ad.status = ClassifiedAd.AdStatus.PENDING
+                    messages.success(request, _("تم إرسال إعلانك للمراجعة"))
+            except:
+                # Fallback to PENDING if constance not configured
+                ad.status = ClassifiedAd.AdStatus.PENDING
+                messages.success(request, _("تم إرسال إعلانك للمراجعة"))
+            ad.save()
+        return redirect("main:ad_detail", pk=ad.pk, slug=ad.slug)
+
     # If ad is already active or no payment needed, redirect
     if ad.status == ClassifiedAd.AdStatus.ACTIVE or total_amount == 0:
         messages.info(request, _("هذا الإعلان نشط بالفعل أو لا يحتاج إلى دفع"))
@@ -405,7 +426,7 @@ def ad_payment(request, ad_id):
         if payment_method == "offline":
             # Check if any offline method is allowed
             from .payment_utils import is_payment_method_allowed
-            if not (is_payment_method_allowed("instapay", PaymentContext.PLATFORM_PAYMENT) or 
+            if not (is_payment_method_allowed("instapay", PaymentContext.PLATFORM_PAYMENT) or
                     is_payment_method_allowed("wallet", PaymentContext.PLATFORM_PAYMENT)):
                 messages.error(request, _("طريقة الدفع المختارة غير متاحة للدفع للمنصة."))
                 return redirect("main:ad_payment", ad_id=ad.id)
@@ -484,8 +505,8 @@ def ad_payment(request, ad_id):
                     if payment_method in ["paymob", "visa"]
                     else Payment.PaymentProvider.PAYPAL
                 ),
-                amount=tocurrencymount,
-                currency="EGP",
+                amount=total_amount,
+                currency=currency,
                 status=Payment.PaymentStatus.PENDING,
                 description=f"دفع إعلان: {ad.title}",
                 metadata={
@@ -647,7 +668,33 @@ def package_checkout(request, package_id):
         return redirect("main:packages_list")
 
     total_amount = package.price
-    
+
+    # If package is free, activate it immediately
+    if total_amount == 0:
+        from .models import UserPackage
+        from django.utils import timezone
+        from datetime import timedelta
+
+        # Create and activate the package
+        user_package = UserPackage.objects.create(
+            user=request.user,
+            package=package,
+            ads_remaining=package.ad_count,
+            expiry_date=timezone.now() + timedelta(days=package.duration_days),
+            is_active=True,
+        )
+
+        # Clear session
+        request.session.pop("package_checkout_id", None)
+
+        messages.success(
+            request,
+            _("تم تفعيل الباقة المجانية {} بنجاح! لديك {} إعلانات متاحة.").format(
+                package.name, package.ad_count
+            ),
+        )
+        return redirect("main:my_ads")
+
     # Get currency from session (selected country) or default
     selected_country_code = request.session.get("selected_country", "SA")
     currency = "SAR"  # default
@@ -670,7 +717,7 @@ def package_checkout(request, package_id):
         if payment_method == "offline":
             # Check if any offline method is allowed
             from .payment_utils import is_payment_method_allowed
-            if not (is_payment_method_allowed("instapay", PaymentContext.PLATFORM_PAYMENT) or 
+            if not (is_payment_method_allowed("instapay", PaymentContext.PLATFORM_PAYMENT) or
                     is_payment_method_allowed("wallet", PaymentContext.PLATFORM_PAYMENT)):
                 messages.error(request, _("طريقة الدفع المختارة غير متاحة للدفع للمنصة."))
                 return redirect("main:package_checkout", package_id=package.id)
@@ -698,8 +745,8 @@ def package_checkout(request, package_id):
                         "package": package,
                         "total_amount": total_amount,
                         "site_config": site_config,
-                        "allow_offline_payment": allow_offline_payment,
-                        "offline_payment_instructions": offline_payment_instructions,
+                        "allowed_payment_methods": allowed_payment_methods,
+                        "currency": currency,
                     },
                 )
 
@@ -877,9 +924,22 @@ def ad_upgrade_payment(request, ad_id):
         PaymentContext.PLATFORM_PAYMENT
     )
 
-    # If no payment needed, redirect
+    # If no payment needed (features are free in site config), apply them directly
     if total_amount == 0:
-        messages.info(request, _("لا توجد مميزات جديدة تتطلب دفع"))
+        # Apply features directly if they're free
+        if upgrade_features:
+            ad.is_highlighted = upgrade_features.get("highlighted", ad.is_highlighted)
+            ad.is_urgent = upgrade_features.get("urgent", ad.is_urgent)
+            ad.is_pinned = upgrade_features.get("pinned", ad.is_pinned)
+            ad.save()
+
+            # Clear session
+            for key in ["upgrade_ad_id", "upgrade_features", "upgrade_total_cost"]:
+                request.session.pop(key, None)
+
+            messages.success(request, _("تم تطبيق المميزات على إعلانك بنجاح"))
+        else:
+            messages.info(request, _("لا توجد مميزات جديدة تتطلب دفع"))
         return redirect("main:ad_detail", pk=ad.id, slug=ad.slug)
 
     if request.method == "POST":
@@ -889,7 +949,7 @@ def ad_upgrade_payment(request, ad_id):
         if payment_method == "offline":
             # Check if any offline method is allowed
             from .payment_utils import is_payment_method_allowed
-            if not (is_payment_method_allowed("instapay", PaymentContext.PLATFORM_PAYMENT) or 
+            if not (is_payment_method_allowed("instapay", PaymentContext.PLATFORM_PAYMENT) or
                     is_payment_method_allowed("wallet", PaymentContext.PLATFORM_PAYMENT)):
                 messages.error(request, _("طريقة الدفع المختارة غير متاحة للدفع للمنصة."))
                 return redirect("main:ad_upgrade_payment", ad_id=ad.id)

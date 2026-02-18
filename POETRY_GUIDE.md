@@ -353,3 +353,26 @@ poetry run <command>           # Run in venv
 poetry lock                    # Update lock file
 poetry lock --no-update        # Lock without updating
 ```
+
+## 🔧 IDE Integration
+
+### PyCharm + WSL + Poetry
+
+**Important:** When using PyCharm with WSL and Poetry, make sure your run configurations use the project interpreter.
+
+See **PYCHARM_WSL_FIX.md** for details on configuring PyCharm to work with Poetry's in-project virtual environment in WSL.
+
+**Quick Check:**
+- Python Interpreter: `3.12 WSL (Ubuntu-24.04): (/opt/WORK/idrissimart/.venv/bin/python)`
+- Run configurations should have `IS_MODULE_SDK="true"`
+- Virtual environment created by Poetry at: `/opt/WORK/idrissimart/.venv/`
+
+### VS Code + Poetry
+
+Add to `.vscode/settings.json`:
+```json
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python"
+}
+```
+

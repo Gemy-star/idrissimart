@@ -13,7 +13,7 @@ from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 from channels.security.websocket import AllowedHostsOriginValidator
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "idrissimart.settings.docker")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "idrissimart.settings.local")
 
 # Initialize Django ASGI application early to ensure AppRegistry is populated
 django_asgi_app = get_asgi_application()
