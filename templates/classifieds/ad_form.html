@@ -1582,12 +1582,14 @@
                                                 <span>{% trans "الميزات الإضافية:" %}</span>
                                                 <span id="final-features-cost">0 ج.م</span>
                                             </div>
-                                            <div class="d-flex justify-content-between mb-2" id="final-package-info" style="display: none !important;">
+                                            <div class="d-flex justify-content-between mb-2 align-items-center" id="free-ads-discount-row" style="display: none;">
                                                 <span class="text-success">
                                                     <i class="fas fa-gift me-1"></i>
-                                                    {% trans "إعلانات مجانية متاحة" %}
+                                                    {% trans "إعلانات مجانية:" %}
+                                                    <span id="free-ads-count" class="fw-bold">0</span>
+                                                    {% trans "متبقية" %}
                                                 </span>
-                                                <span class="text-success">{% trans "نعم" %}</span>
+                                                <span class="badge bg-success">{% trans "مجاني" %}</span>
                                             </div>
                                             <hr>
                                             <div class="d-flex justify-content-between align-items-center">
@@ -2576,8 +2578,8 @@
             const featuredPrice = parseFloat('{{ feature_prices.highlighted|floatformat:False|default:"50" }}');
             const pinnedPrice = parseFloat('{{ feature_prices.pinned|floatformat:False|default:"100" }}');
 
-            // Get user's free ads count
-            const freeAdsCount = parseInt('{{ request.session.ads_remaining|default:"0" }}') || 0;
+            // Get user's free ads count (sum of all active packages)
+            const freeAdsCount = {{ free_ads_remaining|default:0 }};
 
             console.log('💵 Site Default Base Fee:', siteDefaultBaseFee, '| 🎁 Free Ads Count:', freeAdsCount);
 
@@ -2654,7 +2656,11 @@
                 const finalFeaturesRow = document.getElementById('final-features-row');
 
                 if (finalBaseFeeEl) {
-                    finalBaseFeeEl.textContent = `${adBaseFee.toFixed(2)} ج.م`;
+                    if (freeAdsCount > 0 && categoryBaseFee > 0) {
+                        finalBaseFeeEl.innerHTML = `<s class="text-muted me-1">${categoryBaseFee.toFixed(2)} ج.م</s> <span class="badge bg-success">{% trans "مجاني" %}</span>`;
+                    } else {
+                        finalBaseFeeEl.textContent = `${adBaseFee.toFixed(2)} ج.م`;
+                    }
                 }
                 if (finalFeaturesCostEl) {
                     finalFeaturesCostEl.textContent = `${featuresCost.toFixed(2)} ج.م`;
@@ -3303,7 +3309,13 @@
                 const finalTotalCostEl = document.getElementById('final-total-cost');
                 const featuresRow = document.getElementById('final-features-row');
 
-                if (finalBaseFeeEl) finalBaseFeeEl.textContent = `${adBaseFee.toFixed(2)} ج.م`;
+                if (finalBaseFeeEl) {
+                    if (freeAdsCount > 0 && categoryBaseFee > 0) {
+                        finalBaseFeeEl.innerHTML = `<s class="text-muted me-1">${categoryBaseFee.toFixed(2)} ج.م</s> <span class="badge bg-success">{% trans "مجاني" %}</span>`;
+                    } else {
+                        finalBaseFeeEl.textContent = `${adBaseFee.toFixed(2)} ج.م`;
+                    }
+                }
                 if (finalFeaturesCostEl) finalFeaturesCostEl.textContent = `${totalFeaturesCost.toFixed(2)} ج.م`;
                 if (finalTotalCostEl) finalTotalCostEl.textContent = `${totalCost.toFixed(2)} ج.م`;
 
@@ -3317,7 +3329,7 @@
 
                 const packageInfo = document.getElementById('final-package-info');
                 const freeAdMessage = document.getElementById('free-ad-message');
-                const hasPackage = {{ request.session.ads_remaining|default:0 }} > 0;
+                const hasPackage = freeAdsCount > 0;
 
                 if (hasPackage && totalCost === 0) {
                     packageInfo.style.display = 'flex';

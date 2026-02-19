@@ -1038,6 +1038,9 @@ class ClassifiedAdDetailView(DetailView):
         context["show_contact_info"] = show_contact_info
         context["can_send_message"] = can_send_message
 
+        # Add custom fields for display
+        context["custom_fields"] = ad.get_custom_fields_for_detail()
+
         return context
 
 

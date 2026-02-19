@@ -1868,6 +1868,8 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
         )
 
         fields_to_display = []
+        seen_fields = set()
+
         for cat_cf in category_custom_fields:
             field_key = cat_cf.custom_field.name
             if field_key in self.custom_fields:
@@ -1898,6 +1900,110 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
                         "icon": cat_cf.custom_field.icon or "fa-info-circle",
                     }
                 )
+
+                seen_fields.add(field_key)
+
+        # If no configured fields to show on card, show first 2-3 important fields anyway
+        if not fields_to_display and self.custom_fields:
+            # Show first 2-3 non-empty fields
+            count = 0
+            for field_key, field_value in self.custom_fields.items():
+                if count >= 3 or not field_value or field_value == "":
+                    continue
+
+                # Create a simple label from the field key
+                label = field_key.replace('_', ' ').title()
+
+                fields_to_display.append(
+                    {
+                        "label": label,
+                        "value": field_value,
+                        "icon": "fa-info-circle",
+                    }
+                )
+                count += 1
+
+        return fields_to_display
+
+    def get_custom_fields_for_detail(self):
+        """Get all custom fields formatted for display on the ad detail page"""
+        if not self.custom_fields or not self.category:
+            return []
+
+        # Get all custom fields for this category and its ancestors
+        categories_to_check = [self.category] + list(self.category.get_ancestors())
+
+        category_custom_fields = (
+            CategoryCustomField.objects.filter(
+                category__in=categories_to_check,
+                is_active=True
+            )
+            .select_related("custom_field")
+            .prefetch_related("custom_field__field_options")
+            .order_by("order")
+        )
+
+        fields_to_display = []
+        seen_fields = set()  # Track which fields we've already added
+
+        for cat_cf in category_custom_fields:
+            field_key = cat_cf.custom_field.name
+
+            # Skip if we've already processed this field
+            if field_key in seen_fields:
+                continue
+
+            if field_key in self.custom_fields:
+                field_value = self.custom_fields[field_key]
+
+                # Skip empty values
+                if field_value is None or field_value == "":
+                    continue
+
+                # For select/radio fields, get the option label
+                display_value = field_value
+                if cat_cf.custom_field.field_type in ["select", "radio"]:
+                    try:
+                        option = CustomFieldOption.objects.get(
+                            custom_field=cat_cf.custom_field, value=field_value
+                        )
+                        display_value = option.label
+                    except CustomFieldOption.DoesNotExist:
+                        pass
+
+                # For checkbox fields
+                elif cat_cf.custom_field.field_type == "checkbox":
+                    display_value = field_value
+
+                fields_to_display.append(
+                    {
+                        "label": cat_cf.custom_field.label,
+                        "value": display_value,
+                        "type": cat_cf.custom_field.field_type,
+                        "name": cat_cf.custom_field.name,
+                    }
+                )
+
+                seen_fields.add(field_key)
+
+        # Add any remaining fields that don't have configuration
+        # (This handles fields saved directly without CategoryCustomField setup)
+        for field_key, field_value in self.custom_fields.items():
+            # Skip if already added or if empty
+            if field_key in seen_fields or field_value is None or field_value == "":
+                continue
+
+            # Create a simple label from the field key
+            label = field_key.replace('_', ' ').title()
+
+            fields_to_display.append(
+                {
+                    "label": label,
+                    "value": field_value,
+                    "type": "text",  # Default type
+                    "name": field_key,
+                }
+            )
 
         return fields_to_display
 
