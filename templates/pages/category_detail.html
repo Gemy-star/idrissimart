@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% load static i18n %}
+{% load static i18n idrissimart_tags %}
 
 {% block title %}
     {% if category %}
@@ -998,6 +998,7 @@
                                                 </label>
 
                                                 {% if field.field_type == 'select' or field.field_type == 'radio' %}
+                                                    {% with field_key="cf_"|add:field.name %}
                                                     <select class="filter-select custom-field-select"
                                                             name="cf_{{ field.name }}"
                                                             data-field-name="{{ field.name }}">
@@ -1005,32 +1006,37 @@
                                                         {% for option in field.field_options.all %}
                                                             {% if option.is_active %}
                                                                 <option value="{{ option.value }}"
-                                                                        {% if request.GET|get_item:"cf_"|add:field.name == option.value %}selected{% endif %}>
+                                                                        {% if request.GET|get_item:field_key == option.value %}selected{% endif %}>
                                                                     {{ option.label_ar|default:option.label|default:option.value }}
                                                                 </option>
                                                             {% endif %}
                                                         {% endfor %}
                                                     </select>
+                                                    {% endwith %}
 
                                                 {% elif field.field_type == 'number' or field.field_type == 'range' %}
+                                                    {% with field_key_min="cf_"|add:field.name|add:"_min" field_key_max="cf_"|add:field.name|add:"_max" %}
                                                     <div class="row g-2">
                                                         <div class="col-6">
                                                             <input type="number"
                                                                    class="filter-input"
                                                                    name="cf_{{ field.name }}_min"
                                                                    placeholder="{% trans 'من' %}"
-                                                                   value="{{ request.GET|get_item:'cf_'|add:field.name|add:'_min' }}">
+                                                                   value="{{ request.GET|get_item:field_key_min }}">
                                                         </div>
                                                         <div class="col-6">
                                                             <input type="number"
                                                                    class="filter-input"
                                                                    name="cf_{{ field.name }}_max"
                                                                    placeholder="{% trans 'إلى' %}"
-                                                                   value="{{ request.GET|get_item:'cf_'|add:field.name|add:'_max' }}">
+                                                                   value="{{ request.GET|get_item:field_key_max }}">
                                                         </div>
                                                     </div>
+                                                    {% endwith %}
 
                                                 {% elif field.field_type == 'checkbox' %}
+                                                    {% with field_key="cf_"|add:field.name %}
+                                                    {% with field_values=request.GET|get_list:field_key %}
                                                     <div class="filter-checkbox-group">
                                                         {% for option in field.field_options.all %}
                                                             {% if option.is_active %}
@@ -1038,19 +1044,23 @@
                                                                     <input type="checkbox"
                                                                            name="cf_{{ field.name }}"
                                                                            value="{{ option.value }}"
-                                                                           {% if option.value in request.GET.getlist|with_arg:"cf_"|add:field.name %}checked{% endif %}>
+                                                                           {% if option.value in field_values %}checked{% endif %}>
                                                                     <span>{{ option.label_ar|default:option.label|default:option.value }}</span>
                                                                 </label>
                                                             {% endif %}
                                                         {% endfor %}
                                                     </div>
+                                                    {% endwith %}
+                                                    {% endwith %}
 
                                                 {% elif field.field_type == 'text' or field.field_type == 'textarea' %}
+                                                    {% with field_key="cf_"|add:field.name %}
                                                     <input type="text"
                                                            class="filter-input custom-field-input"
                                                            name="cf_{{ field.name }}"
                                                            placeholder="{{ field.placeholder|default:field.label_ar|default:field.label }}"
-                                                           value="{{ request.GET|get_item:'cf_'|add:field.name }}">
+                                                           value="{{ request.GET|get_item:field_key }}">
+                                                    {% endwith %}
                                                 {% endif %}
                                             </div>
                                         {% endwith %}

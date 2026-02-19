@@ -24,7 +24,7 @@ def to_json(value):
     Also handles Django types like Decimal, datetime, etc.
     """
     from django.core.serializers.json import DjangoJSONEncoder
-    
+
     if value is None:
         return mark_safe("null")
     try:
@@ -44,6 +44,19 @@ def get_item(dictionary, key):
     if isinstance(dictionary, dict):
         return dictionary.get(key)
     return None
+
+
+@register.filter(name="get_list")
+def get_list(query_dict, key):
+    """
+    Gets a list of values from a QueryDict by key.
+    Usage: {{ request.GET|get_list:"field_name" }}
+    """
+    if query_dict is None:
+        return []
+    if hasattr(query_dict, 'getlist'):
+        return query_dict.getlist(key)
+    return []
 
 
 @register.filter(name="translate_field_label")
@@ -590,9 +603,9 @@ def get_site_logo(theme='default'):
     Returns URL of the logo or empty string
     """
     from content.site_config import SiteConfiguration
-    
+
     site_config = SiteConfiguration.get_solo()
-    
+
     if theme == 'light' and site_config.logo_light:
         return site_config.logo_light.url
     elif theme == 'dark' and site_config.logo_dark:
@@ -601,7 +614,7 @@ def get_site_logo(theme='default'):
         return site_config.logo_mini.url
     elif site_config.logo:
         return site_config.logo.url
-    
+
     return ""
 
 
@@ -613,12 +626,12 @@ def get_loader_logo():
     Returns URL of the mini logo or default logo
     """
     from content.site_config import SiteConfiguration
-    
+
     site_config = SiteConfiguration.get_solo()
-    
+
     if site_config.logo_mini:
         return site_config.logo_mini.url
     elif site_config.logo:
         return site_config.logo.url
-    
+
     return ""
