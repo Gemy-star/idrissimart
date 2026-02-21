@@ -3652,24 +3652,35 @@ class AdminCustomFieldSaveView(SuperadminRequiredMixin, View):
                         category = get_object_or_404(Category, pk=cat_id)
 
                         # Get category-specific settings
+                        # Only update show_on_card/show_in_filters if explicitly sent
+                        # (prevents resetting per-category values when editing field metadata)
                         if is_json:
+                            update_filter_settings = (
+                                "show_on_card" in data or "show_in_filters" in data
+                            )
                             show_on_card = data.get("show_on_card", False)
                             show_in_filters = data.get("show_in_filters", False)
                         else:
+                            update_filter_settings = True
                             show_on_card = data.get("show_on_card") == "on"
                             show_in_filters = data.get("show_in_filters") == "on"
+
+                        # Build defaults — preserve existing filter/card settings
+                        # when not explicitly provided by the caller
+                        cat_defaults = {
+                            "is_required": field.is_required,
+                            "order": int(data.get("order", 0)),
+                            "is_active": True,
+                        }
+                        if update_filter_settings:
+                            cat_defaults["show_on_card"] = show_on_card
+                            cat_defaults["show_in_filters"] = show_in_filters
 
                         # Create or update CategoryCustomField relationship
                         _obj, created = CategoryCustomField.objects.update_or_create(
                             category=category,
                             custom_field=field,
-                            defaults={
-                                "is_required": field.is_required,
-                                "order": int(data.get("order", 0)),
-                                "is_active": True,
-                                "show_on_card": show_on_card,
-                                "show_in_filters": show_in_filters,
-                            },
+                            defaults=cat_defaults,
                         )
                         if created:
                             added_count += 1

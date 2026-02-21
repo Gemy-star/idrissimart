@@ -102,10 +102,10 @@ class ClassifiedAdForm(forms.ModelForm):
         widget=forms.TextInput(
             attrs={
                 "class": "form-control",
-                "placeholder": _("مثال: 50 123 4567"),
+                "placeholder": _("501234567"),
                 "id": "mobile_number",
                 "type": "tel",
-                "pattern": "[0-9\\s]+",
+                "pattern": "[0-9]+",
                 "inputmode": "numeric",
                 "data-phone-format": "true",
                 "maxlength": "15",
@@ -450,57 +450,70 @@ class ClassifiedAdForm(forms.ModelForm):
         if not mobile_number:
             return mobile_number
 
-        # Remove spaces and special characters
+        # Store original for error messages
+        original_number = mobile_number
+
+        # Remove spaces, dashes, parentheses and special characters
         mobile_number = "".join(filter(str.isdigit, mobile_number))
+
+        # Remove leading zeros and country codes
+        mobile_number = mobile_number.lstrip("0")
+        
+        # Common country codes to remove
+        country_codes = ["20", "966", "971", "965", "974", "973", "968", "962"]
+        for code in country_codes:
+            if mobile_number.startswith(code):
+                mobile_number = mobile_number[len(code):]
+                break
 
         # Validation rules per country - accepting numbers without leading zero
         validation_rules = {
             "SA": {  # Saudi Arabia
                 "prefix": ("5",),  # Accept 5XXXXXXXX (9 digits)
                 "length": 9,
-                "error": _("رقم الجوال السعودي يجب أن يتكون من 9 أرقام ويبدأ بـ 5"),
+                "error": _("رقم الجوال السعودي يجب أن يتكون من 9 أرقام ويبدأ بـ 5 (بدون كود الدولة أو صفر)"),
                 "example": "501234567",
             },
             "EG": {  # Egypt
                 "prefix": ("1",),  # Accept 1XXXXXXXXX (10 digits)
                 "length": 10,
-                "error": _("رقم الجوال المصري يجب أن يتكون من 10 أرقام ويبدأ بـ 1"),
+                "error": _("رقم الجوال المصري يجب أن يتكون من 10 أرقام ويبدأ بـ 1 (بدون كود الدولة +20 أو صفر)"),
                 "example": "1012345678",
             },
             "AE": {  # UAE
                 "prefix": ("5",),  # Accept 5XXXXXXXX (9 digits)
                 "length": 9,
-                "error": _("رقم الجوال الإماراتي يجب أن يتكون من 9 أرقام ويبدأ بـ 5"),
+                "error": _("رقم الجوال الإماراتي يجب أن يتكون من 9 أرقام ويبدأ بـ 5 (بدون كود الدولة أو صفر)"),
                 "example": "501234567",
             },
             "KW": {  # Kuwait
                 "prefix": ("5", "6", "9"),
                 "length": 8,
-                "error": _("رقم الجوال الكويتي يجب أن يتكون من 8 أرقام"),
+                "error": _("رقم الجوال الكويتي يجب أن يتكون من 8 أرقام (بدون كود الدولة أو صفر)"),
                 "example": "50123456",
             },
             "QA": {  # Qatar
                 "prefix": ("3", "5", "6", "7"),
                 "length": 8,
-                "error": _("رقم الجوال القطري يجب أن يتكون من 8 أرقام"),
+                "error": _("رقم الجوال القطري يجب أن يتكون من 8 أرقام (بدون كود الدولة أو صفر)"),
                 "example": "33123456",
             },
             "BH": {  # Bahrain
                 "prefix": ("3",),
                 "length": 8,
-                "error": _("رقم الجوال البحريني يجب أن يبدأ بـ 3 ويتكون من 8 أرقام"),
+                "error": _("رقم الجوال البحريني يجب أن يبدأ بـ 3 ويتكون من 8 أرقام (بدون كود الدولة أو صفر)"),
                 "example": "36123456",
             },
             "OM": {  # Oman
                 "prefix": ("9", "7"),
                 "length": 8,
-                "error": _("رقم الجوال العماني يجب أن يتكون من 8 أرقام"),
+                "error": _("رقم الجوال العماني يجب أن يتكون من 8 أرقام (بدون كود الدولة أو صفر)"),
                 "example": "91123456",
             },
             "JO": {  # Jordan
                 "prefix": ("7",),
                 "length": 9,
-                "error": _("رقم الجوال الأردني يجب أن يتكون من 9 أرقام ويبدأ بـ 7"),
+                "error": _("رقم الجوال الأردني يجب أن يتكون من 9 أرقام ويبدأ بـ 7 (بدون كود الدولة أو صفر)"),
                 "example": "791234567",
             },
         }
@@ -524,9 +537,11 @@ class ClassifiedAdForm(forms.ModelForm):
                     valid = True
 
             if not valid:
-                raise forms.ValidationError(
-                    f"{rule['error']}. مثال: {rule.get('example', '')}"
-                )
+                # Provide more helpful error message
+                error_msg = f"{rule['error']}. مثال: {rule.get('example', '')}"
+                if len(mobile_number) != expected_length:
+                    error_msg += f" | الرقم المدخل يحتوي على {len(mobile_number)} أرقام"
+                raise forms.ValidationError(error_msg)
         else:
             # Generic validation for other countries
             if len(mobile_number) < 8 or len(mobile_number) > 15:
