@@ -164,7 +164,12 @@ def send_message(request, room_id):
     """
     Send a message in a chat room (AJAX)
     """
-    chat_room = get_object_or_404(ChatRoom, id=room_id, is_active=True)
+    try:
+        chat_room = ChatRoom.objects.get(id=room_id)
+    except ChatRoom.DoesNotExist:
+        return JsonResponse({"error": "Chat room not found.", "is_inactive": False}, status=404)
+    if not chat_room.is_active:
+        return JsonResponse({"error": "This chat room has been closed.", "is_inactive": True}, status=403)
 
     # Check if user is participant (handle admin chats where client can be None)
     if chat_room.room_type == "publisher_admin":
@@ -218,7 +223,12 @@ def get_messages(request, room_id):
     """
     Get messages for a chat room (AJAX polling)
     """
-    chat_room = get_object_or_404(ChatRoom, id=room_id, is_active=True)
+    try:
+        chat_room = ChatRoom.objects.get(id=room_id)
+    except ChatRoom.DoesNotExist:
+        return JsonResponse({"error": "Chat room not found.", "is_inactive": False}, status=404)
+    if not chat_room.is_active:
+        return JsonResponse({"error": "This chat room has been closed.", "is_inactive": True}, status=403)
 
     # Check if user is participant (handle admin chats where client can be None)
     if chat_room.room_type == "publisher_admin":
@@ -281,7 +291,12 @@ def mark_read(request, room_id):
     """
     Mark all messages in a room as read (AJAX)
     """
-    chat_room = get_object_or_404(ChatRoom, id=room_id, is_active=True)
+    try:
+        chat_room = ChatRoom.objects.get(id=room_id)
+    except ChatRoom.DoesNotExist:
+        return JsonResponse({"error": "Chat room not found.", "is_inactive": False}, status=404)
+    if not chat_room.is_active:
+        return JsonResponse({"success": True, "is_inactive": True})
 
     # Check if user is participant (handle admin chats where client can be None)
     if chat_room.room_type == "publisher_admin":

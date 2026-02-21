@@ -1152,8 +1152,23 @@ function loadMessages(roomId) {
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            return response.json().catch(() => ({ error: 'Server error', is_inactive: response.status === 404 || response.status === 403 }));
+        }
+        return response.json();
+    })
     .then(data => {
+        if (data.is_inactive) {
+            if (pollingInterval) clearInterval(pollingInterval);
+            const messagesContainer = document.getElementById('chatMessages');
+            if (messagesContainer) {
+                messagesContainer.innerHTML = `<div class="text-center text-muted p-4"><i class="fas fa-lock fa-2x mb-2"></i><p>{% trans "هذه المحادثة مغلقة" %}</p></div>`;
+            }
+            const sendForm = document.getElementById('chatForm');
+            if (sendForm) sendForm.style.display = 'none';
+            return;
+        }
         if (data.success) {
             updateChatUI(data);
         }
@@ -1221,8 +1236,15 @@ function sendMessage(event) {
         },
         body: formData
     })
-    .then(response => response.json())
+    .then(response => response.json().catch(() => ({ error: 'Server error' })))
     .then(data => {
+        if (data.is_inactive) {
+            if (pollingInterval) clearInterval(pollingInterval);
+            showNotification('{% trans "هذه المحادثة مغلقة" %}', 'error');
+            const sendForm = document.getElementById('chatForm');
+            if (sendForm) sendForm.style.display = 'none';
+            return;
+        }
         if (data.success) {
             input.value = '';
             addMessageToUI(data.message, true);
