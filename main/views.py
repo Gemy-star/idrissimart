@@ -6538,6 +6538,7 @@ class PublisherChatsView(LoginRequiredMixin, TemplateView):
             ChatMessage.objects.filter(
                 room__publisher=self.request.user,
                 room__is_active=True,
+                room__room_type="publisher_client",
                 is_read=False,
             )
             .exclude(sender=self.request.user)
