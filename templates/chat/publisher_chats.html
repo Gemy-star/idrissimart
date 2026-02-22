@@ -1128,6 +1128,12 @@ function getCookie(name) {
 
 // Select a chat room
 function selectChat(roomId, element) {
+    // Stop any existing polling before switching rooms
+    if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+    }
+
     // Update active state
     document.querySelectorAll('.chat-list-item').forEach(item => {
         item.classList.remove('active');
@@ -1142,6 +1148,7 @@ function selectChat(roomId, element) {
     currentRoomId = roomId;
     loadMessages(roomId);
     markAsRead(roomId);
+    startPolling();
 }
 
 // Load messages for a room
@@ -1291,7 +1298,12 @@ function markAsRead(roomId) {
             'X-CSRFToken': getCookie('csrftoken'),
             'X-Requested-With': 'XMLHttpRequest'
         }
-    }).catch(error => console.error('Error marking as read:', error));
+    })
+    .then(response => {
+        if (!response.ok) return; // silently ignore 403/redirect
+        return response.json();
+    })
+    .catch(() => {}); // suppress all errors silently
 }
 
 // Archive chat

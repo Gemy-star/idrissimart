@@ -6503,10 +6503,10 @@ class PublisherChatsView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         context["active_nav"] = "chats"
 
-        # Get all chat rooms for the publisher
+        # Get all active chat rooms for the publisher
         chat_rooms = (
             ChatRoom.objects.filter(
-                publisher=self.request.user, room_type="publisher_client"
+                publisher=self.request.user, room_type="publisher_client", is_active=True
             )
             .select_related("client", "ad")
             .prefetch_related("messages")
@@ -6535,14 +6535,20 @@ class PublisherChatsView(LoginRequiredMixin, TemplateView):
         )
 
         unread_messages = (
-            ChatMessage.objects.filter(room__publisher=self.request.user, is_read=False)
+            ChatMessage.objects.filter(
+                room__publisher=self.request.user,
+                room__is_active=True,
+                is_read=False,
+            )
             .exclude(sender=self.request.user)
             .count()
         )
 
         active_ads = (
             ChatRoom.objects.filter(
-                publisher=self.request.user, room_type="publisher_client"
+                publisher=self.request.user,
+                room_type="publisher_client",
+                is_active=True,
             )
             .values("ad")
             .distinct()
