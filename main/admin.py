@@ -102,6 +102,16 @@ class CategoryAdmin(MPTTModelAdmin):
                 "classes": ("collapse",),
             },
         ),
+        (
+            _("إعدادات التسعير - Pricing"),
+            {
+                "fields": (
+                    "ad_creation_price",
+                    "suggested_ad_price",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
         ("Settings", {"fields": ("order", "is_active")}),
     )
     ordering = ("country", "name")
@@ -2034,7 +2044,7 @@ class OrderAdmin(admin.ModelAdmin):
         """Display order summary"""
         from main.templatetags.idrissimart_tags import CURRENCY_SYMBOLS
         currency_symbol = CURRENCY_SYMBOLS.get(obj.currency, obj.currency)
-        
+
         items_html = '<ul style="margin: 0; padding-left: 20px;">'
         for item in obj.items.all():
             items_html += f"<li>{item.ad.title} - {item.price} {currency_symbol}</li>"

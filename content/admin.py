@@ -466,10 +466,24 @@ class SiteConfigurationAdmin(SingletonModelAdmin):
             },
         ),
         (
+            "إعدادات الدفع العام",
+            {
+                "fields": ("allow_online_payment", "allow_offline_payment"),
+                "description": "تفعيل أو تعطيل طرق الدفع الإلكتروني واليدوي على مستوى الموقع",
+            },
+        ),
+        (
             "إعدادات الدفع - InstaPay",
             {
-                "fields": ("instapay_qr_code",),
+                "fields": ("instapay_qr_code", "instapay_phone"),
                 "description": "قم برفع صورة رمز QR الخاص بحساب InstaPay لتفعيل خيار الدفع عبر InstaPay في صفحة الدفع",
+            },
+        ),
+        (
+            "إعدادات المحفظة الإلكترونية",
+            {
+                "fields": ("wallet_payment_link", "wallet_phone"),
+                "description": "رابط ورقم المحفظة الإلكترونية (Vodafone Cash، Orange Money، إلخ) لتفعيل خيار الدفع عبر المحفظة",
             },
         ),
         (

@@ -1629,10 +1629,10 @@
 
                         <h1 class="ad-title-main mb-3" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; hyphens: auto; font-size: 1.5rem; font-weight: 700; line-height: 1.4; letter-spacing: -0.2px; max-width: 100%; display: block;" title="{{ ad.title }}">{{ ad.title }}</h1>
 
-                        <!-- Main Category Badge -->
+                        <!-- Category & Subcategory Badges -->
                         {% if ad.category %}
                         {% with main_category=ad.category.get_root %}
-                        <div class="mb-3">
+                        <div class="mb-3 d-flex flex-wrap align-items-center gap-2">
                             <span class="category-badge-detail">
                                 <i class="fas fa-tag"></i>
                                 <span>
@@ -1643,6 +1643,19 @@
                                     {% endif %}
                                 </span>
                             </span>
+                            {% if ad.category.pk != main_category.pk %}
+                            <i class="fas fa-chevron-left" style="color: var(--text-muted); font-size: 0.7rem;"></i>
+                            <span class="category-badge-detail" style="background: linear-gradient(135deg, var(--secondary-color), #8b5cf6); box-shadow: 0 4px 12px rgba(139,92,246,0.25);">
+                                <i class="fas fa-layer-group"></i>
+                                <span>
+                                    {% if LANGUAGE_CODE == 'ar' and ad.category.name_ar %}
+                                        {{ ad.category.name_ar }}
+                                    {% else %}
+                                        {{ ad.category.name }}
+                                    {% endif %}
+                                </span>
+                            </span>
+                            {% endif %}
                         </div>
                         {% endwith %}
                         {% endif %}
@@ -2656,56 +2669,18 @@
                     on: {
                         init: function() {
                             console.log('Gallery Swiper initialized successfully');
-                            console.log('Total slides:', this.slides.length);
-                            console.log('Has thumbnails:', !!thumbnailsSwiper);
-                        },
-                        slideChange: function() {
-                            console.log('Slide changed to:', this.activeIndex);
                         },
                         imagesReady: function() {
-                            console.log('All images loaded');
                             this.update();
+                        },
+                        click: function(swiper, event) {
+                            // Use Swiper's native click (fires only on click, not after a swipe)
+                            const imageIndex = swiper.realIndex;
+                            console.log('Gallery image clicked, opening lightbox at index:', imageIndex);
+                            window.openLightbox(imageIndex);
                         }
                     }
                 });
-
-                console.log('Gallery Swiper object:', gallerySwiper);
-
-                // Add click event handler for gallery images using event delegation
-                const galleryContainer = document.querySelector('.ad-gallery-swiper');
-                if (galleryContainer) {
-                    console.log('Gallery container found, adding click handler');
-                    galleryContainer.addEventListener('click', function(e) {
-                        console.log('Gallery container clicked, target:', e.target);
-                        const clickedImage = e.target.closest('.gallery-image-clickable');
-                        if (clickedImage) {
-                            console.log('Clicked image element:', clickedImage);
-                            // Prevent any default behavior
-                            e.preventDefault();
-                            e.stopPropagation();
-
-                            // Get the index from data attribute or swiper
-                            let imageIndex;
-                            if (clickedImage.hasAttribute('data-index')) {
-                                imageIndex = parseInt(clickedImage.getAttribute('data-index'));
-                                console.log('Using data-index:', imageIndex);
-                            } else if (gallerySwiper) {
-                                imageIndex = gallerySwiper.realIndex;
-                                console.log('Using swiper realIndex:', imageIndex);
-                            } else {
-                                console.error('Could not determine image index');
-                                return;
-                            }
-
-                            console.log('Opening lightbox with index:', imageIndex);
-                            window.openLightbox(imageIndex);
-                        } else {
-                            console.log('Click was not on gallery image');
-                        }
-                    });
-                } else {
-                    console.error('Gallery container not found');
-                }
 
                 // Force update after a short delay to ensure images are loaded
                 setTimeout(function() {

@@ -635,3 +635,52 @@ def get_loader_logo():
         return site_config.logo.url
 
     return ""
+
+
+# ======================
+# CATEGORY PRICE TAGS
+# ======================
+
+
+@register.filter(name="has_ad_creation_price_inherited")
+def has_ad_creation_price_inherited(category):
+    """
+    Check if ad creation price is inherited from parent
+    Usage: {{ category|has_ad_creation_price_inherited }}
+    """
+    if hasattr(category, 'is_price_inherited'):
+        return category.is_price_inherited('ad_creation')
+    return False
+
+
+@register.filter(name="has_suggested_price_inherited")
+def has_suggested_price_inherited(category):
+    """
+    Check if suggested ad price is inherited from parent
+    Usage: {{ category|has_suggested_price_inherited }}
+    """
+    if hasattr(category, 'is_price_inherited'):
+        return category.is_price_inherited('suggested')
+    return False
+
+
+@register.filter(name="get_ad_creation_price_source")
+def get_ad_creation_price_source(category):
+    """
+    Get the source category for ad creation price
+    Usage: {{ category|get_ad_creation_price_source }}
+    """
+    if hasattr(category, 'get_price_source'):
+        return category.get_price_source('ad_creation')
+    return None
+
+
+@register.filter(name="get_suggested_price_source")
+def get_suggested_price_source(category):
+    """
+    Get the source category for suggested ad price
+    Usage: {{ category|get_suggested_price_source }}
+    """
+    if hasattr(category, 'get_price_source'):
+        return category.get_price_source('suggested')
+    return None

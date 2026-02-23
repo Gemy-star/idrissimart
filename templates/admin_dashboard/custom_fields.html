@@ -796,22 +796,8 @@
 
         <div style="height:1px;background:var(--cf-border);margin:.7rem 0;"></div>
 
-        <!-- Category List -->
-        <div style="max-height:500px;overflow-y:auto;padding-right:2px;">
-            {% for group in category_groups %}
-            <button class="cf-cat-btn" onclick="filterByCategory('{{ group.grouper.id }}', this)"
-                    data-category="{{ group.grouper.id }}"
-                    title="{{ group.grouper.name_ar|default:group.grouper.name }}">
-                <div style="display:flex;align-items:center;gap:.5rem;flex:1;overflow:hidden;">
-                    <div style="width:32px;height:32px;background:var(--cf-primary-bg);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--cf-primary);font-size:.75rem;flex-shrink:0;">
-                        <i class="fas fa-folder"></i>
-                    </div>
-                    <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ group.grouper.name_ar|default:group.grouper.name }}</span>
-                </div>
-                <span class="cf-cat-count">{{ group.list|length }}</span>
-            </button>
-            {% endfor %}
-        </div>
+        <!-- Hierarchical Category List -->
+        <div id="categoryFilterTree" style="max-height:500px;overflow-y:auto;padding-right:2px;"></div>
 
         <!-- Reset Filter -->
         <div style="margin-top:.7rem;padding-top:.7rem;border-top:1px solid var(--cf-border);">
@@ -917,11 +903,6 @@
                                     data-action="edit-field" data-field-id="{{ field.id }}"
                                     title="{% trans 'تعديل' %}">
                                 <i class="fas fa-pen"></i>
-                            </button>
-                            <button class="cf-icon-btn ib-cats"
-                                    data-action="add-to-categories" data-field-id="{{ field.id }}"
-                                    title="{% trans 'ربط بأقسام' %}">
-                                <i class="fas fa-sitemap"></i>
                             </button>
                             <button class="cf-icon-btn ib-delete"
                                     data-action="delete-field" data-field-id="{{ field.id }}"
@@ -1171,56 +1152,6 @@
 </div>
 
 <!-- ── Add to Categories Modal ─────────────────────────────────────────────── -->
-<div class="modal fade" id="addToCategoriesModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-sitemap"></i> {% trans "ربط بأقسام" %}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="bulkFieldId" />
-                <div class="d-flex align-items-center gap-2 p-2 mb-3 rounded"
-                     style="background:var(--cf-primary-bg);font-size:.88rem;">
-                    <i class="fas fa-layer-group" style="color:var(--cf-primary);"></i>
-                    <strong id="bulkFieldName" style="color:var(--cf-primary);"></strong>
-                </div>
-                <div class="row g-3">
-                    <div class="col-lg-12">
-                        <label class="form-label">{% trans "اختر الأقسام" %}</label>
-                        <div class="cf-tree-box" id="categoryTreeContainer" style="max-height:340px;"></div>
-                    </div>
-                    <div class="col-lg-12">
-                        <div class="cf-section h-100">
-                            <div class="cf-section-title"><i class="fas fa-cog"></i> {% trans "إعدادات" %}</div>
-                            <div class="cf-pills" style="flex-direction:column;">
-                                <label class="cf-pill">
-                                    <input type="checkbox" id="bulkIsRequired" />
-                                    <i class="fas fa-asterisk" style="color:#d97706;font-size:.7rem;"></i> {% trans "إلزامي" %}
-                                </label>
-                                <label class="cf-pill">
-                                    <input type="checkbox" id="bulkShowOnCard" />
-                                    <i class="fas fa-id-card" style="color:#0891b2;font-size:.75rem;"></i> {% trans "في البطاقة" %}
-                                </label>
-                                <label class="cf-pill">
-                                    <input type="checkbox" id="bulkShowInFilters" />
-                                    <i class="fas fa-filter" style="color:#7c3aed;font-size:.75rem;"></i> {% trans "في الفلاتر" %}
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
-                <button type="button" class="btn-cf-primary" onclick="addFieldToCategories()">
-                    <i class="fas fa-plus"></i> {% trans "إضافة" %}
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 {% endblock %}
 
 {% block admin_extra_js %}
@@ -1254,6 +1185,7 @@ const CUSTOM_FIELD_URLS = {
 document.addEventListener('DOMContentLoaded', () => {
     setupCategoryHandlers();
     buildAddCategoryTree();
+    buildCategoryFilterTree(); // Build hierarchical filter tree
     initializeTooltips();
     computeStats();
 });
@@ -1398,6 +1330,144 @@ function buildAddCategoryTree() {
 
 function toggleAllCategories(select) {
     document.querySelectorAll('.add-category-checkbox').forEach(cb => { cb.checked = select; });
+}
+
+// ── Category Filter Tree (Sidebar) ──────────────────────────────────────────
+
+function buildCategoryFilterTree() {
+    const container = document.getElementById('categoryFilterTree');
+    if (!container) return;
+    container.innerHTML = '';
+
+    // Get field counts per category from the page
+    const categoryFieldCounts = {};
+    document.querySelectorAll('.field-row').forEach(row => {
+        const catIds = (row.dataset.categoryIds || '').split(',').filter(id => id);
+        catIds.forEach(catId => {
+            categoryFieldCounts[catId] = (categoryFieldCounts[catId] || 0) + 1;
+        });
+    });
+
+    const mains = Object.values(CATEGORIES_HIERARCHY).filter(c => !c.parent);
+    mains.forEach(mc => {
+        const count = categoryFieldCounts[mc.id] || 0;
+        const hasChildren = mc.children && mc.children.length > 0;
+
+        // Calculate total count including subcategories
+        let totalCount = count;
+        if (hasChildren) {
+            mc.children.forEach(cid => {
+                const childCount = categoryFieldCounts[cid] || 0;
+                totalCount += childCount;
+                const c = CATEGORIES_HIERARCHY[cid];
+                if (c && c.children) {
+                    c.children.forEach(gcId => {
+                        totalCount += (categoryFieldCounts[gcId] || 0);
+                    });
+                }
+            });
+        }
+
+        if (totalCount === 0) return; // Skip categories with no fields
+
+        const wrap = document.createElement('div');
+        wrap.className = 'mb-1';
+
+        const mainBtn = document.createElement('button');
+        mainBtn.className = 'cf-cat-btn';
+        mainBtn.dataset.category = mc.id;
+        mainBtn.onclick = function() { filterByCategory(mc.id, this); };
+        mainBtn.innerHTML = `
+            <div style="display:flex;align-items:center;gap:.5rem;flex:1;overflow:hidden;">
+                <div style="width:32px;height:32px;background:var(--cf-primary-bg);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--cf-primary);font-size:.75rem;flex-shrink:0;">
+                    <i class="fas fa-folder"></i>
+                </div>
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${mc.name}</span>
+            </div>
+            <span class="cf-cat-count">${totalCount}</span>
+        `;
+        wrap.appendChild(mainBtn);
+
+        // Build subcategories
+        if (hasChildren) {
+            const subContainer = document.createElement('div');
+            subContainer.style.cssText = 'margin-left:1rem;margin-top:2px;';
+
+            mc.children.forEach(cid => {
+                const c = CATEGORIES_HIERARCHY[cid];
+                if (!c) return;
+
+                const subCount = categoryFieldCounts[cid] || 0;
+                const hasGc = c.children && c.children.length > 0;
+
+                // Calculate subcategory total
+                let subTotal = subCount;
+                if (hasGc) {
+                    c.children.forEach(gcId => {
+                        subTotal += (categoryFieldCounts[gcId] || 0);
+                    });
+                }
+
+                if (subTotal === 0) return; // Skip subcategories with no fields
+
+                const subWrap = document.createElement('div');
+                subWrap.className = 'mb-1';
+
+                const subBtn = document.createElement('button');
+                subBtn.className = 'cf-cat-btn';
+                subBtn.dataset.category = c.id;
+                subBtn.onclick = function() { filterByCategory(c.id, this); };
+                subBtn.style.fontSize = '.78rem';
+                subBtn.innerHTML = `
+                    <div style="display:flex;align-items:center;gap:.4rem;flex:1;overflow:hidden;">
+                        <i class="fas fa-angle-left" style="color:var(--cf-text-3);font-size:.7rem;"></i>
+                        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.name}</span>
+                    </div>
+                    <span class="cf-cat-count" style="font-size:.65rem;">${subTotal}</span>
+                `;
+                subWrap.appendChild(subBtn);
+
+                // Build grandchild categories
+                if (hasGc) {
+                    const gcContainer = document.createElement('div');
+                    gcContainer.style.cssText = 'margin-left:1.2rem;margin-top:2px;';
+
+                    c.children.forEach(gcId => {
+                        const gc = CATEGORIES_HIERARCHY[gcId];
+                        if (!gc) return;
+                        const gcCount = categoryFieldCounts[gcId] || 0;
+                        if (gcCount === 0) return;
+
+                        const gcBtn = document.createElement('button');
+                        gcBtn.className = 'cf-cat-btn';
+                        gcBtn.dataset.category = gc.id;
+                        gcBtn.onclick = function() { filterByCategory(gc.id, this); };
+                        gcBtn.style.fontSize = '.75rem';
+                        gcBtn.innerHTML = `
+                            <div style="display:flex;align-items:center;gap:.35rem;flex:1;overflow:hidden;">
+                                <i class="fas fa-circle" style="color:var(--cf-text-3);font-size:.35rem;"></i>
+                                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${gc.name}</span>
+                            </div>
+                            <span class="cf-cat-count" style="font-size:.6rem;">${gcCount}</span>
+                        `;
+                        gcContainer.appendChild(gcBtn);
+                    });
+
+                    if (gcContainer.children.length > 0) {
+                        subWrap.appendChild(gcContainer);
+                    }
+                }
+
+                subContainer.appendChild(subWrap);
+            });
+
+            if (subContainer.children.length > 0) {
+                wrap.appendChild(subContainer);
+            }
+        }
+
+        container.appendChild(wrap);
+    });
 }
 
 // ── Edit-field tree ─────────────────────────────────────────────────────────
@@ -1608,164 +1678,7 @@ document.addEventListener('click', (e) => {
 
     if (action === 'edit-field') editCustomField(fieldId);
     if (action === 'delete-field') deleteCustomField(fieldId, fieldName);
-    if (action === 'add-to-categories') openAddToCategoriesModal(fieldId);
 });
-
-function openAddToCategoriesModal(fieldId) {
-    fetch(CUSTOM_FIELD_URLS.get(fieldId))
-        .then(r => r.json())
-        .then(data => {
-            if (!data.success) return showError('{% trans "فشل في جلب بيانات الحقل" %}');
-            const field = data.field;
-            document.getElementById('bulkFieldId').value = fieldId;
-            document.getElementById('bulkFieldName').textContent = field.label_ar || field.name;
-            buildCategoryTree(field.category_ids || []);
-            new bootstrap.Modal(document.getElementById('addToCategoriesModal')).show();
-        })
-        .catch(() => showError('{% trans "حدث خطأ أثناء جلب بيانات الحقل" %}'));
-}
-
-// ── Bulk add-to-categories tree ─────────────────────────────────────────────
-
-function buildCategoryTree(existingIds) {
-    const container = document.getElementById('categoryTreeContainer');
-    if (!container) return;
-    container.innerHTML = '';
-
-    const mains = Object.values(CATEGORIES_HIERARCHY).filter(c => !c.parent);
-    mains.forEach(mc => {
-        const isExisting = existingIds.includes(mc.id);
-        const hasChildren = mc.children && mc.children.length > 0;
-        const hasLinkedDescendant = hasChildren && mc.children.some(cid => {
-            const c = CATEGORIES_HIERARCHY[cid];
-            return c && (existingIds.includes(c.id) || (c.children && c.children.some(gcId => existingIds.includes(gcId))));
-        });
-        const startExpanded = isExisting || hasLinkedDescendant;
-
-        const wrap = document.createElement('div');
-        wrap.className = 'mb-1';
-
-        const mainRow = document.createElement('div');
-        mainRow.className = 'd-flex align-items-center gap-2 py-1';
-        mainRow.innerHTML = `
-            <input class="form-check-input category-checkbox flex-shrink-0" type="checkbox"
-                   value="${mc.id}" id="bulk_cat_${mc.id}"
-                   ${isExisting ? 'checked disabled' : ''}
-                   ${!isExisting ? `onchange="expandSubcategoriesOnCheck(this,'bulk_subs_${mc.id}')"` : ''}>
-            <label class="form-check-label fw-semibold flex-grow-1 mb-0"
-                   for="bulk_cat_${mc.id}" style="font-size:1rem;cursor:pointer;">
-                <i class="fas fa-folder text-primary me-2"></i>${mc.name}
-                ${isExisting ? '<span class="badge bg-secondary ms-2">{% trans "موجود" %}</span>' : ''}
-            </label>
-            ${hasChildren ? `<button type="button" class="btn btn-link btn-sm p-0 text-muted cat-toggle-btn"
-                    onclick="toggleSubcategories('bulk_subs_${mc.id}', this)"
-                    style="line-height:1;" title="{% trans 'عرض الأقسام الفرعية' %}">
-                <i class="fas fa-chevron-${startExpanded ? 'down' : 'left'} fa-xs"></i></button>` : ''}
-        `;
-        wrap.appendChild(mainRow);
-
-        if (hasChildren) {
-            const subBox = document.createElement('div');
-            subBox.id = `bulk_subs_${mc.id}`;
-            subBox.className = 'ms-4 ps-3 border-start border-2 border-primary border-opacity-10 mt-1';
-            subBox.style.display = startExpanded ? 'block' : 'none';
-
-            mc.children.forEach(cid => {
-                const c = CATEGORIES_HIERARCHY[cid];
-                if (!c) return;
-                const isChildExisting = existingIds.includes(c.id);
-                const hasGc = c.children && c.children.length > 0;
-                const hasLinkedGc = hasGc && c.children.some(gcId => existingIds.includes(gcId));
-
-                const subWrap = document.createElement('div');
-                subWrap.className = 'mb-1';
-                const subRow = document.createElement('div');
-                subRow.className = 'd-flex align-items-center gap-2 py-1';
-                subRow.innerHTML = `
-                    <input class="form-check-input category-checkbox flex-shrink-0" type="checkbox"
-                           value="${c.id}" id="bulk_cat_${c.id}" data-parent="${mc.id}"
-                           ${isChildExisting ? 'checked disabled' : ''}
-                           ${!isChildExisting && hasGc ? `onchange="expandSubcategoriesOnCheck(this,'bulk_subs_${c.id}')"` : ''}>
-                    <label class="form-check-label flex-grow-1 mb-0" for="bulk_cat_${c.id}"
-                           style="color:#475569;cursor:pointer;">
-                        <i class="fas fa-folder-open text-info me-2"></i>${c.name}
-                        ${isChildExisting ? '<span class="badge bg-secondary ms-2">{% trans "موجود" %}</span>' : ''}
-                    </label>
-                    ${hasGc ? `<button type="button" class="btn btn-link btn-sm p-0 text-muted cat-toggle-btn"
-                            onclick="toggleSubcategories('bulk_subs_${c.id}', this)"
-                            style="line-height:1;" title="">
-                        <i class="fas fa-chevron-${hasLinkedGc ? 'down' : 'left'} fa-xs"></i></button>` : ''}
-                `;
-                subWrap.appendChild(subRow);
-
-                if (hasGc) {
-                    const gcBox = document.createElement('div');
-                    gcBox.id = `bulk_subs_${c.id}`;
-                    gcBox.className = 'ms-4 ps-2 border-start border-2 border-info border-opacity-10 mt-1';
-                    gcBox.style.display = hasLinkedGc ? 'block' : 'none';
-                    c.children.forEach(gcId => {
-                        const gc = CATEGORIES_HIERARCHY[gcId];
-                        if (!gc) return;
-                        const isGcExisting = existingIds.includes(gc.id);
-                        const gcRow = document.createElement('div');
-                        gcRow.className = 'd-flex align-items-center gap-2 py-1';
-                        gcRow.innerHTML = `
-                            <input class="form-check-input category-checkbox flex-shrink-0" type="checkbox"
-                                   value="${gc.id}" id="bulk_cat_${gc.id}" data-parent="${c.id}"
-                                   ${isGcExisting ? 'checked disabled' : ''}>
-                            <label class="form-check-label flex-grow-1 mb-0" for="bulk_cat_${gc.id}"
-                                   style="color:#64748b;font-size:.9rem;cursor:pointer;">
-                                <i class="fas fa-circle fa-xs text-secondary me-2"></i>${gc.name}
-                                ${isGcExisting ? '<span class="badge bg-secondary ms-2">{% trans "موجود" %}</span>' : ''}
-                            </label>
-                        `;
-                        gcBox.appendChild(gcRow);
-                    });
-                    subWrap.appendChild(gcBox);
-                }
-                subBox.appendChild(subWrap);
-            });
-            wrap.appendChild(subBox);
-        }
-        container.appendChild(wrap);
-    });
-}
-
-function addFieldToCategories() {
-    const fieldId = document.getElementById('bulkFieldId').value;
-    const ids = [];
-    document.querySelectorAll('.category-checkbox:checked:not(:disabled)').forEach(cb => {
-        ids.push(parseInt(cb.value));
-    });
-
-    if (!ids.length) return showError('{% trans "يرجى اختيار قسم واحد على الأقل" %}');
-
-    const payload = {
-        field_id: fieldId,
-        category_ids: ids,
-        is_required: document.getElementById('bulkIsRequired').checked,
-        show_on_card: document.getElementById('bulkShowOnCard').checked,
-        show_in_filters: document.getElementById('bulkShowInFilters').checked
-    };
-
-    fetch(CUSTOM_FIELD_URLS.addToCategories, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken')
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (!data.success) return showError(data.message || '{% trans "فشل إضافة الحقل للأقسام" %}');
-        const modal = bootstrap.Modal.getInstance(document.getElementById('addToCategoriesModal'));
-        if (modal) modal.hide();
-        showSuccess(data.message || '{% trans "تمت الإضافة بنجاح" %}');
-        setTimeout(() => location.reload(), 800);
-    })
-    .catch(() => showError('{% trans "حدث خطأ أثناء الإضافة" %}'));
-}
 
 function addNewCustomField() {
     const form = document.getElementById('addFieldForm');

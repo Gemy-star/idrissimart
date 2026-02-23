@@ -1651,6 +1651,8 @@ class CategorySaveView(LoginRequiredMixin, View):
         icon = request.POST.get("icon", "")
         color = request.POST.get("color", "")
         country_code = request.POST.get("country")  # optional
+        ad_creation_price = request.POST.get("ad_creation_price", "0")
+        suggested_ad_price = request.POST.get("suggested_ad_price", "")
 
         try:
             # Use slugify to auto-generate slugs if not provided
@@ -1753,6 +1755,21 @@ class CategorySaveView(LoginRequiredMixin, View):
                 except Country.DoesNotExist:
                     category.country = None
 
+            # Handle pricing fields
+            from decimal import Decimal
+            try:
+                category.ad_creation_price = Decimal(ad_creation_price) if ad_creation_price else Decimal('0')
+            except:
+                category.ad_creation_price = Decimal('0')
+
+            if suggested_ad_price:
+                try:
+                    category.suggested_ad_price = Decimal(suggested_ad_price)
+                except:
+                    category.suggested_ad_price = None
+            else:
+                category.suggested_ad_price = None
+
             category.save()
 
             # AJAX-friendly response
@@ -1797,6 +1814,14 @@ class CategoryGetView(LoginRequiredMixin, View):
 
         category = get_object_or_404(Category, id=category_id)
 
+        # Get effective prices (with inheritance)
+        effective_ad_creation_price = category.get_effective_ad_creation_price()
+        effective_suggested_price = category.get_effective_suggested_ad_price()
+
+        # Get price sources for inheritance info
+        ad_creation_source = category.get_price_source('ad_creation')
+        suggested_source = category.get_price_source('suggested')
+
         return JsonResponse(
             {
                 "id": category.id,
@@ -1823,6 +1848,16 @@ class CategoryGetView(LoginRequiredMixin, View):
                     if category.country
                     else None
                 ),
+                "ad_creation_price": float(getattr(category, "ad_creation_price", 0)),
+                "suggested_ad_price": float(category.suggested_ad_price) if category.suggested_ad_price else None,
+                # Effective prices (with inheritance)
+                "effective_ad_creation_price": float(effective_ad_creation_price),
+                "effective_suggested_ad_price": float(effective_suggested_price) if effective_suggested_price else None,
+                # Inheritance information
+                "ad_creation_inherited": category.is_price_inherited('ad_creation'),
+                "ad_creation_source": ad_creation_source.name if ad_creation_source and ad_creation_source.id != category.id else None,
+                "suggested_inherited": category.is_price_inherited('suggested'),
+                "suggested_source": suggested_source.name if suggested_source and suggested_source.id != category.id else None,
             }
         )
 
