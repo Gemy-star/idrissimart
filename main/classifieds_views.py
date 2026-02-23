@@ -368,24 +368,27 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         context["active_nav"] = "create_ad"
 
         # Prepare categories data with pricing for JavaScript (all levels)
+        # Use effective prices with inheritance
         import json
         from django.core.serializers.json import DjangoJSONEncoder
 
         categories_data = {}
-        for category in Category.objects.filter(
+        # Get all categories as objects to use get_effective_ad_creation_price()
+        all_categories = Category.objects.filter(
             section_type=Category.SectionType.CLASSIFIED,
             is_active=True,
-        ).values("id", "ad_creation_price", "name", "parent_id"):
-            categories_data[category["id"]] = {
-                "ad_creation_price": (
-                    float(category["ad_creation_price"])
-                    if category["ad_creation_price"]
-                    else 0.0
-                ),
-                "name": category["name"],
-                "parent_id": (
-                    category["parent_id"] if category["parent_id"] is not None else None
-                ),
+        ).select_related('parent')
+
+        for category in all_categories:
+            # Use method to get effective price with inheritance
+            effective_price = category.get_effective_ad_creation_price()
+            categories_data[category.id] = {
+                "ad_creation_price": float(effective_price) if effective_price else 0.0,
+                "name": category.name,
+                "parent_id": category.parent_id if category.parent_id is not None else None,
+                # Include inheritance info for UI display
+                "has_own_price": category.has_own_ad_creation_price(),
+                "is_price_inherited": category.is_price_inherited('ad_creation'),
             }
         # Convert to JSON to ensure proper null handling
         context["categories_pricing"] = json.dumps(
@@ -616,14 +619,16 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         # Check if user has free ads remaining in ANY package
         if not has_free_ads:
             # No free ads remaining, user must pay base fee
-            # First check if category has its own ad_creation_price (including 0)
-            if (
-                form.instance.category
-                and form.instance.category.ad_creation_price is not None
-            ):
-                base_fee = Decimal(str(form.instance.category.ad_creation_price))
+            # Use effective price with inheritance from parent categories
+            if form.instance.category:
+                effective_price = form.instance.category.get_effective_ad_creation_price()
+                if effective_price > 0:
+                    base_fee = effective_price
+                else:
+                    # If effective price is 0, use site default as fallback
+                    base_fee = Decimal(str(site_config.ad_base_fee))
             else:
-                # Fall back to site default ad_base_fee only if not set
+                # No category selected, use site default
                 base_fee = Decimal(str(site_config.ad_base_fee))
 
         # Total cost = base publishing fee + features cost
