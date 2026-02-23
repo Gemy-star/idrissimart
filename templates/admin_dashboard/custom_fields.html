@@ -150,22 +150,76 @@
     letter-spacing: .07em; color: var(--cf-text-3);
     padding-bottom: .5rem; margin-bottom: .6rem;
     border-bottom: 1px solid var(--cf-border);
+    display: flex; align-items: center; gap: .35rem;
 }
 .cf-cat-btn {
     display: flex; align-items: center; justify-content: space-between;
-    width: 100%; padding: .45rem .7rem;
+    width: 100%; padding: .55rem .75rem;
     border: none; background: transparent;
-    border-radius: 7px; color: var(--cf-text-2); font-size: .84rem;
-    cursor: pointer; transition: all .15s;
-    text-align: right; margin-bottom: 2px;
+    border-radius: 10px; color: var(--cf-text-2); font-size: .84rem;
+    cursor: pointer; transition: all .25s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: right; margin-bottom: 4px; position: relative;
+    overflow: hidden;
 }
-.cf-cat-btn:hover { background: var(--cf-surface-2); color: var(--cf-text); }
-.cf-cat-btn.active { background: var(--cf-primary-bg); color: var(--cf-primary); font-weight: 600; }
+.cf-cat-btn::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: var(--cf-primary);
+    transform: scaleY(0); transition: transform .25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.cf-cat-btn:hover {
+    background: var(--cf-surface-2);
+    color: var(--cf-text);
+    transform: translateX(-2px);
+    box-shadow: 0 2px 8px rgba(0,0,0,.05);
+}
+.cf-cat-btn.active {
+    background: var(--cf-primary-bg);
+    color: var(--cf-primary);
+    font-weight: 600;
+    box-shadow: 0 2px 12px rgba(124,58,237,.15);
+    transform: translateX(-2px);
+}
+.cf-cat-btn.active::before { transform: scaleY(1); }
 .cf-cat-count {
-    font-size: .7rem; background: var(--cf-border); color: var(--cf-text-2);
-    padding: .1rem .42rem; border-radius: 20px; min-width: 20px; text-align: center;
+    font-size: .7rem;
+    background: var(--cf-border);
+    color: var(--cf-text-2);
+    padding: .15rem .5rem;
+    border-radius: 20px;
+    min-width: 24px;
+    text-align: center;
+    font-weight: 600;
+    transition: all .25s ease;
 }
-.cf-cat-btn.active .cf-cat-count { background: var(--cf-primary); color: #fff; }
+.cf-cat-btn:hover .cf-cat-count {
+    background: var(--cf-primary-bg);
+    color: var(--cf-primary);
+    transform: scale(1.05);
+}
+.cf-cat-btn.active .cf-cat-count {
+    background: var(--cf-primary);
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(124,58,237,.3);
+}
+
+/* Custom scrollbar for category list */
+.cf-sidebar ::-webkit-scrollbar { width: 6px; }
+.cf-sidebar ::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 10px;
+}
+.cf-sidebar ::-webkit-scrollbar-thumb {
+    background: var(--cf-border);
+    border-radius: 10px;
+    transition: background .2s;
+}
+.cf-sidebar ::-webkit-scrollbar-thumb:hover {
+    background: var(--cf-primary);
+}
+.cf-sidebar * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--cf-border) transparent;
+}
 
 /* ── Table ─────────────────────────────────────────────────────────────────── */
 .cf-table-wrap {
@@ -725,17 +779,48 @@
 
     <!-- Sidebar: category filter -->
     <div class="cf-sidebar">
-        <div class="cf-sidebar-title"><i class="fas fa-filter me-1"></i>{% trans "تصفية بالقسم" %}</div>
-        <button class="cf-cat-btn active" onclick="filterByCategory('all', this)">
-            <span>{% trans "الكل" %}</span>
+        <div class="cf-sidebar-title">
+            <i class="fas fa-filter me-1"></i>{% trans "تصفية بالقسم" %}
+        </div>
+
+        <!-- All Categories -->
+        <button class="cf-cat-btn active" onclick="filterByCategory('all', this)" data-category="all">
+            <div style="display:flex;align-items:center;gap:.5rem;flex:1;">
+                <div style="width:32px;height:32px;background:linear-gradient(135deg,#7c3aed,#6366f1);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.8rem;">
+                    <i class="fas fa-th-large"></i>
+                </div>
+                <span style="font-weight:600;">{% trans "جميع الحقول" %}</span>
+            </div>
             <span class="cf-cat-count" id="count-all">{{ fields|length }}</span>
         </button>
-        {% for group in category_groups %}
-        <button class="cf-cat-btn" onclick="filterByCategory('{{ group.grouper.id }}', this)">
-            <span>{{ group.grouper.name_ar|default:group.grouper.name }}</span>
-            <span class="cf-cat-count">{{ group.list|length }}</span>
-        </button>
-        {% endfor %}
+
+        <div style="height:1px;background:var(--cf-border);margin:.7rem 0;"></div>
+
+        <!-- Category List -->
+        <div style="max-height:500px;overflow-y:auto;padding-right:2px;">
+            {% for group in category_groups %}
+            <button class="cf-cat-btn" onclick="filterByCategory('{{ group.grouper.id }}', this)"
+                    data-category="{{ group.grouper.id }}"
+                    title="{{ group.grouper.name_ar|default:group.grouper.name }}">
+                <div style="display:flex;align-items:center;gap:.5rem;flex:1;overflow:hidden;">
+                    <div style="width:32px;height:32px;background:var(--cf-primary-bg);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--cf-primary);font-size:.75rem;flex-shrink:0;">
+                        <i class="fas fa-folder"></i>
+                    </div>
+                    <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ group.grouper.name_ar|default:group.grouper.name }}</span>
+                </div>
+                <span class="cf-cat-count">{{ group.list|length }}</span>
+            </button>
+            {% endfor %}
+        </div>
+
+        <!-- Reset Filter -->
+        <div style="margin-top:.7rem;padding-top:.7rem;border-top:1px solid var(--cf-border);">
+            <button class="cf-cat-btn" onclick="resetFilters()"
+                    style="background:var(--cf-surface-2);font-size:.8rem;justify-content:center;">
+                <i class="fas fa-redo-alt" style="font-size:.7rem;margin-left:.3rem;"></i>
+                {% trans "إعادة تعيين الفلتر" %}
+            </button>
+        </div>
     </div>
 
     <!-- Fields table -->
@@ -793,11 +878,21 @@
                     <!-- Categories -->
                     <td class="col-cats">
                         <div class="cf-cats">
-                            {% for cat in field.categories.all %}
+                            {% with total_cats=field.categories.count %}
+                            {% if total_cats > 0 %}
+                            <span class="cf-chip" style="background:linear-gradient(135deg, #7c3aed, #6366f1);color:#fff;font-weight:700;">
+                                <i class="fas fa-folder fa-xs"></i> {{ total_cats }}
+                            </span>
+                            {% for cat in field.categories.all|slice:":2" %}
                             <span class="cf-chip"><i class="fas fa-folder fa-xs"></i>{{ cat.name_ar|default:cat.name }}</span>
-                            {% empty %}
-                            <span style="color:var(--cf-text-3);font-size:.75rem;">–</span>
                             {% endfor %}
+                            {% if total_cats > 2 %}
+                            <span class="cf-chip" style="background:var(--cf-border);color:var(--cf-text-2);">+{{ total_cats|add:"-2" }}</span>
+                            {% endif %}
+                            {% else %}
+                            <span style="color:var(--cf-text-3);font-size:.75rem;">–</span>
+                            {% endif %}
+                            {% endwith %}
                         </div>
                     </td>
 
@@ -995,7 +1090,10 @@
 
                     <!-- Categories -->
                     <div class="cf-section">
-                        <div class="cf-section-title"><i class="fas fa-folder"></i> {% trans "الأقسام المرتبطة" %}</div>
+                        <div class="cf-section-title">
+                            <i class="fas fa-folder"></i>
+                            {% trans "الأقسام" %} <span class="text-danger">*</span>
+                        </div>
                         <div class="cf-tree-box" id="editCategoryTree"></div>
                     </div>
 
@@ -1004,19 +1102,19 @@
                         <div class="cf-section-title"><i class="fas fa-info-circle"></i> {% trans "معلومات الحقل" %}</div>
                         <div class="row g-2">
                             <div class="col-md-6">
-                                <label class="form-label">{% trans "الاسم (نظامي)" %}</label>
-                                <input name="name" id="editFieldName" type="text" class="form-control" required />
+                                <label class="form-label">{% trans "الاسم (نظامي)" %} <span class="text-danger">*</span></label>
+                                <input name="name" id="editFieldName" type="text" class="form-control" required placeholder="field_name" />
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">{% trans "الاسم بالعربية" %}</label>
-                                <input name="label_ar" id="editFieldLabelAr" type="text" class="form-control" required dir="rtl" />
+                                <label class="form-label">{% trans "الاسم بالعربية" %} <span class="text-danger">*</span></label>
+                                <input name="label_ar" id="editFieldLabelAr" type="text" class="form-control" required placeholder="اسم الحقل" dir="rtl" />
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">{% trans "الاسم بالإنجليزية" %}</label>
-                                <input name="label_en" id="editFieldLabelEn" type="text" class="form-control" />
+                                <input name="label_en" id="editFieldLabelEn" type="text" class="form-control" placeholder="Field Name" />
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">{% trans "نوع الحقل" %}</label>
+                                <label class="form-label">{% trans "نوع الحقل" %} <span class="text-danger">*</span></label>
                                 <select name="field_type" id="editFieldType" class="form-select" required>
                                     <option value="text">{% trans "نص" %} (text)</option>
                                     <option value="number">{% trans "رقم" %} (number)</option>
@@ -1027,27 +1125,36 @@
                                 </select>
                             </div>
                             <div class="col-12">
-                                <label class="form-label">{% trans "الخيارات" %}</label>
-                                <textarea name="options" id="editFieldOptions" class="form-control" rows="2"></textarea>
+                                <label class="form-label">
+                                    {% trans "الخيارات" %}
+                                    <small class="text-muted">({% trans "لأنواع select / radio / checkbox" %})</small>
+                                </label>
+                                <textarea name="options" id="editFieldOptions" class="form-control" rows="2"
+                                    placeholder="{% trans 'خيار 1, خيار 2, خيار 3' %}"></textarea>
+                                <span class="form-text">{% trans "افصل بين الخيارات بفواصل أو أسطر جديدة" %}</span>
                             </div>
                         </div>
                     </div>
 
                     <!-- Settings -->
                     <div class="cf-section">
-                        <div class="cf-section-title"><i class="fas fa-cog"></i> {% trans "الإعدادات العامة" %}</div>
-                        <p class="form-text mb-2">
-                            <i class="fas fa-info-circle me-1 text-primary"></i>
-                            {% trans "إعدادات 'البطاقة' و'الفلاتر' تُعدَّل لكل قسم عبر زر ربط بأقسام." %}
-                        </p>
+                        <div class="cf-section-title"><i class="fas fa-cog"></i> {% trans "الإعدادات" %}</div>
                         <div class="cf-pills">
                             <label class="cf-pill">
                                 <input type="checkbox" id="editFieldIsRequired" name="is_required" />
-                                <i class="fas fa-asterisk" style="color:#d97706;font-size:.7rem;"></i> {% trans "إلزامي (افتراضي)" %}
+                                <i class="fas fa-asterisk" style="color:#d97706;font-size:.7rem;"></i> {% trans "إلزامي" %}
                             </label>
                             <label class="cf-pill">
                                 <input type="checkbox" id="editFieldIsActive" name="is_active" />
-                                <i class="fas fa-check-circle" style="color:#059669;font-size:.75rem;"></i> {% trans "نشط (عام)" %}
+                                <i class="fas fa-check-circle" style="color:#059669;font-size:.75rem;"></i> {% trans "نشط" %}
+                            </label>
+                            <label class="cf-pill">
+                                <input type="checkbox" id="editFieldShowOnCard" name="show_on_card" />
+                                <i class="fas fa-id-card" style="color:#0891b2;font-size:.75rem;"></i> {% trans "في البطاقة" %}
+                            </label>
+                            <label class="cf-pill">
+                                <input type="checkbox" id="editFieldShowInFilters" name="show_in_filters" />
+                                <i class="fas fa-filter" style="color:#7c3aed;font-size:.75rem;"></i> {% trans "في الفلاتر" %}
                             </label>
                         </div>
                     </div>
@@ -1436,6 +1543,13 @@ function filterByCategory(catId, btnEl) {
     document.querySelectorAll('.cf-cat-btn').forEach(b => b.classList.remove('active'));
     if (btnEl) btnEl.classList.add('active');
     filterFields();
+}
+
+function resetFilters() {
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
+    const allBtn = document.querySelector('.cf-cat-btn[data-category="all"]');
+    filterByCategory('all', allBtn);
 }
 
 function computeStats() {
