@@ -393,9 +393,9 @@ def ad_payment(request, ad_id):
         PaymentContext.PLATFORM_PAYMENT
     )
 
-    # Check if payment is actually required based on site configuration
-    # If ad posting is free (ad_base_fee = 0) and no features selected, no payment needed
-    if site_config.ad_base_fee == 0 and features_cost == 0:
+    # Check if payment is actually required
+    # Use the actual base_fee from session (category-specific), not the global site default
+    if base_fee == 0 and features_cost == 0:
         # Ad posting is free, activate immediately if auto-approve is enabled
         if ad.status == ClassifiedAd.AdStatus.DRAFT:
             # Check if auto-approve is enabled (ads go to ACTIVE) or manual review (PENDING)

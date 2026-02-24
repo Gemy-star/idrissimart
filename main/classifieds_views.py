@@ -1728,7 +1728,17 @@ class CategorySaveView(LoginRequiredMixin, View):
 
             category.slug = slug
             category.slug_ar = slug_ar
-            category.section_type = section_type
+            # Inherit section_type from parent if not explicitly provided (e.g. when adding subcategory)
+            if section_type:
+                category.section_type = section_type
+            elif parent_id and not category.pk:
+                # New subcategory: inherit section_type from parent
+                try:
+                    parent_cat = Category.objects.get(id=parent_id)
+                    category.section_type = parent_cat.section_type
+                except Category.DoesNotExist:
+                    pass
+            # If editing existing category and no section_type provided, keep existing value
             category.description = description
 
             # Save bilingual descriptions if model supports them
