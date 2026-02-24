@@ -1,1235 +1,1130 @@
 {% extends 'admin_dashboard/base.html' %}
 {% load static i18n idrissimart_tags %}
 
-{% block title %}
-    {% trans "إدارة الأقسام - لوحة تحكم المدير" %}
-{% endblock %}
+{% block title %}{% trans "إدارة الأقسام - لوحة تحكم المدير" %}{% endblock %}
 
 {% block admin_extra_css %}
 <script src="https://cdn.ckeditor.com/ckeditor5/40.0.0/super-build/ckeditor.js"></script>
 <style>
-    /* ============================================
-       CSS VARIABLES FOR THEME MANAGEMENT
-       ============================================ */
-    :root {
-        --cat-primary: #7c3aed;
-        --cat-primary-dark: #6d28d9;
-        --cat-primary-light: #ede9fe;
-        --cat-surface: #ffffff;
-        --cat-surface-2: #f8fafc;
-        --cat-border: #e2e8f0;
-        --cat-text: #0f172a;
-        --cat-text-2: #475569;
-        --cat-text-3: #94a3b8;
-        --cat-success: #10b981;
-        --cat-warning: #f59e0b;
-        --cat-danger: #ef4444;
-        --cat-info: #3b82f6;
-        --cat-radius: 12px;
-        --cat-shadow: 0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04);
-        --cat-shadow-md: 0 4px 16px rgba(0,0,0,.08);
-        --cat-shadow-lg: 0 10px 40px rgba(0,0,0,.12);
-    }
-
-    [data-theme='dark'] {
-        --cat-primary: #a78bfa;
-        --cat-primary-dark: #8b5cf6;
-        --cat-primary-light: rgba(124,58,237,.18);
-        --cat-surface: #1e293b;
-        --cat-surface-2: #0f172a;
-        --cat-border: rgba(255,255,255,.08);
-        --cat-text: #f1f5f9;
-        --cat-text-2: #94a3b8;
-        --cat-text-3: #475569;
-        --cat-success: #34d399;
-        --cat-warning: #fbbf24;
-        --cat-danger: #f87171;
-        --cat-info: #60a5fa;
-        --cat-shadow: 0 1px 3px rgba(0,0,0,.3);
-        --cat-shadow-md: 0 4px 16px rgba(0,0,0,.3);
-        --cat-shadow-lg: 0 10px 40px rgba(0,0,0,.4);
-    }
-
-    /* ============================================
-       PAGE HEADER & STATS
-       ============================================ */
-    .cat-header {
-        background: linear-gradient(135deg, var(--cat-primary), var(--cat-primary-dark));
-        border-radius: var(--cat-radius);
-        padding: 2rem;
-        margin-bottom: 2rem;
-        color: white;
-        box-shadow: var(--cat-shadow-md);
-    }
-
-    .cat-header-title {
-        font-size: 1.75rem;
-        font-weight: 700;
-        margin: 0 0 0.5rem;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-
-    .cat-header-subtitle {
-        opacity: 0.9;
-        font-size: 0.95rem;
-        margin: 0;
-    }
-
-    .cat-stats {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: 1.25rem;
-        margin-bottom: 2rem;
-    }
-
-    .cat-stat {
-        background: var(--cat-surface);
-        border: 1px solid var(--cat-border);
-        border-radius: var(--cat-radius);
-        padding: 1.5rem;
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: var(--cat-shadow);
-    }
-
-    .cat-stat:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--cat-shadow-md);
-    }
-
-    .cat-stat-icon {
-        width: 56px;
-        height: 56px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        flex-shrink: 0;
-    }
-
-    .stat-primary { background: var(--cat-primary-light); color: var(--cat-primary); }
-    .stat-success { background: rgba(16, 185, 129, 0.1); color: var(--cat-success); }
-    .stat-info { background: rgba(59, 130, 246, 0.1); color: var(--cat-info); }
-    .stat-warning { background: rgba(245, 158, 11, 0.1); color: var(--cat-warning); }
-
-    .cat-stat-content {
-        flex: 1;
-    }
-
-    .cat-stat-value {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--cat-text);
-        line-height: 1;
-        margin-bottom: 0.25rem;
-    }
-
-    .cat-stat-label {
-        font-size: 0.875rem;
-        color: var(--cat-text-2);
-        font-weight: 500;
-    }
-
-    /* ============================================
-       TOOLBAR & SEARCH
-       ============================================ */
-    .cat-toolbar {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-        flex-wrap: wrap;
-    }
-
-    .cat-search {
-        flex: 1;
-        min-width: 280px;
-        position: relative;
-    }
-
-    .cat-search-input {
-        width: 100%;
-        padding: 0.65rem 2.5rem 0.65rem 1rem;
-        border: 1.5px solid var(--cat-border);
-        border-radius: 10px;
-        background: var(--cat-surface);
-        color: var(--cat-text);
-        font-size: 0.95rem;
-        transition: all 0.3s;
-    }
-
-    .cat-search-input:focus {
-        outline: none;
-        border-color: var(--cat-primary);
-        box-shadow: 0 0 0 3px var(--cat-primary-light);
-    }
-
-    .cat-search-icon {
-        position: absolute;
-        right: 1rem;
-        top: 50%;
-        transform: translateY(-50%);
-        color: var(--cat-text-3);
-        pointer-events: none;
-    }
-
-    .cat-filter-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.65rem 1.25rem;
-        border: 1.5px solid var(--cat-border);
-        background: var(--cat-surface);
-        color: var(--cat-text-2);
-        border-radius: 10px;
-        font-size: 0.9rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s;
-    }
-
-    .cat-filter-btn:hover,
-    .cat-filter-btn.active {
-        border-color: var(--cat-primary);
-        background: var(--cat-primary-light);
-        color: var(--cat-primary);
-    }
-
-    .cat-add-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.65rem 1.5rem;
-        background: linear-gradient(135deg, var(--cat-primary), var(--cat-primary-dark));
-        color: white;
-        border: none;
-        border-radius: 10px;
-        font-size: 0.95rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s;
-        box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
-    }
-
-    .cat-add-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 16px rgba(124, 58, 237, 0.4);
-        color: white;
-    }
-
-    /* ============================================
-       SECTION & CATEGORY CARDS
-       ============================================ */
-    .cat-section {
-        background: var(--cat-surface);
-        border: 1px solid var(--cat-border);
-        border-radius: var(--cat-radius);
-        margin-bottom: 2rem;
-        overflow: hidden;
-        box-shadow: var(--cat-shadow);
-    }
-
-    .cat-section-header {
-        background: var(--cat-surface-2);
-        border-bottom: 1px solid var(--cat-border);
-        padding: 1.25rem 1.5rem;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-
-    .cat-section-title {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: var(--cat-text);
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-
-    .cat-section-icon {
-        width: 40px;
-        height: 40px;
-        background: var(--cat-primary-light);
-        color: var(--cat-primary);
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.1rem;
-    }
-
-    .cat-section-body {
-        padding: 1.5rem;
-    }
-
-    .categories-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 1.25rem;
-    }
-
-    .category-card {
-        background: var(--cat-surface);
-        border: 2px solid var(--cat-border);
-        border-radius: var(--cat-radius);
-        padding: 1.5rem;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-    }
-
-    .category-card:hover {
-        border-color: var(--cat-primary);
-        box-shadow: var(--cat-shadow-md);
-        transform: translateY(-2px);
-    }
-
-    .category-card-header {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        margin-bottom: 1rem;
-        gap: 1rem;
-    }
-
-    .category-icon-wrap {
-        width: 48px;
-        height: 48px;
-        background: var(--cat-primary-light);
-        color: var(--cat-primary);
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.25rem;
-        flex-shrink: 0;
-    }
-
-    .category-info {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .category-name {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: var(--cat-text);
-        margin: 0 0 0.5rem;
-        line-height: 1.3;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
-
-    .category-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        margin: 0;
-    }
-
-    .category-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        padding: 0.3rem 0.7rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        line-height: 1;
-    }
-
-    .badge-count { background: rgba(59, 130, 246, 0.1); color: var(--cat-info); }
-    .badge-sub { background: rgba(100, 116, 139, 0.1); color: var(--cat-text-2); }
-    .badge-price { background: rgba(16, 185, 129, 0.1); color: var(--cat-success); }
-    .badge-suggested { background: rgba(245, 158, 11, 0.1); color: var(--cat-warning); }
-
-    /* Inherited price badges */
-    .category-badge.inherited {
-        opacity: 0.85;
-        background: repeating-linear-gradient(
-            45deg,
-            rgba(16, 185, 129, 0.05),
-            rgba(16, 185, 129, 0.05) 10px,
-            rgba(16, 185, 129, 0.15) 10px,
-            rgba(16, 185, 129, 0.15) 20px
-        );
-        border: 1px dashed rgba(16, 185, 129, 0.4);
-    }
-
-    .category-badge.badge-suggested.inherited {
-        background: repeating-linear-gradient(
-            45deg,
-            rgba(245, 158, 11, 0.05),
-            rgba(245, 158, 11, 0.05) 10px,
-            rgba(245, 158, 11, 0.15) 10px,
-            rgba(245, 158, 11, 0.15) 20px
-        );
-        border: 1px dashed rgba(245, 158, 11, 0.4);
-    }
-
-    .category-actions {
-        display: flex;
-        gap: 0.5rem;
-        margin-top: 1rem;
-        padding-top: 1rem;
-        border-top: 1px solid var(--cat-border);
-    }
-
-    .cat-action-btn {
-        flex: 1;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.4rem;
-        padding: 0.55rem 0.75rem;
-        border: 1.5px solid var(--cat-border);
-        background: var(--cat-surface);
-        color: var(--cat-text-2);
-        border-radius: 8px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.25s;
-    }
-
-    .cat-action-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-
-    .cat-action-btn.btn-edit:hover { border-color: var(--cat-info); color: var(--cat-info); background: rgba(59, 130, 246, 0.05); }
-    .cat-action-btn.btn-add:hover { border-color: var(--cat-success); color: var(--cat-success); background: rgba(16, 185, 129, 0.05); }
-    .cat-action-btn.btn-fields:hover { border-color: var(--cat-primary); color: var(--cat-primary); background: var(--cat-primary-light); }
-    .cat-action-btn.btn-delete:hover { border-color: var(--cat-danger); color: var(--cat-danger); background: rgba(239, 68, 68, 0.05); }
-
-    /* Subcategories */
-    .subcategories {
-        margin-top: 1rem;
-        padding-top: 1rem;
-        border-top: 1px solid var(--cat-border);
-    }
-
-    .subcategories-title {
-        font-size: 0.85rem;
-        font-weight: 700;
-        color: var(--cat-text-2);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin: 0 0 0.75rem;
-    }
-
-    .subcategory-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .subcategory-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0.65rem 0.85rem;
-        background: var(--cat-surface-2);
-        border: 1px solid var(--cat-border);
-        border-radius: 8px;
-        transition: all 0.2s;
-        cursor: pointer;
-    }
-
-    .subcategory-item:hover {
-        background: var(--cat-primary-light);
-        border-color: var(--cat-primary);
-    }
-
-    .subcategory-name {
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: var(--cat-text);
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .subcategory-actions {
-        display: flex;
-        gap: 0.25rem;
-    }
-
-    .subcategory-btn {
-        width: 28px;
-        height: 28px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid var(--cat-border);
-        background: var(--cat-surface);
-        color: var(--cat-text-2);
-        border-radius: 6px;
-        font-size: 0.75rem;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .subcategory-btn:hover {
-        transform: scale(1.1);
-    }
-
-    .subcategory-btn.btn-edit:hover { border-color: var(--cat-info); color: var(--cat-info); }
-    .subcategory-btn.btn-delete:hover { border-color: var(--cat-danger); color: var(--cat-danger); }
-
-    /* ============================================
-       MODALS
-       ============================================ */
-    .modal-content {
-        background: var(--cat-surface);
-        border: 1px solid var(--cat-border);
-        border-radius: 16px;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-        position: relative;
-        color: var(--cat-text);
-    }
-
-    .modal-header {
-        background: var(--cat-surface-2);
-        border-bottom: 2px solid var(--cat-border);
-        padding: 1.5rem 1.75rem;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        border-radius: 16px 16px 0 0;
-        margin-bottom: 0;
-    }
-
-    .modal-header h2 {
-        font-size: 1.3rem;
-        font-weight: 700;
-        color: var(--cat-text);
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-
-    .modal-body {
-        padding: 1.75rem;
-        margin-bottom: 0;
-    }
-
-    .modal-footer {
-        background: var(--cat-surface-2);
-        border-top: 1px solid var(--cat-border);
-        padding: 1.25rem 1.75rem;
-        display: flex;
-        gap: 0.75rem;
-        justify-content: flex-end;
-        border-radius: 0 0 16px 16px;
-    }
-
-    .btn-close {
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
-        background: transparent;
-        border: 1.5px solid var(--cat-border);
-        color: var(--cat-text-2);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.2s;
-        padding: 0;
-        margin: 0;
-        font-size: 1.2rem;
-    }
-
-    .btn-close:hover {
-        background: var(--cat-danger-light);
-        border-color: var(--cat-danger);
-        color: var(--cat-danger);
-        transform: rotate(90deg);
-    }
-
-    /* ============================================
-       FORM ELEMENTS
-       ============================================ */
-    .form-group {
-        margin-bottom: 1.25rem;
-    }
-
-    .form-label {
-        color: var(--cat-text);
-        font-weight: 600;
-        font-size: 0.9rem;
-        margin-bottom: 0.5rem;
-        display: block;
-    }
-
-    .form-control,
-    .form-select {
-        background-color: var(--cat-surface-2);
-        border: 1.5px solid var(--cat-border);
-        color: var(--cat-text);
-        padding: 0.65rem 0.9rem;
-        border-radius: 8px;
-        font-size: 0.95rem;
-        transition: all 0.25s;
-    }
-
-    .form-control:focus,
-    .form-select:focus {
-        background-color: var(--cat-surface);
-        border-color: var(--cat-primary);
-        color: var(--cat-text);
-        box-shadow: 0 0 0 3px var(--cat-primary-light);
-        outline: none;
-    }
-
-    .form-control::placeholder {
-        color: var(--cat-text-3);
-    }
-
-    .form-check {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-bottom: 0.75rem;
-    }
-
-    .form-check-label {
-        color: var(--cat-text);
-        font-weight: 500;
-        cursor: pointer;
-        user-select: none;
-    }
-
-    .form-check-input {
-        background-color: var(--cat-surface-2);
-        border: 1.5px solid var(--cat-border);
-        width: 1.15rem;
-        height: 1.15rem;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .form-check-input:checked {
-        background-color: var(--cat-primary);
-        border-color: var(--cat-primary);
-    }
-
-    .form-check-input:focus {
-        box-shadow: 0 0 0 3px var(--cat-primary-light);
-    }
-
-    .form-text {
-        color: var(--cat-text-2);
-        font-size: 0.85rem;
-        margin-top: 0.35rem;
-        display: block;
-    }
-
-    .form-actions {
-        display: flex;
-        gap: 0.75rem;
-        justify-content: flex-end;
-        margin-top: 1.5rem;
-        padding-top: 1.25rem;
-        border-top: 1px solid var(--cat-border);
-    }
-
-    /* Buttons */
-    .btn-primary {
-        background: linear-gradient(135deg, var(--cat-primary), var(--cat-primary-dark));
-        color: white;
-        padding: 0.65rem 1.5rem;
-        border-radius: 8px;
-        border: none;
-        font-weight: 600;
-        font-size: 0.95rem;
-        cursor: pointer;
-        transition: all 0.3s;
-        box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 16px rgba(124, 58, 237, 0.4);
-        color: white;
-    }
-
-    .btn-secondary {
-        background: var(--cat-surface-2);
-        color: var(--cat-text-2);
-        padding: 0.65rem 1.5rem;
-        border-radius: 8px;
-        border: 1.5px solid var(--cat-border);
-        font-weight: 600;
-        font-size: 0.95rem;
-        cursor: pointer;
-        transition: all 0.3s;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .btn-secondary:hover {
-        background: var(--cat-surface);
-        border-color: var(--cat-text-2);
-        color: var(--cat-text);
-    }
-
-    .btn-cancel {
-        background: var(--cat-surface-2);
-        color: var(--cat-text-2);
-        padding: 0.65rem 1.5rem;
-        border-radius: 8px;
-        border: 1.5px solid var(--cat-border);
-        font-weight: 600;
-        font-size: 0.95rem;
-        cursor: pointer;
-        transition: all 0.3s;
-    }
-
-    .btn-cancel:hover {
-        background: var(--cat-surface);
-        border-color: var(--cat-text-2);
-        color: var(--cat-text);
-    }
-
-    .btn-danger {
-        background: linear-gradient(135deg, var(--cat-danger), #dc2626);
-        color: white;
-        padding: 0.65rem 1.5rem;
-        border-radius: 8px;
-        border: none;
-        font-weight: 600;
-        font-size: 0.95rem;
-        cursor: pointer;
-        transition: all 0.3s;
-        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
-    }
-
-    .btn-danger:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 16px rgba(239, 68, 68, 0.4);
-        color: white;
-    }
-
-    /* ============================================
-       RESPONSIVE & UTILITIES
-       ============================================ */
-    @media (max-width: 1200px) {
-        .categories-grid {
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        }
-    }
-
-    @media (max-width: 768px) {
-        .cat-header {
-            padding: 1.5rem 1rem;
-        }
-
-        .cat-stats {
-            grid-template-columns: 1fr;
-        }
-
-        .categories-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .category-actions {
-            flex-direction: column;
-        }
-
-        .cat-action-btn {
-            width: 100%;
-        }
-    }
-
-    @media (max-width: 576px) {
-        .modal-dialog {
-            margin: 0.5rem;
-        }
-
-        .modal-header {
-            padding: 1.25rem 1rem;
-        }
-
-        .modal-body {
-            padding: 1.25rem 1rem;
-        }
-
-        .form-actions {
-            flex-direction: column;
-        }
-
-        .form-actions .btn-primary,
-        .form-actions .btn-secondary,
-        .form-actions .btn-cancel {
-            width: 100%;
-        }
-    }
-
-    /* Utility Classes */
-    .text-muted {
-        color: var(--cat-text-2) !important;
-    }
-
-    .badge {
-        padding: 0.35rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
-    }
-
-    .badge-primary {
-        background: var(--cat-primary-light);
-        color: var(--cat-primary);
-    }
-
-    .badge-success {
-        background: rgba(16, 185, 129, 0.1);
-        color: var(--cat-success);
-    }
-
-    .badge-warning {
-        background: rgba(245, 158, 11, 0.1);
-        color: var(--cat-warning);
-    }
-
-    .badge-danger {
-        background: var(--cat-danger-light);
-        color: var(--cat-danger);
-    }
-
-    .badge-info {
-        background: rgba(59, 130, 246, 0.1);
-        color: var(--cat-info);
-    }
-
-    .badge-secondary {
-        background: rgba(100, 116, 139, 0.1);
-        color: var(--cat-text-2);
-    }
-
-    .subcategory-name {
-        color: var(--cat-text);
-        font-weight: 500;
-        font-size: 0.95rem;
-    }
-
-    .subcategory-actions {
-        display: flex;
-        gap: 0.35rem;
-    }
-
-    .subcategory-actions .btn {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.8rem;
-    }
-
-    /* Small button styles */
-    .btn-xs {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.8rem;
-        border-radius: 0.25rem;
-        transition: all 0.2s ease;
-    }
-
-    .btn-xs:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
-
-    /* Button outline variants */
-    .btn-outline-primary {
-        border-color: var(--cat-primary);
-        color: var(--cat-primary);
-        background: transparent;
-    }
-
-    .btn-outline-primary:hover {
-        background-color: var(--cat-primary);
-        border-color: var(--cat-primary);
-        color: #ffffff;
-    }
-
-    .btn-outline-success {
-        border-color: var(--cat-success);
-        color: var(--cat-success);
-        background: transparent;
-    }
-
-    .btn-outline-success:hover {
-        background-color: var(--cat-success);
-        border-color: var(--cat-success);
-        color: #ffffff;
-    }
-
-    .btn-outline-danger {
-        border-color: var(--cat-danger);
-        color: var(--cat-danger);
-        background: transparent;
-    }
-
-    .btn-outline-danger:hover {
-        background-color: var(--cat-danger);
-        border-color: var(--cat-danger);
-        color: #ffffff;
-    }
-
-    .btn-outline-secondary {
-        color: var(--cat-text-2);
-        border-color: var(--cat-border);
-        background: transparent;
-    }
-
-    .btn-outline-secondary:hover {
-        background-color: var(--cat-surface-2);
-        color: var(--cat-text);
-        border-color: var(--cat-border);
-    }
-
-    .alert {
-        background-color: var(--cat-surface-2);
-        border-color: var(--cat-border);
-        color: var(--cat-text);
-        border-radius: 8px;
-        padding: 1rem;
-        margin-bottom: 1rem;
-    }
-
-    /* ============================================
-       CUSTOM FIELDS LIST
-       ============================================ */
-    .custom-fields-list {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .custom-field-item {
-        background: var(--cat-surface-2);
-        border: 1px solid var(--cat-border);
-        border-radius: 8px;
-        padding: 15px;
-        transition: all 0.2s ease;
-    }
-
-    .custom-field-item:hover {
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        transform: translateY(-1px);
-    }
-
-    /* ============================================
-       RESPONSIVE DESIGN
-       ============================================ */
-    @media (max-width: 991px) {
-        .categories-grid {
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 1.25rem;
-        }
-
-        .category-actions {
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-
-        .category-actions .btn {
-            flex: 0 0 auto;
-        }
-    }
-
-    @media (max-width: 768px) {
-        .admin-dashboard-header h1 {
-            font-size: 1.5rem;
-        }
-
-        .admin-dashboard-header .col-auto {
-            width: 100%;
-            margin-top: 1rem;
-        }
-
-        .admin-dashboard-header .btn {
-            width: 100%;
-        }
-
-        .categories-grid {
-            grid-template-columns: 1fr;
-            gap: 1rem;
-        }
-
-        .category-header {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.75rem;
-        }
-
-        .category-actions {
-            width: 100%;
-            justify-content: flex-start;
-            flex-wrap: wrap;
-        }
-
-        .category-actions .btn {
-            flex: 1 1 calc(50% - 0.25rem);
-            min-width: 45%;
-        }
-
-        .modal-dialog {
-            margin: 0.5rem;
-        }
-
-        .modal-content {
-            width: 100%;
-            padding: 1rem;
-            border-radius: 12px;
-        }
-
-        .modal-header h5 {
-            font-size: 1.1rem;
-        }
-
-        .card-header h5 {
-            font-size: 1rem;
-        }
-
-        .card-header .d-flex {
-            flex-direction: column;
-            align-items: stretch !important;
-            gap: 0.75rem;
-        }
-
-        .card-header .btn {
-            width: 100%;
-        }
-
-        .subcategories-list {
-            gap: 0.5rem;
-        }
-
-        .subcategory-item {
-            padding: 0.625rem;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.5rem;
-        }
-
-        .subcategory-actions {
-            width: 100%;
-            justify-content: flex-start;
-            flex-wrap: wrap;
-        }
-
-        .subcategory-actions .btn {
-            flex: 1 1 30%;
-        }
-    }
-
-    @media (max-width: 576px) {
-        .admin-dashboard-header {
-            padding: 1rem;
-        }
-
-        .admin-dashboard-header h1 {
-            font-size: 1.25rem;
-        }
-
-        .admin-dashboard-header p {
-            font-size: 0.85rem;
-        }
-
-        .admin-content-card {
-            margin-bottom: 1rem;
-            border-radius: 10px;
-        }
-
-        .card-header {
-            padding: 0.875rem;
-        }
-
-        .card-body {
-            padding: 0.875rem;
-        }
-
-        .category-item {
-            padding: 0.875rem;
-            border-radius: 10px;
-        }
-
-        .category-name {
-            font-size: 0.95rem;
-        }
-
-        .category-meta .badge {
-            font-size: 0.7rem;
-            padding: 0.25rem 0.5rem;
-        }
-
-        .category-actions .btn {
-            padding: 0.375rem 0.5rem;
-            font-size: 0.8rem;
-        }
-
-        .subcategories-title {
-            font-size: 0.85rem;
-        }
-
-        .subcategory-name {
-            font-size: 0.85rem;
-        }
-
-        .subcategory-actions .btn {
-            font-size: 0.75rem;
-            padding: 0.25rem 0.375rem;
-        }
-
-        .modal-header {
-            padding: 1rem;
-        }
-
-        .modal-body {
-            padding: 1rem;
-        }
-
-        .modal-footer {
-            padding: 1rem;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .modal-footer .btn {
-            width: 100%;
-            margin: 0;
-        }
-
-        .form-label {
-            font-size: 0.85rem;
-        }
-
-        .form-control, .form-select {
-            font-size: 0.85rem;
-            padding: 0.5rem 0.75rem;
-        }
-    }
+/* =============================================
+   DESIGN TOKENS
+   ============================================= */
+:root {
+    --p: #7c3aed;
+    --p-d: #5b21b6;
+    --p-l: #ede9fe;
+    --p-xl: #f5f3ff;
+    --surf: #ffffff;
+    --surf2: #f8fafc;
+    --surf3: #f1f5f9;
+    --bdr: #e2e8f0;
+    --bdr2: #cbd5e1;
+    --txt: #0f172a;
+    --txt2: #475569;
+    --txt3: #94a3b8;
+    --ok: #10b981;
+    --ok-l: #d1fae5;
+    --warn: #f59e0b;
+    --warn-l: #fef3c7;
+    --err: #ef4444;
+    --err-l: #fee2e2;
+    --info: #3b82f6;
+    --info-l: #dbeafe;
+    --r: 14px;
+    --r-sm: 8px;
+    --sh: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+    --sh-md: 0 4px 20px rgba(0,0,0,.08);
+    --sh-lg: 0 12px 40px rgba(0,0,0,.12);
+    --tr: 0.22s cubic-bezier(.4,0,.2,1);
+}
+[data-theme='dark'] {
+    --p: #a78bfa;
+    --p-d: #8b5cf6;
+    --p-l: rgba(124,58,237,.18);
+    --p-xl: rgba(124,58,237,.08);
+    --surf: #1e293b;
+    --surf2: #0f172a;
+    --surf3: #172033;
+    --bdr: rgba(255,255,255,.08);
+    --bdr2: rgba(255,255,255,.14);
+    --txt: #f1f5f9;
+    --txt2: #94a3b8;
+    --txt3: #475569;
+    --ok: #34d399;
+    --ok-l: rgba(52,211,153,.12);
+    --warn: #fbbf24;
+    --warn-l: rgba(251,191,36,.12);
+    --err: #f87171;
+    --err-l: rgba(248,113,113,.12);
+    --info: #60a5fa;
+    --info-l: rgba(96,165,250,.12);
+    --sh: 0 1px 3px rgba(0,0,0,.3);
+    --sh-md: 0 4px 20px rgba(0,0,0,.3);
+    --sh-lg: 0 12px 40px rgba(0,0,0,.4);
+}
+
+/* =============================================
+   PAGE WRAPPER
+   ============================================= */
+.cats-page { padding: 0.25rem 0 2rem; }
+
+/* =============================================
+   TOP BAR (breadcrumb + action)
+   ============================================= */
+.cats-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+.cats-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--txt3);
+    font-weight: 500;
+}
+.cats-breadcrumb a {
+    color: var(--txt2);
+    text-decoration: none;
+    transition: color var(--tr);
+}
+.cats-breadcrumb a:hover { color: var(--p); }
+.cats-breadcrumb .sep { color: var(--bdr2); font-size: 1rem; }
+.cats-breadcrumb .current { color: var(--txt); font-weight: 600; }
+
+/* =============================================
+   PAGE HERO HEADER
+   ============================================= */
+.cats-hero {
+    background: linear-gradient(135deg, var(--p) 0%, var(--p-d) 100%);
+    border-radius: var(--r);
+    padding: 2rem 2.25rem;
+    margin-bottom: 1.75rem;
+    color: #fff;
+    box-shadow: 0 8px 32px rgba(124,58,237,.28);
+    position: relative;
+    overflow: hidden;
+}
+.cats-hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 350px;
+    height: 350px;
+    background: rgba(255,255,255,.06);
+    border-radius: 50%;
+    pointer-events: none;
+}
+.cats-hero::after {
+    content: '';
+    position: absolute;
+    bottom: -60%;
+    left: 5%;
+    width: 250px;
+    height: 250px;
+    background: rgba(255,255,255,.04);
+    border-radius: 50%;
+    pointer-events: none;
+}
+.cats-hero-inner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+.cats-hero-left { display: flex; align-items: center; gap: 1.25rem; }
+.cats-hero-icon {
+    width: 60px;
+    height: 60px;
+    background: rgba(255,255,255,.18);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    backdrop-filter: blur(8px);
+    flex-shrink: 0;
+}
+.cats-hero-title {
+    font-size: 1.65rem;
+    font-weight: 800;
+    margin: 0 0 0.3rem;
+    letter-spacing: -0.02em;
+}
+.cats-hero-sub {
+    font-size: 0.9rem;
+    opacity: 0.82;
+    margin: 0;
+}
+.cats-hero-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.75rem 1.6rem;
+    background: rgba(255,255,255,.2);
+    color: #fff;
+    border: 1.5px solid rgba(255,255,255,.35);
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--tr);
+    backdrop-filter: blur(8px);
+    white-space: nowrap;
+}
+.cats-hero-btn:hover {
+    background: rgba(255,255,255,.32);
+    border-color: rgba(255,255,255,.55);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,.18);
+    color: #fff;
+}
+
+/* =============================================
+   STATS GRID
+   ============================================= */
+.cats-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+}
+.cats-stat {
+    background: var(--surf);
+    border: 1px solid var(--bdr);
+    border-radius: var(--r);
+    padding: 1.4rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: var(--sh);
+    transition: all var(--tr);
+    position: relative;
+    overflow: hidden;
+}
+.cats-stat::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    border-radius: 4px 0 0 4px;
+}
+.cats-stat.s-purple::before { background: var(--p); }
+.cats-stat.s-green::before  { background: var(--ok); }
+.cats-stat.s-amber::before  { background: var(--warn); }
+.cats-stat.s-blue::before   { background: var(--info); }
+.cats-stat:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--sh-md);
+    border-color: var(--bdr2);
+}
+.cats-stat-ico {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+}
+.s-purple .cats-stat-ico { background: var(--p-l); color: var(--p); }
+.s-green  .cats-stat-ico { background: var(--ok-l); color: var(--ok); }
+.s-amber  .cats-stat-ico { background: var(--warn-l); color: var(--warn); }
+.s-blue   .cats-stat-ico { background: var(--info-l); color: var(--info); }
+.cats-stat-body {}
+.cats-stat-val {
+    font-size: 1.9rem;
+    font-weight: 800;
+    color: var(--txt);
+    line-height: 1;
+    margin-bottom: 0.2rem;
+    letter-spacing: -0.03em;
+}
+.cats-stat-lbl {
+    font-size: 0.82rem;
+    color: var(--txt2);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* =============================================
+   SEARCH & TOOLBAR
+   ============================================= */
+.cats-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+.cats-search-wrap {
+    flex: 1;
+    min-width: 260px;
+    position: relative;
+}
+.cats-search-ico {
+    position: absolute;
+    right: 0.9rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--txt3);
+    font-size: 0.9rem;
+    pointer-events: none;
+}
+.cats-search {
+    width: 100%;
+    padding: 0.7rem 2.5rem 0.7rem 1rem;
+    background: var(--surf);
+    border: 1.5px solid var(--bdr);
+    border-radius: 10px;
+    color: var(--txt);
+    font-size: 0.92rem;
+    transition: all var(--tr);
+}
+.cats-search:focus {
+    outline: none;
+    border-color: var(--p);
+    box-shadow: 0 0 0 3px var(--p-l);
+}
+.cats-search::placeholder { color: var(--txt3); }
+.cats-filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.6rem 1.1rem;
+    border: 1.5px solid var(--bdr);
+    background: var(--surf);
+    color: var(--txt2);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--tr);
+    white-space: nowrap;
+}
+.cats-filter-chip:hover,
+.cats-filter-chip.active {
+    border-color: var(--p);
+    background: var(--p-l);
+    color: var(--p);
+}
+
+/* =============================================
+   SECTION PANEL
+   ============================================= */
+.cat-panel {
+    background: var(--surf);
+    border: 1px solid var(--bdr);
+    border-radius: var(--r);
+    margin-bottom: 1.75rem;
+    box-shadow: var(--sh);
+    overflow: hidden;
+}
+.cat-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.1rem 1.5rem;
+    background: var(--surf2);
+    border-bottom: 1px solid var(--bdr);
+}
+.cat-panel-head-left {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+}
+.cat-panel-ico {
+    width: 36px;
+    height: 36px;
+    background: var(--p-l);
+    color: var(--p);
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+.cat-panel-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--txt);
+    margin: 0;
+}
+.saving-indicator {
+    display: none;
+    color: var(--p);
+    font-size: 0.8rem;
+    font-weight: 600;
+    align-items: center;
+    gap: 0.4rem;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.saving-indicator.show { display: inline-flex; opacity: 1; }
+.saving-indicator i { animation: spin 1s linear infinite; }
+@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+.cat-panel-add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--p);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--tr);
+    white-space: nowrap;
+}
+.cat-panel-add-btn:hover {
+    background: var(--p-d);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(124,58,237,.35);
+    color: #fff;
+}
+
+.cat-panel-body { padding: 1.5rem; }
+
+/* =============================================
+   CATEGORIES GRID
+   ============================================= */
+.cats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+/* =============================================
+   CATEGORY CARD
+   ============================================= */
+.cat-card {
+    background: var(--surf);
+    border: 1.5px solid var(--bdr);
+    border-radius: var(--r);
+    padding: 0;
+    transition: all var(--tr);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.cat-card:hover {
+    border-color: var(--p);
+    box-shadow: var(--sh-md);
+    transform: translateY(-3px);
+}
+.cat-card-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    padding: 1.25rem 1.25rem 1rem;
+}
+.cat-card-avatar {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, var(--p-l), var(--p-xl));
+    color: var(--p);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    border: 1px solid var(--p-l);
+}
+.cat-card-info { flex: 1; min-width: 0; }
+.cat-card-name {
+    font-size: 0.97rem;
+    font-weight: 700;
+    color: var(--txt);
+    margin: 0 0 0.55rem;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.cat-card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+.cc-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+}
+.cc-badge.b-blue   { background: var(--info-l); color: var(--info); }
+.cc-badge.b-gray   { background: var(--surf3); color: var(--txt2); }
+.cc-badge.b-green  { background: var(--ok-l); color: var(--ok); border: 1px solid rgba(16,185,129,.2); }
+.cc-badge.b-amber  { background: var(--warn-l); color: var(--warn); border: 1px solid rgba(245,158,11,.2); }
+.cc-badge.inherited {
+    border-style: dashed;
+    opacity: 0.9;
+}
+
+/* =============================================
+   CATEGORY CARD ACTIONS
+   ============================================= */
+.cat-card-actions {
+    display: flex;
+    gap: 0.4rem;
+    padding: 0.85rem 1.25rem;
+    border-top: 1px solid var(--bdr);
+    background: var(--surf2);
+    margin-top: auto;
+}
+.cca-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.5rem 0.6rem;
+    border: 1.5px solid var(--bdr);
+    background: var(--surf);
+    color: var(--txt2);
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--tr);
+    white-space: nowrap;
+}
+.cca-btn:hover { transform: translateY(-1px); }
+.cca-btn.e:hover { border-color: var(--info); color: var(--info); background: var(--info-l); }
+.cca-btn.a:hover { border-color: var(--ok); color: var(--ok); background: var(--ok-l); }
+.cca-btn.f:hover { border-color: var(--p); color: var(--p); background: var(--p-l); }
+.cca-btn.d:hover { border-color: var(--err); color: var(--err); background: var(--err-l); }
+
+/* =============================================
+   SUBCATEGORIES
+   ============================================= */
+.cat-subs {
+    border-top: 1px solid var(--bdr);
+    padding: 0.85rem 1.25rem;
+}
+.cat-subs-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--txt3);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.cat-subs-label span {
+    background: var(--surf3);
+    color: var(--txt2);
+    border-radius: 20px;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+.sub-list { display: flex; flex-direction: column; gap: 0.35rem; }
+.sub-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    background: var(--surf3);
+    border: 1px solid var(--bdr);
+    border-radius: 8px;
+    transition: all var(--tr);
+    gap: 0.5rem;
+}
+.sub-item:hover {
+    background: var(--p-xl);
+    border-color: var(--p-l);
+}
+.sub-item-name {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--txt);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.sub-item-name i { color: var(--txt3); font-size: 0.75rem; flex-shrink: 0; }
+.sub-item-actions { display: flex; gap: 0.25rem; flex-shrink: 0; }
+.sub-btn {
+    width: 27px;
+    height: 27px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--bdr);
+    background: var(--surf);
+    color: var(--txt3);
+    border-radius: 6px;
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: all var(--tr);
+}
+.sub-btn:hover { transform: scale(1.1); }
+.sub-btn.e:hover { border-color: var(--info); color: var(--info); background: var(--info-l); }
+.sub-btn.f:hover { border-color: var(--p); color: var(--p); background: var(--p-l); }
+.sub-btn.d:hover { border-color: var(--err); color: var(--err); background: var(--err-l); }
+
+/* =============================================
+   EMPTY STATE
+   ============================================= */
+.cats-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 3.5rem 1.5rem;
+    text-align: center;
+}
+.cats-empty-ico {
+    width: 72px;
+    height: 72px;
+    background: var(--surf3);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    color: var(--txt3);
+    margin-bottom: 1.25rem;
+}
+.cats-empty h6 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--txt2);
+    margin: 0 0 0.5rem;
+}
+.cats-empty p {
+    font-size: 0.875rem;
+    color: var(--txt3);
+    margin: 0 0 1.25rem;
+}
+
+/* =============================================
+   MODALS
+   ============================================= */
+.modal-content {
+    background: var(--surf);
+    border: 1px solid var(--bdr);
+    border-radius: 18px;
+    box-shadow: var(--sh-lg);
+    color: var(--txt);
+    overflow: hidden;
+}
+.modal-header {
+    background: var(--surf2);
+    border-bottom: 1px solid var(--bdr);
+    padding: 1.4rem 1.75rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border-radius: 18px 18px 0 0;
+}
+.modal-header-ico {
+    width: 42px;
+    height: 42px;
+    background: var(--p-l);
+    color: var(--p);
+    border-radius: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+.modal-title-wrap { flex: 1; }
+.modal-title-wrap h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--txt);
+    margin: 0 0 0.15rem;
+}
+.modal-title-wrap p {
+    font-size: 0.8rem;
+    color: var(--txt3);
+    margin: 0;
+}
+.modal-close {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1.5px solid var(--bdr);
+    color: var(--txt2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--tr);
+    font-size: 0.9rem;
+    margin-left: auto;
+}
+.modal-close:hover {
+    background: var(--err-l);
+    border-color: var(--err);
+    color: var(--err);
+    transform: rotate(90deg);
+}
+
+/* Language Tabs */
+.lang-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--bdr);
+    margin: 0 0 1.5rem;
+}
+.lang-tab {
+    padding: 0.65rem 1.25rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--txt3);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all var(--tr);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+}
+.lang-tab:hover { color: var(--txt2); }
+.lang-tab.active { color: var(--p); border-bottom-color: var(--p); }
+.lang-pane { display: none; }
+.lang-pane.active { display: block; }
+
+/* Form elements */
+.fgroup { margin-bottom: 1.1rem; }
+.flabel {
+    display: block;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--txt);
+    margin-bottom: 0.4rem;
+}
+.flabel .req { color: var(--err); margin-right: 2px; }
+.finput, .fselect, .ftextarea {
+    width: 100%;
+    padding: 0.65rem 0.9rem;
+    background: var(--surf2);
+    border: 1.5px solid var(--bdr);
+    border-radius: 9px;
+    color: var(--txt);
+    font-size: 0.92rem;
+    transition: all var(--tr);
+}
+.finput:focus, .fselect:focus, .ftextarea:focus {
+    outline: none;
+    border-color: var(--p);
+    background: var(--surf);
+    box-shadow: 0 0 0 3px var(--p-l);
+}
+.finput::placeholder, .ftextarea::placeholder { color: var(--txt3); }
+.ftextarea { resize: vertical; min-height: 90px; }
+.fhint {
+    font-size: 0.79rem;
+    color: var(--txt3);
+    margin-top: 0.3rem;
+    display: block;
+}
+.finput-prefix {
+    position: relative;
+}
+.finput-prefix .prefix-icon {
+    position: absolute;
+    left: 0.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--txt3);
+    font-size: 0.85rem;
+    pointer-events: none;
+}
+.finput-prefix .finput { padding-left: 2.2rem; }
+
+/* Toggle switch */
+.ftoggle-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--surf2);
+    border: 1.5px solid var(--bdr);
+    border-radius: 9px;
+    cursor: pointer;
+    transition: all var(--tr);
+}
+.ftoggle-wrap:hover { border-color: var(--p-l); }
+.form-check-input {
+    width: 2.5rem;
+    height: 1.35rem;
+    cursor: pointer;
+}
+.form-check-input:checked { background-color: var(--p); border-color: var(--p); }
+.ftoggle-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--txt);
+    cursor: pointer;
+}
+.ftoggle-sub { font-size: 0.78rem; color: var(--txt3); font-weight: 400; display: block; }
+
+/* Inherit info alert */
+.inherit-info {
+    display: none;
+    padding: 0.6rem 0.9rem;
+    background: var(--info-l);
+    border: 1px solid rgba(59,130,246,.25);
+    border-radius: 8px;
+    font-size: 0.82rem;
+    color: var(--info);
+    margin-top: 0.5rem;
+    align-items: center;
+    gap: 0.5rem;
+}
+.inherit-info.show { display: flex; }
+
+/* Price grid */
+.price-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+/* Modal footer */
+.modal-footer {
+    background: var(--surf2);
+    border-top: 1px solid var(--bdr);
+    padding: 1.1rem 1.75rem;
+    display: flex;
+    gap: 0.65rem;
+    justify-content: flex-end;
+    border-radius: 0 0 18px 18px;
+}
+
+/* =============================================
+   BUTTONS
+   ============================================= */
+.btn-pri {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.65rem 1.5rem;
+    background: linear-gradient(135deg, var(--p), var(--p-d));
+    color: #fff;
+    border: none;
+    border-radius: 9px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--tr);
+    box-shadow: 0 2px 8px rgba(124,58,237,.3);
+}
+.btn-pri:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(124,58,237,.4);
+    color: #fff;
+}
+.btn-sec {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.65rem 1.5rem;
+    background: var(--surf2);
+    color: var(--txt2);
+    border: 1.5px solid var(--bdr);
+    border-radius: 9px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--tr);
+}
+.btn-sec:hover {
+    background: var(--surf3);
+    border-color: var(--bdr2);
+    color: var(--txt);
+}
+.btn-dng {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.65rem 1.5rem;
+    background: linear-gradient(135deg, var(--err), #dc2626);
+    color: #fff;
+    border: none;
+    border-radius: 9px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--tr);
+    box-shadow: 0 2px 8px rgba(239,68,68,.3);
+}
+.btn-dng:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(239,68,68,.4);
+    color: #fff;
+}
+
+/* =============================================
+   CUSTOM FIELDS (in modal)
+   ============================================= */
+.cf-list { display: flex; flex-direction: column; gap: 0.75rem; }
+.cf-item {
+    background: var(--surf2);
+    border: 1px solid var(--bdr);
+    border-radius: 10px;
+    padding: 1rem;
+    transition: all var(--tr);
+}
+.cf-item:hover {
+    box-shadow: var(--sh);
+    border-color: var(--bdr2);
+}
+.cf-item-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+.cf-drag { color: var(--txt3); cursor: grab; font-size: 0.9rem; }
+.cf-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.55rem;
+    background: var(--p-l);
+    color: var(--p);
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+.cf-remove {
+    margin-left: auto;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--bdr);
+    color: var(--txt3);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all var(--tr);
+    font-size: 0.75rem;
+}
+.cf-remove:hover { border-color: var(--err); color: var(--err); background: var(--err-l); }
+.cf-fields-row {
+    display: grid;
+    grid-template-columns: 2fr 1.5fr 2fr;
+    gap: 0.6rem;
+    margin-bottom: 0.6rem;
+}
+.cf-checks-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.cf-check {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--txt2);
+    cursor: pointer;
+}
+
+/* Custom Fields modal toolbar */
+.cf-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    gap: 1rem;
+}
+.cf-toolbar h6 {
+    font-weight: 700;
+    color: var(--txt);
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+/* =============================================
+   UTILITY
+   ============================================= */
+.text-muted { color: var(--txt3) !important; }
+.d-none { display: none !important; }
+
+/* =============================================
+   RESPONSIVE
+   ============================================= */
+@media (max-width: 992px) {
+    .cats-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+    .price-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+    .cats-hero { padding: 1.5rem 1.25rem; }
+    .cats-hero-title { font-size: 1.3rem; }
+    .cats-stats { grid-template-columns: repeat(2, 1fr); }
+    .cats-grid { grid-template-columns: 1fr; }
+    .cat-card-actions { flex-wrap: wrap; }
+    .cf-fields-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 576px) {
+    .cats-stats { grid-template-columns: 1fr; }
+    .cats-hero-left { flex-direction: column; align-items: flex-start; }
+    .modal-header { padding: 1.1rem 1.25rem; }
+    .modal-body { padding: 1.25rem; }
+    .modal-footer { flex-direction: column; gap: 0.5rem; }
+    .modal-footer .btn-pri,
+    .modal-footer .btn-sec,
+    .modal-footer .btn-dng { width: 100%; justify-content: center; }
+}
 </style>
 {% endblock %}
 
 {% block admin_content %}
-<div class="container-fluid">
-    <!-- Modern Header with Gradient -->
-    <div class="cat-header">
-        <div class="cat-header-content">
-            <div class="cat-header-text">
-                <h1 class="cat-title">
-                    <i class="fas fa-tags"></i>
-                    {% trans "إدارة الأقسام" %}
-                </h1>
-                <p class="cat-subtitle">{% trans "إنشاء وتعديل الأقسام الرئيسية والفرعية والحقول المخصصة" %}</p>
+<div class="cats-page">
+
+    <!-- Breadcrumb + action bar -->
+    <div class="cats-topbar">
+        <nav class="cats-breadcrumb">
+            <a href="#">{% trans "الرئيسية" %}</a>
+            <i class="fas fa-chevron-left sep"></i>
+            <span class="current">{% trans "إدارة الأقسام" %}</span>
+        </nav>
+    </div>
+
+    <!-- Hero Header -->
+    <div class="cats-hero">
+        <div class="cats-hero-inner">
+            <div class="cats-hero-left">
+                <div class="cats-hero-icon"><i class="fas fa-tags"></i></div>
+                <div>
+                    <h1 class="cats-hero-title">{% trans "إدارة الأقسام" %}</h1>
+                    <p class="cats-hero-sub">{% trans "إنشاء وتعديل الأقسام الرئيسية والفرعية والحقول المخصصة" %}</p>
+                </div>
             </div>
-            <button type="button" class="cat-add-btn" data-action="add-category">
+            <button type="button" class="cats-hero-btn" data-action="add-category">
                 <i class="fas fa-plus-circle"></i>
                 {% trans "إضافة قسم جديد" %}
             </button>
         </div>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="cat-stats">
-        <div class="cat-stat-card">
-            <div class="cat-stat-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
-                <i class="fas fa-layer-group"></i>
-            </div>
-            <div class="cat-stat-info">
-                <div class="cat-stat-value">{{ categories_by_section|length }}</div>
-                <div class="cat-stat-label">{% trans "أقسام رئيسية" %}</div>
+    <!-- Stats -->
+    <div class="cats-stats">
+        <div class="cats-stat s-purple">
+            <div class="cats-stat-ico"><i class="fas fa-layer-group"></i></div>
+            <div class="cats-stat-body">
+                <div class="cats-stat-val">{{ categories_by_section|length }}</div>
+                <div class="cats-stat-lbl">{% trans "أنواع الأقسام" %}</div>
             </div>
         </div>
-        <div class="cat-stat-card">
-            <div class="cat-stat-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
-                <i class="fas fa-folder"></i>
-            </div>
-            <div class="cat-stat-info">
-                <div class="cat-stat-value">{{ total_categories|default:0 }}</div>
-                <div class="cat-stat-label">{% trans "جميع الأقسام" %}</div>
+        <div class="cats-stat s-green">
+            <div class="cats-stat-ico"><i class="fas fa-folder"></i></div>
+            <div class="cats-stat-body">
+                <div class="cats-stat-val">{{ total_categories|default:0 }}</div>
+                <div class="cats-stat-lbl">{% trans "جميع الأقسام" %}</div>
             </div>
         </div>
-        <div class="cat-stat-card">
-            <div class="cat-stat-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
-                <i class="fas fa-ad"></i>
-            </div>
-            <div class="cat-stat-info">
-                <div class="cat-stat-value">{{ total_ads|default:0 }}</div>
-                <div class="cat-stat-label">{% trans "إجمالي الإعلانات" %}</div>
+        <div class="cats-stat s-amber">
+            <div class="cats-stat-ico"><i class="fas fa-rectangle-ad"></i></div>
+            <div class="cats-stat-body">
+                <div class="cats-stat-val">{{ total_ads|default:0 }}</div>
+                <div class="cats-stat-lbl">{% trans "إجمالي الإعلانات" %}</div>
             </div>
         </div>
     </div>
 
+    <!-- Search Toolbar -->
+    <div class="cats-toolbar">
+        <div class="cats-search-wrap">
+            <i class="fas fa-search cats-search-ico"></i>
+            <input type="search" class="cats-search" id="catsSearchInput" placeholder="{% trans 'البحث في الأقسام...' %}">
+        </div>
+        <button class="cats-filter-chip active" data-filter="all">
+            <i class="fas fa-border-all"></i> {% trans "الكل" %}
+        </button>
+    </div>
+
     <!-- Categories by Section -->
     {% for section_code, section_data in categories_by_section.items %}
-    <div class="cat-section">
-        <div class="cat-section-header">
-            <div class="d-flex align-items-center gap-3 flex-grow-1">
-                <div class="cat-section-icon">
-                    <i class="fas fa-layer-group"></i>
-                </div>
-                <h5 class="cat-section-title mb-0">{{ section_data.name }}</h5>
-                <span class="saving-indicator ms-2" id="saving-indicator-{{ section_code }}">
-                    <i class="fas fa-spinner fa-spin me-1"></i>
+    <div class="cat-panel" data-section-panel="{{ section_code }}">
+        <div class="cat-panel-head">
+            <div class="cat-panel-head-left">
+                <div class="cat-panel-ico"><i class="fas fa-layer-group"></i></div>
+                <h5 class="cat-panel-title">{{ section_data.name }}</h5>
+                <span class="saving-indicator" id="saving-indicator-{{ section_code }}">
+                    <i class="fas fa-spinner fa-spin"></i>
                     {% trans "جاري الحفظ..." %}
                 </span>
             </div>
-            <button type="button" class="btn btn-outline-primary btn-sm" data-action="add-section-category" data-section="{{ section_code }}">
-                <i class="fas fa-plus me-1"></i>
+            <button type="button" class="cat-panel-add-btn" data-action="add-section-category" data-section="{{ section_code }}">
+                <i class="fas fa-plus"></i>
                 {% trans "إضافة قسم" %}
             </button>
         </div>
-        <div class="cat-section-body">
+
+        <div class="cat-panel-body">
             {% if section_data.categories %}
-            <div class="categories-grid">
+            <div class="cats-grid" id="grid-{{ section_code }}">
                 {% for category in section_data.categories %}
-                <div class="category-card" data-category-id="{{ category.id }}">
-                    <div class="category-card-header">
-                        <div class="category-icon-wrap">
-                            <i class="fas fa-folder"></i>
-                        </div>
-                        <div class="category-info">
-                            <h6 class="category-name">
-                                {% if LANGUAGE_CODE == 'ar' and category.name_ar %}
-                                    {{ category.name_ar }}
-                                {% else %}
-                                    {{ category.name }}
-                                {% endif %}
+                <div class="cat-card" data-category-id="{{ category.id }}">
+
+                    <!-- Card Top -->
+                    <div class="cat-card-top">
+                        <div class="cat-card-avatar"><i class="fas fa-folder"></i></div>
+                        <div class="cat-card-info">
+                            <h6 class="cat-card-name">
+                                {% if LANGUAGE_CODE == 'ar' and category.name_ar %}{{ category.name_ar }}{% else %}{{ category.name }}{% endif %}
                             </h6>
-                            <div class="category-meta">
-                                <span class="category-badge badge-count">
-                                    <i class="fas fa-ad"></i>
-                                    {{ category.ad_count }}
+                            <div class="cat-card-badges">
+                                <span class="cc-badge b-blue" title="{% trans 'عدد الإعلانات' %}">
+                                    <i class="fas fa-rectangle-ad"></i> {{ category.ad_count }}
                                 </span>
-                                <span class="category-badge badge-sub">
-                                    <i class="fas fa-folder-tree"></i>
-                                    {{ category.subcategory_count }}
+                                <span class="cc-badge b-gray" title="{% trans 'الأقسام الفرعية' %}">
+                                    <i class="fas fa-folder-tree"></i> {{ category.subcategory_count }}
                                 </span>
                                 {% with effective_creation=category.get_effective_ad_creation_price %}
                                     {% if effective_creation > 0 %}
                                     {% with is_inherited=category|has_ad_creation_price_inherited price_source=category|get_ad_creation_price_source %}
-                                    <span class="category-badge badge-price{% if is_inherited %} inherited{% endif %}"
+                                    <span class="cc-badge b-green{% if is_inherited %} inherited{% endif %}"
                                           {% if is_inherited and price_source %}
                                           data-bs-toggle="tooltip"
                                           title="{% trans 'موروث من' %}: {% if LANGUAGE_CODE == 'ar' and price_source.name_ar %}{{ price_source.name_ar }}{% else %}{{ price_source.name }}{% endif %}"
                                           {% endif %}>
-                                        <i class="fas fa-{% if is_inherited %}level-up-alt{% else %}dollar-sign{% endif %}"></i>
+                                        <i class="fas fa-{% if is_inherited %}arrow-up{% else %}dollar-sign{% endif %}"></i>
                                         {{ effective_creation|floatformat:2 }}
                                     </span>
                                     {% endwith %}
@@ -1238,12 +1133,12 @@
                                 {% with effective_suggested=category.get_effective_suggested_ad_price %}
                                     {% if effective_suggested %}
                                     {% with is_inherited_sugg=category|has_suggested_price_inherited price_source_sugg=category|get_suggested_price_source %}
-                                    <span class="category-badge badge-suggested{% if is_inherited_sugg %} inherited{% endif %}"
+                                    <span class="cc-badge b-amber{% if is_inherited_sugg %} inherited{% endif %}"
                                           {% if is_inherited_sugg and price_source_sugg %}
                                           data-bs-toggle="tooltip"
                                           title="{% trans 'موروث من' %}: {% if LANGUAGE_CODE == 'ar' and price_source_sugg.name_ar %}{{ price_source_sugg.name_ar }}{% else %}{{ price_source_sugg.name }}{% endif %}"
                                           {% endif %}>
-                                        <i class="fas fa-{% if is_inherited_sugg %}level-up-alt{% else %}tag{% endif %}"></i>
+                                        <i class="fas fa-{% if is_inherited_sugg %}arrow-up{% else %}tag{% endif %}"></i>
                                         {{ effective_suggested|floatformat:2 }}
                                     </span>
                                     {% endwith %}
@@ -1253,51 +1148,30 @@
                         </div>
                     </div>
 
-                    <div class="category-actions">
-                        <button type="button" class="cat-action-btn btn-edit" data-action="edit-category" data-category-id="{{ category.id }}" data-bs-toggle="tooltip" title="{% trans 'تعديل' %}">
-                            <i class="fas fa-edit"></i>
-                            {% trans "تعديل" %}
-                        </button>
-                        <button type="button" class="cat-action-btn btn-add" data-action="add-subcategory" data-parent-id="{{ category.id }}" data-bs-toggle="tooltip" title="{% trans 'إضافة قسم فرعي' %}">
-                            <i class="fas fa-plus"></i>
-                            {% trans "فرعي" %}
-                        </button>
-                        <button type="button" class="cat-action-btn btn-fields" data-action="manage-custom-fields" data-category-id="{{ category.id }}" data-bs-toggle="tooltip" title="{% trans 'الحقول المخصصة' %}">
-                            <i class="fas fa-list"></i>
-                            {% trans "حقول" %}
-                        </button>
-                        <button type="button" class="cat-action-btn btn-delete" data-action="delete-category" data-category-id="{{ category.id }}" data-category-name="{{ category.name|escapejs }}" data-bs-toggle="tooltip" title="{% trans 'حذف' %}">
-                            <i class="fas fa-trash"></i>
-                            {% trans "حذف" %}
-                        </button>
-                    </div>
-
+                    <!-- Subcategories -->
                     {% if category.subcategories.all %}
-                    <div class="subcategories">
-                        <h6 class="subcategories-title">
+                    <div class="cat-subs">
+                        <div class="cat-subs-label">
+                            <i class="fas fa-sitemap"></i>
                             {% trans "الأقسام الفرعية" %}
-                            <small class="text-muted">({% trans "يمكنك السحب والإفلات للترتيب" %})</small>
-                        </h6>
-                        <div class="subcategory-list">
+                            <span>{{ category.subcategories.count }}</span>
+                        </div>
+                        <div class="sub-list" data-subcats-for="{{ category.id }}">
                             {% for subcategory in category.subcategories.all %}
-                            <div class="subcategory-item" data-category-id="{{ subcategory.id }}">
-                                <div class="subcategory-name">
-                                    <i class="fas fa-folder-open"></i>
-                                    {% if LANGUAGE_CODE == 'ar' and subcategory.name_ar %}
-                                        {{ subcategory.name_ar }}
-                                    {% else %}
-                                        {{ subcategory.name }}
-                                    {% endif %}
+                            <div class="sub-item" data-category-id="{{ subcategory.id }}">
+                                <div class="sub-item-name">
+                                    <i class="fas fa-angle-left"></i>
+                                    {% if LANGUAGE_CODE == 'ar' and subcategory.name_ar %}{{ subcategory.name_ar }}{% else %}{{ subcategory.name }}{% endif %}
                                 </div>
-                                <div class="subcategory-actions">
-                                    <button type="button" class="subcategory-btn btn-edit" data-action="edit-category" data-category-id="{{ subcategory.id }}" data-bs-toggle="tooltip" title="{% trans 'تعديل' %}">
-                                        <i class="fas fa-edit"></i>
+                                <div class="sub-item-actions">
+                                    <button type="button" class="sub-btn e" data-action="edit-category" data-category-id="{{ subcategory.id }}" data-bs-toggle="tooltip" title="{% trans 'تعديل' %}">
+                                        <i class="fas fa-pen"></i>
                                     </button>
-                                    <button type="button" class="subcategory-btn btn-fields" data-action="manage-custom-fields" data-category-id="{{ subcategory.id }}" data-bs-toggle="tooltip" title="{% trans 'حقول' %}">
-                                        <i class="fas fa-list"></i>
+                                    <button type="button" class="sub-btn f" data-action="manage-custom-fields" data-category-id="{{ subcategory.id }}" data-bs-toggle="tooltip" title="{% trans 'حقول' %}">
+                                        <i class="fas fa-list-ul"></i>
                                     </button>
-                                    <button type="button" class="subcategory-btn btn-delete" data-action="delete-category" data-category-id="{{ subcategory.id }}" data-category-name="{{ subcategory.name|escapejs }}" data-bs-toggle="tooltip" title="{% trans 'حذف' %}">
-                                        <i class="fas fa-trash"></i>
+                                    <button type="button" class="sub-btn d" data-action="delete-category" data-category-id="{{ subcategory.id }}" data-category-name="{{ subcategory.name|escapejs }}" data-bs-toggle="tooltip" title="{% trans 'حذف' %}">
+                                        <i class="fas fa-trash-alt"></i>
                                     </button>
                                 </div>
                             </div>
@@ -1305,138 +1179,200 @@
                         </div>
                     </div>
                     {% endif %}
+
+                    <!-- Actions -->
+                    <div class="cat-card-actions">
+                        <button type="button" class="cca-btn e" data-action="edit-category" data-category-id="{{ category.id }}">
+                            <i class="fas fa-pen"></i> {% trans "تعديل" %}
+                        </button>
+                        <button type="button" class="cca-btn a" data-action="add-subcategory" data-parent-id="{{ category.id }}">
+                            <i class="fas fa-plus"></i> {% trans "فرعي" %}
+                        </button>
+                        <button type="button" class="cca-btn f" data-action="manage-custom-fields" data-category-id="{{ category.id }}">
+                            <i class="fas fa-list-ul"></i> {% trans "حقول" %}
+                        </button>
+                        <button type="button" class="cca-btn d" data-action="delete-category" data-category-id="{{ category.id }}" data-category-name="{{ category.name|escapejs }}">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
             {% else %}
-            <div class="empty-state text-center py-5">
-                <i class="fas fa-folder-open fa-4x mb-3" style="opacity: 0.3;"></i>
-                <h6 class="text-muted mb-3">{% trans "لا توجد أقسام في هذا النوع" %}</h6>
-                <button type="button" class="btn btn-primary btn-sm" data-action="add-section-category" data-section="{{ section_code }}">
-                    <i class="fas fa-plus me-2"></i>
-                    {% trans "إضافة قسم جديد" %}
+            <div class="cats-empty">
+                <div class="cats-empty-ico"><i class="fas fa-folder-open"></i></div>
+                <h6>{% trans "لا توجد أقسام في هذا النوع" %}</h6>
+                <p>{% trans "ابدأ بإضافة أول قسم لهذا النوع" %}</p>
+                <button type="button" class="cat-panel-add-btn" data-action="add-section-category" data-section="{{ section_code }}">
+                    <i class="fas fa-plus"></i> {% trans "إضافة قسم جديد" %}
                 </button>
             </div>
             {% endif %}
         </div>
     </div>
     {% endfor %}
+
 </div>
 
-<!-- Toast container -->
 <div class="admin-toast-container" id="adminToastContainer" aria-live="polite" aria-atomic="true"></div>
-
 {% endblock %}
 
+
 {% block modals %}
-<!-- Add/Edit Category Modal -->
+<!-- ===========================
+     ADD / EDIT CATEGORY MODAL
+     =========================== -->
 <div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
+
             <div class="modal-header">
-                <h5 class="modal-title" id="categoryModalLabel">
-                    <i class="fas fa-folder-plus me-2"></i>
-                    <span id="modalTitle">{% trans "إضافة قسم" %}</span>
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-header-ico"><i class="fas fa-folder-plus" id="modalHeaderIcon"></i></div>
+                <div class="modal-title-wrap">
+                    <h2 id="modalTitle">{% trans "إضافة قسم" %}</h2>
+                    <p id="modalSubtitle">{% trans "أدخل بيانات القسم الجديد" %}</p>
+                </div>
+                <button type="button" class="modal-close" data-bs-dismiss="modal" aria-label="Close">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-            <div class="modal-body">
-                <form id="categoryForm">
+
+            <div class="modal-body" style="padding: 1.5rem 1.75rem;">
+                <form id="categoryForm" novalidate>
                     <input type="hidden" id="categoryId" name="id">
                     <input type="hidden" id="parentId" name="parent_id">
                     <input type="hidden" id="sectionType" name="section_type">
 
-                    <div class="mb-3">
-                        <label class="form-label">{% trans "اسم القسم (عربي)" %}</label>
-                        <input type="text" class="form-control" id="nameAr" name="name_ar" required>
+                    <!-- Language Tabs -->
+                    <div class="lang-tabs">
+                        <button type="button" class="lang-tab active" data-tab="ar">
+                            <i class="fas fa-globe"></i> {% trans "العربية" %}
+                        </button>
+                        <button type="button" class="lang-tab" data-tab="en">
+                            <i class="fas fa-language"></i> English
+                        </button>
+                        <button type="button" class="lang-tab" data-tab="settings">
+                            <i class="fas fa-sliders-h"></i> {% trans "الإعدادات" %}
+                        </button>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">{% trans "اسم القسم (English)" %}</label>
-                        <input type="text" class="form-control" id="nameEn" name="name_en" required>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">{% trans "الوصف (عربي)" %}</label>
-                        <textarea class="form-control" id="descriptionAr" name="description_ar" rows="3"></textarea>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">{% trans "الوصف (English)" %}</label>
-                        <textarea class="form-control" id="descriptionEn" name="description_en" rows="3"></textarea>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">{% trans "سعر إنشاء الإعلان" %}</label>
-                        <input type="number" class="form-control" id="adCreationPrice" name="ad_creation_price" step="0.01" min="0" value="0.00">
-                        <small class="form-text text-muted">{% trans "السعر المطلوب لنشر إعلان في هذا القسم (ترك 0 للمجاني)" %}</small>
-                        <div id="adCreationPriceInheritInfo" class="alert alert-info mt-2" style="display: none; padding: 0.5rem; font-size: 0.875rem;">
-                            <i class="fas fa-level-up-alt me-1"></i>
-                            <span id="adCreationPriceInheritText"></span>
+                    <!-- Arabic Tab -->
+                    <div class="lang-pane active" id="tab-ar">
+                        <div class="fgroup">
+                            <label class="flabel" for="nameAr">{% trans "اسم القسم" %} <span class="req">*</span></label>
+                            <input type="text" class="finput" id="nameAr" name="name_ar" placeholder="{% trans 'أدخل اسم القسم بالعربية' %}" required>
+                        </div>
+                        <div class="fgroup">
+                            <label class="flabel" for="descriptionAr">{% trans "وصف القسم" %}</label>
+                            <textarea class="ftextarea" id="descriptionAr" name="description_ar" placeholder="{% trans 'وصف مختصر للقسم (اختياري)' %}"></textarea>
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">{% trans "السعر المقترح للإعلان" %}</label>
-                        <input type="number" class="form-control" id="suggestedAdPrice" name="suggested_ad_price" step="0.01" min="0" placeholder="0.00">
-                        <small class="form-text text-muted">{% trans "السعر المقترح أو النموذجي للإعلانات في هذا القسم (اختياري)" %}</small>
-                        <div id="suggestedAdPriceInheritInfo" class="alert alert-warning mt-2" style="display: none; padding: 0.5rem; font-size: 0.875rem;">
-                            <i class="fas fa-level-up-alt me-1"></i>
-                            <span id="suggestedAdPriceInheritText"></span>
+                    <!-- English Tab -->
+                    <div class="lang-pane" id="tab-en">
+                        <div class="fgroup">
+                            <label class="flabel" for="nameEn">Category Name <span class="req">*</span></label>
+                            <input type="text" class="finput" id="nameEn" name="name_en" placeholder="Enter category name in English" required>
+                        </div>
+                        <div class="fgroup">
+                            <label class="flabel" for="descriptionEn">Description</label>
+                            <textarea class="ftextarea" id="descriptionEn" name="description_en" placeholder="Short description (optional)"></textarea>
                         </div>
                     </div>
 
-                    <div class="mb-3" id="allowCartField">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="allowCart" name="allow_cart">
-                            <label class="form-check-label" for="allowCart">{% trans "السماح بإضافة للسلة" %}</label>
+                    <!-- Settings Tab -->
+                    <div class="lang-pane" id="tab-settings">
+                        <div class="price-grid">
+                            <div class="fgroup">
+                                <label class="flabel" for="adCreationPrice">{% trans "سعر نشر الإعلان" %}</label>
+                                <div class="finput-prefix">
+                                    <i class="fas fa-dollar-sign prefix-icon"></i>
+                                    <input type="number" class="finput" id="adCreationPrice" name="ad_creation_price" step="0.01" min="0" value="0.00">
+                                </div>
+                                <span class="fhint">{% trans "اترك 0 للنشر المجاني" %}</span>
+                                <div class="inherit-info" id="adCreationPriceInheritInfo">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span id="adCreationPriceInheritText"></span>
+                                </div>
+                            </div>
+                            <div class="fgroup">
+                                <label class="flabel" for="suggestedAdPrice">{% trans "السعر المقترح للإعلان" %}</label>
+                                <div class="finput-prefix">
+                                    <i class="fas fa-tag prefix-icon"></i>
+                                    <input type="number" class="finput" id="suggestedAdPrice" name="suggested_ad_price" step="0.01" min="0" placeholder="0.00">
+                                </div>
+                                <span class="fhint">{% trans "اختياري - السعر النموذجي" %}</span>
+                                <div class="inherit-info" id="suggestedAdPriceInheritInfo">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span id="suggestedAdPriceInheritText"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="fgroup" id="allowCartField">
+                            <label class="flabel">{% trans "خيارات إضافية" %}</label>
+                            <label class="ftoggle-wrap">
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="allowCart" name="allow_cart">
+                                </div>
+                                <div>
+                                    <span class="ftoggle-label">{% trans "السماح بإضافة للسلة" %}</span>
+                                    <span class="ftoggle-sub">{% trans "يتيح للمستخدمين إضافة الإعلانات لقائمة المفضلة/السلة" %}</span>
+                                </div>
+                            </label>
                         </div>
                     </div>
+
                 </form>
             </div>
+
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="fas fa-times me-1"></i>
-                    {% trans "إلغاء" %}
+                <button type="button" class="btn-sec" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> {% trans "إلغاء" %}
                 </button>
-                <button type="button" class="btn btn-primary" data-action="save-category">
-                    <i class="fas fa-save me-1"></i>
-                    {% trans "حفظ" %}
+                <button type="button" class="btn-pri" data-action="save-category">
+                    <i class="fas fa-check"></i> {% trans "حفظ القسم" %}
                 </button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Custom Fields Modal -->
+
+<!-- ===========================
+     CUSTOM FIELDS MODAL
+     =========================== -->
 <div class="modal fade" id="customFieldsModal" tabindex="-1" aria-labelledby="customFieldsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
+
             <div class="modal-header">
-                <h5 class="modal-title" id="customFieldsModalLabel">
-                    <i class="fas fa-list-alt me-2"></i>
-                    <span id="customFieldsCategoryName">{% trans "إدارة الحقول المخصصة" %}</span>
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-header-ico" style="background: var(--ok-l); color: var(--ok);"><i class="fas fa-list-ul"></i></div>
+                <div class="modal-title-wrap">
+                    <h2 id="customFieldsCategoryName">{% trans "الحقول المخصصة" %}</h2>
+                    <p>{% trans "تحديد الحقول الإضافية لهذا القسم" %}</p>
+                </div>
+                <button type="button" class="modal-close" data-bs-dismiss="modal" aria-label="Close">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-            <div class="modal-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="mb-0">{% trans "الحقول المخصصة" %}</h6>
-                    <button type="button" class="btn btn-primary btn-sm" data-action="add-custom-field">
-                        <i class="fas fa-plus me-1"></i>
-                        {% trans "إضافة حقل" %}
+
+            <div class="modal-body" style="padding: 1.5rem 1.75rem;">
+                <div class="cf-toolbar">
+                    <h6>{% trans "قائمة الحقول" %}</h6>
+                    <button type="button" class="btn-pri" data-action="add-custom-field">
+                        <i class="fas fa-plus"></i> {% trans "إضافة حقل" %}
                     </button>
                 </div>
                 <div id="customFieldsContainer"></div>
             </div>
+
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="fas fa-times me-1"></i>
-                    {% trans "إلغاء" %}
+                <button type="button" class="btn-sec" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> {% trans "إغلاق" %}
                 </button>
-                <button type="button" class="btn btn-primary" data-action="save-custom-fields">
-                    <i class="fas fa-save me-1"></i>
-                    {% trans "حفظ الحقول" %}
+                <button type="button" class="btn-pri" data-action="save-custom-fields">
+                    <i class="fas fa-check"></i> {% trans "حفظ الحقول" %}
                 </button>
             </div>
         </div>
@@ -1444,819 +1380,530 @@
 </div>
 {% endblock %}
 
+
 {% block admin_extra_js %}
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-    <script>
-        let currentCategoryId = null;
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script>
+/* ================================================
+   STATE
+   ================================================ */
+let currentCategoryId = null;
+let editorArInstance = null;
+let editorEnInstance = null;
 
-        // URL patterns with language prefix
-        const CATEGORY_URLS = {
-            save: '{% url "main:admin_category_save" %}',
-            get: (id) => {
-                const baseUrl = '{% url "main:admin_category_get" 0 %}';
-                return baseUrl.replace('/0/', `/${id}/`);
-            },
-            delete: (id) => {
-                const baseUrl = '{% url "main:admin_category_delete" 0 %}';
-                return baseUrl.replace('/0/', `/${id}/`);
-            },
-            customFields: (id) => {
-                const baseUrl = '{% url "main:admin_category_custom_fields" 0 %}';
-                return baseUrl.replace('/0/', `/${id}/`);
-            }
-        };
+/* ================================================
+   URL HELPERS
+   ================================================ */
+const CATEGORY_URLS = {
+    save:         '{% url "main:admin_category_save" %}',
+    get:          id => '{% url "main:admin_category_get" 0 %}'.replace('/0/', `/${id}/`),
+    delete:       id => '{% url "main:admin_category_delete" 0 %}'.replace('/0/', `/${id}/`),
+    customFields: id => '{% url "main:admin_category_custom_fields" 0 %}'.replace('/0/', `/${id}/`)
+};
 
-        // Initialize Bootstrap modals on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            const modalElements = document.querySelectorAll('.modal');
-            modalElements.forEach(function(modalEl) {
-                if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                    try {
-                        bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-                    } catch (error) {
-                        console.error('Modal initialization error:', error);
-                    }
-                }
-            });
+/* ================================================
+   BOOT
+   ================================================ */
+document.addEventListener('DOMContentLoaded', () => {
 
-            // Event delegation for all category actions
-            document.addEventListener('click', function(e) {
-                const target = e.target.closest('[data-action]');
-                if (!target) return;
+    /* Bootstrap modal init */
+    document.querySelectorAll('.modal').forEach(el => {
+        try { bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el); } catch(e) {}
+    });
 
-                const action = target.dataset.action;
+    /* Tooltips */
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
 
-                switch(action) {
-                    case 'add-category':
-                        showAddCategoryPanel();
-                        break;
+    /* Event delegation */
+    document.addEventListener('click', e => {
+        const btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        const action = btn.dataset.action;
 
-                    case 'add-section-category':
-                        const sectionCode = target.dataset.section;
-                        if (sectionCode) addCategoryToSection(sectionCode);
-                        break;
+        if (action === 'add-category')              { openAddCategoryModal(); }
+        else if (action === 'add-section-category') { openAddCategoryModal(null, btn.dataset.section); }
+        else if (action === 'edit-category')        { editCategory(+btn.dataset.categoryId); }
+        else if (action === 'add-subcategory')      { openAddCategoryModal(+btn.dataset.parentId); }
+        else if (action === 'manage-custom-fields') { manageCustomFields(+btn.dataset.categoryId); }
+        else if (action === 'delete-category')      { deleteCategory(+btn.dataset.categoryId, btn.dataset.categoryName); }
+        else if (action === 'save-category')        { saveCategory(); }
+        else if (action === 'add-custom-field')     { addCustomFieldRow(); }
+        else if (action === 'save-custom-fields')   { saveCustomFields(); }
+    });
 
-                    case 'edit-category':
-                        const editCategoryId = parseInt(target.dataset.categoryId);
-                        if (editCategoryId) editCategory(editCategoryId);
-                        break;
+    /* Language tab switching */
+    document.querySelectorAll('.lang-tab').forEach(tab => {
+        tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    });
 
-                    case 'add-subcategory':
-                        const parentId = parseInt(target.dataset.parentId);
-                        if (parentId) addSubcategory(parentId);
-                        break;
-
-                    case 'manage-custom-fields':
-                        const manageCategoryId = parseInt(target.dataset.categoryId);
-                        if (manageCategoryId) manageCustomFields(manageCategoryId);
-                        break;
-
-                    case 'delete-category':
-                        const deleteCategoryId = parseInt(target.dataset.categoryId);
-                        const categoryName = target.dataset.categoryName;
-                        if (deleteCategoryId && categoryName) deleteCategory(deleteCategoryId, categoryName);
-                        break;
-
-                    case 'save-category':
-                        saveCategory();
-                        break;
-
-                    case 'add-custom-field':
-                        addCustomField();
-                        break;
-
-                    case 'save-custom-fields':
-                        saveCustomFields();
-                        break;
-                }
-            });
-        });
-
-// Show/Hide "السماح بالسلة" based on section_type
-function toggleAllowCartField() {
-    const sectionTypeField = document.getElementById('sectionType');
-    const allowCartGroup = document.getElementById('allowCartField');
-
-    if (!sectionTypeField || !allowCartGroup) return;
-
-    if (sectionTypeField.value === 'classified') {
-        allowCartGroup.style.display = 'block';
-    } else {
-        allowCartGroup.style.display = 'none';
-        const allowCartCheckbox = document.getElementById('allowCart');
-        if (allowCartCheckbox) allowCartCheckbox.checked = false;
-    }
-}
-
-// Modal Management Functions (Bootstrap API)
-function openModal(modalId) {
-    const modalElement = document.getElementById(modalId);
-    if (modalElement) {
-        const modal = new bootstrap.Modal(modalElement);
-        modal.show();
-    }
-}
-
-function closeModal(modalId) {
-    const modalElement = document.getElementById(modalId);
-    if (modalElement) {
-        const modal = bootstrap.Modal.getInstance(modalElement);
-        if (modal) modal.hide();
-    }
-}
-
-// Category Management
-function showAddCategoryPanel() {
-    const modalTitle = document.getElementById('modalTitle');
-    if (modalTitle) {
-        modalTitle.textContent = 'إضافة قسم جديد';
+    /* Search */
+    const searchInput = document.getElementById('catsSearchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(filterCategories, 280));
     }
 
-    const form = document.getElementById('categoryForm');
-    if (form) form.reset();
-
-    const categoryIdField = document.getElementById('categoryId');
-    const parentIdField = document.getElementById('parentId');
-    if (categoryIdField) categoryIdField.value = '';
-    if (parentIdField) parentIdField.value = '';
-
-    // Show modal using Bootstrap
-    const modalEl = document.getElementById('categoryModal');
-    if (modalEl) {
-        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-        modal.show();
+    /* CKEditor lifecycle */
+    const catModal = document.getElementById('categoryModal');
+    if (catModal) {
+        catModal.addEventListener('shown.bs.modal', () => setTimeout(initCKEditors, 300));
+        catModal.addEventListener('hidden.bs.modal', destroyCKEditors);
     }
 
-    // Toggle السماح بالسلة visibility after modal is shown
-    setTimeout(() => toggleAllowCartField(), 100);
+    /* Sortable — category grids */
+    document.querySelectorAll('.cats-grid').forEach(grid => initSortable(grid, '.cat-card'));
+
+    /* Sortable — subcategory lists */
+    document.querySelectorAll('.sub-list').forEach(list => initSortable(list, '.sub-item'));
+});
+
+/* ================================================
+   LANG TABS
+   ================================================ */
+function switchTab(tab) {
+    document.querySelectorAll('.lang-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    document.querySelectorAll('.lang-pane').forEach(p => p.classList.toggle('active', p.id === `tab-${tab}`));
 }
 
-function addCategoryToSection(sectionCode) {
-    showAddCategoryPanel();
-    const sectionTypeField = document.getElementById('sectionType');
-    if (sectionTypeField) sectionTypeField.value = sectionCode;
-    toggleAllowCartField();
-}
-
-function addSubcategory(parentId) {
-    showAddCategoryPanel();
-    const parentIdField = document.getElementById('parentId');
-    if (parentIdField) parentIdField.value = parentId;
-
-    const modalTitle = document.getElementById('modalTitle');
-    if (modalTitle) {
-        modalTitle.textContent = 'إضافة قسم فرعي';
-    }
-    toggleAllowCartField();
-}
-
-function editCategory(categoryId) {
-    const modalTitle = document.getElementById('modalTitle');
-    if (modalTitle) {
-        modalTitle.textContent = 'تعديل القسم';
-    }
-
-    // Load category data via AJAX
-    fetch(CATEGORY_URLS.get(categoryId))
-        .then(response => response.json())
-        .then(category => {
-            // Set only the fields that exist in the modal
-            const categoryIdField = document.getElementById('categoryId');
-            const nameArField = document.getElementById('nameAr');
-            const nameEnField = document.getElementById('nameEn');
-            const descriptionArField = document.getElementById('descriptionAr');
-            const descriptionEnField = document.getElementById('descriptionEn');
-            const parentIdField = document.getElementById('parentId');
-            const sectionTypeField = document.getElementById('sectionType');
-            const allowCartField = document.getElementById('allowCart');
-            const adCreationPriceField = document.getElementById('adCreationPrice');
-            const suggestedAdPriceField = document.getElementById('suggestedAdPrice');
-
-            if (categoryIdField) categoryIdField.value = category.id || '';
-            if (nameArField) nameArField.value = category.name_ar || '';
-            if (nameEnField) nameEnField.value = category.name_en || category.name || '';
-            if (descriptionArField) descriptionArField.value = category.description_ar || '';
-            if (descriptionEnField) descriptionEnField.value = category.description_en || '';
-            if (parentIdField) parentIdField.value = category.parent_id || '';
-            if (sectionTypeField) sectionTypeField.value = category.section_type || '';
-            if (allowCartField) allowCartField.checked = !!category.allow_cart;
-            if (adCreationPriceField) adCreationPriceField.value = category.ad_creation_price || '0.00';
-            if (suggestedAdPriceField) suggestedAdPriceField.value = category.suggested_ad_price || '';
-
-            // Handle price inheritance info
-            const adCreationInheritInfo = document.getElementById('adCreationPriceInheritInfo');
-            const adCreationInheritText = document.getElementById('adCreationPriceInheritText');
-            const suggestedInheritInfo = document.getElementById('suggestedAdPriceInheritInfo');
-            const suggestedInheritText = document.getElementById('suggestedAdPriceInheritText');
-
-            // Ad Creation Price Inheritance
-            if (category.ad_creation_inherited && category.effective_ad_creation_price > 0) {
-                if (adCreationInheritInfo && adCreationInheritText) {
-                    adCreationInheritText.textContent = `سيتم استخدام السعر الموروث: ${category.effective_ad_creation_price.toFixed(2)} ${category.ad_creation_source ? 'من: ' + category.ad_creation_source : ''}`;
-                    adCreationInheritInfo.style.display = 'block';
-                }
-            } else if (adCreationInheritInfo) {
-                adCreationInheritInfo.style.display = 'none';
-            }
-
-            // Suggested Price Inheritance
-            if (category.suggested_inherited && category.effective_suggested_ad_price) {
-                if (suggestedInheritInfo && suggestedInheritText) {
-                    suggestedInheritText.textContent = `سيتم استخدام السعر الموروث: ${category.effective_suggested_ad_price.toFixed(2)} ${category.suggested_source ? 'من: ' + category.suggested_source : ''}`;
-                    suggestedInheritInfo.style.display = 'block';
-                }
-            } else if (suggestedInheritInfo) {
-                suggestedInheritInfo.style.display = 'none';
-            }
-
-            // Toggle السماح بالسلة visibility
-            toggleAllowCartField();
-
-            // Show modal using Bootstrap
-            const modalEl = document.getElementById('categoryModal');
-            if (modalEl) {
-                const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-                modal.show();
-            }
-        })
-        .catch(error => {
-            console.error('Error loading category:', error);
-            showError('حدث خطأ في تحميل بيانات القسم');
-        });
-}
-
-function deleteCategory(categoryId, categoryName) {
-    confirmDelete(`{% trans "هل أنت متأكد من حذف القسم" %} "${categoryName || ''}"؟`, () => {
-        fetch(CATEGORY_URLS.delete(categoryId), {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken')
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showSuccess(data.message || 'تم حذف القسم بنجاح');
-                location.reload();
-            } else {
-                showError(data.message || 'تعذر حذف القسم');
-            }
-        });
+/* ================================================
+   SEARCH / FILTER
+   ================================================ */
+function filterCategories() {
+    const q = document.getElementById('catsSearchInput').value.trim().toLowerCase();
+    document.querySelectorAll('.cat-card').forEach(card => {
+        const name = card.querySelector('.cat-card-name')?.textContent.toLowerCase() || '';
+        card.style.display = (!q || name.includes(q)) ? '' : 'none';
     });
 }
 
+/* ================================================
+   MODAL HELPERS
+   ================================================ */
+function openModal(id) {
+    const el = document.getElementById(id);
+    if (el) (bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el)).show();
+}
+function closeModal(id) {
+    const el = document.getElementById(id);
+    if (el) { const m = bootstrap.Modal.getInstance(el); if (m) m.hide(); }
+}
+
+/* ================================================
+   CATEGORY MODAL
+   ================================================ */
+function openAddCategoryModal(parentId = null, sectionCode = null) {
+    resetCategoryModal();
+    document.getElementById('modalTitle').textContent    = parentId ? '{% trans "إضافة قسم فرعي" %}' : '{% trans "إضافة قسم جديد" %}';
+    document.getElementById('modalSubtitle').textContent = '{% trans "أدخل بيانات القسم الجديد" %}';
+    document.getElementById('modalHeaderIcon').className = parentId ? 'fas fa-folder-tree' : 'fas fa-folder-plus';
+
+    if (parentId)    document.getElementById('parentId').value    = parentId;
+    if (sectionCode) document.getElementById('sectionType').value = sectionCode;
+
+    toggleAllowCartField();
+    switchTab('ar');
+    openModal('categoryModal');
+}
+
+function resetCategoryModal() {
+    const form = document.getElementById('categoryForm');
+    if (form) form.reset();
+    ['categoryId','parentId','sectionType'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    ['adCreationPriceInheritInfo','suggestedAdPriceInheritInfo'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('show');
+    });
+}
+
+function toggleAllowCartField() {
+    const st = document.getElementById('sectionType');
+    const wrap = document.getElementById('allowCartField');
+    if (!st || !wrap) return;
+    const show = st.value === 'classified';
+    wrap.style.display = show ? '' : 'none';
+    if (!show) {
+        const cb = document.getElementById('allowCart');
+        if (cb) cb.checked = false;
+    }
+}
+
+function editCategory(id) {
+    fetch(CATEGORY_URLS.get(id))
+        .then(r => r.json())
+        .then(cat => {
+            resetCategoryModal();
+            document.getElementById('modalTitle').textContent    = '{% trans "تعديل القسم" %}';
+            document.getElementById('modalSubtitle').textContent = '{% trans "تحديث بيانات القسم" %}';
+            document.getElementById('modalHeaderIcon').className = 'fas fa-pen';
+
+            setVal('categoryId',       cat.id);
+            setVal('nameAr',           cat.name_ar);
+            setVal('nameEn',           cat.name_en || cat.name);
+            setVal('descriptionAr',    cat.description_ar);
+            setVal('descriptionEn',    cat.description_en);
+            setVal('parentId',         cat.parent_id);
+            setVal('sectionType',      cat.section_type);
+            setVal('adCreationPrice',  cat.ad_creation_price  || '0.00');
+            setVal('suggestedAdPrice', cat.suggested_ad_price || '');
+            const allowCart = document.getElementById('allowCart');
+            if (allowCart) allowCart.checked = !!cat.allow_cart;
+
+            /* Inherit info */
+            showInheritInfo('adCreationPriceInheritInfo', 'adCreationPriceInheritText',
+                cat.ad_creation_inherited && cat.effective_ad_creation_price > 0,
+                cat.effective_ad_creation_price, cat.ad_creation_source);
+
+            showInheritInfo('suggestedAdPriceInheritInfo', 'suggestedAdPriceInheritText',
+                cat.suggested_inherited && cat.effective_suggested_ad_price,
+                cat.effective_suggested_ad_price, cat.suggested_source);
+
+            toggleAllowCartField();
+            switchTab('ar');
+            openModal('categoryModal');
+        })
+        .catch(() => showError('{% trans "حدث خطأ في تحميل بيانات القسم" %}'));
+}
+
+function showInheritInfo(infoId, textId, condition, price, source) {
+    const info = document.getElementById(infoId);
+    const text = document.getElementById(textId);
+    if (!info || !text) return;
+    if (condition) {
+        text.textContent = `{% trans "سيتم استخدام السعر الموروث" %}: ${parseFloat(price).toFixed(2)}${source ? ' — ' + source : ''}`;
+        info.classList.add('show');
+    } else {
+        info.classList.remove('show');
+    }
+}
+
+function setVal(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.value = val || '';
+}
+
+/* ================================================
+   SAVE CATEGORY
+   ================================================ */
 function saveCategory() {
     const form = document.getElementById('categoryForm');
-    if (!form) {
-        showError('نموذج القسم غير موجود');
-        return;
-    }
+    if (!form) return;
 
-    const formData = new FormData(form);
+    const fd = new FormData(form);
 
-    // Map 'id' field to 'category_id' as expected by backend
-    const categoryId = formData.get('id');
-    if (categoryId) {
-        formData.set('category_id', categoryId);
-        formData.delete('id');
-    }
+    /* Remap field names */
+    const catId = fd.get('id');
+    if (catId) { fd.set('category_id', catId); fd.delete('id'); }
 
-    // Map form field names to backend expectations
-    // Backend expects 'parent' not 'parent_id'
-    const parentIdField = document.getElementById('parentId');
-    if (parentIdField && parentIdField.value) {
-        formData.set('parent', parentIdField.value);
-    } else {
-        formData.delete('parent');
-    }
-    formData.delete('parent_id');
+    const parentId = fd.get('parent_id');
+    if (parentId) { fd.set('parent', parentId); }
+    fd.delete('parent_id');
 
-    // Ensure 'name' exists (mirror from name_en if provided)
-    const nameEn = formData.get('name_en');
-    if (nameEn && !formData.get('name')) {
-        formData.set('name', nameEn);
-    }
+    const nameEn = fd.get('name_en');
+    if (nameEn && !fd.get('name')) fd.set('name', nameEn);
 
-    // Get description from CKEditor instances if they exist
-    if (editorArInstance) {
-        const descriptionAr = editorArInstance.getData();
-        formData.set('description_ar', descriptionAr);
-    }
-    if (editorEnInstance) {
-        const descriptionEn = editorEnInstance.getData();
-        formData.set('description_en', descriptionEn);
-    }
+    /* CKEditor content */
+    if (editorArInstance) fd.set('description_ar', editorArInstance.getData());
+    if (editorEnInstance) fd.set('description_en', editorEnInstance.getData());
 
-    // Combine descriptions if backend expects single 'description' field
-    const descAr = formData.get('description_ar') || '';
-    const descEn = formData.get('description_en') || '';
-    if (descAr || descEn) {
-        formData.set('description', descAr || descEn);
-    }
+    const descAr = fd.get('description_ar') || '';
+    const descEn = fd.get('description_en') || '';
+    if (descAr || descEn) fd.set('description', descAr || descEn);
 
     fetch(CATEGORY_URLS.save, {
         method: 'POST',
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken')
-        },
-        body: formData
+        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+        body: fd
     })
-    .then(response => response.json())
+    .then(r => r.json())
     .then(data => {
         if (data.success) {
-            showSuccess(data.message || 'تم الحفظ بنجاح');
-            const modalEl = document.getElementById('categoryModal');
-            if (modalEl) {
-                const modal = bootstrap.Modal.getInstance(modalEl);
-                if (modal) modal.hide();
-            }
+            showSuccess(data.message || '{% trans "تم الحفظ بنجاح" %}');
+            closeModal('categoryModal');
             location.reload();
         } else {
-            showError(data.message || 'تعذر حفظ البيانات');
+            showError(data.message || '{% trans "تعذر حفظ البيانات" %}');
         }
     })
-    .catch(error => {
-        console.error('Error saving category:', error);
-        showError('حدث خطأ أثناء حفظ القسم');
-    });
+    .catch(() => showError('{% trans "حدث خطأ أثناء حفظ القسم" %}'));
 }
 
-// Custom Fields Management
-function manageCustomFields(categoryId) {
-    currentCategoryId = categoryId;
-
-    // Load custom fields for the category
-    fetch(CATEGORY_URLS.customFields(categoryId))
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Failed to load custom fields');
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                const categoryNameSpan = document.getElementById('customFieldsCategoryName');
-                if (categoryNameSpan) {
-                    categoryNameSpan.textContent = data.category_name || 'إدارة الحقول المخصصة';
+/* ================================================
+   DELETE CATEGORY
+   ================================================ */
+function deleteCategory(id, name) {
+    confirmAction(
+        `{% trans "هل أنت متأكد من حذف القسم" %} "${name || ''}"؟`,
+        '{% trans "سيتم حذف القسم وجميع بياناته نهائياً" %}',
+        () => {
+            fetch(CATEGORY_URLS.delete(id), {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCookie('csrftoken') }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccess(data.message || '{% trans "تم حذف القسم بنجاح" %}');
+                    location.reload();
+                } else {
+                    showError(data.message || '{% trans "تعذر حذف القسم" %}');
                 }
-                displayCustomFields(data.fields);
+            });
+        }
+    );
+}
 
-                // Show modal
-                openModal('customFieldsModal');
-            } else {
-                showError(data.message || 'فشل تحميل الحقول المخصصة');
-            }
+/* ================================================
+   CUSTOM FIELDS
+   ================================================ */
+function manageCustomFields(id) {
+    currentCategoryId = id;
+    fetch(CATEGORY_URLS.customFields(id))
+        .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+        .then(data => {
+            if (!data.success) { showError(data.message || '{% trans "فشل التحميل" %}'); return; }
+            const span = document.getElementById('customFieldsCategoryName');
+            if (span) span.textContent = data.category_name || '{% trans "الحقول المخصصة" %}';
+            renderCustomFields(data.fields || []);
+            openModal('customFieldsModal');
         })
-        .catch(error => {
-            console.error('Error loading custom fields:', error);
-            showError('حدث خطأ أثناء تحميل الحقول المخصصة');
-        });
+        .catch(() => showError('{% trans "حدث خطأ أثناء تحميل الحقول المخصصة" %}'));
 }
 
-function displayCustomFields(fields) {
-    const container = document.getElementById('customFieldsContainer');
+const FIELD_TYPE_ICONS = { text: 'font', number: 'hashtag', select: 'list', checkbox: 'check-square', date: 'calendar' };
+const FIELD_TYPE_LABELS = { text: 'نص', number: 'رقم', select: 'اختيار', checkbox: 'صندوق اختيار', date: 'تاريخ' };
 
-    if (!container) {
-        console.error('customFieldsContainer not found');
-        return;
-    }
+function buildFieldItemHTML(field, idx) {
+    const id = field.id || `new-${idx}`;
+    const typeOptions = ['text','number','select','checkbox','date'].map(t =>
+        `<option value="${t}" ${field.type === t || (!field.type && t==='text') ? 'selected' : ''}>${FIELD_TYPE_LABELS[t]}</option>`
+    ).join('');
 
-    if (fields.length === 0) {
-        container.innerHTML = `
-            <div class="text-center py-4">
-                <i class="fas fa-list fa-3x text-muted mb-3"></i>
-                <p class="text-muted">لا توجد حقول مخصصة لهذا القسم</p>
+    return `
+    <div class="cf-item" data-field-id="${id}">
+        <div class="cf-item-head">
+            <span class="cf-drag"><i class="fas fa-grip-vertical"></i></span>
+            <span class="cf-type-badge">
+                <i class="fas fa-${FIELD_TYPE_ICONS[field.type] || 'font'}"></i>
+                ${FIELD_TYPE_LABELS[field.type] || 'نص'}
+            </span>
+            <button type="button" class="cf-remove" onclick="this.closest('.cf-item').remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="cf-fields-row">
+            <div class="fgroup mb-0">
+                <label class="flabel" style="font-size:.78rem;">اسم الحقل</label>
+                <input type="text" class="finput" placeholder="مثال: المساحة" value="${escHtml(field.name || '')}" name="field_name">
             </div>
-        `;
-        return;
-    }
-
-    let html = '<div class="custom-fields-list">';
-
-    fields.forEach((field, index) => {
-        html += `
-            <div class="custom-field-item" data-field-id="${field.id || index}">
-                <div class="row g-2">
-                    <div class="col-md-3">
-                        <input type="text" class="form-control" placeholder="اسم الحقل" value="${field.name || ''}" name="field_name">
-                    </div>
-                    <div class="col-md-2">
-                        <select class="form-select" name="field_type">
-                            <option value="text" ${field.type === 'text' ? 'selected' : ''}>نص</option>
-                            <option value="number" ${field.type === 'number' ? 'selected' : ''}>رقم</option>
-                            <option value="select" ${field.type === 'select' ? 'selected' : ''}>اختيار</option>
-                            <option value="checkbox" ${field.type === 'checkbox' ? 'selected' : ''}>صندوق اختيار</option>
-                            <option value="date" ${field.type === 'date' ? 'selected' : ''}>تاريخ</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <input type="text" class="form-control" placeholder="الخيارات" value="${field.options || ''}" name="field_options">
-                    </div>
-                    <div class="col-md-1">
-                        <div class="form-check">
-                            <input type="checkbox" class="form-check-input" ${field.required || field.is_required ? 'checked' : ''} name="field_required">
-                            <label class="form-check-label">مطلوب</label>
-                        </div>
-                    </div>
-                    <div class="col-md-1">
-                        <div class="form-check">
-                            <input type="checkbox" class="form-check-input" ${field.show_on_card ? 'checked' : ''} name="field_show_on_card">
-                            <label class="form-check-label">على البطاقة</label>
-                        </div>
-                    </div>
-                    <div class="col-md-1">
-                        <div class="form-check">
-                            <input type="checkbox" class="form-check-input" ${field.show_in_filters ? 'checked' : ''} name="field_show_in_filters">
-                            <label class="form-check-label">في الفلاتر</label>
-                        </div>
-                    </div>
-                    <div class="col-md-1">
-                        <button type="button" class="btn btn-danger btn-sm" onclick="removeCustomField(this)">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
+            <div class="fgroup mb-0">
+                <label class="flabel" style="font-size:.78rem;">النوع</label>
+                <select class="finput fselect" name="field_type" onchange="updateCFTypeBadge(this)">
+                    ${typeOptions}
+                </select>
             </div>
-        `;
-    });
-
-    html += '</div>';
-    container.innerHTML = html;
-}
-
-function addCustomField() {
-    const container = document.getElementById('customFieldsContainer');
-
-    if (!container) {
-        console.error('customFieldsContainer not found');
-        return;
-    }
-
-    const newFieldHtml = `
-        <div class="custom-field-item" data-field-id="new-${Date.now()}">
-            <div class="row g-2">
-                <div class="col-md-3">
-                    <input type="text" class="form-control" placeholder="اسم الحقل" name="field_name">
-                </div>
-                <div class="col-md-2">
-                    <select class="form-select" name="field_type">
-                        <option value="text">نص</option>
-                        <option value="number">رقم</option>
-                        <option value="select">اختيار</option>
-                        <option value="checkbox">صندوق اختيار</option>
-                        <option value="date">تاريخ</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <input type="text" class="form-control" placeholder="الخيارات" name="field_options">
-                </div>
-                <div class="col-md-1">
-                    <div class="form-check">
-                        <input type="checkbox" class="form-check-input" name="field_required">
-                        <label class="form-check-label">مطلوب</label>
-                    </div>
-                </div>
-                <div class="col-md-1">
-                    <div class="form-check">
-                        <input type="checkbox" class="form-check-input" name="field_show_on_card">
-                        <label class="form-check-label">على البطاقة</label>
-                    </div>
-                </div>
-                <div class="col-md-1">
-                    <div class="form-check">
-                        <input type="checkbox" class="form-check-input" name="field_show_in_filters">
-                        <label class="form-check-label">في الفلاتر</label>
-                    </div>
-                </div>
-                <div class="col-md-1">
-                    <button type="button" class="btn btn-danger btn-sm" onclick="removeCustomField(this)">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
+            <div class="fgroup mb-0">
+                <label class="flabel" style="font-size:.78rem;">الخيارات <span class="fhint d-inline" style="font-size:.72rem;">(مفصولة بفاصلة)</span></label>
+                <input type="text" class="finput" placeholder="خيار1, خيار2" value="${escHtml(field.options || '')}" name="field_options">
             </div>
         </div>
-    `;
-
-    if (container.querySelector('.custom-fields-list')) {
-        container.querySelector('.custom-fields-list').insertAdjacentHTML('beforeend', newFieldHtml);
-    } else {
-        container.innerHTML = '<div class="custom-fields-list">' + newFieldHtml + '</div>';
-    }
+        <div class="cf-checks-row">
+            <label class="cf-check">
+                <input type="checkbox" ${field.required || field.is_required ? 'checked' : ''} name="field_required">
+                <i class="fas fa-asterisk" style="color:var(--err);font-size:.7rem;"></i> مطلوب
+            </label>
+            <label class="cf-check">
+                <input type="checkbox" ${field.show_on_card ? 'checked' : ''} name="field_show_on_card">
+                <i class="fas fa-id-card" style="color:var(--info);font-size:.7rem;"></i> على البطاقة
+            </label>
+            <label class="cf-check">
+                <input type="checkbox" ${field.show_in_filters ? 'checked' : ''} name="field_show_in_filters">
+                <i class="fas fa-filter" style="color:var(--ok);font-size:.7rem;"></i> في الفلاتر
+            </label>
+        </div>
+    </div>`;
 }
 
-function removeCustomField(button) {
-    button.closest('.custom-field-item').remove();
+function renderCustomFields(fields) {
+    const container = document.getElementById('customFieldsContainer');
+    if (!container) return;
+    if (!fields.length) {
+        container.innerHTML = `
+            <div class="cats-empty" style="padding: 2.5rem 1rem;">
+                <div class="cats-empty-ico"><i class="fas fa-list-ul"></i></div>
+                <h6>{% trans "لا توجد حقول مخصصة" %}</h6>
+                <p>{% trans "أضف حقولاً مخصصة لجمع معلومات إضافية من المعلنين" %}</p>
+            </div>`;
+        return;
+    }
+    container.innerHTML = `<div class="cf-list">${fields.map((f,i) => buildFieldItemHTML(f,i)).join('')}</div>`;
+}
+
+function addCustomFieldRow() {
+    const container = document.getElementById('customFieldsContainer');
+    if (!container) return;
+    let list = container.querySelector('.cf-list');
+    if (!list) {
+        container.innerHTML = '<div class="cf-list"></div>';
+        list = container.querySelector('.cf-list');
+    }
+    list.insertAdjacentHTML('beforeend', buildFieldItemHTML({}, Date.now()));
+}
+
+function updateCFTypeBadge(select) {
+    const item = select.closest('.cf-item');
+    if (!item) return;
+    const badge = item.querySelector('.cf-type-badge');
+    if (!badge) return;
+    const t = select.value;
+    badge.innerHTML = `<i class="fas fa-${FIELD_TYPE_ICONS[t] || 'font'}"></i> ${FIELD_TYPE_LABELS[t] || t}`;
 }
 
 function saveCustomFields() {
     const fields = [];
-    const fieldItems = document.querySelectorAll('.custom-field-item');
-
-    fieldItems.forEach(item => {
-        const name = item.querySelector('[name="field_name"]').value;
-        const type = item.querySelector('[name="field_type"]').value;
-        const options = item.querySelector('[name="field_options"]').value;
-        const required = item.querySelector('[name="field_required"]').checked;
-        const showOnCard = item.querySelector('[name="field_show_on_card"]').checked;
-        const showInFilters = item.querySelector('[name="field_show_in_filters"]').checked;
-
-        if (name.trim()) {
-            fields.push({
-                name: name,
-                type: type,
-                options: options,
-                required: required,
-                show_on_card: showOnCard,
-                show_in_filters: showInFilters
-            });
-        }
+    document.querySelectorAll('.cf-item').forEach(item => {
+        const name = item.querySelector('[name="field_name"]')?.value?.trim();
+        if (!name) return;
+        fields.push({
+            name,
+            type: item.querySelector('[name="field_type"]')?.value,
+            options: item.querySelector('[name="field_options"]')?.value || '',
+            required: !!item.querySelector('[name="field_required"]')?.checked,
+            show_on_card: !!item.querySelector('[name="field_show_on_card"]')?.checked,
+            show_in_filters: !!item.querySelector('[name="field_show_in_filters"]')?.checked,
+        });
     });
 
     fetch(CATEGORY_URLS.customFields(currentCategoryId), {
         method: 'POST',
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken'),
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({fields: fields})
+        headers: { 'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields })
     })
-    .then(response => response.json())
+    .then(r => r.json())
     .then(data => {
-        if (data.success) {
-            showSuccess(data.message || 'تم حفظ الحقول بنجاح');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('customFieldsModal'));
-            if (modal) modal.hide();
-        } else {
-            showError(data.message || 'تعذر حفظ الحقول');
+        if (data.success) { showSuccess(data.message || '{% trans "تم حفظ الحقول بنجاح" %}'); closeModal('customFieldsModal'); }
+        else showError(data.message || '{% trans "تعذر حفظ الحقول" %}');
+    });
+}
+
+/* ================================================
+   SORTABLE
+   ================================================ */
+function initSortable(el, draggable) {
+    new Sortable(el, {
+        animation: 180,
+        ghostClass: 'sortable-ghost',
+        draggable,
+        onEnd(evt) {
+            const ids = Array.from(evt.to.children).map(c => c.dataset.categoryId).filter(Boolean);
+            const indicator = evt.from.closest('.cat-panel')?.querySelector('.saving-indicator');
+            if (indicator) indicator.classList.add('show');
+
+            fetch("{% url 'main:admin_category_reorder' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                body: JSON.stringify({ ordered_ids: ids })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) { showSuccess('{% trans "تم تحديث الترتيب بنجاح" %}'); setTimeout(() => location.reload(), 900); }
+                else showError(data.message || '{% trans "خطأ في تحديث الترتيب" %}');
+            })
+            .catch(() => showError('{% trans "خطأ في الاتصال بالخادم" %}'))
+            .finally(() => { if (indicator) indicator.classList.remove('show'); });
         }
     });
 }
 
-// Utility functions
+/* ================================================
+   CKEDITOR
+   ================================================ */
+const CK_PLUGINS_REMOVE = [
+    'DocumentOutline','RealTimeCollaborativeEditing','RealTimeCollaborativeComments',
+    'TrackChanges','Comments','RevisionHistory','AIAssistant','TableOfContents',
+    'FormatPainter','Template','PasteFromOfficeEnhanced','CKBox','CKFinder',
+    'EasyImage','MultiLevelList','CaseChange'
+];
+const CK_TOOLBAR = {
+    items: ['heading','|','bold','italic','link','bulletedList','numberedList','blockQuote','|','insertTable','|','undo','redo']
+};
+
+function initCKEditors() {
+    const make = (id, lang, setter) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        CKEDITOR.ClassicEditor.create(el, { language: lang, removePlugins: CK_PLUGINS_REMOVE, toolbar: CK_TOOLBAR })
+            .then(ed => setter(ed))
+            .catch(e => console.error('CKEditor error:', e));
+    };
+    if (editorArInstance) editorArInstance.destroy().then(() => { editorArInstance = null; make('descriptionAr','ar', e => editorArInstance = e); });
+    else make('descriptionAr','ar', e => editorArInstance = e);
+    if (editorEnInstance) editorEnInstance.destroy().then(() => { editorEnInstance = null; make('descriptionEn','en', e => editorEnInstance = e); });
+    else make('descriptionEn','en', e => editorEnInstance = e);
+}
+function destroyCKEditors() {
+    if (editorArInstance) editorArInstance.destroy().then(() => editorArInstance = null);
+    if (editorEnInstance) editorEnInstance.destroy().then(() => editorEnInstance = null);
+}
+
+/* ================================================
+   UTILITIES
+   ================================================ */
 function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
+    let v = null;
+    if (document.cookie) {
+        for (const c of document.cookie.split(';')) {
+            const t = c.trim();
+            if (t.startsWith(name + '=')) { v = decodeURIComponent(t.slice(name.length + 1)); break; }
         }
     }
-    return cookieValue;
+    return v;
 }
 
-function showSuccess(message) {
-    if (typeof window.showNotification === 'function') {
-        window.showNotification(message || 'تمت العملية بنجاح', 'success');
-    } else {
-        console.log('Success:', message);
-    }
+function showSuccess(msg) {
+    if (typeof window.showNotification === 'function') window.showNotification(msg, 'success');
+    else console.log('Success:', msg);
+}
+function showError(msg) {
+    if (typeof window.showNotification === 'function') window.showNotification(msg, 'error');
+    else console.error('Error:', msg);
 }
 
-function showError(message) {
-    if (typeof window.showNotification === 'function') {
-        window.showNotification(message || 'حدث خطأ', 'error');
-    } else {
-        console.error('Error:', message);
-    }
+function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// Toast-like confirmation using main.js style
-function confirmDelete(message, onConfirm) {
-    const colors = {
-        base: 'linear-gradient(135deg, #4B315E 0%, #6B4C7A 100%)'
-    }
-    const box = document.createElement('div')
-    box.className = 'custom-notification'
+function debounce(fn, ms) {
+    let t;
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+function confirmAction(message, detail, onConfirm) {
+    const box = document.createElement('div');
     box.style.cssText = `
-        position: fixed; top: 90px; right: 20px; z-index: 100000;
-        background: ${colors.base}; color: white; padding: 14px 16px;
-        border-radius: 12px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-        display: flex; align-items: center; gap: 12px; max-width: 420px;
-    `
+        position:fixed;top:80px;right:20px;z-index:100000;
+        background:linear-gradient(135deg,#4b3050,#6d3d7a);color:#fff;
+        padding:1rem 1.2rem;border-radius:14px;font-weight:600;
+        box-shadow:0 8px 30px rgba(0,0,0,.25);max-width:420px;
+        animation:slideIn .25s ease;
+    `;
 
-    const text = document.createElement('span')
-    text.textContent = message || 'تأكيد العملية'
+    const style = document.createElement('style');
+    style.textContent = '@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}';
+    document.head.appendChild(style);
 
-    const actions = document.createElement('div')
-    actions.style.cssText = 'display:flex; gap:8px; margin-right:auto;'
-
-    const confirmBtn = document.createElement('button')
-    confirmBtn.textContent = 'تأكيد'
-    confirmBtn.className = 'btn btn-sm btn-light'
-    confirmBtn.style.cssText = 'color:#4B315E; font-weight:700;'
-
-    const cancelBtn = document.createElement('button')
-    cancelBtn.textContent = 'إلغاء'
-    cancelBtn.className = 'btn btn-sm btn-outline-light'
-
-    confirmBtn.addEventListener('click', () => {
-        document.body.removeChild(box)
-        if (typeof onConfirm === 'function') onConfirm()
-    })
-    cancelBtn.addEventListener('click', () => {
-        document.body.removeChild(box)
-    })
-
-    actions.appendChild(confirmBtn)
-    actions.appendChild(cancelBtn)
-    box.appendChild(text)
-    box.appendChild(actions)
-    document.body.appendChild(box)
+    box.innerHTML = `
+        <p style="margin:0 0 .35rem;font-size:.95rem;">${escHtml(message)}</p>
+        ${detail ? `<p style="margin:0 0 .85rem;font-size:.8rem;opacity:.75;">${escHtml(detail)}</p>` : '<div style="height:.6rem;"></div>'}
+        <div style="display:flex;gap:.5rem;">
+            <button id="_cfrm" style="flex:1;padding:.45rem;background:rgba(255,255,255,.95);color:#4b3050;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:.88rem;">{% trans "تأكيد الحذف" %}</button>
+            <button id="_cncl" style="flex:1;padding:.45rem;background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.35);border-radius:8px;font-weight:600;cursor:pointer;font-size:.88rem;">{% trans "إلغاء" %}</button>
+        </div>
+    `;
+    document.body.appendChild(box);
+    box.querySelector('#_cfrm').addEventListener('click', () => { document.body.removeChild(box); onConfirm(); });
+    box.querySelector('#_cncl').addEventListener('click', () => document.body.removeChild(box));
 }
-
-// Add event listener for section_type changes
-document.addEventListener('DOMContentLoaded', function() {
-    const sectionTypeSelect = document.querySelector('[name="section_type"]');
-    if (sectionTypeSelect) {
-        sectionTypeSelect.addEventListener('change', toggleAllowCartField);
-    }
-
-    // Close modal on outside click
-    window.addEventListener('click', function(event) {
-        if (event.target.classList.contains('modal')) {
-            const modalId = event.target.id;
-            if (modalId) {
-                closeModal(modalId);
-            }
-        }
-    });
-});
 </script>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Initialize Bootstrap tooltips
-            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-                new bootstrap.Tooltip(tooltipTriggerEl);
-            });
-
-            // Function to initialize SortableJS on a given element
-            const initSortable = (element, options) => {
-                new Sortable(element, {
-                    animation: 150,
-                    ghostClass: 'sortable-ghost',
-                    handle: options.handle || null,
-                    draggable: options.draggable || null,
-                    ...options,
-                    onEnd: function (evt) {
-                        const orderedIds = Array.from(evt.to.children)
-                            .map(item => item.dataset.categoryId)
-                            .filter(id => id); // Filter out undefined values
-
-                        const indicator = evt.from.closest('.admin-content-card')?.querySelector('.saving-indicator');
-
-                        if (indicator) indicator.classList.add('show');
-
-                        fetch("{% url 'main:admin_category_reorder' %}", {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRFToken': getCookie('csrftoken')
-                            },
-                            body: JSON.stringify({ ordered_ids: orderedIds })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                showSuccess('{% trans "تم تحديث الترتيب بنجاح." %}');
-                                // Refresh page after short delay to show success message
-                                setTimeout(() => {
-                                    window.location.reload();
-                                }, 1000);
-                            } else {
-                                showError(data.message || '{% trans "حدث خطأ أثناء تحديث الترتيب." %}');
-                            }
-                        })
-                        .catch(() => showError('{% trans "خطأ في الاتصال بالخادم." %}'))
-                        .finally(() => {
-                            if (indicator) indicator.classList.remove('show');
-                        });
-                    }
-                });
-            };
-
-            // Initialize for main category grids
-            document.querySelectorAll('.categories-grid').forEach(grid => {
-                initSortable(grid, {
-                    draggable: '.category-card'
-                });
-            });
-
-            // Initialize for subcategory lists
-            document.querySelectorAll('.subcategories-list').forEach(list => {
-                initSortable(list, {
-                    draggable: '.subcategory-item'
-                });
-            });
-        });
-
-        // CKEditor instances for description fields
-        let editorArInstance = null;
-        let editorEnInstance = null;
-
-        // Initialize CKEditor for category descriptions
-        function initializeCategoryEditors() {
-            // Destroy existing instances if they exist
-            if (editorArInstance) {
-                editorArInstance.destroy().then(() => {
-                    editorArInstance = null;
-                    createArEditor();
-                });
-            } else {
-                createArEditor();
-            }
-
-            if (editorEnInstance) {
-                editorEnInstance.destroy().then(() => {
-                    editorEnInstance = null;
-                    createEnEditor();
-                });
-            } else {
-                createEnEditor();
-            }
-        }
-
-        function createArEditor() {
-            const descArElement = document.getElementById('descriptionAr');
-            if (descArElement) {
-                CKEDITOR.ClassicEditor.create(descArElement, {
-                    language: 'ar',
-                    removePlugins: [
-                        'DocumentOutline', 'RealTimeCollaborativeEditing', 'RealTimeCollaborativeComments',
-                        'TrackChanges', 'Comments', 'RevisionHistory',
-                        'AIAssistant', 'TableOfContents', 'FormatPainter', 'Template', 'PasteFromOfficeEnhanced',
-                        'CKBox', 'CKFinder', 'EasyImage', 'MultiLevelList', 'CaseChange'
-                    ],
-                    toolbar: {
-                        items: [
-                            'heading', '|',
-                            'bold', 'italic', 'link', 'bulletedList', 'numberedList', 'blockQuote', '|',
-                            'insertTable', '|',
-                            'undo', 'redo'
-                        ]
-                    }
-                }).then(editor => {
-                    editorArInstance = editor;
-                    console.log('✅ Arabic description editor initialized');
-                }).catch(error => {
-                    console.error('❌ Arabic editor initialization error:', error);
-                });
-            }
-        }
-
-        function createEnEditor() {
-            const descEnElement = document.getElementById('descriptionEn');
-            if (descEnElement) {
-                CKEDITOR.ClassicEditor.create(descEnElement, {
-                    language: 'ar',
-                    removePlugins: [
-                        'DocumentOutline', 'RealTimeCollaborativeEditing', 'RealTimeCollaborativeComments',
-                        'TrackChanges', 'Comments', 'RevisionHistory',
-                        'AIAssistant', 'TableOfContents', 'FormatPainter', 'Template', 'PasteFromOfficeEnhanced',
-                        'CKBox', 'CKFinder', 'EasyImage', 'MultiLevelList', 'CaseChange'
-                    ],
-                    toolbar: {
-                        items: [
-                            'heading', '|',
-                            'bold', 'italic', 'link', 'bulletedList', 'numberedList', 'blockQuote', '|',
-                            'insertTable', '|',
-                            'undo', 'redo'
-                        ]
-                    }
-                }).then(editor => {
-                    editorEnInstance = editor;
-                    console.log('✅ English description editor initialized');
-                }).catch(error => {
-                    console.error('❌ English editor initialization error:', error);
-                });
-            }
-        }
-
-        // Hook into modal show event to initialize editors
-        const categoryModal = document.getElementById('categoryModal');
-        if (categoryModal) {
-            categoryModal.addEventListener('shown.bs.modal', function () {
-                setTimeout(() => initializeCategoryEditors(), 300);
-            });
-
-            // Destroy editors when modal is hidden
-            categoryModal.addEventListener('hidden.bs.modal', function () {
-                if (editorArInstance) {
-                    editorArInstance.destroy().then(() => {
-                        editorArInstance = null;
-                    });
-                }
-                if (editorEnInstance) {
-                    editorEnInstance.destroy().then(() => {
-                        editorEnInstance = null;
-                    });
-                }
-            });
-        }
-    </script>
 {% endblock %}
