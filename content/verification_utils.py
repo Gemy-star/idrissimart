@@ -28,7 +28,7 @@ def is_verification_required_for_services():
     site_config = SiteConfiguration.get_solo()
     return site_config.require_verification_for_services
 
-
+                                                                      
 def is_free_package_verification_required():
     """Check if email/phone verification is required before assigning the free package"""
     from content.site_config import SiteConfiguration

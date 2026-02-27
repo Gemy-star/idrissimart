@@ -40,79 +40,55 @@
 
 {% block extra_js %}
     <script>
-        // Publisher Navigation Enhancement
+        // Publisher Sidebar Navigation
         document.addEventListener('DOMContentLoaded', function() {
-            // Add smooth scrolling for horizontal navigation
-            const navLinks = document.querySelector('.publisher-nav-links');
-            if (navLinks) {
-                // Auto-scroll to active item on page load
-                const activeItem = navLinks.querySelector('.publisher-nav-item.active');
-                if (activeItem) {
-                    activeItem.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'nearest',
-                        inline: 'center'
-                    });
-                }
+            const sidebar = document.getElementById('publisherSidebar');
+            const sidebarToggle = document.getElementById('publisherSidebarToggle');
+            const sidebarOverlay = document.getElementById('publisherSidebarOverlay');
+            const sidebarClose = document.getElementById('publisherSidebarClose');
 
-                // Add keyboard navigation
-                navLinks.addEventListener('keydown', function(e) {
-                    const items = Array.from(navLinks.querySelectorAll('.publisher-nav-item'));
-                    const currentIndex = items.findIndex(item => item === document.activeElement);
-
-                    if (e.key === 'ArrowRight' && currentIndex < items.length - 1) {
-                        e.preventDefault();
-                        items[currentIndex + 1].focus();
-                    } else if (e.key === 'ArrowLeft' && currentIndex > 0) {
-                        e.preventDefault();
-                        items[currentIndex - 1].focus();
-                    }
-                });
-
-                // Add touch/swipe support for mobile
-                let startX = 0;
-                let scrollLeft = 0;
-                let isDragging = false;
-
-                navLinks.addEventListener('touchstart', function(e) {
-                    startX = e.touches[0].pageX - navLinks.offsetLeft;
-                    scrollLeft = navLinks.scrollLeft;
-                    isDragging = false;
-                }, { passive: true });
-
-                navLinks.addEventListener('touchmove', function(e) {
-                    if (startX === 0) return;
-                    const x = e.touches[0].pageX - navLinks.offsetLeft;
-                    const walk = x - startX;
-                    if (!isDragging && Math.abs(walk) < 6) {
-                        return;
-                    }
-                    if (!isDragging) {
-                        isDragging = true;
-                    }
-                    e.preventDefault();
-                    navLinks.scrollLeft = scrollLeft - walk * 2;
-                }, { passive: false });
-
-                navLinks.addEventListener('touchend', function() {
-                    startX = 0;
-                    isDragging = false;
-                });
+            function openSidebar() {
+                if (sidebar) sidebar.classList.add('open');
+                if (sidebarOverlay) sidebarOverlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
             }
+
+            function closeSidebarNav() {
+                if (sidebar) sidebar.classList.remove('open');
+                if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+
+            if (sidebarToggle) sidebarToggle.addEventListener('click', openSidebar);
+            if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebarNav);
+            if (sidebarClose) sidebarClose.addEventListener('click', closeSidebarNav);
+
+            // Close sidebar on Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && sidebar && sidebar.classList.contains('open')) {
+                    closeSidebarNav();
+                }
+            });
+
+            // Close sidebar on window resize to desktop
+            window.addEventListener('resize', function() {
+                if (window.innerWidth >= 992 && sidebar && sidebar.classList.contains('open')) {
+                    closeSidebarNav();
+                }
+            });
 
             // Add loading states for navigation links
             const navItems = document.querySelectorAll('.publisher-nav-item:not(.active)');
             navItems.forEach(item => {
-                item.addEventListener('click', function() {
-                    // Add loading state
+                item.addEventListener('click', function(e) {
                     const icon = this.querySelector('i');
-                    const originalClass = icon.className;
-                    icon.className = 'fas fa-spinner fa-spin';
-
-                    // Reset after a short delay (in case navigation is instant)
-                    setTimeout(() => {
-                        icon.className = originalClass;
-                    }, 1000);
+                    if (icon && !this.getAttribute('data-bs-toggle')) {
+                        const originalClass = icon.className;
+                        icon.className = 'fas fa-spinner fa-spin';
+                        setTimeout(() => {
+                            icon.className = originalClass;
+                        }, 1000);
+                    }
                 });
             });
 
