@@ -416,7 +416,6 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         context["ad_base_fee"] = (
             float(site_config.ad_base_fee) if site_config.ad_base_fee else 0.0
         )
-        context["allow_offline_payment"] = site_config.allow_offline_payment
         context["cart_service_instructions"] = (
             site_config.cart_service_instructions
             or "عند تفعيل السلة، سيتم خصم رسوم خدمة من ثمن المنتج عند البيع. يجب أن يكون السعر شاملاً لهذه الرسوم ورسوم التوصيل."

@@ -1709,52 +1709,6 @@
                                         <strong>{% trans "مهم:" %}</strong>
                                         {% trans "بالضغط على 'نشر الإعلان'، سيتم حفظ إعلانك وإذا كان هناك رسوم سيتم توجيهك لصفحة الدفع." %}
                                     </div>
-
-                                    <!-- Offline Payment Receipt Upload Section -->
-                                    {% if allow_offline_payment %}
-                                    <div class="card mb-4" id="offline-payment-section" style="display: none;">
-                                        <div class="card-header bg-info text-white">
-                                            <h5 class="mb-0">
-                                                <i class="fas fa-file-upload me-2"></i>
-                                                {% trans "إثبات الدفع (مطلوب)" %}
-                                            </h5>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="alert alert-info">
-                                                <i class="fas fa-info-circle me-2"></i>
-                                                {% trans "الدفع اليدوي متاح. يرجى رفع صورة إيصال التحويل البنكي أو لقطة شاشة للدفع قبل نشر الإعلان." %}
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="offline_payment_receipt" class="form-label">
-                                                    <i class="fas fa-receipt me-2"></i>
-                                                    {% trans "صورة الإيصال أو إثبات الدفع" %} <span class="text-danger">*</span>
-                                                </label>
-                                                <input type="file" class="form-control" id="offline_payment_receipt"
-                                                       name="offline_payment_receipt" accept="image/*" required>
-                                                <div class="form-text">
-                                                    <i class="fas fa-info-circle me-1"></i>
-                                                    {% trans "الصيغ المقبولة: JPG, PNG, PDF. الحجم الأقصى: 5 ميجا" %}
-                                                </div>
-                                                <div class="invalid-feedback" id="receipt-error">
-                                                    {% trans "يرجى رفع صورة إثبات الدفع" %}
-                                                </div>
-                                            </div>
-
-                                            <!-- Receipt Preview -->
-                                            <div id="receipt-preview" style="display: none;">
-                                                <label class="form-label">{% trans "معاينة الإيصال:" %}</label>
-                                                <div class="position-relative d-inline-block">
-                                                    <img id="receipt-preview-img" src="" alt="Receipt Preview"
-                                                         class="img-thumbnail" style="max-width: 300px; max-height: 300px;">
-                                                    <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2"
-                                                            id="remove-receipt-btn">
-                                                        <i class="fas fa-times"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {% endif %}
                                 </div>
 
                                 <!-- Navigation Buttons -->
@@ -2684,13 +2638,6 @@
             const freeAdsDiscountRow = document.getElementById('free-ads-discount-row');
             const freeAdsCountDisplay = document.getElementById('free-ads-count');
 
-            // Offline payment elements
-            const offlinePaymentSection = document.getElementById('offline-payment-section');
-            const offlinePaymentReceipt = document.getElementById('offline_payment_receipt');
-            const receiptPreview = document.getElementById('receipt-preview');
-            const receiptPreviewImg = document.getElementById('receipt-preview-img');
-            const removeReceiptBtn = document.getElementById('remove-receipt-btn');
-            const allowOfflinePayment = {% if allow_offline_payment %}true{% else %}false{% endif %};
 
             // Get pricing from context (package or site defaults)
             const siteDefaultBaseFee = parseFloat('{{ ad_base_fee }}') || 0;
@@ -2820,25 +2767,6 @@
                     }
                 }
 
-                // Show/hide offline payment section based on cost and setting
-                if (allowOfflinePayment && offlinePaymentSection) {
-                    if (totalCost > 0) {
-                        offlinePaymentSection.style.display = 'block';
-                        if (offlinePaymentReceipt) {
-                            offlinePaymentReceipt.required = true;
-                        }
-                    } else {
-                        offlinePaymentSection.style.display = 'none';
-                        if (offlinePaymentReceipt) {
-                            offlinePaymentReceipt.required = false;
-                            offlinePaymentReceipt.value = '';
-                        }
-                        if (receiptPreview) {
-                            receiptPreview.style.display = 'none';
-                        }
-                    }
-                }
-
                 return totalCost;
             }
 
@@ -2933,39 +2861,6 @@
                 });
             }
 
-            // ========== Offline Payment Receipt Preview ==========
-            if (offlinePaymentReceipt) {
-                offlinePaymentReceipt.addEventListener('change', function(e) {
-                    const file = e.target.files[0];
-                    if (file && file.type.startsWith('image/')) {
-                        const reader = new FileReader();
-                        reader.onload = function(event) {
-                            if (receiptPreviewImg) {
-                                receiptPreviewImg.src = event.target.result;
-                            }
-                            if (receiptPreview) {
-                                receiptPreview.style.display = 'block';
-                            }
-                        };
-                        reader.readAsDataURL(file);
-                    }
-                });
-            }
-
-            if (removeReceiptBtn) {
-                removeReceiptBtn.addEventListener('click', function() {
-                    if (offlinePaymentReceipt) {
-                        offlinePaymentReceipt.value = '';
-                    }
-                    if (receiptPreview) {
-                        receiptPreview.style.display = 'none';
-                    }
-                    if (receiptPreviewImg) {
-                        receiptPreviewImg.src = '';
-                    }
-                });
-            }
-
             // ========== Image Preview Logic ==========
             const imageInputs = document.querySelectorAll('input[type="file"][accept*="image"]');
             const previewContainer = document.getElementById('image-preview-container');
@@ -3009,32 +2904,6 @@
                         showToast('{% trans "يجب التحقق من رقم الجوال قبل نشر الإعلان" %}', 'warning');
                         currentStep = 4;
                         showStep(currentStep);
-                        return false;
-                    }
-                }
-
-                // Check if offline payment receipt is required
-                if (allowOfflinePayment && currentTotalCost > 0) {
-                    if (!offlinePaymentReceipt || !offlinePaymentReceipt.files || offlinePaymentReceipt.files.length === 0) {
-                        e.preventDefault();
-                        console.log('Preventing submit - offline payment receipt required');
-                        showToast('{% trans "يرجى رفع صورة إثبات الدفع قبل نشر الإعلان" %}', 'warning');
-                        currentStep = 4;
-                        showStep(currentStep);
-
-                        // Highlight the receipt field
-                        if (offlinePaymentReceipt) {
-                            offlinePaymentReceipt.classList.add('is-invalid');
-                            setTimeout(() => {
-                                offlinePaymentReceipt.classList.remove('is-invalid');
-                            }, 3000);
-                        }
-
-                        // Scroll to offline payment section
-                        if (offlinePaymentSection) {
-                            offlinePaymentSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }
-
                         return false;
                     }
                 }

@@ -393,50 +393,6 @@ def ad_payment(request, ad_id):
         PaymentContext.PLATFORM_PAYMENT
     )
 
-    # Check if payment is actually required
-    # Use the actual base_fee from session (category-specific), not the global site default
-    if base_fee == 0 and features_cost == 0:
-        # Free ad — apply features, set PENDING, notify staff, go to success page
-        if ad.status == ClassifiedAd.AdStatus.DRAFT:
-            features = request.session.get("ad_features", {})
-            ad.is_paid = True
-            ad.status = ClassifiedAd.AdStatus.PENDING
-            ad.is_highlighted = features.get("highlighted", False)
-            ad.is_urgent = features.get("urgent", False)
-            ad.is_pinned = features.get("pinned", False)
-            ad.contact_for_price = features.get("contact_for_price", False)
-            ad.features_price = Decimal("0.00")
-            ad.save()
-
-            # Decrement ads_remaining from the user's package if they used free ads
-            has_free_ads = request.session.get("has_free_ads", False)
-            if has_free_ads:
-                from .models import UserPackage
-                package_with_ads = UserPackage.objects.filter(
-                    user=ad.user,
-                    expiry_date__gte=timezone.now(),
-                    ads_remaining__gt=0,
-                ).order_by("expiry_date").first()
-                if package_with_ads:
-                    package_with_ads.use_ad()
-
-            # Notify all staff users
-            from .models import Notification
-            staff_users = User.objects.filter(is_staff=True, is_active=True)
-            for staff_user in staff_users:
-                Notification.objects.create(
-                    user=staff_user,
-                    notification_type=Notification.NotificationType.GENERAL,
-                    title=_("إعلان جديد ينتظر المراجعة"),
-                    message=_("تم تقديم إعلان جديد بعنوان '{}' من المستخدم {}.").format(
-                        ad.title, ad.user.get_full_name() or ad.user.username
-                    ),
-                    link=ad.get_absolute_url(),
-                )
-
-            messages.info(request, _("تم إرسال إعلانك للمراجعة وسيتم نشره بعد موافقة الإدارة."))
-        return redirect("main:ad_create_success", pk=ad.pk)
-
     # If ad is already active, redirect to it
     if ad.status == ClassifiedAd.AdStatus.ACTIVE:
         messages.info(request, _("هذا الإعلان نشط بالفعل"))
@@ -444,6 +400,46 @@ def ad_payment(request, ad_id):
 
     if request.method == "POST":
         payment_method = request.POST.get("payment_method")
+
+        # Handle free ad confirmation (no cost)
+        if payment_method == "free" and total_amount == 0:
+            if ad.status == ClassifiedAd.AdStatus.DRAFT:
+                features = request.session.get("ad_features", {})
+                ad.is_paid = True
+                ad.status = ClassifiedAd.AdStatus.PENDING
+                ad.is_highlighted = features.get("highlighted", False)
+                ad.is_urgent = features.get("urgent", False)
+                ad.is_pinned = features.get("pinned", False)
+                ad.contact_for_price = features.get("contact_for_price", False)
+                ad.features_price = Decimal("0.00")
+                ad.save()
+
+                has_free_ads = request.session.get("has_free_ads", False)
+                if has_free_ads:
+                    from .models import UserPackage
+                    package_with_ads = UserPackage.objects.filter(
+                        user=ad.user,
+                        expiry_date__gte=timezone.now(),
+                        ads_remaining__gt=0,
+                    ).order_by("expiry_date").first()
+                    if package_with_ads:
+                        package_with_ads.use_ad()
+
+                from .models import Notification
+                staff_users = User.objects.filter(is_staff=True, is_active=True)
+                for staff_user in staff_users:
+                    Notification.objects.create(
+                        user=staff_user,
+                        notification_type=Notification.NotificationType.GENERAL,
+                        title=_("إعلان جديد ينتظر المراجعة"),
+                        message=_("تم تقديم إعلان جديد بعنوان '{}' من المستخدم {}.").format(
+                            ad.title, ad.user.get_full_name() or ad.user.username
+                        ),
+                        link=ad.get_absolute_url(),
+                    )
+
+                messages.info(request, _("تم إرسال إعلانك للمراجعة وسيتم نشره بعد موافقة الإدارة."))
+            return redirect("main:ad_create_success", pk=ad.pk)
 
         # Handle legacy "offline" payment method by checking if instapay/wallet are allowed
         if payment_method == "offline":
