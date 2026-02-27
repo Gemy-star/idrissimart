@@ -131,19 +131,21 @@
         .lightbox {
             display: none;
             position: fixed;
-            z-index: 9999;
+            z-index: 99999;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.95);
-            animation: fadeIn 0.3s ease;
+            background-color: rgba(0, 0, 0, 0.92);
             touch-action: pan-y pinch-zoom;
             overflow: hidden;
+            animation: fadeIn 0.25s ease;
         }
 
         .lightbox.active {
-            display: block !important;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
         }
 
         /* Prevent scrolling when lightbox is active */
@@ -152,24 +154,18 @@
         }
 
         .lightbox-content {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            width: 100vw;
-            height: 100vh;
-            animation: zoomIn 0.3s ease;
-            touch-action: pan-x pan-y pinch-zoom;
-            overflow: visible;
+            position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 10002;
+            width: 100%;
+            height: 100%;
+            padding: 80px;
+            box-sizing: border-box;
             background: transparent;
             pointer-events: none;
-            padding: 85px 80px 110px;
-            box-sizing: border-box;
+            touch-action: pan-x pan-y pinch-zoom;
+            animation: zoomIn 0.25s ease;
         }
 
         .lightbox-content img {
@@ -178,23 +174,17 @@
             width: auto;
             height: auto;
             object-fit: contain;
-            transition: transform 0.3s ease;
+            transition: transform 0.3s ease, opacity 0.3s ease;
             cursor: zoom-in;
             user-select: none;
-            display: block !important;
             background: transparent;
             border: none;
             outline: none;
-            visibility: visible !important;
-            opacity: 1 !important;
-            position: relative;
-            z-index: 10003;
-            filter: none !important;
-            mix-blend-mode: normal !important;
-            margin: auto;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
             border-radius: 8px;
             pointer-events: auto;
+            display: block;
+            opacity: 0;
         }
 
         .lightbox-content img.zoomed {
@@ -573,7 +563,7 @@
             }
 
             .lightbox-content {
-                padding: 75px 65px 100px;
+                padding: 70px 60px 90px;
             }
 
             .lightbox-content img {
@@ -659,7 +649,7 @@
             }
 
             .lightbox-content {
-                padding: 65px 55px 90px;
+                padding: 60px 50px 80px;
             }
 
             .lightbox-content img {
@@ -2813,11 +2803,6 @@
             }
 
             try {
-                // Show loading indicator
-                if (loadingIndicator) {
-                    loadingIndicator.classList.add('active');
-                }
-
                 const imageData = lightboxImages[currentLightboxIndex];
                 const rawImageUrl = imageData.url;
                 const imageUrl = rawImageUrl && rawImageUrl.startsWith('http')
@@ -2825,84 +2810,61 @@
                     : `${window.location.origin}${rawImageUrl}`;
                 const imageAlt = imageData.alt;
 
-                console.log('Loading image:', imageUrl);
-                console.log('Image alt:', imageAlt);
-
-                // Clear previous image
-                lightboxImg.src = '';
-                lightboxImg.style.display = 'none';
-
-                // Show lightbox first
+                // Show lightbox
                 lightbox.classList.add('active');
                 document.body.classList.add('lightbox-open');
                 document.body.style.overflow = 'hidden';
 
-                // Create a new image to test loading
+                // Reset image state
+                lightboxImg.style.opacity = '0';
+                lightboxImg.style.transform = 'scale(1)';
+                lightboxImg.src = '';
+
+                // Show loading indicator
+                if (loadingIndicator) {
+                    loadingIndicator.classList.add('active');
+                }
+
+                // Load image
                 const testImg = new Image();
                 testImg.onload = function() {
-                    console.log('Image loaded successfully, setting src');
-                    console.log('Test image natural size:', testImg.naturalWidth, testImg.naturalHeight);
-
                     lightboxImg.onload = function() {
-                        lightboxImg.style.display = 'block';
-                        lightboxImg.style.visibility = 'visible';
+                        if (loadingIndicator) {
+                            loadingIndicator.classList.remove('active');
+                        }
                         lightboxImg.style.opacity = '1';
-                        lightboxImg.style.position = 'relative';
-                        lightboxImg.style.zIndex = '10003';
-                        lightboxImg.style.maxWidth = '100%';
-                        lightboxImg.style.maxHeight = '100%';
-                        lightboxImg.style.filter = 'none';
-                        lightboxImg.style.mixBlendMode = 'normal';
-                        lightboxImg.style.transform = 'translate(0px, 0px) scale(1)';
-                        lightboxImg.style.margin = 'auto';
-                        lightboxImg.classList.add('fade-in');
-                        console.log('Lightbox image displayed successfully');
-
-                        if (loadingIndicator) {
-                            loadingIndicator.classList.remove('active');
-                        }
-
-                        // Remove animation class after animation completes
-                        setTimeout(() => {
-                            lightboxImg.classList.remove('fade-in');
-                        }, 300);
                     };
-
                     lightboxImg.onerror = function() {
-                        console.error('Lightbox image failed to load:', imageUrl);
                         if (loadingIndicator) {
                             loadingIndicator.classList.remove('active');
                         }
-                        // Hide lightbox on error
                         lightbox.classList.remove('active');
                         document.body.classList.remove('lightbox-open');
                         document.body.style.overflow = '';
                     };
-
                     lightboxImg.src = imageUrl;
                     lightboxImg.alt = imageAlt;
 
-                    // Immediate fallback for loading indicator
+                    // Fallback: hide loading after 2s
                     setTimeout(() => {
                         if (loadingIndicator && loadingIndicator.classList.contains('active')) {
                             loadingIndicator.classList.remove('active');
+                            lightboxImg.style.opacity = '1';
                         }
-                    }, 1000);
+                    }, 2000);
                 };
 
                 testImg.onerror = function() {
-                    console.error('Failed to load image:', imageUrl);
                     if (loadingIndicator) {
                         loadingIndicator.classList.remove('active');
                     }
-                    // Hide lightbox on error
                     lightbox.classList.remove('active');
                     document.body.classList.remove('lightbox-open');
                     document.body.style.overflow = '';
                     alert('{% trans "خطأ في تحميل الصورة" %}');
                 };
 
-                // Start loading the image
+                // Start loading
                 testImg.src = imageUrl;
 
                 if (lightboxCounter) {

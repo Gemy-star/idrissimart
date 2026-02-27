@@ -550,6 +550,8 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         feature_contact_for_price = (
             self.request.POST.get("feature_contact_for_price") == "on"
         )
+        feature_auto_refresh = self.request.POST.get("feature_auto_refresh") == "on"
+        feature_add_video = self.request.POST.get("feature_add_video") == "on"
         publisher_cart_enabled = self.request.POST.get("publisher_cart_enabled") == "on"
 
         # Set cart flags
@@ -601,6 +603,10 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
                 features_cost += Decimal(str(package.feature_pinned_price))
             if feature_contact_for_price:
                 features_cost += Decimal(str(package.feature_contact_for_price))
+            if feature_auto_refresh:
+                features_cost += Decimal(str(package.feature_auto_refresh_price))
+            if feature_add_video:
+                features_cost += Decimal(str(package.feature_add_video_price))
         else:
             # User has no package, use site default pricing
             if feature_highlighted:
@@ -610,9 +616,11 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             if feature_pinned:
                 features_cost += Decimal(str(site_config.pinned_ad_price))
             if feature_contact_for_price:
-                # For users without package, use site default or make it unavailable
-                # You can set a default price in SiteConfiguration or make it 0
                 features_cost += Decimal("0.00")
+            if feature_auto_refresh:
+                features_cost += Decimal(str(site_config.auto_refresh_price))
+            if feature_add_video:
+                features_cost += Decimal(str(site_config.add_video_price))
 
         # Determine base fee (publishing cost)
         base_fee = Decimal("0.00")
@@ -652,58 +660,18 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
                 "urgent": feature_urgent,
                 "pinned": feature_pinned,
                 "contact_for_price": feature_contact_for_price,
+                "auto_refresh": feature_auto_refresh,
+                "add_video": feature_add_video,
             }
             self.request.session["ad_payment_amount"] = str(total_cost)
             self.request.session["ad_base_fee"] = str(base_fee)
             self.request.session["ad_features_cost"] = str(features_cost)
             self.request.session["has_active_package"] = active_package is not None
+            self.request.session["has_free_ads"] = has_free_ads
+            self.request.session.modified = True  # force session save
 
-            if total_cost > 0:
-                # There's a cost - redirect to payment
-                messages.info(
-                    self.request,
-                    _("يرجى إتمام الدفع لنشر إعلانك. المبلغ المطلوب: {} ج.م").format(
-                        total_cost
-                    ),
-                )
-                # Redirect to payment page
-                return redirect("main:ad_payment", ad_id=self.object.pk)
-            else:
-                # Free ad - process immediately
-                # Mark as paid (free/no payment required)
-                self.object.is_paid = True
-
-                # Auto-approve ads for verified users
-                if (
-                    self.request.user.verification_status
-                    == User.VerificationStatus.VERIFIED
-                ):
-                    self.object.status = ClassifiedAd.AdStatus.ACTIVE
-                    messages.success(
-                        self.request, _("إعلانك نشط الآن لأنه تم التحقق من حسابك.")
-                    )
-                else:
-                    self.object.status = ClassifiedAd.AdStatus.PENDING
-                    messages.info(
-                        self.request, _("تم إرسال إعلانك للمراجعة وسيتم نشره قريباً.")
-                    )
-
-                # Apply features
-                self.object.is_highlighted = feature_highlighted
-                self.object.is_urgent = feature_urgent
-                self.object.is_pinned = feature_pinned
-                self.object.contact_for_price = feature_contact_for_price
-                self.object.features_price = features_cost
-                self.object.save()
-
-                # Decrement ad count from user's package if they have free ads
-                if has_free_ads:
-                    # Find first package with remaining ads and decrement
-                    package_with_ads = active_packages_with_ads.first()
-                    if package_with_ads:
-                        package_with_ads.use_ad()
-
-                return redirect("main:ad_create_success", pk=self.object.pk)
+            # Always route through ad_payment — it handles both free and paid cases
+            return redirect("main:ad_payment", ad_id=self.object.pk)
         else:
             return self.render_to_response(self.get_context_data(form=form))
 

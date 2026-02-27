@@ -11,7 +11,7 @@ class PaymentContext:
     AD_UPGRADE = "ad_upgrade"
     PACKAGE_PURCHASE = "package_purchase"
     PRODUCT_PURCHASE = "product_purchase"
-    
+
     # Legacy support
     PLATFORM_PAYMENT = "ad_posting"  # Backwards compatibility
     CART_PURCHASE = "product_purchase"  # Backwards compatibility
@@ -52,21 +52,23 @@ def get_allowed_payment_methods(context=PaymentContext.AD_POSTING):
         # Get enabled methods from PaymentMethodConfig
         methods = payment_config.get_enabled_methods()
 
-        # Filter based on global payment settings
+        # Filter based on global payment settings from SiteConfiguration
         filtered_methods = []
         for method_code, method_label in methods:
             # Online payment methods: visa, paypal, paymob
             if method_code in ["visa", "paypal", "paymob"]:
-                # Check both constance ALLOW_ONLINE_PAYMENT and site_config.allow_online_payment
-                if constance_config.ALLOW_ONLINE_PAYMENT and site_config.allow_online_payment:
+                # Check site_config.allow_online_payment (ALLOW_ONLINE_PAYMENT is in SiteConfiguration, not constance)
+                if site_config.allow_online_payment:
                     # Additionally check if specific provider is enabled
                     if method_code == "paypal":
-                        from .services.paypal_service import PayPalService
-                        if PayPalService.is_enabled():
-                            filtered_methods.append((method_code, method_label))
+                        try:
+                            from .services.paypal_service import PayPalService
+                            if PayPalService.is_enabled():
+                                filtered_methods.append((method_code, method_label))
+                        except Exception:
+                            pass
                     elif method_code in ["visa", "paymob"]:
-                        from .services.paymob_service import PaymobService
-                        if PaymobService.is_enabled() or constance_config.PAYMOB_ENABLED:
+                        if getattr(constance_config, "PAYMOB_ENABLED", True):
                             filtered_methods.append((method_code, method_label))
             # Offline payment methods: instapay, wallet
             elif method_code in ["instapay", "wallet"]:
@@ -149,17 +151,20 @@ def is_payment_method_allowed(payment_method, context=PaymentContext.AD_POSTING)
 
         # Check global payment settings based on payment method type
         # Online payment methods: visa, paypal, paymob
+        # Note: ALLOW_ONLINE_PAYMENT lives in SiteConfiguration, not constance
         if payment_method in ["visa", "paypal", "paymob"]:
-            if not constance_config.ALLOW_ONLINE_PAYMENT or not site_config.allow_online_payment:
+            if not site_config.allow_online_payment:
                 return False
             # Additionally check if specific provider is enabled
             if payment_method == "paypal":
-                from .services.paypal_service import PayPalService
-                if not PayPalService.is_enabled():
+                try:
+                    from .services.paypal_service import PayPalService
+                    if not PayPalService.is_enabled():
+                        return False
+                except Exception:
                     return False
             elif payment_method in ["visa", "paymob"]:
-                from .services.paymob_service import PaymobService
-                if not PaymobService.is_enabled() and not constance_config.PAYMOB_ENABLED:
+                if not getattr(constance_config, "PAYMOB_ENABLED", True):
                     return False
 
         # Offline payment methods: instapay, wallet
@@ -192,11 +197,11 @@ def get_payment_method_display(payment_method):
 def get_cod_deposit_info(context, total_amount):
     """
     Get COD deposit information for a given context and amount.
-    
+
     Args:
         context: Payment context
         total_amount: Total order amount (Decimal)
-        
+
     Returns:
         dict: {
             'requires_deposit': bool,
@@ -206,12 +211,12 @@ def get_cod_deposit_info(context, total_amount):
         }
     """
     from decimal import Decimal
-    
+
     try:
         from content.models import PaymentMethodConfig
-        
+
         config = PaymentMethodConfig.get_for_context(context)
-        
+
         if not config.cod_requires_deposit:
             return {
                 'requires_deposit': False,
@@ -219,17 +224,17 @@ def get_cod_deposit_info(context, total_amount):
                 'deposit_percentage': Decimal("0.00"),
                 'remaining_amount': total_amount,
             }
-        
+
         deposit_amount = config.calculate_cod_deposit(total_amount)
         remaining_amount = total_amount - deposit_amount
-        
+
         return {
             'requires_deposit': True,
             'deposit_amount': deposit_amount,
             'deposit_percentage': config.cod_deposit_percentage if config.cod_deposit_type == 'percentage' else Decimal("0.00"),
             'remaining_amount': remaining_amount,
         }
-        
+
     except Exception as e:
         print(f"Warning: Could not calculate COD deposit: {e}")
         # Default: 20% deposit

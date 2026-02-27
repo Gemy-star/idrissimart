@@ -1636,6 +1636,11 @@ urlpatterns = [
         name="admin_toggle_pinned",
     ),
     path(
+        "admin/ads/<int:ad_id>/toggle-auto-refresh/",
+        admin_ad_views.admin_toggle_auto_refresh,
+        name="admin_toggle_auto_refresh",
+    ),
+    path(
         "admin/ads/<int:ad_id>/change-category/",
         admin_ad_views.admin_change_ad_category,
         name="admin_change_ad_category",

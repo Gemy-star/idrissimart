@@ -805,6 +805,27 @@ def admin_toggle_pinned(request, ad_id):
 
 @staff_member_required
 @require_POST
+def admin_toggle_auto_refresh(request, ad_id):
+    """Toggle ad auto_refresh status"""
+    ad = get_object_or_404(ClassifiedAd, pk=ad_id)
+
+    ad.auto_refresh = not ad.auto_refresh
+    ad.save(update_fields=["auto_refresh"])
+
+    status = "مفعّل التحديث التلقائي" if ad.auto_refresh else "موقوف التحديث التلقائي"
+    messages.success(request, f'تم تغيير حالة الإعلان "{ad.title}" إلى {status}.')
+
+    return JsonResponse(
+        {
+            "success": True,
+            "auto_refresh": ad.auto_refresh,
+            "message": f"الإعلان الآن {status}",
+        }
+    )
+
+
+@staff_member_required
+@require_POST
 def admin_change_ad_category(request, ad_id):
     """Change ad category"""
     ad = get_object_or_404(ClassifiedAd, pk=ad_id)

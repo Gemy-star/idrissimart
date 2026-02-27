@@ -396,28 +396,51 @@ def ad_payment(request, ad_id):
     # Check if payment is actually required
     # Use the actual base_fee from session (category-specific), not the global site default
     if base_fee == 0 and features_cost == 0:
-        # Ad posting is free, activate immediately if auto-approve is enabled
+        # Free ad — apply features, set PENDING, notify staff, go to success page
         if ad.status == ClassifiedAd.AdStatus.DRAFT:
-            # Check if auto-approve is enabled (ads go to ACTIVE) or manual review (PENDING)
-            try:
-                from constance import config
-                if config.AUTO_APPROVE_ADS:
-                    ad.status = ClassifiedAd.AdStatus.ACTIVE
-                    messages.success(request, _("تم نشر إعلانك بنجاح"))
-                else:
-                    ad.status = ClassifiedAd.AdStatus.PENDING
-                    messages.success(request, _("تم إرسال إعلانك للمراجعة"))
-            except:
-                # Fallback to PENDING if constance not configured
-                ad.status = ClassifiedAd.AdStatus.PENDING
-                messages.success(request, _("تم إرسال إعلانك للمراجعة"))
+            features = request.session.get("ad_features", {})
+            ad.is_paid = True
+            ad.status = ClassifiedAd.AdStatus.PENDING
+            ad.is_highlighted = features.get("highlighted", False)
+            ad.is_urgent = features.get("urgent", False)
+            ad.is_pinned = features.get("pinned", False)
+            ad.contact_for_price = features.get("contact_for_price", False)
+            ad.features_price = Decimal("0.00")
             ad.save()
-        return redirect("main:ad_detail", pk=ad.pk, slug=ad.slug)
 
-    # If ad is already active or no payment needed, redirect
-    if ad.status == ClassifiedAd.AdStatus.ACTIVE or total_amount == 0:
-        messages.info(request, _("هذا الإعلان نشط بالفعل أو لا يحتاج إلى دفع"))
-        return redirect("main:ad_detail", pk=ad.pk, slug=ad.slug)
+            # Decrement ads_remaining from the user's package if they used free ads
+            has_free_ads = request.session.get("has_free_ads", False)
+            if has_free_ads:
+                from .models import UserPackage
+                package_with_ads = UserPackage.objects.filter(
+                    user=ad.user,
+                    expiry_date__gte=timezone.now(),
+                    ads_remaining__gt=0,
+                ).order_by("expiry_date").first()
+                if package_with_ads:
+                    package_with_ads.use_ad()
+
+            # Notify all staff users
+            from .models import Notification
+            staff_users = User.objects.filter(is_staff=True, is_active=True)
+            for staff_user in staff_users:
+                Notification.objects.create(
+                    user=staff_user,
+                    notification_type=Notification.NotificationType.GENERAL,
+                    title=_("إعلان جديد ينتظر المراجعة"),
+                    message=_("تم تقديم إعلان جديد بعنوان '{}' من المستخدم {}.").format(
+                        ad.title, ad.user.get_full_name() or ad.user.username
+                    ),
+                    link=ad.get_absolute_url(),
+                )
+
+            messages.info(request, _("تم إرسال إعلانك للمراجعة وسيتم نشره بعد موافقة الإدارة."))
+        return redirect("main:ad_create_success", pk=ad.pk)
+
+    # If ad is already active, redirect to it
+    if ad.status == ClassifiedAd.AdStatus.ACTIVE:
+        messages.info(request, _("هذا الإعلان نشط بالفعل"))
+        return redirect("main:ad_detail", slug=ad.slug)
 
     if request.method == "POST":
         payment_method = request.POST.get("payment_method")
@@ -559,20 +582,30 @@ def process_ad_payment(payment):
         ad.is_urgent = features.get("urgent", False)
         ad.is_pinned = features.get("pinned", False)
         ad.contact_for_price = features.get("contact_for_price", False)
+        ad.auto_refresh = features.get("auto_refresh", False)
+        # video_url/video_file were already saved when the ad was created;
+        # no extra action needed for add_video beyond what was saved.
         ad.features_price = Decimal(payment.metadata.get("features_cost", "0"))
 
         # Mark ad as paid
         ad.is_paid = True
 
-        # Change status from DRAFT to PENDING or ACTIVE
+        # Change status from DRAFT to PENDING — admin must approve before going ACTIVE
         if ad.status == ClassifiedAd.AdStatus.DRAFT:
-            # Check if user is verified
-            if ad.user.verification_status == User.VerificationStatus.VERIFIED:
-                ad.status = ClassifiedAd.AdStatus.ACTIVE
-                status_msg = _("نشط")
-            else:
-                ad.status = ClassifiedAd.AdStatus.PENDING
-                status_msg = _("قيد المراجعة")
+            ad.status = ClassifiedAd.AdStatus.PENDING
+            status_msg = _("قيد المراجعة")
+
+            # Notify all staff users that a new paid ad needs review
+            from .models import User as UserModel
+            staff_users = UserModel.objects.filter(is_staff=True, is_active=True)
+            for staff_user in staff_users:
+                Notification.objects.create(
+                    user=staff_user,
+                    notification_type=Notification.NotificationType.GENERAL,
+                    title=_("إعلان جديد ينتظر المراجعة"),
+                    message=_("تم تقديم إعلان جديد بعنوان '{}' وتم سداد رسومه.").format(ad.title),
+                    link=ad.get_absolute_url(),
+                )
 
             # If user paid base fee (no package), check if they should get a package
             # Otherwise, deduct from their active package
@@ -931,6 +964,7 @@ def ad_upgrade_payment(request, ad_id):
             ad.is_highlighted = upgrade_features.get("highlighted", ad.is_highlighted)
             ad.is_urgent = upgrade_features.get("urgent", ad.is_urgent)
             ad.is_pinned = upgrade_features.get("pinned", ad.is_pinned)
+            ad.auto_refresh = upgrade_features.get("auto_refresh", ad.auto_refresh)
             ad.save()
 
             # Clear session
@@ -940,7 +974,7 @@ def ad_upgrade_payment(request, ad_id):
             messages.success(request, _("تم تطبيق المميزات على إعلانك بنجاح"))
         else:
             messages.info(request, _("لا توجد مميزات جديدة تتطلب دفع"))
-        return redirect("main:ad_detail", pk=ad.id, slug=ad.slug)
+        return redirect("main:ad_detail", slug=ad.slug)
 
     if request.method == "POST":
         payment_method = request.POST.get("payment_method")
@@ -1082,9 +1116,13 @@ def process_ad_upgrade_payment(payment):
                 payment_amount=payment.amount,
             )
 
-        if upgrade_features.get("video"):
-            # Video feature implementation when ready
+        if upgrade_features.get("video") or upgrade_features.get("add_video"):
+            # video_url/video_file already saved on the ad; just acknowledge the feature
             applied_features.append(_("فيديو"))
+
+        if upgrade_features.get("auto_refresh"):
+            ad.auto_refresh = True
+            applied_features.append(_("تحديث تلقائي يومي"))
 
         ad.save()
 

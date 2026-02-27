@@ -191,6 +191,8 @@ class SiteConfigurationForm(forms.ModelForm):
             "featured_ad_price",
             "urgent_ad_price",
             "pinned_ad_price",
+            "auto_refresh_price",
+            "add_video_price",
             "cart_service_fee_type",
             "cart_service_fixed_fee",
             "cart_service_percentage",
@@ -296,6 +298,12 @@ class SiteConfigurationForm(forms.ModelForm):
                 attrs={"class": "form-control", "step": "0.01"}
             ),
             "pinned_ad_price": forms.NumberInput(
+                attrs={"class": "form-control", "step": "0.01"}
+            ),
+            "auto_refresh_price": forms.NumberInput(
+                attrs={"class": "form-control", "step": "0.01"}
+            ),
+            "add_video_price": forms.NumberInput(
                 attrs={"class": "form-control", "step": "0.01"}
             ),
             "cart_service_fee_type": forms.Select(attrs={"class": "form-select"}),

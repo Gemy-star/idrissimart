@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand, CommandError
-from main.models import CustomField, Category
+from main.models import CustomField, Category, CategoryCustomField
 
 class Command(BaseCommand):
     help = 'Creates a new custom field for a given category.'
@@ -31,16 +31,27 @@ class Command(BaseCommand):
         except Category.DoesNotExist:
             raise CommandError(f'Category with ID "{category_id}" does not exist.')
 
-        if CustomField.objects.filter(category=category, name=field_name).exists():
+        if CustomField.objects.filter(name=field_name, categories=category).exists():
             raise CommandError(f'Custom field with name "{field_name}" already exists for this category.')
 
-        field = CustomField.objects.create(
-            category=category,
+        field, created = CustomField.objects.get_or_create(
             name=field_name,
-            label_ar=label_ar,
-            field_type=field_type,
-            is_required=is_required,
-            order=order,
+            defaults={
+                'label_ar': label_ar,
+                'field_type': field_type,
+                'is_required': is_required,
+            },
         )
 
-        self.stdout.write(self.style.SUCCESS(f'Successfully created custom field "{field.name}" for category "{category.name}".'))
+        CategoryCustomField.objects.get_or_create(
+            category=category,
+            custom_field=field,
+            defaults={
+                'is_required': is_required,
+                'order': order,
+            },
+        )
+
+        action = 'Created' if created else 'Linked existing'
+        self.stdout.write(self.style.SUCCESS(f'{action} custom field "{field.name}" for category "{category.name}".'))
+

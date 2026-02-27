@@ -209,6 +209,22 @@ class SiteConfiguration(SingletonModel):
         help_text=_("رسوم تثبيت الإعلان في أعلى القائمة"),
     )
 
+    auto_refresh_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=35,
+        verbose_name=_("سعر التحديث التلقائي"),
+        help_text=_("رسوم تحديث تاريخ الإعلان تلقائياً كل يوم لمدة 7 أيام"),
+    )
+
+    add_video_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=25,
+        verbose_name=_("سعر إضافة فيديو"),
+        help_text=_("رسوم إرفاق فيديو بالإعلان"),
+    )
+
     # Cart Service Fee Settings
     cart_service_fee_type = models.CharField(
         max_length=20,

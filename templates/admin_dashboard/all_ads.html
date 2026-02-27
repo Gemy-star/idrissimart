@@ -577,6 +577,18 @@
               {% trans "مثبت" %}
             </div>
             {% endif %}
+            {% if ad.auto_refresh %}
+            <div class="ad-badge" style="background:#17a2b8;color:#fff;">
+              <i class="fas fa-sync-alt"></i>
+              {% trans "تحديث تلقائي" %}
+            </div>
+            {% endif %}
+            {% if ad.video_url or ad.video_file %}
+            <div class="ad-badge" style="background:#6f42c1;color:#fff;">
+              <i class="fas fa-video"></i>
+              {% trans "فيديو" %}
+            </div>
+            {% endif %}
           </div>
         </div>
 
@@ -618,6 +630,10 @@
           <button type="button" class="action-btn {% if ad.is_pinned %}warning{% else %}success{% endif %}" data-action="toggle-pin" data-ad-id="{{ ad.id }}" data-status="{{ ad.is_pinned|yesno:'true,false' }}">
             <i class="fas fa-thumbtack"></i>
             {% if ad.is_pinned %}{% trans "إلغاء التثبيت" %}{% else %}{% trans "تثبيت" %}{% endif %}
+          </button>
+          <button type="button" class="action-btn {% if ad.auto_refresh %}warning{% else %}success{% endif %}" data-action="toggle-auto-refresh" data-ad-id="{{ ad.id }}" data-status="{{ ad.auto_refresh|yesno:'true,false' }}">
+            <i class="fas fa-sync-alt"></i>
+            {% if ad.auto_refresh %}{% trans "إيقاف التحديث التلقائي" %}{% else %}{% trans "تفعيل التحديث التلقائي" %}{% endif %}
           </button>
           <a href="{% url 'main:ad_detail' ad.slug %}" target="_blank" class="action-btn">
             <i class="fas fa-external-link-alt"></i>
@@ -784,6 +800,9 @@ document.addEventListener('click', (e) => {
     case 'toggle-pin':
       handleTogglePin(adId, el.dataset.status === 'true');
       break;
+    case 'toggle-auto-refresh':
+      handleToggleAutoRefresh(adId, el.dataset.status === 'true');
+      break;
     case 'delete-ad':
       handleDeleteAd(adId, el.dataset.adTitle);
       break;
@@ -892,6 +911,33 @@ function handleTogglePin(adId, isPinned) {
         'X-CSRFToken': getCookie('csrftoken')
       },
       body: JSON.stringify({ action: action, feature_type: 'pinned' })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        showNotification(data.message || '{% trans "تم التحديث بنجاح" %}', 'success');
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
+      }
+    })
+    .catch(() => showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error'));
+  });
+}
+
+function handleToggleAutoRefresh(adId, isAutoRefresh) {
+  const message = isAutoRefresh
+    ? '{% trans "هل تريد إيقاف التحديث التلقائي لهذا الإعلان؟" %}'
+    : '{% trans "هل تريد تفعيل التحديث التلقائي لهذا الإعلان؟" %}';
+
+  showConfirmation('{% trans "تأكيد التحديث التلقائي" %}', message, () => {
+    fetch(`/${LANGUAGE_CODE}/admin/ads/${adId}/toggle-auto-refresh/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken')
+      },
+      body: JSON.stringify({})
     })
     .then(r => r.json())
     .then(data => {

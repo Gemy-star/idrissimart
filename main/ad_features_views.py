@@ -37,18 +37,24 @@ def ad_features_upgrade(request, ad_id):
     if active_package and active_package.package:
         package = active_package.package
         feature_prices = {
-            "contact_for_price": package.feature_contact_for_price,
+            "highlighted": Decimal(str(package.feature_highlighted_price)),
+            "pinned": Decimal(str(package.feature_pinned_price)),
+            "auto_refresh": Decimal(str(package.feature_auto_refresh_price)),
+            "contact_for_price": Decimal(str(package.feature_contact_for_price)),
             "facebook_share": Decimal("100.00"),  # Fixed price for FB share
-            "video": Decimal("75.00"),  # Fixed price for video (coming soon)
+            "video": Decimal(str(package.feature_add_video_price)),
         }
         pricing_source = "package"
         active_package_info = active_package
     else:
-        # Use site default prices or make features free/unavailable
+        # Use site default prices
         feature_prices = {
+            "highlighted": Decimal(str(site_config.featured_ad_price)),
+            "pinned": Decimal(str(site_config.pinned_ad_price)),
+            "auto_refresh": Decimal(str(site_config.auto_refresh_price)),
             "contact_for_price": Decimal("0.00"),  # Free without package
             "facebook_share": Decimal("100.00"),
-            "video": Decimal("75.00"),
+            "video": Decimal(str(site_config.add_video_price)),
         }
         pricing_source = "site_default"
         active_package_info = None
@@ -65,6 +71,21 @@ def ad_features_upgrade(request, ad_id):
         total_cost = Decimal("0.00")
         features_to_enable = {}
 
+        # Highlighted
+        if selected_features.get("highlighted") and not ad.is_highlighted:
+            total_cost += feature_prices["highlighted"]
+            features_to_enable["highlighted"] = True
+
+        # Pinned
+        if selected_features.get("pinned") and not ad.is_pinned:
+            total_cost += feature_prices["pinned"]
+            features_to_enable["pinned"] = True
+
+        # Auto Refresh
+        if selected_features.get("auto_refresh") and not ad.auto_refresh:
+            total_cost += feature_prices["auto_refresh"]
+            features_to_enable["auto_refresh"] = True
+
         # Contact for Price
         if selected_features.get("contact_for_price") and not ad.contact_for_price:
             total_cost += feature_prices["contact_for_price"]
@@ -75,7 +96,7 @@ def ad_features_upgrade(request, ad_id):
             total_cost += feature_prices["facebook_share"]
             features_to_enable["facebook_share"] = True
 
-        # Video (coming soon)
+        # Video
         if selected_features.get("video") and not ad.video_url:
             total_cost += feature_prices["video"]
             features_to_enable["video"] = True
@@ -103,6 +124,19 @@ def ad_features_upgrade(request, ad_id):
         else:
             # Free features - activate immediately
             updated_features = []
+
+            if features_to_enable.get("highlighted"):
+                ad.is_highlighted = True
+                updated_features.append(_("إعلان مميز"))
+
+            if features_to_enable.get("pinned"):
+                ad.is_pinned = True
+                updated_features.append(_("إعلان مثبت"))
+
+            if features_to_enable.get("auto_refresh"):
+                ad.auto_refresh = True
+                updated_features.append(_("تحديث تلقائي"))
+
             if features_to_enable.get("contact_for_price"):
                 ad.contact_for_price = True
                 updated_features.append(_("تواصل ليصلك عرض سعر"))

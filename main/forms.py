@@ -458,7 +458,7 @@ class ClassifiedAdForm(forms.ModelForm):
 
         # Remove leading zeros and country codes
         mobile_number = mobile_number.lstrip("0")
-        
+
         # Common country codes to remove
         country_codes = ["20", "966", "971", "965", "974", "973", "968", "962"]
         for code in country_codes:
@@ -552,31 +552,49 @@ class ClassifiedAdForm(forms.ModelForm):
         return mobile_number
 
     def clean(self):
-        """Validate that mobile number is verified for new ads"""
+        """Validate mobile verification and check for duplicate ads."""
         cleaned_data = super().clean()
         mobile_number = cleaned_data.get("mobile_number")
 
         if mobile_number and self.user:
-            # Check if this is a new ad (not editing existing one)
+            # Only validate for new ads, not edits
             if not self.instance.pk:
-                # Check if mobile verification is required
                 from content.site_config import SiteConfiguration
 
                 site_config = SiteConfiguration.get_solo()
 
-                # Only check verification if it's enabled in settings
                 if site_config.require_phone_verification:
-                    # Check if user's mobile is verified
                     if not self.user.is_mobile_verified:
                         raise forms.ValidationError({
                             'mobile_number': _("يجب التحقق من رقم الجوال قبل نشر الإعلان")
                         })
 
-                    # Also check if the mobile number matches the verified one
                     if self.user.mobile and str(self.user.mobile).replace(' ', '') != mobile_number.replace(' ', ''):
                         raise forms.ValidationError({
                             'mobile_number': _("رقم الجوال يجب أن يطابق رقم الجوال المسجل والموثق في حسابك")
                         })
+
+        # ---- Duplicate ad detection ----
+        title = cleaned_data.get("title")
+        if title and self.user and not self.instance.pk:
+            from django.utils import timezone as _tz
+            from datetime import timedelta
+
+            cutoff = _tz.now() - timedelta(hours=24)
+            duplicate_qs = ClassifiedAd.objects.filter(
+                user=self.user,
+                title__iexact=title.strip(),
+                created_at__gte=cutoff,
+            ).exclude(status=ClassifiedAd.AdStatus.REJECTED)
+
+            if duplicate_qs.exists():
+                dup = duplicate_qs.first()
+                raise forms.ValidationError(
+                    _(
+                        "يبدو أن لديك إعلاناً مشابهاً بعنوان \"%(title)s\" تم نشره خلال الـ 24 ساعة الماضية. "
+                        "يرجى تعديل إعلانك الحالي بدلاً من نشر إعلان مكرر، أو الانتظار 24 ساعة."
+                    ) % {"title": dup.title}
+                )
 
         return cleaned_data
 
@@ -1157,6 +1175,7 @@ class AdminClassifiedAdForm(forms.ModelForm):
             "is_urgent",
             "is_pinned",
             "contact_for_price",
+            "auto_refresh",
         ]
         widgets = {
             "title": forms.TextInput(attrs={"class": "form-control"}),
@@ -1173,6 +1192,7 @@ class AdminClassifiedAdForm(forms.ModelForm):
             "contact_for_price": forms.CheckboxInput(
                 attrs={"class": "form-check-input"}
             ),
+            "auto_refresh": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
 
     def __init__(self, *args, **kwargs):

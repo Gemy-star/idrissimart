@@ -45,6 +45,8 @@ from .models import (
     UserSubscription,
     UserVerificationRequest,
     Visitor,
+    Wishlist,
+    WishlistItem,
 )
 
 
@@ -192,6 +194,7 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
         "is_urgent",
         "is_pinned",
         "contact_for_price",
+        "auto_refresh",
         "is_hidden",
         "cart_enabled_by_admin",
         "created_at",
@@ -212,6 +215,7 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
         "is_highlighted",
         "is_pinned",
         "contact_for_price",
+        "auto_refresh",
         "hide_price",
         "price_on_request",
     )
@@ -242,29 +246,49 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
     }
 
     def approve_ads(self, request, queryset):
-        """Approve selected ads"""
+        """Approve selected ads and notify owners"""
         from django.utils import timezone
+        from .models import Notification
 
-        updated = queryset.update(
-            status=ClassifiedAd.AdStatus.ACTIVE,
-            reviewed_by=request.user,
-            reviewed_at=timezone.now(),
-            is_resubmitted=False,
-        )
-        self.message_user(request, _("{} إعلان تم قبوله بنجاح").format(updated))
+        count = 0
+        for ad in queryset.select_related("user"):
+            ad.status = ClassifiedAd.AdStatus.ACTIVE
+            ad.reviewed_by = request.user
+            ad.reviewed_at = timezone.now()
+            ad.is_resubmitted = False
+            ad.save(update_fields=["status", "reviewed_by", "reviewed_at", "is_resubmitted"])
+            Notification.objects.create(
+                user=ad.user,
+                notification_type=Notification.NotificationType.AD_APPROVED,
+                title=_("تم قبول إعلانك"),
+                message=_("تمت مراجعة إعلانك '{}' وقبوله. يمكنك الآن مشاهدته منشوراً.").format(ad.title),
+                link=ad.get_absolute_url(),
+            )
+            count += 1
+        self.message_user(request, _("{} إعلان تم قبوله بنجاح").format(count))
 
     approve_ads.short_description = _("قبول الإعلانات المحددة")
 
     def reject_ads(self, request, queryset):
-        """Reject selected ads"""
+        """Reject selected ads and notify owners"""
         from django.utils import timezone
+        from .models import Notification
 
-        updated = queryset.update(
-            status=ClassifiedAd.AdStatus.REJECTED,
-            reviewed_by=request.user,
-            reviewed_at=timezone.now(),
-        )
-        self.message_user(request, _("{} إعلان تم رفضه").format(updated))
+        count = 0
+        for ad in queryset.select_related("user"):
+            ad.status = ClassifiedAd.AdStatus.REJECTED
+            ad.reviewed_by = request.user
+            ad.reviewed_at = timezone.now()
+            ad.save(update_fields=["status", "reviewed_by", "reviewed_at"])
+            Notification.objects.create(
+                user=ad.user,
+                notification_type=Notification.NotificationType.AD_REJECTED,
+                title=_("تم رفض إعلانك"),
+                message=_("تمت مراجعة إعلانك '{}' ورفضه. يرجى التواصل مع الإدارة لمعرفة السبب.").format(ad.title),
+                link=ad.get_absolute_url(),
+            )
+            count += 1
+        self.message_user(request, _("{} إعلان تم رفضه").format(count))
 
     reject_ads.short_description = _("رفض الإعلانات المحددة")
 
@@ -463,6 +487,7 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
                     "is_highlighted",
                     "is_pinned",
                     "contact_for_price",
+                    "auto_refresh",
                     "video_url",
                     "video_file",
                     "is_cart_enabled",
@@ -547,6 +572,8 @@ class AdPackageAdmin(admin.ModelAdmin):
                     "feature_pinned_price",
                     "feature_urgent_price",
                     "feature_highlighted_price",
+                    "feature_auto_refresh_price",
+                    "feature_add_video_price",
                 ),
                 "classes": ("collapse",),
             },
@@ -1005,10 +1032,54 @@ class SavedSearchAdmin(admin.ModelAdmin):
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
-    list_display = ("user", "message", "is_read", "created_at")
-    list_filter = ("is_read", "created_at")
-    search_fields = ("user__username", "message")
+    list_display = (
+        "user",
+        "title",
+        "notification_type_badge",
+        "short_message",
+        "is_read",
+        "created_at",
+    )
+    list_filter = ("is_read", "notification_type", "created_at")
+    search_fields = ("user__username", "user__email", "title", "message")
     list_editable = ("is_read",)
+    ordering = ("-created_at",)
+    readonly_fields = ("created_at",)
+    date_hierarchy = "created_at"
+    list_per_page = 50
+    actions = ["mark_as_read", "mark_as_unread"]
+
+    def short_message(self, obj):
+        return obj.message[:80] + "…" if len(obj.message) > 80 else obj.message
+    short_message.short_description = _("الرسالة")
+
+    def notification_type_badge(self, obj):
+        colors = {
+            "general": "#6c757d",
+            "ad_approved": "#28a745",
+            "ad_rejected": "#dc3545",
+            "ad_expired": "#fd7e14",
+            "package_expired": "#e83e8c",
+            "saved_search": "#17a2b8",
+        }
+        color = colors.get(obj.notification_type, "#6c757d")
+        label = obj.get_notification_type_display()
+        return format_html(
+            '<span style="background:{};color:#fff;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600">{}</span>',
+            color,
+            label,
+        )
+    notification_type_badge.short_description = _("النوع")
+
+    @admin.action(description=_("تحديد كمقروءة"))
+    def mark_as_read(self, request, queryset):
+        updated = queryset.update(is_read=True)
+        self.message_user(request, _(f"تم تحديد {updated} إشعار كمقروء."))
+
+    @admin.action(description=_("تحديد كغير مقروءة"))
+    def mark_as_unread(self, request, queryset):
+        updated = queryset.update(is_read=False)
+        self.message_user(request, _(f"تم تحديد {updated} إشعار كغير مقروء."))
 
 
 @admin.register(ContactMessage)
@@ -2405,27 +2476,170 @@ class OrderAdmin(admin.ModelAdmin):
     )
 
 
+class CartItemInline(admin.TabularInline):
+    model = CartItem
+    extra = 0
+    readonly_fields = ("ad", "quantity", "get_total_price_display", "added_at")
+    fields = ("ad", "quantity", "get_total_price_display", "added_at")
+    can_delete = True
+
+    def get_total_price_display(self, obj):
+        try:
+            from main.templatetags.idrissimart_tags import CURRENCY_SYMBOLS
+            currency = obj.ad.country.currency if obj.ad and obj.ad.country else "SAR"
+            symbol = CURRENCY_SYMBOLS.get(currency, currency)
+            return f"{obj.get_total_price()} {symbol}"
+        except Exception:
+            return obj.get_total_price()
+    get_total_price_display.short_description = _("المجموع")
+
+
 @admin.register(Cart)
 class CartAdmin(admin.ModelAdmin):
-    list_display = ("user", "get_items_count", "get_total_amount", "updated_at")
-    search_fields = ("user__username",)
+    list_display = (
+        "user",
+        "items_count_badge",
+        "total_amount_display",
+        "created_at",
+        "updated_at",
+    )
+    search_fields = ("user__username", "user__email")
+    list_filter = ("created_at", "updated_at")
     readonly_fields = ("created_at", "updated_at")
+    ordering = ("-updated_at",)
+    inlines = [CartItemInline]
+    date_hierarchy = "created_at"
+
+    def items_count_badge(self, obj):
+        count = obj.get_items_count()
+        color = "#28a745" if count > 0 else "#6c757d"
+        return format_html(
+            '<span style="background:{};color:#fff;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600">{}</span>',
+            color, count,
+        )
+    items_count_badge.short_description = _("العناصر")
+
+    def total_amount_display(self, obj):
+        total = obj.get_total_amount()
+        return format_html('<strong style="color:#28a745">{}</strong>', total)
+    total_amount_display.short_description = _("الإجمالي")
 
 
 @admin.register(CartItem)
 class CartItemAdmin(admin.ModelAdmin):
-    list_display = ("cart", "ad", "quantity", "get_total_price", "added_at")
+    list_display = (
+        "cart_user",
+        "ad",
+        "quantity",
+        "total_price_display",
+        "added_at",
+    )
     list_filter = ("added_at",)
-    search_fields = ("cart__user__username", "ad__title")
+    search_fields = ("cart__user__username", "cart__user__email", "ad__title")
     readonly_fields = ("added_at",)
+    ordering = ("-added_at",)
+    date_hierarchy = "added_at"
 
-    def get_total_price(self, obj):
-        from main.templatetags.idrissimart_tags import CURRENCY_SYMBOLS
-        currency = obj.ad.country.currency if obj.ad and obj.ad.country else "SAR"
-        currency_symbol = CURRENCY_SYMBOLS.get(currency, currency)
-        return f"{obj.get_total_price()} {currency_symbol}"
+    def cart_user(self, obj):
+        return obj.cart.user.username
+    cart_user.short_description = _("المستخدم")
+    cart_user.admin_order_field = "cart__user__username"
 
-    get_total_price.short_description = "المجموع"
+    def total_price_display(self, obj):
+        try:
+            from main.templatetags.idrissimart_tags import CURRENCY_SYMBOLS
+            currency = obj.ad.country.currency if obj.ad and obj.ad.country else "SAR"
+            symbol = CURRENCY_SYMBOLS.get(currency, currency)
+            return f"{obj.get_total_price()} {symbol}"
+        except Exception:
+            return obj.get_total_price()
+    total_price_display.short_description = _("المجموع")
+
+
+# ─── Wishlist ────────────────────────────────────────────────────────────────
+
+class WishlistItemInline(admin.TabularInline):
+    model = WishlistItem
+    extra = 0
+    readonly_fields = ("ad", "ad_status", "added_at")
+    fields = ("ad", "ad_status", "added_at")
+    can_delete = True
+
+    def ad_status(self, obj):
+        if not obj.ad:
+            return "-"
+        status = obj.ad.status
+        colors = {
+            "active": "#28a745",
+            "pending": "#fd7e14",
+            "rejected": "#dc3545",
+            "expired": "#6c757d",
+        }
+        color = colors.get(status, "#6c757d")
+        return format_html(
+            '<span style="background:{};color:#fff;padding:2px 7px;border-radius:10px;font-size:11px">{}</span>',
+            color, obj.ad.get_status_display(),
+        )
+    ad_status.short_description = _("حالة الإعلان")
+
+
+@admin.register(Wishlist)
+class WishlistAdmin(admin.ModelAdmin):
+    list_display = ("user", "user_email", "items_count_badge", "created_at", "updated_at")
+    search_fields = ("user__username", "user__email")
+    readonly_fields = ("created_at", "updated_at")
+    ordering = ("-updated_at",)
+    inlines = [WishlistItemInline]
+    date_hierarchy = "created_at"
+
+    def user_email(self, obj):
+        return obj.user.email
+    user_email.short_description = _("البريد الإلكتروني")
+    user_email.admin_order_field = "user__email"
+
+    def items_count_badge(self, obj):
+        count = obj.get_items_count()
+        color = "#4b315e" if count > 0 else "#6c757d"
+        return format_html(
+            '<span style="background:{};color:#fff;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600">{}</span>',
+            color, count,
+        )
+    items_count_badge.short_description = _("المحفوظات")
+
+
+@admin.register(WishlistItem)
+class WishlistItemAdmin(admin.ModelAdmin):
+    list_display = ("wishlist_user", "ad", "ad_status_badge", "added_at")
+    list_filter = ("added_at",)
+    search_fields = (
+        "wishlist__user__username",
+        "wishlist__user__email",
+        "ad__title",
+    )
+    readonly_fields = ("added_at",)
+    ordering = ("-added_at",)
+    date_hierarchy = "added_at"
+
+    def wishlist_user(self, obj):
+        return obj.wishlist.user.username
+    wishlist_user.short_description = _("المستخدم")
+    wishlist_user.admin_order_field = "wishlist__user__username"
+
+    def ad_status_badge(self, obj):
+        if not obj.ad:
+            return "-"
+        colors = {
+            "active": "#28a745",
+            "pending": "#fd7e14",
+            "rejected": "#dc3545",
+            "expired": "#6c757d",
+        }
+        color = colors.get(obj.ad.status, "#6c757d")
+        return format_html(
+            '<span style="background:{};color:#fff;padding:2px 7px;border-radius:10px;font-size:11px">{}</span>',
+            color, obj.ad.get_status_display(),
+        )
+    ad_status_badge.short_description = _("حالة الإعلان")
 
 
 @admin.register(FAQCategory)

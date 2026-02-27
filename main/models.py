@@ -1629,6 +1629,11 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
         verbose_name=_("تواصل ليصلك عرض سعر"),
         help_text=_("إظهار 'تواصل ليصلك عرض سعر' بدلاً من السعر (ميزة مدفوعة)"),
     )
+    auto_refresh = models.BooleanField(
+        default=False,
+        verbose_name=_("تحديث تلقائي يومي"),
+        help_text=_("تحديث تاريخ الإعلان تلقائياً كل يوم لمدة 7 أيام (ميزة مدفوعة)"),
+    )
 
     # Video Features (Coming Soon)
     video_url = models.URLField(
@@ -1885,7 +1890,9 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
                 self.require_review = True
 
             # Staff/Superusers bypass approval
-            if self.user.is_staff or self.user.is_superuser:
+            # Staff/Superusers bypass approval — but NOT if status was explicitly set to DRAFT
+            # (DRAFT means the ad is going through the payment flow and must not be auto-activated)
+            if self.status != self.AdStatus.DRAFT and (self.user.is_staff or self.user.is_superuser):
                 self.status = self.AdStatus.ACTIVE
                 self.reviewed_at = timezone.now()
                 self.require_review = False
@@ -2789,6 +2796,20 @@ class AdPackage(models.Model):
         default=0,
         verbose_name=_("سعر ميزة 'تواصل ليصلك عرض سعر'"),
         help_text=_("سعر إضافي لإخفاء السعر وعرض زر 'تواصل ليصلك عرض سعر'"),
+    )
+    feature_auto_refresh_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=35,
+        verbose_name=_("سعر التحديث التلقائي"),
+        help_text=_("سعر إضافي لتفعيل التحديث التلقائي اليومي للإعلان"),
+    )
+    feature_add_video_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=25,
+        verbose_name=_("سعر إضافة فيديو"),
+        help_text=_("سعر إضافي لإرفاق فيديو بالإعلان"),
     )
 
     # Status flags - خطة نشطة او لا - موصي بها او لا

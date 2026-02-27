@@ -721,7 +721,7 @@ def set_country(request):
         # Optional: Store in user model if authenticated
         if request.user.is_authenticated:
             try:
-                request.user.country = country_code
+                request.user.country = country
                 request.user.save(update_fields=["country"])
             except Exception as e:
                 # Log but don't fail the request
@@ -7118,7 +7118,7 @@ class ChatWithPublisherView(LoginRequiredMixin, TemplateView):
             messages.warning(
                 self.request, _("You cannot chat with yourself about your own ad.")
             )
-            return redirect("main:ad_detail", pk=ad_id)
+            return redirect("main:ad_detail", slug=ad.slug)
 
         # TODO: Get or create chat room
         # from .models import ChatRoom, AdReport
