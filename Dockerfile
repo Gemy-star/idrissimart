@@ -53,7 +53,42 @@ COPY pyproject.toml poetry.lock* ./
 RUN poetry config virtualenvs.create false \
     && poetry install --only main --no-root --no-interaction --no-ansi
 
-# Stage 3: Production image
+# Stage 3: Development image
+FROM base AS development
+
+# Set work directory
+WORKDIR /app
+
+# Copy Poetry installation from base
+COPY --from=base /opt/poetry /opt/poetry
+ENV PATH="/opt/poetry/bin:$PATH"
+
+# Copy dependency files
+COPY pyproject.toml poetry.lock* ./
+
+# Install ALL dependencies including dev dependencies
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-root --no-interaction --no-ansi
+
+# Install additional development tools
+RUN pip install --no-cache-dir \
+    django-debug-toolbar \
+    ipython \
+    ipdb
+
+# Copy application code
+COPY . /app/
+
+# Create necessary directories
+RUN mkdir -p /app/staticfiles /app/media /app/logs
+
+# Expose ports
+EXPOSE 8000 8001
+
+# Default command for development (with auto-reload)
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+
+# Stage 4: Production image
 FROM base AS production
 
 # Create app user

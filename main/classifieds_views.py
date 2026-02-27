@@ -2240,9 +2240,7 @@ def get_category_custom_fields(request, category_id):
         )
 
     except Category.DoesNotExist:
-        return JsonResponse(
-            {"success": False, "error": "Category not found"}, status=404
-        )
+        return JsonResponse({"success": True, "html": "", "has_fields": False})
 
 
 # ========== Publisher Ad Management Actions ==========

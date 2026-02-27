@@ -1,0 +1,132 @@
+# =============================================================================
+# Makefile for Idrissimart Development with Docker
+# =============================================================================
+
+.PHONY: help build up down restart logs shell migrate makemigrations collectstatic test clean
+
+# Colors for output
+BLUE := \033[0;34m
+GREEN := \033[0;32m
+YELLOW := \033[0;33m
+RED := \033[0;31m
+NC := \033[0m # No Color
+
+help: ## Show this help message
+	@echo "$(BLUE)Idrissimart Development Commands$(NC)"
+	@echo ""
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "$(GREEN)%-20s$(NC) %s\n", $$1, $$2}'
+
+build: ## Build Docker images for development
+	@echo "$(BLUE)Building development images...$(NC)"
+	docker-compose build --no-cache
+
+up: ## Start all services
+	@echo "$(GREEN)Starting development environment...$(NC)"
+	docker-compose up -d
+	@echo "$(GREEN)Services started!$(NC)"
+	@echo "Web: http://localhost:8000"
+	@echo "Email UI: http://localhost:3100"
+
+down: ## Stop all services
+	@echo "$(YELLOW)Stopping services...$(NC)"
+	docker-compose down
+
+restart: ## Restart all services
+	@echo "$(YELLOW)Restarting services...$(NC)"
+	docker-compose restart
+
+logs: ## Show logs from all services
+	docker-compose logs -f
+
+logs-web: ## Show logs from web service
+	docker-compose logs -f web
+
+logs-db: ## Show logs from database
+	docker-compose logs -f db
+
+logs-qcluster: ## Show logs from Django-Q cluster
+	docker-compose logs -f qcluster
+
+shell: ## Open Django shell
+	docker-compose exec web python manage.py shell
+
+bash: ## Open bash in web container
+	docker-compose exec web bash
+
+db-shell: ## Open database shell
+	docker-compose exec db mysql -u idrissimart_user -pidrissimart_password idrissimart
+
+migrate: ## Run database migrations
+	@echo "$(BLUE)Running migrations...$(NC)"
+	docker-compose exec web python manage.py migrate
+
+makemigrations: ## Create new migrations
+	@echo "$(BLUE)Creating migrations...$(NC)"
+	docker-compose exec web python manage.py makemigrations
+
+collectstatic: ## Collect static files
+	@echo "$(BLUE)Collecting static files...$(NC)"
+	docker-compose exec web python manage.py collectstatic --noinput --clear
+
+test: ## Run tests
+	@echo "$(BLUE)Running tests...$(NC)"
+	docker-compose exec web python manage.py test
+
+createsuperuser: ## Create superuser
+	docker-compose exec web python manage.py createsuperuser
+
+check: ## Run Django system checks
+	docker-compose exec web python manage.py check
+
+fresh: ## Fresh start - rebuild and restart everything
+	@echo "$(RED)Performing fresh restart...$(NC)"
+	docker-compose down -v
+	docker-compose build --no-cache
+	docker-compose up -d
+	@echo "$(GREEN)Waiting for services to be ready...$(NC)"
+	sleep 10
+	docker-compose exec web python manage.py migrate
+	docker-compose exec web python manage.py collectstatic --noinput --clear
+	@echo "$(GREEN)Fresh start complete!$(NC)"
+
+clean: ## Remove all containers, volumes, and images
+	@echo "$(RED)Cleaning up Docker resources...$(NC)"
+	docker-compose down -v --rmi all
+	@echo "$(GREEN)Cleanup complete!$(NC)"
+
+ps: ## Show running containers
+	docker-compose ps
+
+stats: ## Show container resource usage
+	docker stats
+
+install-packages: ## Install Python packages (usage: make install-packages PACKAGES="package1 package2")
+	docker-compose exec web poetry add $(PACKAGES)
+
+update-packages: ## Update all Python packages
+	docker-compose exec web poetry update
+
+backup-db: ## Backup database
+	@echo "$(BLUE)Backing up database...$(NC)"
+	docker-compose exec db mysqldump -u idrissimart_user -pidrissimart_password idrissimart > backup_$$(date +%Y%m%d_%H%M%S).sql
+	@echo "$(GREEN)Database backed up!$(NC)"
+
+restore-db: ## Restore database (usage: make restore-db FILE=backup.sql)
+	@echo "$(YELLOW)Restoring database from $(FILE)...$(NC)"
+	docker-compose exec -T db mysql -u idrissimart_user -pidrissimart_password idrissimart < $(FILE)
+	@echo "$(GREEN)Database restored!$(NC)"
+
+redis-cli: ## Open Redis CLI
+	docker-compose exec redis redis-cli -a redispassword
+
+setup: ## Initial setup for development
+	@echo "$(BLUE)Setting up development environment...$(NC)"
+	cp .env.development .env || true
+	docker-compose build
+	docker-compose up -d
+	@echo "$(YELLOW)Waiting for services to start...$(NC)"
+	sleep 15
+	docker-compose exec web python manage.py migrate
+	docker-compose exec web python manage.py collectstatic --noinput --clear
+	@echo "$(GREEN)Setup complete!$(NC)"
+	@echo "Create a superuser with: make createsuperuser"

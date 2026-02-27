@@ -1,0 +1,126 @@
+{
+  "name": "Idrissimart Development",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "web",
+  "workspaceFolder": "/app",
+  
+  // Set environment variables
+  "remoteEnv": {
+    "DJANGO_SETTINGS_MODULE": "idrissimart.settings.local"
+  },
+
+  // Forward ports
+  "forwardPorts": [
+    8000,  // Django dev server
+    8001,  // Daphne (WebSockets)
+    3306,  // MariaDB
+    6379,  // Redis
+    3100   // SMTP4Dev UI
+  ],
+
+  // Port labels
+  "portsAttributes": {
+    "8000": {
+      "label": "Django Web",
+      "onAutoForward": "notify"
+    },
+    "8001": {
+      "label": "WebSocket (Daphne)",
+      "onAutoForward": "silent"
+    },
+    "3100": {
+      "label": "Email UI (SMTP4Dev)",
+      "onAutoForward": "silent"
+    }
+  },
+
+  // VS Code customizations
+  "customizations": {
+    "vscode": {
+      // Extensions to install
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.black-formatter",
+        "ms-python.isort",
+        "ms-python.flake8",
+        "batisteo.vscode-django",
+        "wholroyd.jinja",
+        "mtxr.sqltools",
+        "mtxr.sqltools-driver-mysql",
+        "redhat.vscode-yaml",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "formulahendry.auto-close-tag",
+        "formulahendry.auto-rename-tag",
+        "christian-kohler.path-intellisense",
+        "visualstudioexptteam.vscodeintellicode",
+        "eamodio.gitlens",
+        "streetsidesoftware.code-spell-checker",
+        "tamasfe.even-better-toml"
+      ],
+      
+      // Settings
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": false,
+        "python.linting.flake8Enabled": true,
+        "python.formatting.provider": "none",
+        "[python]": {
+          "editor.defaultFormatter": "ms-python.black-formatter",
+          "editor.formatOnSave": true,
+          "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+          }
+        },
+        "isort.args": ["--profile", "black"],
+        "python.terminal.activateEnvironment": false,
+        "python.poetryPath": "/opt/poetry/bin/poetry",
+        "files.exclude": {
+          "**/__pycache__": true,
+          "**/*.pyc": true,
+          "**/.pytest_cache": true,
+          "**/.coverage": true,
+          "**/htmlcov": true,
+          "**/.mypy_cache": true
+        },
+        "files.watcherExclude": {
+          "**/__pycache__/**": true,
+          "**/node_modules/**": true,
+          "**/staticfiles/**": true
+        },
+        "emmet.includeLanguages": {
+          "django-html": "html",
+          "jinja-html": "html"
+        },
+        "files.associations": {
+          "**/*.html": "html",
+          "**/templates/**/*.html": "django-html",
+          "**/templates/**": "django-txt",
+          "**/requirements{/**,*}.{txt,in}": "pip-requirements"
+        },
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true,
+        "editor.rulers": [88, 120],
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true
+      }
+    }
+  },
+
+  // Run commands after container is created
+  "postCreateCommand": "poetry install && python manage.py migrate && python manage.py collectstatic --noinput --clear",
+
+  // Run commands when attaching to container
+  "postAttachCommand": "echo 'Dev Container Ready! Poetry installed. Run: python manage.py runserver 0.0.0.0:8000'",
+
+  // Use 'forwardPorts' to make a list of ports inside the container available locally
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {}
+  },
+
+  // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root
+  // "remoteUser": "root"
+  "remoteUser": "root"
+}

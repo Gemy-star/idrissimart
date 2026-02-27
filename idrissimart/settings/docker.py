@@ -137,12 +137,6 @@ LOGGING = {
         "verbose": {"format": "{levelname} {asctime} {module} {message}", "style": "{"},
     },
     "handlers": {
-        "file": {
-            "level": "INFO",
-            "class": "logging.FileHandler",
-            "filename": os.getenv("DJANGO_LOG_FILE", "/var/log/django/idrissimart.log"),
-            "formatter": "verbose",
-        },
         "console": {
             "level": "DEBUG",
             "class": "logging.StreamHandler",
@@ -150,35 +144,35 @@ LOGGING = {
         },
     },
     "root": {
-        "handlers": ["file", "console"],
+        "handlers": ["console"],
         "level": "INFO",
     },
     "loggers": {
-        "django": {"handlers": ["file", "console"], "level": "INFO", "propagate": True},
+        "django": {"handlers": ["console"], "level": "INFO", "propagate": True},
         "django.request": {
-            "handlers": ["file", "console"],
+            "handlers": ["console"],
             "level": "ERROR",
             "propagate": False,
             "filters": ["skip_disallowed_host"],
         },
         "django.db": {
-            "handlers": ["file", "console"],
+            "handlers": ["console"],
             "level": "WARNING",
             "propagate": False,
         },
         "main": {
-            "handlers": ["file", "console"],
+            "handlers": ["console"],
             "level": "ERROR",
             "propagate": False,
         },
         "content": {
-            "handlers": ["file", "console"],
+            "handlers": ["console"],
             "level": "ERROR",
             "propagate": False,
         },
         # Add more detailed logging for debugging
         "django.db.backends": {
-            "handlers": ["file", "console"],
+            "handlers": ["console"],
             "level": "DEBUG" if os.getenv("SQL_DEBUG") == "1" else "WARNING",
             "propagate": False,
         },

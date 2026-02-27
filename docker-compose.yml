@@ -1,6 +1,7 @@
 # =============================================================================
-# Docker Compose for Idrissimart Production Environment
-# Services: MariaDB, Redis, Gunicorn, Daphne, Django-Q, Nginx
+# Docker Compose for Idrissimart Development Environment
+# Services: MariaDB, Redis, Django Dev Server, Daphne, Django-Q, Nginx, SMTP4Dev
+# For production use: docker-compose -f docker-compose.prod.yml
 # =============================================================================
 
 services:
@@ -53,29 +54,18 @@ services:
       retries: 5
 
   # =============================================================================
-  # Application Service - Django with Gunicorn (HTTP)
+  # Application Service - Django Development Server (HTTP)
   # =============================================================================
   web:
     build:
       context: .
       dockerfile: Dockerfile
-      target: production
+      target: development
     container_name: idrissimart_web
     command: >
       sh -c "python manage.py migrate --noinput &&
-             python manage.py collectstatic --noinput &&
-             gunicorn idrissimart.wsgi:application
-             --bind 0.0.0.0:8000
-             --workers 4
-             --threads 2
-             --worker-class gthread
-             --timeout 120
-             --graceful-timeout 120
-             --max-requests 1000
-             --max-requests-jitter 50
-             --access-logfile -
-             --error-logfile -
-             --log-level info"
+             python manage.py collectstatic --noinput --clear &&
+             python manage.py runserver 0.0.0.0:8000"
     volumes:
       - ./:/app
       - static_volume:/app/staticfiles
@@ -91,7 +81,7 @@ services:
     env_file:
       - .env
     environment:
-      - DJANGO_SETTINGS_MODULE=idrissimart.settings.production
+      - DJANGO_SETTINGS_MODULE=idrissimart.settings.docker
       - DATABASE_URL=mysql://${DB_USER:-idrissimart_user}:${DB_PASSWORD:-idrissimart_password}@db:3306/${DB_NAME:-idrissimart}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-redispassword}@redis:6379/0
     networks:
@@ -111,7 +101,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: production
+      target: development
     container_name: idrissimart_daphne
     command: >
       daphne idrissimart.asgi:application
@@ -135,7 +125,7 @@ services:
     env_file:
       - .env
     environment:
-      - DJANGO_SETTINGS_MODULE=idrissimart.settings.production
+      - DJANGO_SETTINGS_MODULE=idrissimart.settings.local      
       - DATABASE_URL=mysql://${DB_USER:-idrissimart_user}:${DB_PASSWORD:-idrissimart_password}@db:3306/${DB_NAME:-idrissimart}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-redispassword}@redis:6379/0
     networks:
@@ -155,7 +145,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: production
+      target: development
     container_name: idrissimart_qcluster
     command: python manage.py qcluster
     volumes:
@@ -173,7 +163,7 @@ services:
     env_file:
       - .env
     environment:
-      - DJANGO_SETTINGS_MODULE=idrissimart.settings.production
+      - DJANGO_SETTINGS_MODULE=idrissimart.settings.local
       - DATABASE_URL=mysql://${DB_USER:-idrissimart_user}:${DB_PASSWORD:-idrissimart_password}@db:3306/${DB_NAME:-idrissimart}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-redispassword}@redis:6379/1
     networks:
