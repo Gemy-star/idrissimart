@@ -23,30 +23,38 @@
     /* ── Step bar ────────────────────────── */
     .step-bar {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: center;
         gap: 0;
         margin-bottom: 2rem;
+        max-width: 440px;
+        margin-inline: auto;
+        margin-bottom: 2rem;
     }
     .step-item {
+        flex: 1;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: .35rem;
+        gap: .4rem;
         position: relative;
     }
-    .step-item + .step-item::before {
+    /* Connector line: drawn as ::after on each step except the last.
+       In RTL flex, the next step is visually to the LEFT, so the line
+       extends LEFT from the center of the current step.
+       right: 50% → right edge of pseudo = center of this step
+       width: 100% → extends 100% of step-item width to the LEFT → lands on center of next step */
+    .step-item:not(:last-child)::after {
         content: '';
         position: absolute;
-        top: 18px;
-        right: 100%;
-        width: 80px;
+        top: 19px;
+        right: 50%;
+        width: 100%;
         height: 2px;
         background: var(--border);
-        margin-right: -40px;
+        z-index: 0;
     }
-    .step-item.done + .step-item::before,
-    .step-item.active + .step-item::before { background: var(--brand); }
+    .step-item.done:not(:last-child)::after { background: var(--brand); }
     .step-circle {
         width: 38px; height: 38px;
         border-radius: 50%;
@@ -55,6 +63,8 @@
         background: var(--border); color: #aaa;
         border: 2px solid var(--border);
         transition: all .3s;
+        position: relative;
+        z-index: 1;
     }
     .step-item.done .step-circle  { background: var(--brand); border-color: var(--brand); color: #fff; }
     .step-item.active .step-circle { background: var(--brand); border-color: var(--brand); color: #fff;
@@ -64,7 +74,6 @@
     .step-item.active .step-label { color: var(--brand); }
 
     @media (max-width: 576px) {
-        .step-item + .step-item::before { width: 40px; margin-right: -20px; }
         .step-label { font-size: .65rem; }
     }
 
@@ -822,7 +831,7 @@
                                 <div class="pay-info-row">
                                     <i class="fas fa-money-bill-wave text-muted"></i>
                                     <span>{% trans "المبلغ المطلوب:" %}</span>
-                                    <span class="pay-amount-badge">{{ final_total|floatformat:"-2" }} USD</span>
+                                    <span class="pay-amount-badge">{{ final_total|floatformat:"-2" }} {{ selected_currency }}</span>
                                 </div>
                                 <div class="pay-info-row" style="font-size:.82rem;color:#6b7280;">
                                     <i class="fas fa-shield-alt me-1"></i>
