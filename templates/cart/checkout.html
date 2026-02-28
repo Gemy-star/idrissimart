@@ -832,20 +832,24 @@
                         </div>
                         {% endif %}
 
-                        <!-- Online payment panel -->
+                        <!-- Online payment panel (Paymob) -->
                         {% if site_config.allow_online_payment %}
                         <div id="onlinePaymentNote" class="pay-panel" style="display:none;">
                             <div class="pay-panel-header">
                                 <i class="fas fa-credit-card"></i>
-                                {% trans "الدفع الإلكتروني" %}
+                                {% trans "الدفع عبر Paymob" %}
                             </div>
                             <div class="pay-panel-body">
-                                {% if not site_config.allow_offline_payment %}
                                 <p class="text-muted mb-3" style="font-size:.9rem;">
                                     <i class="fas fa-info-circle me-1"></i>
-                                    {% trans "سيتم تحويلك لبوابة الدفع الإلكتروني لإتمام العملية" %}
+                                    {% trans "سيتم تحويلك لبوابة Paymob لإتمام الدفع ببطاقتك الائتمانية" %}
                                 </p>
-                                <div class="payment-sub-options">
+                                <div class="pay-info-row">
+                                    <i class="fas fa-money-bill-wave text-muted"></i>
+                                    <span>{% trans "المبلغ المطلوب:" %}</span>
+                                    <span class="pay-amount-badge">{{ final_total|floatformat:"-2" }} {{ selected_currency }}</span>
+                                </div>
+                                <div class="payment-sub-options mt-2">
                                     <label class="sub-radio">
                                         <input type="radio" name="payment_option" value="default" checked>
                                         <label><i class="fas fa-credit-card me-2"></i>{% trans "الدفع الإلكتروني (الافتراضي)" %}</label>
@@ -859,25 +863,6 @@
                                         <label><i class="fab fa-cc-mastercard me-2 text-warning"></i>{% trans "ماستركارد" %}</label>
                                     </label>
                                 </div>
-                                {% else %}
-                                <p class="text-muted mb-2" style="font-size:.9rem;">
-                                    {% trans "قم بمسح رمز QR ثم ارفع صورة الإيصال" %}
-                                </p>
-                                {% if site_config.instapay_qr_code %}
-                                <div class="qr-wrap">
-                                    <img src="{{ site_config.instapay_qr_code.url }}" alt="Payment QR Code">
-                                </div>
-                                {% endif %}
-                                <div class="upload-zone" id="onlineZone">
-                                    <input type="file" id="onlineTransactionPhoto" name="transaction_photo"
-                                           accept="image/*" required
-                                           onchange="previewFile(this,'onlineZone','onlinePreview')">
-                                    <div class="upload-icon"><i class="fas fa-camera"></i></div>
-                                    <div class="upload-title">{% trans "ارفع صورة إيصال التحويل" %}</div>
-                                    <div class="upload-sub">{% trans "مطلوب لتأكيد الدفع" %}</div>
-                                </div>
-                                <div id="onlinePreview" class="upload-preview text-center"></div>
-                                {% endif %}
                             </div>
                         </div>
                         {% endif %}
@@ -1150,13 +1135,6 @@ function placeOrder() {
     const paymentMethod = document.querySelector('input[name="payment_method"]:checked')?.value;
     if (!paymentMethod) { showToast('{% trans "يرجى اختيار طريقة الدفع" %}', 'warning'); return; }
 
-    {% if site_config.allow_offline_payment %}
-    if (paymentMethod === 'online') {
-        const p = document.getElementById('onlineTransactionPhoto');
-        if (!p || !p.files || !p.files[0]) { showToast('{% trans "يرجى تحميل صورة إيصال التحويل" %}', 'warning'); return; }
-    }
-    {% endif %}
-
     if (paymentMethod === 'instapay') {
         const p = document.getElementById('instapayTransactionPhoto');
         if (!p || !p.files || !p.files[0]) { showToast('{% trans "يرجى تحميل صورة إيصال InstaPay" %}', 'warning'); return; }
@@ -1185,11 +1163,6 @@ function placeOrder() {
     } else if (paymentMethod === 'wallet') {
         const p = document.getElementById('walletTransactionPhoto');
         if (p && p.files[0]) formData.append('transaction_photo', p.files[0]);
-    } else if (paymentMethod === 'online') {
-        {% if site_config.allow_offline_payment %}
-        const p = document.getElementById('onlineTransactionPhoto');
-        if (p && p.files[0]) formData.append('transaction_photo', p.files[0]);
-        {% endif %}
     }
 
     fetch("{% url 'main:checkout' %}", {
