@@ -1114,19 +1114,6 @@ class Category(MPTTModel):
         validators=[MinValueValidator(0)],
     )
 
-    # Suggested Ad Price
-    suggested_ad_price = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        verbose_name=_("السعر المقترح للإعلان"),
-        help_text=_(
-            "السعر المقترح أو النموذجي للإعلانات في هذا القسم (اختياري)"
-        ),
-        validators=[MinValueValidator(0)],
-    )
-
     order = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
 
@@ -1270,35 +1257,16 @@ class Category(MPTTModel):
             return self.parent.get_effective_ad_creation_price()
         return Decimal('0.00')
 
-    def get_effective_suggested_ad_price(self):
-        """
-        Get the effective suggested ad price.
-        If not set for this category, inherit from parent.
-        Returns Decimal value or None.
-        """
-        if self.suggested_ad_price and self.suggested_ad_price > 0:
-            return self.suggested_ad_price
-        elif self.parent:
-            return self.parent.get_effective_suggested_ad_price()
-        return None
-
     def has_own_ad_creation_price(self):
         """Check if this category has its own ad creation price set"""
         return bool(self.ad_creation_price and self.ad_creation_price > 0)
 
-    def has_own_suggested_ad_price(self):
-        """Check if this category has its own suggested ad price set"""
-        return bool(self.suggested_ad_price and self.suggested_ad_price > 0)
-
     def is_price_inherited(self, price_type='ad_creation'):
         """
         Check if the price is inherited from parent.
-        price_type: 'ad_creation' or 'suggested'
         """
         if price_type == 'ad_creation':
             return not self.has_own_ad_creation_price() and self.parent is not None
-        elif price_type == 'suggested':
-            return not self.has_own_suggested_ad_price() and self.parent is not None
         return False
 
     def get_price_source(self, price_type='ad_creation'):
@@ -1311,11 +1279,6 @@ class Category(MPTTModel):
                 return self
             elif self.parent:
                 return self.parent.get_price_source('ad_creation')
-        elif price_type == 'suggested':
-            if self.has_own_suggested_ad_price():
-                return self
-            elif self.parent:
-                return self.parent.get_price_source('suggested')
         return None
 
 

@@ -1130,20 +1130,6 @@
                                     {% endwith %}
                                     {% endif %}
                                 {% endwith %}
-                                {% with effective_suggested=category.get_effective_suggested_ad_price %}
-                                    {% if effective_suggested %}
-                                    {% with is_inherited_sugg=category|has_suggested_price_inherited price_source_sugg=category|get_suggested_price_source %}
-                                    <span class="cc-badge b-amber{% if is_inherited_sugg %} inherited{% endif %}"
-                                          {% if is_inherited_sugg and price_source_sugg %}
-                                          data-bs-toggle="tooltip"
-                                          title="{% trans 'موروث من' %}: {% if LANGUAGE_CODE == 'ar' and price_source_sugg.name_ar %}{{ price_source_sugg.name_ar }}{% else %}{{ price_source_sugg.name }}{% endif %}"
-                                          {% endif %}>
-                                        <i class="fas fa-{% if is_inherited_sugg %}arrow-up{% else %}tag{% endif %}"></i>
-                                        {{ effective_suggested|floatformat:2 }}
-                                    </span>
-                                    {% endwith %}
-                                    {% endif %}
-                                {% endwith %}
                             </div>
                         </div>
                     </div>
@@ -1282,30 +1268,16 @@
 
                     <!-- Settings Tab -->
                     <div class="lang-pane" id="tab-settings">
-                        <div class="price-grid">
-                            <div class="fgroup">
-                                <label class="flabel" for="adCreationPrice">{% trans "سعر نشر الإعلان" %}</label>
-                                <div class="finput-prefix">
-                                    <i class="fas fa-dollar-sign prefix-icon"></i>
-                                    <input type="number" class="finput" id="adCreationPrice" name="ad_creation_price" step="0.01" min="0" value="0.00">
-                                </div>
-                                <span class="fhint">{% trans "اترك 0 للنشر المجاني" %}</span>
-                                <div class="inherit-info" id="adCreationPriceInheritInfo">
-                                    <i class="fas fa-info-circle"></i>
-                                    <span id="adCreationPriceInheritText"></span>
-                                </div>
+                        <div class="fgroup">
+                            <label class="flabel" for="adCreationPrice">{% trans "سعر نشر الإعلان" %}</label>
+                            <div class="finput-prefix">
+                                <i class="fas fa-dollar-sign prefix-icon"></i>
+                                <input type="number" class="finput" id="adCreationPrice" name="ad_creation_price" step="0.01" min="0" value="0.00">
                             </div>
-                            <div class="fgroup">
-                                <label class="flabel" for="suggestedAdPrice">{% trans "السعر المقترح للإعلان" %}</label>
-                                <div class="finput-prefix">
-                                    <i class="fas fa-tag prefix-icon"></i>
-                                    <input type="number" class="finput" id="suggestedAdPrice" name="suggested_ad_price" step="0.01" min="0" placeholder="0.00">
-                                </div>
-                                <span class="fhint">{% trans "اختياري - السعر النموذجي" %}</span>
-                                <div class="inherit-info" id="suggestedAdPriceInheritInfo">
-                                    <i class="fas fa-info-circle"></i>
-                                    <span id="suggestedAdPriceInheritText"></span>
-                                </div>
+                            <span class="fhint">{% trans "اترك 0 للنشر المجاني" %}</span>
+                            <div class="inherit-info" id="adCreationPriceInheritInfo">
+                                <i class="fas fa-info-circle"></i>
+                                <span id="adCreationPriceInheritText"></span>
                             </div>
                         </div>
 
@@ -1511,7 +1483,7 @@ function resetCategoryModal() {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
-    ['adCreationPriceInheritInfo','suggestedAdPriceInheritInfo'].forEach(id => {
+    ['adCreationPriceInheritInfo'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.remove('show');
     });
@@ -1546,7 +1518,6 @@ function editCategory(id) {
             setVal('parentId',         cat.parent_id);
             setVal('sectionType',      cat.section_type);
             setVal('adCreationPrice',  cat.ad_creation_price  || '0.00');
-            setVal('suggestedAdPrice', cat.suggested_ad_price || '');
             const allowCart = document.getElementById('allowCart');
             if (allowCart) allowCart.checked = !!cat.allow_cart;
 
@@ -1554,10 +1525,6 @@ function editCategory(id) {
             showInheritInfo('adCreationPriceInheritInfo', 'adCreationPriceInheritText',
                 cat.ad_creation_inherited && cat.effective_ad_creation_price > 0,
                 cat.effective_ad_creation_price, cat.ad_creation_source);
-
-            showInheritInfo('suggestedAdPriceInheritInfo', 'suggestedAdPriceInheritText',
-                cat.suggested_inherited && cat.effective_suggested_ad_price,
-                cat.effective_suggested_ad_price, cat.suggested_source);
 
             toggleAllowCartField();
             switchTab('ar');

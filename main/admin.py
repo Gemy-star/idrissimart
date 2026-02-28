@@ -109,7 +109,6 @@ class CategoryAdmin(MPTTModelAdmin):
             {
                 "fields": (
                     "ad_creation_price",
-                    "suggested_ad_price",
                 ),
                 "classes": ("collapse",),
             },
