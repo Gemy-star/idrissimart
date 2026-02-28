@@ -100,6 +100,55 @@ make -f Makefile.dev fresh
    - Web UI: Port 3100
    - SMTP: Port 2525
 
+## Django Settings Configuration
+
+The project uses different settings modules for different environments:
+
+### Settings Files Explained
+
+| Settings File | Purpose | Database | Redis | Debug | Use Case |
+|--------------|---------|----------|-------|-------|----------|
+| `local.py` | Native local development | SQLite | localhost:6379 | ON | Running Django locally without Docker |
+| `docker_local.py` | Docker development | MySQL (container) | redis:6379 | ON | **Docker development (recommended)** |
+| `docker.py` | Production | MySQL | redis:6379 | OFF | Production deployment |
+
+### Current Configuration
+
+The Docker development environment uses **`docker_local.py`** which:
+
+- ✅ Extends `local.py` for development-friendly settings
+- ✅ Uses MariaDB container (service name: `db`)
+- ✅ Uses Redis container (service name: `redis`)
+- ✅ Uses SMTP4Dev container for email testing
+- ✅ Enables DEBUG mode with detailed logging
+- ✅ Allows all hosts for easy development
+- ✅ Auto-reload enabled for code changes
+
+### Environment Variable
+
+Set in `.env` and `docker-compose.yml`:
+```env
+DJANGO_SETTINGS_MODULE=idrissimart.settings.docker_local
+```
+
+### When to Use Each Settings File
+
+**For Docker Development (Dev Containers, docker-compose):**
+```bash
+DJANGO_SETTINGS_MODULE=idrissimart.settings.docker_local
+```
+
+**For Native Local Development (No Docker):**
+```bash
+DJANGO_SETTINGS_MODULE=idrissimart.settings.local
+python manage.py runserver
+```
+
+**For Production:**
+```bash
+DJANGO_SETTINGS_MODULE=idrissimart.settings.docker
+```
+
 ## Key Differences from Production
 
 | Feature | Development | Production |
@@ -265,12 +314,20 @@ Key development environment variables in `.env`:
 
 ```env
 DEBUG=True
-DJANGO_SETTINGS_MODULE=idrissimart.settings.development
+DJANGO_SETTINGS_MODULE=idrissimart.settings.docker_local
 DB_HOST=db
+DB_NAME=idrissimart
+DB_USER=idrissimart_user
+DB_PASSWORD=idrissimart_password
 REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=redispassword
 EMAIL_HOST=smtp4dev
+EMAIL_PORT=25
 ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,web
 ```
+
+**Note:** The `docker_local.py` settings file reads these environment variables to configure the application for Docker development.
 
 ## Switching to Production
 
