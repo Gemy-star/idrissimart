@@ -877,10 +877,9 @@ def publisher_duplicate_ad(request, ad_id):
 def publisher_verification_status(request):
     """
     Publisher's verification request status page
-    Shows all verification requests and their status
+    Shows all verification requests, account checks, and their status
     """
     from main.models import UserVerificationRequest
-    from django.utils.translation import gettext as _
 
     user = request.user
 
@@ -889,8 +888,20 @@ def publisher_verification_status(request):
         "-created_at"
     )
 
+    latest_request = verification_requests.first()
+
+    # Determine if user can submit a new verification request
+    # Can submit if: no requests at all, or last request was rejected
+    can_submit_new = True
+    if latest_request:
+        if latest_request.status in ["pending", "verified"]:
+            can_submit_new = False
+
     context = {
         "verification_requests": verification_requests,
+        "latest_request": latest_request,
+        "can_submit_new": can_submit_new,
+        "profile_completeness": user.get_profile_completeness(),
         "active_nav": "verification_status",
     }
 

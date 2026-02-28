@@ -120,32 +120,26 @@ def create_payment(request):
         result = _("مزود الدفع غير مدعوم")
 
     if success:
-        # Update payment with provider data
+        # result is always a dict: {"approval_url"/"paypal_order_id"} or {"iframe_url"}
         if provider == "paypal":
-            payment.provider_transaction_id = result.get("payment_id", "")
+            payment.provider_transaction_id = result.get("paypal_order_id", "")
             payment.metadata.update(
                 {
-                    "paypal_payment_id": result.get("payment_id"),
+                    "paypal_order_id": result.get("paypal_order_id"),
                     "approval_url": result.get("approval_url"),
                 }
             )
-        elif provider == "paymob":
-            payment.metadata.update(
-                {
-                    "paymob_order_id": result.get("order_id"),
-                    "payment_key": result.get("payment_key"),
-                    "iframe_url": result.get("iframe_url"),
-                }
-            )
+        elif provider in ["paymob", "mastercard", "visa"]:
+            payment.metadata.update({"iframe_url": result.get("iframe_url")})
 
         payment.save()
 
+        redirect_url = result.get("approval_url") or result.get("iframe_url")
         return JsonResponse(
             {
                 "success": True,
                 "payment_id": payment.id,
-                "redirect_url": result.get("approval_url") or result.get("iframe_url"),
-                "provider_data": result,
+                "redirect_url": redirect_url,
             }
         )
     else:
@@ -155,29 +149,28 @@ def create_payment(request):
 
 @login_required
 def paypal_success(request):
-    """Handle PayPal payment success"""
-    payment_id = request.GET.get("paymentId")
-    payer_id = request.GET.get("PayerID")
+    """Handle PayPal payment success (PayPal v2 Orders API)"""
+    # PayPal v2 returns ?token=ORDER_ID after user approval
+    paypal_order_id = request.GET.get("token")
 
-    if not payment_id or not payer_id:
+    if not paypal_order_id:
         messages.error(request, _("بيانات الدفع غير مكتملة"))
         return redirect("main:payment_failed")
 
     try:
-        # Find payment record
+        # Find payment record by the stored PayPal order ID
         payment = Payment.objects.get(
             user=request.user,
-            metadata__paypal_payment_id=payment_id,
+            metadata__paypal_order_id=paypal_order_id,
             status=Payment.PaymentStatus.PENDING,
         )
 
-        # Execute PayPal payment
-        paypal_service = PayPalService()
-        success, result = paypal_service.capture_order(payment_id)
+        # Capture the PayPal order
+        success, capture_data, error = PayPalService.capture_order(paypal_order_id)
 
-        if success and result.get("status") == "COMPLETED":
+        if success and capture_data.get("status") == "COMPLETED":
             # Mark payment as completed
-            payment.mark_completed(payment_id)
+            payment.mark_completed(paypal_order_id)
 
             # Process package purchase if applicable
             package_id = payment.metadata.get("package_id")
@@ -196,7 +189,7 @@ def paypal_success(request):
             messages.success(request, _("تم الدفع بنجاح"))
             return redirect("main:payment_success", payment_id=payment.id)
         else:
-            payment.mark_failed("PayPal execution failed")
+            payment.mark_failed(f"PayPal capture failed: {error or 'unknown'}")
             messages.error(request, _("فشل في تأكيد الدفع"))
             return redirect("main:payment_failed")
 

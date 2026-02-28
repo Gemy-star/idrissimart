@@ -238,7 +238,7 @@ CONSTANCE_CONFIG = {
         bool,
     ),
     "TWILIO_DEVELOPMENT_MODE": (
-        False,
+        os.getenv("TWILIO_DEVELOPMENT_MODE", "False").lower() == "true",
         _("تفعيل وضع التطوير (يطبع OTP في الكونسول بدلاً من إرساله)"),
         bool,
     ),

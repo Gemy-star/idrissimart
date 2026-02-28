@@ -437,7 +437,7 @@ def checkout_view(request):
 
                 # Determine payment status
                 payment_status = "unpaid"
-                if payment_method == "online":
+                if payment_method in ["online", "paypal"]:
                     # If offline payment is enabled and has transaction photo, treat as offline
                     if site_config.allow_offline_payment and request.FILES.get(
                         "transaction_photo"
@@ -507,8 +507,44 @@ def checkout_view(request):
                 "redirect_url": f"/{request.LANGUAGE_CODE}/order/success/{order.id}/",
             }
 
-            # Handle online payment
-            if payment_method == "online" and not (
+            # Handle PayPal payment
+            if payment_method == "paypal":
+                from main.services.paypal_service import PayPalService
+                from django.urls import reverse
+
+                return_url = request.build_absolute_uri(reverse("main:paypal_success"))
+                cancel_url = request.build_absolute_uri(reverse("main:paypal_cancel"))
+
+                success, order_data, error = PayPalService.create_order(
+                    amount=total_amount,
+                    currency="USD",
+                    order_id=str(order.order_number),
+                    description=str(
+                        _("طلب #{order_number}").format(
+                            order_number=order.order_number
+                        )
+                    ),
+                    return_url=return_url,
+                    cancel_url=cancel_url,
+                )
+
+                if success:
+                    approval_url = PayPalService.get_approval_url(order_data)
+                    if approval_url:
+                        response_data["payment_url"] = approval_url
+                    else:
+                        response_data["message"] = _(
+                            "تم إنشاء الطلب ولكن حدث خطأ في إنشاء رابط PayPal"
+                        )
+                else:
+                    response_data["message"] = _(
+                        "تم إنشاء الطلب ولكن حدث خطأ في إنشاء رابط PayPal"
+                    )
+                    if error:
+                        response_data["payment_error"] = error
+
+            # Handle Paymob online payment
+            elif payment_method == "online" and not (
                 site_config.allow_offline_payment
                 and request.FILES.get("transaction_photo")
             ):

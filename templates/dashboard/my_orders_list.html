@@ -1,457 +1,723 @@
 {% extends 'dashboard/base.html' %}
 {% load static i18n %}
 
-{% block publisher_title %}{% trans "طلباتي - My Orders" %}{% endblock %}
-
-{% block publisher_content %}
-<div class="dashboard-header mb-4">
-    <div class="d-flex justify-content-between align-items-center flex-wrap">
-        <div>
-            <h1>
-                <i class="fas fa-shopping-cart text-primary"></i>
-                {% trans "طلباتي - My Orders" %}
-            </h1>
-            <p class="text-muted mb-0">
-                {% trans "جميع طلباتك ومشترياتك من السلة - All your orders and purchases" %}
-            </p>
-        </div>
-    </div>
-</div>
-
-<!-- Statistics Cards -->
-<div class="row mb-4 g-3">
-    <div class="col-lg-3 col-md-6">
-        <div class="stats-card bg-gradient-primary text-white">
-            <div class="stats-icon">
-                <i class="fas fa-receipt fa-2x"></i>
-            </div>
-            <h3>{{ stats.total_orders }}</h3>
-            <p class="mb-0">{% trans "إجمالي الطلبات" %}</p>
-        </div>
-    </div>
-    <div class="col-lg-3 col-md-6">
-        <div class="stats-card bg-gradient-success text-white">
-            <div class="stats-icon">
-                <i class="fas fa-check-circle fa-2x"></i>
-            </div>
-            <h3>{{ stats.delivered }}</h3>
-            <p class="mb-0">{% trans "تم التسليم" %}</p>
-        </div>
-    </div>
-    <div class="col-lg-3 col-md-6">
-        <div class="stats-card bg-gradient-warning text-white">
-            <div class="stats-icon">
-                <i class="fas fa-clock fa-2x"></i>
-            </div>
-            <h3>{{ stats.processing }}</h3>
-            <p class="mb-0">{% trans "قيد المعالجة" %}</p>
-        </div>
-    </div>
-    <div class="col-lg-3 col-md-6">
-        <div class="stats-card bg-gradient-info text-white">
-            <div class="stats-icon">
-                <i class="fas fa-coins fa-2x"></i>
-            </div>
-            <h3>{{ stats.total_spent|floatformat:2 }}</h3>
-            <p class="mb-0">{% trans "إجمالي المشتريات" %}</p>
-        </div>
-    </div>
-</div>
-
-<!-- Filters Section -->
-<div class="card mb-4">
-    <div class="card-body">
-        <form method="get" class="row g-3">
-            <div class="col-md-3">
-                <label for="status" class="form-label">{% trans "الحالة" %}</label>
-                <select name="status" id="status" class="form-select">
-                    <option value="">{% trans "جميع الحالات" %}</option>
-                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>
-                        {% trans "قيد الانتظار" %}
-                    </option>
-                    <option value="processing" {% if status_filter == 'processing' %}selected{% endif %}>
-                        {% trans "قيد المعالجة" %}
-                    </option>
-                    <option value="shipped" {% if status_filter == 'shipped' %}selected{% endif %}>
-                        {% trans "تم الشحن" %}
-                    </option>
-                    <option value="delivered" {% if status_filter == 'delivered' %}selected{% endif %}>
-                        {% trans "تم التسليم" %}
-                    </option>
-                    <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>
-                        {% trans "ملغي" %}
-                    </option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label for="payment_status" class="form-label">{% trans "حالة الدفع" %}</label>
-                <select name="payment_status" id="payment_status" class="form-select">
-                    <option value="">{% trans "جميع حالات الدفع" %}</option>
-                    <option value="unpaid" {% if payment_status_filter == 'unpaid' %}selected{% endif %}>
-                        {% trans "غير مدفوع" %}
-                    </option>
-                    <option value="partial" {% if payment_status_filter == 'partial' %}selected{% endif %}>
-                        {% trans "دفع جزئي" %}
-                    </option>
-                    <option value="paid" {% if payment_status_filter == 'paid' %}selected{% endif %}>
-                        {% trans "مدفوع بالكامل" %}
-                    </option>
-                </select>
-            </div>
-            <div class="col-md-4">
-                <label for="search" class="form-label">{% trans "بحث" %}</label>
-                <input type="text"
-                       name="search"
-                       id="search"
-                       class="form-control"
-                       placeholder="{% trans 'رقم الطلب' %}"
-                       value="{{ search_query }}">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">&nbsp;</label>
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="fas fa-search me-1"></i>
-                    {% trans "بحث" %}
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Orders List -->
-<div class="card">
-    <div class="card-header bg-light">
-        <h5 class="mb-0">
-            <i class="fas fa-list me-2"></i>
-            {% trans "قائمة الطلبات" %} ({{ orders.paginator.count }})
-        </h5>
-    </div>
-    <div class="card-body">
-        {% if orders %}
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>{% trans "رقم الطلب" %}</th>
-                        <th>{% trans "التاريخ" %}</th>
-                        <th>{% trans "عدد المنتجات" %}</th>
-                        <th>{% trans "المبلغ الإجمالي" %}</th>
-                        <th>{% trans "المدفوع" %}</th>
-                        <th>{% trans "المتبقي" %}</th>
-                        <th>{% trans "حالة الدفع" %}</th>
-                        <th>{% trans "حالة الطلب" %}</th>
-                        <th>{% trans "الإجراءات" %}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for order in orders %}
-                    <tr>
-                        <td>
-                            <strong class="text-primary">#{{ order.order_number }}</strong>
-                        </td>
-                        <td>
-                            <small class="text-muted">
-                                {{ order.created_at|date:"Y/m/d" }}<br>
-                                {{ order.created_at|time:"g:i A" }}
-                            </small>
-                        </td>
-                        <td>
-                            <span class="badge bg-info">
-                                {{ order.get_items_count }} {% trans "منتج" %}
-                            </span>
-                        </td>
-                        <td>
-                            <strong>{{ order.total_amount }} {{ order.currency }}</strong>
-                        </td>
-                        <td>
-                            <span class="text-success">{{ order.paid_amount }} {{ order.currency }}</span>
-                        </td>
-                        <td>
-                            {% if order.remaining_amount > 0 %}
-                                <span class="text-danger">{{ order.remaining_amount }} {{ order.currency }}</span>
-                            {% else %}
-                                <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if order.payment_status == 'paid' %}
-                                <span class="badge bg-success">
-                                    <i class="fas fa-check-circle me-1"></i>
-                                    {% trans "مدفوع" %}
-                                </span>
-                            {% elif order.payment_status == 'partial' %}
-                                <span class="badge bg-warning">
-                                    <i class="fas fa-exclamation-triangle me-1"></i>
-                                    {% trans "جزئي" %}
-                                </span>
-                            {% else %}
-                                <span class="badge bg-danger">
-                                    <i class="fas fa-times-circle me-1"></i>
-                                    {% trans "غير مدفوع" %}
-                                </span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if order.status == 'delivered' %}
-                                <span class="badge bg-success">{% trans "تم التسليم" %}</span>
-                            {% elif order.status == 'shipped' %}
-                                <span class="badge bg-info">{% trans "تم الشحن" %}</span>
-                            {% elif order.status == 'processing' %}
-                                <span class="badge bg-primary">{% trans "قيد المعالجة" %}</span>
-                            {% elif order.status == 'pending' %}
-                                <span class="badge bg-warning">{% trans "قيد الانتظار" %}</span>
-                            {% elif order.status == 'cancelled' %}
-                                <span class="badge bg-danger">{% trans "ملغي" %}</span>
-                            {% else %}
-                                <span class="badge bg-secondary">{{ order.get_status_display }}</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <a href="{% url 'main:my_order_detail' order.id %}"
-                               class="btn btn-sm btn-primary"
-                               title="{% trans 'عرض التفاصيل' %}">
-                                <i class="fas fa-eye"></i>
-                                {% trans "التفاصيل" %}
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Pagination -->
-        {% if orders.has_other_pages %}
-        <nav aria-label="{% trans 'التنقل بين الصفحات' %}" class="mt-4">
-            <ul class="pagination justify-content-center">
-                {% if orders.has_previous %}
-                <li class="page-item">
-                    <a class="page-link" href="?page=1{% if status_filter %}&status={{ status_filter }}{% endif %}{% if payment_status_filter %}&payment_status={{ payment_status_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
-                        <i class="fas fa-angle-double-right"></i>
-                    </a>
-                </li>
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ orders.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if payment_status_filter %}&payment_status={{ payment_status_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
-                        <i class="fas fa-angle-right"></i>
-                    </a>
-                </li>
-                {% endif %}
-
-                {% for num in orders.paginator.page_range %}
-                    {% if orders.number == num %}
-                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                    {% elif num > orders.number|add:'-3' and num < orders.number|add:'3' %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ num }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if payment_status_filter %}&payment_status={{ payment_status_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
-                            {{ num }}
-                        </a>
-                    </li>
-                    {% endif %}
-                {% endfor %}
-
-                {% if orders.has_next %}
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ orders.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if payment_status_filter %}&payment_status={{ payment_status_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
-                        <i class="fas fa-angle-left"></i>
-                    </a>
-                </li>
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ orders.paginator.num_pages }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if payment_status_filter %}&payment_status={{ payment_status_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
-                        <i class="fas fa-angle-double-left"></i>
-                    </a>
-                </li>
-                {% endif %}
-            </ul>
-        </nav>
-        {% endif %}
-
-        {% else %}
-        <div class="text-center py-5">
-            <i class="fas fa-shopping-cart fa-4x text-muted mb-3"></i>
-            <h5 class="text-muted">{% trans "لا توجد طلبات بعد" %}</h5>
-            <p class="text-muted">{% trans "لم تقم بأي عمليات شراء حتى الآن" %}</p>
-            <a href="{% url 'main:home' %}" class="btn btn-primary mt-3">
-                <i class="fas fa-shopping-bag me-2"></i>
-                {% trans "ابدأ التسوق" %}
-            </a>
-        </div>
-        {% endif %}
-    </div>
-</div>
-
-{% endblock %}
+{% block publisher_title %}{% trans "طلباتي" %}{% endblock %}
 
 {% block publisher_extra_css %}
 <style>
-    .stats-card {
-        border-radius: 12px;
-        padding: 1.5rem;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    /* ==========================================
+       MY ORDERS PAGE — REDESIGN
+    ========================================== */
+
+    /* ---------- Page Header ---------- */
+    .orders-page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1.75rem;
     }
 
-    .stats-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
-
-    .stats-card .stats-icon {
-        margin-bottom: 1rem;
-        opacity: 0.8;
-    }
-
-    .stats-card h3 {
-        font-size: 2rem;
+    .orders-page-header h1 {
+        font-size: 1.6rem;
         font-weight: 700;
-        margin-bottom: 0.5rem;
+        margin: 0;
+        color: var(--primary-color, #4b315e);
     }
 
-    .stats-card p {
+    .orders-page-header .subtitle {
         font-size: 0.9rem;
-        opacity: 0.9;
+        color: var(--text-muted, #6c757d);
+        margin: 0.2rem 0 0;
     }
 
-    .bg-gradient-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    /* ---------- Stats Strip ---------- */
+    .stats-strip {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
     }
 
-    .bg-gradient-success {
-        background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+    @media (max-width: 768px) { .stats-strip { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px) { .stats-strip { grid-template-columns: repeat(2, 1fr); gap: .6rem; } }
+
+    .stat-tile {
+        background: var(--bg-primary, #fff);
+        border-radius: 14px;
+        padding: 1.1rem 1rem;
+        display: flex;
+        align-items: center;
+        gap: .9rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,.06);
+        border: 1px solid rgba(0,0,0,.05);
+        transition: transform .25s ease, box-shadow .25s ease;
     }
 
-    .bg-gradient-warning {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    .stat-tile:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,.1); }
+
+    .stat-tile .tile-icon {
+        width: 48px; height: 48px; border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.25rem; flex-shrink: 0;
     }
 
-    .bg-gradient-info {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    .stat-tile .tile-body .tile-value {
+        font-size: 1.5rem; font-weight: 700; line-height: 1.1;
+        color: var(--text-primary, #212529);
     }
 
-    .table th {
-        font-weight: 600;
-        font-size: 0.9rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+    .stat-tile .tile-body .tile-label {
+        font-size: 0.8rem; color: var(--text-muted, #6c757d); margin-top: 2px;
     }
 
-    .badge {
-        padding: 0.5rem 0.75rem;
-        font-weight: 500;
+    .tile-icon.purple { background: rgba(102,51,153,.12); color: #6633cc; }
+    .tile-icon.green  { background: rgba(34,197,94,.12);  color: #16a34a; }
+    .tile-icon.orange { background: rgba(249,115,22,.12); color: #ea6b00; }
+    .tile-icon.blue   { background: rgba(59,130,246,.12); color: #2563eb; }
+
+    /* ---------- Filter Bar ---------- */
+    .filter-bar {
+        background: var(--bg-primary, #fff);
+        border-radius: 14px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,.05);
+        border: 1px solid rgba(0,0,0,.05);
     }
 
-    /* Dark mode styles - support both selectors */
-    [data-theme='dark'] .stats-card,
-    [data-bs-theme="dark"] .stats-card {
-        background: linear-gradient(135deg, #2a1a3e, #1e1e2e) !important;
+    .filter-bar .filter-row {
+        display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end;
+    }
+
+    .filter-bar .filter-field { flex: 1 1 160px; }
+
+    .filter-bar .filter-field label {
+        font-size: .8rem; font-weight: 600;
+        color: var(--text-muted, #6c757d); margin-bottom: .3rem; display: block;
+    }
+
+    .filter-bar .form-control,
+    .filter-bar .form-select {
+        height: 40px; font-size: .9rem; border-radius: 10px; border: 1px solid rgba(0,0,0,.12);
+    }
+
+    .btn-filter { height: 40px; padding: 0 1.25rem; border-radius: 10px; font-weight: 600; white-space: nowrap; }
+
+    .btn-filter-reset {
+        height: 40px; padding: 0 1rem; border-radius: 10px; font-weight: 500;
+        color: var(--text-muted, #6c757d); background: transparent;
+        border: 1px solid rgba(0,0,0,.12); cursor: pointer; text-decoration: none;
+        display: inline-flex; align-items: center;
+    }
+
+    /* ---------- Status Tabs ---------- */
+    .status-tabs { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+
+    .status-tab {
+        padding: .4rem .9rem; border-radius: 20px; font-size: .82rem; font-weight: 600;
+        text-decoration: none; border: 1.5px solid transparent; transition: all .2s ease;
+        color: var(--text-muted, #6c757d); background: var(--bg-primary, #fff);
+        box-shadow: 0 1px 4px rgba(0,0,0,.07);
+    }
+
+    .status-tab:hover { opacity: .85; }
+
+    .status-tab.active, .status-tab.active:hover {
+        background: var(--primary-color, #4b315e);
+        color: #fff; border-color: var(--primary-color, #4b315e);
+    }
+
+    .status-tab .tab-count {
+        background: rgba(255,255,255,.25); border-radius: 10px;
+        padding: 1px 7px; font-size: .75rem; margin-right: .3rem;
+    }
+
+    .status-tab:not(.active) .tab-count { background: rgba(0,0,0,.08); color: inherit; }
+
+    /* ---------- Section Title Row ---------- */
+    .section-title-row {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 1rem; flex-wrap: wrap; gap: .5rem;
+    }
+
+    .section-title-row h5 {
+        font-size: 1rem; font-weight: 700; margin: 0;
+        color: var(--text-primary, #212529);
+    }
+
+    .results-count-badge {
+        font-size: .8rem; background: rgba(102,51,153,.1);
+        color: var(--primary-color, #4b315e); padding: .25rem .75rem;
+        border-radius: 20px; font-weight: 600;
+    }
+
+    /* ---------- Order Card ---------- */
+    .order-card {
+        background: var(--bg-primary, #fff); border-radius: 16px;
+        border: 1px solid rgba(0,0,0,.07); box-shadow: 0 2px 10px rgba(0,0,0,.05);
+        margin-bottom: 1rem; overflow: hidden;
+        transition: box-shadow .25s ease, transform .25s ease;
+    }
+
+    .order-card:hover {
+        box-shadow: 0 6px 24px rgba(75,49,94,.12); transform: translateY(-2px);
+    }
+
+    .order-card-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: .85rem 1.25rem; border-bottom: 1px solid rgba(0,0,0,.06);
+        flex-wrap: wrap; gap: .5rem; background: var(--bg-secondary, #f8f9fa);
+    }
+
+    .order-card-header .order-meta {
+        display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+    }
+
+    .order-number-link {
+        font-weight: 700; font-size: 1rem;
+        color: var(--primary-color, #4b315e); text-decoration: none;
+    }
+
+    .order-number-link:hover { text-decoration: underline; }
+
+    .order-date {
+        font-size: .8rem; color: var(--text-muted, #6c757d);
+        display: flex; align-items: center; gap: .3rem;
+    }
+
+    .order-card-header .header-badges {
+        display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+    }
+
+    .status-badge {
+        display: inline-flex; align-items: center; gap: .3rem;
+        padding: .3rem .75rem; border-radius: 20px; font-size: .78rem;
+        font-weight: 600; white-space: nowrap;
+    }
+
+    .status-badge.pending    { background: #fff3cd; color: #856404; }
+    .status-badge.processing { background: #cce5ff; color: #004085; }
+    .status-badge.shipped    { background: #d4edda; color: #155724; }
+    .status-badge.delivered  { background: #d4edda; color: #155724; }
+    .status-badge.cancelled  { background: #f8d7da; color: #721c24; }
+    .status-badge.refunded   { background: #e2e3e5; color: #383d41; }
+
+    .pay-badge.unpaid   { background: #f8d7da; color: #721c24; }
+    .pay-badge.partial  { background: #fff3cd; color: #856404; }
+    .pay-badge.paid     { background: #d4edda; color: #155724; }
+    .pay-badge.refunded { background: #e2e3e5; color: #383d41; }
+
+    .order-card-body { padding: 1rem 1.25rem; }
+
+    .items-preview { display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: .9rem; }
+
+    .item-thumb {
+        display: flex; align-items: center; gap: .6rem;
+        background: var(--bg-secondary, #f8f9fa); border-radius: 10px;
+        padding: .5rem .75rem .5rem .5rem; flex: 0 0 auto;
+        max-width: calc(50% - .375rem); min-width: 160px;
+        border: 1px solid rgba(0,0,0,.06);
+    }
+
+    .item-thumb img {
+        width: 44px; height: 44px; object-fit: cover;
+        border-radius: 8px; flex-shrink: 0;
+    }
+
+    .item-thumb .item-info .item-title {
+        font-size: .82rem; font-weight: 600;
+        color: var(--text-primary, #212529); max-width: 160px;
+        overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    }
+
+    .item-thumb .item-info .item-price {
+        font-size: .78rem; color: var(--primary-color, #4b315e);
+        font-weight: 700; margin-top: 2px;
+    }
+
+    .more-items-chip {
+        display: flex; align-items: center; justify-content: center;
+        width: 44px; height: 44px; border-radius: 10px;
+        background: rgba(102,51,153,.1); color: var(--primary-color, #4b315e);
+        font-size: .8rem; font-weight: 700; flex-shrink: 0; align-self: center;
+        border: 2px dashed rgba(102,51,153,.25);
+    }
+
+    .order-card-footer {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: .75rem 1.25rem; border-top: 1px solid rgba(0,0,0,.06);
+        flex-wrap: wrap; gap: .75rem; background: var(--bg-secondary, #f8f9fa);
+    }
+
+    .order-pricing { display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: center; }
+
+    .pricing-item { display: flex; flex-direction: column; gap: 2px; }
+
+    .pricing-item .pricing-label {
+        font-size: .72rem; color: var(--text-muted, #6c757d);
+        text-transform: uppercase; letter-spacing: .3px;
+    }
+
+    .pricing-item .pricing-value {
+        font-size: .95rem; font-weight: 700; color: var(--text-primary, #212529);
+    }
+
+    .pricing-item .pricing-value.green { color: #16a34a !important; }
+    .pricing-item .pricing-value.red   { color: #dc2626 !important; }
+
+    .pay-progress-wrap { flex: 1 1 180px; max-width: 240px; }
+
+    .pay-progress-wrap .progress-header {
+        display: flex; justify-content: space-between;
+        font-size: .72rem; color: var(--text-muted, #6c757d); margin-bottom: .25rem;
+    }
+
+    .pay-progress-wrap .progress { height: 6px; border-radius: 3px; background: rgba(0,0,0,.08); }
+    .pay-progress-wrap .progress-bar { border-radius: 3px; transition: width .6s ease; }
+
+    .order-actions { display: flex; gap: .5rem; align-items: center; }
+
+    .btn-order-detail {
+        display: inline-flex; align-items: center; gap: .4rem;
+        padding: .45rem 1rem; border-radius: 10px; font-size: .85rem; font-weight: 600;
+        background: var(--primary-color, #4b315e); color: #fff;
+        text-decoration: none; border: none; transition: all .2s ease;
+    }
+
+    .btn-order-detail:hover {
+        background: var(--secondary-color, #7c3aed); color: #fff; transform: translateY(-1px);
+    }
+
+    /* ---------- Empty State ---------- */
+    .empty-orders {
+        background: var(--bg-primary, #fff); border-radius: 16px; padding: 4rem 2rem;
+        text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,.05);
+        border: 1px solid rgba(0,0,0,.05);
+    }
+
+    .empty-orders .empty-icon {
+        width: 90px; height: 90px; border-radius: 50%;
+        background: rgba(102,51,153,.08);
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 1.5rem; font-size: 2.5rem;
+        color: var(--primary-color, #4b315e);
+    }
+
+    .empty-orders h5 { font-size: 1.1rem; font-weight: 700; margin-bottom: .5rem; }
+
+    .empty-orders p {
+        font-size: .9rem; color: var(--text-muted, #6c757d);
+        max-width: 320px; margin: 0 auto 1.5rem;
+    }
+
+    /* ---------- Pagination ---------- */
+    .orders-pagination { display: flex; justify-content: center; margin-top: 1.5rem; }
+
+    /* ---------- Dark Mode ---------- */
+    [data-theme='dark'] .stat-tile,
+    [data-bs-theme='dark'] .stat-tile,
+    [data-theme='dark'] .filter-bar,
+    [data-bs-theme='dark'] .filter-bar,
+    [data-theme='dark'] .order-card,
+    [data-bs-theme='dark'] .order-card,
+    [data-theme='dark'] .empty-orders,
+    [data-bs-theme='dark'] .empty-orders {
+        background: rgba(30,30,46,0.97);
+        border-color: rgba(255,255,255,.1);
         color: #e0e0e0;
     }
 
-    [data-theme='dark'] .stats-card h3,
-    [data-bs-theme="dark"] .stats-card h3 {
-        color: #fff;
+    [data-theme='dark'] .order-card-header,
+    [data-bs-theme='dark'] .order-card-header,
+    [data-theme='dark'] .order-card-footer,
+    [data-bs-theme='dark'] .order-card-footer {
+        background: rgba(255,255,255,.04);
+        border-color: rgba(255,255,255,.08);
     }
 
-    [data-theme='dark'] .stats-card p,
-    [data-bs-theme="dark"] .stats-card p {
-        color: rgba(255, 255, 255, 0.9);
+    [data-theme='dark'] .item-thumb,
+    [data-bs-theme='dark'] .item-thumb {
+        background: rgba(255,255,255,.06);
+        border-color: rgba(255,255,255,.1);
     }
 
-    [data-theme='dark'] .card,
-    [data-bs-theme="dark"] .card {
-        background: rgba(30, 30, 46, 0.95);
-        border-color: rgba(255, 255, 255, 0.1);
-        color: #e0e0e0;
+    [data-theme='dark'] .item-thumb .item-info .item-title,
+    [data-bs-theme='dark'] .item-thumb .item-info .item-title { color: #f0f0f0; }
+
+    [data-theme='dark'] .tile-body .tile-value,
+    [data-bs-theme='dark'] .tile-body .tile-value { color: #f0f0f0; }
+
+    [data-theme='dark'] .orders-page-header h1,
+    [data-bs-theme='dark'] .orders-page-header h1 { color: #f0f0f0; }
+
+    [data-theme='dark'] .status-tab,
+    [data-bs-theme='dark'] .status-tab {
+        background: rgba(255,255,255,.08);
+        color: #adb5bd; border-color: rgba(255,255,255,.1);
     }
 
-    [data-theme='dark'] .card-header,
-    [data-bs-theme="dark"] .card-header {
-        background: rgba(255, 255, 255, 0.08) !important;
-        border-bottom-color: rgba(255, 255, 255, 0.1);
-        color: #e9ecef;
+    [data-theme='dark'] .filter-bar .form-control,
+    [data-bs-theme='dark'] .filter-bar .form-control,
+    [data-theme='dark'] .filter-bar .form-select,
+    [data-bs-theme='dark'] .filter-bar .form-select {
+        background: rgba(255,255,255,.08);
+        border-color: rgba(255,255,255,.15); color: #e9ecef;
     }
 
-    [data-theme='dark'] .card-body,
-    [data-bs-theme="dark"] .card-body {
-        background: rgba(30, 30, 46, 0.95);
-        color: #e0e0e0;
+    [data-theme='dark'] .section-title-row h5,
+    [data-bs-theme='dark'] .section-title-row h5 { color: #f0f0f0; }
+
+    [data-theme='dark'] .pricing-item .pricing-value,
+    [data-bs-theme='dark'] .pricing-item .pricing-value { color: #f0f0f0; }
+
+    [data-theme='dark'] .pay-progress-wrap .progress,
+    [data-bs-theme='dark'] .pay-progress-wrap .progress { background: rgba(255,255,255,.1); }
+
+    [data-theme='dark'] .btn-filter-reset,
+    [data-bs-theme='dark'] .btn-filter-reset { color: #adb5bd; border-color: rgba(255,255,255,.15); }
+
+    [data-theme='dark'] .results-count-badge,
+    [data-bs-theme='dark'] .results-count-badge {
+        background: rgba(183,148,246,.15); color: #b794f6;
     }
 
-    [data-theme='dark'] .table,
-    [data-bs-theme="dark"] .table {
-        color: #e0e0e0;
-    }
-
-    [data-theme='dark'] .table td,
-    [data-theme='dark'] .table th,
-    [data-bs-theme="dark"] .table td,
-    [data-bs-theme="dark"] .table th {
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-
-    [data-theme='dark'] .table-light,
-    [data-bs-theme="dark"] .table-light {
-        background: rgba(255, 255, 255, 0.08) !important;
-        color: #e0e0e0;
-    }
-
-    [data-theme='dark'] .table-light th,
-    [data-bs-theme="dark"] .table-light th {
-        background: rgba(255, 255, 255, 0.08) !important;
-        color: #e9ecef;
-    }
-
-    [data-theme='dark'] .table-hover tbody tr:hover,
-    [data-bs-theme="dark"] .table-hover tbody tr:hover {
-        background-color: rgba(255, 255, 255, 0.05);
-        color: #e0e0e0;
-    }
-
-    [data-theme='dark'] .form-control,
-    [data-bs-theme="dark"] .form-control {
-        background-color: rgba(255, 255, 255, 0.08);
-        border-color: rgba(255, 255, 255, 0.15);
-        color: #e9ecef;
-    }
-
-    [data-theme='dark'] .form-select,
-    [data-bs-theme="dark"] .form-select {
-        background-color: rgba(255, 255, 255, 0.08);
-        border-color: rgba(255, 255, 255, 0.15);
-        color: #e9ecef;
-    }
-
-    [data-theme='dark'] .form-label,
-    [data-bs-theme="dark"] .form-label {
-        color: #e9ecef;
-    }
-
-    [data-theme='dark'] .text-muted,
-    [data-bs-theme="dark"] .text-muted {
-        color: #adb5bd !important;
-    }
-
-    [data-theme='dark'] .text-primary,
-    [data-bs-theme="dark"] .text-primary {
-        color: #b794f6 !important;
-    }
-
-    [data-theme='dark'] strong,
-    [data-bs-theme="dark"] strong {
-        color: #e9ecef;
-    }
-
-    [data-theme='dark'] .page-link,
-    [data-bs-theme="dark"] .page-link {
-        background-color: rgba(255, 255, 255, 0.08);
-        border-color: rgba(255, 255, 255, 0.15);
-        color: #e9ecef;
-    }
-
-    [data-theme='dark'] .page-item.active .page-link,
-    [data-bs-theme="dark"] .page-item.active .page-link {
-        background-color: #6b4c7a;
-        border-color: #6b4c7a;
-        color: #fff;
+    /* Mobile tweaks */
+    @media (max-width: 576px) {
+        .order-card-header { padding: .7rem 1rem; }
+        .order-card-body   { padding: .85rem 1rem; }
+        .order-card-footer { padding: .65rem 1rem; }
+        .item-thumb { min-width: 140px; max-width: 100%; }
+        .order-pricing { gap: 1rem; }
+        .pay-progress-wrap { max-width: 100%; flex: 1 1 100%; }
+        .order-actions { width: 100%; justify-content: flex-end; }
     }
 </style>
+{% endblock %}
+
+{% block publisher_content %}
+
+<!-- Page Header -->
+<div class="orders-page-header">
+    <div>
+        <h1>
+            <i class="fas fa-box-open me-2" style="color: var(--primary-color, #4b315e);"></i>
+            {% trans "طلباتي" %}
+        </h1>
+        <p class="subtitle">{% trans "جميع طلبات الشراء من الإعلانات المبوبة" %}</p>
+    </div>
+    <a href="{% url 'main:home' %}" class="btn btn-outline-secondary btn-sm rounded-pill">
+        <i class="fas fa-shopping-bag me-1"></i>
+        {% trans "تسوق الآن" %}
+    </a>
+</div>
+
+<!-- Stats Strip -->
+<div class="stats-strip">
+    <div class="stat-tile">
+        <div class="tile-icon purple"><i class="fas fa-receipt"></i></div>
+        <div class="tile-body">
+            <div class="tile-value">{{ stats.total_orders }}</div>
+            <div class="tile-label">{% trans "إجمالي الطلبات" %}</div>
+        </div>
+    </div>
+    <div class="stat-tile">
+        <div class="tile-icon green"><i class="fas fa-check-circle"></i></div>
+        <div class="tile-body">
+            <div class="tile-value">{{ stats.delivered }}</div>
+            <div class="tile-label">{% trans "تم التسليم" %}</div>
+        </div>
+    </div>
+    <div class="stat-tile">
+        <div class="tile-icon orange"><i class="fas fa-hourglass-half"></i></div>
+        <div class="tile-body">
+            <div class="tile-value">{{ stats.pending|add:stats.processing }}</div>
+            <div class="tile-label">{% trans "قيد التنفيذ" %}</div>
+        </div>
+    </div>
+    <div class="stat-tile">
+        <div class="tile-icon blue"><i class="fas fa-wallet"></i></div>
+        <div class="tile-body">
+            <div class="tile-value">{{ stats.total_spent|floatformat:0 }}</div>
+            <div class="tile-label">{% trans "إجمالي المشتريات" %}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <form method="get" id="filter-form">
+        <div class="filter-row">
+            <div class="filter-field" style="flex: 2 1 220px;">
+                <label for="search"><i class="fas fa-search me-1"></i>{% trans "بحث برقم الطلب" %}</label>
+                <input type="text" name="search" id="search" class="form-control"
+                       placeholder="#ORD-..." value="{{ search_query }}">
+            </div>
+            <div class="filter-field">
+                <label for="payment_status"><i class="fas fa-credit-card me-1"></i>{% trans "حالة الدفع" %}</label>
+                <select name="payment_status" id="payment_status" class="form-select">
+                    <option value="">{% trans "الكل" %}</option>
+                    <option value="unpaid"  {% if payment_status_filter == 'unpaid' %}selected{% endif %}>{% trans "غير مدفوع" %}</option>
+                    <option value="partial" {% if payment_status_filter == 'partial' %}selected{% endif %}>{% trans "جزئي" %}</option>
+                    <option value="paid"    {% if payment_status_filter == 'paid' %}selected{% endif %}>{% trans "مدفوع" %}</option>
+                </select>
+            </div>
+            <div class="d-flex gap-2 align-items-end">
+                <button type="submit" class="btn btn-primary btn-filter">
+                    <i class="fas fa-filter me-1"></i>{% trans "تصفية" %}
+                </button>
+                {% if search_query or status_filter or payment_status_filter %}
+                <a href="{% url 'main:my_orders' %}" class="btn-filter-reset">
+                    <i class="fas fa-times"></i> {% trans "مسح" %}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Status Tabs -->
+<div class="status-tabs">
+    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if payment_status_filter %}payment_status={{ payment_status_filter }}&{% endif %}"
+       class="status-tab {% if not status_filter %}active{% endif %}">
+        {% trans "الكل" %}
+        <span class="tab-count">{{ stats.total_orders }}</span>
+    </a>
+    <a href="?status=pending{% if search_query %}&search={{ search_query }}{% endif %}{% if payment_status_filter %}&payment_status={{ payment_status_filter }}{% endif %}"
+       class="status-tab {% if status_filter == 'pending' %}active{% endif %}">
+        <i class="fas fa-clock me-1"></i>{% trans "انتظار" %}
+        {% if stats.pending %}<span class="tab-count">{{ stats.pending }}</span>{% endif %}
+    </a>
+    <a href="?status=processing{% if search_query %}&search={{ search_query }}{% endif %}{% if payment_status_filter %}&payment_status={{ payment_status_filter }}{% endif %}"
+       class="status-tab {% if status_filter == 'processing' %}active{% endif %}">
+        <i class="fas fa-cog me-1"></i>{% trans "معالجة" %}
+        {% if stats.processing %}<span class="tab-count">{{ stats.processing }}</span>{% endif %}
+    </a>
+    <a href="?status=shipped{% if search_query %}&search={{ search_query }}{% endif %}{% if payment_status_filter %}&payment_status={{ payment_status_filter }}{% endif %}"
+       class="status-tab {% if status_filter == 'shipped' %}active{% endif %}">
+        <i class="fas fa-truck me-1"></i>{% trans "شحن" %}
+        {% if stats.shipped %}<span class="tab-count">{{ stats.shipped }}</span>{% endif %}
+    </a>
+    <a href="?status=delivered{% if search_query %}&search={{ search_query }}{% endif %}{% if payment_status_filter %}&payment_status={{ payment_status_filter }}{% endif %}"
+       class="status-tab {% if status_filter == 'delivered' %}active{% endif %}">
+        <i class="fas fa-check-circle me-1"></i>{% trans "تسليم" %}
+        {% if stats.delivered %}<span class="tab-count">{{ stats.delivered }}</span>{% endif %}
+    </a>
+    <a href="?status=cancelled{% if search_query %}&search={{ search_query }}{% endif %}{% if payment_status_filter %}&payment_status={{ payment_status_filter }}{% endif %}"
+       class="status-tab {% if status_filter == 'cancelled' %}active{% endif %}">
+        <i class="fas fa-ban me-1"></i>{% trans "ملغي" %}
+        {% if stats.cancelled %}<span class="tab-count">{{ stats.cancelled }}</span>{% endif %}
+    </a>
+</div>
+
+<!-- Results Header -->
+<div class="section-title-row">
+    <h5><i class="fas fa-list-ul me-2"></i>{% trans "الطلبات" %}</h5>
+    <span class="results-count-badge">{{ orders.paginator.count }} {% trans "طلب" %}</span>
+</div>
+
+<!-- Orders List -->
+{% if orders %}
+
+{% for order in orders %}
+<article class="order-card">
+
+    <!-- Header -->
+    <div class="order-card-header">
+        <div class="order-meta">
+            <a href="{% url 'main:my_order_detail' order.id %}" class="order-number-link">
+                #{{ order.order_number }}
+            </a>
+            <span class="order-date">
+                <i class="far fa-calendar-alt"></i>
+                {{ order.created_at|date:"Y/m/d" }} &bull; {{ order.created_at|time:"g:i A" }}
+            </span>
+            {% if order.city %}
+            <span class="order-date">
+                <i class="fas fa-map-marker-alt"></i>
+                {{ order.city }}{% if order.country %}, {{ order.country }}{% endif %}
+            </span>
+            {% endif %}
+        </div>
+        <div class="header-badges">
+            {% if order.status == 'delivered' %}
+                <span class="status-badge delivered"><i class="fas fa-check-circle"></i>{% trans "تسليم" %}</span>
+            {% elif order.status == 'shipped' %}
+                <span class="status-badge shipped"><i class="fas fa-truck"></i>{% trans "شحن" %}</span>
+            {% elif order.status == 'processing' %}
+                <span class="status-badge processing"><i class="fas fa-cog"></i>{% trans "معالجة" %}</span>
+            {% elif order.status == 'pending' %}
+                <span class="status-badge pending"><i class="fas fa-clock"></i>{% trans "انتظار" %}</span>
+            {% elif order.status == 'cancelled' %}
+                <span class="status-badge cancelled"><i class="fas fa-ban"></i>{% trans "ملغي" %}</span>
+            {% elif order.status == 'refunded' %}
+                <span class="status-badge refunded"><i class="fas fa-undo"></i>{% trans "مسترد" %}</span>
+            {% else %}
+                <span class="status-badge pending">{{ order.get_status_display }}</span>
+            {% endif %}
+
+            {% if order.payment_status == 'paid' %}
+                <span class="status-badge pay-badge paid"><i class="fas fa-check"></i>{% trans "مدفوع" %}</span>
+            {% elif order.payment_status == 'partial' %}
+                <span class="status-badge pay-badge partial"><i class="fas fa-adjust"></i>{% trans "جزئي" %}</span>
+            {% elif order.payment_status == 'refunded' %}
+                <span class="status-badge pay-badge refunded"><i class="fas fa-undo"></i>{% trans "مسترد" %}</span>
+            {% else %}
+                <span class="status-badge pay-badge unpaid"><i class="fas fa-exclamation-circle"></i>{% trans "غير مدفوع" %}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Body -->
+    <div class="order-card-body">
+        <div class="items-preview">
+            {% for item in order.items.all|slice:":3" %}
+            <div class="item-thumb">
+                {% if item.ad.images.first %}
+                <img src="{{ item.ad.images.first.image.url }}"
+                     alt="{{ item.ad.title }}"
+                     onerror="this.src='{% static 'images/placeholder-ad.jpg' %}'">
+                {% else %}
+                <div style="width:44px;height:44px;border-radius:8px;background:rgba(102,51,153,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fas fa-image" style="color:var(--primary-color,#4b315e);font-size:.9rem;"></i>
+                </div>
+                {% endif %}
+                <div class="item-info">
+                    <div class="item-title" title="{{ item.ad.title }}">{{ item.ad.title|truncatechars:35 }}</div>
+                    <div class="item-price">{{ item.price }} {{ order.currency }}</div>
+                </div>
+            </div>
+            {% endfor %}
+            {% with extra=order.get_items_count|add:"-3" %}
+                {% if extra > 0 %}
+                <span class="more-items-chip" title="{% trans 'منتجات إضافية' %}">+{{ extra }}</span>
+                {% endif %}
+            {% endwith %}
+        </div>
+
+        <div class="d-flex flex-wrap gap-3 align-items-center" style="font-size:.82rem;color:var(--text-muted,#6c757d);">
+            <span><i class="fas fa-boxes me-1"></i>{{ order.get_items_count }} {% trans "منتج" %}</span>
+            {% if order.payment_method %}
+            <span><i class="fas fa-credit-card me-1"></i>{{ order.get_payment_method_display }}</span>
+            {% endif %}
+            {% if order.delivery_fee > 0 %}
+            <span><i class="fas fa-truck me-1"></i>{% trans "شحن:" %} {{ order.delivery_fee }} {{ order.currency }}</span>
+            {% endif %}
+            {% if order.is_expired %}
+            <span style="color:#dc2626;font-weight:600;"><i class="fas fa-exclamation-triangle me-1"></i>{% trans "منتهي الصلاحية" %}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="order-card-footer">
+        <div class="order-pricing">
+            <div class="pricing-item">
+                <span class="pricing-label">{% trans "الإجمالي" %}</span>
+                <span class="pricing-value">{{ order.total_amount }} {{ order.currency }}</span>
+            </div>
+            <div class="pricing-item">
+                <span class="pricing-label">{% trans "المدفوع" %}</span>
+                <span class="pricing-value green">{{ order.paid_amount }} {{ order.currency }}</span>
+            </div>
+            {% if order.remaining_amount > 0 %}
+            <div class="pricing-item">
+                <span class="pricing-label">{% trans "المتبقي" %}</span>
+                <span class="pricing-value red">{{ order.remaining_amount }} {{ order.currency }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        {% with pct=order.get_payment_percentage %}
+        {% if order.total_amount > 0 %}
+        <div class="pay-progress-wrap">
+            <div class="progress-header">
+                <span>{% trans "نسبة الدفع" %}</span>
+                <span>{{ pct|floatformat:0 }}%</span>
+            </div>
+            <div class="progress">
+                <div class="progress-bar {% if pct >= 100 %}bg-success{% elif pct > 0 %}bg-warning{% else %}bg-danger{% endif %}"
+                     role="progressbar" style="width:{{ pct|floatformat:0 }}%"
+                     aria-valuenow="{{ pct|floatformat:0 }}" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <div class="order-actions">
+            <a href="{% url 'main:my_order_detail' order.id %}" class="btn-order-detail">
+                <i class="fas fa-eye"></i> {% trans "التفاصيل" %}
+            </a>
+        </div>
+    </div>
+
+</article>
+{% endfor %}
+
+<!-- Pagination -->
+{% if orders.has_other_pages %}
+<div class="orders-pagination">
+    <nav aria-label="{% trans 'التنقل' %}">
+        <ul class="pagination">
+            {% if orders.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1{% if status_filter %}&status={{ status_filter }}{% endif %}{% if payment_status_filter %}&payment_status={{ payment_status_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                    <i class="fas fa-angle-double-right"></i>
+                </a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ orders.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if payment_status_filter %}&payment_status={{ payment_status_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                    <i class="fas fa-angle-right"></i>
+                </a>
+            </li>
+            {% endif %}
+            {% for num in orders.paginator.page_range %}
+                {% if orders.number == num %}
+                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% elif num > orders.number|add:'-3' and num < orders.number|add:'3' %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ num }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if payment_status_filter %}&payment_status={{ payment_status_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">{{ num }}</a>
+                </li>
+                {% endif %}
+            {% endfor %}
+            {% if orders.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ orders.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if payment_status_filter %}&payment_status={{ payment_status_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                    <i class="fas fa-angle-left"></i>
+                </a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ orders.paginator.num_pages }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if payment_status_filter %}&payment_status={{ payment_status_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                    <i class="fas fa-angle-double-left"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endif %}
+
+{% else %}
+<div class="empty-orders">
+    <div class="empty-icon"><i class="fas fa-box-open"></i></div>
+    <h5>{% trans "لا توجد طلبات بعد" %}</h5>
+    <p>
+        {% if status_filter or payment_status_filter or search_query %}
+            {% trans "لا توجد نتائج تطابق معايير البحث. جرب تغيير الفلاتر." %}
+        {% else %}
+            {% trans "لم تقم بأي عملية شراء حتى الآن. ابدأ بتصفح الإعلانات المبوبة." %}
+        {% endif %}
+    </p>
+    {% if status_filter or payment_status_filter or search_query %}
+    <a href="{% url 'main:my_orders' %}" class="btn btn-outline-secondary me-2">
+        <i class="fas fa-times me-1"></i>{% trans "مسح الفلاتر" %}
+    </a>
+    {% endif %}
+    <a href="{% url 'main:home' %}" class="btn btn-primary">
+        <i class="fas fa-shopping-bag me-2"></i>{% trans "تصفح الإعلانات" %}
+    </a>
+</div>
+{% endif %}
+
 {% endblock %}

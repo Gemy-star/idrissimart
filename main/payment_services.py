@@ -25,28 +25,50 @@ class PaymentService:
     def create_payment(
         self, provider, amount, currency, description, user_data=None, **kwargs
     ):
-        """Create payment with specified provider"""
+        """
+        Create payment with specified provider.
+
+        Returns:
+            (True, {"approval_url": ..., "paypal_order_id": ...})  for PayPal
+            (True, {"iframe_url": ...})                             for Paymob/visa/mastercard
+            (False, "error message string")                        on failure
+        """
+        import uuid
+        order_ref = kwargs.get("order_ref") or uuid.uuid4().hex[:12].upper()
+
         if provider == "paypal":
-            return self.paypal.process_payment(
+            success, order_data, error = PayPalService.create_order(
                 amount=amount,
                 currency=currency,
+                order_id=order_ref,
                 description=description,
                 return_url=kwargs.get("return_url"),
                 cancel_url=kwargs.get("cancel_url"),
             )
-        elif provider == "paymob":
-            return self.paymob.process_payment(
-                amount=amount, currency=currency, billing_data=user_data or {}
-            )
-        elif provider in ["mastercard", "visa"]:
-            # Redirect to Paymob for card payments
-            integration_id = config.PAYMOB_INTEGRATION_ID
-            return self.paymob.process_payment(
+            if not success:
+                return False, error or _("فشل إنشاء طلب PayPal")
+            approval_url = PayPalService.get_approval_url(order_data)
+            if not approval_url:
+                return False, _("تعذّر الحصول على رابط PayPal")
+            return True, {
+                "approval_url": approval_url,
+                "paypal_order_id": order_data.get("id"),
+            }
+
+        elif provider in ["paymob", "mastercard", "visa"]:
+            integration_id = None
+            if provider in ["mastercard", "visa"]:
+                integration_id = config.PAYMOB_INTEGRATION_ID
+            success, payment_url, error = PaymobService.process_payment(
                 amount=amount,
-                currency="EGP",
+                order_id=order_ref,
                 billing_data=user_data or {},
                 integration_id=integration_id,
             )
+            if not success:
+                return False, error or _("فشل إنشاء طلب Paymob")
+            return True, {"iframe_url": payment_url}
+
         else:
             return False, _("مزود الدفع غير مدعوم")
 
@@ -54,11 +76,7 @@ class PaymentService:
         """Get list of supported payment providers based on django-constance and site configuration"""
         providers = []
 
-        # Check global online payment setting from constance
-        if not config.ALLOW_ONLINE_PAYMENT:
-            return providers
-
-        # Also check SiteConfiguration for allow_online_payment
+        # Check SiteConfiguration for allow_online_payment
         try:
             from content.models import SiteConfiguration
 
@@ -66,7 +84,7 @@ class PaymentService:
             if not site_config.allow_online_payment:
                 return providers
         except Exception:
-            pass  # If SiteConfiguration is not available, continue with constance check only
+            pass  # If SiteConfiguration is not available, proceed
 
         # Check PayPal configuration from constance
         if PayPalService.is_enabled():

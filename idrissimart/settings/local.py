@@ -1,3 +1,11 @@
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Load .env.development secrets (overrides any values already set by common.py)
+load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env.development", override=True)
+
 from .common import *
 
 DEBUG = True
@@ -109,6 +117,29 @@ SERVER_EMAIL = "server@idrissimart.local"
 # EMAIL_PORT = 2525  # Host port mapping
 
 # To view sent emails, open: http://localhost:3100
+
+# =======================
+# Payment & Third-party Secrets (from .env.development)
+# =======================
+PAYMOB_API_KEY = os.getenv("PAYMOB_API_KEY", "")
+PAYMOB_SECRET_KEY = os.getenv("PAYMOB_SECRET_KEY", "")
+PAYMOB_PUBLIC_KEY = os.getenv("PAYMOB_PUBLIC_KEY", "")
+PAYMOB_IFRAME_ID = os.getenv("PAYMOB_IFRAME_ID", "")
+PAYMOB_INTEGRATION_ID = os.getenv("PAYMOB_INTEGRATION_ID", "")
+PAYMOB_HMAC_SECRET = os.getenv("PAYMOB_HMAC_SECRET", "")
+
+PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")
+PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET", "")
+PAYPAL_MODE = os.getenv("PAYPAL_MODE", "sandbox")
+
+RECAPTCHA_PUBLIC_KEY = os.getenv("RECAPTCHA_SITE_KEY", "")
+RECAPTCHA_PRIVATE_KEY = os.getenv("RECAPTCHA_SECRET_KEY", "")
+RECAPTCHA_SITE_KEY = RECAPTCHA_PUBLIC_KEY
+RECAPTCHA_SECRET_KEY = RECAPTCHA_PRIVATE_KEY
+
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
+TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "")
 
 # =======================
 # Logging Configuration for Local Development

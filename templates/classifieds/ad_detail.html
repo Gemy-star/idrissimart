@@ -47,6 +47,7 @@
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/ad-card-enhancements.css' %}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/glightbox/dist/css/glightbox.min.css">
     <style>
         /* Price Card Hover Effect */
         .ad-details-card {
@@ -127,533 +128,49 @@
             box-shadow: 0 4px 12px rgba(75, 49, 94, 0.25);
         }
 
-        /* Lightbox Styles */
-        .lightbox {
-            display: none;
-            position: fixed;
-            z-index: 99999;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.92);
-            touch-action: pan-y pinch-zoom;
-            overflow: hidden;
-            animation: fadeIn 0.25s ease;
+        /* GLightbox overrides for RTL + mobile */
+        .glightbox-container .gslide-description {
+            direction: rtl;
+            text-align: right;
         }
 
-        .lightbox.active {
-            display: flex !important;
-            align-items: center;
-            justify-content: center;
+        .glightbox-container .gslide-title {
+            font-size: 1rem;
+            font-weight: 600;
         }
 
-        /* Prevent scrolling when lightbox is active */
-        body.lightbox-open {
-            overflow: hidden;
-        }
-
-        .lightbox-content {
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            height: 100%;
-            padding: 80px;
-            box-sizing: border-box;
-            background: transparent;
-            pointer-events: none;
-            touch-action: pan-x pan-y pinch-zoom;
-            animation: zoomIn 0.25s ease;
-        }
-
-        .lightbox-content img {
-            max-width: 100%;
-            max-height: 100%;
-            width: auto;
-            height: auto;
-            object-fit: contain;
-            transition: transform 0.3s ease;
-            cursor: zoom-in;
-            user-select: none;
-            background: transparent;
-            border: none;
-            outline: none;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-            border-radius: 8px;
-            pointer-events: auto;
-            display: block;
-        }
-
-        .lightbox-content img.zoomed {
-            cursor: grab;
-        }
-
-        .lightbox-content img.zoomed:active {
-            cursor: grabbing;
-        }
-
-        .lightbox-close {
-            position: fixed;
-            top: 15px;
-            right: 15px;
-            color: #fff;
-            font-size: 26px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            z-index: 10004;
-            background: rgba(255, 96, 1, 0.9);
-            width: 55px;
-            height: 55px;
+        .glightbox-container .gnext,
+        .glightbox-container .gprev {
             border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(10px);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            background: rgba(255, 96, 1, 0.85);
+            width: 50px;
+            height: 50px;
+            backdrop-filter: blur(8px);
         }
 
-        .lightbox-close:hover {
+        .glightbox-container .gnext:hover,
+        .glightbox-container .gprev:hover {
             background: rgba(255, 96, 1, 1);
-            transform: scale(1.15) rotate(90deg);
-            border-color: rgba(255, 255, 255, 0.5);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
         }
 
-        .lightbox-close:active {
-            transform: scale(1.05) rotate(90deg);
-        }
-
-        .lightbox-prev,
-        .lightbox-next {
-            position: fixed;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #fff;
-            font-size: 30px;
-            font-weight: bold;
-            cursor: pointer;
-            padding: 15px 20px;
-            background: rgba(0, 0, 0, 0.7);
+        .glightbox-container .gclose {
+            background: rgba(255, 96, 1, 0.85);
             border-radius: 50%;
-            transition: all 0.3s ease;
-            user-select: none;
-            backdrop-filter: blur(10px);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            width: 60px;
-            height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10003;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
         }
 
-        .lightbox-prev:hover,
-        .lightbox-next:hover {
-            background: rgba(255, 96, 1, 0.9);
-            transform: translateY(-50%) scale(1.15);
-            border-color: rgba(255, 255, 255, 0.4);
+        .glightbox-container .gclose:hover {
+            background: rgba(255, 96, 1, 1);
         }
 
-        .lightbox-prev:active,
-        .lightbox-next:active {
-            transform: translateY(-50%) scale(1.05);
-        }
-
-        .lightbox-prev {
-            left: 20px;
-        }
-
-        .lightbox-next {
-            right: 20px;
-        }
-
-        .lightbox-counter {
-            color: #fff;
-            font-size: 18px;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 10px 20px;
-            border-radius: 25px;
-            backdrop-filter: blur(10px);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            font-weight: 600;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-            white-space: nowrap;
-        }
-
-        /* Loading indicator for lightbox */
-        .lightbox-loading {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-size: 20px;
-            z-index: 10004;
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 2.5rem;
-            border-radius: 15px;
-            backdrop-filter: blur(10px);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-        }
-
-        .lightbox-loading.active {
-            display: flex !important;
-        }
-
-        .lightbox-loading i {
-            font-size: 48px;
-            margin-bottom: 1rem;
-            color: #ff6001;
-        }
-
-        .lightbox-loading p {
-            margin: 0;
-            font-size: 16px;
-            font-weight: 500;
-        }
-
-        /* Zoom indicators */
-        .lightbox-zoom-indicator {
-            position: fixed;
-            top: 80px;
-            left: 20px;
-            color: white;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 10px 16px;
-            border-radius: 25px;
-            font-size: 15px;
-            font-weight: 600;
-            backdrop-filter: blur(10px);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            z-index: 10003;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-            white-space: nowrap;
-        }
-
-        .lightbox-zoom-indicator.visible {
-            opacity: 1;
-        }
-
-        /* Top Control Bar */
-        .lightbox-top-bar {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            z-index: 10003;
-            max-width: calc(100% - 150px);
-        }
-
-        .lightbox-actions {
-            display: flex;
-            gap: 10px;
-        }
-
-        .lightbox-action-btn {
-            background: rgba(0, 0, 0, 0.8);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            color: white;
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(10px);
-            font-size: 16px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-        }
-
-        .lightbox-action-btn:hover {
-            background: rgba(255, 96, 1, 0.9);
-            transform: scale(1.15);
-            border-color: rgba(255, 255, 255, 0.4);
-        }
-
-        .lightbox-action-btn:active {
-            transform: scale(1.05);
-        }
-
-        /* Bottom Info Bar */
-        .lightbox-bottom-bar {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-            z-index: 10003;
-            max-width: 90vw;
-        }
-
-        .lightbox-image-title {
-            background: rgba(0, 0, 0, 0.8);
-            padding: 8px 20px;
-            border-radius: 20px;
-            color: white;
-            font-size: 14px;
-            backdrop-filter: blur(10px);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            max-width: 90vw;
-            text-align: center;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-        }
-
-        /* Enhanced Close Button */
-        .lightbox-close {
-            font-size: 24px;
-        }
-
-        .lightbox-close i {
-            transition: transform 0.3s ease;
-        }
-
-        .lightbox-close:hover i {
-            transform: rotate(90deg);
-        }
-
-        /* Enhanced Navigation Arrows */
-        .lightbox-prev i,
-        .lightbox-next i {
-            transition: transform 0.3s ease;
-        }
-
-        .lightbox-prev:hover i {
-            transform: translateX(5px);
-        }
-
-        .lightbox-next:hover i {
-            transform: translateX(-5px);
-        }
-
-        /* Enhanced Loading Indicator */
-        .lightbox-loading {
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-        }
-
-        .lightbox-loading p {
-            margin: 0;
-            font-size: 16px;
-            font-weight: 500;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes zoomIn {
-            from { transform: scale(0.8); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        .lightbox-content img.fade-in {
-            animation: slideIn 0.3s ease-out;
-        }
-
-        /* Lightbox Mobile Responsive */
         @media (max-width: 768px) {
-            .lightbox-close {
-                width: 48px;
-                height: 48px;
-                font-size: 22px;
-                top: 15px;
-                right: 15px;
-                z-index: 10004;
+            .glightbox-container .gnext,
+            .glightbox-container .gprev {
+                width: 40px;
+                height: 40px;
             }
 
-            .lightbox-prev,
-            .lightbox-next {
-                width: 48px;
-                height: 48px;
-                font-size: 22px;
-                padding: 10px;
-                background: rgba(0, 0, 0, 0.8);
-                border: 2px solid rgba(255, 255, 255, 0.3);
-            }
-
-            .lightbox-prev {
-                left: 15px;
-            }
-
-            .lightbox-next {
-                right: 15px;
-            }
-
-            .lightbox-counter {
-                font-size: 14px;
-                padding: 8px 16px;
-                max-width: 85vw;
-            }
-
-            .lightbox-zoom-indicator {
-                font-size: 13px;
-                padding: 8px 14px;
-                top: 75px;
-                left: 15px;
-            }
-
-            .lightbox-top-bar {
-                top: 15px;
-                gap: 10px;
-                flex-wrap: wrap;
-                width: calc(100% - 90px);
-                justify-content: center;
-            }
-
-            .lightbox-actions {
-                gap: 8px;
-            }
-
-            .lightbox-action-btn {
-                width: 42px;
-                height: 42px;
-                font-size: 15px;
-                background: rgba(0, 0, 0, 0.8);
-                border: 2px solid rgba(255, 255, 255, 0.3);
-            }
-
-            .lightbox-bottom-bar {
-                bottom: 15px;
-                width: calc(100% - 30px);
-                padding: 0 15px;
-            }
-
-            .lightbox-image-title {
-                font-size: 13px;
-                padding: 7px 16px;
-                max-width: 90vw;
-            }
-
-            .lightbox-content {
-                padding: 70px 55px 85px;
-            }
-
-            .lightbox-content img {
-                max-width: 100%;
-                max-height: 100%;
-                object-fit: contain;
-                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-            }
-
-            /* Ensure touch targets are large enough */
-            .lightbox-prev,
-            .lightbox-next,
-            .lightbox-close,
-            .lightbox-action-btn {
-                min-width: 44px;
-                min-height: 44px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .lightbox-close {
-                width: 44px;
-                height: 44px;
-                font-size: 20px;
-                top: 10px;
-                right: 10px;
-            }
-
-            .lightbox-prev,
-            .lightbox-next {
-                width: 44px;
-                height: 44px;
-                font-size: 20px;
-                padding: 8px;
-            }
-
-            .lightbox-prev {
-                left: 10px;
-            }
-
-            .lightbox-next {
-                right: 10px;
-            }
-
-            .lightbox-counter {
-                font-size: 13px;
-                padding: 6px 14px;
-            }
-
-            .lightbox-zoom-indicator {
-                font-size: 12px;
-                padding: 6px 12px;
-                top: 60px;
-                left: 10px;
-            }
-
-            .lightbox-top-bar {
-                top: 10px;
-                width: calc(100% - 70px);
-                gap: 8px;
-            }
-
-            .lightbox-actions {
-                gap: 6px;
-            }
-
-            .lightbox-action-btn {
-                width: 38px;
-                height: 38px;
-                font-size: 14px;
-            }
-
-            .lightbox-bottom-bar {
-                bottom: 10px;
-                width: calc(100% - 20px);
-                padding: 0 10px;
-            }
-
-            .lightbox-image-title {
-                font-size: 12px;
-                padding: 6px 12px;
-                max-width: 85vw;
-            }
-
-            .lightbox-content {
-                padding: 60px 44px 75px;
-            }
-
-            .lightbox-content img {
-                max-width: 100%;
-                max-height: 100%;
+            .glightbox-container .gslide-image img {
+                max-height: 80vh;
                 object-fit: contain;
             }
         }
@@ -1014,6 +531,14 @@
             height: 100%;
         }
 
+        /* GLightbox anchor wrapper inside gallery slide */
+        .ad-gallery-swiper .swiper-slide a.glightbox {
+            display: block;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
         .ad-gallery-swiper .swiper-slide img {
             display: block !important;
             width: 100%;
@@ -1241,11 +766,17 @@
                 padding: 0;
             }
 
+            .ad-gallery-swiper .swiper-slide a.glightbox {
+                display: block;
+                width: 100%;
+                height: 100%;
+            }
+
             .ad-gallery-swiper .swiper-slide img {
                 max-height: 400px;
                 object-fit: contain;
                 width: 100%;
-                height: auto;
+                height: 100%;
             }
 
             .swiper-button-next,
@@ -1296,7 +827,7 @@
 
         @media (max-width: 480px) {
             .ad-gallery-swiper {
-                height: 300px;
+                height: 280px;
                 border-radius: 12px;
             }
 
@@ -1304,11 +835,17 @@
                 padding: 0;
             }
 
+            .ad-gallery-swiper .swiper-slide a.glightbox {
+                display: block;
+                width: 100%;
+                height: 100%;
+            }
+
             .ad-gallery-swiper .swiper-slide img {
-                max-height: 300px;
+                max-height: 280px;
                 object-fit: contain;
                 width: 100%;
-                height: auto;
+                height: 100%;
             }
 
             .related-products-swiper {
@@ -1766,13 +1303,13 @@
                             <div class="swiper-wrapper">
                                 {% for image in ad.images.all %}
                                     <div class="swiper-slide" data-image-index="{{ forloop.counter0 }}">
-                                        <img src="{{ image.image.url }}"
-                                             alt="{{ ad.title }} - {% trans "صورة" %} {{ forloop.counter }}"
-                                             data-index="{{ forloop.counter0 }}"
-                                             class="gallery-image-clickable"
-                                             style="cursor: pointer;"
-                                             loading="lazy"
-                                             onerror="this.src='{% static 'images/placeholder-ad.jpg' %}'">
+                                        <a href="{{ image.image.url }}" class="glightbox" data-gallery="ad-gallery"
+                                           data-description="{{ ad.title }} - {% trans "صورة" %} {{ forloop.counter }}">
+                                            <img src="{{ image.image.url }}"
+                                                 alt="{{ ad.title }} - {% trans "صورة" %} {{ forloop.counter }}"
+                                                 loading="lazy"
+                                                 onerror="this.src='{% static 'images/placeholder-ad.jpg' %}'">
+                                        </a>
                                     </div>
                                 {% endfor %}
                             </div>
@@ -2485,70 +2022,6 @@
         </div>
     </section>
 
-    <!-- Enhanced Lightbox Modal -->
-    <div id="imageLightbox" class="lightbox" onclick="window.closeLightboxOnBackground(event)">
-        <!-- Top Control Bar -->
-        <div class="lightbox-top-bar">
-            <div class="lightbox-zoom-indicator" id="zoomIndicator">
-                <i class="fas fa-search-plus me-1"></i>
-                <span id="zoomLevel">100%</span>
-            </div>
-            <div class="lightbox-actions">
-                <button class="lightbox-action-btn" onclick="event.stopPropagation(); window.downloadImage()" title="{% trans 'تحميل الصورة' %}">
-                    <i class="fas fa-download"></i>
-                </button>
-                <button class="lightbox-action-btn" onclick="event.stopPropagation(); window.resetZoom()" title="{% trans 'إعادة تعيين' %}">
-                    <i class="fas fa-compress"></i>
-                </button>
-                <button class="lightbox-action-btn" onclick="event.stopPropagation(); window.toggleFullscreen()" title="{% trans 'ملء الشاشة' %}">
-                    <i class="fas fa-expand" id="fullscreenIcon"></i>
-                </button>
-            </div>
-        </div>
-
-        <span class="lightbox-close" onclick="window.closeLightbox()" title="{% trans "إغلاق" %}">
-            <i class="fas fa-times"></i>
-        </span>
-        <span class="lightbox-prev" onclick="window.changeLightboxImage(-1)" title="{% trans "السابق" %}">
-            <i class="fas fa-chevron-right"></i>
-        </span>
-        <div class="lightbox-content">
-            <img id="lightboxImage" src="" alt="{% trans "صورة بالحجم الكامل" %}">
-            <div class="lightbox-loading" id="lightboxLoading">
-                <i class="fas fa-spinner fa-spin fa-3x"></i>
-                <p class="mt-3">{% trans "جاري التحميل..." %}</p>
-            </div>
-        </div>
-        <span class="lightbox-next" onclick="window.changeLightboxImage(1)" title="{% trans "التالي" %}">
-            <i class="fas fa-chevron-left"></i>
-        </span>
-
-        <!-- Bottom Info Bar -->
-        <div class="lightbox-bottom-bar">
-            <div class="lightbox-counter">
-                <i class="fas fa-images me-2"></i>
-                <span id="lightboxCounter"></span>
-            </div>
-            <div class="lightbox-image-title" id="lightboxImageTitle"></div>
-        </div>
-    </div>
-
-    <!-- Debug Panel (only visible in development) -->
-    {% if settings.DEBUG %}
-    <div style="position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 10px; z-index: 10000; font-size: 12px; max-width: 300px;">
-        <h6 style="color: #ffd700; margin-bottom: 10px;"><i class="fas fa-bug"></i> Lightbox Debug Panel</h6>
-        <div id="debugInfo">
-            <div>Images in lightboxImages: <span id="debugImageCount">Loading...</span></div>
-            <div>Gallery element found: <span id="debugGalleryFound">Loading...</span></div>
-            <div>Lightbox element found: <span id="debugLightboxFound">Loading...</span></div>
-            <div style="margin-top: 10px;">
-                <button onclick="testLightbox()" style="background: #007bff; border: none; color: white; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-right: 5px;">Test Lightbox</button>
-                <button onclick="showImages()" style="background: #28a745; border: none; color: white; padding: 5px 10px; border-radius: 5px; cursor: pointer;">Show Images</button>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
 {% endblock content %}
 
 {% block extra_js %}
@@ -2701,15 +2174,6 @@
                 console.error('Error initializing gallery swiper:', error);
             }
 
-            // Attach click handlers directly to gallery images
-            document.querySelectorAll('.gallery-image-clickable').forEach(function(img) {
-                img.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const index = parseInt(this.getAttribute('data-index'), 10);
-                    window.openLightbox(isNaN(index) ? 0 : index);
-                });
-            });
-
             // Initialize Related Products Swiper
             const relatedProductsContainer = document.querySelector('.related-products-swiper');
             if (relatedProductsContainer) {
@@ -2770,594 +2234,30 @@
         });
     </script>
 
+    <script src="https://cdn.jsdelivr.net/npm/glightbox/dist/js/glightbox.min.js"></script>
     <script>
-        // Initialize lightbox data immediately (before DOMContentLoaded)
-        // Lightbox functionality
-        let currentLightboxIndex = 0;
-        let currentScale = 1;
-        let currentX = 0;
-        let currentY = 0;
-        let isDragging = false;
-        let startX = 0;
-        let startY = 0;
-
-        const lightboxImages = [
-            {% for image in ad.images.all %}
-                {
-                    url: "{{ image.image.url }}",
-                    alt: "{{ ad.title }} - {% trans "صورة" %} {{ forloop.counter }}"
-                }{% if not forloop.last %},{% endif %}
-            {% endfor %}
-        ];
-
-        // Debug: Check if images are loaded
-        console.log('Lightbox images initialized:', lightboxImages);
-        console.log('Number of images:', lightboxImages.length);
-
-        // Define lightbox functions globally and immediately
-        // Lightbox functions - globally accessible
-        window.openLightbox = function(index) {
-            console.log('Opening lightbox with index:', index);
-            console.log('Available images:', lightboxImages);
-
-            if (!lightboxImages || lightboxImages.length === 0) {
-                console.error('No images available in lightboxImages array');
-                alert('{% trans "لا توجد صور لعرضها" %}');
-                return;
-            }
-
-            if (index < 0 || index >= lightboxImages.length) {
-                console.error('Invalid image index:', index);
-                return;
-            }
-
-            currentLightboxIndex = index;
-            const lightbox = document.getElementById('imageLightbox');
-            const lightboxImg = document.getElementById('lightboxImage');
-            const lightboxCounter = document.getElementById('lightboxCounter');
-            const lightboxImageTitle = document.getElementById('lightboxImageTitle');
-            const loadingIndicator = document.getElementById('lightboxLoading');
-
-            if (!lightbox) {
-                console.error('Lightbox element #imageLightbox not found');
-                return;
-            }
-
-            if (!lightboxImg) {
-                console.error('Lightbox image element #lightboxImage not found');
-                return;
-            }
-
-            try {
-                const imageData = lightboxImages[currentLightboxIndex];
-                const rawImageUrl = imageData.url;
-                const imageUrl = rawImageUrl && rawImageUrl.startsWith('http')
-                    ? rawImageUrl
-                    : `${window.location.origin}${rawImageUrl}`;
-                const imageAlt = imageData.alt;
-
-                // Show lightbox
-                lightbox.classList.add('active');
-                document.body.classList.add('lightbox-open');
-                document.body.style.overflow = 'hidden';
-
-                // Reset transform only
-                lightboxImg.style.transform = 'scale(1)';
-
-                // Show loading indicator
-                if (loadingIndicator) {
-                    loadingIndicator.classList.add('active');
-                }
-
-                // Load image directly
-                lightboxImg.onload = function() {
-                    if (loadingIndicator) {
-                        loadingIndicator.classList.remove('active');
-                    }
-                };
-                lightboxImg.onerror = function() {
-                    if (loadingIndicator) {
-                        loadingIndicator.classList.remove('active');
-                    }
-                };
-                lightboxImg.src = imageUrl;
-                lightboxImg.alt = imageAlt;
-
-                // Fallback: hide loading indicator after 3s
-                setTimeout(() => {
-                    if (loadingIndicator) {
-                        loadingIndicator.classList.remove('active');
-                    }
-                }, 3000);
-
-                if (lightboxCounter) {
-                    lightboxCounter.textContent = `${currentLightboxIndex + 1} / ${lightboxImages.length}`;
-                }
-
-                if (lightboxImageTitle) {
-                    lightboxImageTitle.textContent = imageAlt;
-                }
-
-                // Show/hide navigation arrows based on number of images
-                const prevBtn = document.querySelector('.lightbox-prev');
-                const nextBtn = document.querySelector('.lightbox-next');
-                if (lightboxImages.length <= 1) {
-                    if (prevBtn) prevBtn.style.display = 'none';
-                    if (nextBtn) nextBtn.style.display = 'none';
-                } else {
-                    if (prevBtn) prevBtn.style.display = 'flex';
-                    if (nextBtn) nextBtn.style.display = 'flex';
-                }
-
-                // Reset zoom
-                currentScale = 1;
-                currentX = 0;
-                currentY = 0;
-                lightboxImg.style.transform = 'scale(1)';
-                lightboxImg.style.cursor = 'zoom-in';
-                if (window.updateZoomIndicator) {
-                    window.updateZoomIndicator();
-                }
-
-                console.log('Lightbox opened successfully');
-            } catch (error) {
-                console.error('Error in openLightbox:', error);
-                if (loadingIndicator) {
-                    loadingIndicator.classList.remove('active');
-                }
-            }
-        };
-
-        window.closeLightbox = function() {
-            const lightbox = document.getElementById('imageLightbox');
-            if (lightbox) {
-                lightbox.classList.remove('active');
-                document.body.classList.remove('lightbox-open');
-                document.body.style.overflow = '';
-                console.log('Lightbox closed');
-            }
-        };
-
-        window.changeLightboxImage = function(direction) {
-            if (!lightboxImages || lightboxImages.length === 0) return;
-
-            // Calculate new index with wrapping
-            let newIndex = currentLightboxIndex + direction;
-
-            // Wrap around
-            if (newIndex < 0) {
-                newIndex = lightboxImages.length - 1;
-            } else if (newIndex >= lightboxImages.length) {
-                newIndex = 0;
-            }
-
-            window.openLightbox(newIndex);
-        };
-
-        window.closeLightboxOnBackground = function(event) {
-            // Only close if clicking directly on the lightbox background, not on controls
-            if (event.target.id === 'imageLightbox' || event.target.classList.contains('lightbox-content')) {
-                window.closeLightbox();
-            }
-        };
-
-        // Debug functions (global scope for testing)
-        window.testLightbox = function() {
-            console.log('=== LIGHTBOX DEBUG TEST ===');
-            console.log('lightboxImages array:', lightboxImages);
-            console.log('Images count:', lightboxImages.length);
-
-            if (lightboxImages.length > 0) {
-                console.log('First image URL:', lightboxImages[0].url);
-                console.log('First image alt:', lightboxImages[0].alt);
-                console.log('Testing lightbox with first image...');
-                window.openLightbox(0);
-            } else {
-                console.error('No images available to test');
-                alert('No images available to test');
-            }
-        };
-
-        window.showImages = function() {
-            console.log('Available images:', lightboxImages);
-            if (lightboxImages.length > 0) {
-                let imageList = lightboxImages.map((img, index) => `${index + 1}. ${img.alt}: ${img.url}`).join('\\n');
-                alert('Available images:\\n' + imageList);
-            } else {
-                alert('No images available');
-            }
-        };
-
-        // Test lightbox functionality
-        if (lightboxImages.length === 0) {
-            console.warn('No images found for lightbox');
-        }
-
-        // Debug functions (global scope for testing)
-        window.testLightbox = function() {
-            console.log('=== LIGHTBOX DEBUG TEST ===');
-            console.log('lightboxImages array:', lightboxImages);
-            console.log('Images count:', lightboxImages.length);
-
-            if (lightboxImages.length > 0) {
-                console.log('First image URL:', lightboxImages[0].url);
-                console.log('First image alt:', lightboxImages[0].alt);
-                console.log('Testing lightbox with first image...');
-                window.openLightbox(0);
-            } else {
-                console.error('No images available to test');
-                alert('No images available to test');
-            }
-        };
-
-        window.showImages = function() {
-            console.log('Available images:', lightboxImages);
-            if (lightboxImages.length > 0) {
-                let imageList = lightboxImages.map((img, index) => `${index + 1}. ${img.alt}: ${img.url}`).join('\\n');
-                alert('Available images:\\n' + imageList);
-            } else {
-                alert('No images available');
-            }
-        };
-
-        // Update debug panel
-        function updateDebugPanel() {
-            // Check if debug elements exist before accessing them
-            const debugImageCount = document.getElementById('debugImageCount');
-            const debugGalleryFound = document.getElementById('debugGalleryFound');
-            const debugLightboxFound = document.getElementById('debugLightboxFound');
-
-            if (debugImageCount) {
-                debugImageCount.textContent = lightboxImages.length;
-            }
-            if (debugGalleryFound) {
-                debugGalleryFound.textContent = !!document.querySelector('.ad-gallery-swiper');
-            }
-            if (debugLightboxFound) {
-                debugLightboxFound.textContent = !!document.getElementById('imageLightbox');
-            }
-        }
-
-        // Wait for DOM to be fully loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            // Verify lightbox elements exist
-            const lightboxElement = document.getElementById('imageLightbox');
-            const lightboxImgElement = document.getElementById('lightboxImage');
-            console.log('Lightbox element found:', !!lightboxElement);
-            console.log('Lightbox image element found:', !!lightboxImgElement);
-
-            // Add swipe gesture support for mobile navigation
-            let touchStartX = 0;
-            let touchStartY = 0;
-            let touchEndX = 0;
-            let touchEndY = 0;
-            const minSwipeDistance = 50;
-
-            if (lightboxElement) {
-                lightboxElement.addEventListener('touchstart', function(e) {
-                    // Only handle swipes if not zooming
-                    if (e.touches.length === 1 && currentScale === 1) {
-                        touchStartX = e.touches[0].clientX;
-                        touchStartY = e.touches[0].clientY;
-                    }
-                }, { passive: true });
-
-                lightboxElement.addEventListener('touchend', function(e) {
-                    // Only handle swipes if not zooming
-                    if (currentScale === 1) {
-                        touchEndX = e.changedTouches[0].clientX;
-                        touchEndY = e.changedTouches[0].clientY;
-                        handleSwipe();
-                    }
-                }, { passive: true });
-            }
-
-            function handleSwipe() {
-                const deltaX = touchEndX - touchStartX;
-                const deltaY = touchEndY - touchStartY;
-                const absDeltaX = Math.abs(deltaX);
-                const absDeltaY = Math.abs(deltaY);
-
-                // Only trigger swipe if horizontal movement is greater than vertical
-                if (absDeltaX > minSwipeDistance && absDeltaX > absDeltaY) {
-                    if (deltaX > 0) {
-                        // Swipe right (previous image in RTL)
-                        window.changeLightboxImage(1);
-                    } else {
-                        // Swipe left (next image in RTL)
-                        window.changeLightboxImage(-1);
-                    }
-                }
-            }
-
-            // Add keyboard navigation
-            document.addEventListener('keydown', function(e) {
-                const lightbox = document.getElementById('imageLightbox');
-                if (lightbox && lightbox.classList.contains('active')) {
-                    switch(e.key) {
-                        case 'Escape':
-                            window.closeLightbox();
-                            break;
-                        case 'ArrowLeft':
-                            window.changeLightboxImage(-1);
-                            break;
-                        case 'ArrowRight':
-                            window.changeLightboxImage(1);
-                            break;
-                    }
-                }
+        // Initialize GLightbox for ad image gallery
+        document.addEventListener('DOMContentLoaded', function () {
+            const lightbox = GLightbox({
+                selector: '.glightbox',
+                touchNavigation: true,
+                touchFollowAxis: true,
+                loop: true,
+                autoplayVideos: false,
+                closeOnOutsideClick: true,
+                keyboard: true,
+                openEffect: 'zoom',
+                closeEffect: 'fade',
+                slideEffect: 'slide',
+                moreLength: 0,
+                draggable: true,
+                dragToleranceX: 40,
+                dragToleranceY: 65,
             });
+        });
+    </script>
 
-            // Update debug panel if it exists
-            try {
-                if (typeof updateDebugPanel === 'function') {
-                    updateDebugPanel();
-                }
-            } catch (error) {
-                console.log('Debug panel not available:', error.message);
-            }
-
-            // Add zoom functionality
-            if (lightboxImgElement) {
-                // Mouse wheel zoom
-                lightboxImgElement.addEventListener('wheel', function(e) {
-                    e.preventDefault();
-                    const delta = e.deltaY > 0 ? -0.1 : 0.1;
-                    currentScale = Math.max(1, Math.min(4, currentScale + delta));
-                    updateImageTransform();
-                    updateZoomIndicator();
-                });
-
-                // Double click to zoom in/out
-                lightboxImgElement.addEventListener('dblclick', function(e) {
-                    if (currentScale === 1) {
-                        currentScale = 2;
-                    } else {
-                        currentScale = 1;
-                        currentX = 0;
-                        currentY = 0;
-                    }
-                    updateImageTransform();
-                    updateZoomIndicator();
-                });
-
-                // Touch pinch-to-zoom
-                let initialDistance = 0;
-                let initialScale = 1;
-
-                lightboxImgElement.addEventListener('touchstart', function(e) {
-                    if (e.touches.length === 2) {
-                        e.preventDefault();
-                        initialDistance = getDistance(e.touches[0], e.touches[1]);
-                        initialScale = currentScale;
-                    } else if (e.touches.length === 1 && currentScale > 1) {
-                        isDragging = true;
-                        startX = e.touches[0].clientX - currentX;
-                        startY = e.touches[0].clientY - currentY;
-                    }
-                });
-
-                lightboxImgElement.addEventListener('touchmove', function(e) {
-                    if (e.touches.length === 2) {
-                        e.preventDefault();
-                        const distance = getDistance(e.touches[0], e.touches[1]);
-                        currentScale = Math.max(1, Math.min(4, initialScale * (distance / initialDistance)));
-                        updateImageTransform();
-                        updateZoomIndicator();
-                    } else if (isDragging && e.touches.length === 1) {
-                        e.preventDefault();
-                        currentX = e.touches[0].clientX - startX;
-                        currentY = e.touches[0].clientY - startY;
-                        updateImageTransform();
-                    }
-                });
-
-                lightboxImgElement.addEventListener('touchend', function(e) {
-                    isDragging = false;
-                    if (currentScale === 1) {
-                        currentX = 0;
-                        currentY = 0;
-                        updateImageTransform();
-                    }
-                });
-
-                // Mouse drag when zoomed
-                lightboxImgElement.addEventListener('mousedown', function(e) {
-                    if (currentScale > 1) {
-                        e.preventDefault();
-                        isDragging = true;
-                        startX = e.clientX - currentX;
-                        startY = e.clientY - currentY;
-                        lightboxImgElement.style.cursor = 'grabbing';
-                    }
-                });
-
-                document.addEventListener('mousemove', function(e) {
-                    if (isDragging) {
-                        e.preventDefault();
-                        currentX = e.clientX - startX;
-                        currentY = e.clientY - startY;
-                        updateImageTransform();
-                    }
-                });
-
-                document.addEventListener('mouseup', function() {
-                    if (isDragging) {
-                        isDragging = false;
-                        lightboxImgElement.style.cursor = currentScale > 1 ? 'grab' : 'zoom-in';
-                    }
-                });
-            }
-
-            function getDistance(touch1, touch2) {
-                const dx = touch1.clientX - touch2.clientX;
-                const dy = touch1.clientY - touch2.clientY;
-                return Math.sqrt(dx * dx + dy * dy);
-            }
-
-            function updateImageTransform() {
-                const lightboxImg = document.getElementById('lightboxImage');
-                if (lightboxImg) {
-                    lightboxImg.style.transform = `translate(${currentX}px, ${currentY}px) scale(${currentScale})`;
-                    lightboxImg.style.cursor = currentScale > 1 ? 'grab' : 'zoom-in';
-                }
-            }
-
-            // Lightbox functions are now defined globally above - no need to redefine here
-
-            window.updateZoomIndicator = function() {
-                const zoomIndicator = document.getElementById('zoomIndicator');
-                const zoomLevel = document.getElementById('zoomLevel');
-
-                if (zoomIndicator && zoomLevel) {
-                    if (currentScale > 1) {
-                        zoomIndicator.classList.add('visible');
-                        zoomLevel.textContent = `${Math.round(currentScale * 100)}%`;
-                    } else {
-                        zoomIndicator.classList.remove('visible');
-                    }
-                }
-            };
-
-            // Download current image
-            window.downloadImage = function() {
-                const lightboxImg = document.getElementById('lightboxImage');
-                if (!lightboxImg) return;
-
-                const imageUrl = lightboxImg.src;
-                const imageName = lightboxImages[currentLightboxIndex].alt || 'image';
-
-                // Create a temporary link element
-                const link = document.createElement('a');
-                link.href = imageUrl;
-                link.download = `${imageName}.jpg`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-
-                // Show feedback
-                const downloadBtn = event.target.closest('.lightbox-action-btn');
-                if (downloadBtn) {
-                    const originalHTML = downloadBtn.innerHTML;
-                    downloadBtn.innerHTML = '<i class="fas fa-check"></i>';
-                    setTimeout(() => {
-                        downloadBtn.innerHTML = originalHTML;
-                    }, 1500);
-                }
-            };
-
-            // Reset zoom to 100%
-            window.resetZoom = function() {
-                const lightboxImg = document.getElementById('lightboxImage');
-                if (!lightboxImg) return;
-
-                currentScale = 1;
-                currentX = 0;
-                currentY = 0;
-                lightboxImg.style.transform = 'scale(1)';
-                lightboxImg.style.cursor = 'zoom-in';
-                if (window.updateZoomIndicator) {
-                    window.updateZoomIndicator();
-                }
-
-                // Show feedback
-                const resetBtn = event.target.closest('.lightbox-action-btn');
-                if (resetBtn) {
-                    const originalHTML = resetBtn.innerHTML;
-                    resetBtn.innerHTML = '<i class="fas fa-check"></i>';
-                    setTimeout(() => {
-                        resetBtn.innerHTML = originalHTML;
-                    }, 1000);
-                }
-            };
-
-            // Toggle fullscreen mode
-            window.toggleFullscreen = function() {
-                const lightbox = document.getElementById('imageLightbox');
-                const fullscreenIcon = document.getElementById('fullscreenIcon');
-
-                if (!lightbox) return;
-
-                if (!document.fullscreenElement) {
-                    // Enter fullscreen
-                    if (lightbox.requestFullscreen) {
-                        lightbox.requestFullscreen();
-                    } else if (lightbox.webkitRequestFullscreen) {
-                        lightbox.webkitRequestFullscreen();
-                    } else if (lightbox.msRequestFullscreen) {
-                        lightbox.msRequestFullscreen();
-                    }
-                    if (fullscreenIcon) {
-                        fullscreenIcon.className = 'fas fa-compress';
-                    }
-                } else {
-                    // Exit fullscreen
-                    if (document.exitFullscreen) {
-                        document.exitFullscreen();
-                    } else if (document.webkitExitFullscreen) {
-                        document.webkitExitFullscreen();
-                    } else if (document.msExitFullscreen) {
-                        document.msExitFullscreen();
-                    }
-                    if (fullscreenIcon) {
-                        fullscreenIcon.className = 'fas fa-expand';
-                    }
-                }
-            };
-
-            // Listen for fullscreen changes
-            document.addEventListener('fullscreenchange', function() {
-                const fullscreenIcon = document.getElementById('fullscreenIcon');
-                if (document.fullscreenElement) {
-                    fullscreenIcon.className = 'fas fa-compress';
-                } else {
-                    fullscreenIcon.className = 'fas fa-expand';
-                }
-            });
-
-            // Keyboard navigation for lightbox
-            document.addEventListener('keydown', function(e) {
-                const lightbox = document.getElementById('imageLightbox');
-                if (lightbox && lightbox.classList.contains('active')) {
-                    switch(e.key) {
-                        case 'Escape':
-                            window.closeLightbox();
-                            break;
-                        case 'ArrowLeft':
-                            window.changeLightboxImage(1);
-                            break;
-                        case 'ArrowRight':
-                            window.changeLightboxImage(-1);
-                            break;
-                        case '+':
-                        case '=':
-                            if (currentScale < 4) {
-                                currentScale += 0.25;
-                                updateImageTransform();
-                                if (window.updateZoomIndicator) {
-                                    window.updateZoomIndicator();
-                                }
-                            }
-                            break;
-                        case '-':
-                        case '_':
-                            if (currentScale > 1) {
-                                currentScale -= 0.25;
-                                if (currentScale < 1) currentScale = 1;
-                                updateImageTransform();
-                                if (window.updateZoomIndicator) {
-                                    window.updateZoomIndicator();
-                                }
-                            }
-                            break;
-                        case '0':
-                            window.resetZoom();
-                            break;
-                    }
-                }
-            });
-
-        }); // End DOMContentLoaded
+    <script>
 
         // Helper function to get CSRF cookie
         function getCookie(name) {

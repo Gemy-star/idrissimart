@@ -3548,7 +3548,8 @@ class Order(models.Model):
 
     PAYMENT_METHOD_CHOICES = [
         ("cod", _("الدفع عند الاستلام")),
-        ("online", _("الدفع الإلكتروني")),
+        ("online", _("الدفع الإلكتروني - Paymob")),
+        ("paypal", _("باي بال - PayPal")),
         ("instapay", _("InstaPay")),
         ("wallet", _("محفظة إلكترونية")),
         ("partial", _("دفع جزئي")),

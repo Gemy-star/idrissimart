@@ -454,7 +454,7 @@ class PaymentMethodConfig(models.Model):
 
     # Payment methods availability
     visa_enabled = models.BooleanField(default=True, verbose_name=_("فيزا/ماستركارد"))
-    paypal_enabled = models.BooleanField(default=False, verbose_name=_("باي بال"))
+    paypal_enabled = models.BooleanField(default=True, verbose_name=_("باي بال"))
     wallet_enabled = models.BooleanField(
         default=True, verbose_name=_("محفظة إلكترونية")
     )
@@ -653,7 +653,7 @@ class PaymentMethodConfig(models.Model):
         defaults = {
             "is_active": True,
             "visa_enabled": True,
-            "paypal_enabled": False,
+            "paypal_enabled": True,
             "wallet_enabled": True,
             "instapay_enabled": True,
         }
