@@ -251,6 +251,56 @@
     .pay-label { font-weight: 700; font-size: .9rem; color: #1a2332; }
     .pay-sub { font-size: .75rem; color: #6b7280; }
 
+    /* Paymob logo inside pay-card icon box */
+    .paymob-card-logo {
+        height: 20px;
+        width: auto;
+        object-fit: contain;
+        /* show original colours on light icon-box background */
+        filter: none;
+    }
+    .pay-card.active .pay-icon .paymob-card-logo {
+        /* white icon-box when active — invert logo to white */
+        filter: brightness(0) invert(1);
+    }
+
+    /* Payment badges strip below payment grid */
+    .payment-badges--checkout {
+        margin-top: .75rem;
+        padding: .5rem .75rem;
+        background: #f9fafb;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        gap: .5rem;
+    }
+    .payment-badge-label {
+        color: #9ca3af;
+        font-size: .72rem;
+    }
+    .payment-badge--checkout {
+        font-size: 1.15rem;
+        color: #6366f1;
+    }
+    .payment-badge--checkout .fab.fa-paypal { color: #003087; }
+    .paymob-checkout-logo {
+        height: 13px;
+        /* show Paymob brand colours on white strip */
+        filter: none;
+        opacity: .85;
+    }
+
+    /* dark-mode adjustments for checkout badges */
+    [data-theme='dark'] .payment-badges--checkout {
+        background: rgba(255,255,255,.05);
+        border-color: rgba(255,255,255,.1);
+    }
+    [data-theme='dark'] .payment-badge-label { color: rgba(255,255,255,.45); }
+    [data-theme='dark'] .payment-badge--checkout .fab.fa-paypal { color: #69b3ff; }
+    [data-theme='dark'] .paymob-checkout-logo {
+        filter: brightness(0) invert(1);
+        opacity: .75;
+    }
+
     /* ── Payment detail panels ─────────── */
     .pay-panel {
         margin-top: 1rem;
@@ -649,7 +699,9 @@
                                 {% if site_config.allow_online_payment %}
                                 <div class="pay-card active" id="pc-online" onclick="selectPaymentMethod('online')">
                                     <input type="radio" name="payment_method" value="online" checked>
-                                    <div class="pay-icon"><i class="fas fa-credit-card"></i></div>
+                                    <div class="pay-icon">
+                                        <img src="{% static 'images/paymobLogo.png' %}" alt="Paymob" class="paymob-card-logo" />
+                                    </div>
                                     <div class="pay-label">Paymob</div>
                                     <div class="pay-sub">Visa / Mastercard</div>
                                 </div>
@@ -672,6 +724,18 @@
                                 </div>
                             {% endif %}
                         </div>
+
+                        {% if site_config.allow_online_payment %}
+                        <div class="payment-badges payment-badges--checkout">
+                            <span class="payment-badge-label">{% trans "وسائل الدفع:" %}</span>
+                            <span class="payment-badge payment-badge--checkout" title="PayPal">
+                                <i class="fab fa-paypal"></i>
+                            </span>
+                            <span class="payment-badge payment-badge--checkout payment-badge--img" title="Paymob">
+                                <img src="{% static 'images/paymobLogo.png' %}" alt="Paymob" class="paymob-footer-logo paymob-checkout-logo" />
+                            </span>
+                        </div>
+                        {% endif %}
 
                         <!-- InstaPay panel -->
                         {% if site_config.instapay_qr_code %}
@@ -751,6 +815,31 @@
                                     <div class="upload-sub">{% trans "JPG أو PNG - حجم أقصى 5 MB" %}</div>
                                 </div>
                                 <div id="walletPreview" class="upload-preview text-center"></div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- PayPal payment panel -->
+                        {% if site_config.allow_online_payment %}
+                        <div id="paypalPaymentNote" class="pay-panel" style="display:none;">
+                            <div class="pay-panel-header">
+                                <i class="fab fa-paypal"></i>
+                                {% trans "الدفع عبر PayPal" %}
+                            </div>
+                            <div class="pay-panel-body">
+                                <p class="text-muted mb-2" style="font-size:.9rem;">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    {% trans "سيتم تحويلك إلى بوابة PayPal لإتمام الدفع بأمان" %}
+                                </p>
+                                <div class="pay-info-row">
+                                    <i class="fas fa-money-bill-wave text-muted"></i>
+                                    <span>{% trans "المبلغ المطلوب:" %}</span>
+                                    <span class="pay-amount-badge">{{ final_total|floatformat:"-2" }} USD</span>
+                                </div>
+                                <div class="pay-info-row" style="font-size:.82rem;color:#6b7280;">
+                                    <i class="fas fa-shield-alt me-1"></i>
+                                    {% trans "معاملتك محمية بواسطة PayPal Buyer Protection" %}
+                                </div>
                             </div>
                         </div>
                         {% endif %}
@@ -1016,11 +1105,17 @@ function verifyCode() {
 }
 
 function showPaymentPanel(method) {
-    ['instapayPaymentNote','walletPaymentNote','onlinePaymentNote','partialPaymentNote'].forEach(id => {
+    ['instapayPaymentNote','walletPaymentNote','onlinePaymentNote','paypalPaymentNote','partialPaymentNote'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     });
-    const map = { instapay:'instapayPaymentNote', wallet:'walletPaymentNote', online:'onlinePaymentNote', partial:'partialPaymentNote' };
+    const map = {
+        instapay: 'instapayPaymentNote',
+        wallet:   'walletPaymentNote',
+        online:   'onlinePaymentNote',
+        paypal:   'paypalPaymentNote',
+        partial:  'partialPaymentNote'
+    };
     const panel = document.getElementById(map[method]);
     if (panel) panel.style.display = 'block';
 }
@@ -1118,7 +1213,7 @@ function placeOrder() {
     .then(data => {
         if (data.success) {
             showToast('{% trans "تم تأكيد الطلب بنجاح!" %}', 'success');
-            if (paymentMethod === 'online' && data.payment_url) {
+            if ((paymentMethod === 'online' || paymentMethod === 'paypal') && data.payment_url) {
                 window.location.href = data.payment_url;
             } else {
                 window.location.href = data.redirect_url || "{% url 'main:home' %}";
