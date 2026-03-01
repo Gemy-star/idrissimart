@@ -54,31 +54,43 @@ def get_allowed_payment_methods(context=PaymentContext.AD_POSTING):
 
         # Filter based on global payment settings from SiteConfiguration
         filtered_methods = []
+        seen_codes = set()
         for method_code, method_label in methods:
-            # Online payment methods: visa, paypal, paymob, online, card
-            if method_code in ["visa", "paypal", "paymob", "online", "card"]:
+            # Normalise "visa" / "online" / "card" to "paymob" so they never render twice
+            if method_code in ["visa", "online", "card"]:
+                method_code = "paymob"
+
+            if method_code in seen_codes:
+                continue
+
+            # Online payment methods: paymob, paypal
+            if method_code in ["paymob", "paypal"]:
                 if site_config.allow_online_payment:
                     if method_code == "paypal":
                         try:
                             from .services.paypal_service import PayPalService
                             if PayPalService.is_enabled():
                                 filtered_methods.append((method_code, method_label))
+                                seen_codes.add(method_code)
                         except Exception:
                             pass
-                    elif method_code in ["visa", "paymob", "online", "card"]:
+                    else:  # paymob
                         if getattr(constance_config, "PAYMOB_ENABLED", True):
                             filtered_methods.append((method_code, method_label))
+                            seen_codes.add(method_code)
             # Offline payment methods: instapay, wallet
             elif method_code in ["instapay", "wallet"]:
                 if site_config.allow_offline_payment:
                     filtered_methods.append((method_code, method_label))
+                    seen_codes.add(method_code)
             # COD and partial are for product purchase, controlled by PaymentMethodConfig
             elif method_code in ["cod", "partial"]:
-                # These are already filtered by PaymentMethodConfig context
                 filtered_methods.append((method_code, method_label))
+                seen_codes.add(method_code)
             else:
                 # Unknown methods, include them
                 filtered_methods.append((method_code, method_label))
+                seen_codes.add(method_code)
 
         return filtered_methods
 
@@ -93,8 +105,7 @@ def _get_fallback_methods(context):
     if context in [PaymentContext.AD_POSTING, PaymentContext.AD_UPGRADE, PaymentContext.PACKAGE_PURCHASE]:
         # Platform payments: Online methods only
         return [
-            ("visa", _("بطاقة فيزا/ماستركارد")),
-            ("paymob", _("Paymob")),
+            ("paymob", _("Paymob – بطاقة فيزا / ماستركارد")),
             ("paypal", _("باي بال")),
             ("wallet", _("محفظة إلكترونية")),
             ("instapay", _("إنستا باي")),
@@ -102,8 +113,7 @@ def _get_fallback_methods(context):
     elif context == PaymentContext.PRODUCT_PURCHASE:
         # Product purchase: All methods
         return [
-            ("visa", _("بطاقة فيزا/ماستركارد")),
-            ("paymob", _("Paymob")),
+            ("paymob", _("Paymob – بطاقة فيزا / ماستركارد")),
             ("paypal", _("باي بال")),
             ("wallet", _("محفظة إلكترونية")),
             ("instapay", _("إنستا باي")),
@@ -113,8 +123,7 @@ def _get_fallback_methods(context):
     else:
         # Default: online methods
         return [
-            ("visa", _("بطاقة فيزا/ماستركارد")),
-            ("paymob", _("Paymob")),
+            ("paymob", _("Paymob – بطاقة فيزا / ماستركارد")),
             ("paypal", _("باي بال")),
             ("wallet", _("محفظة إلكترونية")),
             ("instapay", _("إنستا باي")),
