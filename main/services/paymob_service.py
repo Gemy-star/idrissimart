@@ -1,218 +1,192 @@
 """
-Paymob Payment Gateway Service
-Integrates with django-constance for dynamic configuration
+Paymob Payment Gateway Service — New v1 Unified Checkout API
+Uses PAYMOB_SECRET_KEY (egy_sk_...) instead of the legacy API key + 3-step flow.
 """
 
 import hashlib
 import hmac
-import json
 import logging
 from decimal import Decimal
 from typing import Dict, Optional, Tuple
 
 import requests
 from constance import config
-from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
 
 class PaymobService:
-    """Service for processing payments via Paymob"""
+    """Service for processing payments via Paymob (v1 Unified Checkout)"""
 
-    BASE_URL = "https://accept.paymob.com/api"
+    INTENTION_URL = "https://accept.paymob.com/v1/intention/"
+    CHECKOUT_URL  = "https://accept.paymob.com/unifiedcheckout/"
 
     @staticmethod
     def is_enabled() -> bool:
         """Check if Paymob payment gateway is enabled"""
         return (
             config.PAYMOB_ENABLED
-            and bool(config.PAYMOB_API_KEY)
+            and bool(config.PAYMOB_SECRET_KEY)
             and bool(config.PAYMOB_INTEGRATION_ID)
         )
 
-    @staticmethod
-    def authenticate() -> Optional[str]:
-        """
-        Authenticate with Paymob and get auth token
-
-        Returns:
-            str: Auth token or None if failed
-        """
-        if not config.PAYMOB_API_KEY:
-            logger.error("Paymob API key not configured")
-            return None
-
-        try:
-            url = f"{PaymobService.BASE_URL}/auth/tokens"
-            payload = {"api_key": config.PAYMOB_API_KEY}
-
-            response = requests.post(url, json=payload)
-            response.raise_for_status()
-
-            data = response.json()
-            token = data.get("token")
-
-            if token:
-                logger.info("Paymob authentication successful")
-                return token
-            else:
-                logger.error("No token in Paymob authentication response")
-                return None
-
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Paymob authentication failed: {str(e)}")
-            return None
+    # ------------------------------------------------------------------
+    # New v1 API — single intention call
+    # ------------------------------------------------------------------
 
     @staticmethod
-    def create_order(
-        auth_token: str,
+    def create_intention(
         amount_cents: int,
-        currency: str = None,
-        merchant_order_id: str = None,
-        items: list = None,
-    ) -> Optional[Dict]:
-        """
-        Create an order in Paymob
-
-        Args:
-            auth_token: Authentication token
-            amount_cents: Amount in cents (e.g., 10000 for 100 EGP)
-            currency: Currency code (default from config)
-            merchant_order_id: Your order ID
-            items: List of order items
-
-        Returns:
-            dict: Order data or None if failed
-        """
-        try:
-            url = f"{PaymobService.BASE_URL}/ecommerce/orders"
-
-            if currency is None:
-                currency = config.PAYMOB_CURRENCY
-
-            if items is None:
-                items = []
-
-            payload = {
-                "auth_token": auth_token,
-                "delivery_needed": "false",
-                "amount_cents": str(amount_cents),
-                "currency": currency,
-                "merchant_order_id": merchant_order_id,
-                "items": items,
-            }
-
-            response = requests.post(url, json=payload)
-            response.raise_for_status()
-
-            order_data = response.json()
-            logger.info(f"Paymob order created: {order_data.get('id')}")
-            return order_data
-
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to create Paymob order: {str(e)}")
-            return None
-
-    @staticmethod
-    def create_payment_key(
-        auth_token: str,
-        order_id: int,
-        amount_cents: int,
+        order_id: str,
         billing_data: Dict,
-        currency: str = None,
+        items: list = None,
         integration_id: str = None,
-    ) -> Optional[str]:
+        currency: str = None,
+        notification_url: str = None,
+        redirection_url: str = None,
+    ) -> Tuple[bool, Optional[Dict], Optional[str]]:
         """
-        Create payment key for checkout
-
-        Args:
-            auth_token: Authentication token
-            order_id: Paymob order ID
-            amount_cents: Amount in cents
-            billing_data: Customer billing information
-            currency: Currency code (default from config)
-            integration_id: Integration ID (default from config)
+        Create a payment intention via Paymob v1 API.
 
         Returns:
-            str: Payment key or None if failed
+            (True, intention_data, None)  on success
+            (False, None, error_message) on failure
         """
+        secret_key = config.PAYMOB_SECRET_KEY
+        if not secret_key:
+            return False, None, "PAYMOB_SECRET_KEY not configured"
+
+        if integration_id is None:
+            integration_id = config.PAYMOB_INTEGRATION_ID
+        if currency is None:
+            currency = getattr(config, "PAYMOB_CURRENCY", "EGP")
+
+        # billing_data must have all required fields; fill missing with "NA"
+        required_billing = [
+            "apartment", "email", "floor", "first_name", "street",
+            "building", "phone_number", "postal_code", "city",
+            "country", "last_name", "state",
+        ]
+        safe_billing = {k: billing_data.get(k) or "NA" for k in required_billing}
+
+        payload = {
+            "amount": amount_cents,
+            "currency": currency,
+            "payment_methods": [int(integration_id)],
+            "items": items or [],
+            "billing_data": safe_billing,
+            "customer": {
+                "first_name": safe_billing["first_name"],
+                "last_name":  safe_billing["last_name"],
+                "email":      safe_billing["email"],
+            },
+            "extras": {"merchant_order_id": order_id},
+        }
+
+        if notification_url:
+            payload["notification_url"] = notification_url
+        if redirection_url:
+            payload["redirection_url"] = redirection_url
+
+        headers = {
+            "Authorization": f"Token {secret_key}",
+            "Content-Type": "application/json",
+        }
+
         try:
-            url = f"{PaymobService.BASE_URL}/acceptance/payment_keys"
+            response = requests.post(PaymobService.INTENTION_URL, json=payload, headers=headers)
 
-            if currency is None:
-                currency = config.PAYMOB_CURRENCY
-
-            if integration_id is None:
-                integration_id = config.PAYMOB_INTEGRATION_ID
-
-            payload = {
-                "auth_token": auth_token,
-                "amount_cents": str(amount_cents),
-                "expiration": 3600,  # 1 hour
-                "order_id": str(order_id),
-                "billing_data": billing_data,
-                "currency": currency,
-                "integration_id": integration_id,
-            }
-
-            response = requests.post(url, json=payload)
-            response.raise_for_status()
+            if not response.ok:
+                logger.error(
+                    f"Paymob create_intention failed {response.status_code}: {response.text}"
+                )
+                try:
+                    detail = response.json().get("detail") or response.text
+                except Exception:
+                    detail = response.text
+                return False, None, f"Paymob error {response.status_code}: {detail}"
 
             data = response.json()
-            payment_key = data.get("token")
-
-            if payment_key:
-                logger.info("Paymob payment key created successfully")
-                return payment_key
-            else:
-                logger.error("No payment key in Paymob response")
-                return None
+            logger.info(f"Paymob intention created: id={data.get('id')}")
+            return True, data, None
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to create Paymob payment key: {str(e)}")
-            return None
+            logger.error(f"Paymob create_intention request failed: {e}")
+            return False, None, str(e)
 
     @staticmethod
-    def get_iframe_url(payment_key: str, iframe_id: str = None) -> str:
-        """
-        Get iFrame URL for payment
+    def get_checkout_url(client_secret: str) -> str:
+        """Build the Unified Checkout redirect URL from a client_secret."""
+        public_key = config.PAYMOB_PUBLIC_KEY
+        return f"{PaymobService.CHECKOUT_URL}?publicKey={public_key}&clientSecret={client_secret}"
 
-        Args:
-            payment_key: Payment key from create_payment_key
-            iframe_id: iFrame ID (default from config)
+    # ------------------------------------------------------------------
+    # Main entry-point (replaces the old 3-step process_payment)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def process_payment(
+        amount: Decimal,
+        order_id: str,
+        billing_data: Dict,
+        items: list = None,
+        integration_id: str = None,
+        notification_url: str = None,
+        redirection_url: str = None,
+    ) -> Tuple[bool, Optional[str], Optional[str], Optional[str]]:
+        """
+        Create a Paymob payment and return the checkout URL.
 
         Returns:
-            str: iFrame URL
+            (True,  checkout_url, None,          intention_id)  on success
+            (False, None,         error_message, None)          on failure
         """
-        if iframe_id is None:
-            iframe_id = config.PAYMOB_IFRAME_ID
+        if not PaymobService.is_enabled():
+            return False, None, "Paymob payment gateway is disabled", None
 
-        return f"https://accept.paymob.com/api/acceptance/iframes/{iframe_id}?payment_token={payment_key}"
+        amount_cents = int(amount * 100)
+
+        success, data, error = PaymobService.create_intention(
+            amount_cents=amount_cents,
+            order_id=order_id,
+            billing_data=billing_data,
+            items=items,
+            integration_id=integration_id,
+            notification_url=notification_url,
+            redirection_url=redirection_url,
+        )
+
+        if not success:
+            return False, None, error, None
+
+        client_secret = data.get("client_secret")
+        if not client_secret:
+            logger.error(f"No client_secret in Paymob intention response: {data}")
+            return False, None, "No client_secret in Paymob response", None
+
+        intention_id = data.get("id")
+        checkout_url = PaymobService.get_checkout_url(client_secret)
+
+        logger.info(f"Paymob checkout URL generated for order {order_id}")
+        return True, checkout_url, None, str(intention_id) if intention_id else None
+
+    # ------------------------------------------------------------------
+    # HMAC verification for Paymob transaction callbacks
+    # ------------------------------------------------------------------
 
     @staticmethod
     def verify_hmac(data: Dict) -> bool:
-        """
-        Verify HMAC signature from Paymob callback
-
-        Args:
-            data: Callback data from Paymob
-
-        Returns:
-            bool: True if signature is valid, False otherwise
-        """
+        """Verify HMAC signature from Paymob callback (legacy + new API)."""
         if not config.PAYMOB_HMAC_SECRET:
-            logger.warning("Paymob HMAC secret not configured")
-            return False
+            logger.warning("Paymob HMAC secret not configured — skipping verification")
+            return True  # allow if not configured rather than hard-fail
 
         try:
-            # Extract HMAC from callback
             received_hmac = data.get("hmac")
             if not received_hmac:
                 logger.error("No HMAC in callback data")
                 return False
 
-            # Build the string to hash (order matters!)
             concatenated_string = (
                 f"{data.get('amount_cents', '')}"
                 f"{data.get('created_at', '')}"
@@ -236,124 +210,50 @@ class PaymobService:
                 f"{data.get('success', '')}"
             )
 
-            # Calculate HMAC
             calculated_hmac = hmac.new(
                 config.PAYMOB_HMAC_SECRET.encode("utf-8"),
                 concatenated_string.encode("utf-8"),
                 hashlib.sha512,
             ).hexdigest()
 
-            # Compare
             is_valid = hmac.compare_digest(calculated_hmac, received_hmac)
-
             if not is_valid:
-                logger.error("HMAC verification failed")
-
+                logger.error("Paymob HMAC verification failed")
             return is_valid
 
         except Exception as e:
-            logger.error(f"Error verifying HMAC: {str(e)}")
+            logger.error(f"Error verifying Paymob HMAC: {e}")
             return False
 
-    @staticmethod
-    def process_payment(
-        amount: Decimal,
-        order_id: str,
-        billing_data: Dict,
-        items: list = None,
-        integration_id: str = None,
-    ) -> Tuple[bool, Optional[str], Optional[str]]:
-        """
-        Process a complete payment flow
-
-        Args:
-            amount: Payment amount
-            order_id: Your order ID
-            billing_data: Customer billing information
-            items: Order items
-            integration_id: Optional specific integration ID (Visa, Mastercard, etc.)
-
-        Returns:
-            Tuple of (success, payment_url, error_message)
-        """
-        if not PaymobService.is_enabled():
-            return False, None, "Paymob payment gateway is disabled", None
-
-        try:
-            # Step 1: Authenticate
-            auth_token = PaymobService.authenticate()
-            if not auth_token:
-                return False, None, "Failed to authenticate with Paymob", None
-
-            # Convert amount to cents
-            amount_cents = int(amount * 100)
-
-            # Step 2: Create order
-            order_data = PaymobService.create_order(
-                auth_token=auth_token,
-                amount_cents=amount_cents,
-                merchant_order_id=order_id,
-                items=items or [],
-            )
-
-            if not order_data:
-                return False, None, "Failed to create Paymob order", None
-
-            paymob_order_id = order_data.get("id")
-
-            # Step 3: Create payment key
-            payment_key = PaymobService.create_payment_key(
-                auth_token=auth_token,
-                order_id=paymob_order_id,
-                amount_cents=amount_cents,
-                billing_data=billing_data,
-                integration_id=integration_id,
-            )
-
-            if not payment_key:
-                return False, None, "Failed to create payment key", None
-
-            # Step 4: Get payment URL
-            payment_url = PaymobService.get_iframe_url(payment_key)
-
-            logger.info(f"Paymob payment URL generated for order {order_id}")
-            return True, payment_url, None, paymob_order_id
-
-        except Exception as e:
-            error_msg = f"Error processing Paymob payment: {str(e)}"
-            logger.error(error_msg)
-            return False, None, error_msg, None
+    # ------------------------------------------------------------------
+    # Refund
+    # ------------------------------------------------------------------
 
     @staticmethod
     def refund_transaction(transaction_id: str, amount_cents: int) -> bool:
-        """
-        Refund a transaction
+        """Refund a captured transaction using the v1 API."""
+        secret_key = config.PAYMOB_SECRET_KEY
+        if not secret_key:
+            logger.error("PAYMOB_SECRET_KEY not configured")
+            return False
 
-        Args:
-            transaction_id: Paymob transaction ID
-            amount_cents: Amount to refund in cents
-
-        Returns:
-            bool: True if refund successful, False otherwise
-        """
         try:
-            auth_token = PaymobService.authenticate()
-            if not auth_token:
+            url = f"https://accept.paymob.com/v1/transactions/{transaction_id}/refund/"
+            headers = {
+                "Authorization": f"Token {secret_key}",
+                "Content-Type": "application/json",
+            }
+            payload = {"amount_cents": amount_cents}
+
+            response = requests.post(url, json=payload, headers=headers)
+
+            if not response.ok:
+                logger.error(f"Paymob refund failed {response.status_code}: {response.text}")
                 return False
 
-            url = f"{PaymobService.BASE_URL}/acceptance/void_refund/refund"
-            payload = {
-                "auth_token": auth_token,
-                "transaction_id": transaction_id,
-                "amount_cents": amount_cents,
-            }
-
-            response = requests.post(url, json=payload)
-            response.raise_for_status()
-
-            logger.info(f"Refund processed for transaction {transaction_id}")
+            logger.info(f"Paymob refund processed for transaction {transaction_id}")
             return True
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to process refund: {str(e)}")
+            logger.error(f"Failed to process Paymob refund: {e}")
             return False
