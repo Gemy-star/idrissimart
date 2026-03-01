@@ -1,1022 +1,1108 @@
 {% extends "admin_dashboard/base.html" %}
 {% load static i18n humanize %}
 
-{% block title %}{% trans "التقارير والإحصائيات" %} - {% trans "لوحة التحكم" %}{% endblock %}
-
-{% block admin_content %}
-<div class="admin-header mb-4">
-    <div class="admin-header-content">
-        <div>
-            <h1 class="admin-title">
-                <i class="fas fa-chart-line me-2"></i>
-                {% trans "التقارير والإحصائيات" %}
-            </h1>
-            <p class="admin-subtitle">{% trans "تقارير شاملة ومفصلة عن جميع جوانب المنصة" %}</p>
-        </div>
-        <div class="admin-header-actions d-flex gap-2 flex-wrap">
-            <select class="form-select form-select-sm header-select" id="globalDateRange" style="max-width:180px;" onchange="syncDateSelect(this.value)">
-                <option value="7">{% trans "آخر 7 أيام" %}</option>
-                <option value="14">{% trans "آخر 14 يوم" %}</option>
-                <option value="30" selected>{% trans "آخر 30 يوم" %}</option>
-                <option value="90">{% trans "آخر 3 أشهر" %}</option>
-            </select>
-            <button type="button" class="btn btn-outline-light btn-sm" onclick="window.print()">
-                <i class="fas fa-print me-1"></i>{% trans "طباعة" %}
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- ══════════════════════════════════════════════════════════════════════ -->
-<!-- SUMMARY KPI CARDS                                                      -->
-<!-- ══════════════════════════════════════════════════════════════════════ -->
-<div class="row g-3 mb-4">
-    <div class="col-6 col-md-3 col-xl-3">
-        <div class="kpi-card kpi-primary">
-            <div class="kpi-icon"><i class="fas fa-users"></i></div>
-            <div class="kpi-body">
-                <div class="kpi-value">{{ total_users|default:0|intcomma }}</div>
-                <div class="kpi-label">{% trans "المستخدمون" %}</div>
-                <div class="kpi-sub"><i class="fas fa-arrow-up fa-xs text-success"></i> {{ new_users_week|default:0 }} {% trans "هذا الأسبوع" %}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3 col-xl-3">
-        <div class="kpi-card kpi-success">
-            <div class="kpi-icon"><i class="fas fa-ad"></i></div>
-            <div class="kpi-body">
-                <div class="kpi-value">{{ active_ads|default:0|intcomma }}</div>
-                <div class="kpi-label">{% trans "إعلانات نشطة" %}</div>
-                <div class="kpi-sub"><i class="fas fa-plus fa-xs text-success"></i> {{ ads_today|default:0 }} {% trans "اليوم" %}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3 col-xl-3">
-        <div class="kpi-card kpi-warning">
-            <div class="kpi-icon"><i class="fas fa-money-bill-wave"></i></div>
-            <div class="kpi-body">
-                <div class="kpi-value">{{ revenue_total|default:0|floatformat:0|intcomma }}</div>
-                <div class="kpi-label">{% trans "إجمالي الإيرادات" %}</div>
-                <div class="kpi-sub">{{ revenue_month|default:0|floatformat:0|intcomma }} {% trans "هذا الشهر" %}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3 col-xl-3">
-        <div class="kpi-card kpi-info">
-            <div class="kpi-icon"><i class="fas fa-eye"></i></div>
-            <div class="kpi-body">
-                <div class="kpi-value">{{ visitors_total|default:0|intcomma }}</div>
-                <div class="kpi-label">{% trans "إجمالي الزيارات" %}</div>
-                <div class="kpi-sub"><i class="fas fa-circle fa-xs text-success pulse-green"></i> {{ online_now|default:0 }} {% trans "متصل الآن" %}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3 col-xl-3">
-        <div class="kpi-card kpi-danger">
-            <div class="kpi-icon"><i class="fas fa-flag"></i></div>
-            <div class="kpi-body">
-                <div class="kpi-value">{{ pending_reports|default:0 }}</div>
-                <div class="kpi-label">{% trans "بلاغات معلقة" %}</div>
-                <div class="kpi-sub">{{ total_reports|default:0 }} {% trans "إجمالي" %}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3 col-xl-3">
-        <div class="kpi-card kpi-secondary">
-            <div class="kpi-icon"><i class="fas fa-shopping-bag"></i></div>
-            <div class="kpi-body">
-                <div class="kpi-value">{{ total_orders|default:0|intcomma }}</div>
-                <div class="kpi-label">{% trans "الطلبات" %}</div>
-                <div class="kpi-sub">{{ pending_orders|default:0 }} {% trans "معلقة" %}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3 col-xl-3">
-        <div class="kpi-card kpi-teal">
-            <div class="kpi-icon"><i class="fas fa-box-open"></i></div>
-            <div class="kpi-body">
-                <div class="kpi-value">{{ active_packages|default:0 }}</div>
-                <div class="kpi-label">{% trans "باقات نشطة" %}</div>
-                <div class="kpi-sub">{{ total_packages|default:0 }} {% trans "إجمالي" %}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3 col-xl-3">
-        <div class="kpi-card kpi-purple">
-            <div class="kpi-icon"><i class="fas fa-comment-dots"></i></div>
-            <div class="kpi-body">
-                <div class="kpi-value">{{ total_messages|default:0|intcomma }}</div>
-                <div class="kpi-label">{% trans "الرسائل" %}</div>
-                <div class="kpi-sub">{{ messages_today|default:0 }} {% trans "اليوم" %}</div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- ══════════════════════════════════════════════════════════════════════ -->
-<!-- SECTION TABS                                                           -->
-<!-- ══════════════════════════════════════════════════════════════════════ -->
-<div class="reports-tabs-wrapper mb-4">
-    <ul class="nav reports-tabs" id="reportsTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="tab-visitors" data-bs-toggle="tab" data-bs-target="#tab-visitors-pane" type="button" role="tab">
-                <i class="fas fa-chart-area me-1"></i>{% trans "الزوار" %}
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="tab-users" data-bs-toggle="tab" data-bs-target="#tab-users-pane" type="button" role="tab">
-                <i class="fas fa-users me-1"></i>{% trans "المستخدمون" %}
-                {% if new_users_today > 0 %}<span class="badge bg-success rpt-badge ms-1">+{{ new_users_today }}</span>{% endif %}
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="tab-ads" data-bs-toggle="tab" data-bs-target="#tab-ads-pane" type="button" role="tab">
-                <i class="fas fa-bullhorn me-1"></i>{% trans "الإعلانات" %}
-                {% if pending_ads > 0 %}<span class="badge bg-warning text-dark rpt-badge ms-1">{{ pending_ads }}</span>{% endif %}
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="tab-revenue" data-bs-toggle="tab" data-bs-target="#tab-revenue-pane" type="button" role="tab">
-                <i class="fas fa-dollar-sign me-1"></i>{% trans "الإيرادات" %}
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="tab-reports" data-bs-toggle="tab" data-bs-target="#tab-reports-pane" type="button" role="tab">
-                <i class="fas fa-flag me-1"></i>{% trans "البلاغات" %}
-                {% if pending_reports > 0 %}<span class="badge bg-danger rpt-badge ms-1">{{ pending_reports }}</span>{% endif %}
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="tab-platform" data-bs-toggle="tab" data-bs-target="#tab-platform-pane" type="button" role="tab">
-                <i class="fas fa-layer-group me-1"></i>{% trans "المنصة" %}
-            </button>
-        </li>
-    </ul>
-</div>
-
-<div class="tab-content" id="reportsTabContent">
-
-<!-- ─────────────────────────────────────────────────────────────────────── -->
-<!-- TAB 1 – VISITOR ANALYTICS                                              -->
-<!-- ─────────────────────────────────────────────────────────────────────── -->
-<div class="tab-pane fade show active" id="tab-visitors-pane" role="tabpanel">
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-sm-4 col-lg-2">
-            <div class="stat-card stat-primary text-center py-3 d-block">
-                <div class="stat-icon mx-auto mb-2"><i class="fas fa-circle pulse-green"></i></div>
-                <h3 class="stat-value">{{ online_now|default:0 }}</h3>
-                <p class="stat-label">{% trans "متصل الآن" %}</p>
-            </div>
-        </div>
-        <div class="col-6 col-sm-4 col-lg-2">
-            <div class="stat-card stat-success text-center py-3 d-block">
-                <div class="stat-icon mx-auto mb-2"><i class="fas fa-calendar-day"></i></div>
-                <h3 class="stat-value">{{ visitors_today|default:0 }}</h3>
-                <p class="stat-label">{% trans "زوار اليوم" %}</p>
-            </div>
-        </div>
-        <div class="col-6 col-sm-4 col-lg-2">
-            <div class="stat-card stat-info text-center py-3 d-block">
-                <div class="stat-icon mx-auto mb-2"><i class="fas fa-calendar-week"></i></div>
-                <h3 class="stat-value">{{ visitors_week|default:0 }}</h3>
-                <p class="stat-label">{% trans "آخر أسبوع" %}</p>
-            </div>
-        </div>
-        <div class="col-6 col-sm-4 col-lg-2">
-            <div class="stat-card stat-warning text-center py-3 d-block">
-                <div class="stat-icon mx-auto mb-2"><i class="fas fa-calendar-alt"></i></div>
-                <h3 class="stat-value">{{ visitors_month|default:0 }}</h3>
-                <p class="stat-label">{% trans "آخر شهر" %}</p>
-            </div>
-        </div>
-        <div class="col-6 col-sm-4 col-lg-2">
-            <div class="stat-card stat-danger text-center py-3 d-block">
-                <div class="stat-icon mx-auto mb-2"><i class="fas fa-calendar"></i></div>
-                <h3 class="stat-value">{{ visitors_year|default:0 }}</h3>
-                <p class="stat-label">{% trans "آخر سنة" %}</p>
-            </div>
-        </div>
-        <div class="col-6 col-sm-4 col-lg-2">
-            <div class="stat-card stat-secondary text-center py-3 d-block">
-                <div class="stat-icon mx-auto mb-2"><i class="fas fa-infinity"></i></div>
-                <h3 class="stat-value">{{ visitors_total|default:0|intcomma }}</h3>
-                <p class="stat-label">{% trans "إجمالي" %}</p>
-            </div>
-        </div>
-    </div>
-    <div class="admin-content-card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <h5 class="card-title mb-0"><i class="fas fa-chart-bar me-2"></i>{% trans "تحليلات سلوك الزوار" %}</h5>
-            <select id="dateRangeSelect" class="form-select form-select-sm header-select" onchange="updateVisitorCharts(this.value)">
-                <option value="7">{% trans "آخر 7 أيام" %}</option>
-                <option value="14">{% trans "آخر 14 يوم" %}</option>
-                <option value="30" selected>{% trans "آخر 30 يوم" %}</option>
-                <option value="90">{% trans "آخر 3 أشهر" %}</option>
-            </select>
-        </div>
-        <div class="card-body">
-            <div class="row g-4">
-                <div class="col-lg-6">
-                    <div class="chart-container">
-                        <h6 class="chart-title"><i class="fas fa-clock me-2"></i>{% trans "متوسط مدة بقاء الزائر (دقائق)" %}</h6>
-                        <canvas id="sessionDurationChart"></canvas>
-                    </div>
-                </div>
-                <div class="col-lg-6">
-                    <div class="chart-container">
-                        <h6 class="chart-title"><i class="fas fa-file-alt me-2"></i>{% trans "متوسط الصفحات لكل زيارة" %}</h6>
-                        <canvas id="pagesPerVisitChart"></canvas>
-                    </div>
-                </div>
-                <div class="col-lg-6">
-                    <div class="chart-container">
-                        <h6 class="chart-title"><i class="fas fa-redo me-2"></i>{% trans "الزوار الجدد مقابل العائدون" %}</h6>
-                        <canvas id="returnVisitorsChart"></canvas>
-                    </div>
-                </div>
-                <div class="col-lg-6">
-                    <div class="chart-container">
-                        <h6 class="chart-title"><i class="fas fa-chart-line me-2"></i>{% trans "اتجاه الزيارات اليومية" %}</h6>
-                        <canvas id="visitorTrendChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- ─────────────────────────────────────────────────────────────────────── -->
-<!-- TAB 2 – USER ANALYTICS                                                 -->
-<!-- ─────────────────────────────────────────────────────────────────────── -->
-<div class="tab-pane fade" id="tab-users-pane" role="tabpanel">
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-primary">
-                <div class="stat-icon"><i class="fas fa-users"></i></div>
-                <div class="stat-details"><h3 class="stat-value">{{ total_users|default:0|intcomma }}</h3><p class="stat-label">{% trans "إجمالي المستخدمين" %}</p></div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-success">
-                <div class="stat-icon"><i class="fas fa-user-check"></i></div>
-                <div class="stat-details"><h3 class="stat-value">{{ verified_users|default:0|intcomma }}</h3><p class="stat-label">{% trans "موثقو الهاتف" %}</p></div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-warning">
-                <div class="stat-icon"><i class="fas fa-crown"></i></div>
-                <div class="stat-details"><h3 class="stat-value">{{ premium_users|default:0 }}</h3><p class="stat-label">{% trans "مستخدمون مميزون" %}</p></div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-info">
-                <div class="stat-icon"><i class="fas fa-store"></i></div>
-                <div class="stat-details"><h3 class="stat-value">{{ publisher_users|default:0 }}</h3><p class="stat-label">{% trans "ناشرون وتجار" %}</p></div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-success">
-                <div class="stat-icon"><i class="fas fa-user-plus"></i></div>
-                <div class="stat-details"><h3 class="stat-value">{{ new_users_today|default:0 }}</h3><p class="stat-label">{% trans "تسجيلات اليوم" %}</p></div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-info">
-                <div class="stat-icon"><i class="fas fa-calendar-week"></i></div>
-                <div class="stat-details"><h3 class="stat-value">{{ new_users_week|default:0 }}</h3><p class="stat-label">{% trans "تسجيلات الأسبوع" %}</p></div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-danger">
-                <div class="stat-icon"><i class="fas fa-user-slash"></i></div>
-                <div class="stat-details"><h3 class="stat-value">{{ banned_users|default:0 }}</h3><p class="stat-label">{% trans "محظورون" %}</p></div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-secondary">
-                <div class="stat-icon"><i class="fas fa-user-lock"></i></div>
-                <div class="stat-details"><h3 class="stat-value">{{ suspended_users|default:0 }}</h3><p class="stat-label">{% trans "معلقون" %}</p></div>
-            </div>
-        </div>
-    </div>
-    <div class="row g-4 mb-4">
-        <div class="col-lg-8">
-            <div class="admin-content-card h-100">
-                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-chart-line me-2"></i>{% trans "اتجاه التسجيلات (آخر 30 يوم)" %}</h5></div>
-                <div class="card-body"><div class="chart-container" style="min-height:280px;"><canvas id="userRegistrationChart"></canvas></div></div>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="admin-content-card h-100">
-                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-chart-pie me-2"></i>{% trans "توزيع أنواع المستخدمين" %}</h5></div>
-                <div class="card-body"><div class="chart-container" style="min-height:280px;"><canvas id="userTypesChart"></canvas></div></div>
-            </div>
-        </div>
-    </div>
-    <div class="row g-3">
-        <div class="col-md-4">
-            <div class="admin-content-card">
-                <div class="card-body">
-                    <h6 class="text-muted mb-3"><i class="fas fa-users me-2"></i>{% trans "تفاصيل الحسابات" %}</h6>
-                    {% for label, val in users_detail %}
-                    {% endfor %}
-                    <div class="d-flex justify-content-between py-2 border-bottom"><span>{% trans "حسابات نشطة" %}</span><strong>{{ active_users|default:0|intcomma }}</strong></div>
-                    <div class="d-flex justify-content-between py-2 border-bottom"><span>{% trans "موظفو المنصة" %}</span><strong>{{ staff_users|default:0 }}</strong></div>
-                    <div class="d-flex justify-content-between py-2 border-bottom"><span>{% trans "تسجيلات الشهر" %}</span><strong>{{ new_users_month|default:0 }}</strong></div>
-                    <div class="d-flex justify-content-between py-2"><span>{% trans "أعضاء عاديون" %}</span><strong>{{ member_users|default:0|intcomma }}</strong></div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-8">
-            <div class="admin-content-card">
-                <div class="card-body">
-                    <h6 class="text-muted mb-3"><i class="fas fa-percentage me-2"></i>{% trans "نسب التحقق والنشاط" %}</h6>
-                    {% if total_users > 0 %}
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between mb-1"><small>{% trans "الموثقون" %}</small><small>{{ verified_users|default:0 }} / {{ total_users }}</small></div>
-                        <div class="progress" style="height:10px;"><div class="progress-bar bg-success" style="width:{% widthratio verified_users total_users 100 %}%"></div></div>
-                    </div>
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between mb-1"><small>{% trans "المميزون" %}</small><small>{{ premium_users|default:0 }} / {{ total_users }}</small></div>
-                        <div class="progress" style="height:10px;"><div class="progress-bar bg-warning" style="width:{% widthratio premium_users total_users 100 %}%"></div></div>
-                    </div>
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between mb-1"><small>{% trans "الناشرون والتجار" %}</small><small>{{ publisher_users|default:0 }} / {{ total_users }}</small></div>
-                        <div class="progress" style="height:10px;"><div class="progress-bar bg-info" style="width:{% widthratio publisher_users total_users 100 %}%"></div></div>
-                    </div>
-                    <div class="mb-0">
-                        <div class="d-flex justify-content-between mb-1"><small>{% trans "الحسابات النشطة" %}</small><small>{{ active_users|default:0 }} / {{ total_users }}</small></div>
-                        <div class="progress" style="height:10px;"><div class="progress-bar" style="background:linear-gradient(135deg,#4b315e,#6b4c7a);width:{% widthratio active_users total_users 100 %}%"></div></div>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- ─────────────────────────────────────────────────────────────────────── -->
-<!-- TAB 3 – ADS ANALYTICS                                                  -->
-<!-- ─────────────────────────────────────────────────────────────────────── -->
-<div class="tab-pane fade" id="tab-ads-pane" role="tabpanel">
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-primary"><div class="stat-icon"><i class="fas fa-ad"></i></div><div class="stat-details"><h3 class="stat-value">{{ total_ads|default:0|intcomma }}</h3><p class="stat-label">{% trans "إجمالي الإعلانات" %}</p></div></div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-success"><div class="stat-icon"><i class="fas fa-check-circle"></i></div><div class="stat-details"><h3 class="stat-value">{{ active_ads|default:0|intcomma }}</h3><p class="stat-label">{% trans "نشطة" %}</p></div></div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-warning"><div class="stat-icon"><i class="fas fa-clock"></i></div><div class="stat-details"><h3 class="stat-value">{{ pending_ads|default:0 }}</h3><p class="stat-label">{% trans "قيد المراجعة" %}</p></div></div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-danger"><div class="stat-icon"><i class="fas fa-times-circle"></i></div><div class="stat-details"><h3 class="stat-value">{{ expired_ads|default:0 }}</h3><p class="stat-label">{% trans "منتهية" %}</p></div></div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-secondary"><div class="stat-icon"><i class="fas fa-ban"></i></div><div class="stat-details"><h3 class="stat-value">{{ rejected_ads|default:0 }}</h3><p class="stat-label">{% trans "مرفوضة" %}</p></div></div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-info"><div class="stat-icon"><i class="fas fa-eye"></i></div><div class="stat-details"><h3 class="stat-value">{{ total_views|default:0|intcomma }}</h3><p class="stat-label">{% trans "إجمالي المشاهدات" %}</p></div></div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-warning"><div class="stat-icon"><i class="fas fa-star"></i></div><div class="stat-details"><h3 class="stat-value">{{ highlighted_ads|default:0 }}</h3><p class="stat-label">{% trans "مميزة ومدفوعة" %}</p></div></div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-success"><div class="stat-icon"><i class="fas fa-plus-circle"></i></div><div class="stat-details"><h3 class="stat-value">{{ ads_today|default:0 }}</h3><p class="stat-label">{% trans "إعلانات اليوم" %}</p></div></div>
-        </div>
-    </div>
-    <div class="row g-4 mb-4">
-        <div class="col-lg-8">
-            <div class="admin-content-card h-100">
-                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-chart-line me-2"></i>{% trans "اتجاه الإعلانات (آخر 30 يوم)" %}</h5></div>
-                <div class="card-body"><div class="chart-container" style="min-height:280px;"><canvas id="adsTrendChart"></canvas></div></div>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="admin-content-card h-100">
-                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-chart-pie me-2"></i>{% trans "توزيع حالات الإعلانات" %}</h5></div>
-                <div class="card-body"><div class="chart-container" style="min-height:280px;"><canvas id="adsStatusChart"></canvas></div></div>
-            </div>
-        </div>
-    </div>
-    <!-- Categories Stats -->
-    <div class="admin-content-card mb-4">
-        <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-folder me-2"></i>{% trans "إحصائيات الأقسام (أعلى 10)" %}</h5></div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead><tr><th>#</th><th>{% trans "القسم" %}</th><th>{% trans "الإعلانات" %}</th><th>{% trans "المشاهدات" %}</th><th>{% trans "النسبة" %}</th></tr></thead>
-                    <tbody>
-                        {% for cat in categories_stats %}
-                        <tr>
-                            <td class="text-muted">{{ forloop.counter }}</td>
-                            <td><i class="fas fa-folder-open me-2 text-warning"></i>{{ cat.name }}</td>
-                            <td><span class="badge bg-primary rounded-pill">{{ cat.ads_count|default:0|intcomma }}</span></td>
-                            <td class="text-muted">{{ cat.total_views|default:0|intcomma }}</td>
-                            <td style="min-width:150px;">
-                                <div class="d-flex align-items-center gap-2">
-                                    <div class="progress flex-grow-1" style="height:8px;"><div class="progress-bar" role="progressbar" style="width:{{ cat.percentage|floatformat:1 }}%"></div></div>
-                                    <small class="text-muted">{{ cat.percentage|floatformat:1 }}%</small>
-                                </div>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="5" class="text-center text-muted py-4">{% trans "لا توجد بيانات" %}</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    <!-- Top Viewed Ads -->
-    <div class="admin-content-card mb-4">
-        <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-trophy me-2"></i>{% trans "أكثر الإعلانات مشاهدة" %}</h5></div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead><tr><th>#</th><th>{% trans "الإعلان" %}</th><th>{% trans "الناشر" %}</th><th>{% trans "القسم" %}</th><th>{% trans "المشاهدات" %}</th><th>{% trans "الحالة" %}</th></tr></thead>
-                    <tbody>
-                        {% for ad in top_viewed_ads %}
-                        <tr>
-                            <td class="text-muted">{{ forloop.counter }}</td>
-                            <td><a href="{% url 'main:ad_publisher_detail' ad.id %}" class="text-decoration-none fw-semibold" target="_blank">{{ ad.title|truncatechars:40 }}</a></td>
-                            <td>{{ ad.user.username }}</td>
-                            <td>{{ ad.category.name_ar|default:ad.category.name|default:"-" }}</td>
-                            <td><span class="badge bg-info rounded-pill">{{ ad.views_count|intcomma }}</span></td>
-                            <td>
-                                {% if ad.status == 'active' %}<span class="badge bg-success">{% trans "نشط" %}</span>
-                                {% elif ad.status == 'pending' %}<span class="badge bg-warning text-dark">{% trans "معلق" %}</span>
-                                {% else %}<span class="badge bg-secondary">{{ ad.status }}</span>{% endif %}
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="6" class="text-center text-muted py-4">{% trans "لا توجد بيانات" %}</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- ─────────────────────────────────────────────────────────────────────── -->
-<!-- TAB 4 – REVENUE ANALYTICS                                              -->
-<!-- ─────────────────────────────────────────────────────────────────────── -->
-<div class="tab-pane fade" id="tab-revenue-pane" role="tabpanel">
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-success"><div class="stat-icon"><i class="fas fa-coins"></i></div><div class="stat-details"><h3 class="stat-value">{{ revenue_today|default:0|floatformat:0|intcomma }}</h3><p class="stat-label">{% trans "إيرادات اليوم" %}</p></div></div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-info"><div class="stat-icon"><i class="fas fa-calendar-week"></i></div><div class="stat-details"><h3 class="stat-value">{{ revenue_week|default:0|floatformat:0|intcomma }}</h3><p class="stat-label">{% trans "إيرادات الأسبوع" %}</p></div></div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-warning"><div class="stat-icon"><i class="fas fa-calendar-alt"></i></div><div class="stat-details"><h3 class="stat-value">{{ revenue_month|default:0|floatformat:0|intcomma }}</h3><p class="stat-label">{% trans "إيرادات الشهر" %}</p></div></div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-primary"><div class="stat-icon"><i class="fas fa-money-bill-wave"></i></div><div class="stat-details"><h3 class="stat-value">{{ revenue_total|default:0|floatformat:0|intcomma }}</h3><p class="stat-label">{% trans "إجمالي الإيرادات" %}</p></div></div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-success"><div class="stat-icon"><i class="fab fa-paypal"></i></div><div class="stat-details"><h3 class="stat-value">{{ revenue_paypal|default:0|floatformat:0|intcomma }}</h3><p class="stat-label">PayPal ({{ paypal_count|default:0 }} {% trans "عملية" %})</p></div></div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-info"><div class="stat-icon"><i class="fas fa-credit-card"></i></div><div class="stat-details"><h3 class="stat-value">{{ revenue_paymob|default:0|floatformat:0|intcomma }}</h3><p class="stat-label">Paymob ({{ paymob_count|default:0 }} {% trans "عملية" %})</p></div></div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-secondary"><div class="stat-icon"><i class="fas fa-receipt"></i></div><div class="stat-details"><h3 class="stat-value">{{ revenue_offline|default:0|floatformat:0|intcomma }}</h3><p class="stat-label">{% trans "يدوي/حوالة" %} ({{ offline_count|default:0 }})</p></div></div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-danger"><div class="stat-icon"><i class="fas fa-undo"></i></div><div class="stat-details"><h3 class="stat-value">{{ refunded_payments|default:0 }}</h3><p class="stat-label">{% trans "مسترجعة" %}</p></div></div>
-        </div>
-    </div>
-    <div class="row g-4 mb-4">
-        <div class="col-lg-8">
-            <div class="admin-content-card h-100">
-                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-chart-area me-2"></i>{% trans "اتجاه الإيرادات (آخر 30 يوم)" %}</h5></div>
-                <div class="card-body"><div class="chart-container" style="min-height:280px;"><canvas id="revenueTrendChart"></canvas></div></div>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="admin-content-card h-100">
-                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-chart-pie me-2"></i>{% trans "توزيع وسائل الدفع" %}</h5></div>
-                <div class="card-body"><div class="chart-container" style="min-height:280px;"><canvas id="paymentProvidersChart"></canvas></div></div>
-            </div>
-        </div>
-    </div>
-    <div class="admin-content-card mb-4">
-        <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>{% trans "إجماليات المعاملات حسب الحالة" %}</h5></div>
-        <div class="card-body">
-            <div class="row g-3 text-center">
-                <div class="col-6 col-md-3"><div class="p-3 rounded" style="background:rgba(40,167,69,.1);"><div class="fs-3 fw-bold text-success">{{ completed_payments|default:0|intcomma }}</div><div class="text-muted small">{% trans "مكتملة" %}</div></div></div>
-                <div class="col-6 col-md-3"><div class="p-3 rounded" style="background:rgba(255,193,7,.1);"><div class="fs-3 fw-bold text-warning">{{ pending_payments_count|default:0|intcomma }}</div><div class="text-muted small">{% trans "معلقة" %}</div></div></div>
-                <div class="col-6 col-md-3"><div class="p-3 rounded" style="background:rgba(220,53,69,.1);"><div class="fs-3 fw-bold text-danger">{{ failed_payments|default:0|intcomma }}</div><div class="text-muted small">{% trans "فاشلة" %}</div></div></div>
-                <div class="col-6 col-md-3"><div class="p-3 rounded" style="background:rgba(108,117,125,.1);"><div class="fs-3 fw-bold text-secondary">{{ refunded_payments|default:0|intcomma }}</div><div class="text-muted small">{% trans "مستردة" %}</div></div></div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- ─────────────────────────────────────────────────────────────────────── -->
-<!-- TAB 5 – REPORTS & MODERATION                                           -->
-<!-- ─────────────────────────────────────────────────────────────────────── -->
-<div class="tab-pane fade" id="tab-reports-pane" role="tabpanel">
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-md-4 col-lg-2">
-            <div class="stat-card stat-primary text-center py-3 d-block"><div class="stat-icon mx-auto mb-2"><i class="fas fa-flag"></i></div><h3 class="stat-value">{{ total_reports|default:0 }}</h3><p class="stat-label">{% trans "إجمالي البلاغات" %}</p></div>
-        </div>
-        <div class="col-6 col-md-4 col-lg-2">
-            <div class="stat-card stat-warning text-center py-3 d-block"><div class="stat-icon mx-auto mb-2"><i class="fas fa-hourglass-half"></i></div><h3 class="stat-value">{{ pending_reports|default:0 }}</h3><p class="stat-label">{% trans "معلقة" %}</p></div>
-        </div>
-        <div class="col-6 col-md-4 col-lg-2">
-            <div class="stat-card stat-info text-center py-3 d-block"><div class="stat-icon mx-auto mb-2"><i class="fas fa-search"></i></div><h3 class="stat-value">{{ reviewing_reports|default:0 }}</h3><p class="stat-label">{% trans "تحت المراجعة" %}</p></div>
-        </div>
-        <div class="col-6 col-md-4 col-lg-2">
-            <div class="stat-card stat-success text-center py-3 d-block"><div class="stat-icon mx-auto mb-2"><i class="fas fa-check-double"></i></div><h3 class="stat-value">{{ resolved_reports|default:0 }}</h3><p class="stat-label">{% trans "محلولة" %}</p></div>
-        </div>
-        <div class="col-6 col-md-4 col-lg-2">
-            <div class="stat-card stat-danger text-center py-3 d-block"><div class="stat-icon mx-auto mb-2"><i class="fas fa-times"></i></div><h3 class="stat-value">{{ rejected_reports|default:0 }}</h3><p class="stat-label">{% trans "مرفوضة" %}</p></div>
-        </div>
-        <div class="col-6 col-md-4 col-lg-2">
-            <div class="stat-card stat-secondary text-center py-3 d-block"><div class="stat-icon mx-auto mb-2"><i class="fas fa-calendar-day"></i></div><h3 class="stat-value">{{ reports_today|default:0 }}</h3><p class="stat-label">{% trans "بلاغات اليوم" %}</p></div>
-        </div>
-    </div>
-    <div class="row g-4 mb-4">
-        <div class="col-lg-5">
-            <div class="admin-content-card h-100">
-                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-chart-pie me-2"></i>{% trans "توزيع حالات البلاغات" %}</h5></div>
-                <div class="card-body"><div class="chart-container" style="min-height:280px;"><canvas id="reportsStatusChart"></canvas></div></div>
-            </div>
-        </div>
-        <div class="col-lg-7">
-            <div class="admin-content-card h-100">
-                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-chart-bar me-2"></i>{% trans "البلاغات خلال آخر 7 أيام" %}</h5></div>
-                <div class="card-body"><div class="chart-container" style="min-height:280px;"><canvas id="reportsWeekChart"></canvas></div></div>
-            </div>
-        </div>
-    </div>
-    <div class="admin-content-card mb-3">
-        <div class="card-body">
-            <div class="row g-3 text-center">
-                <div class="col-6 col-md-3"><div class="p-2"><div class="fs-4 fw-bold text-warning">{% if total_reports > 0 %}{% widthratio pending_reports total_reports 100 %}{% else %}0{% endif %}%</div><div class="text-muted small">{% trans "نسبة المعلقة" %}</div></div></div>
-                <div class="col-6 col-md-3"><div class="p-2"><div class="fs-4 fw-bold text-success">{% if total_reports > 0 %}{% widthratio resolved_reports total_reports 100 %}{% else %}0{% endif %}%</div><div class="text-muted small">{% trans "نسبة المحلولة" %}</div></div></div>
-                <div class="col-6 col-md-3"><div class="p-2"><div class="fs-4 fw-bold text-info">{{ reports_week|default:0 }}</div><div class="text-muted small">{% trans "بلاغات الأسبوع" %}</div></div></div>
-                <div class="col-6 col-md-3"><div class="p-2"><div class="fs-4 fw-bold" style="color:#4b315e;">{% if total_reports > 0 %}{% widthratio reviewing_reports total_reports 100 %}{% else %}0{% endif %}%</div><div class="text-muted small">{% trans "قيد المراجعة" %}</div></div></div>
-            </div>
-        </div>
-    </div>
-    <div class="text-end mb-2">
-        <a href="{% url 'main:admin_user_reports' %}" class="btn btn-sm btn-outline-primary">
-            <i class="fas fa-arrow-left me-1"></i>{% trans "عرض جميع البلاغات" %}
-        </a>
-    </div>
-</div>
-
-<!-- ─────────────────────────────────────────────────────────────────────── -->
-<!-- TAB 6 – PLATFORM OVERVIEW                                              -->
-<!-- ─────────────────────────────────────────────────────────────────────── -->
-<div class="tab-pane fade" id="tab-platform-pane" role="tabpanel">
-    <div class="row g-4 mb-4">
-        <div class="col-md-6 col-lg-3">
-            <div class="admin-content-card h-100">
-                <div class="card-header" style="background:linear-gradient(135deg,#17a2b8,#0d7a8e);"><h5 class="card-title mb-0 text-white"><i class="fas fa-shopping-bag me-2"></i>{% trans "الطلبات" %}</h5></div>
-                <div class="card-body">
-                    <div class="platform-item"><span><i class="fas fa-list-ul me-2 text-muted"></i>{% trans "إجمالي" %}</span><strong>{{ total_orders|default:0|intcomma }}</strong></div>
-                    <div class="platform-item"><span><i class="fas fa-check me-2 text-success"></i>{% trans "مكتملة" %}</span><strong class="text-success">{{ completed_orders|default:0|intcomma }}</strong></div>
-                    <div class="platform-item"><span><i class="fas fa-clock me-2 text-warning"></i>{% trans "معلقة" %}</span><strong class="text-warning">{{ pending_orders|default:0 }}</strong></div>
-                    <div class="platform-item border-0"><span><i class="fas fa-money-bill me-2 text-info"></i>{% trans "إيرادات" %}</span><strong class="text-info">{{ orders_revenue|default:0|floatformat:0|intcomma }}</strong></div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6 col-lg-3">
-            <div class="admin-content-card h-100">
-                <div class="card-header" style="background:linear-gradient(135deg,#28a745,#1e7e34);"><h5 class="card-title mb-0 text-white"><i class="fas fa-box-open me-2"></i>{% trans "الباقات" %}</h5></div>
-                <div class="card-body">
-                    <div class="platform-item"><span><i class="fas fa-list-ul me-2 text-muted"></i>{% trans "إجمالي" %}</span><strong>{{ total_packages|default:0|intcomma }}</strong></div>
-                    <div class="platform-item"><span><i class="fas fa-bolt me-2 text-success"></i>{% trans "نشطة" %}</span><strong class="text-success">{{ active_packages|default:0 }}</strong></div>
-                    <div class="platform-item"><span><i class="fas fa-history me-2 text-secondary"></i>{% trans "منتهية" %}</span><strong class="text-secondary">{{ expired_packages|default:0 }}</strong></div>
-                    <div class="platform-item border-0"><span><i class="fas fa-crown me-2 text-warning"></i>{% trans "مشتركون مميزون" %}</span><strong class="text-warning">{{ premium_users|default:0 }}</strong></div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6 col-lg-3">
-            <div class="admin-content-card h-100">
-                <div class="card-header" style="background:linear-gradient(135deg,#fd7e14,#c96010);"><h5 class="card-title mb-0 text-white"><i class="fas fa-comments me-2"></i>{% trans "المحادثات" %}</h5></div>
-                <div class="card-body">
-                    <div class="platform-item"><span><i class="fas fa-door-open me-2 text-muted"></i>{% trans "إجمالي الغرف" %}</span><strong>{{ total_chat_rooms|default:0|intcomma }}</strong></div>
-                    <div class="platform-item"><span><i class="fas fa-bolt me-2 text-success"></i>{% trans "غرف نشطة" %}</span><strong class="text-success">{{ active_chat_rooms|default:0 }}</strong></div>
-                    <div class="platform-item"><span><i class="fas fa-envelope me-2 text-info"></i>{% trans "إجمالي الرسائل" %}</span><strong class="text-info">{{ total_messages|default:0|intcomma }}</strong></div>
-                    <div class="platform-item border-0"><span><i class="fas fa-comment-dots me-2 text-warning"></i>{% trans "دعم غير مقروء" %}</span><strong class="text-warning">{{ unread_support_messages|default:0 }}</strong></div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6 col-lg-3">
-            <div class="admin-content-card h-100">
-                <div class="card-header" style="background:linear-gradient(135deg,#4b315e,#6b4c7a);"><h5 class="card-title mb-0 text-white"><i class="fas fa-bell me-2"></i>{% trans "الإشعارات والنشرة" %}</h5></div>
-                <div class="card-body">
-                    <div class="platform-item"><span><i class="fas fa-list-ul me-2 text-muted"></i>{% trans "إجمالي الإشعارات" %}</span><strong>{{ total_notifications|default:0|intcomma }}</strong></div>
-                    <div class="platform-item"><span><i class="fas fa-envelope-open me-2 text-warning"></i>{% trans "غير مقروءة" %}</span><strong class="text-warning">{{ unread_notifications|default:0|intcomma }}</strong></div>
-                    <div class="platform-item"><span><i class="fas fa-calendar-day me-2 text-info"></i>{% trans "إشعارات اليوم" %}</span><strong class="text-info">{{ notifications_today|default:0 }}</strong></div>
-                    <div class="platform-item border-0"><span><i class="fas fa-newspaper me-2 text-success"></i>{% trans "مشتركو النشرة" %}</span><strong class="text-success">{{ newsletter_subscribers|default:0|intcomma }}</strong></div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- Ads upgrade features summary -->
-    <div class="admin-content-card">
-        <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-rocket me-2"></i>{% trans "إحصائيات التحسينات المدفوعة للإعلانات" %}</h5></div>
-        <div class="card-body">
-            <div class="row g-4 text-center">
-                <div class="col-6 col-md-3"><div class="p-3 rounded" style="background:rgba(255,193,7,.1);"><i class="fas fa-star fa-2x text-warning mb-2 d-block"></i><div class="fs-3 fw-bold text-warning">{{ highlighted_ads|default:0 }}</div><div class="text-muted small">{% trans "إعلانات مميزة" %}</div></div></div>
-                <div class="col-6 col-md-3"><div class="p-3 rounded" style="background:rgba(220,53,69,.1);"><i class="fas fa-fire fa-2x text-danger mb-2 d-block"></i><div class="fs-3 fw-bold text-danger">{{ urgent_ads|default:0 }}</div><div class="text-muted small">{% trans "إعلانات عاجلة" %}</div></div></div>
-                <div class="col-6 col-md-3"><div class="p-3 rounded" style="background:rgba(75,49,94,.1);"><i class="fas fa-thumbtack fa-2x mb-2 d-block" style="color:#4b315e;"></i><div class="fs-3 fw-bold" style="color:#4b315e;">{{ pinned_ads|default:0 }}</div><div class="text-muted small">{% trans "إعلانات مثبتة" %}</div></div></div>
-                <div class="col-6 col-md-3"><div class="p-3 rounded" style="background:rgba(23,162,184,.1);"><i class="fas fa-file-alt fa-2x text-info mb-2 d-block"></i><div class="fs-3 fw-bold text-info">{{ draft_ads|default:0 }}</div><div class="text-muted small">{% trans "مسودات" %}</div></div></div>
-            </div>
-        </div>
-    </div>
-</div>
-
-</div><!-- end tab-content -->
-
-{% endblock %}
+{% block title %}{% trans "التقارير والإحصائيات" %} — {% trans "لوحة التحكم" %}{% endblock %}
 
 {% block admin_extra_css %}
 <style>
-/* ── Base stat-card ─────────────────────────────────────────── */
-.stat-card {
-    background: var(--bs-body-bg);
-    border: 1px solid var(--bs-border-color);
-    border-radius: 12px;
-    padding: 1.25rem 1rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    transition: all .3s ease;
-    height: 100%;
+/* ══════════════════════════════════════════════════
+   REPORTS PAGE v2 — MODERN REDESIGN
+══════════════════════════════════════════════════ */
+
+/* ── CSS Variables ── */
+:root {
+  --brand:       #4b315e;
+  --brand-mid:   #6b4c7e;
+  --brand-light: #8a6fa0;
+  --r-radius:    16px;
+  --r-radius-sm: 10px;
+  --shadow-xs:   0 1px 4px rgba(0,0,0,.06);
+  --shadow-sm:   0 2px 10px rgba(0,0,0,.08);
+  --shadow-md:   0 6px 24px rgba(0,0,0,.12);
+  --shadow-lg:   0 12px 40px rgba(0,0,0,.16);
 }
-.stat-card:hover { transform: translateY(-3px); box-shadow: 0 6px 18px rgba(0,0,0,.1); }
-.stat-icon {
-    width: 52px; height: 52px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.3rem; flex-shrink: 0;
+
+/* ══════════════════════════════════════════════════
+   PAGE HEADER — gradient banner
+══════════════════════════════════════════════════ */
+.rh-banner {
+  background: linear-gradient(135deg, #2d1a3a 0%, var(--brand) 50%, var(--brand-mid) 100%);
+  border-radius: var(--r-radius);
+  padding: 1.6rem 2rem;
+  margin-bottom: 1.5rem;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
 }
-.stat-value { font-size: 1.5rem; font-weight: 700; margin: 0; line-height: 1.1; }
-.stat-label  { font-size: .78rem; color: var(--bs-secondary-color); margin: 0; margin-top: .15rem; }
-.stat-primary .stat-icon   { background: rgba(75,49,94,.12);   color: #4b315e; }
-.stat-success .stat-icon   { background: rgba(40,167,69,.12);  color: #28a745; }
-.stat-info    .stat-icon   { background: rgba(23,162,184,.12); color: #17a2b8; }
-.stat-warning .stat-icon   { background: rgba(255,193,7,.12);  color: #ffc107; }
-.stat-danger  .stat-icon   { background: rgba(220,53,69,.12);  color: #dc3545; }
-.stat-secondary .stat-icon { background: rgba(108,117,125,.12);color: #6c757d; }
-/* ── KPI Cards ─── */
-.kpi-card { border-radius: 14px; padding: 1.25rem 1rem; display: flex; align-items: center; gap: 1rem; transition: all .3s ease; color: #fff; height: 100%; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
-.kpi-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,.2); }
-.kpi-icon  { font-size: 2rem; opacity: .85; flex-shrink: 0; }
-.kpi-value { font-size: 1.7rem; font-weight: 800; line-height: 1; }
-.kpi-label { font-size: .78rem; opacity: .9; margin: .1rem 0; }
-.kpi-sub   { font-size: .7rem;  opacity: .8; }
-.kpi-primary   { background: linear-gradient(135deg, #4b315e, #6b4c7a); }
-.kpi-success   { background: linear-gradient(135deg, #28a745, #1e7e34); }
-.kpi-warning   { background: linear-gradient(135deg, #fd7e14, #c96010); }
-.kpi-info      { background: linear-gradient(135deg, #17a2b8, #0d7a8e); }
-.kpi-danger    { background: linear-gradient(135deg, #dc3545, #a71d2a); }
-.kpi-secondary { background: linear-gradient(135deg, #6c757d, #495057); }
-.kpi-teal      { background: linear-gradient(135deg, #20c997, #13785b); }
-.kpi-purple    { background: linear-gradient(135deg, #6f42c1, #4e2d8e); }
-/* ── Tabs ─── */
-.reports-tabs-wrapper { border-bottom: 2px solid var(--bs-border-color); overflow-x: auto; scrollbar-width: thin; }
-.reports-tabs { display: flex; flex-wrap: nowrap; gap: .25rem; padding-bottom: 2px; min-width: max-content; }
-.reports-tabs .nav-link { white-space: nowrap; border-radius: 8px 8px 0 0; padding: .55rem 1rem; font-size: .85rem; font-weight: 500; color: var(--bs-body-color); border: none; opacity: .7; transition: .2s; }
-.reports-tabs .nav-link.active { color: #4b315e; background: var(--bs-body-bg); border-bottom: 3px solid #4b315e; opacity: 1; font-weight: 700; }
-.reports-tabs .nav-link:hover:not(.active) { opacity: 1; background: rgba(75,49,94,.06); }
-.rpt-badge { font-size: .6rem; vertical-align: middle; }
-/* ── Chart ─── */
-.chart-container { position: relative; }
-.chart-title { font-size: .85rem; font-weight: 600; color: var(--bs-secondary-color); margin-bottom: .75rem; }
-/* ── Platform items ─── */
-.platform-item { display: flex; justify-content: space-between; align-items: center; padding: .5rem 0; border-bottom: 1px solid var(--bs-border-color); font-size: .88rem; }
-.platform-item.border-0 { border-bottom: none !important; }
-/* ── Pulse ─── */
-@keyframes pulse-anim { 0%{opacity:1}50%{opacity:.3}100%{opacity:1} }
-.pulse-green { animation: pulse-anim 1.5s infinite; color: #28a745 !important; }
-/* ── Dark-mode ─── */
-[data-theme="dark"] .stat-card { background: #1e1e2e; border-color: #3a3a5c; }
-[data-theme="dark"] .reports-tabs .nav-link.active { background: #1e1e2e; }
-/* ── Print ─── */
+.rh-banner::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: radial-gradient(circle at 80% 20%, rgba(255,255,255,.07) 0%, transparent 60%),
+                    radial-gradient(circle at 10% 80%, rgba(255,255,255,.05) 0%, transparent 50%);
+  pointer-events: none;
+}
+.rh-banner h1 {
+  font-size: 1.55rem; font-weight: 800; margin: 0 0 .3rem;
+  display: flex; align-items: center; gap: .55rem;
+}
+.rh-banner h1 .rh-icon {
+  width: 42px; height: 42px; border-radius: 12px;
+  background: rgba(255,255,255,.15);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; flex-shrink: 0;
+}
+.rh-banner p { font-size: .83rem; opacity: .7; margin: 0; }
+.rh-actions { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+.btn-glass {
+  background: rgba(255,255,255,.13);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.22);
+  font-size: .8rem; font-weight: 500;
+  padding: .38rem .85rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .18s;
+  display: inline-flex; align-items: center; gap: .35rem;
+}
+.btn-glass:hover { background: rgba(255,255,255,.24); color: #fff; }
+.rh-banner .form-select {
+  background: rgba(255,255,255,.13);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.22);
+  font-size: .8rem; border-radius: 8px;
+  max-width: 160px;
+}
+.rh-banner .form-select option { color: #333; background: #fff; }
+
+/* ══════════════════════════════════════════════════
+   TOP KPI CARDS
+══════════════════════════════════════════════════ */
+.kpi-card {
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--r-radius);
+  padding: 1.25rem 1.3rem 1.1rem;
+  position: relative; overflow: hidden;
+  transition: transform .22s, box-shadow .22s;
+  height: 100%;
+}
+.kpi-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+.kpi-card .kc-icon {
+  width: 48px; height: 48px; border-radius: 13px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.25rem; margin-bottom: .8rem;
+}
+.kpi-card .kc-val {
+  font-size: 1.95rem; font-weight: 800; line-height: 1;
+  margin-bottom: .18rem;
+}
+.kpi-card .kc-lbl {
+  font-size: .73rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .5px; color: var(--bs-secondary-color);
+}
+.kpi-card .kc-meta { font-size: .73rem; margin-top: .45rem; }
+.kpi-card .kc-ghost {
+  font-size: 5.5rem; position: absolute;
+  bottom: -.8rem; left: .6rem;
+  opacity: .04; pointer-events: none; line-height: 1;
+}
+
+/* KPI colour tokens */
+.kc-purple { --kc: #4b315e; } .kc-purple .kc-icon { background:rgba(75,49,94,.12);  color:#4b315e; } .kc-purple .kc-val { color:#4b315e; }
+.kc-green  { --kc: #28a745; } .kc-green  .kc-icon { background:rgba(40,167,69,.12);  color:#28a745; } .kc-green  .kc-val { color:#28a745; }
+.kc-orange { --kc: #fd7e14; } .kc-orange .kc-icon { background:rgba(253,126,20,.12); color:#fd7e14; } .kc-orange .kc-val { color:#fd7e14; }
+.kc-cyan   { --kc: #17a2b8; } .kc-cyan   .kc-icon { background:rgba(23,162,184,.12); color:#17a2b8; } .kc-cyan   .kc-val { color:#17a2b8; }
+.kc-red    { --kc: #dc3545; } .kc-red    .kc-icon { background:rgba(220,53,69,.12);  color:#dc3545; } .kc-red    .kc-val { color:#dc3545; }
+.kc-slate  { --kc: #6c757d; } .kc-slate  .kc-icon { background:rgba(108,117,125,.12);color:#6c757d; } .kc-slate  .kc-val { color:#6c757d; }
+.kc-teal   { --kc: #20c997; } .kc-teal   .kc-icon { background:rgba(32,201,151,.12); color:#20c997; } .kc-teal   .kc-val { color:#20c997; }
+.kc-indigo { --kc: #6f42c1; } .kc-indigo .kc-icon { background:rgba(111,66,193,.12); color:#6f42c1; } .kc-indigo .kc-val { color:#6f42c1; }
+
+/* ══════════════════════════════════════════════════
+   CONTENT CARD
+══════════════════════════════════════════════════ */
+.rc {
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--r-radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+  margin-bottom: 1.25rem;
+}
+.rc-head {
+  padding: .95rem 1.3rem;
+  border-bottom: 1px solid var(--bs-border-color);
+  display: flex; align-items: center; justify-content: space-between; gap: .6rem;
+}
+.rc-head h5 {
+  margin: 0; font-size: .92rem; font-weight: 700;
+  display: flex; align-items: center; gap: .55rem;
+}
+.rc-head h5 .hi {
+  width: 30px; height: 30px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .83rem; flex-shrink: 0;
+}
+.rc-body { padding: 1.3rem; }
+
+/* Gradient card header variant */
+.rc-head-grad {
+  border-bottom: none !important;
+  background: linear-gradient(135deg, var(--gh-a), var(--gh-b));
+}
+.rc-head-grad h5, .rc-head-grad a { color: #fff !important; }
+.rc-head-grad .btn-outline-light { font-size: .72rem; padding: .18rem .55rem; }
+
+/* ══════════════════════════════════════════════════
+   SECTION NAVIGATION (modern pill row)
+══════════════════════════════════════════════════ */
+.rp-nav-wrap {
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--r-radius);
+  padding: .45rem;
+  margin-bottom: 1.5rem;
+  display: flex; gap: .3rem; flex-wrap: wrap;
+}
+.rp-nav-wrap .np {
+  display: inline-flex; align-items: center; gap: .42rem;
+  padding: .52rem 1.1rem;
+  border: none; background: transparent;
+  border-radius: var(--r-radius-sm);
+  font-size: .84rem; font-weight: 500;
+  color: var(--bs-body-color);
+  cursor: pointer; transition: .18s;
+  white-space: nowrap;
+}
+.rp-nav-wrap .np:hover:not(.active) {
+  background: rgba(75,49,94,.07);
+  color: var(--brand);
+}
+.rp-nav-wrap .np.active {
+  background: var(--brand);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(75,49,94,.3);
+}
+.rp-nav-wrap .np .nb {
+  font-size: .65rem; font-weight: 700;
+  padding: .06rem .38rem; border-radius: 5px; line-height: 1.5;
+}
+.rp-nav-wrap .np.active     .nb { background: rgba(255,255,255,.22); color: #fff; }
+.rp-nav-wrap .np:not(.active) .nb { background: rgba(220,53,69,.12); color: #dc3545; }
+.rp-nav-wrap .np:not(.active).nb-warn .nb { background: rgba(255,193,7,.14); color: #b38600; }
+
+/* ══════════════════════════════════════════════════
+   MINI STAT CELLS  (inside tabs)
+══════════════════════════════════════════════════ */
+.mstat {
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 13px;
+  padding: .9rem 1rem;
+  display: flex; align-items: center; gap: .75rem;
+  transition: transform .18s, box-shadow .18s;
+  height: 100%;
+}
+.mstat:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+.mstat .mi { width: 42px; height: 42px; border-radius: 11px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; flex-shrink:0; }
+.mstat .mv { font-size: 1.25rem; font-weight: 800; line-height: 1.1; margin: 0; }
+.mstat .ml { font-size: .72rem; color: var(--bs-secondary-color); margin: 0; }
+
+/* icon colour classes */
+.mi-purple { background:rgba(75,49,94,.12);   color:#4b315e; }
+.mi-green  { background:rgba(40,167,69,.12);   color:#28a745; }
+.mi-orange { background:rgba(253,126,20,.12);  color:#fd7e14; }
+.mi-cyan   { background:rgba(23,162,184,.12);  color:#17a2b8; }
+.mi-red    { background:rgba(220,53,69,.12);   color:#dc3545; }
+.mi-slate  { background:rgba(108,117,125,.12); color:#6c757d; }
+.mi-yellow { background:rgba(255,193,7,.12);   color:#b38600; }
+.mi-teal   { background:rgba(32,201,151,.12);  color:#20c997; }
+.mi-indigo { background:rgba(111,66,193,.12);  color:#6f42c1; }
+
+/* ══════════════════════════════════════════════════
+   DATA / LIST ROWS
+══════════════════════════════════════════════════ */
+.drow {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: .55rem .9rem;
+  border-bottom: 1px solid var(--bs-border-color);
+  font-size: .875rem;
+  transition: background .14s;
+}
+.drow:last-child { border-bottom: none; }
+.drow:hover { background: rgba(75,49,94,.03); }
+
+/* ══════════════════════════════════════════════════
+   SUMMARY TILE  (pct / count boxes)
+══════════════════════════════════════════════════ */
+.stile {
+  border-radius: 12px;
+  padding: 1.15rem 1rem;
+  text-align: center;
+  transition: transform .18s;
+}
+.stile:hover { transform: scale(1.03); }
+.stile .st-val { font-size: 1.75rem; font-weight: 800; line-height: 1; margin-bottom: .25rem; }
+.stile .st-lbl { font-size: .71rem; font-weight: 600; color: var(--bs-secondary-color); text-transform: uppercase; letter-spacing: .3px; }
+
+/* ══════════════════════════════════════════════════
+   PROGRESS BAR
+══════════════════════════════════════════════════ */
+.rp-bar { height: 6px; border-radius: 3px; }
+
+/* ══════════════════════════════════════════════════
+   CHART LABEL
+══════════════════════════════════════════════════ */
+.ch-lbl {
+  font-size: .79rem; font-weight: 600; color: var(--bs-secondary-color);
+  margin-bottom: .65rem; display: flex; align-items: center; gap: .4rem;
+}
+
+/* ══════════════════════════════════════════════════
+   QUICK LINK
+══════════════════════════════════════════════════ */
+.rp-link { font-size: .81rem; opacity: .72; transition: opacity .15s; display:inline-flex; align-items:center; gap:.35rem; }
+.rp-link:hover { opacity: 1; }
+
+/* ══════════════════════════════════════════════════
+   PULSE
+══════════════════════════════════════════════════ */
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+.pulse { animation: pulse 1.5s infinite; }
+
+/* ══════════════════════════════════════════════════
+   DARK MODE
+══════════════════════════════════════════════════ */
+[data-theme="dark"] .kpi-card,
+[data-theme="dark"] .rc,
+[data-theme="dark"] .mstat,
+[data-theme="dark"] .rp-nav-wrap { background: #1e1e2e; border-color: #3a3a5c; }
+[data-theme="dark"] .rh-banner { background: linear-gradient(135deg, #120b1a, #2d1a3a, #4b315e); }
+
+/* ══════════════════════════════════════════════════
+   PRINT
+══════════════════════════════════════════════════ */
 @media print {
-    .admin-header-actions,.reports-tabs-wrapper,.btn,select { display:none!important; }
-    .tab-pane { display:block!important; opacity:1!important; page-break-inside:avoid; }
-    .kpi-card  { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .rh-actions, .rp-nav-wrap, .btn { display: none !important; }
+  .tab-pane { display: block !important; opacity: 1 !important; page-break-inside: avoid; }
 }
-@media (max-width:576px) { .kpi-value{font-size:1.3rem} .stat-value{font-size:1.2rem} }
+
+/* ══════════════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .rh-banner { padding: 1.2rem; }
+  .rh-banner h1 { font-size: 1.25rem; }
+  .rp-nav-wrap { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: thin; }
+  .rp-nav-wrap .np { flex-shrink: 0; }
+  .kpi-card .kc-val { font-size: 1.55rem; }
+  .mstat .mv { font-size: 1.05rem; }
+}
 </style>
-{% endblock %}
+{% endblock admin_extra_css %}
+
+{% block admin_content %}
+<div class="rp-page pb-4">
+
+{# ══════════════════════════════════════════════════
+   PAGE HEADER
+══════════════════════════════════════════════════ #}
+<div class="rh-banner">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div>
+      <h1>
+        <span class="rh-icon"><i class="fas fa-chart-line"></i></span>
+        {% trans "التقارير والإحصائيات" %}
+      </h1>
+      <p>{% trans "نظرة شاملة على أداء المنصة — جميع الأرقام محدّثة لحظياً" %}</p>
+    </div>
+    <div class="rh-actions">
+      <select class="form-select form-select-sm" id="globalDateRange" onchange="syncDateSelect(this.value)">
+        <option value="7">{% trans "آخر 7 أيام" %}</option>
+        <option value="14">{% trans "آخر 14 يوم" %}</option>
+        <option value="30" selected>{% trans "آخر 30 يوم" %}</option>
+        <option value="90">{% trans "آخر 3 أشهر" %}</option>
+      </select>
+      <button class="btn-glass" onclick="window.print()"><i class="fas fa-print"></i>{% trans "طباعة" %}</button>
+      <button class="btn-glass" onclick="location.reload()"><i class="fas fa-sync-alt"></i>{% trans "تحديث" %}</button>
+    </div>
+  </div>
+</div>
+
+{# ══════════════════════════════════════════════════
+   TOP KPI STRIP
+══════════════════════════════════════════════════ #}
+<div class="row g-3 mb-4">
+
+  <div class="col-6 col-sm-4 col-xl-3">
+    <div class="kpi-card kc-purple">
+      <div class="kc-icon"><i class="fas fa-users"></i></div>
+      <div class="kc-val">{{ total_users|default:0|intcomma }}</div>
+      <div class="kc-lbl">{% trans "المستخدمون" %}</div>
+      <div class="kc-meta text-success"><i class="fas fa-arrow-up fa-xs"></i> +{{ new_users_week|default:0 }} {% trans "هذا الأسبوع" %}</div>
+      <i class="fas fa-users kc-ghost"></i>
+    </div>
+  </div>
+
+  <div class="col-6 col-sm-4 col-xl-3">
+    <div class="kpi-card kc-green">
+      <div class="kc-icon"><i class="fas fa-bullhorn"></i></div>
+      <div class="kc-val">{{ active_ads|default:0|intcomma }}</div>
+      <div class="kc-lbl">{% trans "إعلانات نشطة" %}</div>
+      <div class="kc-meta text-success"><i class="fas fa-plus fa-xs"></i> {{ ads_today|default:0 }} {% trans "اليوم" %}</div>
+      <i class="fas fa-bullhorn kc-ghost"></i>
+    </div>
+  </div>
+
+  <div class="col-6 col-sm-4 col-xl-3">
+    <div class="kpi-card kc-orange">
+      <div class="kc-icon"><i class="fas fa-coins"></i></div>
+      <div class="kc-val">{{ revenue_total|default:0|floatformat:0|intcomma }}</div>
+      <div class="kc-lbl">{% trans "إجمالي الإيرادات" %}</div>
+      <div class="kc-meta text-muted">{% trans "الشهر:" %} {{ revenue_month|default:0|floatformat:0|intcomma }}</div>
+      <i class="fas fa-coins kc-ghost"></i>
+    </div>
+  </div>
+
+  <div class="col-6 col-sm-4 col-xl-3">
+    <div class="kpi-card kc-cyan">
+      <div class="kc-icon"><i class="fas fa-globe"></i></div>
+      <div class="kc-val">{{ visitors_total|default:0|intcomma }}</div>
+      <div class="kc-lbl">{% trans "الزيارات الإجمالية" %}</div>
+      <div class="kc-meta"><i class="fas fa-circle pulse text-success fa-xs me-1"></i>{{ online_now|default:0 }} {% trans "متصل الآن" %}</div>
+      <i class="fas fa-globe kc-ghost"></i>
+    </div>
+  </div>
+
+  <div class="col-6 col-sm-4 col-xl-3">
+    <div class="kpi-card kc-red">
+      <div class="kc-icon"><i class="fas fa-flag"></i></div>
+      <div class="kc-val">{{ pending_reports|default:0 }}</div>
+      <div class="kc-lbl">{% trans "بلاغات معلقة" %}</div>
+      <div class="kc-meta text-muted">{% trans "إجمالي:" %} {{ total_reports|default:0 }}</div>
+      <i class="fas fa-flag kc-ghost"></i>
+    </div>
+  </div>
+
+  <div class="col-6 col-sm-4 col-xl-3">
+    <div class="kpi-card kc-slate">
+      <div class="kc-icon"><i class="fas fa-shopping-bag"></i></div>
+      <div class="kc-val">{{ total_orders|default:0|intcomma }}</div>
+      <div class="kc-lbl">{% trans "الطلبات" %}</div>
+      <div class="kc-meta text-warning">{{ pending_orders|default:0 }} {% trans "معلقة" %}</div>
+      <i class="fas fa-shopping-bag kc-ghost"></i>
+    </div>
+  </div>
+
+  <div class="col-6 col-sm-4 col-xl-3">
+    <div class="kpi-card kc-teal">
+      <div class="kc-icon"><i class="fas fa-box-open"></i></div>
+      <div class="kc-val">{{ active_packages|default:0 }}</div>
+      <div class="kc-lbl">{% trans "باقات نشطة" %}</div>
+      <div class="kc-meta text-muted">{% trans "إجمالي:" %} {{ total_packages|default:0 }}</div>
+      <i class="fas fa-box-open kc-ghost"></i>
+    </div>
+  </div>
+
+  <div class="col-6 col-sm-4 col-xl-3">
+    <div class="kpi-card kc-indigo">
+      <div class="kc-icon"><i class="fas fa-comment-dots"></i></div>
+      <div class="kc-val">{{ total_messages|default:0|intcomma }}</div>
+      <div class="kc-lbl">{% trans "الرسائل" %}</div>
+      <div class="kc-meta text-muted">{{ messages_today|default:0 }} {% trans "اليوم" %}</div>
+      <i class="fas fa-comment-dots kc-ghost"></i>
+    </div>
+  </div>
+
+</div>
+
+{# ══════════════════════════════════════════════════
+   OVERVIEW CHART
+══════════════════════════════════════════════════ #}
+<div class="rc mb-4">
+  <div class="rc-head">
+    <h5>
+      <span class="hi" style="background:rgba(75,49,94,.1);color:#4b315e;"><i class="fas fa-chart-area"></i></span>
+      {% trans "نظرة عامة — آخر 30 يوم" %}
+    </h5>
+    <small class="text-muted d-none d-sm-inline">{% trans "تسجيلات + إعلانات + إيرادات" %}</small>
+  </div>
+  <div class="rc-body">
+    <canvas id="overviewChart" style="height:220px;max-height:220px;"></canvas>
+  </div>
+</div>
+
+{# ══════════════════════════════════════════════════
+   SECTION NAVIGATION  — modern pill buttons
+══════════════════════════════════════════════════ #}
+<div class="rp-nav-wrap" id="rTabs" role="tablist">
+
+  <button class="np active" data-bs-toggle="tab" data-bs-target="#tp-visitors" type="button">
+    <i class="fas fa-chart-area"></i> {% trans "الزوار" %}
+  </button>
+
+  <button class="np" data-bs-toggle="tab" data-bs-target="#tp-users" type="button">
+    <i class="fas fa-users"></i> {% trans "المستخدمون" %}
+    {% if new_users_today > 0 %}<span class="nb">+{{ new_users_today }}</span>{% endif %}
+  </button>
+
+  <button class="np nb-warn" data-bs-toggle="tab" data-bs-target="#tp-ads" type="button">
+    <i class="fas fa-bullhorn"></i> {% trans "الإعلانات" %}
+    {% if pending_ads > 0 %}<span class="nb">{{ pending_ads }}</span>{% endif %}
+  </button>
+
+  <button class="np" data-bs-toggle="tab" data-bs-target="#tp-revenue" type="button">
+    <i class="fas fa-dollar-sign"></i> {% trans "الإيرادات" %}
+  </button>
+
+  <button class="np" data-bs-toggle="tab" data-bs-target="#tp-reports" type="button">
+    <i class="fas fa-flag"></i> {% trans "البلاغات" %}
+    {% if pending_reports > 0 %}<span class="nb">{{ pending_reports }}</span>{% endif %}
+  </button>
+
+  <button class="np" data-bs-toggle="tab" data-bs-target="#tp-platform" type="button">
+    <i class="fas fa-layer-group"></i> {% trans "المنصة" %}
+  </button>
+
+</div>
+
+{# ══════════════════════════════════════════════════
+   TAB CONTENT
+══════════════════════════════════════════════════ #}
+<div class="tab-content" id="rTabContent">
+
+{# ─── TAB 1 — VISITORS ─── #}
+<div class="tab-pane fade show active" id="tp-visitors" role="tabpanel">
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-sm-4 col-lg-2">
+      <div class="mstat"><div class="mi mi-green"><i class="fas fa-circle pulse"></i></div><div><p class="mv text-success">{{ online_now|default:0 }}</p><p class="ml">{% trans "متصل الآن" %}</p></div></div>
+    </div>
+    <div class="col-6 col-sm-4 col-lg-2">
+      <div class="mstat"><div class="mi mi-cyan"><i class="fas fa-calendar-day"></i></div><div><p class="mv">{{ visitors_today|default:0 }}</p><p class="ml">{% trans "زوار اليوم" %}</p></div></div>
+    </div>
+    <div class="col-6 col-sm-4 col-lg-2">
+      <div class="mstat"><div class="mi mi-purple"><i class="fas fa-calendar-week"></i></div><div><p class="mv">{{ visitors_week|default:0 }}</p><p class="ml">{% trans "الأسبوع" %}</p></div></div>
+    </div>
+    <div class="col-6 col-sm-4 col-lg-2">
+      <div class="mstat"><div class="mi mi-orange"><i class="fas fa-calendar-alt"></i></div><div><p class="mv">{{ visitors_month|default:0 }}</p><p class="ml">{% trans "الشهر" %}</p></div></div>
+    </div>
+    <div class="col-6 col-sm-4 col-lg-2">
+      <div class="mstat"><div class="mi mi-red"><i class="fas fa-calendar"></i></div><div><p class="mv">{{ visitors_year|default:0 }}</p><p class="ml">{% trans "السنة" %}</p></div></div>
+    </div>
+    <div class="col-6 col-sm-4 col-lg-2">
+      <div class="mstat"><div class="mi mi-slate"><i class="fas fa-infinity"></i></div><div><p class="mv">{{ visitors_total|default:0|intcomma }}</p><p class="ml">{% trans "الإجمالي" %}</p></div></div>
+    </div>
+  </div>
+
+  <div class="rc">
+    <div class="rc-head">
+      <h5>
+        <span class="hi" style="background:rgba(23,162,184,.1);color:#17a2b8;"><i class="fas fa-chart-bar"></i></span>
+        {% trans "تحليلات سلوك الزوار" %}
+      </h5>
+      <select id="dateRangeSelect" class="form-select form-select-sm" style="max-width:148px;" onchange="updateVisitorCharts(this.value)">
+        <option value="7">{% trans "آخر 7 أيام" %}</option>
+        <option value="14">{% trans "آخر 14 يوم" %}</option>
+        <option value="30" selected>{% trans "آخر 30 يوم" %}</option>
+        <option value="90">{% trans "آخر 3 أشهر" %}</option>
+      </select>
+    </div>
+    <div class="rc-body">
+      <div class="row g-4">
+        <div class="col-lg-6">
+          <div class="ch-lbl"><i class="fas fa-clock"></i>{% trans "متوسط مدة البقاء (دقائق)" %}</div>
+          <canvas id="sessionDurationChart" style="max-height:200px;"></canvas>
+        </div>
+        <div class="col-lg-6">
+          <div class="ch-lbl"><i class="fas fa-file-alt"></i>{% trans "متوسط الصفحات لكل زيارة" %}</div>
+          <canvas id="pagesPerVisitChart" style="max-height:200px;"></canvas>
+        </div>
+        <div class="col-lg-6">
+          <div class="ch-lbl"><i class="fas fa-redo"></i>{% trans "زوار جدد مقابل عائدون" %}</div>
+          <canvas id="returnVisitorsChart" style="max-height:200px;"></canvas>
+        </div>
+        <div class="col-lg-6">
+          <div class="ch-lbl"><i class="fas fa-chart-line"></i>{% trans "اتجاه الزيارات اليومية" %}</div>
+          <canvas id="visitorTrendChart" style="max-height:200px;"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{# ─── TAB 2 — USERS ─── #}
+<div class="tab-pane fade" id="tp-users" role="tabpanel">
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-purple"><i class="fas fa-users"></i></div><div><p class="mv">{{ total_users|default:0|intcomma }}</p><p class="ml">{% trans "إجمالي" %}</p></div></div></div>
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-green"><i class="fas fa-user-check"></i></div><div><p class="mv">{{ verified_users|default:0|intcomma }}</p><p class="ml">{% trans "موثق الهاتف" %}</p></div></div></div>
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-yellow"><i class="fas fa-crown"></i></div><div><p class="mv">{{ premium_users|default:0 }}</p><p class="ml">{% trans "مميزون" %}</p></div></div></div>
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-cyan"><i class="fas fa-store"></i></div><div><p class="mv">{{ publisher_users|default:0 }}</p><p class="ml">{% trans "ناشر / تاجر" %}</p></div></div></div>
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-green"><i class="fas fa-user-plus"></i></div><div><p class="mv">{{ new_users_today|default:0 }}</p><p class="ml">{% trans "تسجيلات اليوم" %}</p></div></div></div>
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-cyan"><i class="fas fa-calendar-week"></i></div><div><p class="mv">{{ new_users_week|default:0 }}</p><p class="ml">{% trans "تسجيلات الأسبوع" %}</p></div></div></div>
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-red"><i class="fas fa-user-slash"></i></div><div><p class="mv">{{ banned_users|default:0 }}</p><p class="ml">{% trans "محظورون" %}</p></div></div></div>
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-slate"><i class="fas fa-user-lock"></i></div><div><p class="mv">{{ suspended_users|default:0 }}</p><p class="ml">{% trans "معلقون" %}</p></div></div></div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-lg-8">
+      <div class="rc h-100">
+        <div class="rc-head">
+          <h5><span class="hi" style="background:rgba(75,49,94,.1);color:#4b315e;"><i class="fas fa-chart-line"></i></span>{% trans "اتجاه التسجيلات — آخر 30 يوم" %}</h5>
+        </div>
+        <div class="rc-body"><canvas id="userRegistrationChart" style="max-height:250px;"></canvas></div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="rc h-100">
+        <div class="rc-head">
+          <h5><span class="hi" style="background:rgba(253,126,20,.1);color:#fd7e14;"><i class="fas fa-chart-pie"></i></span>{% trans "توزيع أنواع الحسابات" %}</h5>
+        </div>
+        <div class="rc-body"><canvas id="userTypesChart" style="max-height:250px;"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="rc">
+        <div class="rc-head">
+          <h5><span class="hi" style="background:rgba(23,162,184,.1);color:#17a2b8;"><i class="fas fa-list"></i></span>{% trans "تفاصيل الحسابات" %}</h5>
+        </div>
+        <div>
+          <div class="drow"><span>{% trans "حسابات نشطة" %}</span><strong>{{ active_users|default:0|intcomma }}</strong></div>
+          <div class="drow"><span>{% trans "موظفو المنصة" %}</span><strong>{{ staff_users|default:0 }}</strong></div>
+          <div class="drow"><span>{% trans "تسجيلات الشهر" %}</span><strong>{{ new_users_month|default:0 }}</strong></div>
+          <div class="drow"><span>{% trans "أعضاء عاديون" %}</span><strong>{{ member_users|default:0|intcomma }}</strong></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-8">
+      <div class="rc">
+        <div class="rc-head">
+          <h5><span class="hi" style="background:rgba(40,167,69,.1);color:#28a745;"><i class="fas fa-tasks"></i></span>{% trans "نسب التحقق والنشاط" %}</h5>
+        </div>
+        <div class="rc-body">
+          {% if total_users > 0 %}
+          <div class="mb-3">
+            <div class="d-flex justify-content-between mb-1"><small class="fw-semibold">{% trans "الموثقون" %}</small><small class="text-muted">{{ verified_users|default:0 }} / {{ total_users }}</small></div>
+            <div class="progress rp-bar"><div class="progress-bar bg-success" style="width:{% widthratio verified_users total_users 100 %}%"></div></div>
+          </div>
+          <div class="mb-3">
+            <div class="d-flex justify-content-between mb-1"><small class="fw-semibold">{% trans "المميزون" %}</small><small class="text-muted">{{ premium_users|default:0 }} / {{ total_users }}</small></div>
+            <div class="progress rp-bar"><div class="progress-bar bg-warning" style="width:{% widthratio premium_users total_users 100 %}%"></div></div>
+          </div>
+          <div class="mb-3">
+            <div class="d-flex justify-content-between mb-1"><small class="fw-semibold">{% trans "الناشرون والتجار" %}</small><small class="text-muted">{{ publisher_users|default:0 }} / {{ total_users }}</small></div>
+            <div class="progress rp-bar"><div class="progress-bar bg-info" style="width:{% widthratio publisher_users total_users 100 %}%"></div></div>
+          </div>
+          <div class="mb-0">
+            <div class="d-flex justify-content-between mb-1"><small class="fw-semibold">{% trans "الحسابات النشطة" %}</small><small class="text-muted">{{ active_users|default:0 }} / {{ total_users }}</small></div>
+            <div class="progress rp-bar"><div class="progress-bar" style="background:#4b315e;width:{% widthratio active_users total_users 100 %}%"></div></div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="text-end mt-3 mb-1">
+    <a href="{% url 'main:admin_users' %}" class="rp-link text-decoration-none">
+      <i class="fas fa-arrow-left"></i>{% trans "إدارة المستخدمين" %}
+    </a>
+  </div>
+
+</div>
+
+{# ─── TAB 3 — ADS ─── #}
+<div class="tab-pane fade" id="tp-ads" role="tabpanel">
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-purple"><i class="fas fa-layer-group"></i></div><div><p class="mv">{{ total_ads|default:0|intcomma }}</p><p class="ml">{% trans "الإجمالي" %}</p></div></div></div>
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-green"><i class="fas fa-check-circle"></i></div><div><p class="mv">{{ active_ads|default:0|intcomma }}</p><p class="ml">{% trans "نشطة" %}</p></div></div></div>
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-yellow"><i class="fas fa-clock"></i></div><div><p class="mv">{{ pending_ads|default:0 }}</p><p class="ml">{% trans "قيد المراجعة" %}</p></div></div></div>
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-slate"><i class="fas fa-hourglass-end"></i></div><div><p class="mv">{{ expired_ads|default:0 }}</p><p class="ml">{% trans "منتهية" %}</p></div></div></div>
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-red"><i class="fas fa-ban"></i></div><div><p class="mv">{{ rejected_ads|default:0 }}</p><p class="ml">{% trans "مرفوضة" %}</p></div></div></div>
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-cyan"><i class="fas fa-eye"></i></div><div><p class="mv">{{ total_views|default:0|intcomma }}</p><p class="ml">{% trans "مشاهدات" %}</p></div></div></div>
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-yellow"><i class="fas fa-star"></i></div><div><p class="mv">{{ highlighted_ads|default:0 }}</p><p class="ml">{% trans "مميزة ومدفوعة" %}</p></div></div></div>
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-green"><i class="fas fa-plus-circle"></i></div><div><p class="mv">{{ ads_today|default:0 }}</p><p class="ml">{% trans "إعلانات اليوم" %}</p></div></div></div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-lg-8">
+      <div class="rc h-100">
+        <div class="rc-head"><h5><span class="hi" style="background:rgba(40,167,69,.1);color:#28a745;"><i class="fas fa-chart-line"></i></span>{% trans "اتجاه الإعلانات — آخر 30 يوم" %}</h5></div>
+        <div class="rc-body"><canvas id="adsTrendChart" style="max-height:250px;"></canvas></div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="rc h-100">
+        <div class="rc-head"><h5><span class="hi" style="background:rgba(253,126,20,.1);color:#fd7e14;"><i class="fas fa-chart-pie"></i></span>{% trans "توزيع الحالات" %}</h5></div>
+        <div class="rc-body"><canvas id="adsStatusChart" style="max-height:250px;"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rc mb-4">
+    <div class="rc-head">
+      <h5><span class="hi" style="background:rgba(212,160,23,.12);color:#b38600;"><i class="fas fa-folder"></i></span>{% trans "إحصائيات الأقسام — أعلى 10" %}</h5>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr><th>#</th><th>{% trans "القسم" %}</th><th>{% trans "الإعلانات" %}</th><th>{% trans "المشاهدات" %}</th><th style="min-width:150px;">{% trans "النسبة" %}</th></tr>
+        </thead>
+        <tbody>
+          {% for cat in categories_stats %}
+          <tr>
+            <td class="text-muted">{{ forloop.counter }}</td>
+            <td><i class="fas fa-folder-open me-2 text-warning"></i>{{ cat.name }}</td>
+            <td><span class="badge bg-primary rounded-pill">{{ cat.ads_count|default:0|intcomma }}</span></td>
+            <td class="text-muted">{{ cat.total_views|default:0|intcomma }}</td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="progress flex-grow-1 rp-bar"><div class="progress-bar" style="width:{{ cat.percentage|floatformat:1 }}%"></div></div>
+                <small class="text-muted">{{ cat.percentage|floatformat:1 }}%</small>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-center text-muted py-4">{% trans "لا توجد بيانات" %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="rc mb-3">
+    <div class="rc-head">
+      <h5><span class="hi" style="background:rgba(212,160,23,.12);color:#b38600;"><i class="fas fa-trophy"></i></span>{% trans "أكثر الإعلانات مشاهدة" %}</h5>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr><th>#</th><th>{% trans "الإعلان" %}</th><th>{% trans "الناشر" %}</th><th>{% trans "القسم" %}</th><th>{% trans "المشاهدات" %}</th><th>{% trans "الحالة" %}</th></tr>
+        </thead>
+        <tbody>
+          {% for ad in top_viewed_ads %}
+          <tr>
+            <td class="text-muted">{{ forloop.counter }}</td>
+            <td><a href="{% url 'main:ad_publisher_detail' ad.id %}" class="text-decoration-none fw-semibold" target="_blank">{{ ad.title|truncatechars:40 }}</a></td>
+            <td class="text-muted small">{{ ad.user.username }}</td>
+            <td class="text-muted small">{{ ad.category.name_ar|default:ad.category.name|default:"-" }}</td>
+            <td><span class="badge bg-info rounded-pill">{{ ad.views_count|intcomma }}</span></td>
+            <td>
+              {% if ad.status == 'active' %}<span class="badge bg-success">{% trans "نشط" %}</span>
+              {% elif ad.status == 'pending' %}<span class="badge bg-warning text-dark">{% trans "معلق" %}</span>
+              {% else %}<span class="badge bg-secondary">{{ ad.status }}</span>{% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="text-center text-muted py-4">{% trans "لا توجد بيانات" %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="text-end mb-1">
+    <a href="{% url 'main:admin_ads' %}" class="rp-link text-decoration-none"><i class="fas fa-arrow-left"></i>{% trans "إدارة الإعلانات" %}</a>
+  </div>
+
+</div>
+
+{# ─── TAB 4 — REVENUE ─── #}
+<div class="tab-pane fade" id="tp-revenue" role="tabpanel">
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-green"><i class="fas fa-calendar-day"></i></div><div><p class="mv">{{ revenue_today|default:0|floatformat:0|intcomma }}</p><p class="ml">{% trans "إيرادات اليوم" %}</p></div></div></div>
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-cyan"><i class="fas fa-calendar-week"></i></div><div><p class="mv">{{ revenue_week|default:0|floatformat:0|intcomma }}</p><p class="ml">{% trans "الأسبوع" %}</p></div></div></div>
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-orange"><i class="fas fa-calendar-alt"></i></div><div><p class="mv">{{ revenue_month|default:0|floatformat:0|intcomma }}</p><p class="ml">{% trans "الشهر" %}</p></div></div></div>
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-purple"><i class="fas fa-coins"></i></div><div><p class="mv">{{ revenue_total|default:0|floatformat:0|intcomma }}</p><p class="ml">{% trans "الإجمالي" %}</p></div></div></div>
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-cyan"><i class="fab fa-paypal"></i></div><div><p class="mv">{{ revenue_paypal|default:0|floatformat:0|intcomma }}</p><p class="ml">PayPal ({{ paypal_count|default:0 }})</p></div></div></div>
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-indigo"><i class="fas fa-credit-card"></i></div><div><p class="mv">{{ revenue_paymob|default:0|floatformat:0|intcomma }}</p><p class="ml">Paymob ({{ paymob_count|default:0 }})</p></div></div></div>
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-slate"><i class="fas fa-receipt"></i></div><div><p class="mv">{{ revenue_offline|default:0|floatformat:0|intcomma }}</p><p class="ml">{% trans "يدوي/حوالة" %} ({{ offline_count|default:0 }})</p></div></div></div>
+    <div class="col-6 col-md-3"><div class="mstat"><div class="mi mi-red"><i class="fas fa-undo"></i></div><div><p class="mv">{{ refunded_payments|default:0 }}</p><p class="ml">{% trans "مستردة" %}</p></div></div></div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-lg-8">
+      <div class="rc h-100">
+        <div class="rc-head"><h5><span class="hi" style="background:rgba(253,126,20,.1);color:#fd7e14;"><i class="fas fa-chart-area"></i></span>{% trans "اتجاه الإيرادات — آخر 30 يوم" %}</h5></div>
+        <div class="rc-body"><canvas id="revenueTrendChart" style="max-height:250px;"></canvas></div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="rc h-100">
+        <div class="rc-head"><h5><span class="hi" style="background:rgba(23,162,184,.1);color:#17a2b8;"><i class="fas fa-chart-pie"></i></span>{% trans "توزيع وسائل الدفع" %}</h5></div>
+        <div class="rc-body"><canvas id="paymentProvidersChart" style="max-height:250px;"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rc mb-3">
+    <div class="rc-head">
+      <h5><span class="hi" style="background:rgba(40,167,69,.1);color:#28a745;"><i class="fas fa-list-alt"></i></span>{% trans "إجماليات المعاملات حسب الحالة" %}</h5>
+    </div>
+    <div class="rc-body">
+      <div class="row g-3">
+        <div class="col-6 col-md-3">
+          <div class="stile" style="background:rgba(40,167,69,.08);">
+            <div class="st-val text-success">{{ completed_payments|default:0|intcomma }}</div>
+            <div class="st-lbl">{% trans "مكتملة" %}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="stile" style="background:rgba(255,193,7,.08);">
+            <div class="st-val text-warning">{{ pending_payments_count|default:0|intcomma }}</div>
+            <div class="st-lbl">{% trans "معلقة" %}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="stile" style="background:rgba(220,53,69,.08);">
+            <div class="st-val text-danger">{{ failed_payments|default:0|intcomma }}</div>
+            <div class="st-lbl">{% trans "فاشلة" %}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="stile" style="background:rgba(108,117,125,.08);">
+            <div class="st-val text-secondary">{{ refunded_payments|default:0|intcomma }}</div>
+            <div class="st-lbl">{% trans "مستردة" %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="text-end mb-1">
+    <a href="{% url 'main:admin_payments' %}" class="rp-link text-decoration-none"><i class="fas fa-arrow-left"></i>{% trans "إدارة المدفوعات" %}</a>
+  </div>
+
+</div>
+
+{# ─── TAB 5 — REPORTS / MODERATION ─── #}
+<div class="tab-pane fade" id="tp-reports" role="tabpanel">
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-sm-4 col-lg-2"><div class="mstat"><div class="mi mi-purple"><i class="fas fa-flag"></i></div><div><p class="mv">{{ total_reports|default:0 }}</p><p class="ml">{% trans "الإجمالي" %}</p></div></div></div>
+    <div class="col-6 col-sm-4 col-lg-2"><div class="mstat"><div class="mi mi-yellow"><i class="fas fa-hourglass-half"></i></div><div><p class="mv">{{ pending_reports|default:0 }}</p><p class="ml">{% trans "معلقة" %}</p></div></div></div>
+    <div class="col-6 col-sm-4 col-lg-2"><div class="mstat"><div class="mi mi-cyan"><i class="fas fa-search"></i></div><div><p class="mv">{{ reviewing_reports|default:0 }}</p><p class="ml">{% trans "تحت المراجعة" %}</p></div></div></div>
+    <div class="col-6 col-sm-4 col-lg-2"><div class="mstat"><div class="mi mi-green"><i class="fas fa-check-double"></i></div><div><p class="mv">{{ resolved_reports|default:0 }}</p><p class="ml">{% trans "محلولة" %}</p></div></div></div>
+    <div class="col-6 col-sm-4 col-lg-2"><div class="mstat"><div class="mi mi-red"><i class="fas fa-times"></i></div><div><p class="mv">{{ rejected_reports|default:0 }}</p><p class="ml">{% trans "مرفوضة" %}</p></div></div></div>
+    <div class="col-6 col-sm-4 col-lg-2"><div class="mstat"><div class="mi mi-slate"><i class="fas fa-calendar-day"></i></div><div><p class="mv">{{ reports_today|default:0 }}</p><p class="ml">{% trans "بلاغات اليوم" %}</p></div></div></div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-lg-5">
+      <div class="rc h-100">
+        <div class="rc-head"><h5><span class="hi" style="background:rgba(220,53,69,.1);color:#dc3545;"><i class="fas fa-chart-pie"></i></span>{% trans "توزيع حالات البلاغات" %}</h5></div>
+        <div class="rc-body"><canvas id="reportsStatusChart" style="max-height:250px;"></canvas></div>
+      </div>
+    </div>
+    <div class="col-lg-7">
+      <div class="rc h-100">
+        <div class="rc-head"><h5><span class="hi" style="background:rgba(253,126,20,.1);color:#fd7e14;"><i class="fas fa-chart-bar"></i></span>{% trans "البلاغات خلال آخر 7 أيام" %}</h5></div>
+        <div class="rc-body"><canvas id="reportsWeekChart" style="max-height:250px;"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rc mb-3">
+    <div class="rc-body">
+      <div class="row g-3">
+        <div class="col-6 col-md-3">
+          <div class="stile" style="background:rgba(255,193,7,.08);">
+            <div class="st-val text-warning">{% if total_reports > 0 %}{% widthratio pending_reports total_reports 100 %}{% else %}0{% endif %}%</div>
+            <div class="st-lbl">{% trans "نسبة المعلقة" %}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="stile" style="background:rgba(40,167,69,.08);">
+            <div class="st-val text-success">{% if total_reports > 0 %}{% widthratio resolved_reports total_reports 100 %}{% else %}0{% endif %}%</div>
+            <div class="st-lbl">{% trans "نسبة المحلولة" %}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="stile" style="background:rgba(23,162,184,.08);">
+            <div class="st-val text-info">{{ reports_week|default:0 }}</div>
+            <div class="st-lbl">{% trans "بلاغات الأسبوع" %}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="stile" style="background:rgba(75,49,94,.08);">
+            <div class="st-val" style="color:#4b315e;">{% if total_reports > 0 %}{% widthratio reviewing_reports total_reports 100 %}{% else %}0{% endif %}%</div>
+            <div class="st-lbl">{% trans "قيد المراجعة" %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="text-end mb-1">
+    <a href="{% url 'main:admin_user_reports' %}" class="rp-link text-decoration-none"><i class="fas fa-arrow-left"></i>{% trans "عرض جميع البلاغات" %}</a>
+  </div>
+
+</div>
+
+{# ─── TAB 6 — PLATFORM ─── #}
+<div class="tab-pane fade" id="tp-platform" role="tabpanel">
+
+  <div class="row g-4 mb-4">
+
+    <div class="col-md-6 col-lg-3">
+      <div class="rc h-100">
+        <div class="rc-head rc-head-grad" style="--gh-a:#17a2b8;--gh-b:#0d7a8e;">
+          <h5><i class="fas fa-shopping-bag me-2"></i>{% trans "الطلبات" %}</h5>
+          <a href="{% url 'main:admin_orders_list' %}" class="btn btn-sm btn-outline-light">{% trans "عرض" %}</a>
+        </div>
+        <div>
+          <div class="drow"><span>{% trans "إجمالي" %}</span><strong>{{ total_orders|default:0|intcomma }}</strong></div>
+          <div class="drow"><span class="text-success">{% trans "مكتملة" %}</span><strong class="text-success">{{ completed_orders|default:0|intcomma }}</strong></div>
+          <div class="drow"><span class="text-warning">{% trans "معلقة" %}</span><strong class="text-warning">{{ pending_orders|default:0 }}</strong></div>
+          <div class="drow"><span class="text-info">{% trans "إيرادات الطلبات" %}</span><strong class="text-info">{{ orders_revenue|default:0|floatformat:0|intcomma }}</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+      <div class="rc h-100">
+        <div class="rc-head rc-head-grad" style="--gh-a:#28a745;--gh-b:#1e7e34;">
+          <h5><i class="fas fa-box-open me-2"></i>{% trans "الباقات" %}</h5>
+        </div>
+        <div>
+          <div class="drow"><span>{% trans "إجمالي" %}</span><strong>{{ total_packages|default:0|intcomma }}</strong></div>
+          <div class="drow"><span class="text-success">{% trans "نشطة" %}</span><strong class="text-success">{{ active_packages|default:0 }}</strong></div>
+          <div class="drow"><span class="text-secondary">{% trans "منتهية" %}</span><strong class="text-secondary">{{ expired_packages|default:0 }}</strong></div>
+          <div class="drow"><span class="text-warning">{% trans "مشتركون مميزون" %}</span><strong class="text-warning">{{ premium_users|default:0 }}</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+      <div class="rc h-100">
+        <div class="rc-head rc-head-grad" style="--gh-a:#fd7e14;--gh-b:#c96010;">
+          <h5><i class="fas fa-comments me-2"></i>{% trans "المحادثات" %}</h5>
+          <a href="{% url 'main:admin_support_chats' %}" class="btn btn-sm btn-outline-light">{% trans "عرض" %}</a>
+        </div>
+        <div>
+          <div class="drow"><span>{% trans "إجمالي الغرف" %}</span><strong>{{ total_chat_rooms|default:0|intcomma }}</strong></div>
+          <div class="drow"><span class="text-success">{% trans "غرف نشطة" %}</span><strong class="text-success">{{ active_chat_rooms|default:0 }}</strong></div>
+          <div class="drow"><span class="text-info">{% trans "إجمالي الرسائل" %}</span><strong class="text-info">{{ total_messages|default:0|intcomma }}</strong></div>
+          <div class="drow"><span class="text-warning">{% trans "دعم غير مقروء" %}</span><strong class="text-warning">{{ unread_support_messages|default:0 }}</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+      <div class="rc h-100">
+        <div class="rc-head rc-head-grad" style="--gh-a:#4b315e;--gh-b:#6b4c7a;">
+          <h5><i class="fas fa-bell me-2"></i>{% trans "الإشعارات والنشرة" %}</h5>
+        </div>
+        <div>
+          <div class="drow"><span>{% trans "إجمالي الإشعارات" %}</span><strong>{{ total_notifications|default:0|intcomma }}</strong></div>
+          <div class="drow"><span class="text-warning">{% trans "غير مقروءة" %}</span><strong class="text-warning">{{ unread_notifications|default:0|intcomma }}</strong></div>
+          <div class="drow"><span class="text-info">{% trans "إشعارات اليوم" %}</span><strong class="text-info">{{ notifications_today|default:0 }}</strong></div>
+          <div class="drow"><span class="text-success">{% trans "مشتركو النشرة" %}</span><strong class="text-success">{{ newsletter_subscribers|default:0|intcomma }}</strong></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="rc">
+    <div class="rc-head">
+      <h5><span class="hi" style="background:rgba(212,160,23,.12);color:#b38600;"><i class="fas fa-rocket"></i></span>{% trans "التحسينات المدفوعة للإعلانات" %}</h5>
+    </div>
+    <div class="rc-body">
+      <div class="row g-3">
+        <div class="col-6 col-md-3">
+          <div class="stile" style="background:rgba(255,193,7,.08);">
+            <i class="fas fa-star fa-xl text-warning mb-2 d-block"></i>
+            <div class="st-val text-warning">{{ highlighted_ads|default:0 }}</div>
+            <div class="st-lbl">{% trans "إعلانات مميزة" %}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="stile" style="background:rgba(220,53,69,.08);">
+            <i class="fas fa-fire fa-xl text-danger mb-2 d-block"></i>
+            <div class="st-val text-danger">{{ urgent_ads|default:0 }}</div>
+            <div class="st-lbl">{% trans "إعلانات عاجلة" %}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="stile" style="background:rgba(75,49,94,.08);">
+            <i class="fas fa-thumbtack fa-xl mb-2 d-block" style="color:#4b315e;"></i>
+            <div class="st-val" style="color:#4b315e;">{{ pinned_ads|default:0 }}</div>
+            <div class="st-lbl">{% trans "إعلانات مثبتة" %}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="stile" style="background:rgba(23,162,184,.08);">
+            <i class="fas fa-file-alt fa-xl text-info mb-2 d-block"></i>
+            <div class="st-val text-info">{{ draft_ads|default:0 }}</div>
+            <div class="st-lbl">{% trans "مسودات" %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /tp-platform -->
+
+</div><!-- /tab-content -->
+</div><!-- /rp-page -->
+{% endblock admin_content %}
 
 {% block admin_extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-/* ── Shared data from Django context ────────────────────────── */
-const trendLabels     = {{ trend_labels|safe }};
-const adsTrendData    = {{ ads_trend|safe }};
-const usersTrendData  = {{ users_trend|safe }};
-const revenueTrendData= {{ revenue_trend|safe }};
-const reportsTrendData= {{ reports_trend|safe }};
+/* ── Data from Django ── */
+const trendLabels        = {{ trend_labels|safe }};
+const adsTrendData       = {{ ads_trend|safe }};
+const usersTrendData     = {{ users_trend|safe }};
+const revenueTrendData   = {{ revenue_trend|safe }};
+const reportsTrendData   = {{ reports_trend|safe }};
 const reportsTrendLabels = {{ reports_trend_labels|safe }};
 
 const isDark = () => document.documentElement.getAttribute('data-theme') === 'dark';
-const gridColor  = () => isDark() ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.06)';
-const labelColor = () => isDark() ? '#ccc' : '#555';
-const brandColor = '#4b315e';
+const gc  = () => isDark() ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.06)';
+const lc  = () => isDark() ? '#ccc' : '#555';
+const brand = '#4b315e';
 
-/* ── Chart instances ────────────────────────────────────────── */
-let visitorCharts = {};    // filled by visitor AJAX
-let userRegChart, userTypesChart, adsTrendChart, adsStatusChart,
-    revenueTrendChart, paymentProvidersChart, reportsStatusChart, reportsWeekChart;
+/* ── Chart instances ── */
+let vCharts = {}, uRegChart, uTypesChart, adsTrChart, adsSChart,
+    revTrChart, payPieChart, rptSChart, rptWChart, overviewChart;
 
-/* ── Sync global date selector with visitor tab ─────────────── */
+/* ── Sync global date select ── */
 function syncDateSelect(val) {
-    const vis = document.getElementById('dateRangeSelect');
-    if (vis) { vis.value = val; updateVisitorCharts(val); }
+  const el = document.getElementById('dateRangeSelect');
+  if (el) { el.value = val; updateVisitorCharts(val); }
 }
 
-/* ══════════════════════════════════════════════════════════════ */
-/*  VISITOR CHARTS  (AJAX-loaded, same as original)              */
-/* ══════════════════════════════════════════════════════════════ */
+/* ── Default chart options ── */
+function lineOpts(extra = {}) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: gc() }, ticks: { color: lc(), maxTicksLimit: 8 } },
+      y: { beginAtZero: true, grid: { color: gc() }, ticks: { color: lc(), precision: 0 } }
+    },
+    ...extra
+  };
+}
+
+/* ── Overview chart ── */
+function initOverviewChart() {
+  const ctx = document.getElementById('overviewChart');
+  if (!ctx || overviewChart) return;
+  overviewChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: trendLabels,
+      datasets: [
+        { label: 'تسجيلات', data: usersTrendData,   borderColor: brand,     backgroundColor: 'rgba(75,49,94,.08)',   fill: true,  tension: .4, pointRadius: 2, yAxisID: 'y' },
+        { label: 'إعلانات',  data: adsTrendData,     borderColor: '#28a745', backgroundColor: 'rgba(40,167,69,.08)',  fill: true,  tension: .4, pointRadius: 2, yAxisID: 'y' },
+        { label: 'إيرادات', data: revenueTrendData,  borderColor: '#fd7e14', backgroundColor: 'rgba(253,126,20,.06)', fill: false, tension: .4, pointRadius: 2, yAxisID: 'y2', borderDash: [5,3] },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { color: lc(), font: { size: 12 } } } },
+      scales: {
+        x:  { grid: { color: gc() }, ticks: { color: lc(), maxTicksLimit: 10 } },
+        y:  { position: 'right', beginAtZero: true, grid: { color: gc() }, ticks: { color: lc(), precision: 0 } },
+        y2: { position: 'left',  beginAtZero: true, grid: { display: false }, ticks: { color: '#fd7e14' } },
+      }
+    }
+  });
+}
+
+/* ── Visitor charts (AJAX) ── */
 function updateVisitorCharts(days) {
-    fetch(`/admin/reports/visitor-analytics/?days=${days}`)
-        .then(r => r.json())
-        .then(data => {
-            renderSessionDurationChart(data);
-            renderPagesPerVisitChart(data);
-            renderReturnVisitorsChart(data);
-            renderVisitorTrendChart(data);
-        })
-        .catch(e => console.error('Visitor analytics error:', e));
+  fetch(`{% url 'main:visitor_analytics_data' %}?days=${days}`)
+    .then(r => r.json())
+    .then(data => { renderSessChart(data); renderPagesChart(data); renderReturnChart(data); renderVisitTrend(data); })
+    .catch(e => console.warn('Visitor analytics:', e));
+}
+function renderSessChart(d) {
+  const ctx = document.getElementById('sessionDurationChart'); if (!ctx) return;
+  if (vCharts.sess) vCharts.sess.destroy();
+  vCharts.sess = new Chart(ctx, { type:'bar', data:{ labels:d.labels||[], datasets:[{ label:'دقائق', data:d.session_duration||[], backgroundColor:'rgba(75,49,94,.65)', borderRadius:5 }] }, options: lineOpts() });
+}
+function renderPagesChart(d) {
+  const ctx = document.getElementById('pagesPerVisitChart'); if (!ctx) return;
+  if (vCharts.pages) vCharts.pages.destroy();
+  vCharts.pages = new Chart(ctx, { type:'line', data:{ labels:d.labels||[], datasets:[{ label:'صفحات', data:d.pages_per_visit||[], borderColor:'#17a2b8', backgroundColor:'rgba(23,162,184,.08)', fill:true, tension:.4, pointRadius:2 }] }, options: lineOpts() });
+}
+function renderReturnChart(d) {
+  const ctx = document.getElementById('returnVisitorsChart'); if (!ctx) return;
+  if (vCharts.ret) vCharts.ret.destroy();
+  vCharts.ret = new Chart(ctx, { type:'doughnut', data:{ labels:['زوار جدد','عائدون'], datasets:[{ data:[d.new_visitors||0, d.return_visitors||0], backgroundColor:[brand,'#17a2b8'], borderWidth:0 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:lc() } } } } });
+}
+function renderVisitTrend(d) {
+  const ctx = document.getElementById('visitorTrendChart'); if (!ctx) return;
+  if (vCharts.trend) vCharts.trend.destroy();
+  vCharts.trend = new Chart(ctx, { type:'line', data:{ labels:d.trend_labels||d.labels||[], datasets:[{ label:'الزوار', data:d.trend_data||[], borderColor:'#28a745', backgroundColor:'rgba(40,167,69,.08)', fill:true, tension:.4, pointRadius:2 }] }, options: lineOpts() });
 }
 
-function renderSessionDurationChart(data) {
-    const ctx = document.getElementById('sessionDurationChart');
-    if (!ctx) return;
-    if (visitorCharts.sessionDuration) visitorCharts.sessionDuration.destroy();
-    visitorCharts.sessionDuration = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: data.labels || [],
-            datasets: [{
-                label: 'دقائق',
-                data: data.session_duration || [],
-                backgroundColor: 'rgba(75,49,94,.7)',
-                borderRadius: 6
-            }]
-        },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor() }, ticks: { color: labelColor() } }, y: { grid: { color: gridColor() }, ticks: { color: labelColor() } } } }
-    });
+/* ── User charts ── */
+function initUserRegChart() {
+  const ctx = document.getElementById('userRegistrationChart'); if (!ctx || uRegChart) return;
+  uRegChart = new Chart(ctx, { type:'line', data:{ labels:trendLabels, datasets:[{ label:'تسجيلات', data:usersTrendData, borderColor:brand, backgroundColor:'rgba(75,49,94,.1)', fill:true, tension:.4, pointRadius:2, pointHoverRadius:5 }] }, options: lineOpts() });
 }
-
-function renderPagesPerVisitChart(data) {
-    const ctx = document.getElementById('pagesPerVisitChart');
-    if (!ctx) return;
-    if (visitorCharts.pagesPerVisit) visitorCharts.pagesPerVisit.destroy();
-    visitorCharts.pagesPerVisit = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: data.labels || [],
-            datasets: [{
-                label: 'صفحات',
-                data: data.pages_per_visit || [],
-                borderColor: '#17a2b8',
-                backgroundColor: 'rgba(23,162,184,.1)',
-                fill: true, tension: .4, pointRadius: 3
-            }]
-        },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor() }, ticks: { color: labelColor() } }, y: { grid: { color: gridColor() }, ticks: { color: labelColor() } } } }
-    });
-}
-
-function renderReturnVisitorsChart(data) {
-    const ctx = document.getElementById('returnVisitorsChart');
-    if (!ctx) return;
-    if (visitorCharts.returnVisitors) visitorCharts.returnVisitors.destroy();
-    const newV    = data.new_visitors    || 0;
-    const returnV = data.return_visitors || 0;
-    visitorCharts.returnVisitors = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['زوار جدد', 'عائدون'],
-            datasets: [{ data: [newV, returnV], backgroundColor: [brandColor, '#17a2b8'], hoverOffset: 6, borderWidth: 0 }]
-        },
-        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: labelColor() } } } }
-    });
-}
-
-function renderVisitorTrendChart(data) {
-    const ctx = document.getElementById('visitorTrendChart');
-    if (!ctx) return;
-    if (visitorCharts.trend) visitorCharts.trend.destroy();
-    visitorCharts.trend = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: data.trend_labels || data.labels || [],
-            datasets: [{
-                label: 'الزوار',
-                data: data.trend_data || [],
-                borderColor: '#28a745',
-                backgroundColor: 'rgba(40,167,69,.1)',
-                fill: true, tension: .4, pointRadius: 2
-            }]
-        },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor() }, ticks: { color: labelColor() } }, y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: labelColor() } } } }
-    });
-}
-
-/* ══════════════════════════════════════════════════════════════ */
-/*  USER CHARTS                                                   */
-/* ══════════════════════════════════════════════════════════════ */
-function initUserRegistrationChart() {
-    const ctx = document.getElementById('userRegistrationChart');
-    if (!ctx || userRegChart) return;
-    userRegChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: trendLabels,
-            datasets: [{
-                label: 'تسجيلات',
-                data: usersTrendData,
-                borderColor: brandColor,
-                backgroundColor: 'rgba(75,49,94,.12)',
-                fill: true, tension: .4, pointRadius: 3, pointHoverRadius: 6
-            }]
-        },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor() }, ticks: { color: labelColor(), maxTicksLimit: 8 } }, y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: labelColor(), precision: 0 } } } }
-    });
-}
-
 function initUserTypesChart() {
-    const ctx = document.getElementById('userTypesChart');
-    if (!ctx || userTypesChart) return;
-    userTypesChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['ناشر/تاجر', 'مميز', 'موثق', 'موظف'],
-            datasets: [{
-                data: [{{ publisher_users|default:0 }}, {{ premium_users|default:0 }}, {{ verified_users|default:0 }}, {{ staff_users|default:0 }}],
-                backgroundColor: [brandColor, '#ffc107', '#28a745', '#17a2b8'],
-                hoverOffset: 6, borderWidth: 2
-            }]
-        },
-        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: labelColor(), font: { size: 12 } } } } }
-    });
+  const ctx = document.getElementById('userTypesChart'); if (!ctx || uTypesChart) return;
+  uTypesChart = new Chart(ctx, { type:'doughnut', data:{ labels:['ناشر/تاجر','مميز','موثق','موظف'], datasets:[{ data:[{{ publisher_users|default:0 }},{{ premium_users|default:0 }},{{ verified_users|default:0 }},{{ staff_users|default:0 }}], backgroundColor:[brand,'#ffc107','#28a745','#17a2b8'], borderWidth:2 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:lc(), font:{size:12} } } } } });
 }
 
-/* ══════════════════════════════════════════════════════════════ */
-/*  ADS CHARTS                                                    */
-/* ══════════════════════════════════════════════════════════════ */
-function initAdsTrendChart() {
-    const ctx = document.getElementById('adsTrendChart');
-    if (!ctx || adsTrendChart) return;
-    adsTrendChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: trendLabels,
-            datasets: [{
-                label: 'إعلانات',
-                data: adsTrendData,
-                borderColor: '#28a745',
-                backgroundColor: 'rgba(40,167,69,.12)',
-                fill: true, tension: .4, pointRadius: 3, pointHoverRadius: 6
-            }]
-        },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor() }, ticks: { color: labelColor(), maxTicksLimit: 8 } }, y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: labelColor(), precision: 0 } } } }
-    });
+/* ── Ads charts ── */
+function initAdsTrChart() {
+  const ctx = document.getElementById('adsTrendChart'); if (!ctx || adsTrChart) return;
+  adsTrChart = new Chart(ctx, { type:'line', data:{ labels:trendLabels, datasets:[{ label:'إعلانات', data:adsTrendData, borderColor:'#28a745', backgroundColor:'rgba(40,167,69,.1)', fill:true, tension:.4, pointRadius:2 }] }, options: lineOpts() });
+}
+function initAdsSChart() {
+  const ctx = document.getElementById('adsStatusChart'); if (!ctx || adsSChart) return;
+  adsSChart = new Chart(ctx, { type:'doughnut', data:{ labels:['نشطة','معلقة','منتهية','مرفوضة','مسودة'], datasets:[{ data:[{{ active_ads|default:0 }},{{ pending_ads|default:0 }},{{ expired_ads|default:0 }},{{ rejected_ads|default:0 }},{{ draft_ads|default:0 }}], backgroundColor:['#28a745','#ffc107','#6c757d','#dc3545','#17a2b8'], borderWidth:2 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:lc(), font:{size:11} } } } } });
 }
 
-function initAdsStatusChart() {
-    const ctx = document.getElementById('adsStatusChart');
-    if (!ctx || adsStatusChart) return;
-    adsStatusChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['نشطة', 'معلقة', 'منتهية', 'مرفوضة', 'مسودة'],
-            datasets: [{
-                data: [{{ active_ads|default:0 }}, {{ pending_ads|default:0 }}, {{ expired_ads|default:0 }}, {{ rejected_ads|default:0 }}, {{ draft_ads|default:0 }}],
-                backgroundColor: ['#28a745', '#ffc107', '#6c757d', '#dc3545', '#17a2b8'],
-                hoverOffset: 6, borderWidth: 2
-            }]
-        },
-        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: labelColor(), font: { size: 11 } } } } }
-    });
+/* ── Revenue charts ── */
+function initRevTrChart() {
+  const ctx = document.getElementById('revenueTrendChart'); if (!ctx || revTrChart) return;
+  revTrChart = new Chart(ctx, { type:'line', data:{ labels:trendLabels, datasets:[{ label:'إيرادات', data:revenueTrendData, borderColor:'#fd7e14', backgroundColor:'rgba(253,126,20,.1)', fill:true, tension:.4, pointRadius:2 }] }, options: lineOpts() });
+}
+function initPayPieChart() {
+  const ctx = document.getElementById('paymentProvidersChart'); if (!ctx || payPieChart) return;
+  payPieChart = new Chart(ctx, { type:'pie', data:{ labels:['PayPal','Paymob','يدوي'], datasets:[{ data:[{{ revenue_paypal|default:0|floatformat:2 }},{{ revenue_paymob|default:0|floatformat:2 }},{{ revenue_offline|default:0|floatformat:2 }}], backgroundColor:['#0070ba','#17a2b8','#6c757d'], borderWidth:2 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:lc(), font:{size:12} } } } } });
 }
 
-/* ══════════════════════════════════════════════════════════════ */
-/*  REVENUE CHARTS                                                */
-/* ══════════════════════════════════════════════════════════════ */
-function initRevenueTrendChart() {
-    const ctx = document.getElementById('revenueTrendChart');
-    if (!ctx || revenueTrendChart) return;
-    revenueTrendChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: trendLabels,
-            datasets: [{
-                label: 'إيرادات (د.م)',
-                data: revenueTrendData,
-                borderColor: '#fd7e14',
-                backgroundColor: 'rgba(253,126,20,.12)',
-                fill: true, tension: .4, pointRadius: 3, pointHoverRadius: 6
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: { legend: { display: false } },
-            scales: {
-                x: { grid: { color: gridColor() }, ticks: { color: labelColor(), maxTicksLimit: 8 } },
-                y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: labelColor() } }
-            }
-        }
-    });
+/* ── Reports charts ── */
+function initRptSChart() {
+  const ctx = document.getElementById('reportsStatusChart'); if (!ctx || rptSChart) return;
+  rptSChart = new Chart(ctx, { type:'doughnut', data:{ labels:['معلقة','مراجعة','محلولة','مرفوضة'], datasets:[{ data:[{{ pending_reports|default:0 }},{{ reviewing_reports|default:0 }},{{ resolved_reports|default:0 }},{{ rejected_reports|default:0 }}], backgroundColor:['#ffc107','#17a2b8','#28a745','#dc3545'], borderWidth:2 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:lc(), font:{size:12} } } } } });
+}
+function initRptWChart() {
+  const ctx = document.getElementById('reportsWeekChart'); if (!ctx || rptWChart) return;
+  rptWChart = new Chart(ctx, { type:'bar', data:{ labels:reportsTrendLabels, datasets:[{ label:'بلاغات', data:reportsTrendData, backgroundColor:'rgba(220,53,69,.65)', borderRadius:5 }] }, options: lineOpts() });
 }
 
-function initPaymentProvidersChart() {
-    const ctx = document.getElementById('paymentProvidersChart');
-    if (!ctx || paymentProvidersChart) return;
-    paymentProvidersChart = new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: ['PayPal', 'Paymob', 'يدوي/حوالة'],
-            datasets: [{
-                data: [{{ revenue_paypal|default:0|floatformat:2 }}, {{ revenue_paymob|default:0|floatformat:2 }}, {{ revenue_offline|default:0|floatformat:2 }}],
-                backgroundColor: ['#0070ba', '#17a2b8', '#6c757d'],
-                hoverOffset: 6, borderWidth: 2
-            }]
-        },
-        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: labelColor(), font: { size: 12 } } } } }
-    });
-}
-
-/* ══════════════════════════════════════════════════════════════ */
-/*  REPORTS CHARTS                                                */
-/* ══════════════════════════════════════════════════════════════ */
-function initReportsStatusChart() {
-    const ctx = document.getElementById('reportsStatusChart');
-    if (!ctx || reportsStatusChart) return;
-    reportsStatusChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['معلقة', 'تحت المراجعة', 'محلولة', 'مرفوضة'],
-            datasets: [{
-                data: [{{ pending_reports|default:0 }}, {{ reviewing_reports|default:0 }}, {{ resolved_reports|default:0 }}, {{ rejected_reports|default:0 }}],
-                backgroundColor: ['#ffc107', '#17a2b8', '#28a745', '#dc3545'],
-                hoverOffset: 6, borderWidth: 2
-            }]
-        },
-        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: labelColor(), font: { size: 12 } } } } }
-    });
-}
-
-function initReportsWeekChart() {
-    const ctx = document.getElementById('reportsWeekChart');
-    if (!ctx || reportsWeekChart) return;
-    reportsWeekChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: reportsTrendLabels,
-            datasets: [{
-                label: 'بلاغات',
-                data: reportsTrendData,
-                backgroundColor: 'rgba(220,53,69,.7)',
-                borderRadius: 6
-            }]
-        },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor() }, ticks: { color: labelColor() } }, y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: labelColor(), precision: 0 } } } }
-    });
-}
-
-/* ══════════════════════════════════════════════════════════════ */
-/*  INIT ON PAGE LOAD                                             */
-/* ══════════════════════════════════════════════════════════════ */
+/* ── Init ── */
 document.addEventListener('DOMContentLoaded', function () {
-    // Visitor tab is active on load – initialise its charts immediately
-    updateVisitorCharts(30);
+  initOverviewChart();
+  updateVisitorCharts(30);
 
-    // Lazy init: render charts only when the corresponding tab becomes visible
-    document.querySelectorAll('#reportsTabs button[data-bs-toggle="tab"]').forEach(function (btn) {
-        btn.addEventListener('shown.bs.tab', function (e) {
-            const target = e.target.getAttribute('data-bs-target');
-            if (target === '#tab-users-pane') {
-                initUserRegistrationChart();
-                initUserTypesChart();
-            } else if (target === '#tab-ads-pane') {
-                initAdsTrendChart();
-                initAdsStatusChart();
-            } else if (target === '#tab-revenue-pane') {
-                initRevenueTrendChart();
-                initPaymentProvidersChart();
-            } else if (target === '#tab-reports-pane') {
-                initReportsStatusChart();
-                initReportsWeekChart();
-            }
-        });
+  document.querySelectorAll('#rTabs .np[data-bs-toggle="tab"]').forEach(btn => {
+    btn.addEventListener('shown.bs.tab', e => {
+      const t = e.target.getAttribute('data-bs-target');
+      if (t === '#tp-users')   { initUserRegChart(); initUserTypesChart(); }
+      if (t === '#tp-ads')     { initAdsTrChart();   initAdsSChart();      }
+      if (t === '#tp-revenue') { initRevTrChart();   initPayPieChart();    }
+      if (t === '#tp-reports') { initRptSChart();    initRptWChart();      }
     });
+  });
 });
 </script>
-{% endblock %}
-
+{% endblock admin_extra_js %}
