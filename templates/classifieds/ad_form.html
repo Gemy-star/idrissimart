@@ -1179,33 +1179,6 @@
                                     <input type="hidden" name="{{ form.category.name }}" id="{{ form.category.id_for_label }}" value="{{ form.category.value|default:'' }}">
                                     {% endif %}
 
-                                    <!-- Pricing Info Panel: shown after category selection -->
-                                    <div id="adPricingInfo" class="mt-3" style="display:none;">
-                                        {% if has_free_ads %}
-                                        <div id="freeAdsInfo" class="alert alert-success d-flex align-items-center gap-2 py-2 mb-0" style="display:none;">
-                                            <i class="fas fa-gift fa-fw"></i>
-                                            <span>
-                                                {% trans "لديك" %}
-                                                <strong><span id="freeAdsCount">{{ free_ads_remaining }}</span></strong>
-                                                {% trans "إعلان مجاني متبقي — سيُنشر هذا الإعلان مجاناً" %}
-                                            </span>
-                                        </div>
-                                        {% else %}
-                                        <div id="freeAdsInfo" style="display:none;"></div>
-                                        {% endif %}
-                                        <div id="paidAdInfo" class="alert alert-info d-flex align-items-center gap-2 py-2 mb-0" style="display:none;">
-                                            <i class="fas fa-dollar-sign fa-fw"></i>
-                                            <span>
-                                                {% trans "رسوم نشر الإعلان في هذا القسم:" %}
-                                                <strong><span id="adCreationPrice">0</span> ج.م</strong>
-                                            </span>
-                                        </div>
-                                        <div id="noPricingInfo" class="alert alert-secondary d-flex align-items-center gap-2 py-2 mb-0">
-                                            <i class="fas fa-info-circle fa-fw"></i>
-                                            <span>{% trans "اختر قسماً لمعرفة تكلفة النشر" %}</span>
-                                        </div>
-                                    </div>
-
                                     <hr class="my-4">
 
                                     <!-- Basic Details (same step) -->
@@ -1446,6 +1419,33 @@
                                     <div class="step-header">
                                         <h3 class="step-title">{% trans "الميزات والمراجعة" %}</h3>
                                         <p class="step-description">{% trans "اختر الميزات الإضافية وراجع تكلفة الإعلان" %}</p>
+                                    </div>
+
+                                    <!-- Pricing Info Panel -->
+                                    <div id="adPricingInfo" class="mb-4">
+                                        {% if has_free_ads %}
+                                        <div id="freeAdsInfo" class="alert alert-success d-flex align-items-center gap-2 py-2 mb-0">
+                                            <i class="fas fa-gift fa-fw"></i>
+                                            <span>
+                                                {% trans "لديك" %}
+                                                <strong><span id="freeAdsCount">{{ free_ads_remaining }}</span></strong>
+                                                {% trans "إعلان مجاني متبقي — سيُنشر هذا الإعلان مجاناً" %}
+                                            </span>
+                                        </div>
+                                        {% else %}
+                                        <div id="freeAdsInfo" style="display:none;"></div>
+                                        {% endif %}
+                                        <div id="paidAdInfo" class="alert alert-info d-flex align-items-center gap-2 py-2 mb-0" style="display:none;">
+                                            <i class="fas fa-dollar-sign fa-fw"></i>
+                                            <span>
+                                                {% trans "رسوم نشر الإعلان في هذا القسم:" %}
+                                                <strong><span id="adCreationPrice">0</span> ج.م</strong>
+                                            </span>
+                                        </div>
+                                        <div id="noPricingInfo" class="alert alert-secondary d-flex align-items-center gap-2 py-2 mb-0" style="display:none;">
+                                            <i class="fas fa-info-circle fa-fw"></i>
+                                            <span>{% trans "لم يتم تحديد سعر لهذا القسم" %}</span>
+                                        </div>
                                     </div>
 
                                     <!-- Ad Features Section -->
@@ -2097,42 +2097,23 @@
                     return;
                 }
 
-                if (!categoryId) {
-                    // No category selected
-                    pricingInfo.style.display = 'block';
-                    freeAdsInfo.style.display = 'none';
-                    paidAdInfo.style.display = 'none';
-                    noPricingInfo.style.display = 'block';
-                    return;
-                }
-
-                const categoryData = categoriesPricing[categoryId];
+                const categoryData = categoryId ? categoriesPricing[categoryId] : null;
                 const adPrice = categoryData ? categoryData.ad_creation_price : siteBaseFee;
 
-                pricingInfo.style.display = 'block';
+                // Hide all sub-panels first
+                freeAdsInfo.style.display = 'none';
+                paidAdInfo.style.display = 'none';
                 noPricingInfo.style.display = 'none';
 
                 if (hasFreeAds && freeAdsRemaining > 0) {
-                    // User has free ads
                     freeAdsInfo.style.display = 'block';
-                    paidAdInfo.style.display = 'none';
                     if (freeAdsCountSpan) freeAdsCountSpan.textContent = freeAdsRemaining;
                 } else if (adPrice > 0) {
-                    // Paid ad
-                    freeAdsInfo.style.display = 'none';
                     paidAdInfo.style.display = 'block';
                     if (adCreationPriceSpan) adCreationPriceSpan.textContent = adPrice.toFixed(2);
                 } else {
-                    // Free category
-                    freeAdsInfo.style.display = 'none';
-                    paidAdInfo.style.display = 'none';
                     noPricingInfo.style.display = 'block';
-                    noPricingInfo.innerHTML = `
-                        <p class="mb-0 text-success">
-                            <i class="fas fa-check-circle me-2"></i>
-                            {% trans "النشر في هذا القسم مجاني" %}
-                        </p>
-                    `;
+                    noPricingInfo.innerHTML = `<div class="alert alert-success d-flex align-items-center gap-2 py-2 mb-0"><i class="fas fa-check-circle fa-fw"></i><span>{% trans "النشر في هذا القسم مجاني" %}</span></div>`;
                 }
             }
 
