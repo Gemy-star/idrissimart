@@ -373,22 +373,36 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         from django.core.serializers.json import DjangoJSONEncoder
 
         categories_data = {}
-        # Get all categories as objects to use get_effective_ad_creation_price()
-        all_categories = Category.objects.filter(
+        # Fetch flat rows — avoids select_related issues with self-referential TreeForeignKey
+        raw_cats = list(Category.objects.filter(
             section_type=Category.SectionType.CLASSIFIED,
             is_active=True,
-        ).select_related('parent__parent__parent')  # 3 levels deep for price inheritance
+        ).values('id', 'name', 'parent_id', 'ad_creation_price'))
 
-        for category in all_categories:
-            # Use method to get effective price with inheritance
-            effective_price = category.get_effective_ad_creation_price()
-            categories_data[category.id] = {
-                "ad_creation_price": float(effective_price) if effective_price else 0.0,
-                "name": category.name,
-                "parent_id": category.parent_id if category.parent_id is not None else None,
-                # Include inheritance info for UI display
-                "has_own_price": category.has_own_ad_creation_price(),
-                "is_price_inherited": category.is_price_inherited('ad_creation'),
+        # Build lookups
+        own_price_map = {c['id']: float(c['ad_creation_price'] or 0) for c in raw_cats}
+        parent_map    = {c['id']: c['parent_id'] for c in raw_cats}
+
+        def _effective_price(cat_id, depth=0):
+            if depth > 5:
+                return 0.0
+            p = own_price_map.get(cat_id, 0.0)
+            if p > 0:
+                return p
+            pid = parent_map.get(cat_id)
+            if pid:
+                return _effective_price(pid, depth + 1)
+            return 0.0
+
+        for c in raw_cats:
+            own_p = own_price_map[c['id']]
+            eff_p = _effective_price(c['id'])
+            categories_data[c['id']] = {
+                "ad_creation_price": eff_p,
+                "name": c['name'],
+                "parent_id": c['parent_id'],
+                "has_own_price": own_p > 0,
+                "is_price_inherited": own_p == 0 and c['parent_id'] is not None,
             }
         # Convert to JSON to ensure proper null handling
         context["categories_pricing"] = json.dumps(
