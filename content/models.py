@@ -545,6 +545,7 @@ class PaymentMethodConfig(models.Model):
         # Online payment methods - check global online payment flag
         if self.visa_enabled and allow_online:
             methods.append(("visa", _("بطاقة فيزا/ماستركارد")))
+            methods.append(("paymob", _("Paymob")))
         if self.paypal_enabled and allow_online:
             methods.append(("paypal", _("باي بال")))
 
@@ -577,6 +578,9 @@ class PaymentMethodConfig(models.Model):
         """
         method_map = {
             "visa": self.visa_enabled,
+            "paymob": self.visa_enabled,   # Paymob is the gateway for visa/mastercard
+            "online": self.visa_enabled,   # "online" is the checkout alias for Paymob
+            "card": self.visa_enabled,     # "card" is another alias used in some views
             "paypal": self.paypal_enabled,
             "wallet": self.wallet_enabled,
             "instapay": self.instapay_enabled,

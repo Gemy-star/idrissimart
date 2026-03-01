@@ -1028,14 +1028,15 @@ function sendVerificationCode() {
     const phone = document.getElementById('checkoutPhone').value.trim();
     if (!phone) { showToast('{% trans "يرجى إدخال رقم الهاتف" %}', 'warning'); return; }
     currentPhone = phone;
+    const countryCode = document.getElementById('checkout-country')?.value || 'SA';
     const btn = document.getElementById('verifyPhoneBtn') || document.getElementById('changePhoneBtn');
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري الإرسال..." %}';
 
     fetch('{% url "main:send_phone_code" %}', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': '{{ csrf_token }}' },
-        body: `phone=${encodeURIComponent(phone)}&country_code={{ selected_country }}`
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+        body: JSON.stringify({ phone: phone, country_code: countryCode })
     })
     .then(r => r.json())
     .then(data => {
@@ -1059,11 +1060,12 @@ function sendVerificationCode() {
 function verifyCode() {
     const code = document.getElementById('verificationCode').value.trim();
     if (!code) { showToast('{% trans "يرجى إدخال رمز التحقق" %}', 'warning'); return; }
+    const countryCode = document.getElementById('checkout-country')?.value || 'SA';
 
     fetch('{% url "main:verify_phone_code" %}', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': '{{ csrf_token }}' },
-        body: `phone=${encodeURIComponent(currentPhone)}&code=${code}&country_code={{ selected_country }}`
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+        body: JSON.stringify({ phone: currentPhone, code: code, country_code: countryCode })
     })
     .then(r => r.json())
     .then(data => {

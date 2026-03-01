@@ -1901,6 +1901,22 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
         if not self.custom_fields or not self.category:
             return []
 
+        _FIELD_TYPE_ICONS = {
+            "text": "fa-font",
+            "textarea": "fa-align-left",
+            "number": "fa-hashtag",
+            "select": "fa-list",
+            "radio": "fa-dot-circle",
+            "checkbox": "fa-check-square",
+            "date": "fa-calendar-alt",
+            "email": "fa-envelope",
+            "url": "fa-link",
+            "phone": "fa-phone",
+            "color": "fa-palette",
+            "range": "fa-sliders-h",
+            "file": "fa-paperclip",
+        }
+
         # Get all custom fields for this category that should show on card
         category_custom_fields = (
             CategoryCustomField.objects.filter(
@@ -1911,60 +1927,42 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
         )
 
         fields_to_display = []
-        seen_fields = set()
 
         for cat_cf in category_custom_fields:
             field_key = cat_cf.custom_field.name
-            if field_key in self.custom_fields:
-                field_value = self.custom_fields[field_key]
+            if field_key not in self.custom_fields:
+                continue
 
-                # Skip empty values
-                if not field_value:
-                    continue
+            field_value = self.custom_fields[field_key]
 
-                # For select/radio fields, get the option label
-                if cat_cf.custom_field.field_type in ["select", "radio"]:
-                    try:
-                        option = CustomFieldOption.objects.get(
-                            custom_field=cat_cf.custom_field, value=field_value
-                        )
-                        field_value = option.label
-                    except CustomFieldOption.DoesNotExist:
-                        pass
+            # Skip empty values
+            if not field_value:
+                continue
 
-                # For checkbox fields
-                elif cat_cf.custom_field.field_type == "checkbox":
-                    field_value = _("نعم") if field_value else _("لا")
+            # For select/radio fields, get the option label
+            if cat_cf.custom_field.field_type in ["select", "radio"]:
+                try:
+                    option = CustomFieldOption.objects.get(
+                        custom_field=cat_cf.custom_field, value=field_value
+                    )
+                    field_value = option.label
+                except CustomFieldOption.DoesNotExist:
+                    pass
 
-                fields_to_display.append(
-                    {
-                        "label": cat_cf.custom_field.label,
-                        "value": field_value,
-                        "icon": cat_cf.custom_field.icon or "fa-info-circle",
-                    }
-                )
+            # For checkbox fields
+            elif cat_cf.custom_field.field_type == "checkbox":
+                field_value = _("نعم") if field_value else _("لا")
 
-                seen_fields.add(field_key)
+            # Derive icon from field type (CustomField has no icon field)
+            icon = _FIELD_TYPE_ICONS.get(cat_cf.custom_field.field_type, "fa-info-circle")
 
-        # If no configured fields to show on card, show first 2-3 important fields anyway
-        if not fields_to_display and self.custom_fields:
-            # Show first 2-3 non-empty fields
-            count = 0
-            for field_key, field_value in self.custom_fields.items():
-                if count >= 3 or not field_value or field_value == "":
-                    continue
-
-                # Create a simple label from the field key
-                label = field_key.replace('_', ' ').title()
-
-                fields_to_display.append(
-                    {
-                        "label": label,
-                        "value": field_value,
-                        "icon": "fa-info-circle",
-                    }
-                )
-                count += 1
+            fields_to_display.append(
+                {
+                    "label": cat_cf.custom_field.label,
+                    "value": str(field_value),
+                    "icon": icon,
+                }
+            )
 
         return fields_to_display
 

@@ -59,7 +59,7 @@ class PaymentService:
             integration_id = None
             if provider in ["mastercard", "visa"]:
                 integration_id = config.PAYMOB_INTEGRATION_ID
-            success, payment_url, error = PaymobService.process_payment(
+            success, payment_url, error, paymob_order_id = PaymobService.process_payment(
                 amount=amount,
                 order_id=order_ref,
                 billing_data=user_data or {},
@@ -67,7 +67,7 @@ class PaymentService:
             )
             if not success:
                 return False, error or _("فشل إنشاء طلب Paymob")
-            return True, {"iframe_url": payment_url}
+            return True, {"iframe_url": payment_url, "paymob_order_id": paymob_order_id}
 
         else:
             return False, _("مزود الدفع غير مدعوم")

@@ -29,6 +29,19 @@ def notify_admin_new_ad(sender, instance, created, **kwargs):
     Send notification to admin when a new ad is created
     """
     if created:
+        # Send SMS to ad creator confirming submission (independent of admin notification flag)
+        if SMSService.is_enabled():
+            try:
+                user_phone = getattr(instance.user, "mobile", None) or getattr(instance.user, "phone", None)
+                if user_phone and getattr(instance.user, "is_mobile_verified", False):
+                    SMSService.send_ad_notification(
+                        phone_number=user_phone,
+                        ad_title=instance.title[:30],
+                        status=_("تم استلام إعلانك وهو قيد المراجعة"),
+                    )
+            except Exception as e:
+                logger.error(f"Failed to send ad creation SMS for ad #{instance.pk}: {e}")
+
         # Check if admin notifications are enabled
         notify_enabled = getattr(config, "NOTIFY_ADMIN_NEW_ADS", False)
         if not notify_enabled:
@@ -229,6 +242,16 @@ def assign_default_package_to_new_user(sender, instance, created, **kwargs):
                     notification_type=Notification.NotificationType.GENERAL,
                 )
 
+                # Send welcome SMS if mobile is verified
+                if SMSService.is_enabled():
+                    try:
+                        user_phone = getattr(instance, "mobile", None) or getattr(instance, "phone", None)
+                        if user_phone and getattr(instance, "is_mobile_verified", False):
+                            user_name = instance.get_full_name() or instance.username
+                            SMSService.send_welcome_sms(user_phone, user_name)
+                    except Exception as e:
+                        logger.error(f"Failed to send welcome SMS to user {instance.username}: {e}")
+
                 logger.info(
                     f"Assigned default package '{default_package.name}' to user {instance.username}"
                 )
@@ -251,6 +274,16 @@ def assign_default_package_to_new_user(sender, instance, created, **kwargs):
                     ),
                     notification_type=Notification.NotificationType.GENERAL,
                 )
+
+                # Send welcome SMS if mobile is verified
+                if SMSService.is_enabled():
+                    try:
+                        user_phone = getattr(instance, "mobile", None) or getattr(instance, "phone", None)
+                        if user_phone and getattr(instance, "is_mobile_verified", False):
+                            user_name = instance.get_full_name() or instance.username
+                            SMSService.send_welcome_sms(user_phone, user_name)
+                    except Exception as e:
+                        logger.error(f"Failed to send welcome SMS to user {instance.username}: {e}")
 
                 logger.warning(
                     f"No default package found. Created basic free ad for user {instance.username}"
@@ -323,6 +356,16 @@ def assign_package_after_verification(sender, instance, **kwargs):
                             notification_type=Notification.NotificationType.GENERAL,
                         )
 
+                        # Send welcome SMS now that mobile is verified
+                        if SMSService.is_enabled():
+                            try:
+                                user_phone = getattr(instance, "mobile", None) or getattr(instance, "phone", None)
+                                if user_phone:
+                                    user_name = instance.get_full_name() or instance.username
+                                    SMSService.send_welcome_sms(user_phone, user_name)
+                            except Exception as e:
+                                logger.error(f"Failed to send welcome SMS after verification for {instance.username}: {e}")
+
                         logger.info(
                             f"Assigned free package to verified user {instance.username}"
                         )
@@ -345,6 +388,16 @@ def assign_package_after_verification(sender, instance, **kwargs):
                             ),
                             notification_type=Notification.NotificationType.GENERAL,
                         )
+
+                        # Send welcome SMS now that mobile is verified
+                        if SMSService.is_enabled():
+                            try:
+                                user_phone = getattr(instance, "mobile", None) or getattr(instance, "phone", None)
+                                if user_phone:
+                                    user_name = instance.get_full_name() or instance.username
+                                    SMSService.send_welcome_sms(user_phone, user_name)
+                            except Exception as e:
+                                logger.error(f"Failed to send welcome SMS after verification for {instance.username}: {e}")
 
                         logger.info(
                             f"Assigned basic free ad to verified user {instance.username}"

@@ -404,31 +404,40 @@ document.addEventListener('DOMContentLoaded', function() {
     const instapayReceipt = document.getElementById('payment_receipt_instapay');
     const walletReceipt = document.getElementById('payment_receipt_wallet');
 
+    function applyMethodSelection(radio) {
+        if (!radio) return;
+        // Mark card as selected
+        paymentMethodCards.forEach(c => c.classList.remove('selected'));
+        const card = radio.closest('.payment-method-card');
+        if (card) card.classList.add('selected');
+
+        // Hide all details and reset required
+        if (instapayDetails) instapayDetails.style.display = 'none';
+        if (walletDetails) walletDetails.style.display = 'none';
+        if (instapayReceipt) instapayReceipt.required = false;
+        if (walletReceipt) walletReceipt.required = false;
+
+        // Show the matching details panel
+        if (radio.value === 'instapay' && instapayDetails) {
+            instapayDetails.style.display = 'block';
+            if (instapayReceipt) instapayReceipt.required = true;
+        } else if (radio.value === 'wallet' && walletDetails) {
+            walletDetails.style.display = 'block';
+            if (walletReceipt) walletReceipt.required = true;
+        }
+    }
+
+    // Apply on page load for any pre-selected method
+    const preSelected = document.querySelector('input[name="payment_method"]:checked')
+                     || (document.querySelector('.payment-method-card.selected')
+                         && document.querySelector('.payment-method-card.selected input[type="radio"]'));
+    if (preSelected) applyMethodSelection(preSelected);
+
     paymentMethodCards.forEach(card => {
         card.addEventListener('click', function() {
             const radio = this.querySelector('input[type="radio"]');
             radio.checked = true;
-
-            // Remove selected class from all cards
-            paymentMethodCards.forEach(c => c.classList.remove('selected'));
-            this.classList.add('selected');
-
-            // Hide all offline payment details
-            if (instapayDetails) instapayDetails.style.display = 'none';
-            if (walletDetails) walletDetails.style.display = 'none';
-
-            // Reset all offline receipts required state
-            if (instapayReceipt) instapayReceipt.required = false;
-            if (walletReceipt) walletReceipt.required = false;
-
-            // Show specific offline payment details
-            if (radio.value === 'instapay' && instapayDetails) {
-                instapayDetails.style.display = 'block';
-                if (instapayReceipt) instapayReceipt.required = true;
-            } else if (radio.value === 'wallet' && walletDetails) {
-                walletDetails.style.display = 'block';
-                if (walletReceipt) walletReceipt.required = true;
-            }
+            applyMethodSelection(radio);
         });
     });
 

@@ -1,450 +1,442 @@
 {% extends 'admin_dashboard/base.html' %}
-{% load static i18n compress %}
+{% load static i18n %}
 
-{% block title %}
-{% trans "المدفوعات والعضويات - لوحة تحكم المدير" %}
-{% endblock title %}
+{% block title %}{% trans "المدفوعات - لوحة تحكم المدير" %}{% endblock title %}
 
 {% block admin_extra_css %}
 <style>
-  .revenue-chart {
-    height: 300px;
-  }
+/* ── Stat cards ── */
+.pay-stat-card {
+  background: var(--bs-body-bg);
+  border-radius: 16px;
+  padding: 1.5rem 1.75rem;
+  border: 1px solid var(--bs-border-color);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  height: 100%;
+}
+.pay-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 100%; height: 4px;
+  background: linear-gradient(90deg, transparent, var(--accent, #6b4c7a));
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.pay-stat-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(107,76,122,.15); }
+.pay-stat-card:hover::before { opacity: 1; }
+.pay-stat-card.primary   { --accent: #667eea; }
+.pay-stat-card.success   { --accent: #11998e; }
+.pay-stat-card.warning   { --accent: #f6c23e; }
+.pay-stat-card.info      { --accent: #36b9cc; }
+.pay-stat-card.danger    { --accent: #e74a3b; }
+.pay-stat-card.purple    { --accent: #8b5cf6; }
+.pay-stat-card .stat-value { font-size: 2.1rem; font-weight: 700; line-height: 1.2; }
+.pay-stat-card .stat-label { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--bs-secondary-color); }
+.pay-stat-card .stat-meta  { font-size: 0.8125rem; color: var(--bs-secondary-color); }
+.pay-stat-card .stat-icon  { font-size: 2.5rem; opacity: .12; position: absolute; top: 1rem; left: 1.5rem; }
 
-  .payment-stat-card {
-    background: var(--bs-body-bg);
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    border-left: 4px solid;
-    transition: transform 0.2s, box-shadow 0.2s;
-  }
+/* ── Content card ── */
+.pay-card {
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+}
+.pay-card .pay-card-header {
+  background: linear-gradient(135deg, #6b4c7a 0%, #ff8534 100%);
+  color: #fff;
+  padding: 1.1rem 1.5rem;
+}
+.pay-card .pay-card-header h5 { margin: 0; font-weight: 600; color: #fff; }
+.pay-card .pay-card-header p  { margin: 0; opacity: .85; font-size: .85rem; }
 
-  .payment-stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  }
+/* ── Filters ── */
+.filter-bar {
+  background: var(--bs-tertiary-bg, #f8f9fa);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+[data-theme='dark'] .filter-bar { background: rgba(40,40,56,.6); }
 
-  .payment-stat-card.primary {
-    border-left-color: #4e73df;
-  }
+/* ── Status badges ── */
+.status-badge { font-size: .72rem; padding: .3rem .7rem; border-radius: 20px; font-weight: 500; }
 
-  .payment-stat-card.success {
-    border-left-color: #1cc88a;
-  }
+/* ── Pending offline alert ── */
+.offline-alert-row {
+  border-radius: 10px;
+  background: rgba(255,193,7,.08);
+  border: 1px solid rgba(255,193,7,.35);
+}
 
-  .payment-stat-card.info {
-    border-left-color: #36b9cc;
-  }
+/* ── Context badge ── */
+.ctx-badge { font-size: .7rem; padding: .25rem .6rem; border-radius: 12px; font-weight: 600; }
 
-  .payment-stat-card.warning {
-    border-left-color: #f6c23e;
-  }
+/* ── Pagination ── */
+.page-link { border-radius: 8px !important; margin: 0 2px; }
 
-  .payment-stat-card .stat-value {
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-  }
-
-  .payment-stat-card .stat-label {
-    font-size: 0.875rem;
-    color: #6c757d;
-    margin-bottom: 0.5rem;
-  }
-
-  .payment-stat-card .stat-meta {
-    font-size: 0.75rem;
-    color: #6c757d;
-  }
-
-  .payment-content-card {
-    background: var(--bs-body-bg);
-    border: 1px solid var(--bs-border-color);
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  }
-
-  .payment-content-card .card-header {
-    background: linear-gradient(135deg, #6b4c7a 0%, #ff8534 100%);
-    color: white;
-    padding: 1.25rem 1.5rem;
-    border: none;
-  }
-
-  .payment-content-card .card-header h5 {
-    margin: 0;
-    font-weight: 600;
-    color: white;
-  }
-
-  .payment-content-card .card-header p {
-    margin: 0;
-    opacity: 0.9;
-  }
-
-  .filter-section {
-    background: #f8f9fa;
-    padding: 1.25rem;
-    border-radius: 8px;
-    margin-bottom: 1.5rem;
-  }
-
-  .status-badge {
-    font-size: 0.75rem;
-    padding: 0.35rem 0.75rem;
-    border-radius: 20px;
-    font-weight: 500;
-  }
-
-  /* Dark theme */
-  [data-theme='dark'] .payment-stat-card,
-  [data-theme='dark'] .payment-content-card {
-    background: rgba(30, 30, 46, 0.8);
-    border-color: rgba(107, 76, 122, 0.3);
-  }
-
-  [data-theme='dark'] .filter-section {
-    background: rgba(40, 40, 56, 0.6);
-  }
-
-  [data-theme='dark'] .table {
-    color: #e9ecef;
-  }
-
-  [data-theme='dark'] .table thead th {
-    color: #adb5bd;
-    border-color: rgba(255, 255, 255, 0.1);
-  }
-
-  [data-theme='dark'] .table td {
-    border-color: rgba(255, 255, 255, 0.1);
-  }
-
-  [data-theme='dark'] .payment-content-card .card-header {
-    background: linear-gradient(135deg, #4a3557 0%, #d67129 100%);
-  }
+/* ── Dark theme ── */
+[data-theme='dark'] .pay-stat-card,
+[data-theme='dark'] .pay-card { background: rgba(30,30,46,.8); border-color: rgba(107,76,122,.3); }
+[data-theme='dark'] .table { color: #e9ecef; }
+[data-theme='dark'] .table thead th { color: #adb5bd; border-color: rgba(255,255,255,.08); }
+[data-theme='dark'] .table td { border-color: rgba(255,255,255,.08); }
 </style>
 {% endblock admin_extra_css %}
 
 {% block admin_content %}
+{% load idrissimart_tags %}
 <div class="payments-page">
-  <!-- Header -->
+
+  {# ── Page header ── #}
   <div class="admin-dashboard-header mb-4">
     <div class="row align-items-center">
       <div class="col-md-8">
         <h1 class="display-6 mb-1">
-          <i class="fas fa-money-check-alt me-3"></i>
-          {% trans "إدارة المدفوعات الشاملة" %}
+          <i class="fas fa-credit-card me-3 text-primary"></i>
+          {% trans "إدارة المدفوعات" %}
         </h1>
-        <p class="text-muted mb-0">
-          {% trans "إدارة جميع أنواع المدفوعات: الباقات، الاشتراكات، الطلبات، وترقيات الإعلانات" %}
-        </p>
+        <p class="text-muted mb-0">{% trans "متابعة جميع المدفوعات: إعلانات، باقات، طلبات" %}</p>
       </div>
       <div class="col-md-4 text-end">
-        <button class="btn btn-primary me-2" onclick="location.reload()" title="{% trans 'تحديث البيانات' %}">
-          <i class="fas fa-sync-alt me-2"></i>{% trans "تحديث" %}
-        </button>
-        <button class="btn btn-success" onclick="exportPayments()" title="{% trans 'تصدير البيانات' %}">
-          <i class="fas fa-download me-2"></i>{% trans "تصدير" %}
+        <a href="?{% if current_filters.status %}status={{ current_filters.status }}&{% endif %}{% if current_filters.search %}search={{ current_filters.search }}&{% endif %}" class="btn btn-outline-secondary me-2">
+          <i class="fas fa-sync-alt me-1"></i>{% trans "تحديث" %}
+        </a>
+        <button class="btn btn-success" onclick="exportPaymentsCSV()">
+          <i class="fas fa-file-csv me-1"></i>{% trans "تصدير CSV" %}
         </button>
       </div>
     </div>
   </div>
 
-  <!-- Statistics Cards -->
-  <div class="row g-3 mb-4">
-    <div class="col-lg-3 col-md-6">
-      <div class="payment-stat-card info">
-        <div class="stat-label">
-          <i class="fas fa-receipt me-1"></i>
-          {% trans "إجمالي المعاملات" %}
-        </div>
+  {# ── Stats row 1: main numbers ── #}
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+      <div class="pay-stat-card info">
+        <i class="fas fa-receipt stat-icon"></i>
+        <div class="stat-label">{% trans "إجمالي المعاملات" %}</div>
         <div class="stat-value">{{ payment_stats.total_transactions }}</div>
-        <div class="stat-meta">
-          <i class="fas fa-check-circle text-success me-1"></i>
-          {{ payment_stats.completed_transactions }} {% trans "مكتملة" %}
-        </div>
+        <div class="stat-meta text-success"><i class="fas fa-check-circle me-1"></i>{{ payment_stats.completed_transactions }} {% trans "مكتملة" %}</div>
       </div>
     </div>
-
-    <div class="col-lg-3 col-md-6">
-      <div class="payment-stat-card success">
-        {% load idrissimart_tags %}
-        <div class="stat-label">
-          <i class="fas fa-chart-line me-1"></i>
-          {% trans "إجمالي الإيرادات" %}
-        </div>
-        <div class="stat-value">
-          {{ payment_stats.total_revenue|floatformat:2 }} {{ currency|default:"SAR"|currency_symbol }}
-        </div>
-        <div class="stat-meta">
-          {% trans "الشهر:" %} {{ payment_stats.monthly_revenue|floatformat:2 }} {{ currency|default:"SAR" }}
-        </div>
+    <div class="col-6 col-lg-3">
+      <div class="pay-stat-card success">
+        <i class="fas fa-coins stat-icon"></i>
+        <div class="stat-label">{% trans "إجمالي الإيرادات" %}</div>
+        <div class="stat-value">{{ payment_stats.total_revenue|floatformat:0 }}</div>
+        <div class="stat-meta">{% trans "الشهر:" %} {{ payment_stats.monthly_revenue|floatformat:0 }} {{ currency|default:"SAR" }}</div>
       </div>
     </div>
-
-    <div class="col-lg-3 col-md-6">
-      <div class="payment-stat-card warning">
-        <div class="stat-label">
-          <i class="fas fa-crown me-1"></i>
-          {% trans "الأعضاء المميزون النشطون" %}
-        </div>
-        <div class="stat-value">{{ payment_stats.active_premium_members }}</div>
-        <div class="stat-meta">
-          {% trans "إجمالي:" %} {{ payment_stats.premium_members }} |
-          <span class="text-danger">{% trans "منتهي:" %} {{ payment_stats.expired_premium_members }}</span>
-        </div>
+    <div class="col-6 col-lg-3">
+      <div class="pay-stat-card warning">
+        <i class="fas fa-clock stat-icon"></i>
+        <div class="stat-label">{% trans "معلقة / فاشلة" %}</div>
+        <div class="stat-value">{{ payment_stats.pending_payments }}</div>
+        <div class="stat-meta text-danger"><i class="fas fa-times-circle me-1"></i>{{ payment_stats.failed_payments }} {% trans "فاشلة" %} | <i class="fas fa-undo me-1"></i>{{ payment_stats.refunded_payments }} {% trans "مستردة" %}</div>
       </div>
     </div>
-
-    <div class="col-lg-3 col-md-6">
-      <div class="payment-stat-card primary">
-        <div class="stat-label">
-          <i class="fas fa-clock me-1"></i>
-          {% trans "مدفوعات معلقة" %}
-        </div>
-        <div class="stat-value" id="pendingPaymentsCount">{{ payment_stats.pending_payments }}</div>
-        <div class="stat-meta">
-          <span class="text-danger">
-            <i class="fas fa-times-circle me-1"></i>
-            <span id="failedPaymentsCount">{{ payment_stats.failed_payments }}</span> {% trans "فاشلة" %}
-          </span>
-          |
-          <span class="text-secondary">
-            <i class="fas fa-undo me-1"></i>
-            <span id="refundedPaymentsCount">{{ payment_stats.refunded_payments }}</span> {% trans "مستردة" %}
-          </span>
-        </div>
+    <div class="col-6 col-lg-3">
+      <div class="pay-stat-card purple">
+        <i class="fas fa-boxes stat-icon"></i>
+        <div class="stat-label">{% trans "باقات نشطة" %}</div>
+        <div class="stat-value">{{ payment_stats.active_packages }}</div>
+        <div class="stat-meta text-muted">{% trans "منتهية:" %} {{ payment_stats.expired_packages }}</div>
       </div>
     </div>
   </div>
 
-  <!-- Additional Statistics Row -->
+  {# ── Stats row 2: revenue timeline ── #}
   <div class="row g-3 mb-4">
-    <div class="col-lg-3 col-md-6">
-      <div class="payment-stat-card" style="border-left-color: #6f42c1;">
-        <div class="stat-label">
-          <i class="fas fa-shopping-cart me-1"></i>
-          {% trans "الطلبات" %}
-        </div>
-        <div class="stat-value" id="totalOrders">{{ payment_stats.total_orders }}</div>
-        <div class="stat-meta">
-          <span class="text-success">
-            <i class="fas fa-check me-1"></i>
-            <span id="completedOrders">{{ payment_stats.completed_orders }}</span> {% trans "مكتملة" %}
-          </span>
-        </div>
+    <div class="col-4">
+      <div class="pay-stat-card primary">
+        <i class="fas fa-calendar-day stat-icon"></i>
+        <div class="stat-label">{% trans "إيرادات اليوم" %}</div>
+        <div class="stat-value" style="font-size:1.6rem;">{{ payment_stats.today_revenue|floatformat:0 }}</div>
+        <div class="stat-meta">{{ currency|default:"SAR" }}</div>
       </div>
     </div>
-    <div class="col-lg-3 col-md-6">
-      <div class="payment-stat-card info">
-        <div class="stat-label">
-          <i class="fas fa-boxes me-1"></i>
-          {% trans "الباقات النشطة" %}
-        </div>
-        <div class="stat-value" id="activePackages">{{ payment_stats.active_packages }}</div>
-        <div class="stat-meta">
-          <span class="text-muted">
-            <i class="fas fa-box me-1"></i>
-            <span id="expiredPackages">{{ payment_stats.expired_packages }}</span> {% trans "منتهية" %}
-          </span>
-        </div>
+    <div class="col-4">
+      <div class="pay-stat-card success">
+        <i class="fas fa-calendar-week stat-icon"></i>
+        <div class="stat-label">{% trans "إيرادات الأسبوع" %}</div>
+        <div class="stat-value" style="font-size:1.6rem;">{{ payment_stats.weekly_revenue|floatformat:0 }}</div>
+        <div class="stat-meta">{{ currency|default:"SAR" }}</div>
       </div>
     </div>
-    <div class="col-lg-3 col-md-6">
-      <div class="payment-stat-card success">
-        <div class="stat-label">
-          <i class="fab fa-paypal me-1"></i>
-          {% trans "PayPal" %}
-        </div>
-        <div class="stat-value" style="font-size: 1.5rem;" id="paypalPayments">{{ payment_stats.paypal_payments }}</div>
-        <div class="stat-meta">
-          <span><i class="fas fa-credit-card me-1"></i>Paymob: <span id="paymobPayments">{{ payment_stats.paymob_payments }}</span></span>
-        </div>
-      </div>
-    </div>
-    <div class="col-lg-3 col-md-6">
-      <div class="payment-stat-card warning">
-        <div class="stat-label">
-          <i class="fas fa-university me-1"></i>
-          {% trans "تحويل بنكي" %}
-        </div>
-        <div class="stat-value" style="font-size: 1.5rem;" id="bankTransferPayments">{{ payment_stats.bank_transfer_payments }}</div>
-        <div class="stat-meta">
-          <span><i class="fas fa-money-bill me-1"></i>{% trans "نقدي:" %} <span id="offlinePayments">{{ payment_stats.offline_payments }}</span></span>
-        </div>
+    <div class="col-4">
+      <div class="pay-stat-card info">
+        <i class="fas fa-calendar-alt stat-icon"></i>
+        <div class="stat-label">{% trans "إيرادات الشهر" %}</div>
+        <div class="stat-value" style="font-size:1.6rem;">{{ payment_stats.monthly_revenue|floatformat:0 }}</div>
+        <div class="stat-meta">{{ currency|default:"SAR" }}</div>
       </div>
     </div>
   </div>
 
-  <!-- Revenue Statistics Row -->
-  <div class="row g-3 mb-4">
-    <div class="col-lg-4">
-      <div class="payment-stat-card primary">
-        <div class="stat-label">
-          <i class="fas fa-calendar-day me-1"></i>
-          {% trans "إيرادات اليوم" %}
-        </div>
-        <div class="stat-value">
-          {{ payment_stats.today_revenue|floatformat:2 }} {{ currency|default:"SAR" }}
-        </div>
-      </div>
-    </div>
-
-    <div class="col-lg-4">
-      <div class="payment-stat-card success">
-        <div class="stat-label">
-          <i class="fas fa-calendar-week me-1"></i>
-          {% trans "إيرادات الأسبوع" %}
-        </div>
-        <div class="stat-value">
-          {{ payment_stats.weekly_revenue|floatformat:2 }} {{ currency|default:"SAR" }}
-        </div>
-      </div>
-    </div>
-
-    <div class="col-lg-4">
-      <div class="payment-stat-card info">
-        <div class="stat-label">
-          <i class="fas fa-calendar-alt me-1"></i>
-          {% trans "إيرادات الشهر" %}
-        </div>
-        <div class="stat-value">
-          {{ payment_stats.monthly_revenue|floatformat:2 }} {{ currency|default:"SAR" }}
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Payment Transactions Section -->
-  <div class="payment-content-card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
+  {# ── Pending offline payments (need review) ── #}
+  {% if pending_offline_payments %}
+  <div class="pay-card mb-4">
+    <div class="pay-card-header d-flex align-items-center gap-2" style="background: linear-gradient(135deg,#e67e22,#f39c12);">
+      <i class="fas fa-exclamation-triangle"></i>
       <div>
-        <h5>
-          <i class="fas fa-money-bill-wave me-2"></i>
-          {% trans "المعاملات المالية" %}
-          <span class="badge bg-white text-dark ms-2" id="transactionsCountBadge">{{ payment_stats.total_transactions }}</span>
-        </h5>
-        <p class="mb-0 small mt-1 opacity-90">
-          {% trans "جميع المعاملات المالية مع إمكانية الفلترة والبحث المتقدم" %}
-        </p>
+        <h5 class="mb-0">{% trans "مدفوعات يدوية تنتظر المراجعة" %} <span class="badge bg-white text-dark ms-1">{{ pending_offline_payments|length }}</span></h5>
+        <p>{% trans "هذه المدفوعات الغير الإلكترونية (إنستا باي / محفظة / تحويل بنكي) تنتظر تأكيدك" %}</p>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>{% trans "المستخدم" %}</th>
+              <th>{% trans "الغرض" %}</th>
+              <th>{% trans "المبلغ" %}</th>
+              <th>{% trans "طريقة الدفع" %}</th>
+              <th>{% trans "الإيصال" %}</th>
+              <th>{% trans "التاريخ" %}</th>
+              <th>{% trans "إجراءات" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in pending_offline_payments %}
+            <tr class="offline-alert-row" id="offline-row-{{ p.id }}">
+              <td class="fw-bold">#{{ p.id }}</td>
+              <td>
+                <div class="fw-semibold">{{ p.user.get_full_name|default:p.user.username }}</div>
+                <small class="text-muted">@{{ p.user.username }}</small>
+              </td>
+              <td>
+                {% if p.metadata.ad_id %}
+                  <span class="ctx-badge bg-primary bg-opacity-10 text-primary">
+                    <i class="fas fa-bullhorn me-1"></i>{% trans "إعلان" %} #{{ p.metadata.ad_id }}
+                  </span>
+                {% elif p.metadata.package_id %}
+                  <span class="ctx-badge bg-success bg-opacity-10 text-success">
+                    <i class="fas fa-box me-1"></i>{% trans "باقة:" %} {{ p.metadata.package_name|default:p.metadata.package_id }}
+                  </span>
+                {% elif p.metadata.order_id %}
+                  <span class="ctx-badge bg-warning bg-opacity-10 text-warning">
+                    <i class="fas fa-shopping-cart me-1"></i>{% trans "طلب" %} #{{ p.metadata.order_id }}
+                  </span>
+                {% else %}
+                  <small class="text-muted">{{ p.description|truncatechars:30 }}</small>
+                {% endif %}
+              </td>
+              <td class="fw-bold text-success">{{ p.amount|floatformat:2 }} {{ p.currency }}</td>
+              <td>
+                {% with method=p.metadata.payment_method|default:"bank_transfer" %}
+                  {% if method == "instapay" %}
+                    <span class="badge bg-info"><i class="fas fa-mobile-alt me-1"></i>InstaPay</span>
+                  {% elif method == "wallet" %}
+                    <span class="badge bg-purple" style="background:#8b5cf6!important;"><i class="fas fa-wallet me-1"></i>{% trans "محفظة" %}</span>
+                  {% else %}
+                    <span class="badge bg-secondary"><i class="fas fa-university me-1"></i>{% trans "تحويل بنكي" %}</span>
+                  {% endif %}
+                {% endwith %}
+              </td>
+              <td>
+                {% if p.offline_payment_receipt %}
+                  <a href="{{ p.offline_payment_receipt.url }}" target="_blank" class="btn btn-sm btn-outline-info">
+                    <i class="fas fa-image me-1"></i>{% trans "عرض" %}
+                  </a>
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+              <td>
+                <div dir="ltr">{{ p.created_at|date:"Y-m-d" }}</div>
+                <small class="text-muted" dir="ltr">{{ p.created_at|date:"H:i" }}</small>
+              </td>
+              <td>
+                <div class="btn-group btn-group-sm">
+                  <button class="btn btn-success" onclick="confirmOfflinePayment({{ p.id }})" title="{% trans 'تأكيد' %}">
+                    <i class="fas fa-check"></i>
+                  </button>
+                  <button class="btn btn-danger" onclick="rejectOfflinePayment({{ p.id }})" title="{% trans 'رفض' %}">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── All transactions ── #}
+  <div class="pay-card mb-4">
+    <div class="pay-card-header d-flex justify-content-between align-items-center">
+      <div>
+        <h5><i class="fas fa-money-bill-wave me-2"></i>{% trans "المعاملات المالية" %} <span class="badge bg-white text-dark ms-1">{{ payment_stats.total_transactions }}</span></h5>
+        <p>{% trans "جميع المعاملات مع فلترة ومتابعة متقدمة" %}</p>
       </div>
     </div>
     <div class="card-body p-3">
-      <!-- Filters -->
-      <div class="filter-section">
-        <div class="row g-3">
-          <div class="col-md-3">
-            <label class="form-label small">{% trans "حالة الدفع" %}</label>
-            <select class="form-select form-select-sm" id="paymentStatusFilter" onchange="filterTransactions()">
-              <option value="all">{% trans "الكل" %}</option>
-              <option value="completed">{% trans "مكتمل" %}</option>
-              <option value="pending">{% trans "قيد الانتظار" %}</option>
-              <option value="failed">{% trans "فاشل" %}</option>
-              <option value="cancelled">{% trans "ملغي" %}</option>
-              <option value="refunded">{% trans "مسترد" %}</option>
+
+      {# ── Server-side filter form ── #}
+      <form method="get" class="filter-bar">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold">{% trans "الحالة" %}</label>
+            <select name="status" class="form-select form-select-sm">
+              <option value="">{% trans "الكل" %}</option>
+              <option value="completed"  {% if current_filters.status == 'completed'  %}selected{% endif %}>{% trans "مكتمل" %}</option>
+              <option value="pending"    {% if current_filters.status == 'pending'    %}selected{% endif %}>{% trans "معلق" %}</option>
+              <option value="failed"     {% if current_filters.status == 'failed'     %}selected{% endif %}>{% trans "فاشل" %}</option>
+              <option value="cancelled"  {% if current_filters.status == 'cancelled'  %}selected{% endif %}>{% trans "ملغي" %}</option>
+              <option value="refunded"   {% if current_filters.status == 'refunded'   %}selected{% endif %}>{% trans "مسترد" %}</option>
             </select>
           </div>
-          <div class="col-md-3">
-            <label class="form-label small">{% trans "طريقة الدفع" %}</label>
-            <select class="form-select form-select-sm" id="paymentMethodFilter" onchange="filterTransactions()">
-              <option value="all">{% trans "الكل" %}</option>
-              <option value="paypal">PayPal</option>
-              <option value="paymob">Paymob</option>
-              <option value="bank_transfer">{% trans "تحويل بنكي" %}</option>
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold">{% trans "مزود الدفع" %}</label>
+            <select name="provider" class="form-select form-select-sm">
+              <option value="">{% trans "الكل" %}</option>
+              <option value="paymob"         {% if current_filters.provider == 'paymob'         %}selected{% endif %}>Paymob</option>
+              <option value="paypal"         {% if current_filters.provider == 'paypal'         %}selected{% endif %}>PayPal</option>
+              <option value="bank_transfer"  {% if current_filters.provider == 'bank_transfer'  %}selected{% endif %}>{% trans "يدوي / بنكي" %}</option>
             </select>
           </div>
-          <div class="col-md-3">
-            <label class="form-label small">{% trans "من تاريخ" %}</label>
-            <input type="date" class="form-control form-control-sm" id="dateFrom" />
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold">{% trans "نوع الدفع" %}</label>
+            <select name="context" class="form-select form-select-sm">
+              <option value="">{% trans "الكل" %}</option>
+              <option value="ad"           {% if current_filters.context == 'ad'           %}selected{% endif %}>{% trans "إعلان" %}</option>
+              <option value="package"      {% if current_filters.context == 'package'      %}selected{% endif %}>{% trans "باقة" %}</option>
+              <option value="order"        {% if current_filters.context == 'order'        %}selected{% endif %}>{% trans "طلب" %}</option>
+              <option value="subscription" {% if current_filters.context == 'subscription' %}selected{% endif %}>{% trans "اشتراك" %}</option>
+            </select>
           </div>
-          <div class="col-md-3">
-            <label class="form-label small">{% trans "إلى تاريخ" %}</label>
-            <input type="date" class="form-control form-control-sm" id="dateTo" />
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold">{% trans "من تاريخ" %}</label>
+            <input type="date" name="date_from" value="{{ current_filters.date_from }}" class="form-control form-control-sm">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold">{% trans "إلى تاريخ" %}</label>
+            <input type="date" name="date_to" value="{{ current_filters.date_to }}" class="form-control form-control-sm">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold">{% trans "بحث" %}</label>
+            <input type="text" name="search" value="{{ current_filters.search }}" class="form-control form-control-sm" placeholder="{% trans 'اسم المستخدم أو المعرف...' %}">
           </div>
         </div>
-      </div>
+        <div class="mt-2 d-flex gap-2">
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="fas fa-search me-1"></i>{% trans "بحث" %}
+          </button>
+          <a href="{% url 'main:admin_payments' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-times me-1"></i>{% trans "مسح الفلتر" %}
+          </a>
+        </div>
+      </form>
 
-      <!-- Transactions Table -->
+      {# ── Transactions table ── #}
       <div class="table-responsive">
         <table class="table table-hover align-middle">
           <thead class="table-light">
             <tr>
-              <th>{% trans "رقم المعاملة" %}</th>
+              <th>#</th>
               <th>{% trans "المستخدم" %}</th>
+              <th>{% trans "نوع الدفع" %}</th>
               <th>{% trans "الوصف" %}</th>
-              <th>{% trans "طريقة الدفع" %}</th>
+              <th>{% trans "المزود" %}</th>
               <th>{% trans "المبلغ" %}</th>
-              <th>{% trans "حالة الدفع" %}</th>
-              <th>{% trans "تاريخ الدفع" %}</th>
+              <th>{% trans "الحالة" %}</th>
+              <th>{% trans "التاريخ" %}</th>
               <th>{% trans "إجراءات" %}</th>
             </tr>
           </thead>
-          <tbody id="transactionsTable">
+          <tbody>
             {% if recent_transactions %}
-              {% for transaction in recent_transactions %}
-              <tr data-status="{{ transaction.status }}" data-provider="{{ transaction.provider }}">
-                <td class="fw-bold">#{{ transaction.id }}</td>
+              {% for t in recent_transactions %}
+              <tr id="tx-row-{{ t.id }}">
+                <td class="fw-bold text-muted">#{{ t.id }}</td>
                 <td>
-                  <div>{{ transaction.user.get_full_name|default:transaction.user.username }}</div>
-                  <small class="text-muted">@{{ transaction.user.username }}</small>
+                  <div class="fw-semibold">{{ t.user.get_full_name|default:t.user.username }}</div>
+                  <small class="text-muted">@{{ t.user.username }}</small>
                 </td>
+                {# ── Context column derived from metadata ── #}
                 <td>
-                  <small>{{ transaction.description|default:"-" }}</small>
-                </td>
-                <td>
-                  {% if transaction.provider == 'paypal' %}
-                    <span class="badge bg-primary"><i class="fab fa-paypal"></i> PayPal</span>
-                  {% elif transaction.provider == 'paymob' %}
-                    <span class="badge bg-info">Paymob</span>
-                  {% elif transaction.provider == 'bank_transfer' %}
-                    <span class="badge bg-secondary"><i class="fas fa-university"></i> {% trans "تحويل بنكي" %}</span>
+                  {% if t.metadata.ad_id %}
+                    {% if t.metadata.payment_type == 'ad_upgrade' %}
+                      <span class="ctx-badge bg-info bg-opacity-10 text-info"><i class="fas fa-arrow-up me-1"></i>{% trans "ترقية إعلان" %}</span>
+                    {% else %}
+                      <span class="ctx-badge bg-primary bg-opacity-10 text-primary"><i class="fas fa-bullhorn me-1"></i>{% trans "نشر إعلان" %}</span>
+                    {% endif %}
+                  {% elif t.metadata.package_id %}
+                    <span class="ctx-badge bg-success bg-opacity-10 text-success"><i class="fas fa-box me-1"></i>{% trans "باقة إعلانات" %}</span>
+                  {% elif t.metadata.order_id %}
+                    <span class="ctx-badge bg-warning bg-opacity-10 text-warning"><i class="fas fa-shopping-cart me-1"></i>{% trans "طلب منتج" %}</span>
+                  {% elif t.metadata.subscription_type %}
+                    <span class="ctx-badge bg-purple bg-opacity-10" style="color:#8b5cf6;background:rgba(139,92,246,.1)!important;"><i class="fas fa-crown me-1"></i>{% trans "اشتراك مميز" %}</span>
                   {% else %}
-                    <span class="badge bg-light text-dark">{{ transaction.get_provider_display }}</span>
+                    <span class="ctx-badge bg-secondary bg-opacity-10 text-secondary"><i class="fas fa-circle-dot me-1"></i>{% trans "أخرى" %}</span>
                   {% endif %}
                 </td>
-                <td class="fw-bold text-success">
-                  {{ transaction.amount }} {{ transaction.currency }}
-                </td>
+                <td><small class="text-muted">{{ t.description|default:"-"|truncatechars:40 }}</small></td>
                 <td>
-                  {% if transaction.status == 'completed' %}
-                    <span class="badge bg-success"><i class="fas fa-check-circle"></i> {% trans "مكتمل" %}</span>
-                  {% elif transaction.status == 'pending' %}
-                    <span class="badge bg-warning"><i class="fas fa-clock"></i> {% trans "قيد الانتظار" %}</span>
-                  {% elif transaction.status == 'failed' %}
-                    <span class="badge bg-danger"><i class="fas fa-times-circle"></i> {% trans "فاشل" %}</span>
-                  {% elif transaction.status == 'cancelled' %}
-                    <span class="badge bg-secondary"><i class="fas fa-ban"></i> {% trans "ملغي" %}</span>
-                  {% elif transaction.status == 'refunded' %}
-                    <span class="badge bg-dark"><i class="fas fa-undo"></i> {% trans "مسترد" %}</span>
+                  {% if t.provider == 'paypal' %}
+                    <span class="badge bg-primary"><i class="fab fa-paypal me-1"></i>PayPal</span>
+                  {% elif t.provider == 'paymob' %}
+                    <span class="badge bg-info text-dark">Paymob</span>
+                  {% else %}
+                    {# bank_transfer covers instapay & wallet too ─ show actual method from metadata #}
+                    {% with method=t.metadata.payment_method|default:"" %}
+                      {% if method == "instapay" %}
+                        <span class="badge bg-info"><i class="fas fa-mobile-alt me-1"></i>InstaPay</span>
+                      {% elif method == "wallet" %}
+                        <span class="badge" style="background:#8b5cf6;"><i class="fas fa-wallet me-1"></i>{% trans "محفظة" %}</span>
+                      {% else %}
+                        <span class="badge bg-secondary"><i class="fas fa-university me-1"></i>{% trans "تحويل بنكي" %}</span>
+                      {% endif %}
+                    {% endwith %}
+                  {% endif %}
+                </td>
+                <td class="fw-bold text-success">{{ t.amount|floatformat:2 }} {{ t.currency }}</td>
+                <td>
+                  {% if t.status == 'completed' %}
+                    <span class="status-badge bg-success text-white"><i class="fas fa-check-circle me-1"></i>{% trans "مكتمل" %}</span>
+                  {% elif t.status == 'pending' %}
+                    <span class="status-badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>{% trans "معلق" %}</span>
+                  {% elif t.status == 'failed' %}
+                    <span class="status-badge bg-danger text-white"><i class="fas fa-times-circle me-1"></i>{% trans "فاشل" %}</span>
+                  {% elif t.status == 'cancelled' %}
+                    <span class="status-badge bg-secondary text-white"><i class="fas fa-ban me-1"></i>{% trans "ملغي" %}</span>
+                  {% elif t.status == 'refunded' %}
+                    <span class="status-badge bg-dark text-white"><i class="fas fa-undo me-1"></i>{% trans "مسترد" %}</span>
                   {% endif %}
                 </td>
                 <td>
-                  <div dir="ltr">{{ transaction.created_at|date:"Y-m-d" }}</div>
-                  <small class="text-muted" dir="ltr">{{ transaction.created_at|date:"H:i" }}</small>
+                  <div dir="ltr" class="small">{{ t.created_at|date:"Y-m-d" }}</div>
+                  <small class="text-muted" dir="ltr">{{ t.created_at|date:"H:i" }}</small>
                 </td>
                 <td>
-                  <div class="btn-group btn-group-sm" role="group">
-                    <button type="button" class="btn btn-outline-primary" onclick="viewTransaction({{ transaction.id }})" title="{% trans 'عرض التفاصيل' %}">
+                  <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary" onclick="viewTransaction({{ t.id }})" title="{% trans 'التفاصيل' %}">
                       <i class="fas fa-eye"></i>
                     </button>
-                    {% if transaction.offline_payment_receipt %}
-                      <button type="button" class="btn btn-outline-info" onclick="viewTransactionPhoto('{{ transaction.offline_payment_receipt.url }}')" title="{% trans 'عرض الإيصال' %}">
+                    {% if t.offline_payment_receipt %}
+                      <a href="{{ t.offline_payment_receipt.url }}" target="_blank" class="btn btn-outline-info" title="{% trans 'الإيصال' %}">
                         <i class="fas fa-image"></i>
-                      </button>
+                      </a>
                     {% endif %}
-                    {% if transaction.provider == 'bank_transfer' and transaction.status == 'pending' %}
-                      <button type="button" class="btn btn-success btn-sm" onclick="confirmPayment({{ transaction.id }})" title="{% trans 'تأكيد الدفع' %}">
+                    {% if t.provider == 'bank_transfer' and t.status == 'pending' %}
+                      <button class="btn btn-success" onclick="confirmOfflinePayment({{ t.id }})" title="{% trans 'تأكيد' %}">
                         <i class="fas fa-check"></i>
                       </button>
-                      <button type="button" class="btn btn-danger btn-sm" onclick="rejectPayment({{ transaction.id }})" title="{% trans 'رفض' %}">
+                      <button class="btn btn-danger" onclick="rejectOfflinePayment({{ t.id }})" title="{% trans 'رفض' %}">
                         <i class="fas fa-times"></i>
                       </button>
                     {% endif %}
-                    {% if transaction.status == 'completed' %}
-                      <button type="button" class="btn btn-outline-secondary" onclick="refundPayment({{ transaction.id }})" title="{% trans 'استرداد' %}">
+                    {% if t.status == 'completed' %}
+                      <button class="btn btn-outline-secondary" onclick="refundPayment({{ t.id }})" title="{% trans 'استرداد' %}">
                         <i class="fas fa-undo"></i>
                       </button>
                     {% endif %}
@@ -454,218 +446,163 @@
               {% endfor %}
             {% else %}
               <tr>
-                <td colspan="8" class="text-center text-muted py-5">
-                  <i class="fas fa-wallet fa-3x mb-3 d-block opacity-50"></i>
-                  <p class="mb-0">{% trans "لا توجد معاملات مالية بعد" %}</p>
+                <td colspan="9" class="text-center py-5 text-muted">
+                  <i class="fas fa-credit-card fa-3x mb-3 d-block opacity-25"></i>
+                  <p class="mb-0">{% trans "لا توجد معاملات تطابق هذا الفلتر" %}</p>
+                  <a href="{% url 'main:admin_payments' %}" class="btn btn-sm btn-outline-secondary mt-2">{% trans "إعادة تعيين الفلتر" %}</a>
                 </td>
               </tr>
             {% endif %}
           </tbody>
         </table>
       </div>
+
+      {# ── Pagination ── #}
+      {% if recent_transactions.has_other_pages %}
+      <nav class="mt-3">
+        <ul class="pagination pagination-sm justify-content-center flex-wrap gap-1">
+          {% if recent_transactions.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ recent_transactions.previous_page_number }}&status={{ current_filters.status }}&provider={{ current_filters.provider }}&context={{ current_filters.context }}&search={{ current_filters.search }}&date_from={{ current_filters.date_from }}&date_to={{ current_filters.date_to }}">
+                <i class="fas fa-chevron-right"></i>
+              </a>
+            </li>
+          {% endif %}
+          {% for num in recent_transactions.paginator.page_range %}
+            {% if recent_transactions.number == num %}
+              <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > recent_transactions.number|add:'-3' and num < recent_transactions.number|add:'3' %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ num }}&status={{ current_filters.status }}&provider={{ current_filters.provider }}&context={{ current_filters.context }}&search={{ current_filters.search }}&date_from={{ current_filters.date_from }}&date_to={{ current_filters.date_to }}">{{ num }}</a>
+              </li>
+            {% endif %}
+          {% endfor %}
+          {% if recent_transactions.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ recent_transactions.next_page_number }}&status={{ current_filters.status }}&provider={{ current_filters.provider }}&context={{ current_filters.context }}&search={{ current_filters.search }}&date_from={{ current_filters.date_from }}&date_to={{ current_filters.date_to }}">
+                <i class="fas fa-chevron-left"></i>
+              </a>
+            </li>
+          {% endif %}
+        </ul>
+      </nav>
+      {% endif %}
+
     </div>
   </div>
 
-  <!-- User Packages Section -->
-  <div class="payment-content-card mb-4">
-    <div class="card-header">
-      <h5>
-        <i class="fas fa-boxes me-2"></i>
-        {% trans "باقات الإعلانات" %}
-      </h5>
+  {# ── Revenue chart ── #}
+  <div class="pay-card mb-4">
+    <div class="pay-card-header">
+      <h5><i class="fas fa-chart-line me-2"></i>{% trans "الإيرادات الشهرية (آخر 6 أشهر)" %}</h5>
     </div>
-    <div class="card-body p-3">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h6 class="mb-0">{% trans "باقات المستخدمين" %}</h6>
-        <div class="btn-group btn-group-sm">
-          <button type="button" class="btn btn-outline-primary active" onclick="filterUserPackages('all')">
-            {% trans "الكل" %}
-          </button>
-          <button type="button" class="btn btn-outline-success" onclick="filterUserPackages('active')">
-            {% trans "نشط" %}
-          </button>
-          <button type="button" class="btn btn-outline-danger" onclick="filterUserPackages('expired')">
-            {% trans "منتهي" %}
-          </button>
-        </div>
-      </div>
-      <div class="table-responsive">
-        <table class="table table-hover">
-          <thead>
-            <tr>
-              <th>{% trans "المستخدم" %}</th>
-              <th>{% trans "الباقة" %}</th>
-              <th>{% trans "تاريخ الشراء" %}</th>
-              <th>{% trans "تاريخ الانتهاء" %}</th>
-              <th>{% trans "الإعلانات المتبقية" %}</th>
-              <th>{% trans "الحالة" %}</th>
-              <th>{% trans "إجراءات" %}</th>
-            </tr>
-          </thead>
-          <tbody id="userPackagesTable">
-            <tr>
-              <td colspan="7" class="text-center py-4">
-                <div class="spinner-border text-primary" role="status">
-                  <span class="visually-hidden">{% trans "جاري التحميل..." %}</span>
-                </div>
-                <p class="mt-2 text-muted">{% trans "جاري تحميل البيانات..." %}</p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+    <div class="card-body">
+      <canvas id="revenueChart" style="height:250px;max-height:250px;"></canvas>
     </div>
   </div>
 
-  <!-- User Subscriptions Section -->
-  <div class="payment-content-card mb-4">
-    <div class="card-header">
-      <h5>
-        <i class="fas fa-crown me-2"></i>
-        {% trans "الاشتراكات المميزة" %}
-      </h5>
-    </div>
-    <div class="card-body p-3">
-      <div id="user-subscriptions">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h6 class="mb-0">{% trans "الاشتراكات المميزة" %}</h6>
-          <div class="btn-group btn-group-sm">
-            <button type="button" class="btn btn-outline-primary active" onclick="filterSubscriptions('all')">
-              {% trans "الكل" %}
-            </button>
-            <button type="button" class="btn btn-outline-success" onclick="filterSubscriptions('active')">
-              {% trans "نشط" %}
-            </button>
-            <button type="button" class="btn btn-outline-danger" onclick="filterSubscriptions('expired')">
-              {% trans "منتهي" %}
-            </button>
-          </div>
-        </div>
-        <div class="table-responsive">
-          <table class="table table-hover">
-            <thead>
-              <tr>
-                <th>{% trans "المستخدم" %}</th>
-                <th>{% trans "نوع الباقة" %}</th>
-                <th>{% trans "السعر" %}</th>
-                <th>{% trans "تاريخ البدء" %}</th>
-                <th>{% trans "تاريخ الانتهاء" %}</th>
-                <th>{% trans "التجديد التلقائي" %}</th>
-                <th>{% trans "الحالة" %}</th>
-                <th>{% trans "إجراءات" %}</th>
-              </tr>
-            </thead>
-            <tbody id="subscriptionsTable">
-              <tr>
-                <td colspan="8" class="text-center py-4">
-                  <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">{% trans "جاري التحميل..." %}</span>
-                  </div>
-                  <p class="mt-2 text-muted">{% trans "جاري تحميل البيانات..." %}</p>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Revenue Chart Section -->
-  <div class="row">
-    <div class="col-lg-8 mb-4">
-      <div class="payment-content-card">
-        <div class="card-header">
-          <h5>
-            <i class="fas fa-chart-line me-2"></i>
-            {% trans "الإيرادات الشهرية" %}
-          </h5>
-        </div>
-        <div class="card-body">
-          <canvas id="revenueChart" class="revenue-chart"></canvas>
-        </div>
-      </div>
-    </div>
-    <div class="col-lg-4 mb-4">
-      <div class="payment-content-card">
-        <div class="card-header">
-          <h5>{% trans "إحصائيات سريعة" %}</h5>
-        </div>
-        <div class="card-body">
-          <div class="small text-muted mb-1">{% trans "متوسط قيمة المعاملة" %}</div>
-          <div class="h5 mb-3">0 {{ selected_currency|default:"SAR" }}</div>
-          <div class="small text-muted mb-1">{% trans "أفضل باقة مبيعاً" %}</div>
-          <div class="h6 mb-3">{% trans "الباقة الذهبية" %}</div>
-          <div class="small text-muted mb-1">{% trans "معدل النمو الشهري" %}</div>
-          <div class="h6 text-success">+0%</div>
-        </div>
-      </div>
-    </div>
-  </div>
 </div>
-
 {% endblock admin_content %}
 
 {% block modals %}
-<!-- Alert Modal -->
-<div class="modal fade" id="alertModal" tabindex="-1" aria-labelledby="alertModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+{# ── Detail modal ── #}
+<div class="modal fade" id="txDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
-      <div class="modal-header" id="alertModalHeader">
-        <h5 class="modal-title" id="alertModalLabel">
-          <i class="fas fa-info-circle me-2"></i>
-          <span id="alertModalTitle">{% trans "إشعار" %}</span>
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      <div class="modal-header" style="background:linear-gradient(135deg,#6b4c7a,#ff8534);color:#fff;">
+        <h5 class="modal-title"><i class="fas fa-receipt me-2"></i>{% trans "تفاصيل المعاملة" %} <span id="txModalId"></span></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body" id="alertModalBody"></div>
+      <div class="modal-body" id="txModalBody">
+        <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+      </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">{% trans "حسناً" %}</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إغلاق" %}</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Confirmation Modal -->
-<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+{# ── Confirm offline modal ── #}
+<div class="modal fade" id="confirmOfflineModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="fas fa-check-circle me-2"></i>{% trans "تأكيد الدفعة" %}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="confirmPaymentId">
+        <div class="mb-3">
+          <label class="form-label">{% trans "رقم المرجع / رقم التحويل (اختياري)" %}</label>
+          <input type="text" class="form-control" id="txReference" placeholder="{% trans 'مثال: TXN123456' %}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">{% trans "ملاحظات (اختياري)" %}</label>
+          <textarea class="form-control" id="txNotes" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+        <button type="button" class="btn btn-success" onclick="submitConfirmOffline()"><i class="fas fa-check me-1"></i>{% trans "تأكيد الدفع" %}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Reject offline modal ── #}
+<div class="modal fade" id="rejectOfflineModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title"><i class="fas fa-times-circle me-2"></i>{% trans "رفض الدفعة" %}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="rejectPaymentId">
+        <div class="mb-3">
+          <label class="form-label">{% trans "سبب الرفض" %}</label>
+          <textarea class="form-control" id="rejectionReason" rows="3" placeholder="{% trans 'اذكر سبب الرفض للمستخدم...' %}"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+        <button type="button" class="btn btn-danger" onclick="submitRejectOffline()"><i class="fas fa-times me-1"></i>{% trans "رفض الدفع" %}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Refund modal ── #}
+<div class="modal fade" id="refundModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header bg-warning text-dark">
-        <h5 class="modal-title" id="confirmModalLabel">
-          <i class="fas fa-question-circle me-2"></i>
-          <span id="confirmModalTitle">{% trans "تأكيد" %}</span>
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h5 class="modal-title"><i class="fas fa-undo me-2"></i>{% trans "استرداد الدفعة" %}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body" id="confirmModalBody"></div>
+      <div class="modal-body">
+        <input type="hidden" id="refundPaymentId">
+        <p>{% trans "هل أنت متأكد أنك تريد استرداد هذه الدفعة؟" %}</p>
+        <div class="mb-3">
+          <label class="form-label">{% trans "سبب الاسترداد" %}</label>
+          <input type="text" class="form-control" id="refundReason" placeholder="{% trans 'اختياري' %}">
+        </div>
+      </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
-        <button type="button" class="btn btn-primary" id="confirmModalBtn">{% trans "تأكيد" %}</button>
+        <button type="button" class="btn btn-warning" onclick="submitRefund()"><i class="fas fa-undo me-1"></i>{% trans "تأكيد الاسترداد" %}</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Input Modal -->
-<div class="modal fade" id="inputModal" tabindex="-1" aria-labelledby="inputModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title" id="inputModalLabel">
-          <i class="fas fa-edit me-2"></i>
-          <span id="inputModalTitle">{% trans "إدخال البيانات" %}</span>
-        </h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <label for="inputModalField" class="form-label" id="inputModalMessage"></label>
-        <input type="text" class="form-control" id="inputModalField" placeholder="" />
-        <div class="invalid-feedback" id="inputModalError"></div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
-        <button type="button" class="btn btn-primary" id="inputModalBtn">{% trans "تأكيد" %}</button>
-      </div>
+{# ── Toast notification ── #}
+<div class="position-fixed top-0 end-0 p-3" style="z-index:9999;">
+  <div id="actionToast" class="toast align-items-center text-white border-0" role="alert" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body" id="toastMessage"></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
     </div>
   </div>
 </div>
@@ -674,1181 +611,175 @@
 {% block admin_extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Global variables
-const CURRENCY = '{{ selected_currency|default:"SAR" }}';
-const LANGUAGE_CODE = '{{ LANGUAGE_CODE }}';
+const CSRF_TOKEN = '{{ csrf_token }}';
+const MONTHLY_DATA = {{ monthly_data|safe }};
 
-// Alert Modal Helper Function
-function showAlertModal(message, type = 'info', title = '') {
-    try {
-        const modalElement = document.getElementById('alertModal');
-        if (!modalElement) {
-            console.error('Alert modal element not found');
-            alert(message);
-            return;
-        }
-
-        const modalBody = document.getElementById('alertModalBody');
-        const modalTitle = document.getElementById('alertModalTitle');
-        const modalHeader = document.getElementById('alertModalHeader');
-
-        const existingModal = bootstrap.Modal.getInstance(modalElement);
-        if (existingModal) {
-            existingModal.dispose();
-        }
-
-        const modal = new bootstrap.Modal(modalElement, {
-            backdrop: 'static',
-            keyboard: true
-        });
-
-        modalBody.innerHTML = message;
-
-        if (type === 'success') {
-            modalTitle.innerHTML = '<i class="fas fa-check-circle me-2"></i>' + (title || '{% trans "نجح" %}');
-            modalHeader.className = 'modal-header bg-success text-white';
-        } else if (type === 'error') {
-            modalTitle.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + (title || '{% trans "خطأ" %}');
-            modalHeader.className = 'modal-header bg-danger text-white';
-        } else if (type === 'warning') {
-            modalTitle.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>' + (title || '{% trans "تحذير" %}');
-            modalHeader.className = 'modal-header bg-warning text-dark';
-        } else {
-            modalTitle.innerHTML = '<i class="fas fa-info-circle me-2"></i>' + (title || '{% trans "إشعار" %}');
-            modalHeader.className = 'modal-header bg-info text-white';
-        }
-
-        modal.show();
-    } catch (error) {
-        console.error('Error showing alert modal:', error);
-        alert(message);
-    }
+// ── Toast helper ──
+function showToast(message, type = 'success') {
+  const toast = document.getElementById('actionToast');
+  const msg   = document.getElementById('toastMessage');
+  toast.className = `toast align-items-center text-white border-0 bg-${type === 'success' ? 'success' : 'danger'}`;
+  msg.textContent = message;
+  const bsToast = new bootstrap.Toast(toast, { delay: 3500 });
+  bsToast.show();
 }
 
-// Confirmation Modal Helper Function
-function showConfirmModal(message, onConfirm, title = '') {
-    try {
-        const modalElement = document.getElementById('confirmModal');
-        if (!modalElement) {
-            console.error('Confirm modal element not found');
-            if (confirm(message)) {
-                if (typeof onConfirm === 'function') {
-                    onConfirm();
-                }
-            }
-            return;
-        }
-
-        const modalBody = document.getElementById('confirmModalBody');
-        const modalTitle = document.getElementById('confirmModalTitle');
-        const confirmBtn = document.getElementById('confirmModalBtn');
-
-        const existingModal = bootstrap.Modal.getInstance(modalElement);
-        if (existingModal) {
-            existingModal.dispose();
-        }
-
-        const modal = new bootstrap.Modal(modalElement, {
-            backdrop: 'static',
-            keyboard: false
-        });
-
-        modalBody.innerHTML = message;
-
-        if (title) {
-            modalTitle.textContent = title;
-        } else {
-            modalTitle.textContent = '{% trans "تأكيد" %}';
-        }
-
-        const newConfirmBtn = confirmBtn.cloneNode(true);
-        confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
-
-        newConfirmBtn.addEventListener('click', function() {
-            modal.hide();
-            if (typeof onConfirm === 'function') {
-                onConfirm();
-            }
-        });
-
-        modal.show();
-    } catch (error) {
-        console.error('Error showing confirm modal:', error);
-        if (confirm(message)) {
-            if (typeof onConfirm === 'function') {
-                onConfirm();
-            }
-        }
-    }
-}
-
-// Input Modal Helper Function
-function showInputModal(message, onConfirm, title = '', defaultValue = '', placeholder = '', validateFn = null) {
-    try {
-        const modalElement = document.getElementById('inputModal');
-        if (!modalElement) {
-            console.error('Input modal element not found');
-            alert('خطأ: لم يتم العثور على نافذة الإدخال');
-            return;
-        }
-
-        const modalMessage = document.getElementById('inputModalMessage');
-        const modalTitle = document.getElementById('inputModalTitle');
-        const inputField = document.getElementById('inputModalField');
-        const confirmBtn = document.getElementById('inputModalBtn');
-        const errorDiv = document.getElementById('inputModalError');
-
-        const existingModal = bootstrap.Modal.getInstance(modalElement);
-        if (existingModal) {
-            existingModal.dispose();
-        }
-
-        const modal = new bootstrap.Modal(modalElement, {
-            backdrop: 'static',
-            keyboard: false
-        });
-
-        modalMessage.textContent = message;
-        if (title) {
-            modalTitle.textContent = title;
-        } else {
-            modalTitle.textContent = '{% trans "إدخال البيانات" %}';
-        }
-
-        inputField.value = defaultValue;
-        inputField.placeholder = placeholder;
-        inputField.classList.remove('is-invalid');
-        errorDiv.textContent = '';
-
-        const newConfirmBtn = confirmBtn.cloneNode(true);
-        confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
-
-        modalElement.addEventListener('shown.bs.modal', function() {
-            inputField.focus();
-        }, { once: true });
-
-        newConfirmBtn.addEventListener('click', function() {
-            const value = inputField.value.trim();
-
-            if (validateFn && !validateFn(value)) {
-                inputField.classList.add('is-invalid');
-                return;
-            }
-
-            modal.hide();
-            if (typeof onConfirm === 'function') {
-                onConfirm(value);
-            }
-        });
-
-        inputField.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                newConfirmBtn.click();
-            }
-        });
-
-        modal.show();
-    } catch (error) {
-        console.error('Error showing input modal:', error);
-        alert('حدث خطأ في عرض النافذة: ' + error.message);
-    }
-}
-
-// URL patterns
-const PAYMENT_URLS = {
-    userPackageExtend: (id) => `{% url "main:admin_user_package_extend" 0 %}`.replace('/0/', `/${id}/`),
-    userPackageAddAds: (id) => `{% url "main:admin_user_package_add_ads" 0 %}`.replace('/0/', `/${id}/`),
-    subscriptionExtend: (id) => `{% url "main:admin_subscription_extend" 0 %}`.replace('/0/', `/${id}/`),
-    subscriptionCancel: (id) => `{% url "main:admin_subscription_cancel" 0 %}`.replace('/0/', `/${id}/`),
-    subscriptionToggleAutoRenew: (id) => `{% url "main:admin_subscription_toggle_auto_renew" 0 %}`.replace('/0/', `/${id}/`),
-    packageToggle: (id) => `{% url "main:admin_package_toggle" 0 %}`.replace('/0/', `/${id}/`),
-    memberCancel: (id) => `{% url "main:admin_member_cancel" 0 %}`.replace('/0/', `/${id}/`)
-};
-
-// Initialize page
-document.addEventListener('DOMContentLoaded', function() {
-    initializeRevenueChart();
-    loadUserPackages('all', 1);
-    loadUserSubscriptions('all', 1);
-});
-
-// Revenue Chart
-function initializeRevenueChart() {
-    const ctx = document.getElementById('revenueChart').getContext('2d');
-    const monthlyData = {{ monthly_data|safe }};
-
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: monthlyData.map(item => item.month),
-            datasets: [{
-                label: 'الإيرادات (' + CURRENCY + ')',
-                data: monthlyData.map(item => item.revenue),
-                borderColor: '#4e73df',
-                backgroundColor: 'rgba(78, 115, 223, 0.1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            return value + ' ' + CURRENCY;
-                        }
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'top'
-                }
-            }
-        }
-    });
-}
-
-// Transaction Management
-function filterTransactions() {
-    const statusFilter = document.getElementById('paymentStatusFilter')?.value || 'all';
-    const methodFilter = document.getElementById('paymentMethodFilter')?.value || 'all';
-    const rows = document.querySelectorAll('#transactionsTable tr[data-status]');
-
-    rows.forEach(row => {
-        const status = row.getAttribute('data-status');
-        const provider = row.getAttribute('data-provider');
-
-        let showRow = true;
-
-        if (statusFilter !== 'all' && status !== statusFilter) {
-            showRow = false;
-        }
-
-        if (methodFilter !== 'all' && provider !== methodFilter) {
-            showRow = false;
-        }
-
-        row.style.display = showRow ? '' : 'none';
-    });
-}
-
-function viewTransaction(transactionId) {
-    fetch(`/admin/payment-transaction/${transactionId}/`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showTransactionModal(data.transaction);
-            } else {
-                showAlertModal(data.error || 'حدث خطأ في تحميل تفاصيل المعاملة', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error loading transaction:', error);
-            showAlertModal('حدث خطأ في تحميل تفاصيل المعاملة', 'error');
-        });
-}
-
-function showTransactionModal(transaction) {
-    const modalHTML = `
-        <div class="modal fade" id="transactionModal" tabindex="-1">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title">
-                            <i class="fas fa-file-invoice-dollar me-2"></i>
-                            {% trans "تفاصيل المعاملة" %} #${transaction.id}
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label text-muted small">{% trans "المستخدم" %}</label>
-                                <p class="fw-bold">${transaction.user_name}</p>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label text-muted small">{% trans "البريد الإلكتروني" %}</label>
-                                <p>${transaction.user_email}</p>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label text-muted small">{% trans "الوصف" %}</label>
-                                <p class="fw-bold">${transaction.description || '-'}</p>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label text-muted small">{% trans "المبلغ" %}</label>
-                                <p class="fw-bold text-success">${transaction.amount} ${transaction.currency}</p>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label text-muted small">{% trans "طريقة الدفع" %}</label>
-                                <p>
-                                    <i class="fas fa-credit-card me-1"></i>
-                                    ${transaction.payment_method}
-                                </p>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label text-muted small">{% trans "الحالة" %}</label>
-                                <p>
-                                    <span class="badge ${transaction.status === 'completed' ? 'bg-success' :
-                                                         transaction.status === 'pending' ? 'bg-warning' :
-                                                         transaction.status === 'failed' ? 'bg-danger' : 'bg-secondary'}">
-                                        ${transaction.status_display}
-                                    </span>
-                                </p>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label text-muted small">{% trans "رقم المعاملة" %}</label>
-                                <p><code>${transaction.transaction_id || '-'}</code></p>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label text-muted small">{% trans "تاريخ الإنشاء" %}</label>
-                                <p>
-                                    <i class="fas fa-clock me-1"></i>
-                                    ${transaction.created_at}
-                                </p>
-                            </div>
-                            ${transaction.completed_at ? `
-                            <div class="col-md-6">
-                                <label class="form-label text-muted small">{% trans "تاريخ الاكتمال" %}</label>
-                                <p>
-                                    <i class="fas fa-check-circle me-1 text-success"></i>
-                                    ${transaction.completed_at}
-                                </p>
-                            </div>
-                            ` : ''}
-                            ${transaction.notes ? `
-                            <div class="col-12">
-                                <label class="form-label text-muted small">{% trans "ملاحظات" %}</label>
-                                <p class="border rounded p-2 bg-light">${transaction.notes}</p>
-                            </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            <i class="fas fa-times me-1"></i> {% trans "إغلاق" %}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-    const existingModal = document.getElementById('transactionModal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-
-    const modal = new bootstrap.Modal(document.getElementById('transactionModal'));
-    modal.show();
-
-    document.getElementById('transactionModal').addEventListener('hidden.bs.modal', function () {
-        this.remove();
-    });
-}
-
-// User Packages Management
-let currentPackagesFilter = 'all';
-let currentPackagesPage = 1;
-
-function loadUserPackages(status = 'all', page = 1) {
-    currentPackagesFilter = status;
-    currentPackagesPage = page;
-
-    const tbody = document.getElementById('userPackagesTable');
-
-    tbody.innerHTML = `
-        <tr>
-            <td colspan="7" class="text-center py-4">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">{% trans "جاري التحميل..." %}</span>
-                </div>
-                <p class="mt-2 text-muted">{% trans "جاري تحميل البيانات..." %}</p>
-            </td>
-        </tr>
-    `;
-
-    fetch(`/${LANGUAGE_CODE}/admin/api/user-packages/?status=${status}&page=${page}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                if (data.packages.length === 0) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="7" class="text-center text-muted py-5">
-                                <i class="fas fa-boxes fa-3x mb-3 d-block opacity-50"></i>
-                                <p class="mb-0">{% trans "لا توجد باقات للمستخدمين بعد" %}</p>
-                            </td>
-                        </tr>
-                    `;
-                } else {
-                    let html = '';
-                    data.packages.forEach(pkg => {
-                        const badgeClass = pkg.package_type === 'free' ? 'bg-secondary' : 'bg-info';
-                        const statusBadge = pkg.status === 'active' ?
-                            '<span class="badge bg-success">نشط</span>' :
-                            '<span class="badge bg-danger">منتهي</span>';
-
-                        html += `
-                            <tr data-status="${pkg.status}">
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-user-circle fa-2x text-muted me-2"></i>
-                                        <div>
-                                            <div class="fw-bold">${pkg.user_username}</div>
-                                            <small class="text-muted">${pkg.user_email}</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td><span class="badge ${badgeClass}">${pkg.package_name}</span></td>
-                                <td>${pkg.purchase_date}</td>
-                                <td>${pkg.expiry_date}</td>
-                                <td><span class="badge bg-primary">${pkg.ads_remaining}</span></td>
-                                <td>${statusBadge}</td>
-                                <td>
-                                    <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-outline-primary" onclick="viewUserPackage(${pkg.id})" title="{% trans 'عرض التفاصيل' %}">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                        <button class="btn btn-outline-success" onclick="extendUserPackage(${pkg.id})" title="{% trans 'تمديد' %}">
-                                            <i class="fas fa-clock"></i>
-                                        </button>
-                                        <button class="btn btn-outline-warning" onclick="addAdsToPackage(${pkg.id})" title="{% trans 'إضافة إعلانات' %}">
-                                            <i class="fas fa-plus"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
-                    });
-                    tbody.innerHTML = html;
-                }
-            } else {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="text-center text-danger py-5">
-                            <i class="fas fa-exclamation-triangle fa-3x mb-3 d-block"></i>
-                            <p class="mb-0">{% trans "حدث خطأ في تحميل البيانات" %}</p>
-                        </td>
-                    </tr>
-                `;
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="text-center text-danger py-5">
-                        <i class="fas fa-exclamation-triangle fa-3x mb-3 d-block"></i>
-                        <p class="mb-0">{% trans "حدث خطأ في الاتصال بالخادم" %}</p>
-                    </td>
-                </tr>
-            `;
-        });
-}
-
-function filterUserPackages(status) {
-    loadUserPackages(status, 1);
-    document.querySelectorAll('.payment-content-card .btn-group .btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    event.target.classList.add('active');
-}
-
-function viewUserPackage(packageId) {
-    // Find the package row to extract data
-    const rows = document.querySelectorAll('#userPackagesTable tr[data-status]');
-    let packageData = null;
-
-    rows.forEach(row => {
-        const viewBtn = row.querySelector(`button[onclick*="viewUserPackage(${packageId})"]`);
-        if (viewBtn) {
-            const cells = row.querySelectorAll('td');
-            packageData = {
-                id: packageId,
-                username: cells[0].querySelector('.fw-bold')?.textContent.trim() || '',
-                email: cells[0].querySelector('.text-muted')?.textContent.trim() || '',
-                package_name: cells[1].querySelector('.badge')?.textContent.trim() || '',
-                package_type: cells[1].querySelector('.badge')?.classList.contains('bg-secondary') ? 'free' : 'paid',
-                purchase_date: cells[2].textContent.trim(),
-                expiry_date: cells[3].textContent.trim(),
-                ads_remaining: cells[4].querySelector('.badge')?.textContent.trim() || '0',
-                status: cells[5].querySelector('.badge')?.textContent.trim() || '',
-                status_class: cells[5].querySelector('.badge.bg-success') ? 'success' : 'danger'
-            };
-        }
-    });
-
-    if (!packageData) {
-        showAlertModal('{% trans "حدث خطأ في تحميل بيانات الباقة" %}', 'error');
-        return;
-    }
-
-    const modalHTML = `
-        <div class="modal fade" id="packageDetailModal" tabindex="-1">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title">
-                            <i class="fas fa-box me-2"></i>
-                            {% trans "تفاصيل باقة المستخدم" %} #${packageData.id}
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="row g-3">
-                            <div class="col-12">
-                                <h6 class="border-bottom pb-2 mb-3">
-                                    <i class="fas fa-user me-2"></i>
-                                    {% trans "معلومات المستخدم" %}
-                                </h6>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label text-muted small">{% trans "اسم المستخدم" %}</label>
-                                <p class="fw-bold mb-2">${packageData.username}</p>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label text-muted small">{% trans "البريد الإلكتروني" %}</label>
-                                <p class="mb-2">${packageData.email}</p>
-                            </div>
-
-                            <div class="col-12 mt-4">
-                                <h6 class="border-bottom pb-2 mb-3">
-                                    <i class="fas fa-box me-2"></i>
-                                    {% trans "معلومات الباقة" %}
-                                </h6>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label text-muted small">{% trans "اسم الباقة" %}</label>
-                                <p class="fw-bold mb-2">${packageData.package_name}</p>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label text-muted small">{% trans "نوع الباقة" %}</label>
-                                <p class="mb-2">
-                                    <span class="badge ${packageData.package_type === 'free' ? 'bg-secondary' : 'bg-info'}">
-                                        ${packageData.package_type === 'free' ? '{% trans "مجاني" %}' : '{% trans "مدفوع" %}'}
-                                    </span>
-                                </p>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label text-muted small">{% trans "الحالة" %}</label>
-                                <p class="mb-2">
-                                    <span class="badge bg-${packageData.status_class}">${packageData.status}</span>
-                                </p>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label text-muted small">{% trans "الإعلانات المتبقية" %}</label>
-                                <p class="mb-2">
-                                    <span class="badge bg-primary fs-6">${packageData.ads_remaining}</span>
-                                </p>
-                            </div>
-
-                            <div class="col-12 mt-4">
-                                <h6 class="border-bottom pb-2 mb-3">
-                                    <i class="fas fa-calendar me-2"></i>
-                                    {% trans "التواريخ" %}
-                                </h6>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label text-muted small">{% trans "تاريخ الشراء" %}</label>
-                                <p class="mb-2">
-                                    <i class="fas fa-calendar-plus text-success me-1"></i>
-                                    ${packageData.purchase_date}
-                                </p>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label text-muted small">{% trans "تاريخ الانتهاء" %}</label>
-                                <p class="mb-2">
-                                    <i class="fas fa-calendar-times ${packageData.status_class === 'danger' ? 'text-danger' : 'text-warning'} me-1"></i>
-                                    ${packageData.expiry_date}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            <i class="fas fa-times me-1"></i> {% trans "إغلاق" %}
-                        </button>
-                        ${packageData.status_class === 'success' ? `
-                        <button type="button" class="btn btn-success" onclick="extendUserPackage(${packageData.id}); bootstrap.Modal.getInstance(document.getElementById('packageDetailModal')).hide();">
-                            <i class="fas fa-clock me-1"></i> {% trans "تمديد" %}
-                        </button>
-                        <button type="button" class="btn btn-warning" onclick="addAdsToPackage(${packageData.id}); bootstrap.Modal.getInstance(document.getElementById('packageDetailModal')).hide();">
-                            <i class="fas fa-plus me-1"></i> {% trans "إضافة إعلانات" %}
-                        </button>
-                        ` : ''}
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-    const existingModal = document.getElementById('packageDetailModal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-
-    const modal = new bootstrap.Modal(document.getElementById('packageDetailModal'));
-    modal.show();
-
-    document.getElementById('packageDetailModal').addEventListener('hidden.bs.modal', function () {
-        this.remove();
-    });
-}
-
-function extendUserPackage(packageId) {
-    showInputModal(
-        '{% trans "كم يوماً تريد تمديد الباقة؟" %}',
-        function(days) {
-            fetch(PAYMENT_URLS.userPackageExtend(packageId), {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken'),
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ days: parseInt(days) })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showAlertModal('{% trans "تم تمديد الباقة بنجاح" %}', 'success');
-                    setTimeout(() => location.reload(), 1500);
-                } else {
-                    showAlertModal(data.error || '{% trans "حدث خطأ" %}', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showAlertModal('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
-            });
-        },
-        '{% trans "تمديد الباقة" %}',
-        '30',
-        '{% trans "عدد الأيام" %}',
-        function(value) {
-            if (!value || isNaN(value) || parseInt(value) <= 0) {
-                document.getElementById('inputModalError').textContent = '{% trans "يجب إدخال رقم صحيح أكبر من صفر" %}';
-                return false;
-            }
-            return true;
-        }
-    );
-}
-
-function addAdsToPackage(packageId) {
-    showInputModal(
-        '{% trans "كم إعلان تريد إضافته؟" %}',
-        function(count) {
-            fetch(PAYMENT_URLS.userPackageAddAds(packageId), {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken'),
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ ads_count: parseInt(count) })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showAlertModal('{% trans "تم إضافة الإعلانات بنجاح" %}', 'success');
-                    setTimeout(() => location.reload(), 1500);
-                } else {
-                    showAlertModal(data.error || '{% trans "حدث خطأ" %}', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showAlertModal('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
-            });
-        },
-        '{% trans "إضافة إعلانات" %}',
-        '5',
-        '{% trans "عدد الإعلانات" %}',
-        function(value) {
-            if (!value || isNaN(value) || parseInt(value) <= 0) {
-                document.getElementById('inputModalError').textContent = '{% trans "يجب إدخال رقم صحيح أكبر من صفر" %}';
-                return false;
-            }
-            return true;
-        }
-    );
-}
-
-// Subscriptions Management
-let currentSubscriptionsFilter = 'all';
-let currentSubscriptionsPage = 1;
-
-function loadUserSubscriptions(status = 'all', page = 1) {
-    currentSubscriptionsFilter = status;
-    currentSubscriptionsPage = page;
-
-    const tbody = document.getElementById('subscriptionsTable');
-
-    tbody.innerHTML = `
-        <tr>
-            <td colspan="8" class="text-center py-4">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">{% trans "جاري التحميل..." %}</span>
-                </div>
-                <p class="mt-2 text-muted">{% trans "جاري تحميل البيانات..." %}</p>
-            </td>
-        </tr>
-    `;
-
-    fetch(`/${LANGUAGE_CODE}/admin/api/user-subscriptions/?status=${status}&page=${page}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                if (data.subscriptions.length === 0) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="8" class="text-center text-muted py-5">
-                                <i class="fas fa-crown fa-3x mb-3 d-block opacity-50"></i>
-                                <p class="mb-0">{% trans "لا توجد اشتراكات مميزة بعد" %}</p>
-                            </td>
-                        </tr>
-                    `;
-                } else {
-                    let html = '';
-                    data.subscriptions.forEach(sub => {
-                        const statusBadge = sub.status === 'active' ?
-                            '<span class="badge bg-success">نشط</span>' :
-                            '<span class="badge bg-danger">غير نشط</span>';
-                        const autoRenewBadge = sub.auto_renew ?
-                            '<span class="badge bg-success">نعم</span>' :
-                            '<span class="badge bg-secondary">لا</span>';
-
-                        html += `
-                            <tr data-status="${sub.status}">
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-user-circle fa-2x text-muted me-2"></i>
-                                        <div>
-                                            <div class="fw-bold">${sub.user_username}</div>
-                                            <small class="text-muted">${sub.user_email}</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td><span class="badge bg-warning">${sub.package_type}</span></td>
-                                <td>${sub.price} ${CURRENCY}</td>
-                                <td>${sub.start_date}</td>
-                                <td>${sub.end_date}</td>
-                                <td>${autoRenewBadge}</td>
-                                <td>${statusBadge}</td>
-                                <td>
-                                    <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-outline-primary" onclick="viewSubscription(${sub.id})" title="{% trans 'عرض التفاصيل' %}">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                        <button class="btn btn-outline-success" onclick="extendSubscription(${sub.id})" title="{% trans 'تمديد' %}">
-                                            <i class="fas fa-clock"></i>
-                                        </button>
-                                        ${sub.status === 'active' ? `
-                                        <button class="btn btn-outline-danger" onclick="cancelSubscription(${sub.id})" title="{% trans 'إلغاء' %}">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                        ` : ''}
-                                        <button class="btn btn-outline-warning" onclick="toggleAutoRenew(${sub.id})" title="{% trans 'تبديل التجديد التلقائي' %}">
-                                            <i class="fas fa-sync"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
-                    });
-                    tbody.innerHTML = html;
-                }
-            } else {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="8" class="text-center text-danger py-5">
-                            <i class="fas fa-exclamation-triangle fa-3x mb-3 d-block"></i>
-                            <p class="mb-0">{% trans "حدث خطأ في تحميل البيانات" %}</p>
-                        </td>
-                    </tr>
-                `;
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="8" class="text-center text-danger py-5">
-                        <i class="fas fa-exclamation-triangle fa-3x mb-3 d-block"></i>
-                        <p class="mb-0">{% trans "حدث خطأ في الاتصال بالخادم" %}</p>
-                    </td>
-                </tr>
-            `;
-        });
-}
-
-function filterSubscriptions(status) {
-    loadUserSubscriptions(status, 1);
-    document.querySelectorAll('#user-subscriptions .btn-group .btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    event.target.classList.add('active');
-}
-
-function viewSubscription(subscriptionId) {
-    console.log('View subscription:', subscriptionId);
-}
-
-function extendSubscription(subscriptionId) {
-    showInputModal(
-        '{% trans "كم يوماً تريد تمديد الاشتراك؟" %}',
-        function(days) {
-            fetch(PAYMENT_URLS.subscriptionExtend(subscriptionId), {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken'),
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ days: parseInt(days) })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showAlertModal('{% trans "تم تمديد الاشتراك بنجاح" %}', 'success');
-                    setTimeout(() => location.reload(), 1500);
-                } else {
-                    showAlertModal(data.error || '{% trans "حدث خطأ" %}', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showAlertModal('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
-            });
-        },
-        '{% trans "تمديد الاشتراك" %}',
-        '30',
-        '{% trans "عدد الأيام" %}',
-        function(value) {
-            if (!value || isNaN(value) || parseInt(value) <= 0) {
-                document.getElementById('inputModalError').textContent = '{% trans "يجب إدخال رقم صحيح أكبر من صفر" %}';
-                return false;
-            }
-            return true;
-        }
-    );
-}
-
-function cancelSubscription(subscriptionId) {
-    showConfirmModal('{% trans "هل أنت متأكد من إلغاء هذا الاشتراك؟" %}', function() {
-        fetch(PAYMENT_URLS.subscriptionCancel(subscriptionId), {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken')
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showAlertModal('{% trans "تم إلغاء الاشتراك بنجاح" %}', 'success');
-                setTimeout(() => location.reload(), 1500);
-            } else {
-                showAlertModal(data.error || '{% trans "حدث خطأ" %}', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showAlertModal('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
-        });
-    });
-}
-
-function toggleAutoRenew(subscriptionId) {
-    fetch(PAYMENT_URLS.subscriptionToggleAutoRenew(subscriptionId), {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken')
-        }
-    })
-    .then(response => response.json())
+// ── View transaction details ──
+function viewTransaction(id) {
+  document.getElementById('txModalId').textContent = '#' + id;
+  document.getElementById('txModalBody').innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
+  new bootstrap.Modal(document.getElementById('txDetailModal')).show();
+  fetch(`{% url 'main:admin_payment_transaction_detail' 0 %}`.replace('/0/', `/${id}/`))
+    .then(r => r.json())
     .then(data => {
-        if (data.success) {
-            showAlertModal('{% trans "تم تحديث إعدادات التجديد التلقائي" %}', 'success');
-            setTimeout(() => location.reload(), 1500);
-        } else {
-            showAlertModal(data.error || '{% trans "حدث خطأ" %}', 'error');
-        }
+      if (data.success) {
+        const t = data.transaction;
+        document.getElementById('txModalBody').innerHTML = `
+          <div class="row g-3">
+            <div class="col-md-6"><strong>{% trans "المستخدم" %}:</strong> ${t.user_name}<br><small class="text-muted">@${t.username}</small></div>
+            <div class="col-md-6"><strong>{% trans "المبلغ" %}:</strong> <span class="text-success fw-bold">${t.amount} ${t.currency}</span></div>
+            <div class="col-md-6"><strong>{% trans "المزود" %}:</strong> ${t.provider}</div>
+            <div class="col-md-6"><strong>{% trans "الحالة" %}:</strong> ${t.status_display}</div>
+            <div class="col-md-6"><strong>{% trans "تاريخ الإنشاء" %}:</strong> ${t.created_at}</div>
+            <div class="col-md-6"><strong>{% trans "تاريخ الإكمال" %}:</strong> ${t.completed_at || '—'}</div>
+            <div class="col-12"><strong>{% trans "الوصف" %}:</strong><br><small>${t.description || '—'}</small></div>
+            <div class="col-12"><strong>{% trans "بيانات إضافية (Metadata)" %}:</strong><br><pre class="bg-light p-2 rounded small mt-1" style="max-height:150px;overflow:auto;">${JSON.stringify(t.metadata, null, 2)}</pre></div>
+            ${t.receipt_url ? `<div class="col-12"><a href="${t.receipt_url}" target="_blank" class="btn btn-sm btn-outline-info"><i class="fas fa-image me-1"></i>{% trans "عرض الإيصال" %}</a></div>` : ''}
+          </div>`;
+      } else {
+        document.getElementById('txModalBody').innerHTML = `<div class="alert alert-danger">${data.error || '{% trans "خطأ في تحميل البيانات" %}'}</div>`;
+      }
     })
-    .catch(error => {
-        console.error('Error:', error);
-        showAlertModal('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
+    .catch(() => {
+      document.getElementById('txModalBody').innerHTML = '<div class="alert alert-danger">{% trans "فشل في تحميل التفاصيل" %}</div>';
     });
 }
 
-// View Transaction Photo Modal
-function viewTransactionPhoto(photoUrl) {
-    const modalHTML = `
-        <div class="modal fade" id="photoModal" tabindex="-1">
-            <div class="modal-dialog modal-lg modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">
-                            <i class="fas fa-image me-2"></i>
-                            {% trans "صورة إيصال الدفع" %}
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body text-center">
-                        <img src="${photoUrl}" class="img-fluid" alt="{% trans 'إيصال الدفع' %}" style="max-height: 70vh; border-radius: 8px;">
-                        <div class="mt-3">
-                            <a href="${photoUrl}" target="_blank" class="btn btn-primary">
-                                <i class="fas fa-external-link-alt me-1"></i>
-                                {% trans "فتح في نافذة جديدة" %}
-                            </a>
-                            <a href="${photoUrl}" download class="btn btn-secondary">
-                                <i class="fas fa-download me-1"></i>
-                                {% trans "تحميل" %}
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-    const existingModal = document.getElementById('photoModal');
-    if (existingModal) {
-        existingModal.remove();
+// ── Confirm offline payment ──
+function confirmOfflinePayment(id) {
+  document.getElementById('confirmPaymentId').value = id;
+  document.getElementById('txReference').value = '';
+  document.getElementById('txNotes').value = '';
+  new bootstrap.Modal(document.getElementById('confirmOfflineModal')).show();
+}
+function submitConfirmOffline() {
+  const id  = document.getElementById('confirmPaymentId').value;
+  const ref = document.getElementById('txReference').value;
+  const notes = document.getElementById('txNotes').value;
+  fetch('{% url "main:confirm_offline_payment" %}', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN},
+    body: JSON.stringify({ payment_id: id, transaction_reference: ref, admin_notes: notes }),
+  })
+  .then(r => r.json())
+  .then(data => {
+    bootstrap.Modal.getInstance(document.getElementById('confirmOfflineModal')).hide();
+    if (data.success) {
+      showToast('{% trans "تم تأكيد الدفع بنجاح" %}', 'success');
+      ['offline-row-' + id, 'tx-row-' + id].forEach(rid => {
+        const row = document.getElementById(rid);
+        if (row) row.remove();
+      });
+    } else {
+      showToast(data.error || '{% trans "فشل التأكيد" %}', 'danger');
     }
-
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-
-    const modal = new bootstrap.Modal(document.getElementById('photoModal'));
-    modal.show();
-
-    document.getElementById('photoModal').addEventListener('hidden.bs.modal', function () {
-        this.remove();
-    });
+  })
+  .catch(() => showToast('{% trans "خطأ في الاتصال" %}', 'danger'));
 }
 
-// Refund Payment
-function refundPayment(paymentId) {
-    showInputModal(
-        '{% trans "سبب الاسترداد:" %}',
-        function(refundReason) {
-            showConfirmModal('{% trans "هل أنت متأكد من استرداد هذه الدفعة؟" %}', function() {
-                fetch(`/${LANGUAGE_CODE}/admin/payment/${paymentId}/refund/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken')
-                    },
-                    body: JSON.stringify({
-                        refund_reason: refundReason
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showAlertModal('{% trans "تم استرداد الدفعة بنجاح" %}', 'success');
-                        setTimeout(() => location.reload(), 1500);
-                    } else {
-                        showAlertModal(data.error || '{% trans "حدث خطأ أثناء استرداد الدفعة" %}', 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showAlertModal('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
-                });
-            });
-        },
-        '{% trans "استرداد الدفعة" %}',
-        '',
-        '{% trans "سبب الاسترداد" %}',
-        function(value) {
-            if (!value || value.trim() === '') {
-                document.getElementById('inputModalError').textContent = '{% trans "يجب إدخال سبب الاسترداد" %}';
-                return false;
-            }
-            return true;
-        }
-    );
+// ── Reject offline payment ──
+function rejectOfflinePayment(id) {
+  document.getElementById('rejectPaymentId').value = id;
+  document.getElementById('rejectionReason').value = '';
+  new bootstrap.Modal(document.getElementById('rejectOfflineModal')).show();
 }
-
-// Confirm Offline Payment
-function confirmPayment(paymentId) {
-    showInputModal(
-        '{% trans "أدخل رقم/مرجع التحويل (اختياري):" %}',
-        function(reference) {
-            showConfirmModal('{% trans "هل تريد تأكيد هذه الدفعة؟" %}', function() {
-                fetch(`/${LANGUAGE_CODE}/admin/payments/confirm-offline/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken')
-                    },
-                    body: JSON.stringify({
-                        payment_id: paymentId,
-                        transaction_reference: reference || '',
-                        admin_notes: ''
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showAlertModal('{% trans "تم تأكيد الدفعة بنجاح" %}', 'success');
-                        setTimeout(() => location.reload(), 1200);
-                    } else {
-                        showAlertModal(data.error || '{% trans "حدث خطأ أثناء تأكيد الدفعة" %}', 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showAlertModal('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
-                });
-            });
-        },
-        '{% trans "تأكيد الدفعة" %}',
-        '',
-        '{% trans "رقم/مرجع التحويل" %}'
-    );
-}
-
-// Reject Offline Payment
-function rejectPayment(paymentId) {
-    showInputModal(
-        '{% trans "سبب الرفض (اختياري):" %}',
-        function(reason) {
-            showConfirmModal('{% trans "هل تريد رفض هذه الدفعة؟" %}', function() {
-                fetch(`/${LANGUAGE_CODE}/admin/payments/reject-offline/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken')
-                    },
-                    body: JSON.stringify({
-                        payment_id: paymentId,
-                        rejection_reason: reason || ''
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showAlertModal('{% trans "تم رفض الدفعة" %}', 'success');
-                        setTimeout(() => location.reload(), 1200);
-                    } else {
-                        showAlertModal(data.error || '{% trans "حدث خطأ أثناء رفض الدفعة" %}', 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showAlertModal('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
-                });
-            });
-        },
-        '{% trans "رفض الدفعة" %}',
-        '',
-        '{% trans "سبب الرفض" %}'
-    );
-}
-
-// Utility functions
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
+function submitRejectOffline() {
+  const id     = document.getElementById('rejectPaymentId').value;
+  const reason = document.getElementById('rejectionReason').value;
+  fetch('{% url "main:reject_offline_payment" %}', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN},
+    body: JSON.stringify({ payment_id: id, rejection_reason: reason }),
+  })
+  .then(r => r.json())
+  .then(data => {
+    bootstrap.Modal.getInstance(document.getElementById('rejectOfflineModal')).hide();
+    if (data.success) {
+      showToast('{% trans "تم رفض الدفع" %}', 'success');
+      ['offline-row-' + id, 'tx-row-' + id].forEach(rid => {
+        const row = document.getElementById(rid);
+        if (row) row.remove();
+      });
+    } else {
+      showToast(data.error || '{% trans "فشل الرفض" %}', 'danger');
     }
-    return cookieValue;
+  })
+  .catch(() => showToast('{% trans "خطأ في الاتصال" %}', 'danger'));
 }
 
-// Export payments data
-function exportPayments() {
-    const form = document.getElementById('filterForm');
-    const formData = new FormData(form);
-    const params = new URLSearchParams(formData);
-
-    // Add export parameter
-    params.append('export', 'csv');
-
-    // Create download link
-    const url = `{% url 'main:admin_payments' %}?${params.toString()}`;
-    window.location.href = url;
+// ── Refund ──
+function refundPayment(id) {
+  document.getElementById('refundPaymentId').value = id;
+  document.getElementById('refundReason').value = '';
+  new bootstrap.Modal(document.getElementById('refundModal')).show();
 }
-
-// Real-time counter updates
-function updateAllCounters() {
-    fetch('{% url "main:admin_payments" %}?ajax_stats=1', {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success && data.stats) {
-            // Update all counters with animation
-            updateCounter('totalRevenue', data.stats.total_revenue);
-            updateCounter('totalTransactions', data.stats.total_transactions);
-            updateCounter('todayRevenue', data.stats.today_revenue);
-            updateCounter('premiumMembers', data.stats.active_premium_members);
-            updateCounter('pendingPaymentsCount', data.stats.pending_payments);
-            updateCounter('failedPaymentsCount', data.stats.failed_payments);
-            updateCounter('refundedPaymentsCount', data.stats.refunded_payments);
-            updateCounter('totalOrders', data.stats.total_orders);
-            updateCounter('completedOrders', data.stats.completed_orders);
-            updateCounter('activePackages', data.stats.active_packages);
-            updateCounter('expiredPackages', data.stats.expired_packages);
-            updateCounter('paypalPayments', data.stats.paypal_payments);
-            updateCounter('paymobPayments', data.stats.paymob_payments);
-            updateCounter('bankTransferPayments', data.stats.bank_transfer_payments);
-            updateCounter('offlinePayments', data.stats.offline_payments);
-            updateCounter('transactionsCountBadge', data.stats.total_transactions);
-        }
-    })
-    .catch(error => {
-        console.error('Error updating counters:', error);
-    });
-}
-
-// Animate counter update
-function updateCounter(elementId, newValue) {
-    const element = document.getElementById(elementId);
-    if (!element) return;
-
-    const currentValue = parseFloat(element.textContent.replace(/[^0-9.-]/g, '')) || 0;
-    const targetValue = parseFloat(newValue) || 0;
-
-    if (currentValue !== targetValue) {
-        element.classList.add('text-primary');
-        element.textContent = targetValue;
-
-        setTimeout(() => {
-            element.classList.remove('text-primary');
-        }, 1000);
+function submitRefund() {
+  const id = document.getElementById('refundPaymentId').value;
+  const reason = document.getElementById('refundReason').value;
+  fetch('{% url "main:admin_payment_refund" 0 %}'.replace('/0/', `/${id}/`), {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN},
+    body: JSON.stringify({ reason }),
+  })
+  .then(r => r.json())
+  .then(data => {
+    bootstrap.Modal.getInstance(document.getElementById('refundModal')).hide();
+    if (data.success) {
+      showToast('{% trans "تم الاسترداد بنجاح" %}', 'success');
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      showToast(data.error || '{% trans "فشل الاسترداد" %}', 'danger');
     }
+  })
+  .catch(() => showToast('{% trans "خطأ في الاتصال" %}', 'danger'));
 }
 
-// Auto-refresh counters every 30 seconds
-setInterval(updateAllCounters, 30000);
+// ── Export CSV ──
+function exportPaymentsCSV() {
+  const params = new URLSearchParams(window.location.search);
+  params.set('export', 'csv');
+  window.location.href = '?' + params.toString();
+}
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    // Add pulse animation to refresh button
-    const refreshBtn = document.querySelector('[onclick="location.reload()"]');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', function() {
-            this.innerHTML = '<i class="fas fa-sync-alt fa-spin me-2"></i>{% trans "جاري التحديث..." %}';
-        });
+// ── Revenue chart ──
+document.addEventListener('DOMContentLoaded', function () {
+  const ctx = document.getElementById('revenueChart');
+  if (!ctx || !MONTHLY_DATA.length) return;
+  const labels   = MONTHLY_DATA.map(d => d.month);
+  const revenues = MONTHLY_DATA.map(d => d.revenue);
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: '{% trans "الإيرادات" %}',
+        data: revenues,
+        backgroundColor: 'rgba(107,76,122,0.6)',
+        borderColor: '#6b4c7a',
+        borderWidth: 2,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.06)' } },
+        x: { grid: { display: false } },
+      }
     }
+  });
 });
 </script>
 {% endblock admin_extra_js %}

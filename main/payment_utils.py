@@ -55,11 +55,9 @@ def get_allowed_payment_methods(context=PaymentContext.AD_POSTING):
         # Filter based on global payment settings from SiteConfiguration
         filtered_methods = []
         for method_code, method_label in methods:
-            # Online payment methods: visa, paypal, paymob
-            if method_code in ["visa", "paypal", "paymob"]:
-                # Check site_config.allow_online_payment (ALLOW_ONLINE_PAYMENT is in SiteConfiguration, not constance)
+            # Online payment methods: visa, paypal, paymob, online, card
+            if method_code in ["visa", "paypal", "paymob", "online", "card"]:
                 if site_config.allow_online_payment:
-                    # Additionally check if specific provider is enabled
                     if method_code == "paypal":
                         try:
                             from .services.paypal_service import PayPalService
@@ -67,7 +65,7 @@ def get_allowed_payment_methods(context=PaymentContext.AD_POSTING):
                                 filtered_methods.append((method_code, method_label))
                         except Exception:
                             pass
-                    elif method_code in ["visa", "paymob"]:
+                    elif method_code in ["visa", "paymob", "online", "card"]:
                         if getattr(constance_config, "PAYMOB_ENABLED", True):
                             filtered_methods.append((method_code, method_label))
             # Offline payment methods: instapay, wallet
@@ -96,6 +94,8 @@ def _get_fallback_methods(context):
         # Platform payments: Online methods only
         return [
             ("visa", _("بطاقة فيزا/ماستركارد")),
+            ("paymob", _("Paymob")),
+            ("paypal", _("باي بال")),
             ("wallet", _("محفظة إلكترونية")),
             ("instapay", _("إنستا باي")),
         ]
@@ -103,6 +103,8 @@ def _get_fallback_methods(context):
         # Product purchase: All methods
         return [
             ("visa", _("بطاقة فيزا/ماستركارد")),
+            ("paymob", _("Paymob")),
+            ("paypal", _("باي بال")),
             ("wallet", _("محفظة إلكترونية")),
             ("instapay", _("إنستا باي")),
             ("cod", _("الدفع عند الاستلام")),
@@ -112,6 +114,8 @@ def _get_fallback_methods(context):
         # Default: online methods
         return [
             ("visa", _("بطاقة فيزا/ماستركارد")),
+            ("paymob", _("Paymob")),
+            ("paypal", _("باي بال")),
             ("wallet", _("محفظة إلكترونية")),
             ("instapay", _("إنستا باي")),
         ]
@@ -152,7 +156,7 @@ def is_payment_method_allowed(payment_method, context=PaymentContext.AD_POSTING)
         # Check global payment settings based on payment method type
         # Online payment methods: visa, paypal, paymob
         # Note: ALLOW_ONLINE_PAYMENT lives in SiteConfiguration, not constance
-        if payment_method in ["visa", "paypal", "paymob"]:
+        if payment_method in ["visa", "paypal", "paymob", "online", "card"]:
             if not site_config.allow_online_payment:
                 return False
             # Additionally check if specific provider is enabled
@@ -163,7 +167,7 @@ def is_payment_method_allowed(payment_method, context=PaymentContext.AD_POSTING)
                         return False
                 except Exception:
                     return False
-            elif payment_method in ["visa", "paymob"]:
+            elif payment_method in ["visa", "paymob", "online", "card"]:
                 if not getattr(constance_config, "PAYMOB_ENABLED", True):
                     return False
 

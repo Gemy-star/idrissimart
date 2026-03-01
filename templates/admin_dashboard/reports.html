@@ -4,234 +4,240 @@
 {% block title %}{% trans "التقارير والإحصائيات" %} - {% trans "لوحة التحكم" %}{% endblock %}
 
 {% block admin_content %}
-<div class="admin-header">
+<div class="admin-header mb-4">
     <div class="admin-header-content">
         <div>
             <h1 class="admin-title">
                 <i class="fas fa-chart-line me-2"></i>
                 {% trans "التقارير والإحصائيات" %}
             </h1>
-            <p class="admin-subtitle">{% trans "تقارير شاملة عن نشاط المنصة والمستخدمين" %}</p>
+            <p class="admin-subtitle">{% trans "تقارير شاملة ومفصلة عن جميع جوانب المنصة" %}</p>
         </div>
-        <div class="admin-header-actions">
-            <button type="button" class="btn btn-primary" onclick="window.print()">
-                <i class="fas fa-print me-2"></i>
-                {% trans "طباعة التقرير" %}
+        <div class="admin-header-actions d-flex gap-2 flex-wrap">
+            <select class="form-select form-select-sm header-select" id="globalDateRange" style="max-width:180px;" onchange="syncDateSelect(this.value)">
+                <option value="7">{% trans "آخر 7 أيام" %}</option>
+                <option value="14">{% trans "آخر 14 يوم" %}</option>
+                <option value="30" selected>{% trans "آخر 30 يوم" %}</option>
+                <option value="90">{% trans "آخر 3 أشهر" %}</option>
+            </select>
+            <button type="button" class="btn btn-outline-light btn-sm" onclick="window.print()">
+                <i class="fas fa-print me-1"></i>{% trans "طباعة" %}
             </button>
         </div>
     </div>
 </div>
 
-<!-- Visitor Statistics -->
-<div class="admin-content-card mb-4">
-    <div class="card-header">
-        <h5 class="card-title mb-0">
-            <i class="fas fa-users me-2"></i>
-            {% trans "إحصائيات الزوار" %}
-        </h5>
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- SUMMARY KPI CARDS                                                      -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3 col-xl-3">
+        <div class="kpi-card kpi-primary">
+            <div class="kpi-icon"><i class="fas fa-users"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-value">{{ total_users|default:0|intcomma }}</div>
+                <div class="kpi-label">{% trans "المستخدمون" %}</div>
+                <div class="kpi-sub"><i class="fas fa-arrow-up fa-xs text-success"></i> {{ new_users_week|default:0 }} {% trans "هذا الأسبوع" %}</div>
+            </div>
+        </div>
     </div>
-    <div class="card-body">
-        <div class="row g-3 g-md-4">
-            <!-- Online Now -->
-            <div class="col-6 col-sm-4 col-md-4 col-lg-2">
-                <div class="stat-card stat-primary">
-                    <div class="stat-icon">
-                        <i class="fas fa-users"></i>
-                    </div>
-                    <div class="stat-details">
-                        <h3 class="stat-value">{{ online_now|default:0 }}</h3>
-                        <p class="stat-label">{% trans "المتواجدون الآن" %}</p>
-                    </div>
-                </div>
+    <div class="col-6 col-md-3 col-xl-3">
+        <div class="kpi-card kpi-success">
+            <div class="kpi-icon"><i class="fas fa-ad"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-value">{{ active_ads|default:0|intcomma }}</div>
+                <div class="kpi-label">{% trans "إعلانات نشطة" %}</div>
+                <div class="kpi-sub"><i class="fas fa-plus fa-xs text-success"></i> {{ ads_today|default:0 }} {% trans "اليوم" %}</div>
             </div>
-
-            <!-- Today -->
-            <div class="col-6 col-sm-4 col-md-4 col-lg-2">
-                <div class="stat-card stat-success">
-                    <div class="stat-icon">
-                        <i class="fas fa-calendar-day"></i>
-                    </div>
-                    <div class="stat-details">
-                        <h3 class="stat-value">{{ visitors_today|default:0 }}</h3>
-                        <p class="stat-label">{% trans "زوار اليوم" %}</p>
-                    </div>
-                </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl-3">
+        <div class="kpi-card kpi-warning">
+            <div class="kpi-icon"><i class="fas fa-money-bill-wave"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-value">{{ revenue_total|default:0|floatformat:0|intcomma }}</div>
+                <div class="kpi-label">{% trans "إجمالي الإيرادات" %}</div>
+                <div class="kpi-sub">{{ revenue_month|default:0|floatformat:0|intcomma }} {% trans "هذا الشهر" %}</div>
             </div>
-
-            <!-- Last Week -->
-            <div class="col-6 col-sm-4 col-md-4 col-lg-2">
-                <div class="stat-card stat-info">
-                    <div class="stat-icon">
-                        <i class="fas fa-calendar-week"></i>
-                    </div>
-                    <div class="stat-details">
-                        <h3 class="stat-value">{{ visitors_week|default:0 }}</h3>
-                        <p class="stat-label">{% trans "آخر أسبوع" %}</p>
-                    </div>
-                </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl-3">
+        <div class="kpi-card kpi-info">
+            <div class="kpi-icon"><i class="fas fa-eye"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-value">{{ visitors_total|default:0|intcomma }}</div>
+                <div class="kpi-label">{% trans "إجمالي الزيارات" %}</div>
+                <div class="kpi-sub"><i class="fas fa-circle fa-xs text-success pulse-green"></i> {{ online_now|default:0 }} {% trans "متصل الآن" %}</div>
             </div>
-
-            <!-- Last Month -->
-            <div class="col-6 col-sm-4 col-md-4 col-lg-2">
-                <div class="stat-card stat-warning">
-                    <div class="stat-icon">
-                        <i class="fas fa-calendar-alt"></i>
-                    </div>
-                    <div class="stat-details">
-                        <h3 class="stat-value">{{ visitors_month|default:0 }}</h3>
-                        <p class="stat-label">{% trans "آخر شهر" %}</p>
-                    </div>
-                </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl-3">
+        <div class="kpi-card kpi-danger">
+            <div class="kpi-icon"><i class="fas fa-flag"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-value">{{ pending_reports|default:0 }}</div>
+                <div class="kpi-label">{% trans "بلاغات معلقة" %}</div>
+                <div class="kpi-sub">{{ total_reports|default:0 }} {% trans "إجمالي" %}</div>
             </div>
-
-            <!-- Last Year -->
-            <div class="col-6 col-sm-4 col-md-4 col-lg-2">
-                <div class="stat-card stat-danger">
-                    <div class="stat-icon">
-                        <i class="fas fa-calendar"></i>
-                    </div>
-                    <div class="stat-details">
-                        <h3 class="stat-value">{{ visitors_year|default:0 }}</h3>
-                        <p class="stat-label">{% trans "آخر سنة" %}</p>
-                    </div>
-                </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl-3">
+        <div class="kpi-card kpi-secondary">
+            <div class="kpi-icon"><i class="fas fa-shopping-bag"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-value">{{ total_orders|default:0|intcomma }}</div>
+                <div class="kpi-label">{% trans "الطلبات" %}</div>
+                <div class="kpi-sub">{{ pending_orders|default:0 }} {% trans "معلقة" %}</div>
             </div>
-
-            <!-- All Time -->
-            <div class="col-6 col-sm-4 col-md-4 col-lg-2">
-                <div class="stat-card stat-secondary">
-                    <div class="stat-icon">
-                        <i class="fas fa-infinity"></i>
-                    </div>
-                    <div class="stat-details">
-                        <h3 class="stat-value">{{ visitors_total|default:0 }}</h3>
-                        <p class="stat-label">{% trans "منذ البداية" %}</p>
-                    </div>
-                </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl-3">
+        <div class="kpi-card kpi-teal">
+            <div class="kpi-icon"><i class="fas fa-box-open"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-value">{{ active_packages|default:0 }}</div>
+                <div class="kpi-label">{% trans "باقات نشطة" %}</div>
+                <div class="kpi-sub">{{ total_packages|default:0 }} {% trans "إجمالي" %}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl-3">
+        <div class="kpi-card kpi-purple">
+            <div class="kpi-icon"><i class="fas fa-comment-dots"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-value">{{ total_messages|default:0|intcomma }}</div>
+                <div class="kpi-label">{% trans "الرسائل" %}</div>
+                <div class="kpi-sub">{{ messages_today|default:0 }} {% trans "اليوم" %}</div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Visitor Analytics Charts -->
-<div class="admin-content-card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
-        <h5 class="card-title mb-0">
-            <i class="fas fa-chart-bar me-2"></i>
-            {% trans "تحليلات سلوك الزوار" %}
-        </h5>
-        <div class="date-range-selector">
-            <select id="dateRangeSelect" class="form-select form-select-sm" onchange="updateCharts(this.value)">
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION TABS                                                           -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div class="reports-tabs-wrapper mb-4">
+    <ul class="nav reports-tabs" id="reportsTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-visitors" data-bs-toggle="tab" data-bs-target="#tab-visitors-pane" type="button" role="tab">
+                <i class="fas fa-chart-area me-1"></i>{% trans "الزوار" %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-users" data-bs-toggle="tab" data-bs-target="#tab-users-pane" type="button" role="tab">
+                <i class="fas fa-users me-1"></i>{% trans "المستخدمون" %}
+                {% if new_users_today > 0 %}<span class="badge bg-success rpt-badge ms-1">+{{ new_users_today }}</span>{% endif %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-ads" data-bs-toggle="tab" data-bs-target="#tab-ads-pane" type="button" role="tab">
+                <i class="fas fa-bullhorn me-1"></i>{% trans "الإعلانات" %}
+                {% if pending_ads > 0 %}<span class="badge bg-warning text-dark rpt-badge ms-1">{{ pending_ads }}</span>{% endif %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-revenue" data-bs-toggle="tab" data-bs-target="#tab-revenue-pane" type="button" role="tab">
+                <i class="fas fa-dollar-sign me-1"></i>{% trans "الإيرادات" %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-reports" data-bs-toggle="tab" data-bs-target="#tab-reports-pane" type="button" role="tab">
+                <i class="fas fa-flag me-1"></i>{% trans "البلاغات" %}
+                {% if pending_reports > 0 %}<span class="badge bg-danger rpt-badge ms-1">{{ pending_reports }}</span>{% endif %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-platform" data-bs-toggle="tab" data-bs-target="#tab-platform-pane" type="button" role="tab">
+                <i class="fas fa-layer-group me-1"></i>{% trans "المنصة" %}
+            </button>
+        </li>
+    </ul>
+</div>
+
+<div class="tab-content" id="reportsTabContent">
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- TAB 1 – VISITOR ANALYTICS                                              -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="tab-pane fade show active" id="tab-visitors-pane" role="tabpanel">
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-sm-4 col-lg-2">
+            <div class="stat-card stat-primary text-center py-3 d-block">
+                <div class="stat-icon mx-auto mb-2"><i class="fas fa-circle pulse-green"></i></div>
+                <h3 class="stat-value">{{ online_now|default:0 }}</h3>
+                <p class="stat-label">{% trans "متصل الآن" %}</p>
+            </div>
+        </div>
+        <div class="col-6 col-sm-4 col-lg-2">
+            <div class="stat-card stat-success text-center py-3 d-block">
+                <div class="stat-icon mx-auto mb-2"><i class="fas fa-calendar-day"></i></div>
+                <h3 class="stat-value">{{ visitors_today|default:0 }}</h3>
+                <p class="stat-label">{% trans "زوار اليوم" %}</p>
+            </div>
+        </div>
+        <div class="col-6 col-sm-4 col-lg-2">
+            <div class="stat-card stat-info text-center py-3 d-block">
+                <div class="stat-icon mx-auto mb-2"><i class="fas fa-calendar-week"></i></div>
+                <h3 class="stat-value">{{ visitors_week|default:0 }}</h3>
+                <p class="stat-label">{% trans "آخر أسبوع" %}</p>
+            </div>
+        </div>
+        <div class="col-6 col-sm-4 col-lg-2">
+            <div class="stat-card stat-warning text-center py-3 d-block">
+                <div class="stat-icon mx-auto mb-2"><i class="fas fa-calendar-alt"></i></div>
+                <h3 class="stat-value">{{ visitors_month|default:0 }}</h3>
+                <p class="stat-label">{% trans "آخر شهر" %}</p>
+            </div>
+        </div>
+        <div class="col-6 col-sm-4 col-lg-2">
+            <div class="stat-card stat-danger text-center py-3 d-block">
+                <div class="stat-icon mx-auto mb-2"><i class="fas fa-calendar"></i></div>
+                <h3 class="stat-value">{{ visitors_year|default:0 }}</h3>
+                <p class="stat-label">{% trans "آخر سنة" %}</p>
+            </div>
+        </div>
+        <div class="col-6 col-sm-4 col-lg-2">
+            <div class="stat-card stat-secondary text-center py-3 d-block">
+                <div class="stat-icon mx-auto mb-2"><i class="fas fa-infinity"></i></div>
+                <h3 class="stat-value">{{ visitors_total|default:0|intcomma }}</h3>
+                <p class="stat-label">{% trans "إجمالي" %}</p>
+            </div>
+        </div>
+    </div>
+    <div class="admin-content-card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <h5 class="card-title mb-0"><i class="fas fa-chart-bar me-2"></i>{% trans "تحليلات سلوك الزوار" %}</h5>
+            <select id="dateRangeSelect" class="form-select form-select-sm header-select" onchange="updateVisitorCharts(this.value)">
                 <option value="7">{% trans "آخر 7 أيام" %}</option>
                 <option value="14">{% trans "آخر 14 يوم" %}</option>
                 <option value="30" selected>{% trans "آخر 30 يوم" %}</option>
                 <option value="90">{% trans "آخر 3 أشهر" %}</option>
             </select>
         </div>
-    </div>
-    <div class="card-body">
-        <div class="row g-4">
-            <!-- Session Duration Chart -->
-            <div class="col-lg-6">
-                <div class="chart-container">
-                    <h6 class="chart-title">
-                        <i class="fas fa-clock me-2"></i>
-                        {% trans "متوسط مدة بقاء الزائر" %}
-                    </h6>
-                    <canvas id="sessionDurationChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Pages Per Visit Chart -->
-            <div class="col-lg-6">
-                <div class="chart-container">
-                    <h6 class="chart-title">
-                        <i class="fas fa-file-alt me-2"></i>
-                        {% trans "متوسط عدد الصفحات لكل زيارة" %}
-                    </h6>
-                    <canvas id="pagesPerVisitChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Return Visitors Chart -->
-            <div class="col-lg-6">
-                <div class="chart-container">
-                    <h6 class="chart-title">
-                        <i class="fas fa-redo me-2"></i>
-                        {% trans "الزوار العائدون" %}
-                    </h6>
-                    <canvas id="returnVisitorsChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Visitor Trend Chart -->
-            <div class="col-lg-6">
-                <div class="chart-container">
-                    <h6 class="chart-title">
-                        <i class="fas fa-chart-line me-2"></i>
-                        {% trans "اتجاه الزيارات اليومية" %}
-                    </h6>
-                    <canvas id="visitorTrendChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- User Statistics -->
-<div class="admin-content-card mb-4">
-    <div class="card-header">
-        <h5 class="card-title mb-0">
-            <i class="fas fa-user-friends me-2"></i>
-            {% trans "إحصائيات المستخدمين" %}
-        </h5>
-    </div>
-    <div class="card-body">
-        <div class="row g-3 g-md-4">
-            <div class="col-6 col-md-6 col-lg-3">
-                <div class="stat-card stat-primary">
-                    <div class="stat-icon">
-                        <i class="fas fa-users"></i>
-                    </div>
-                    <div class="stat-details">
-                        <h3 class="stat-value">{{ total_users|default:0|intcomma }}</h3>
-                        <p class="stat-label">{% trans "إجمالي المستخدمين" %}</p>
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-lg-6">
+                    <div class="chart-container">
+                        <h6 class="chart-title"><i class="fas fa-clock me-2"></i>{% trans "متوسط مدة بقاء الزائر (دقائق)" %}</h6>
+                        <canvas id="sessionDurationChart"></canvas>
                     </div>
                 </div>
-            </div>
-
-            <div class="col-6 col-md-6 col-lg-3">
-                <div class="stat-card stat-success">
-                    <div class="stat-icon">
-                        <i class="fas fa-user-check"></i>
-                    </div>
-                    <div class="stat-details">
-                        <h3 class="stat-value">{{ verified_users|default:0|intcomma }}</h3>
-                        <p class="stat-label">{% trans "مستخدمون موثقون" %}</p>
+                <div class="col-lg-6">
+                    <div class="chart-container">
+                        <h6 class="chart-title"><i class="fas fa-file-alt me-2"></i>{% trans "متوسط الصفحات لكل زيارة" %}</h6>
+                        <canvas id="pagesPerVisitChart"></canvas>
                     </div>
                 </div>
-            </div>
-
-            <div class="col-6 col-md-6 col-lg-3">
-                <div class="stat-card stat-info">
-                    <div class="stat-icon">
-                        <i class="fas fa-user-plus"></i>
-                    </div>
-                    <div class="stat-details">
-                        <h3 class="stat-value">{{ new_users_today|default:0 }}</h3>
-                        <p class="stat-label">{% trans "تسجيلات اليوم" %}</p>
+                <div class="col-lg-6">
+                    <div class="chart-container">
+                        <h6 class="chart-title"><i class="fas fa-redo me-2"></i>{% trans "الزوار الجدد مقابل العائدون" %}</h6>
+                        <canvas id="returnVisitorsChart"></canvas>
                     </div>
                 </div>
-            </div>
-
-            <div class="col-6 col-md-6 col-lg-3">
-                <div class="stat-card stat-warning">
-                    <div class="stat-icon">
-                        <i class="fas fa-calendar-week"></i>
-                    </div>
-                    <div class="stat-details">
-                        <h3 class="stat-value">{{ new_users_week|default:0 }}</h3>
-                        <p class="stat-label">{% trans "تسجيلات الأسبوع" %}</p>
+                <div class="col-lg-6">
+                    <div class="chart-container">
+                        <h6 class="chart-title"><i class="fas fa-chart-line me-2"></i>{% trans "اتجاه الزيارات اليومية" %}</h6>
+                        <canvas id="visitorTrendChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -239,902 +245,778 @@
     </div>
 </div>
 
-<!-- Ads Statistics -->
-<div class="admin-content-card mb-4">
-    <div class="card-header">
-        <h5 class="card-title mb-0">
-            <i class="fas fa-bullhorn me-2"></i>
-            {% trans "إحصائيات الإعلانات" %}
-        </h5>
-    </div>
-    <div class="card-body">
-        <div class="row g-3 g-md-4">
-            <div class="col-6 col-md-6 col-lg-3">
-                <div class="stat-card stat-primary">
-                    <div class="stat-icon">
-                        <i class="fas fa-ad"></i>
-                    </div>
-                    <div class="stat-details">
-                        <h3 class="stat-value">{{ total_ads|default:0|intcomma }}</h3>
-                        <p class="stat-label">{% trans "إجمالي الإعلانات" %}</p>
-                    </div>
-                </div>
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- TAB 2 – USER ANALYTICS                                                 -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="tab-pane fade" id="tab-users-pane" role="tabpanel">
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-primary">
+                <div class="stat-icon"><i class="fas fa-users"></i></div>
+                <div class="stat-details"><h3 class="stat-value">{{ total_users|default:0|intcomma }}</h3><p class="stat-label">{% trans "إجمالي المستخدمين" %}</p></div>
             </div>
-
-            <div class="col-6 col-md-6 col-lg-3">
-                <div class="stat-card stat-success">
-                    <div class="stat-icon">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <div class="stat-details">
-                        <h3 class="stat-value">{{ active_ads|default:0|intcomma }}</h3>
-                        <p class="stat-label">{% trans "إعلانات نشطة" %}</p>
-                    </div>
-                </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-success">
+                <div class="stat-icon"><i class="fas fa-user-check"></i></div>
+                <div class="stat-details"><h3 class="stat-value">{{ verified_users|default:0|intcomma }}</h3><p class="stat-label">{% trans "موثقو الهاتف" %}</p></div>
             </div>
-
-            <div class="col-6 col-md-6 col-lg-3">
-                <div class="stat-card stat-warning">
-                    <div class="stat-icon">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                    <div class="stat-details">
-                        <h3 class="stat-value">{{ pending_ads|default:0 }}</h3>
-                        <p class="stat-label">{% trans "قيد المراجعة" %}</p>
-                    </div>
-                </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-warning">
+                <div class="stat-icon"><i class="fas fa-crown"></i></div>
+                <div class="stat-details"><h3 class="stat-value">{{ premium_users|default:0 }}</h3><p class="stat-label">{% trans "مستخدمون مميزون" %}</p></div>
             </div>
-
-            <div class="col-6 col-md-6 col-lg-3">
-                <div class="stat-card stat-info">
-                    <div class="stat-icon">
-                        <i class="fas fa-plus-circle"></i>
-                    </div>
-                    <div class="stat-details">
-                        <h3 class="stat-value">{{ ads_today|default:0 }}</h3>
-                        <p class="stat-label">{% trans "إعلانات اليوم" %}</p>
-                    </div>
-                </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-info">
+                <div class="stat-icon"><i class="fas fa-store"></i></div>
+                <div class="stat-details"><h3 class="stat-value">{{ publisher_users|default:0 }}</h3><p class="stat-label">{% trans "ناشرون وتجار" %}</p></div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-success">
+                <div class="stat-icon"><i class="fas fa-user-plus"></i></div>
+                <div class="stat-details"><h3 class="stat-value">{{ new_users_today|default:0 }}</h3><p class="stat-label">{% trans "تسجيلات اليوم" %}</p></div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-info">
+                <div class="stat-icon"><i class="fas fa-calendar-week"></i></div>
+                <div class="stat-details"><h3 class="stat-value">{{ new_users_week|default:0 }}</h3><p class="stat-label">{% trans "تسجيلات الأسبوع" %}</p></div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-danger">
+                <div class="stat-icon"><i class="fas fa-user-slash"></i></div>
+                <div class="stat-details"><h3 class="stat-value">{{ banned_users|default:0 }}</h3><p class="stat-label">{% trans "محظورون" %}</p></div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-secondary">
+                <div class="stat-icon"><i class="fas fa-user-lock"></i></div>
+                <div class="stat-details"><h3 class="stat-value">{{ suspended_users|default:0 }}</h3><p class="stat-label">{% trans "معلقون" %}</p></div>
             </div>
         </div>
     </div>
-</div>
-
-<!-- Categories Statistics -->
-<div class="admin-content-card mb-4">
-    <div class="card-header">
-        <h5 class="card-title mb-0">
-            <i class="fas fa-folder me-2"></i>
-            {% trans "إحصائيات الأقسام" %}
-        </h5>
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="admin-content-card h-100">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-chart-line me-2"></i>{% trans "اتجاه التسجيلات (آخر 30 يوم)" %}</h5></div>
+                <div class="card-body"><div class="chart-container" style="min-height:280px;"><canvas id="userRegistrationChart"></canvas></div></div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="admin-content-card h-100">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-chart-pie me-2"></i>{% trans "توزيع أنواع المستخدمين" %}</h5></div>
+                <div class="card-body"><div class="chart-container" style="min-height:280px;"><canvas id="userTypesChart"></canvas></div></div>
+            </div>
+        </div>
     </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>{% trans "القسم" %}</th>
-                        <th>{% trans "عدد الإعلانات" %}</th>
-                        <th>{% trans "عدد المشاهدات" %}</th>
-                        <th>{% trans "النسبة" %}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for category_stat in categories_stats %}
-                    <tr>
-                        <td>
-                            <i class="fas fa-folder-open me-2"></i>
-                            {{ category_stat.name }}
-                        </td>
-                        <td>{{ category_stat.ads_count|default:0|intcomma }}</td>
-                        <td>{{ category_stat.total_views|default:0|intcomma }}</td>
-                        <td>
-                            <div class="progress" style="height: 25px;">
-                                <div class="progress-bar" role="progressbar"
-                                     style="width: {{ category_stat.percentage }}%;"
-                                     aria-valuenow="{{ category_stat.percentage }}"
-                                     aria-valuemin="0" aria-valuemax="100">
-                                    {{ category_stat.percentage|floatformat:1 }}%
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="4" class="text-center text-muted">
-                            {% trans "لا توجد بيانات" %}
-                        </td>
-                    </tr>
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div class="admin-content-card">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3"><i class="fas fa-users me-2"></i>{% trans "تفاصيل الحسابات" %}</h6>
+                    {% for label, val in users_detail %}
                     {% endfor %}
-                </tbody>
-            </table>
+                    <div class="d-flex justify-content-between py-2 border-bottom"><span>{% trans "حسابات نشطة" %}</span><strong>{{ active_users|default:0|intcomma }}</strong></div>
+                    <div class="d-flex justify-content-between py-2 border-bottom"><span>{% trans "موظفو المنصة" %}</span><strong>{{ staff_users|default:0 }}</strong></div>
+                    <div class="d-flex justify-content-between py-2 border-bottom"><span>{% trans "تسجيلات الشهر" %}</span><strong>{{ new_users_month|default:0 }}</strong></div>
+                    <div class="d-flex justify-content-between py-2"><span>{% trans "أعضاء عاديون" %}</span><strong>{{ member_users|default:0|intcomma }}</strong></div>
+                </div>
+            </div>
         </div>
-    </div>
-</div>
-
-<!-- Revenue Statistics (if applicable) -->
-<div class="admin-content-card mb-4">
-    <div class="card-header">
-        <h5 class="card-title mb-0">
-            <i class="fas fa-dollar-sign me-2"></i>
-            {% trans "الإيرادات" %}
-        </h5>
-    </div>
-    <div class="card-body">
-        <div class="row g-3 g-md-4">
-            <div class="col-6 col-md-6 col-lg-3">
-                <div class="stat-card stat-success">
-                    <div class="stat-icon">
-                        <i class="fas fa-money-bill-wave"></i>
+        <div class="col-md-8">
+            <div class="admin-content-card">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3"><i class="fas fa-percentage me-2"></i>{% trans "نسب التحقق والنشاط" %}</h6>
+                    {% if total_users > 0 %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1"><small>{% trans "الموثقون" %}</small><small>{{ verified_users|default:0 }} / {{ total_users }}</small></div>
+                        <div class="progress" style="height:10px;"><div class="progress-bar bg-success" style="width:{% widthratio verified_users total_users 100 %}%"></div></div>
                     </div>
-                    <div class="stat-details">
-                        <h3 class="stat-value">{{ revenue_today|default:0|floatformat:2 }} د.م</h3>
-                        <p class="stat-label">{% trans "إيرادات اليوم" %}</p>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1"><small>{% trans "المميزون" %}</small><small>{{ premium_users|default:0 }} / {{ total_users }}</small></div>
+                        <div class="progress" style="height:10px;"><div class="progress-bar bg-warning" style="width:{% widthratio premium_users total_users 100 %}%"></div></div>
                     </div>
-                </div>
-            </div>
-
-            <div class="col-6 col-md-6 col-lg-3">
-                <div class="stat-card stat-info">
-                    <div class="stat-icon">
-                        <i class="fas fa-calendar-week"></i>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1"><small>{% trans "الناشرون والتجار" %}</small><small>{{ publisher_users|default:0 }} / {{ total_users }}</small></div>
+                        <div class="progress" style="height:10px;"><div class="progress-bar bg-info" style="width:{% widthratio publisher_users total_users 100 %}%"></div></div>
                     </div>
-                    <div class="stat-details">
-                        <h3 class="stat-value">{{ revenue_week|default:0|floatformat:2 }} د.م</h3>
-                        <p class="stat-label">{% trans "إيرادات الأسبوع" %}</p>
+                    <div class="mb-0">
+                        <div class="d-flex justify-content-between mb-1"><small>{% trans "الحسابات النشطة" %}</small><small>{{ active_users|default:0 }} / {{ total_users }}</small></div>
+                        <div class="progress" style="height:10px;"><div class="progress-bar" style="background:linear-gradient(135deg,#4b315e,#6b4c7a);width:{% widthratio active_users total_users 100 %}%"></div></div>
                     </div>
-                </div>
-            </div>
-
-            <div class="col-6 col-md-6 col-lg-3">
-                <div class="stat-card stat-warning">
-                    <div class="stat-icon">
-                        <i class="fas fa-calendar-alt"></i>
-                    </div>
-                    <div class="stat-details">
-                        <h3 class="stat-value">{{ revenue_month|default:0|floatformat:2 }} د.م</h3>
-                        <p class="stat-label">{% trans "إيرادات الشهر" %}</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-6 col-md-6 col-lg-3">
-                <div class="stat-card stat-primary">
-                    <div class="stat-icon">
-                        <i class="fas fa-infinity"></i>
-                    </div>
-                    <div class="stat-details">
-                        <h3 class="stat-value">{{ revenue_total|default:0|floatformat:2 }} د.م</h3>
-                        <p class="stat-label">{% trans "إجمالي الإيرادات" %}</p>
-                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- TAB 3 – ADS ANALYTICS                                                  -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="tab-pane fade" id="tab-ads-pane" role="tabpanel">
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-primary"><div class="stat-icon"><i class="fas fa-ad"></i></div><div class="stat-details"><h3 class="stat-value">{{ total_ads|default:0|intcomma }}</h3><p class="stat-label">{% trans "إجمالي الإعلانات" %}</p></div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-success"><div class="stat-icon"><i class="fas fa-check-circle"></i></div><div class="stat-details"><h3 class="stat-value">{{ active_ads|default:0|intcomma }}</h3><p class="stat-label">{% trans "نشطة" %}</p></div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-warning"><div class="stat-icon"><i class="fas fa-clock"></i></div><div class="stat-details"><h3 class="stat-value">{{ pending_ads|default:0 }}</h3><p class="stat-label">{% trans "قيد المراجعة" %}</p></div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-danger"><div class="stat-icon"><i class="fas fa-times-circle"></i></div><div class="stat-details"><h3 class="stat-value">{{ expired_ads|default:0 }}</h3><p class="stat-label">{% trans "منتهية" %}</p></div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-secondary"><div class="stat-icon"><i class="fas fa-ban"></i></div><div class="stat-details"><h3 class="stat-value">{{ rejected_ads|default:0 }}</h3><p class="stat-label">{% trans "مرفوضة" %}</p></div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-info"><div class="stat-icon"><i class="fas fa-eye"></i></div><div class="stat-details"><h3 class="stat-value">{{ total_views|default:0|intcomma }}</h3><p class="stat-label">{% trans "إجمالي المشاهدات" %}</p></div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-warning"><div class="stat-icon"><i class="fas fa-star"></i></div><div class="stat-details"><h3 class="stat-value">{{ highlighted_ads|default:0 }}</h3><p class="stat-label">{% trans "مميزة ومدفوعة" %}</p></div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-success"><div class="stat-icon"><i class="fas fa-plus-circle"></i></div><div class="stat-details"><h3 class="stat-value">{{ ads_today|default:0 }}</h3><p class="stat-label">{% trans "إعلانات اليوم" %}</p></div></div>
+        </div>
+    </div>
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="admin-content-card h-100">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-chart-line me-2"></i>{% trans "اتجاه الإعلانات (آخر 30 يوم)" %}</h5></div>
+                <div class="card-body"><div class="chart-container" style="min-height:280px;"><canvas id="adsTrendChart"></canvas></div></div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="admin-content-card h-100">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-chart-pie me-2"></i>{% trans "توزيع حالات الإعلانات" %}</h5></div>
+                <div class="card-body"><div class="chart-container" style="min-height:280px;"><canvas id="adsStatusChart"></canvas></div></div>
+            </div>
+        </div>
+    </div>
+    <!-- Categories Stats -->
+    <div class="admin-content-card mb-4">
+        <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-folder me-2"></i>{% trans "إحصائيات الأقسام (أعلى 10)" %}</h5></div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead><tr><th>#</th><th>{% trans "القسم" %}</th><th>{% trans "الإعلانات" %}</th><th>{% trans "المشاهدات" %}</th><th>{% trans "النسبة" %}</th></tr></thead>
+                    <tbody>
+                        {% for cat in categories_stats %}
+                        <tr>
+                            <td class="text-muted">{{ forloop.counter }}</td>
+                            <td><i class="fas fa-folder-open me-2 text-warning"></i>{{ cat.name }}</td>
+                            <td><span class="badge bg-primary rounded-pill">{{ cat.ads_count|default:0|intcomma }}</span></td>
+                            <td class="text-muted">{{ cat.total_views|default:0|intcomma }}</td>
+                            <td style="min-width:150px;">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="progress flex-grow-1" style="height:8px;"><div class="progress-bar" role="progressbar" style="width:{{ cat.percentage|floatformat:1 }}%"></div></div>
+                                    <small class="text-muted">{{ cat.percentage|floatformat:1 }}%</small>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-center text-muted py-4">{% trans "لا توجد بيانات" %}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <!-- Top Viewed Ads -->
+    <div class="admin-content-card mb-4">
+        <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-trophy me-2"></i>{% trans "أكثر الإعلانات مشاهدة" %}</h5></div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead><tr><th>#</th><th>{% trans "الإعلان" %}</th><th>{% trans "الناشر" %}</th><th>{% trans "القسم" %}</th><th>{% trans "المشاهدات" %}</th><th>{% trans "الحالة" %}</th></tr></thead>
+                    <tbody>
+                        {% for ad in top_viewed_ads %}
+                        <tr>
+                            <td class="text-muted">{{ forloop.counter }}</td>
+                            <td><a href="{% url 'main:ad_publisher_detail' ad.id %}" class="text-decoration-none fw-semibold" target="_blank">{{ ad.title|truncatechars:40 }}</a></td>
+                            <td>{{ ad.user.username }}</td>
+                            <td>{{ ad.category.name_ar|default:ad.category.name|default:"-" }}</td>
+                            <td><span class="badge bg-info rounded-pill">{{ ad.views_count|intcomma }}</span></td>
+                            <td>
+                                {% if ad.status == 'active' %}<span class="badge bg-success">{% trans "نشط" %}</span>
+                                {% elif ad.status == 'pending' %}<span class="badge bg-warning text-dark">{% trans "معلق" %}</span>
+                                {% else %}<span class="badge bg-secondary">{{ ad.status }}</span>{% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" class="text-center text-muted py-4">{% trans "لا توجد بيانات" %}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- TAB 4 – REVENUE ANALYTICS                                              -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="tab-pane fade" id="tab-revenue-pane" role="tabpanel">
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-success"><div class="stat-icon"><i class="fas fa-coins"></i></div><div class="stat-details"><h3 class="stat-value">{{ revenue_today|default:0|floatformat:0|intcomma }}</h3><p class="stat-label">{% trans "إيرادات اليوم" %}</p></div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-info"><div class="stat-icon"><i class="fas fa-calendar-week"></i></div><div class="stat-details"><h3 class="stat-value">{{ revenue_week|default:0|floatformat:0|intcomma }}</h3><p class="stat-label">{% trans "إيرادات الأسبوع" %}</p></div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-warning"><div class="stat-icon"><i class="fas fa-calendar-alt"></i></div><div class="stat-details"><h3 class="stat-value">{{ revenue_month|default:0|floatformat:0|intcomma }}</h3><p class="stat-label">{% trans "إيرادات الشهر" %}</p></div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-primary"><div class="stat-icon"><i class="fas fa-money-bill-wave"></i></div><div class="stat-details"><h3 class="stat-value">{{ revenue_total|default:0|floatformat:0|intcomma }}</h3><p class="stat-label">{% trans "إجمالي الإيرادات" %}</p></div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-success"><div class="stat-icon"><i class="fab fa-paypal"></i></div><div class="stat-details"><h3 class="stat-value">{{ revenue_paypal|default:0|floatformat:0|intcomma }}</h3><p class="stat-label">PayPal ({{ paypal_count|default:0 }} {% trans "عملية" %})</p></div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-info"><div class="stat-icon"><i class="fas fa-credit-card"></i></div><div class="stat-details"><h3 class="stat-value">{{ revenue_paymob|default:0|floatformat:0|intcomma }}</h3><p class="stat-label">Paymob ({{ paymob_count|default:0 }} {% trans "عملية" %})</p></div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-secondary"><div class="stat-icon"><i class="fas fa-receipt"></i></div><div class="stat-details"><h3 class="stat-value">{{ revenue_offline|default:0|floatformat:0|intcomma }}</h3><p class="stat-label">{% trans "يدوي/حوالة" %} ({{ offline_count|default:0 }})</p></div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-danger"><div class="stat-icon"><i class="fas fa-undo"></i></div><div class="stat-details"><h3 class="stat-value">{{ refunded_payments|default:0 }}</h3><p class="stat-label">{% trans "مسترجعة" %}</p></div></div>
+        </div>
+    </div>
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="admin-content-card h-100">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-chart-area me-2"></i>{% trans "اتجاه الإيرادات (آخر 30 يوم)" %}</h5></div>
+                <div class="card-body"><div class="chart-container" style="min-height:280px;"><canvas id="revenueTrendChart"></canvas></div></div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="admin-content-card h-100">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-chart-pie me-2"></i>{% trans "توزيع وسائل الدفع" %}</h5></div>
+                <div class="card-body"><div class="chart-container" style="min-height:280px;"><canvas id="paymentProvidersChart"></canvas></div></div>
+            </div>
+        </div>
+    </div>
+    <div class="admin-content-card mb-4">
+        <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>{% trans "إجماليات المعاملات حسب الحالة" %}</h5></div>
+        <div class="card-body">
+            <div class="row g-3 text-center">
+                <div class="col-6 col-md-3"><div class="p-3 rounded" style="background:rgba(40,167,69,.1);"><div class="fs-3 fw-bold text-success">{{ completed_payments|default:0|intcomma }}</div><div class="text-muted small">{% trans "مكتملة" %}</div></div></div>
+                <div class="col-6 col-md-3"><div class="p-3 rounded" style="background:rgba(255,193,7,.1);"><div class="fs-3 fw-bold text-warning">{{ pending_payments_count|default:0|intcomma }}</div><div class="text-muted small">{% trans "معلقة" %}</div></div></div>
+                <div class="col-6 col-md-3"><div class="p-3 rounded" style="background:rgba(220,53,69,.1);"><div class="fs-3 fw-bold text-danger">{{ failed_payments|default:0|intcomma }}</div><div class="text-muted small">{% trans "فاشلة" %}</div></div></div>
+                <div class="col-6 col-md-3"><div class="p-3 rounded" style="background:rgba(108,117,125,.1);"><div class="fs-3 fw-bold text-secondary">{{ refunded_payments|default:0|intcomma }}</div><div class="text-muted small">{% trans "مستردة" %}</div></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- TAB 5 – REPORTS & MODERATION                                           -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="tab-pane fade" id="tab-reports-pane" role="tabpanel">
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-4 col-lg-2">
+            <div class="stat-card stat-primary text-center py-3 d-block"><div class="stat-icon mx-auto mb-2"><i class="fas fa-flag"></i></div><h3 class="stat-value">{{ total_reports|default:0 }}</h3><p class="stat-label">{% trans "إجمالي البلاغات" %}</p></div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+            <div class="stat-card stat-warning text-center py-3 d-block"><div class="stat-icon mx-auto mb-2"><i class="fas fa-hourglass-half"></i></div><h3 class="stat-value">{{ pending_reports|default:0 }}</h3><p class="stat-label">{% trans "معلقة" %}</p></div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+            <div class="stat-card stat-info text-center py-3 d-block"><div class="stat-icon mx-auto mb-2"><i class="fas fa-search"></i></div><h3 class="stat-value">{{ reviewing_reports|default:0 }}</h3><p class="stat-label">{% trans "تحت المراجعة" %}</p></div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+            <div class="stat-card stat-success text-center py-3 d-block"><div class="stat-icon mx-auto mb-2"><i class="fas fa-check-double"></i></div><h3 class="stat-value">{{ resolved_reports|default:0 }}</h3><p class="stat-label">{% trans "محلولة" %}</p></div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+            <div class="stat-card stat-danger text-center py-3 d-block"><div class="stat-icon mx-auto mb-2"><i class="fas fa-times"></i></div><h3 class="stat-value">{{ rejected_reports|default:0 }}</h3><p class="stat-label">{% trans "مرفوضة" %}</p></div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+            <div class="stat-card stat-secondary text-center py-3 d-block"><div class="stat-icon mx-auto mb-2"><i class="fas fa-calendar-day"></i></div><h3 class="stat-value">{{ reports_today|default:0 }}</h3><p class="stat-label">{% trans "بلاغات اليوم" %}</p></div>
+        </div>
+    </div>
+    <div class="row g-4 mb-4">
+        <div class="col-lg-5">
+            <div class="admin-content-card h-100">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-chart-pie me-2"></i>{% trans "توزيع حالات البلاغات" %}</h5></div>
+                <div class="card-body"><div class="chart-container" style="min-height:280px;"><canvas id="reportsStatusChart"></canvas></div></div>
+            </div>
+        </div>
+        <div class="col-lg-7">
+            <div class="admin-content-card h-100">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-chart-bar me-2"></i>{% trans "البلاغات خلال آخر 7 أيام" %}</h5></div>
+                <div class="card-body"><div class="chart-container" style="min-height:280px;"><canvas id="reportsWeekChart"></canvas></div></div>
+            </div>
+        </div>
+    </div>
+    <div class="admin-content-card mb-3">
+        <div class="card-body">
+            <div class="row g-3 text-center">
+                <div class="col-6 col-md-3"><div class="p-2"><div class="fs-4 fw-bold text-warning">{% if total_reports > 0 %}{% widthratio pending_reports total_reports 100 %}{% else %}0{% endif %}%</div><div class="text-muted small">{% trans "نسبة المعلقة" %}</div></div></div>
+                <div class="col-6 col-md-3"><div class="p-2"><div class="fs-4 fw-bold text-success">{% if total_reports > 0 %}{% widthratio resolved_reports total_reports 100 %}{% else %}0{% endif %}%</div><div class="text-muted small">{% trans "نسبة المحلولة" %}</div></div></div>
+                <div class="col-6 col-md-3"><div class="p-2"><div class="fs-4 fw-bold text-info">{{ reports_week|default:0 }}</div><div class="text-muted small">{% trans "بلاغات الأسبوع" %}</div></div></div>
+                <div class="col-6 col-md-3"><div class="p-2"><div class="fs-4 fw-bold" style="color:#4b315e;">{% if total_reports > 0 %}{% widthratio reviewing_reports total_reports 100 %}{% else %}0{% endif %}%</div><div class="text-muted small">{% trans "قيد المراجعة" %}</div></div></div>
+            </div>
+        </div>
+    </div>
+    <div class="text-end mb-2">
+        <a href="{% url 'main:admin_user_reports' %}" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-arrow-left me-1"></i>{% trans "عرض جميع البلاغات" %}
+        </a>
+    </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- TAB 6 – PLATFORM OVERVIEW                                              -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="tab-pane fade" id="tab-platform-pane" role="tabpanel">
+    <div class="row g-4 mb-4">
+        <div class="col-md-6 col-lg-3">
+            <div class="admin-content-card h-100">
+                <div class="card-header" style="background:linear-gradient(135deg,#17a2b8,#0d7a8e);"><h5 class="card-title mb-0 text-white"><i class="fas fa-shopping-bag me-2"></i>{% trans "الطلبات" %}</h5></div>
+                <div class="card-body">
+                    <div class="platform-item"><span><i class="fas fa-list-ul me-2 text-muted"></i>{% trans "إجمالي" %}</span><strong>{{ total_orders|default:0|intcomma }}</strong></div>
+                    <div class="platform-item"><span><i class="fas fa-check me-2 text-success"></i>{% trans "مكتملة" %}</span><strong class="text-success">{{ completed_orders|default:0|intcomma }}</strong></div>
+                    <div class="platform-item"><span><i class="fas fa-clock me-2 text-warning"></i>{% trans "معلقة" %}</span><strong class="text-warning">{{ pending_orders|default:0 }}</strong></div>
+                    <div class="platform-item border-0"><span><i class="fas fa-money-bill me-2 text-info"></i>{% trans "إيرادات" %}</span><strong class="text-info">{{ orders_revenue|default:0|floatformat:0|intcomma }}</strong></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="admin-content-card h-100">
+                <div class="card-header" style="background:linear-gradient(135deg,#28a745,#1e7e34);"><h5 class="card-title mb-0 text-white"><i class="fas fa-box-open me-2"></i>{% trans "الباقات" %}</h5></div>
+                <div class="card-body">
+                    <div class="platform-item"><span><i class="fas fa-list-ul me-2 text-muted"></i>{% trans "إجمالي" %}</span><strong>{{ total_packages|default:0|intcomma }}</strong></div>
+                    <div class="platform-item"><span><i class="fas fa-bolt me-2 text-success"></i>{% trans "نشطة" %}</span><strong class="text-success">{{ active_packages|default:0 }}</strong></div>
+                    <div class="platform-item"><span><i class="fas fa-history me-2 text-secondary"></i>{% trans "منتهية" %}</span><strong class="text-secondary">{{ expired_packages|default:0 }}</strong></div>
+                    <div class="platform-item border-0"><span><i class="fas fa-crown me-2 text-warning"></i>{% trans "مشتركون مميزون" %}</span><strong class="text-warning">{{ premium_users|default:0 }}</strong></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="admin-content-card h-100">
+                <div class="card-header" style="background:linear-gradient(135deg,#fd7e14,#c96010);"><h5 class="card-title mb-0 text-white"><i class="fas fa-comments me-2"></i>{% trans "المحادثات" %}</h5></div>
+                <div class="card-body">
+                    <div class="platform-item"><span><i class="fas fa-door-open me-2 text-muted"></i>{% trans "إجمالي الغرف" %}</span><strong>{{ total_chat_rooms|default:0|intcomma }}</strong></div>
+                    <div class="platform-item"><span><i class="fas fa-bolt me-2 text-success"></i>{% trans "غرف نشطة" %}</span><strong class="text-success">{{ active_chat_rooms|default:0 }}</strong></div>
+                    <div class="platform-item"><span><i class="fas fa-envelope me-2 text-info"></i>{% trans "إجمالي الرسائل" %}</span><strong class="text-info">{{ total_messages|default:0|intcomma }}</strong></div>
+                    <div class="platform-item border-0"><span><i class="fas fa-comment-dots me-2 text-warning"></i>{% trans "دعم غير مقروء" %}</span><strong class="text-warning">{{ unread_support_messages|default:0 }}</strong></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="admin-content-card h-100">
+                <div class="card-header" style="background:linear-gradient(135deg,#4b315e,#6b4c7a);"><h5 class="card-title mb-0 text-white"><i class="fas fa-bell me-2"></i>{% trans "الإشعارات والنشرة" %}</h5></div>
+                <div class="card-body">
+                    <div class="platform-item"><span><i class="fas fa-list-ul me-2 text-muted"></i>{% trans "إجمالي الإشعارات" %}</span><strong>{{ total_notifications|default:0|intcomma }}</strong></div>
+                    <div class="platform-item"><span><i class="fas fa-envelope-open me-2 text-warning"></i>{% trans "غير مقروءة" %}</span><strong class="text-warning">{{ unread_notifications|default:0|intcomma }}</strong></div>
+                    <div class="platform-item"><span><i class="fas fa-calendar-day me-2 text-info"></i>{% trans "إشعارات اليوم" %}</span><strong class="text-info">{{ notifications_today|default:0 }}</strong></div>
+                    <div class="platform-item border-0"><span><i class="fas fa-newspaper me-2 text-success"></i>{% trans "مشتركو النشرة" %}</span><strong class="text-success">{{ newsletter_subscribers|default:0|intcomma }}</strong></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Ads upgrade features summary -->
+    <div class="admin-content-card">
+        <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-rocket me-2"></i>{% trans "إحصائيات التحسينات المدفوعة للإعلانات" %}</h5></div>
+        <div class="card-body">
+            <div class="row g-4 text-center">
+                <div class="col-6 col-md-3"><div class="p-3 rounded" style="background:rgba(255,193,7,.1);"><i class="fas fa-star fa-2x text-warning mb-2 d-block"></i><div class="fs-3 fw-bold text-warning">{{ highlighted_ads|default:0 }}</div><div class="text-muted small">{% trans "إعلانات مميزة" %}</div></div></div>
+                <div class="col-6 col-md-3"><div class="p-3 rounded" style="background:rgba(220,53,69,.1);"><i class="fas fa-fire fa-2x text-danger mb-2 d-block"></i><div class="fs-3 fw-bold text-danger">{{ urgent_ads|default:0 }}</div><div class="text-muted small">{% trans "إعلانات عاجلة" %}</div></div></div>
+                <div class="col-6 col-md-3"><div class="p-3 rounded" style="background:rgba(75,49,94,.1);"><i class="fas fa-thumbtack fa-2x mb-2 d-block" style="color:#4b315e;"></i><div class="fs-3 fw-bold" style="color:#4b315e;">{{ pinned_ads|default:0 }}</div><div class="text-muted small">{% trans "إعلانات مثبتة" %}</div></div></div>
+                <div class="col-6 col-md-3"><div class="p-3 rounded" style="background:rgba(23,162,184,.1);"><i class="fas fa-file-alt fa-2x text-info mb-2 d-block"></i><div class="fs-3 fw-bold text-info">{{ draft_ads|default:0 }}</div><div class="text-muted small">{% trans "مسودات" %}</div></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div><!-- end tab-content -->
 
 {% endblock %}
 
 {% block admin_extra_css %}
 <style>
-    .stat-card {
-        background: var(--bs-body-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: 12px;
-        padding: 1.5rem;
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        transition: all 0.3s ease;
-        height: 100%;
-    }
-
-    .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    }
-
-    .stat-icon {
-        width: 60px;
-        height: 60px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.75rem;
-        flex-shrink: 0;
-    }
-
-    .stat-primary .stat-icon {
-        background: linear-gradient(135deg, #4b315e, #6b4c7a);
-        color: white;
-    }
-
-    .stat-success .stat-icon {
-        background: linear-gradient(135deg, #28a745, #20c997);
-        color: white;
-    }
-
-    .stat-info .stat-icon {
-        background: linear-gradient(135deg, #17a2b8, #138496);
-        color: white;
-    }
-
-    .stat-warning .stat-icon {
-        background: linear-gradient(135deg, #ffc107, #ff9800);
-        color: white;
-    }
-
-    .stat-danger .stat-icon {
-        background: linear-gradient(135deg, #dc3545, #c82333);
-        color: white;
-    }
-
-    .stat-secondary .stat-icon {
-        background: linear-gradient(135deg, #6c757d, #5a6268);
-        color: white;
-    }
-
-    .stat-details {
-        flex: 1;
-    }
-
-    .stat-value {
-        font-size: 1.75rem;
-        font-weight: 700;
-        margin: 0;
-        color: var(--bs-body-color);
-    }
-
-    .stat-label {
-        font-size: 0.875rem;
-        color: var(--bs-secondary-color);
-        margin: 0;
-    }
-
-    .card-header {
-        background: linear-gradient(135deg, #4b315e, #6b4c7a);
-        color: white;
-        padding: 1rem 1.5rem;
-        border-radius: 12px 12px 0 0;
-    }
-
-    .card-body {
-        padding: 1.5rem;
-    }
-
-    .table th {
-        background: var(--bs-tertiary-bg);
-        font-weight: 600;
-        color: var(--bs-body-color);
-        border: none;
-    }
-
-    .progress {
-        background: var(--bs-tertiary-bg);
-    }
-
-    .progress-bar {
-        background: linear-gradient(135deg, #4b315e, #6b4c7a);
-    }
-
-    [data-theme='dark'] .stat-card {
-        background: #2d3748;
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-
-    [data-theme='dark'] .stat-card:hover {
-        background: #374151;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-    }
-
-    [data-theme='dark'] .stat-value {
-        color: #f7fafc;
-    }
-
-    [data-theme='dark'] .stat-label {
-        color: #cbd5e0;
-    }
-
-    [data-theme='dark'] .table {
-        color: #f7fafc;
-    }
-
-    [data-theme='dark'] .table th {
-        background: #374151;
-        color: #f7fafc;
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-
-    [data-theme='dark'] .table td {
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-
-    [data-theme='dark'] .table-hover tbody tr:hover {
-        background: rgba(255, 255, 255, 0.05);
-    }
-
-    [data-theme='dark'] .progress {
-        background: #374151;
-    }
-
-    [data-theme='dark'] .admin-content-card {
-        background: #2d3748;
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-
-    [data-theme='dark'] .card-header {
-        background: linear-gradient(135deg, #4b315e, #6b4c7a);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    /* Responsive Adjustments */
-    @media (max-width: 575.98px) {
-        .stat-value {
-            font-size: 1.5rem;
-        }
-
-        .stat-label {
-            font-size: 0.75rem;
-        }
-
-        .stat-icon {
-            width: 50px;
-            height: 50px;
-            font-size: 1.5rem;
-        }
-
-        .stat-card {
-            padding: 0.75rem;
-            gap: 0.75rem;
-        }
-
-        .admin-title {
-            font-size: 1.5rem;
-        }
-
-        .admin-subtitle {
-            font-size: 0.875rem;
-        }
-
-        .card-header {
-            padding: 0.75rem 1rem;
-        }
-
-        .card-body {
-            padding: 1rem;
-        }
-    }
-
-    @media (min-width: 576px) and (max-width: 767.98px) {
-        .stat-value {
-            font-size: 1.625rem;
-        }
-
-        .stat-icon {
-            width: 55px;
-            height: 55px;
-            font-size: 1.625rem;
-        }
-    }
-
-    @media (max-width: 767.98px) {
-        .admin-header-content {
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .admin-header-actions {
-            width: 100%;
-        }
-
-        .admin-header-actions .btn {
-            width: 100%;
-        }
-    }
-
-    @media print {
-        .admin-header-actions,
-        .sidebar,
-        .navbar {
-            display: none !important;
-        }
-
-        .stat-card {
-            break-inside: avoid;
-        }
-    }
-
-    /* Chart Container Styles */
-    .chart-container {
-        background: var(--bs-body-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: 12px;
-        padding: 1.5rem;
-        height: 100%;
-        min-height: 350px;
-    }
-
-    .chart-title {
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--bs-body-color);
-        margin-bottom: 1.5rem;
-        padding-bottom: 0.75rem;
-        border-bottom: 2px solid var(--bs-border-color);
-    }
-
-    .date-range-selector .form-select {
-        min-width: 150px;
-        border-radius: 8px;
-        border-color: rgba(255, 255, 255, 0.3);
-        background-color: rgba(255, 255, 255, 0.1);
-        color: white;
-        font-weight: 500;
-    }
-
-    .date-range-selector .form-select:focus {
-        border-color: rgba(255, 255, 255, 0.5);
-        box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.2);
-        background-color: rgba(255, 255, 255, 0.15);
-    }
-
-    .date-range-selector .form-select option {
-        background-color: #4b315e;
-        color: white;
-    }
-
-    [data-theme='dark'] .chart-container {
-        background: #2d3748;
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-
-    [data-theme='dark'] .chart-title {
-        color: #f7fafc;
-        border-bottom-color: rgba(255, 255, 255, 0.1);
-    }
-
-    [data-theme='dark'] .date-range-selector .form-select {
-        background-color: rgba(255, 255, 255, 0.05);
-        border-color: rgba(255, 255, 255, 0.2);
-    }
-
-    [data-theme='dark'] .date-range-selector .form-select option {
-        background-color: #2d3748;
-    }
-
-    /* Responsive Chart Adjustments */
-    .chart-container canvas {
-        max-width: 100%;
-        display: block;
-    }
-
-    /* Desktop Chart Sizing */
-    @media (min-width: 992px) {
-        .chart-container {
-            min-height: 350px;
-        }
-
-        .chart-container canvas {
-            height: 300px !important;
-        }
-    }
-
-    @media (max-width: 991.98px) {
-        .chart-container {
-            min-height: 280px;
-            padding: 1rem;
-        }
-
-        .chart-title {
-            font-size: 0.9rem;
-            margin-bottom: 1rem;
-        }
-
-        .chart-container canvas {
-            height: 250px !important;
-        }
-    }
-
-    @media (max-width: 575.98px) {
-        .chart-container {
-            min-height: 220px;
-            padding: 0.75rem;
-        }
-
-        .chart-container canvas {
-            height: 200px !important;
-        }
-
-        .date-range-selector .form-select {
-            font-size: 0.85rem;
-            min-width: 130px;
-        }
-    }
+/* ── Base stat-card ─────────────────────────────────────────── */
+.stat-card {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 12px;
+    padding: 1.25rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all .3s ease;
+    height: 100%;
+}
+.stat-card:hover { transform: translateY(-3px); box-shadow: 0 6px 18px rgba(0,0,0,.1); }
+.stat-icon {
+    width: 52px; height: 52px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; flex-shrink: 0;
+}
+.stat-value { font-size: 1.5rem; font-weight: 700; margin: 0; line-height: 1.1; }
+.stat-label  { font-size: .78rem; color: var(--bs-secondary-color); margin: 0; margin-top: .15rem; }
+.stat-primary .stat-icon   { background: rgba(75,49,94,.12);   color: #4b315e; }
+.stat-success .stat-icon   { background: rgba(40,167,69,.12);  color: #28a745; }
+.stat-info    .stat-icon   { background: rgba(23,162,184,.12); color: #17a2b8; }
+.stat-warning .stat-icon   { background: rgba(255,193,7,.12);  color: #ffc107; }
+.stat-danger  .stat-icon   { background: rgba(220,53,69,.12);  color: #dc3545; }
+.stat-secondary .stat-icon { background: rgba(108,117,125,.12);color: #6c757d; }
+/* ── KPI Cards ─── */
+.kpi-card { border-radius: 14px; padding: 1.25rem 1rem; display: flex; align-items: center; gap: 1rem; transition: all .3s ease; color: #fff; height: 100%; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+.kpi-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,.2); }
+.kpi-icon  { font-size: 2rem; opacity: .85; flex-shrink: 0; }
+.kpi-value { font-size: 1.7rem; font-weight: 800; line-height: 1; }
+.kpi-label { font-size: .78rem; opacity: .9; margin: .1rem 0; }
+.kpi-sub   { font-size: .7rem;  opacity: .8; }
+.kpi-primary   { background: linear-gradient(135deg, #4b315e, #6b4c7a); }
+.kpi-success   { background: linear-gradient(135deg, #28a745, #1e7e34); }
+.kpi-warning   { background: linear-gradient(135deg, #fd7e14, #c96010); }
+.kpi-info      { background: linear-gradient(135deg, #17a2b8, #0d7a8e); }
+.kpi-danger    { background: linear-gradient(135deg, #dc3545, #a71d2a); }
+.kpi-secondary { background: linear-gradient(135deg, #6c757d, #495057); }
+.kpi-teal      { background: linear-gradient(135deg, #20c997, #13785b); }
+.kpi-purple    { background: linear-gradient(135deg, #6f42c1, #4e2d8e); }
+/* ── Tabs ─── */
+.reports-tabs-wrapper { border-bottom: 2px solid var(--bs-border-color); overflow-x: auto; scrollbar-width: thin; }
+.reports-tabs { display: flex; flex-wrap: nowrap; gap: .25rem; padding-bottom: 2px; min-width: max-content; }
+.reports-tabs .nav-link { white-space: nowrap; border-radius: 8px 8px 0 0; padding: .55rem 1rem; font-size: .85rem; font-weight: 500; color: var(--bs-body-color); border: none; opacity: .7; transition: .2s; }
+.reports-tabs .nav-link.active { color: #4b315e; background: var(--bs-body-bg); border-bottom: 3px solid #4b315e; opacity: 1; font-weight: 700; }
+.reports-tabs .nav-link:hover:not(.active) { opacity: 1; background: rgba(75,49,94,.06); }
+.rpt-badge { font-size: .6rem; vertical-align: middle; }
+/* ── Chart ─── */
+.chart-container { position: relative; }
+.chart-title { font-size: .85rem; font-weight: 600; color: var(--bs-secondary-color); margin-bottom: .75rem; }
+/* ── Platform items ─── */
+.platform-item { display: flex; justify-content: space-between; align-items: center; padding: .5rem 0; border-bottom: 1px solid var(--bs-border-color); font-size: .88rem; }
+.platform-item.border-0 { border-bottom: none !important; }
+/* ── Pulse ─── */
+@keyframes pulse-anim { 0%{opacity:1}50%{opacity:.3}100%{opacity:1} }
+.pulse-green { animation: pulse-anim 1.5s infinite; color: #28a745 !important; }
+/* ── Dark-mode ─── */
+[data-theme="dark"] .stat-card { background: #1e1e2e; border-color: #3a3a5c; }
+[data-theme="dark"] .reports-tabs .nav-link.active { background: #1e1e2e; }
+/* ── Print ─── */
+@media print {
+    .admin-header-actions,.reports-tabs-wrapper,.btn,select { display:none!important; }
+    .tab-pane { display:block!important; opacity:1!important; page-break-inside:avoid; }
+    .kpi-card  { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+}
+@media (max-width:576px) { .kpi-value{font-size:1.3rem} .stat-value{font-size:1.2rem} }
 </style>
 {% endblock %}
 
 {% block admin_extra_js %}
-<!-- Chart.js Library -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
 <script>
-    // Chart instances
-    let sessionDurationChart, pagesPerVisitChart, returnVisitorsChart, visitorTrendChart;
+/* ── Shared data from Django context ────────────────────────── */
+const trendLabels     = {{ trend_labels|safe }};
+const adsTrendData    = {{ ads_trend|safe }};
+const usersTrendData  = {{ users_trend|safe }};
+const revenueTrendData= {{ revenue_trend|safe }};
+const reportsTrendData= {{ reports_trend|safe }};
+const reportsTrendLabels = {{ reports_trend_labels|safe }};
 
-    // Mobile detection helper
-    function isMobile() {
-        return window.innerWidth < 768;
-    }
+const isDark = () => document.documentElement.getAttribute('data-theme') === 'dark';
+const gridColor  = () => isDark() ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.06)';
+const labelColor = () => isDark() ? '#ccc' : '#555';
+const brandColor = '#4b315e';
 
-    // Initialize charts on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        updateCharts(30); // Default: last 30 days
+/* ── Chart instances ────────────────────────────────────────── */
+let visitorCharts = {};    // filled by visitor AJAX
+let userRegChart, userTypesChart, adsTrendChart, adsStatusChart,
+    revenueTrendChart, paymentProvidersChart, reportsStatusChart, reportsWeekChart;
+
+/* ── Sync global date selector with visitor tab ─────────────── */
+function syncDateSelect(val) {
+    const vis = document.getElementById('dateRangeSelect');
+    if (vis) { vis.value = val; updateVisitorCharts(val); }
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+/*  VISITOR CHARTS  (AJAX-loaded, same as original)              */
+/* ══════════════════════════════════════════════════════════════ */
+function updateVisitorCharts(days) {
+    fetch(`/admin/reports/visitor-analytics/?days=${days}`)
+        .then(r => r.json())
+        .then(data => {
+            renderSessionDurationChart(data);
+            renderPagesPerVisitChart(data);
+            renderReturnVisitorsChart(data);
+            renderVisitorTrendChart(data);
+        })
+        .catch(e => console.error('Visitor analytics error:', e));
+}
+
+function renderSessionDurationChart(data) {
+    const ctx = document.getElementById('sessionDurationChart');
+    if (!ctx) return;
+    if (visitorCharts.sessionDuration) visitorCharts.sessionDuration.destroy();
+    visitorCharts.sessionDuration = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.labels || [],
+            datasets: [{
+                label: 'دقائق',
+                data: data.session_duration || [],
+                backgroundColor: 'rgba(75,49,94,.7)',
+                borderRadius: 6
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor() }, ticks: { color: labelColor() } }, y: { grid: { color: gridColor() }, ticks: { color: labelColor() } } } }
     });
+}
 
-    // Re-render charts on resize (debounced)
-    let resizeTimer;
-    window.addEventListener('resize', function() {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(function() {
-            const dateRange = document.getElementById('dateRangeSelect').value;
-            updateCharts(dateRange);
-        }, 300);
+function renderPagesPerVisitChart(data) {
+    const ctx = document.getElementById('pagesPerVisitChart');
+    if (!ctx) return;
+    if (visitorCharts.pagesPerVisit) visitorCharts.pagesPerVisit.destroy();
+    visitorCharts.pagesPerVisit = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.labels || [],
+            datasets: [{
+                label: 'صفحات',
+                data: data.pages_per_visit || [],
+                borderColor: '#17a2b8',
+                backgroundColor: 'rgba(23,162,184,.1)',
+                fill: true, tension: .4, pointRadius: 3
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor() }, ticks: { color: labelColor() } }, y: { grid: { color: gridColor() }, ticks: { color: labelColor() } } } }
     });
+}
 
-    // Update charts based on selected date range
-    async function updateCharts(days) {
-        try {
-            // Fetch data from server
-            const response = await fetch(`/admin/reports/visitor-analytics/?days=${days}`);
-            if (!response.ok) throw new Error('Failed to fetch data');
-
-            const data = await response.json();
-
-            // Initialize or update charts
-            initSessionDurationChart(data.session_duration);
-            initPagesPerVisitChart(data.pages_per_visit);
-            initReturnVisitorsChart(data.return_visitors);
-            initVisitorTrendChart(data.visitor_trend);
-        } catch (error) {
-            console.error('Error updating charts:', error);
-            // Use fallback data if API fails
-            const fallbackData = generateFallbackData(days);
-            initSessionDurationChart(fallbackData.session_duration);
-            initPagesPerVisitChart(fallbackData.pages_per_visit);
-            initReturnVisitorsChart(fallbackData.return_visitors);
-            initVisitorTrendChart(fallbackData.visitor_trend);
-        }
-    }
-
-    // Session Duration Chart (Bar Chart)
-    function initSessionDurationChart(data) {
-        const ctx = document.getElementById('sessionDurationChart');
-        if (!ctx) return;
-
-        if (sessionDurationChart) {
-            sessionDurationChart.destroy();
-        }
-
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        const textColor = isDark ? '#f7fafc' : '#495057';
-        const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-
-        const mobile = isMobile();
-
-        sessionDurationChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: data.labels,
-                datasets: [{
-                    label: 'متوسط المدة (دقائق)',
-                    data: data.values,
-                    backgroundColor: 'rgba(75, 49, 94, 0.7)',
-                    borderColor: 'rgba(75, 49, 94, 1)',
-                    borderWidth: mobile ? 1 : 2,
-                    borderRadius: mobile ? 4 : 8,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: !mobile,
-                        labels: { color: textColor, font: { family: 'Cairo', size: 12 } }
-                    },
-                    tooltip: {
-                        backgroundColor: isDark ? '#2d3748' : 'white',
-                        titleColor: textColor,
-                        bodyColor: textColor,
-                        borderColor: gridColor,
-                        borderWidth: 1,
-                        rtl: true,
-                        callbacks: {
-                            label: function(context) {
-                                return context.parsed.y.toFixed(1) + ' دقيقة';
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { color: textColor, font: { family: 'Cairo', size: mobile ? 10 : 12 } },
-                        grid: { color: gridColor }
-                    },
-                    x: {
-                        ticks: {
-                            color: textColor,
-                            font: { family: 'Cairo', size: mobile ? 9 : 12 },
-                            maxRotation: mobile ? 45 : 0,
-                            autoSkip: true,
-                            maxTicksLimit: mobile ? 7 : 15
-                        },
-                        grid: { display: false }
-                    }
-                }
-            }
-        });
-    }
-
-    // Pages Per Visit Chart (Line Chart)
-    function initPagesPerVisitChart(data) {
-        const ctx = document.getElementById('pagesPerVisitChart');
-        if (!ctx) return;
-
-        if (pagesPerVisitChart) {
-            pagesPerVisitChart.destroy();
-        }
-
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        const textColor = isDark ? '#f7fafc' : '#495057';
-        const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-
-        const mobile = isMobile();
-
-        pagesPerVisitChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: data.labels,
-                datasets: [{
-                    label: 'متوسط عدد الصفحات',
-                    data: data.values,
-                    borderColor: 'rgba(255, 107, 53, 1)',
-                    backgroundColor: 'rgba(255, 107, 53, 0.1)',
-                    borderWidth: mobile ? 2 : 3,
-                    fill: true,
-                    tension: 0.4,
-                    pointBackgroundColor: 'rgba(255, 107, 53, 1)',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: mobile ? 1 : 2,
-                    pointRadius: mobile ? 2 : 5,
-                    pointHoverRadius: mobile ? 4 : 7
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: !mobile,
-                        labels: { color: textColor, font: { family: 'Cairo', size: 12 } }
-                    },
-                    tooltip: {
-                        backgroundColor: isDark ? '#2d3748' : 'white',
-                        titleColor: textColor,
-                        bodyColor: textColor,
-                        borderColor: gridColor,
-                        borderWidth: 1,
-                        rtl: true,
-                        callbacks: {
-                            label: function(context) {
-                                return context.parsed.y.toFixed(1) + ' صفحة';
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { color: textColor, font: { family: 'Cairo', size: mobile ? 10 : 12 } },
-                        grid: { color: gridColor }
-                    },
-                    x: {
-                        ticks: {
-                            color: textColor,
-                            font: { family: 'Cairo', size: mobile ? 9 : 12 },
-                            maxRotation: mobile ? 45 : 0,
-                            autoSkip: true,
-                            maxTicksLimit: mobile ? 7 : 15
-                        },
-                        grid: { display: false }
-                    }
-                }
-            }
-        });
-    }
-
-    // Return Visitors Chart (Doughnut Chart)
-    function initReturnVisitorsChart(data) {
-        const ctx = document.getElementById('returnVisitorsChart');
-        if (!ctx) return;
-
-        if (returnVisitorsChart) {
-            returnVisitorsChart.destroy();
-        }
-
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        const textColor = isDark ? '#f7fafc' : '#495057';
-
-        const mobile = isMobile();
-
-        returnVisitorsChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['زوار جدد', 'زوار عائدون'],
-                datasets: [{
-                    data: [data.new_visitors, data.returning_visitors],
-                    backgroundColor: [
-                        'rgba(40, 167, 69, 0.8)',
-                        'rgba(75, 49, 94, 0.8)'
-                    ],
-                    borderColor: [
-                        'rgba(40, 167, 69, 1)',
-                        'rgba(75, 49, 94, 1)'
-                    ],
-                    borderWidth: mobile ? 1 : 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            color: textColor,
-                            font: { family: 'Cairo', size: mobile ? 11 : 13 },
-                            padding: mobile ? 8 : 15,
-                            boxWidth: mobile ? 12 : 40
-                        }
-                    },
-                    tooltip: {
-                        backgroundColor: isDark ? '#2d3748' : 'white',
-                        titleColor: textColor,
-                        bodyColor: textColor,
-                        borderColor: 'rgba(0, 0, 0, 0.1)',
-                        borderWidth: 1,
-                        rtl: true,
-                        callbacks: {
-                            label: function(context) {
-                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = ((context.parsed / total) * 100).toFixed(1);
-                                return context.label + ': ' + context.parsed + ' (' + percentage + '%)';
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    // Visitor Trend Chart (Line Chart)
-    function initVisitorTrendChart(data) {
-        const ctx = document.getElementById('visitorTrendChart');
-        if (!ctx) return;
-
-        if (visitorTrendChart) {
-            visitorTrendChart.destroy();
-        }
-
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        const textColor = isDark ? '#f7fafc' : '#495057';
-        const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-
-        const mobile = isMobile();
-
-        visitorTrendChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: data.labels,
-                datasets: [{
-                    label: 'عدد الزوار',
-                    data: data.values,
-                    borderColor: 'rgba(23, 162, 184, 1)',
-                    backgroundColor: 'rgba(23, 162, 184, 0.1)',
-                    borderWidth: mobile ? 2 : 3,
-                    fill: true,
-                    tension: 0.4,
-                    pointBackgroundColor: 'rgba(23, 162, 184, 1)',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: mobile ? 1 : 2,
-                    pointRadius: mobile ? 2 : 5,
-                    pointHoverRadius: mobile ? 4 : 7
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: !mobile,
-                        labels: { color: textColor, font: { family: 'Cairo', size: 12 } }
-                    },
-                    tooltip: {
-                        backgroundColor: isDark ? '#2d3748' : 'white',
-                        titleColor: textColor,
-                        bodyColor: textColor,
-                        borderColor: gridColor,
-                        borderWidth: 1,
-                        rtl: true,
-                        callbacks: {
-                            label: function(context) {
-                                return 'الزوار: ' + context.parsed.y;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            color: textColor,
-                            font: { family: 'Cairo', size: mobile ? 10 : 12 },
-                            precision: 0
-                        },
-                        grid: { color: gridColor }
-                    },
-                    x: {
-                        ticks: {
-                            color: textColor,
-                            font: { family: 'Cairo', size: mobile ? 9 : 12 },
-                            maxRotation: mobile ? 45 : 0,
-                            autoSkip: true,
-                            maxTicksLimit: mobile ? 7 : 15
-                        },
-                        grid: { display: false }
-                    }
-                }
-            }
-        });
-    }
-
-    // Generate fallback data if API fails
-    function generateFallbackData(days) {
-        const labels = [];
-        const now = new Date();
-
-        for (let i = days - 1; i >= 0; i--) {
-            const date = new Date(now);
-            date.setDate(date.getDate() - i);
-            labels.push(date.toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' }));
-        }
-
-        return {
-            session_duration: {
-                labels: labels,
-                values: Array(days).fill(0).map(() => Math.random() * 10 + 2)
-            },
-            pages_per_visit: {
-                labels: labels,
-                values: Array(days).fill(0).map(() => Math.random() * 5 + 1)
-            },
-            return_visitors: {
-                new_visitors: Math.floor(Math.random() * 500 + 200),
-                returning_visitors: Math.floor(Math.random() * 300 + 100)
-            },
-            visitor_trend: {
-                labels: labels,
-                values: Array(days).fill(0).map(() => Math.floor(Math.random() * 200 + 50))
-            }
-        };
-    }
-
-    // Update charts when theme changes
-    document.addEventListener('themeChanged', function() {
-        const dateRange = document.getElementById('dateRangeSelect').value;
-        updateCharts(dateRange);
+function renderReturnVisitorsChart(data) {
+    const ctx = document.getElementById('returnVisitorsChart');
+    if (!ctx) return;
+    if (visitorCharts.returnVisitors) visitorCharts.returnVisitors.destroy();
+    const newV    = data.new_visitors    || 0;
+    const returnV = data.return_visitors || 0;
+    visitorCharts.returnVisitors = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['زوار جدد', 'عائدون'],
+            datasets: [{ data: [newV, returnV], backgroundColor: [brandColor, '#17a2b8'], hoverOffset: 6, borderWidth: 0 }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: labelColor() } } } }
     });
+}
+
+function renderVisitorTrendChart(data) {
+    const ctx = document.getElementById('visitorTrendChart');
+    if (!ctx) return;
+    if (visitorCharts.trend) visitorCharts.trend.destroy();
+    visitorCharts.trend = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.trend_labels || data.labels || [],
+            datasets: [{
+                label: 'الزوار',
+                data: data.trend_data || [],
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40,167,69,.1)',
+                fill: true, tension: .4, pointRadius: 2
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor() }, ticks: { color: labelColor() } }, y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: labelColor() } } } }
+    });
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+/*  USER CHARTS                                                   */
+/* ══════════════════════════════════════════════════════════════ */
+function initUserRegistrationChart() {
+    const ctx = document.getElementById('userRegistrationChart');
+    if (!ctx || userRegChart) return;
+    userRegChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: trendLabels,
+            datasets: [{
+                label: 'تسجيلات',
+                data: usersTrendData,
+                borderColor: brandColor,
+                backgroundColor: 'rgba(75,49,94,.12)',
+                fill: true, tension: .4, pointRadius: 3, pointHoverRadius: 6
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor() }, ticks: { color: labelColor(), maxTicksLimit: 8 } }, y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: labelColor(), precision: 0 } } } }
+    });
+}
+
+function initUserTypesChart() {
+    const ctx = document.getElementById('userTypesChart');
+    if (!ctx || userTypesChart) return;
+    userTypesChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['ناشر/تاجر', 'مميز', 'موثق', 'موظف'],
+            datasets: [{
+                data: [{{ publisher_users|default:0 }}, {{ premium_users|default:0 }}, {{ verified_users|default:0 }}, {{ staff_users|default:0 }}],
+                backgroundColor: [brandColor, '#ffc107', '#28a745', '#17a2b8'],
+                hoverOffset: 6, borderWidth: 2
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: labelColor(), font: { size: 12 } } } } }
+    });
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+/*  ADS CHARTS                                                    */
+/* ══════════════════════════════════════════════════════════════ */
+function initAdsTrendChart() {
+    const ctx = document.getElementById('adsTrendChart');
+    if (!ctx || adsTrendChart) return;
+    adsTrendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: trendLabels,
+            datasets: [{
+                label: 'إعلانات',
+                data: adsTrendData,
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40,167,69,.12)',
+                fill: true, tension: .4, pointRadius: 3, pointHoverRadius: 6
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor() }, ticks: { color: labelColor(), maxTicksLimit: 8 } }, y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: labelColor(), precision: 0 } } } }
+    });
+}
+
+function initAdsStatusChart() {
+    const ctx = document.getElementById('adsStatusChart');
+    if (!ctx || adsStatusChart) return;
+    adsStatusChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['نشطة', 'معلقة', 'منتهية', 'مرفوضة', 'مسودة'],
+            datasets: [{
+                data: [{{ active_ads|default:0 }}, {{ pending_ads|default:0 }}, {{ expired_ads|default:0 }}, {{ rejected_ads|default:0 }}, {{ draft_ads|default:0 }}],
+                backgroundColor: ['#28a745', '#ffc107', '#6c757d', '#dc3545', '#17a2b8'],
+                hoverOffset: 6, borderWidth: 2
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: labelColor(), font: { size: 11 } } } } }
+    });
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+/*  REVENUE CHARTS                                                */
+/* ══════════════════════════════════════════════════════════════ */
+function initRevenueTrendChart() {
+    const ctx = document.getElementById('revenueTrendChart');
+    if (!ctx || revenueTrendChart) return;
+    revenueTrendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: trendLabels,
+            datasets: [{
+                label: 'إيرادات (د.م)',
+                data: revenueTrendData,
+                borderColor: '#fd7e14',
+                backgroundColor: 'rgba(253,126,20,.12)',
+                fill: true, tension: .4, pointRadius: 3, pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { color: gridColor() }, ticks: { color: labelColor(), maxTicksLimit: 8 } },
+                y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: labelColor() } }
+            }
+        }
+    });
+}
+
+function initPaymentProvidersChart() {
+    const ctx = document.getElementById('paymentProvidersChart');
+    if (!ctx || paymentProvidersChart) return;
+    paymentProvidersChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: ['PayPal', 'Paymob', 'يدوي/حوالة'],
+            datasets: [{
+                data: [{{ revenue_paypal|default:0|floatformat:2 }}, {{ revenue_paymob|default:0|floatformat:2 }}, {{ revenue_offline|default:0|floatformat:2 }}],
+                backgroundColor: ['#0070ba', '#17a2b8', '#6c757d'],
+                hoverOffset: 6, borderWidth: 2
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: labelColor(), font: { size: 12 } } } } }
+    });
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+/*  REPORTS CHARTS                                                */
+/* ══════════════════════════════════════════════════════════════ */
+function initReportsStatusChart() {
+    const ctx = document.getElementById('reportsStatusChart');
+    if (!ctx || reportsStatusChart) return;
+    reportsStatusChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['معلقة', 'تحت المراجعة', 'محلولة', 'مرفوضة'],
+            datasets: [{
+                data: [{{ pending_reports|default:0 }}, {{ reviewing_reports|default:0 }}, {{ resolved_reports|default:0 }}, {{ rejected_reports|default:0 }}],
+                backgroundColor: ['#ffc107', '#17a2b8', '#28a745', '#dc3545'],
+                hoverOffset: 6, borderWidth: 2
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: labelColor(), font: { size: 12 } } } } }
+    });
+}
+
+function initReportsWeekChart() {
+    const ctx = document.getElementById('reportsWeekChart');
+    if (!ctx || reportsWeekChart) return;
+    reportsWeekChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: reportsTrendLabels,
+            datasets: [{
+                label: 'بلاغات',
+                data: reportsTrendData,
+                backgroundColor: 'rgba(220,53,69,.7)',
+                borderRadius: 6
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor() }, ticks: { color: labelColor() } }, y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: labelColor(), precision: 0 } } } }
+    });
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+/*  INIT ON PAGE LOAD                                             */
+/* ══════════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', function () {
+    // Visitor tab is active on load – initialise its charts immediately
+    updateVisitorCharts(30);
+
+    // Lazy init: render charts only when the corresponding tab becomes visible
+    document.querySelectorAll('#reportsTabs button[data-bs-toggle="tab"]').forEach(function (btn) {
+        btn.addEventListener('shown.bs.tab', function (e) {
+            const target = e.target.getAttribute('data-bs-target');
+            if (target === '#tab-users-pane') {
+                initUserRegistrationChart();
+                initUserTypesChart();
+            } else if (target === '#tab-ads-pane') {
+                initAdsTrendChart();
+                initAdsStatusChart();
+            } else if (target === '#tab-revenue-pane') {
+                initRevenueTrendChart();
+                initPaymentProvidersChart();
+            } else if (target === '#tab-reports-pane') {
+                initReportsStatusChart();
+                initReportsWeekChart();
+            }
+        });
+    });
+});
 </script>
 {% endblock %}
+

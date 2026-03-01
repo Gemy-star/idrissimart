@@ -4076,11 +4076,20 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
             "offline_payments": offline_payments,
         }
 
+        # Pending offline payments (need admin review)
+        context["pending_offline_payments"] = all_payments.filter(
+            provider=Payment.PaymentProvider.BANK_TRANSFER,
+            status=Payment.PaymentStatus.PENDING,
+        ).order_by("-created_at")
+
         # Recent transactions with pagination support
         page_num = self.request.GET.get("page", 1)
         status_filter = self.request.GET.get("status", "")
         provider_filter = self.request.GET.get("provider", "")
+        context_filter = self.request.GET.get("context", "")
         search_query = self.request.GET.get("search", "")
+        date_from = self.request.GET.get("date_from", "")
+        date_to = self.request.GET.get("date_to", "")
 
         transactions = all_payments.order_by("-created_at")
 
@@ -4088,6 +4097,14 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
             transactions = transactions.filter(status=status_filter)
         if provider_filter:
             transactions = transactions.filter(provider=provider_filter)
+        if context_filter == "ad":
+            transactions = transactions.filter(metadata__has_key="ad_id")
+        elif context_filter == "package":
+            transactions = transactions.filter(metadata__has_key="package_id")
+        elif context_filter == "order":
+            transactions = transactions.filter(metadata__has_key="order_id")
+        elif context_filter == "subscription":
+            transactions = transactions.filter(metadata__has_key="subscription_type")
         if search_query:
             transactions = transactions.filter(
                 Q(description__icontains=search_query)
@@ -4095,12 +4112,36 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
                 | Q(user__email__icontains=search_query)
                 | Q(provider_transaction_id__icontains=search_query)
             )
+        if date_from:
+            try:
+                from datetime import datetime
+                transactions = transactions.filter(
+                    created_at__date__gte=datetime.strptime(date_from, "%Y-%m-%d").date()
+                )
+            except ValueError:
+                pass
+        if date_to:
+            try:
+                from datetime import datetime
+                transactions = transactions.filter(
+                    created_at__date__lte=datetime.strptime(date_to, "%Y-%m-%d").date()
+                )
+            except ValueError:
+                pass
 
         from django.core.paginator import Paginator
 
         paginator = Paginator(transactions, 20)
         context["recent_transactions"] = paginator.get_page(page_num)
         context["paginator"] = paginator
+        context["current_filters"] = {
+            "status": status_filter,
+            "provider": provider_filter,
+            "context": context_filter,
+            "search": search_query,
+            "date_from": date_from,
+            "date_to": date_to,
+        }
 
         # Monthly revenue chart data (last 6 months)
         monthly_data = []
@@ -4325,31 +4366,27 @@ def admin_payment_transaction_detail(request, transaction_id):
                 "success": True,
                 "transaction": {
                     "id": transaction.id,
-                    "user_name": transaction.user.get_full_name()
-                    or transaction.user.username,
+                    "user_name": transaction.user.get_full_name() or transaction.user.username,
+                    "username": transaction.user.username,
                     "user_email": transaction.user.email,
-                    "package_name": transaction.description or "غير محدد",
+                    "description": transaction.description or "غير محدد",
                     "amount": str(transaction.amount),
                     "currency": transaction.currency or "SAR",
-                    "payment_method": (
-                        transaction.get_provider_display()
-                        if transaction.provider
-                        else "غير محدد"
-                    ),
+                    "provider": transaction.get_provider_display() if transaction.provider else "غير محدد",
                     "status": transaction.status,
                     "status_display": transaction.get_status_display(),
-                    "transaction_id": transaction.provider_transaction_id
-                    or "غير متوفر",
+                    "transaction_id": transaction.provider_transaction_id or "غير متوفر",
                     "created_at": transaction.created_at.strftime("%Y-%m-%d %H:%M"),
                     "completed_at": (
                         transaction.completed_at.strftime("%Y-%m-%d %H:%M")
                         if transaction.completed_at
                         else None
                     ),
-                    "notes": (
-                        transaction.metadata.get("notes", "")
-                        if transaction.metadata
-                        else ""
+                    "metadata": transaction.metadata if transaction.metadata else {},
+                    "receipt_url": (
+                        transaction.offline_payment_receipt.url
+                        if transaction.offline_payment_receipt
+                        else None
                     ),
                 },
             }
@@ -7415,7 +7452,9 @@ class AdminReportsView(SuperadminRequiredMixin, TemplateView):
 
     template_name = "admin_dashboard/reports.html"
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs):  # noqa: C901
+        import json
+
         context = super().get_context_data(**kwargs)
         context["active_nav"] = "reports"
 
@@ -7425,7 +7464,21 @@ class AdminReportsView(SuperadminRequiredMixin, TemplateView):
         month_ago = now - timedelta(days=30)
         year_ago = now - timedelta(days=365)
 
-        # Visitor Statistics (using Visitor model)
+        arabic_months = [
+            "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+            "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+        ]
+
+        # ── Trend labels (last 30 days) ─────────────────────────────────────────
+        trend_labels = []
+        for i in range(29, -1, -1):
+            d = now - timedelta(days=i)
+            trend_labels.append(f"{d.day} {arabic_months[d.month - 1][:3]}")
+        context["trend_labels"] = json.dumps(trend_labels)
+
+        # ═══════════════════════════════════════════════════════════════════════
+        # VISITOR STATISTICS
+        # ═══════════════════════════════════════════════════════════════════════
         from .models import Visitor
 
         online_threshold = now - timedelta(minutes=15)
@@ -7446,7 +7499,9 @@ class AdminReportsView(SuperadminRequiredMixin, TemplateView):
         ).count()
         context["visitors_total"] = Visitor.objects.count()
 
-        # User Statistics
+        # ═══════════════════════════════════════════════════════════════════════
+        # USER STATISTICS
+        # ═══════════════════════════════════════════════════════════════════════
         context["total_users"] = User.objects.count()
         context["verified_users"] = User.objects.filter(is_mobile_verified=True).count()
         context["new_users_today"] = User.objects.filter(
@@ -7455,8 +7510,33 @@ class AdminReportsView(SuperadminRequiredMixin, TemplateView):
         context["new_users_week"] = User.objects.filter(
             date_joined__gte=week_ago
         ).count()
+        context["new_users_month"] = User.objects.filter(
+            date_joined__gte=month_ago
+        ).count()
+        context["premium_users"] = User.objects.filter(is_premium=True).count()
+        context["active_users"] = User.objects.filter(is_active=True).count()
+        context["staff_users"] = User.objects.filter(is_staff=True).count()
+        context["banned_users"] = User.objects.filter(is_banned=True).count()
+        context["suspended_users"] = User.objects.filter(is_suspended=True).count()
+        context["publisher_users"] = User.objects.filter(
+            profile_type__in=["publisher", "merchant", "service", "educational"]
+        ).count()
+        context["member_users"] = User.objects.filter(profile_type="default").count()
 
-        # Ads Statistics
+        # Users registration trend (last 30 days)
+        users_trend = []
+        for i in range(29, -1, -1):
+            d = now - timedelta(days=i)
+            ds = d.replace(hour=0, minute=0, second=0, microsecond=0)
+            de = ds + timedelta(days=1)
+            users_trend.append(
+                User.objects.filter(date_joined__gte=ds, date_joined__lt=de).count()
+            )
+        context["users_trend"] = json.dumps(users_trend)
+
+        # ═══════════════════════════════════════════════════════════════════════
+        # ADS STATISTICS
+        # ═══════════════════════════════════════════════════════════════════════
         context["total_ads"] = ClassifiedAd.objects.count()
         context["active_ads"] = ClassifiedAd.objects.filter(
             status=ClassifiedAd.AdStatus.ACTIVE
@@ -7464,12 +7544,55 @@ class AdminReportsView(SuperadminRequiredMixin, TemplateView):
         context["pending_ads"] = ClassifiedAd.objects.filter(
             status=ClassifiedAd.AdStatus.PENDING
         ).count()
+        context["expired_ads"] = ClassifiedAd.objects.filter(
+            status=ClassifiedAd.AdStatus.EXPIRED
+        ).count()
+        context["rejected_ads"] = ClassifiedAd.objects.filter(
+            status=ClassifiedAd.AdStatus.REJECTED
+        ).count()
+        context["draft_ads"] = ClassifiedAd.objects.filter(
+            status=ClassifiedAd.AdStatus.DRAFT
+        ).count()
         context["ads_today"] = ClassifiedAd.objects.filter(
             created_at__gte=today_start
         ).count()
+        context["ads_week"] = ClassifiedAd.objects.filter(
+            created_at__gte=week_ago
+        ).count()
+        context["ads_month"] = ClassifiedAd.objects.filter(
+            created_at__gte=month_ago
+        ).count()
+        context["highlighted_ads"] = ClassifiedAd.objects.filter(
+            is_highlighted=True
+        ).count()
+        context["urgent_ads"] = ClassifiedAd.objects.filter(is_urgent=True).count()
+        context["pinned_ads"] = ClassifiedAd.objects.filter(is_pinned=True).count()
+        context["total_views"] = (
+            ClassifiedAd.objects.aggregate(total=Sum("views_count"))["total"] or 0
+        )
 
-        # Categories Statistics with ads count
-        total_ads_count = context["total_ads"] or 1  # Avoid division by zero
+        # Ads trend (last 30 days)
+        ads_trend = []
+        for i in range(29, -1, -1):
+            d = now - timedelta(days=i)
+            ds = d.replace(hour=0, minute=0, second=0, microsecond=0)
+            de = ds + timedelta(days=1)
+            ads_trend.append(
+                ClassifiedAd.objects.filter(
+                    created_at__gte=ds, created_at__lt=de
+                ).count()
+            )
+        context["ads_trend"] = json.dumps(ads_trend)
+
+        # Top 10 most viewed active ads
+        context["top_viewed_ads"] = (
+            ClassifiedAd.objects.select_related("user", "category", "country")
+            .filter(status=ClassifiedAd.AdStatus.ACTIVE)
+            .order_by("-views_count")[:10]
+        )
+
+        # Categories statistics (top 10)
+        total_ads_count = context["total_ads"] or 1
         categories_stats = []
         for category in Category.objects.filter(parent__isnull=True):
             ads_count = ClassifiedAd.objects.filter(
@@ -7477,7 +7600,7 @@ class AdminReportsView(SuperadminRequiredMixin, TemplateView):
                 | Q(category__parent=category)
                 | Q(category__parent__parent=category)
             ).count()
-            total_views = (
+            total_views_cat = (
                 ClassifiedAd.objects.filter(
                     Q(category=category)
                     | Q(category__parent=category)
@@ -7485,54 +7608,203 @@ class AdminReportsView(SuperadminRequiredMixin, TemplateView):
                 ).aggregate(total=Sum("views_count"))["total"]
                 or 0
             )
-
             categories_stats.append(
                 {
                     "name": category.name_ar if category.name_ar else category.name,
                     "ads_count": ads_count,
-                    "total_views": total_views,
-                    "percentage": (
-                        (ads_count / total_ads_count) * 100
-                        if total_ads_count > 0
-                        else 0
-                    ),
+                    "total_views": total_views_cat,
+                    "percentage": (ads_count / total_ads_count * 100)
+                    if total_ads_count > 0
+                    else 0,
                 }
             )
-
         context["categories_stats"] = sorted(
             categories_stats, key=lambda x: x["ads_count"], reverse=True
-        )[
-            :10
-        ]  # Top 10 categories
+        )[:10]
 
-        # Revenue Statistics (from payments)
-        context["revenue_today"] = (
-            Payment.objects.filter(
-                status="completed", created_at__gte=today_start
-            ).aggregate(total=Sum("amount"))["total"]
+        # ═══════════════════════════════════════════════════════════════════════
+        # REVENUE STATISTICS
+        # ═══════════════════════════════════════════════════════════════════════
+        def _rev(qs):
+            return qs.aggregate(total=Sum("amount"))["total"] or 0
+
+        completed_payments = Payment.objects.filter(
+            status=Payment.PaymentStatus.COMPLETED
+        )
+        context["revenue_today"] = _rev(
+            completed_payments.filter(created_at__gte=today_start)
+        )
+        context["revenue_week"] = _rev(
+            completed_payments.filter(created_at__gte=week_ago)
+        )
+        context["revenue_month"] = _rev(
+            completed_payments.filter(created_at__gte=month_ago)
+        )
+        context["revenue_year"] = _rev(
+            completed_payments.filter(created_at__gte=year_ago)
+        )
+        context["revenue_total"] = _rev(completed_payments)
+        context["revenue_paypal"] = _rev(
+            completed_payments.filter(provider=Payment.PaymentProvider.PAYPAL)
+        )
+        context["revenue_paymob"] = _rev(
+            completed_payments.filter(provider=Payment.PaymentProvider.PAYMOB)
+        )
+        context["revenue_offline"] = _rev(
+            completed_payments.filter(
+                provider__in=["offline", "bank_transfer",
+                               Payment.PaymentProvider.BANK_TRANSFER]
+            )
+        )
+        context["total_payments"] = Payment.objects.count()
+        context["completed_payments"] = completed_payments.count()
+        context["pending_payments_count"] = Payment.objects.filter(
+            status=Payment.PaymentStatus.PENDING
+        ).count()
+        context["failed_payments"] = Payment.objects.filter(
+            status=Payment.PaymentStatus.FAILED
+        ).count()
+        context["refunded_payments"] = Payment.objects.filter(
+            status=Payment.PaymentStatus.REFUNDED
+        ).count()
+        context["paypal_count"] = completed_payments.filter(
+            provider=Payment.PaymentProvider.PAYPAL
+        ).count()
+        context["paymob_count"] = completed_payments.filter(
+            provider=Payment.PaymentProvider.PAYMOB
+        ).count()
+        context["offline_count"] = completed_payments.filter(
+            provider__in=["offline", "bank_transfer",
+                           Payment.PaymentProvider.BANK_TRANSFER]
+        ).count()
+
+        # Revenue trend (last 30 days)
+        revenue_trend = []
+        for i in range(29, -1, -1):
+            d = now - timedelta(days=i)
+            ds = d.replace(hour=0, minute=0, second=0, microsecond=0)
+            de = ds + timedelta(days=1)
+            rev = (
+                completed_payments.filter(
+                    created_at__gte=ds, created_at__lt=de
+                ).aggregate(total=Sum("amount"))["total"]
+                or 0
+            )
+            revenue_trend.append(float(rev))
+        context["revenue_trend"] = json.dumps(revenue_trend)
+
+        # ═══════════════════════════════════════════════════════════════════════
+        # REPORTS (AdReport) STATISTICS
+        # ═══════════════════════════════════════════════════════════════════════
+        from .models import AdReport
+
+        context["total_reports"] = AdReport.objects.count()
+        context["pending_reports"] = AdReport.objects.filter(status="pending").count()
+        context["reviewing_reports"] = AdReport.objects.filter(
+            status="reviewing"
+        ).count()
+        context["resolved_reports"] = AdReport.objects.filter(
+            status="resolved"
+        ).count()
+        context["rejected_reports"] = AdReport.objects.filter(
+            status="rejected"
+        ).count()
+        context["reports_today"] = AdReport.objects.filter(
+            created_at__gte=today_start
+        ).count()
+        context["reports_week"] = AdReport.objects.filter(
+            created_at__gte=week_ago
+        ).count()
+
+        # Reports trend (last 7 days)
+        reports_trend = []
+        reports_trend_labels = []
+        for i in range(6, -1, -1):
+            d = now - timedelta(days=i)
+            ds = d.replace(hour=0, minute=0, second=0, microsecond=0)
+            de = ds + timedelta(days=1)
+            reports_trend.append(
+                AdReport.objects.filter(
+                    created_at__gte=ds, created_at__lt=de
+                ).count()
+            )
+            reports_trend_labels.append(
+                f"{d.day} {arabic_months[d.month - 1][:3]}"
+            )
+        context["reports_trend"] = json.dumps(reports_trend)
+        context["reports_trend_labels"] = json.dumps(reports_trend_labels)
+
+        # ═══════════════════════════════════════════════════════════════════════
+        # ORDERS STATISTICS
+        # ═══════════════════════════════════════════════════════════════════════
+        context["total_orders"] = Order.objects.count()
+        context["completed_orders"] = Order.objects.filter(
+            status="delivered", payment_status="paid"
+        ).count()
+        context["pending_orders"] = Order.objects.filter(
+            payment_status="pending"
+        ).count()
+        context["orders_revenue"] = (
+            Order.objects.filter(payment_status="paid").aggregate(
+                total=Sum("total_amount")
+            )["total"]
             or 0
         )
 
-        context["revenue_week"] = (
-            Payment.objects.filter(
-                status="completed", created_at__gte=week_ago
-            ).aggregate(total=Sum("amount"))["total"]
-            or 0
-        )
+        # ═══════════════════════════════════════════════════════════════════════
+        # PACKAGES STATISTICS
+        # ═══════════════════════════════════════════════════════════════════════
+        context["active_packages"] = UserPackage.objects.filter(
+            expiry_date__gte=now
+        ).count()
+        context["expired_packages"] = UserPackage.objects.filter(
+            expiry_date__lt=now
+        ).count()
+        context["total_packages"] = UserPackage.objects.count()
 
-        context["revenue_month"] = (
-            Payment.objects.filter(
-                status="completed", created_at__gte=month_ago
-            ).aggregate(total=Sum("amount"))["total"]
-            or 0
-        )
+        # ═══════════════════════════════════════════════════════════════════════
+        # NOTIFICATIONS STATISTICS
+        # ═══════════════════════════════════════════════════════════════════════
+        from .models import Notification
 
-        context["revenue_total"] = (
-            Payment.objects.filter(status="completed").aggregate(total=Sum("amount"))[
-                "total"
-            ]
-            or 0
-        )
+        context["total_notifications"] = Notification.objects.count()
+        context["unread_notifications"] = Notification.objects.filter(
+            is_read=False
+        ).count()
+        context["notifications_today"] = Notification.objects.filter(
+            created_at__gte=today_start
+        ).count()
+
+        # ═══════════════════════════════════════════════════════════════════════
+        # CHAT STATISTICS
+        # ═══════════════════════════════════════════════════════════════════════
+        from .models import ChatRoom, ChatMessage
+
+        context["total_chat_rooms"] = ChatRoom.objects.count()
+        context["active_chat_rooms"] = ChatRoom.objects.filter(is_active=True).count()
+        context["total_messages"] = ChatMessage.objects.count()
+        context["messages_today"] = ChatMessage.objects.filter(
+            created_at__gte=today_start
+        ).count()
+        context["unread_support_messages"] = ChatMessage.objects.filter(
+            room__room_type="publisher_admin",
+            is_read=False,
+            sender__is_staff=False,
+        ).count()
+
+        # ═══════════════════════════════════════════════════════════════════════
+        # NEWSLETTER STATISTICS
+        # ═══════════════════════════════════════════════════════════════════════
+        try:
+            from .models import NewsletterSubscriber
+
+            context["newsletter_subscribers"] = NewsletterSubscriber.objects.filter(
+                is_active=True
+            ).count()
+            context["newsletter_total"] = NewsletterSubscriber.objects.count()
+        except Exception:
+            context["newsletter_subscribers"] = 0
+            context["newsletter_total"] = 0
 
         return context
 

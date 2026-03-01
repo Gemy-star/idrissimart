@@ -582,7 +582,7 @@ def checkout_view(request):
                 # else use default integration ID from PaymobService
 
                 # Process payment with specific integration ID
-                success, payment_url, error = PaymobService.process_payment(
+                success, payment_url, error, _paymob_order_id = PaymobService.process_payment(
                     amount=total_amount,
                     order_id=str(order.order_number),
                     billing_data=billing_data,

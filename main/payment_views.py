@@ -130,7 +130,10 @@ def create_payment(request):
                 }
             )
         elif provider in ["paymob", "mastercard", "visa"]:
-            payment.metadata.update({"iframe_url": result.get("iframe_url")})
+            payment.metadata.update({
+                "iframe_url": result.get("iframe_url"),
+                "paymob_order_id": result.get("paymob_order_id"),
+            })
 
         payment.save()
 
@@ -206,6 +209,9 @@ def paypal_success(request):
 def paypal_cancel(request):
     """Handle PayPal payment cancellation"""
     messages.warning(request, _("تم إلغاء عملية الدفع"))
+    ad_id = request.GET.get("ad_id")
+    if ad_id:
+        return redirect("main:ad_payment", ad_id=ad_id)
     return redirect("main:packages_list")
 
 
@@ -509,7 +515,6 @@ def ad_payment(request, ad_id):
             return redirect("main:my_ads")
 
         elif payment_method in ["paymob", "paypal", "visa"]:
-            # Create payment record for online payment
             payment = Payment.objects.create(
                 user=request.user,
                 provider=(
@@ -529,10 +534,45 @@ def ad_payment(request, ad_id):
                 },
             )
 
-            # Redirect to online payment gateway
-            # This would integrate with your existing payment service
-            messages.info(request, _("جاري تحويلك إلى بوابة الدفع..."))
-            return redirect("main:payment_page")  # Adjust to your payment page
+            user_data = {
+                "email": request.user.email,
+                "first_name": request.user.first_name or request.user.username,
+                "last_name": request.user.last_name or "",
+                "phone": getattr(request.user, "mobile", "") or getattr(request.user, "phone", ""),
+            }
+
+            provider_key = "paypal" if payment_method == "paypal" else "paymob"
+            extra_kwargs = {}
+            if payment_method == "paypal":
+                extra_kwargs["return_url"] = request.build_absolute_uri(
+                    reverse("main:paypal_success")
+                )
+                extra_kwargs["cancel_url"] = request.build_absolute_uri(
+                    reverse("main:paypal_cancel") + f"?ad_id={ad.id}"
+                )
+            success, result = PaymentService().create_payment(
+                provider_key,
+                float(total_amount),
+                currency,
+                f"دفع إعلان: {ad.title}",
+                user_data,
+                **extra_kwargs,
+            )
+
+            if success:
+                payment_url = result.get("approval_url") or result.get("iframe_url")
+                # Store gateway order IDs in metadata so callbacks can find this payment
+                if result.get("paypal_order_id"):
+                    payment.metadata["paypal_order_id"] = result["paypal_order_id"]
+                if result.get("paymob_order_id"):
+                    payment.metadata["paymob_order_id"] = result["paymob_order_id"]
+                if payment_url:
+                    payment.save()
+                    return redirect(payment_url)
+
+            payment.status = Payment.PaymentStatus.FAILED
+            payment.save()
+            messages.error(request, _("فشل إنشاء الدفع: {}").format(result if not success else ""))
 
     context = {
         "ad": ad,
@@ -839,33 +879,28 @@ def package_checkout(request, package_id):
                 or getattr(request.user, "phone", ""),
             }
 
-            # Create payment with provider
-            result = payment_service.create_payment(
-                payment_method,
+            provider_key = "paypal" if payment_method == "paypal" else "paymob"
+            success, result = payment_service.create_payment(
+                provider_key,
                 float(total_amount),
                 currency,
                 f"شراء باقة: {package.name}",
                 user_data,
-                payment_id=payment.id,
             )
 
-            if result["success"]:
-                payment.transaction_id = result.get("transaction_id")
-                payment.payment_url = result.get("payment_url")
-                payment.save()
+            if success:
+                payment_url = result.get("approval_url") or result.get("iframe_url")
+                if payment_url:
+                    payment.payment_url = payment_url
+                    payment.save()
+                    # Clear session
+                    request.session.pop("package_checkout_id", None)
+                    request.session.pop("package_checkout_amount", None)
+                    return redirect(payment_url)
 
-                # Clear session
-                request.session.pop("package_checkout_id", None)
-                request.session.pop("package_checkout_amount", None)
-
-                # Redirect to payment gateway
-                return redirect(result["payment_url"])
-            else:
-                payment.status = Payment.PaymentStatus.FAILED
-                payment.save()
-                messages.error(
-                    request, _("فشل إنشاء الدفع: {}").format(result.get("message"))
-                )
+            payment.status = Payment.PaymentStatus.FAILED
+            payment.save()
+            messages.error(request, _("فشل إنشاء الدفع: {}").format(result if not success else ""))
 
     context = {
         "package": package,
@@ -1034,7 +1069,6 @@ def ad_upgrade_payment(request, ad_id):
             return redirect("main:my_ads")
 
         elif payment_method in ["paymob", "paypal", "visa", "card"]:
-            # Create payment record for online payment
             payment = Payment.objects.create(
                 user=request.user,
                 provider=(
@@ -1053,9 +1087,32 @@ def ad_upgrade_payment(request, ad_id):
                 },
             )
 
-            # Redirect to upgrade payment page instead of generic payment page
-            messages.info(request, _("جاري تحويلك إلى بوابة الدفع..."))
-            return redirect("main:payment_page_upgrade", payment_id=payment.id)
+            user_data = {
+                "email": request.user.email,
+                "first_name": request.user.first_name or request.user.username,
+                "last_name": request.user.last_name or "",
+                "phone": getattr(request.user, "mobile", "") or getattr(request.user, "phone", ""),
+            }
+
+            provider_key = "paypal" if payment_method == "paypal" else "paymob"
+            success, result = PaymentService().create_payment(
+                provider_key,
+                float(total_amount),
+                currency,
+                f"ترقية مميزات الإعلان: {ad.title}",
+                user_data,
+            )
+
+            if success:
+                payment_url = result.get("approval_url") or result.get("iframe_url")
+                if payment_url:
+                    payment.payment_url = payment_url
+                    payment.save()
+                    return redirect(payment_url)
+
+            payment.status = Payment.PaymentStatus.FAILED
+            payment.save()
+            messages.error(request, _("فشل إنشاء الدفع: {}").format(result if not success else ""))
 
     context = {
         "ad": ad,

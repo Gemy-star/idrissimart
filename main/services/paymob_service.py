@@ -277,13 +277,13 @@ class PaymobService:
             Tuple of (success, payment_url, error_message)
         """
         if not PaymobService.is_enabled():
-            return False, None, "Paymob payment gateway is disabled"
+            return False, None, "Paymob payment gateway is disabled", None
 
         try:
             # Step 1: Authenticate
             auth_token = PaymobService.authenticate()
             if not auth_token:
-                return False, None, "Failed to authenticate with Paymob"
+                return False, None, "Failed to authenticate with Paymob", None
 
             # Convert amount to cents
             amount_cents = int(amount * 100)
@@ -297,7 +297,7 @@ class PaymobService:
             )
 
             if not order_data:
-                return False, None, "Failed to create Paymob order"
+                return False, None, "Failed to create Paymob order", None
 
             paymob_order_id = order_data.get("id")
 
@@ -311,18 +311,18 @@ class PaymobService:
             )
 
             if not payment_key:
-                return False, None, "Failed to create payment key"
+                return False, None, "Failed to create payment key", None
 
             # Step 4: Get payment URL
             payment_url = PaymobService.get_iframe_url(payment_key)
 
             logger.info(f"Paymob payment URL generated for order {order_id}")
-            return True, payment_url, None
+            return True, payment_url, None, paymob_order_id
 
         except Exception as e:
             error_msg = f"Error processing Paymob payment: {str(e)}"
             logger.error(error_msg)
-            return False, None, error_msg
+            return False, None, error_msg, None
 
     @staticmethod
     def refund_transaction(transaction_id: str, amount_cents: int) -> bool:

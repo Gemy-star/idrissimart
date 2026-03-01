@@ -266,32 +266,18 @@ def generate_verification_code(length=6):
 
 def send_sms_verification_code(phone_number, code):
     """
-    Send SMS verification code to phone number.
-
-    In production, integrate with SMS gateway like:
-    - Twilio
-    - Nexmo/Vonage
-    - AWS SNS
-    - MSG91
-    - Uniform
-
-    For now, this is a placeholder that logs the code.
+    Send SMS verification code to phone number via SMSService (Twilio).
+    Falls back to console logging if SMS service is disabled.
     """
     try:
-        # TODO: Integrate with actual SMS service
-        # Example for Twilio:
-        # from twilio.rest import Client
-        # client = Client(account_sid, auth_token)
-        # message = client.messages.create(
-        #     body=f"Your verification code is: {code}",
-        #     from_=twilio_number,
-        #     to=phone_number
-        # )
+        from .services.sms_service import SMSService
 
-        # For development/testing, just log it
+        if SMSService.is_enabled():
+            return SMSService.send_verification_code(phone_number, code, purpose="التحقق من الهاتف")
+
+        # Fallback: log to console when SMS is disabled
         print(f"[SMS] Verification code for {phone_number}: {code}")
         print(f"[SMS] Code expires in 10 minutes")
-
         return True
     except Exception as e:
         print(f"[SMS ERROR] Failed to send code to {phone_number}: {str(e)}")
