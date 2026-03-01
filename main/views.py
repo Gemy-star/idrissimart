@@ -7867,6 +7867,8 @@ def visitor_analytics_data(request):
         total_duration = 0
         count = 0
         for visitor in visitors:
+            if not visitor.last_activity or not visitor.first_visit:
+                continue
             duration = (
                 visitor.last_activity - visitor.first_visit
             ).total_seconds() / 60

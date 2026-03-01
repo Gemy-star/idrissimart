@@ -322,7 +322,6 @@
 {% block admin_content %}
 <div data-bs-spy="scroll" data-bs-target="#rpSpyNav" data-bs-smooth-scroll="true" data-bs-offset="70" tabindex="0">
 
-{# ════════════════ HEADER BANNER ════════════════ #}
 <div class="rp-banner mb-4">
   <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
     <div>
@@ -345,7 +344,6 @@
   </div>
 </div>
 
-{# ════════════════ KPI STRIP ════════════════ #}
 <div class="row g-3 mb-4">
   <div class="col-6 col-sm-4 col-xl-3">
     <div class="kc kc-purple">
@@ -421,7 +419,6 @@
   </div>
 </div>
 
-{# ════════════════ OVERVIEW CHART ════════════════ #}
 <div class="card-r mb-4">
   <div class="cr-head">
     <h5>
@@ -435,7 +432,6 @@
   </div>
 </div>
 
-{# ════════════════ STICKY SCROLLSPY NAV ════════════════ #}
 <div class="rp-spy-wrap mb-0" id="rpSpyNav">
   <nav class="rp-spy-nav" aria-label="{% trans 'أقسام التقارير' %}">
     <a class="spy-link" href="#sec-visitors"><i class="fas fa-chart-area"></i> {% trans "الزوار" %}</a>
@@ -456,9 +452,6 @@
   </nav>
 </div>
 
-{# ════════════════════════════════════════════════════
-   SECTION 1 — VISITORS
-════════════════════════════════════════════════════ #}
 <section id="sec-visitors" class="rp-section mt-4">
 
   <div class="sec-head sec-visitors">
@@ -515,9 +508,6 @@
 
 </section>
 
-{# ════════════════════════════════════════════════════
-   SECTION 2 — USERS
-════════════════════════════════════════════════════ #}
 <section id="sec-users" class="rp-section">
 
   <div class="sec-head sec-users">
@@ -595,9 +585,6 @@
 
 </section>
 
-{# ════════════════════════════════════════════════════
-   SECTION 3 — ADS
-════════════════════════════════════════════════════ #}
 <section id="sec-ads" class="rp-section">
 
   <div class="sec-head sec-ads">
@@ -684,9 +671,6 @@
 
 </section>
 
-{# ════════════════════════════════════════════════════
-   SECTION 4 — REVENUE
-════════════════════════════════════════════════════ #}
 <section id="sec-revenue" class="rp-section">
 
   <div class="sec-head sec-revenue">
@@ -740,9 +724,6 @@
 
 </section>
 
-{# ════════════════════════════════════════════════════
-   SECTION 5 — REPORTS / MODERATION
-════════════════════════════════════════════════════ #}
 <section id="sec-reports" class="rp-section">
 
   <div class="sec-head sec-reports">
@@ -793,9 +774,6 @@
 
 </section>
 
-{# ════════════════════════════════════════════════════
-   SECTION 6 — PLATFORM OVERVIEW
-════════════════════════════════════════════════════ #}
 <section id="sec-platform" class="rp-section">
 
   <div class="sec-head sec-platform">
@@ -947,29 +925,43 @@ function syncDateSelect(val) {
 let vCharts = {};
 function updateVisitorCharts(days) {
   fetch(`{% url 'main:visitor_analytics_data' %}?days=${days}`)
-    .then(r => r.json())
+    .then(r => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
     .then(d => { renderSess(d); renderPages(d); renderReturn(d); renderVTrend(d); })
-    .catch(e => console.warn('visitor charts:', e));
+    .catch(e => {
+      console.warn('visitor charts unavailable:', e.message);
+      /* render empty placeholder charts so canvases don't stay blank */
+      renderSess({}); renderPages({}); renderReturn({}); renderVTrend({});
+    });
 }
 function renderSess(d) {
   const ctx = document.getElementById('sessionDurationChart'); if (!ctx) return;
   if (vCharts.sess) vCharts.sess.destroy();
-  vCharts.sess = new Chart(ctx, { type:'bar', data:{ labels:d.labels||[], datasets:[{ label:'دقائق', data:d.session_duration||[], backgroundColor:'rgba(75,49,94,.65)', borderRadius:5 }] }, options:lineOpts() });
+  const sd = (d.session_duration && d.session_duration.values) || [];
+  const lb = (d.session_duration && d.session_duration.labels) || [];
+  vCharts.sess = new Chart(ctx, { type:'bar', data:{ labels:lb, datasets:[{ label:'دقائق', data:sd, backgroundColor:'rgba(75,49,94,.65)', borderRadius:5 }] }, options:lineOpts() });
 }
 function renderPages(d) {
   const ctx = document.getElementById('pagesPerVisitChart'); if (!ctx) return;
   if (vCharts.pages) vCharts.pages.destroy();
-  vCharts.pages = new Chart(ctx, { type:'line', data:{ labels:d.labels||[], datasets:[{ label:'صفحات', data:d.pages_per_visit||[], borderColor:'#17a2b8', backgroundColor:'rgba(23,162,184,.08)', fill:true, tension:.4, pointRadius:2 }] }, options:lineOpts() });
+  const ppv = (d.pages_per_visit && d.pages_per_visit.values) || [];
+  const lb  = (d.pages_per_visit && d.pages_per_visit.labels) || [];
+  vCharts.pages = new Chart(ctx, { type:'line', data:{ labels:lb, datasets:[{ label:'صفحات', data:ppv, borderColor:'#17a2b8', backgroundColor:'rgba(23,162,184,.08)', fill:true, tension:.4, pointRadius:2 }] }, options:lineOpts() });
 }
 function renderReturn(d) {
   const ctx = document.getElementById('returnVisitorsChart'); if (!ctx) return;
   if (vCharts.ret) vCharts.ret.destroy();
-  vCharts.ret = new Chart(ctx, { type:'doughnut', data:{ labels:['زوار جدد','عائدون'], datasets:[{ data:[d.new_visitors||0,d.return_visitors||0], backgroundColor:[brand,'#17a2b8'], borderWidth:0 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:lc() } } } } });
+  const rv = d.return_visitors || {};
+  vCharts.ret = new Chart(ctx, { type:'doughnut', data:{ labels:['زوار جدد','عائدون'], datasets:[{ data:[rv.new_visitors||0, rv.returning_visitors||0], backgroundColor:[brand,'#17a2b8'], borderWidth:0 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:lc() } } } } });
 }
 function renderVTrend(d) {
   const ctx = document.getElementById('visitorTrendChart'); if (!ctx) return;
   if (vCharts.trend) vCharts.trend.destroy();
-  vCharts.trend = new Chart(ctx, { type:'line', data:{ labels:d.trend_labels||d.labels||[], datasets:[{ label:'الزوار', data:d.trend_data||[], borderColor:'#28a745', backgroundColor:'rgba(40,167,69,.08)', fill:true, tension:.4, pointRadius:2 }] }, options:lineOpts() });
+  const vt = (d.visitor_trend && d.visitor_trend.values) || [];
+  const lb = (d.visitor_trend && d.visitor_trend.labels)  || [];
+  vCharts.trend = new Chart(ctx, { type:'line', data:{ labels:lb, datasets:[{ label:'الزوار', data:vt, borderColor:'#28a745', backgroundColor:'rgba(40,167,69,.08)', fill:true, tension:.4, pointRadius:2 }] }, options:lineOpts() });
 }
 
 /* ════════════════ USER CHARTS ════════════════ */
