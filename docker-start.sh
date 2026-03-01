@@ -44,6 +44,10 @@ sleep 10
 echo -e "${GREEN}🔄 Running database migrations...${NC}"
 docker compose exec -T web python manage.py migrate
 
+# Compress CSS/JS (required because COMPRESS_OFFLINE=True in production)
+echo -e "${GREEN}🗜️  Compressing static assets (CSS/JS)...${NC}"
+docker compose exec -T web python manage.py compress --force
+
 # Collect static files
 echo -e "${GREEN}📁 Collecting static files...${NC}"
 docker compose exec -T web python manage.py collectstatic --noinput

@@ -144,7 +144,12 @@ superuser: ## Create superuser
 	@echo '$(BLUE)👤 Creating superuser...$(NC)'
 	python manage.py createsuperuser
 
-collectstatic: ## Collect static files
+compress: ## Compress CSS/JS for production (COMPRESS_OFFLINE=True)
+	@echo '$(BLUE)🗜️  Compressing static assets...$(NC)'
+	python manage.py compress --force
+	@echo '$(GREEN)✅ Compression complete$(NC)'
+
+collectstatic: compress ## Collect static files (runs compress first)
 	@echo '$(BLUE)📦 Collecting static files...$(NC)'
 	python manage.py collectstatic --noinput
 	@echo '$(GREEN)✅ Static files collected$(NC)'
@@ -200,7 +205,7 @@ prod-check: ## Check if ready for production
 	@grep -q "os.getenv" idrissimart/settings/common.py && echo '$(GREEN)✅ SECRET_KEY uses environment$(NC)' || echo '$(RED)❌ SECRET_KEY is hardcoded$(NC)'
 	@echo '$(GREEN)✅ Production check complete$(NC)'
 
-deploy-prep: lint test collectstatic ## Prepare for deployment
+deploy-prep: lint test compress collectstatic ## Prepare for deployment
 	@echo '$(BLUE)🚀 Preparing for deployment...$(NC)'
 	@echo '$(GREEN)✅ Ready to deploy!$(NC)'
 

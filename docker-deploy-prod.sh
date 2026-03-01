@@ -93,6 +93,10 @@ docker compose -f docker compose.prod.yml ps
 echo -e "${BLUE}🔄 Running database migrations...${NC}"
 docker compose -f docker compose.prod.yml exec -T web python manage.py migrate --noinput
 
+# Compress CSS/JS (required because COMPRESS_OFFLINE=True in production)
+echo -e "${BLUE}🗜️  Compressing static assets (CSS/JS)...${NC}"
+docker compose -f docker compose.prod.yml exec -T web python manage.py compress --force
+
 # Collect static files
 echo -e "${BLUE}📦 Collecting static files...${NC}"
 docker compose -f docker compose.prod.yml exec -T web python manage.py collectstatic --noinput
