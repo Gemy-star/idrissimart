@@ -20,6 +20,13 @@ class PayPalService:
     SANDBOX_URL = "https://api-m.sandbox.paypal.com"
     LIVE_URL = "https://api-m.paypal.com"
 
+    # Currencies supported by PayPal — EGP is NOT in this list
+    SUPPORTED_CURRENCIES = {
+        "USD", "EUR", "GBP", "CAD", "AUD", "JPY", "CNY", "HKD", "SGD",
+        "SEK", "NOK", "DKK", "CHF", "NZD", "MXN", "BRL", "ILS", "MYR",
+        "PHP", "THB", "TWD", "CZK", "HUF", "PLN", "SAR", "AED",
+    }
+
     @staticmethod
     def get_base_url() -> str:
         """Get base URL based on mode (sandbox or live)"""
@@ -106,6 +113,14 @@ class PayPalService:
             if not access_token:
                 return False, None, "Failed to get PayPal access token"
 
+            # PayPal does not support all currencies (e.g. EGP is unsupported).
+            # Fall back to USD so the request is never rejected for that reason.
+            if currency.upper() not in PayPalService.SUPPORTED_CURRENCIES:
+                logger.warning(
+                    f"Currency '{currency}' is not supported by PayPal — falling back to USD"
+                )
+                currency = "USD"
+
             url = f"{PayPalService.get_base_url()}/v2/checkout/orders"
 
             headers = {
@@ -116,30 +131,43 @@ class PayPalService:
             # Format amount to 2 decimal places
             amount_str = f"{float(amount):.2f}"
 
+            app_context = {
+                "brand_name": config.SITE_NAME,
+                "landing_page": "BILLING",
+            }
+
+            # return_url + cancel_url are required when user_action is PAY_NOW
+            if return_url and cancel_url:
+                app_context["return_url"] = return_url
+                app_context["cancel_url"] = cancel_url
+                app_context["user_action"] = "PAY_NOW"
+            else:
+                app_context["user_action"] = "CONTINUE"
+
             payload = {
                 "intent": "CAPTURE",
                 "purchase_units": [
                     {
                         "reference_id": order_id or "default",
                         "description": description or f"Order from {config.SITE_NAME}",
-                        "amount": {"currency_code": currency, "value": amount_str},
+                        "amount": {"currency_code": currency.upper(), "value": amount_str},
                     }
                 ],
-                "application_context": {
-                    "brand_name": config.SITE_NAME,
-                    "landing_page": "BILLING",
-                    "user_action": "PAY_NOW",
-                },
+                "application_context": app_context,
             }
 
-            # Add return and cancel URLs if provided
-            if return_url:
-                payload["application_context"]["return_url"] = return_url
-            if cancel_url:
-                payload["application_context"]["cancel_url"] = cancel_url
-
             response = requests.post(url, json=payload, headers=headers)
-            response.raise_for_status()
+
+            if not response.ok:
+                # Log full PayPal error body for easier debugging
+                logger.error(
+                    f"PayPal create_order failed {response.status_code}: {response.text}"
+                )
+                try:
+                    err_detail = response.json().get("details") or response.json().get("message", "")
+                except Exception:
+                    err_detail = response.text
+                return False, None, f"PayPal error {response.status_code}: {err_detail}"
 
             order_data = response.json()
             logger.info(f"PayPal order created: {order_data.get('id')}")
