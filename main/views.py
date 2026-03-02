@@ -3072,8 +3072,8 @@ class AdminCategoriesView(SuperadminRequiredMixin, TemplateView):
                 )
                 .prefetch_related("subcategories")
                 .annotate(
-                    ad_count=Count("classified_ads"),
-                    subcategory_count=Count("subcategories"),
+                    ad_count=Count("classified_ads", distinct=True),
+                    subcategory_count=Count("subcategories", distinct=True),
                 ),
             }
 
@@ -4730,36 +4730,40 @@ def admin_category_save(request):
         category.icon = request.POST.get("icon", "")
 
         # Handle optional fields with getattr/setattr for compatibility
-        if hasattr(category, "color"):
+        # Only update if the field was explicitly submitted in the form
+        if hasattr(category, "color") and "color" in request.POST:
             category.color = request.POST.get("color", "")
-        if hasattr(category, "order"):
+        if hasattr(category, "order") and "order" in request.POST:
             category.order = int(request.POST.get("order", 0))
-        if hasattr(category, "is_active"):
+        if hasattr(category, "is_active") and "is_active" in request.POST:
             category.is_active = (
                 request.POST.get("is_active") == "on"
                 or request.POST.get("is_active") == "true"
             )
 
+        # allow_cart is a checkbox — always evaluate (unchecked = not submitted = False)
         category.allow_cart = (
             request.POST.get("allow_cart") == "on"
             or request.POST.get("allow_cart") == "true"
         )
 
-        # Handle parent category
-        parent_id = request.POST.get("parent")
-        if parent_id:
-            category.parent = Category.objects.get(pk=parent_id)
-        else:
-            category.parent = None
+        # Handle parent category — only change if 'parent' key was explicitly sent
+        if "parent" in request.POST:
+            parent_id = request.POST.get("parent")
+            if parent_id:
+                category.parent = Category.objects.get(pk=parent_id)
+            else:
+                category.parent = None
 
-        # Handle country
-        country_code = request.POST.get("country")
-        if country_code:
-            from content.models import Country
+        # Handle country — only update if explicitly sent in the form
+        if "country" in request.POST:
+            country_code = request.POST.get("country")
+            if country_code:
+                from content.models import Country
 
-            category.country = Country.objects.get(code=country_code)
-        else:
-            category.country = None
+                category.country = Country.objects.get(code=country_code)
+            else:
+                category.country = None
 
         category.save()
 
