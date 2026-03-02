@@ -69,6 +69,18 @@ class PaymentService:
                 return False, error or _("فشل إنشاء طلب Paymob")
             return True, {"iframe_url": payment_url, "paymob_order_id": paymob_order_id}
 
+        elif provider == "wallet":
+            wallet_integration_id = getattr(config, "PAYMOB_WALLET_INTEGRATION_ID", "") or config.PAYMOB_INTEGRATION_ID
+            success, payment_url, error, paymob_order_id = PaymobService.process_payment(
+                amount=amount,
+                order_id=order_ref,
+                billing_data=user_data or {},
+                integration_id=wallet_integration_id,
+            )
+            if not success:
+                return False, error or _("فشل إنشاء طلب المحفظة الإلكترونية")
+            return True, {"iframe_url": payment_url, "paymob_order_id": paymob_order_id}
+
         else:
             return False, _("مزود الدفع غير مدعوم")
 

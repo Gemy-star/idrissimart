@@ -293,6 +293,14 @@
 
                                 <!-- Wallet Payment Details -->
                                 <div id="wallet-payment-details" style="display: none;" class="mb-4 ms-4">
+                                    {% if paymob_wallet_enabled %}
+                                    {# Online wallet payment via Paymob #}
+                                    <div class="alert alert-success">
+                                        <i class="fas fa-shield-alt me-2"></i>
+                                        {% trans "ستنتقل إلى بوابة Paymob الآمنة لإتمام الدفع عبر المحفظة الإلكترونية" %}
+                                    </div>
+                                    {% else %}
+                                    {# Offline wallet payment with receipt upload #}
                                     <div class="alert alert-info">
                                         <i class="fas fa-info-circle me-2"></i>
                                         {% trans "يرجى إتمام الدفع عبر المحفظة ورفع إيصال التحويل" %}
@@ -341,6 +349,7 @@
                                         </h6>
                                         <div style="white-space: pre-line;">{{ site_config.offline_payment_instructions_ar }}</div>
                                     </div>
+                                    {% endif %}
                                     {% endif %}
                                 </div>
                             {% elif method_value == "visa" or method_value == "paymob" %}
@@ -418,12 +427,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (walletReceipt) walletReceipt.required = false;
 
         // Show the matching details panel
+        const paymobWalletEnabled = {% if paymob_wallet_enabled %}true{% else %}false{% endif %};
         if (radio.value === 'instapay' && instapayDetails) {
             instapayDetails.style.display = 'block';
             if (instapayReceipt) instapayReceipt.required = true;
         } else if (radio.value === 'wallet' && walletDetails) {
             walletDetails.style.display = 'block';
-            if (walletReceipt) walletReceipt.required = true;
+            // Receipt is only required for offline wallet (no Paymob wallet integration)
+            if (walletReceipt) walletReceipt.required = !paymobWalletEnabled;
         }
     }
 
@@ -460,7 +471,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 instapayReceipt.focus();
                 return false;
             }
-        } else if (selectedMethod.value === 'wallet') {
+        } else if (selectedMethod.value === 'wallet' && !{% if paymob_wallet_enabled %}true{% else %}false{% endif %}) {
             if (walletReceipt && !walletReceipt.files.length) {
                 e.preventDefault();
                 alert('{% trans "يرجى رفع إيصال الدفع عبر المحفظة" %}');

@@ -24,11 +24,17 @@ class PaymobService:
     @staticmethod
     def is_enabled() -> bool:
         """Check if Paymob payment gateway is enabled"""
-        return (
-            config.PAYMOB_ENABLED
-            and bool(config.PAYMOB_SECRET_KEY)
-            and bool(config.PAYMOB_INTEGRATION_ID)
-        )
+        enabled = config.PAYMOB_ENABLED
+        has_secret = bool(config.PAYMOB_SECRET_KEY)
+        has_integration = bool(config.PAYMOB_INTEGRATION_ID)
+        if not (enabled and has_secret and has_integration):
+            logger.warning(
+                "Paymob disabled — PAYMOB_ENABLED=%s, SECRET_KEY=%s, INTEGRATION_ID=%s",
+                enabled,
+                "set" if has_secret else "MISSING",
+                "set" if has_integration else "MISSING",
+            )
+        return enabled and has_secret and has_integration
 
     # ------------------------------------------------------------------
     # New v1 API — single intention call

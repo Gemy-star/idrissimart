@@ -146,6 +146,10 @@ CONSTANCE_CONFIG = {
         "",
         _("Paymob Visa Integration ID"),
     ),
+    "PAYMOB_WALLET_INTEGRATION_ID": (
+        os.getenv("PAYMOB_WALLET_INTEGRATION_ID", ""),
+        _("Paymob Wallet Integration ID (Vodafone Cash / Orange Money)"),
+    ),
     "PAYMOB_ENABLED": (
         True,
         _("Enable Paymob payment gateway"),
@@ -535,6 +539,7 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "PAYMOB_HMAC_SECRET",
         "PAYMOB_MASTERCARD_INTEGRATION_ID",
         "PAYMOB_VISA_INTEGRATION_ID",
+        "PAYMOB_WALLET_INTEGRATION_ID",
     ),
     "Payment General Settings": ("TAX_RATE",),
     "Email Settings - SendGrid": (

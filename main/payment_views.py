@@ -392,6 +392,9 @@ def ad_payment(request, ad_id):
         PaymentContext.PLATFORM_PAYMENT
     )
 
+    # Wallet online = Paymob wallet integration is configured
+    paymob_wallet_enabled = bool(getattr(config, "PAYMOB_WALLET_INTEGRATION_ID", ""))
+
     # If ad is already active, redirect to it
     if ad.status == ClassifiedAd.AdStatus.ACTIVE:
         messages.info(request, _("هذا الإعلان نشط بالفعل"))
@@ -459,7 +462,7 @@ def ad_payment(request, ad_id):
                 messages.error(request, _("طريقة الدفع المختارة غير متاحة للدفع للمنصة."))
                 return redirect("main:ad_payment", ad_id=ad.id)
 
-        if payment_method in ["instapay", "wallet"]:
+        if payment_method == "instapay" or (payment_method == "wallet" and not paymob_wallet_enabled):
             # Handle offline payment with receipt
             receipt = request.FILES.get("payment_receipt")
 
@@ -514,12 +517,12 @@ def ad_payment(request, ad_id):
 
             return redirect("main:my_ads")
 
-        elif payment_method in ["paymob", "paypal", "visa"]:
+        elif payment_method in ["paymob", "paypal", "visa", "wallet"]:
             payment = Payment.objects.create(
                 user=request.user,
                 provider=(
                     Payment.PaymentProvider.PAYMOB
-                    if payment_method in ["paymob", "visa"]
+                    if payment_method in ["paymob", "visa", "wallet"]
                     else Payment.PaymentProvider.PAYPAL
                 ),
                 amount=total_amount,
@@ -541,7 +544,12 @@ def ad_payment(request, ad_id):
                 "phone": getattr(request.user, "mobile", "") or getattr(request.user, "phone", ""),
             }
 
-            provider_key = "paypal" if payment_method == "paypal" else "paymob"
+            if payment_method == "paypal":
+                provider_key = "paypal"
+            elif payment_method == "wallet":
+                provider_key = "wallet"
+            else:
+                provider_key = "paymob"
             extra_kwargs = {}
             if payment_method == "paypal":
                 extra_kwargs["return_url"] = request.build_absolute_uri(
@@ -572,7 +580,11 @@ def ad_payment(request, ad_id):
 
             payment.status = Payment.PaymentStatus.FAILED
             payment.save()
-            messages.error(request, _("فشل إنشاء الدفع: {}").format(result if not success else ""))
+            logger.error("Payment creation failed: %s", result)
+            if not success and "disabled" in str(result).lower():
+                messages.error(request, _("بوابة الدفع غير مفعّلة حالياً. يرجى التواصل مع الإدارة."))
+            else:
+                messages.error(request, _("فشل إنشاء الدفع. يرجى المحاولة مرة أخرى أو اختيار طريقة دفع أخرى."))
 
     context = {
         "ad": ad,
@@ -583,6 +595,7 @@ def ad_payment(request, ad_id):
         "site_config": site_config,
         "allowed_payment_methods": allowed_payment_methods,
         "currency": currency,
+        "paymob_wallet_enabled": paymob_wallet_enabled,
     }
 
     return render(request, "payments/ad_payment.html", context)
@@ -900,7 +913,11 @@ def package_checkout(request, package_id):
 
             payment.status = Payment.PaymentStatus.FAILED
             payment.save()
-            messages.error(request, _("فشل إنشاء الدفع: {}").format(result if not success else ""))
+            logger.error("Payment creation failed: %s", result)
+            if not success and "disabled" in str(result).lower():
+                messages.error(request, _("بوابة الدفع غير مفعّلة حالياً. يرجى التواصل مع الإدارة."))
+            else:
+                messages.error(request, _("فشل إنشاء الدفع. يرجى المحاولة مرة أخرى أو اختيار طريقة دفع أخرى."))
 
     context = {
         "package": package,
@@ -1112,7 +1129,11 @@ def ad_upgrade_payment(request, ad_id):
 
             payment.status = Payment.PaymentStatus.FAILED
             payment.save()
-            messages.error(request, _("فشل إنشاء الدفع: {}").format(result if not success else ""))
+            logger.error("Payment creation failed: %s", result)
+            if not success and "disabled" in str(result).lower():
+                messages.error(request, _("بوابة الدفع غير مفعّلة حالياً. يرجى التواصل مع الإدارة."))
+            else:
+                messages.error(request, _("فشل إنشاء الدفع. يرجى المحاولة مرة أخرى أو اختيار طريقة دفع أخرى."))
 
     context = {
         "ad": ad,
