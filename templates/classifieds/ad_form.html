@@ -2105,14 +2105,14 @@
                         {% for subcat in category.subcategories.all %}
                             {
                                 id: {{ subcat.pk }},
-                                name: "{% if LANGUAGE_CODE == 'ar' and subcat.name_ar %}{{ subcat.name_ar }}{% else %}{{ subcat.name }}{% endif %}",
+                                name: "{% if LANGUAGE_CODE == 'ar' and subcat.name_ar %}{{ subcat.name_ar|escapejs }}{% else %}{{ subcat.name|escapejs }}{% endif %}",
                                 customFields: {{ subcat.custom_field_schema|to_json }},
                                 hasSubcats: {{ subcat.subcategories.all|length|default:0 }},
                                 subcategories: [
                                     {% for subsubcat in subcat.subcategories.all %}
                                         {
                                             id: {{ subsubcat.pk }},
-                                            name: "{% if LANGUAGE_CODE == 'ar' and subsubcat.name_ar %}{{ subsubcat.name_ar }}{% else %}{{ subsubcat.name }}{% endif %}",
+                                            name: "{% if LANGUAGE_CODE == 'ar' and subsubcat.name_ar %}{{ subsubcat.name_ar|escapejs }}{% else %}{{ subsubcat.name|escapejs }}{% endif %}",
                                             customFields: {{ subsubcat.custom_field_schema|to_json }}
                                         }{% if not forloop.last %},{% endif %}
                                     {% endfor %}
@@ -2656,26 +2656,21 @@
             console.log('💵 Site Default Base Fee:', siteDefaultBaseFee, '| 🎁 Free Ads Count:', freeAdsCount);
 
             // Function to get current category price
+            // Uses category's own price (or inherited from parent, resolved server-side).
+            // Falls back to site default if no price is set on the category tree.
             function getCurrentCategoryPrice() {
                 const categoryId = hiddenCategoryInput.value;
-                if (!categoryId) {
-                    console.log('⚠️ No category selected, using site default:', siteDefaultBaseFee);
-                    return siteDefaultBaseFee;
-                }
+                if (!categoryId) return siteDefaultBaseFee;
 
                 const categoryData = categoriesPricing[categoryId];
-                if (!categoryData) {
-                    console.log('⚠️ Category not in pricing data, using site default:', siteDefaultBaseFee);
-                    return siteDefaultBaseFee;
-                }
+                if (!categoryData) return siteDefaultBaseFee;
 
-                // Mirror Python logic: if category price > 0 use it, else fall back to site default
-                const categoryPrice = categoryData.ad_creation_price > 0
+                const price = categoryData.ad_creation_price > 0
                     ? categoryData.ad_creation_price
                     : siteDefaultBaseFee;
 
-                console.log('🏷️ Category', categoryId, 'own price:', categoryData.ad_creation_price, '→ effective price:', categoryPrice);
-                return categoryPrice;
+                console.log('🏷️ Category', categoryId, 'price:', price);
+                return price;
             }
 
             let currentTotalCost = 0;

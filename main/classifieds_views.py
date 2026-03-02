@@ -417,7 +417,7 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             .prefetch_related(
                 Prefetch(
                     "subcategories",
-                    queryset=Category.objects.defer(
+                    queryset=Category.objects.filter(is_active=True).defer(
                         "default_reservation_percentage",
                         "min_reservation_amount",
                         "max_reservation_amount",
