@@ -434,9 +434,12 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         from django.core.serializers.json import DjangoJSONEncoder
 
         categories_data = {}
-        # Fetch flat rows — avoids select_related issues with self-referential TreeForeignKey
+        # Fetch ALL active categories regardless of section_type.
+        # The subcategory prefetch in ad_categories has no section_type filter, so
+        # subcategories of CLASSIFIED roots may have any section_type value.
+        # Excluding them from raw_cats would leave them out of categoriesPricing,
+        # causing the JS to fall back to siteDefaultBaseFee (0) instead of the set price.
         raw_cats = list(Category.objects.filter(
-            section_type=Category.SectionType.CLASSIFIED,
             is_active=True,
         ).values('id', 'name', 'parent_id', 'ad_creation_price'))
 
