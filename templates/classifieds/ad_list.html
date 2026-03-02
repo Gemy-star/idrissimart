@@ -1,577 +1,1096 @@
 {% extends "base.html" %}
-
 {% load static i18n idrissimart_tags %}
 
 {% block title %}
-    {% trans "الإعلانات المبوبة" %}
-
+  {% if search_term %}{% blocktrans with q=search_term %}نتائج البحث عن "{{ q }}"{% endblocktrans %}
+  {% else %}{% trans "الإعلانات المبوبة" %}{% endif %}
 {% endblock title %}
 
 {% block extra_css %}
 <style>
-    /* Filter Sidebar Styles */
-    .filters-sidebar {
-        background-color: var(--bg-secondary);
-        border: 1px solid var(--border-color);
-        transition: all 0.3s ease;
-    }
+/* ══════════════════════════════════════════════
+   DESIGN TOKENS
+══════════════════════════════════════════════ */
+:root {
+  --brand:        #4b315e;
+  --brand-light:  #7b5fa0;
+  --brand-dark:   #321f40;
+  --brand-muted:  #f0e9f8;
+  --accent:       #f59e0b;
+  --surface:      #ffffff;
+  --surface-2:    #f7f4fb;
+  --border:       #e5ddf0;
+  --text:         #1a1225;
+  --text-muted:   #6b5e7a;
+  --radius-sm:    8px;
+  --radius-md:    14px;
+  --radius-lg:    20px;
+  --shadow-sm:    0 1px 4px rgba(75,49,94,.08);
+  --shadow-md:    0 4px 20px rgba(75,49,94,.12);
+  --shadow-lg:    0 8px 40px rgba(75,49,94,.16);
+  --transition:   .2s ease;
+}
+[data-bs-theme="dark"], html.dark {
+  --brand:        #9b6fc2;
+  --brand-light:  #b990d8;
+  --brand-dark:   #7b4fa4;
+  --brand-muted:  #2a1f38;
+  --surface:      #1e1a2b;
+  --surface-2:    #16121f;
+  --border:       #332647;
+  --text:         #f0eaf8;
+  --text-muted:   #9d8ab0;
+}
 
-    .filters-sidebar h4 {
-        color: var(--text-primary);
-        font-weight: 600;
-    }
+/* ══ HERO ══════════════════════════════════════ */
+.al-hero {
+  background: linear-gradient(135deg, var(--brand-dark) 0%, var(--brand) 55%, var(--brand-light) 100%);
+  padding: 3rem 0 4.5rem;
+  position: relative;
+  overflow: hidden;
+}
+.al-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Ccircle cx='30' cy='30' r='20'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
+  pointer-events: none;
+}
+.al-hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.2);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  font-size: .78rem;
+  font-weight: 600;
+  padding: .3rem .85rem;
+  border-radius: 50px;
+  margin-bottom: 1rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.al-hero-title {
+  color: #fff;
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  font-weight: 800;
+  margin-bottom: .4rem;
+  line-height: 1.2;
+}
+.al-hero-sub {
+  color: rgba(255,255,255,.75);
+  font-size: .95rem;
+  margin-bottom: 1.8rem;
+}
+.al-search-card {
+  background: rgba(255,255,255,.12);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.4rem;
+}
+.al-search-row {
+  display: flex;
+  gap: .6rem;
+  align-items: center;
+}
+.al-search-row .input-wrap {
+  flex: 1;
+  position: relative;
+}
+.al-search-row .input-wrap i {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255,255,255,.6);
+  font-size: .9rem;
+  pointer-events: none;
+}
+html[dir="ltr"] .al-search-row .input-wrap i { right: auto; left: 1rem; }
+.al-search-input {
+  width: 100%;
+  background: rgba(255,255,255,.15);
+  border: 1.5px solid rgba(255,255,255,.25);
+  border-radius: var(--radius-sm);
+  color: #fff;
+  padding: .7rem 2.6rem .7rem 1rem;
+  font-size: 1rem;
+  outline: none;
+  transition: border var(--transition), background var(--transition);
+}
+html[dir="ltr"] .al-search-input { padding: .7rem 1rem .7rem 2.6rem; }
+.al-search-input::placeholder { color: rgba(255,255,255,.55); }
+.al-search-input:focus {
+  border-color: rgba(255,255,255,.6);
+  background: rgba(255,255,255,.22);
+}
+.al-search-btn {
+  background: #fff;
+  color: var(--brand);
+  font-weight: 700;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: .7rem 1.5rem;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .9rem;
+  transition: opacity var(--transition), transform var(--transition);
+  flex-shrink: 0;
+}
+.al-search-btn:hover { opacity: .9; transform: translateY(-1px); }
+.sb-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  margin-top: 1rem;
+}
+.sb-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.15);
+  color: rgba(255,255,255,.75);
+  border-radius: 50px;
+  padding: .3rem .9rem;
+  font-size: .78rem;
+  cursor: pointer;
+  transition: all var(--transition);
+  user-select: none;
+}
+.sb-tab:hover { background: rgba(255,255,255,.18); color: #fff; }
+.sb-tab.active {
+  background: #fff;
+  border-color: #fff;
+  color: var(--brand);
+  font-weight: 700;
+}
 
-    .filters-sidebar .form-label {
-        color: var(--text-secondary);
-        font-weight: 500;
-        margin-bottom: 0.5rem;
-    }
+/* ══ LAYOUT ════════════════════════════════════ */
+.al-body { background: var(--surface-2); padding: 1.5rem 0 3rem; }
 
-    .filters-sidebar select,
-    .filters-sidebar input[type="text"],
-    .filters-sidebar input[type="number"] {
-        background-color: var(--input-bg);
-        color: var(--text-primary);
-        border: 1px solid var(--border-color);
-        border-radius: 0.375rem;
-        padding: 0.5rem 0.75rem;
-        width: 100%;
-        transition: all 0.3s ease;
-    }
+/* ══ SIDEBAR ═══════════════════════════════════ */
+.al-sidebar {
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.al-sidebar::-webkit-scrollbar { width: 4px; }
+.al-sidebar::-webkit-scrollbar-track { background: transparent; }
+.al-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
-    .filters-sidebar select:focus,
-    .filters-sidebar input[type="text"]:focus,
-    .filters-sidebar input[type="number"]:focus {
-        background-color: var(--input-bg);
-        color: var(--text-primary);
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 0.2rem rgba(75, 49, 94, 0.25);
-        outline: 0;
-    }
+.filter-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+.filter-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .85rem 1.1rem;
+  cursor: pointer;
+  gap: .5rem;
+  user-select: none;
+}
+.filter-card-header .fch-left {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-weight: 700;
+  font-size: .88rem;
+  color: var(--text);
+}
+.filter-card-header .fch-left i {
+  color: var(--brand);
+  font-size: .9rem;
+}
+.filter-card-header .fch-toggle {
+  color: var(--text-muted);
+  font-size: .75rem;
+  transition: transform var(--transition);
+}
+.filter-card.open .fch-toggle { transform: rotate(180deg); }
+.filter-card-body {
+  padding: 0 1.1rem 1rem;
+  border-top: 1px solid var(--border);
+  display: none;
+}
+.filter-card.open .filter-card-body { display: block; }
 
-    .filters-sidebar select option {
-        background-color: var(--bg-primary);
-        color: var(--text-primary);
-    }
+.filter-label {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin: .9rem 0 .45rem;
+}
+.filter-label:first-child { margin-top: .75rem; }
 
-    /* Button Styles */
-    .btn-custom {
-        border-radius: 0.375rem;
-        padding: 0.5rem 1rem;
-        font-weight: 500;
-        transition: all 0.3s ease;
-    }
+.al-form-control {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: .55rem .85rem;
+  font-size: .87rem;
+  outline: none;
+  transition: border var(--transition);
+  -webkit-appearance: none;
+}
+.al-form-control:focus { border-color: var(--brand); }
+select.al-form-control {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%234b315e' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: left .8rem center;
+  padding-left: 2rem;
+}
+html[dir="rtl"] select.al-form-control {
+  background-position: right .8rem center;
+  padding-left: .85rem;
+  padding-right: 2rem;
+}
 
-    .btn-primary-custom {
-        background-color: var(--primary-color);
-        border-color: var(--primary-color);
-        color: #fff;
-    }
+.price-pair { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
 
-    .btn-primary-custom:hover {
-        background-color: #3d2750;
-        border-color: #3d2750;
-        color: #fff;
-    }
+.check-pill {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem .7rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition);
+  font-size: .87rem;
+  color: var(--text);
+}
+.check-pill:hover { background: var(--brand-muted); }
+.check-pill input[type="checkbox"] {
+  accent-color: var(--brand);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
 
-    .btn-outline-secondary {
-        color: var(--text-secondary);
-        border-color: var(--border-color);
-        background-color: transparent;
-    }
+.btn-apply-full {
+  display: block;
+  width: 100%;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-light) 100%);
+  color: #fff;
+  font-weight: 700;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: .7rem;
+  cursor: pointer;
+  font-size: .9rem;
+  transition: opacity var(--transition), transform var(--transition);
+  text-align: center;
+  text-decoration: none;
+}
+.btn-apply-full:hover { opacity: .9; transform: translateY(-1px); }
+.btn-reset-full {
+  display: block;
+  width: 100%;
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 600;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: .6rem;
+  cursor: pointer;
+  font-size: .85rem;
+  margin-top: .5rem;
+  text-align: center;
+  text-decoration: none;
+  transition: all var(--transition);
+}
+.btn-reset-full:hover { border-color: var(--brand); color: var(--brand); }
 
-    .btn-outline-secondary:hover {
-        background-color: var(--bg-hover);
-        border-color: var(--border-color);
-        color: var(--text-primary);
-    }
+/* mobile toggle */
+.al-filter-toggle {
+  display: none;
+  align-items: center;
+  gap: .5rem;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: .6rem 1.1rem;
+  font-weight: 600;
+  font-size: .88rem;
+  color: var(--text);
+  cursor: pointer;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+.al-filter-badge {
+  background: var(--brand);
+  color: #fff;
+  border-radius: 50px;
+  padding: .1rem .5rem;
+  font-size: .72rem;
+  font-weight: 700;
+}
+@media (max-width: 991px) {
+  .al-filter-toggle { display: flex; }
+  .al-sidebar { position: static; max-height: none; display: none; }
+  .al-sidebar.open { display: block; }
+}
 
-    /* Pagination Styles */
-    .pagination {
-        margin-top: 2rem;
-    }
+/* ══ RESULTS BAR ════════════════════════════════ */
+.results-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .6rem;
+  margin-bottom: 1.2rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: .75rem 1.1rem;
+  box-shadow: var(--shadow-sm);
+}
+.results-count {
+  font-size: .92rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-shrink: 0;
+}
+.results-count strong { color: var(--text); font-size: 1.05rem; }
+.results-count .query-badge {
+  background: var(--brand-muted);
+  color: var(--brand);
+  border-radius: 6px;
+  padding: .1rem .5rem;
+  font-size: .82rem;
+  font-weight: 700;
+}
+.divider-dot { color: var(--border); font-size: 1.2rem; }
 
-    .pagination .page-item .page-link {
-        background-color: var(--bg-secondary);
-        color: var(--text-primary);
-        border: 1px solid var(--border-color);
-        padding: 0.5rem 0.75rem;
-        margin: 0 0.25rem;
-        border-radius: 0.375rem;
-        transition: all 0.3s ease;
-    }
+.filter-chips-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .4rem;
+  flex: 1;
+}
+.f-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  background: var(--brand-muted);
+  border: 1px solid var(--brand-light);
+  color: var(--brand);
+  border-radius: 50px;
+  padding: .25rem .75rem;
+  font-size: .8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.f-chip .chip-del {
+  color: var(--brand);
+  opacity: .6;
+  text-decoration: none;
+  line-height: 1;
+  transition: opacity var(--transition);
+}
+.f-chip .chip-del:hover { opacity: 1; }
+.clear-all-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 50px;
+  padding: .25rem .7rem;
+  font-size: .78rem;
+  text-decoration: none;
+  transition: all var(--transition);
+}
+.clear-all-chip:hover { border-color: #ef4444; color: #ef4444; }
 
-    .pagination .page-item .page-link:hover {
-        background-color: var(--bg-hover);
-        color: var(--text-primary);
-        border-color: var(--primary-color);
-    }
+.sort-wrap { margin-right: auto; }
+html[dir="rtl"] .sort-wrap { margin-right: 0; margin-left: auto; }
+.sort-select {
+  background: var(--surface-2);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: .38rem .9rem .38rem 1.8rem;
+  font-size: .83rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: border var(--transition);
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%234b315e' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: left .6rem center;
+}
+html[dir="rtl"] .sort-select {
+  padding: .38rem 1.8rem .38rem .9rem;
+  background-position: right .6rem center;
+}
+.sort-select:focus { border-color: var(--brand); }
 
-    .pagination .page-item.active .page-link {
-        background-color: var(--primary-color);
-        border-color: var(--primary-color);
-        color: #fff;
-        z-index: 3;
-    }
+/* ══ CATEGORY PILLS ════════════════════════════ */
+.cat-pills { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1.2rem; }
+.cat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .4rem .95rem;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 50px;
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: all var(--transition);
+}
+.cat-pill i { font-size: .75rem; }
+.cat-pill:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+  background: var(--brand-muted);
+  transform: translateY(-1px);
+}
 
-    .pagination .page-item.disabled .page-link {
-        background-color: var(--bg-secondary);
-        color: var(--text-muted);
-        border-color: var(--border-color);
-        opacity: 0.6;
-    }
+/* ══ EMPTY STATE ════════════════════════════════ */
+.al-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 4rem 1rem;
+  background: var(--surface);
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-lg);
+}
+.al-empty-icon {
+  width: 80px;
+  height: 80px;
+  background: var(--brand-muted);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: var(--brand);
+  margin-bottom: 1.2rem;
+}
+.al-empty h4 { font-size: 1.15rem; font-weight: 700; color: var(--text); margin-bottom: .5rem; }
+.al-empty p { color: var(--text-muted); font-size: .9rem; max-width: 380px; }
+.al-empty .hint { font-size: .82rem; color: var(--text-muted); margin-top: .3rem; opacity: .8; }
+.btn-empty {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  background: linear-gradient(135deg, var(--brand), var(--brand-light));
+  color: #fff;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  padding: .65rem 1.6rem;
+  text-decoration: none;
+  margin-top: 1.4rem;
+  transition: opacity var(--transition), transform var(--transition);
+  font-size: .9rem;
+}
+.btn-empty:hover { color: #fff; opacity: .9; transform: translateY(-1px); }
 
-    /* Modal Styles */
-    .modal-content {
-        background-color: var(--bg-secondary);
-        color: var(--text-primary);
-        border: 1px solid var(--border-color);
-    }
+/* ══ PAGINATION ════════════════════════════════ */
+.al-pag { display: flex; justify-content: center; gap: .4rem; flex-wrap: wrap; margin-top: 2rem; }
+.al-pag a, .al-pag span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  font-size: .87rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  transition: all var(--transition);
+  padding: 0 .6rem;
+}
+.al-pag a:hover { border-color: var(--brand); color: var(--brand); background: var(--brand-muted); }
+.al-pag .current {
+  background: linear-gradient(135deg, var(--brand), var(--brand-light));
+  border-color: transparent;
+  color: #fff;
+}
+.al-pag .dots { border: none; background: transparent; cursor: default; color: var(--text-muted); }
+.al-pag .nav-btn { font-size: .8rem; gap: .3rem; }
 
-    .modal-header {
-        border-bottom: 1px solid var(--border-color);
-    }
-
-    .modal-header .modal-title {
-        color: var(--text-primary);
-    }
-
-    .modal-header .btn-close {
-        filter: var(--btn-close-filter);
-    }
-
-    .modal-body .form-control {
-        background-color: var(--input-bg);
-        color: var(--text-primary);
-        border: 1px solid var(--border-color);
-    }
-
-    .modal-body .form-control:focus {
-        background-color: var(--input-bg);
-        color: var(--text-primary);
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 0.2rem rgba(75, 49, 94, 0.25);
-    }
-
-    .modal-body .form-label {
-        color: var(--text-secondary);
-    }
-
-    /* Alert Styles */
-    .alert-info {
-        background-color: rgba(13, 202, 240, 0.1);
-        color: var(--text-primary);
-        border: 1px solid rgba(13, 202, 240, 0.3);
-    }
-
-    /* Light Theme Specific */
-    [data-bs-theme="light"] {
-        --bg-primary: #ffffff;
-        --bg-secondary: #f8f9fa;
-        --bg-hover: #e9ecef;
-        --text-primary: #212529;
-        --text-secondary: #6c757d;
-        --text-muted: #adb5bd;
-        --border-color: #dee2e6;
-        --input-bg: #ffffff;
-        --btn-close-filter: none;
-    }
-
-    /* Dark Theme Specific */
-    [data-bs-theme="dark"] {
-        --bg-primary: #212529;
-        --bg-secondary: #343a40;
-        --bg-hover: #495057;
-        --text-primary: #f8f9fa;
-        --text-secondary: #adb5bd;
-        --text-muted: #6c757d;
-        --border-color: #495057;
-        --input-bg: #2b3035;
-        --btn-close-filter: invert(1) grayscale(100%) brightness(200%);
-    }
+/* ══ MODAL ══════════════════════════════════════ */
+.al-modal-inner {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+.al-modal-header {
+  padding: 1.2rem 1.5rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.al-modal-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.al-modal-title i { color: var(--brand); }
+.al-modal-body { padding: 1rem 1.5rem 1.5rem; }
 </style>
-{% endblock %}
+{% endblock extra_css %}
 
 {% block content %}
-    <section class="page-hero">
-        <div class="container">
-            <div class="hero-content-center">
-                <h1 class="page-title">{% trans "الإعلانات المبوبة" %}</h1>
-                <p class="page-subtitle">{% trans "تصفح أحدث الإعلانات في جميع الأقسام" %}</p>
-            </div>
+
+{# ════════════ HERO ════════════ #}
+<div class="al-hero">
+  <div class="container position-relative">
+
+    <span class="al-hero-eyebrow">
+      <i class="fas fa-bullhorn"></i>
+      {% trans "الإعلانات المبوبة" %}
+    </span>
+    <h1 class="al-hero-title">
+      {% if search_term %}
+        {% blocktrans with q=search_term %}نتائج البحث عن "{{ q }}"{% endblocktrans %}
+      {% else %}
+        {% trans "اعثر على ما تبحث عنه" %}
+      {% endif %}
+    </h1>
+    <p class="al-hero-sub">{% trans "ابحث بالعنوان، الوصف، المدينة، الناشر، القسم أو أي حقل مخصص" %}</p>
+
+    <div class="al-search-card">
+      <form method="get" id="heroSearchForm">
+        {% for key, val in request.GET.items %}
+          {% if key != 'search' and key != 'search_by' and key != 'page' %}
+            <input type="hidden" name="{{ key }}" value="{{ val }}">
+          {% endif %}
+        {% endfor %}
+        <div class="al-search-row">
+          <div class="input-wrap">
+            <i class="fas fa-search"></i>
+            <input type="text" name="search" class="al-search-input"
+                   placeholder="{% trans 'اكتب ما تبحث عنه …' %}"
+                   value="{{ search_term }}" autocomplete="off" id="heroSearchInput">
+          </div>
+          <button type="submit" class="al-search-btn">
+            <i class="fas fa-search"></i>
+            {% trans "بحث" %}
+          </button>
         </div>
-    </section>
-    <!-- Save Search Modal -->
-    <div class="modal fade"
-         id="saveSearchModal"
-         tabindex="-1"
-         aria-labelledby="saveSearchModalLabel"
-         aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="saveSearchModalLabel">{% trans "حفظ البحث الحالي" %}</h5>
-                    <button type="button"
-                            class="btn-close"
-                            data-bs-dismiss="modal"
-                            aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="saveSearchForm">
-                        {% csrf_token %}
-                        <div class="mb-3">
-                            <label for="searchNameInput" class="form-label">{% trans "أدخل اسمًا لهذا البحث:" %}</label>
-                            <input type="text" class="form-control" id="searchNameInput" required>
-                        </div>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-custom btn-primary-custom">{% trans "حفظ" %}</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+        <div class="sb-tabs">
+          <span class="sb-tab {% if not request.GET.search_by or request.GET.search_by == 'all' %}active{% endif %}" data-mode="all">
+            <i class="fas fa-layer-group"></i>{% trans "كل الحقول" %}
+          </span>
+          <span class="sb-tab {% if request.GET.search_by == 'title' %}active{% endif %}" data-mode="title">
+            <i class="fas fa-heading"></i>{% trans "العنوان" %}
+          </span>
+          <span class="sb-tab {% if request.GET.search_by == 'publisher' %}active{% endif %}" data-mode="publisher">
+            <i class="fas fa-user"></i>{% trans "الناشر" %}
+          </span>
+          <span class="sb-tab {% if request.GET.search_by == 'city' %}active{% endif %}" data-mode="city">
+            <i class="fas fa-map-marker-alt"></i>{% trans "المدينة" %}
+          </span>
+          <span class="sb-tab {% if request.GET.search_by == 'category' %}active{% endif %}" data-mode="category">
+            <i class="fas fa-th-large"></i>{% trans "القسم" %}
+          </span>
+          <span class="sb-tab {% if request.GET.search_by == 'custom' %}active{% endif %}" data-mode="custom">
+            <i class="fas fa-tags"></i>{% trans "حقول مخصصة" %}
+          </span>
         </div>
+        <input type="hidden" name="search_by" id="searchByInput" value="{{ request.GET.search_by|default:'all' }}">
+      </form>
     </div>
-<section class="ad-listing-section py-5">
-    <div class="container">
-        <div class="row">
-            <!-- Filters Sidebar -->
-            <div class="col-lg-3">
-                <div class="filters-sidebar p-4 rounded shadow-sm" style="background-color: var(--bg-secondary)">
-                    <h4 class="mb-4">تصفية النتائج</h4>
-                    <form method="get">
-                        <!-- Search by Name -->
-                        <div class="mb-3">
-                            <label for="id_title" class="form-label"></label>
 
-                        </div>
-                        <!-- Filter by Category -->
-                        <div class="mb-3">
-                            <label for="id_category" class="form-label">القسم</label>
-                            <select name="category" id="id_category">
-  <option value="" selected="">---------</option>
+  </div>
+</div>
 
-  <option value="1">Classified Ads</option>
+{# ════════════ SAVE SEARCH MODAL ════════════ #}
+<div class="modal fade" id="saveSearchModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content al-modal-inner border-0">
+      <div class="al-modal-header">
+        <span class="al-modal-title">
+          <i class="fas fa-bookmark"></i>
+          {% trans "حفظ البحث الحالي" %}
+        </span>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="al-modal-body">
+        <form id="saveSearchForm">
+          {% csrf_token %}
+          <label class="filter-label" for="searchNameInput">{% trans "اسم البحث" %}</label>
+          <input type="text" class="al-form-control mb-3" id="searchNameInput" required
+                 placeholder="{% trans 'مثال: شقق للإيجار في القاهرة' %}">
+          <button type="submit" class="btn-apply-full">
+            <i class="fas fa-save me-1"></i>{% trans "حفظ" %}
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 
-  <option value="2">Used</option>
+{# ════════════ BODY ════════════ #}
+<div class="al-body">
+  <div class="container">
+    <div class="row g-4">
 
-  <option value="3">Equipment Rental</option>
+      {# ─── SIDEBAR ─── #}
+      <div class="col-lg-3">
+        {# Mobile toggle #}
+        <button class="al-filter-toggle" id="filtersToggle">
+          <i class="fas fa-sliders-h"></i>
+          {% trans "تصفية النتائج" %}
+          {% if has_active_filters %}
+            <span class="al-filter-badge">{{ active_filters|length }}</span>
+          {% endif %}
+          <i class="fas fa-chevron-down ms-auto"></i>
+        </button>
 
-  <option value="4">Maintenance and Calibration</option>
+        <div class="al-sidebar" id="sidebarWrapper">
+          <form method="get" id="sidebarFilterForm">
+            {% if search_term %}<input type="hidden" name="search" value="{{ search_term }}">{% endif %}
+            {% if request.GET.search_by %}<input type="hidden" name="search_by" value="{{ request.GET.search_by }}">{% endif %}
 
-  <option value="5">Books and Programs</option>
+            {# ── Category & Location ── #}
+            <div class="filter-card open">
+              <div class="filter-card-header" onclick="toggleFilterCard(this)">
+                <span class="fch-left">
+                  <i class="fas fa-th-large"></i>
+                  {% trans "القسم والموقع" %}
+                </span>
+                <i class="fas fa-chevron-up fch-toggle"></i>
+              </div>
+              <div class="filter-card-body">
+                <p class="filter-label">{% trans "القسم" %}</p>
+                <select name="category" class="al-form-control" id="sidebarCategory">
+                  <option value="">{% trans "— جميع الأقسام —" %}</option>
+                  {% for cat in root_categories %}
+                    <option value="{{ cat.pk }}" {% if request.GET.category|add:"" == cat.pk|stringformat:"s" %}selected{% endif %}>
+                      {{ cat.display_name }}
+                    </option>
+                    {% for sub in cat.subcategories.all %}{% if sub.is_active %}
+                      <option value="{{ sub.pk }}" {% if request.GET.category|add:"" == sub.pk|stringformat:"s" %}selected{% endif %}>
+                        &emsp;↳ {{ sub.display_name }}
+                      </option>
+                    {% endif %}{% endfor %}
+                  {% endfor %}
+                </select>
 
-</select>
-                        </div>
-                        <!-- Filter by City -->
-                        <div class="mb-3">
-                            <label for="id_city" class="form-label">المدينة</label>
-                            <input type="text" name="city" id="id_city">
-                        </div>
-                        <!-- Filter by Brand -->
-                        <div class="mb-3">
-                            <label for="id_brand" class="form-label">الماركة</label>
-                            <input type="text" name="brand" id="id_brand">
-                        </div>
-                        <!-- Filter by Condition -->
-                        <div class="mb-3">
-                            <label for="id_condition" class="form-label">الحالة</label>
-                            <select name="condition" id="id_condition">
-  <option value="" selected="">---------</option>
+                <p class="filter-label">{% trans "المدينة" %}</p>
+                <input type="text" name="city" class="al-form-control"
+                       placeholder="{% trans 'اكتب اسم المدينة' %}"
+                       value="{{ request.GET.city }}">
 
-  <option value="new">جديد</option>
-
-  <option value="used_excellent">مستعمل - ممتاز</option>
-
-  <option value="used_good">مستعمل - جيد</option>
-
-  <option value="used_fair">مستعمل - مقبول</option>
-
-</select>
-                        </div>
-
-                        <!-- Dynamic Custom Field Filters -->
-                        {% if category_filter_fields %}
-                        <div class="mb-3">
-                            <h5 class="form-label mb-3" style="color: var(--text-primary); font-weight: 600;">
-                                <i class="fas fa-sliders-h me-2"></i>
-                                {% trans "تصفية حسب المواصفات" %}
-                            </h5>
-                            {% for cat_field in category_filter_fields %}
-                            {% with field=cat_field.custom_field %}
-                            <div class="mb-3">
-                                <label for="cf_{{ field.name }}" class="form-label">{{ field.label_ar|default:field.name }}</label>
-
-                                {% if field.field_type == 'select' or field.field_type == 'radio' %}
-                                    {% with field_key="cf_"|add:field.name %}
-                                    <select name="cf_{{ field.name }}" id="cf_{{ field.name }}" class="form-select">
-                                        <option value="">{% trans "الكل" %}</option>
-                                        {% for option in field.field_options.all %}
-                                        <option value="{{ option.value }}" {% if request.GET|get_item:field_key == option.value %}selected{% endif %}>
-                                            {{ option.label_ar|default:option.label }}
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                    {% endwith %}
-
-                                {% elif field.field_type == 'number' or field.field_type == 'range' %}
-                                    {% with field_key="cf_"|add:field.name %}
-                                    <input type="number"
-                                           name="cf_{{ field.name }}"
-                                           id="cf_{{ field.name }}"
-                                           class="form-control"
-                                           placeholder="{{ field.placeholder }}"
-                                           value="{{ request.GET|get_item:field_key }}">
-                                    {% endwith %}
-
-                                {% elif field.field_type == 'checkbox' %}
-                                    {% with field_key="cf_"|add:field.name %}
-                                    <div class="form-check">
-                                        <input class="form-check-input"
-                                               type="checkbox"
-                                               name="cf_{{ field.name }}"
-                                               id="cf_{{ field.name }}"
-                                               value="true"
-                                               {% if request.GET|get_item:field_key == "true" %}checked{% endif %}>
-                                        <label class="form-check-label" for="cf_{{ field.name }}">
-                                            {{ field.help_text|default:field.label_ar }}
-                                        </label>
-                                    </div>
-                                    {% endwith %}
-
-                                {% else %}
-                                    {% with field_key="cf_"|add:field.name %}
-                                    <input type="text"
-                                           name="cf_{{ field.name }}"
-                                           id="cf_{{ field.name }}"
-                                           class="form-control"
-                                           placeholder="{{ field.placeholder }}"
-                                           value="{{ request.GET|get_item:field_key }}">
-                                    {% endwith %}
-                                {% endif %}
-
-                                {% if field.help_text %}
-                                <small class="form-text text-muted d-block mt-1">{{ field.help_text }}</small>
-                                {% endif %}
-                            </div>
-                            {% endwith %}
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-
-                        <!-- Filter by Price -->
-                        <div class="mb-3">
-                            <label class="form-label"></label>
-                            <div class="d-flex gap-2">
-
-
-                            </div>
-                        </div>
-                        <!-- Sort By -->
-                        <div class="mb-3">
-                            <label for="id_order_by" class="form-label">ترتيب حسب</label>
-                            <select name="order_by" id="id_order_by">
-  <option value="" selected="">---------</option>
-
-  <option value="newest">Newest</option>
-
-  <option value="-newest">Newest (تنازلي)</option>
-
-  <option value="oldest">Oldest</option>
-
-  <option value="-oldest">Oldest (تنازلي)</option>
-
-  <option value="price_low">Price low</option>
-
-  <option value="-price_low">Price low (تنازلي)</option>
-
-  <option value="price_high">Price high</option>
-
-  <option value="-price_high">Price high (تنازلي)</option>
-
-  <option value="most_viewed">Most viewed</option>
-
-  <option value="-most_viewed">Most viewed (تنازلي)</option>
-
-  <option value="least_viewed">Least viewed</option>
-
-  <option value="-least_viewed">Least viewed (تنازلي)</option>
-
-  <option value="title_asc">Title asc</option>
-
-  <option value="-title_asc">Title asc (تنازلي)</option>
-
-  <option value="title_desc">Title desc</option>
-
-  <option value="-title_desc">Title desc (تنازلي)</option>
-
-  <option value="featured_first">Featured first</option>
-
-  <option value="-featured_first">Featured first (تنازلي)</option>
-
-</select>
-                        </div>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-custom btn-primary-custom mb-2">تطبيق الفلتر</button>
-                            {% if request.user.is_authenticated %}
-                                <button type="button"
-                                        class="btn btn-custom btn-outline-secondary"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#saveSearchModal">
-                                    <i class="fas fa-bookmark me-2"></i>{% trans "حفظ البحث" %}
-                                </button>
-                            {% endif %}
-                        </div>
-                    </form>
-                </div>
+                <p class="filter-label">{% trans "الدولة" %}</p>
+                {{ filter.form.country }}
+              </div>
             </div>
-            <!-- Ads Grid -->
-            <div class="col-lg-9">
-                <div class="row g-4">
-                    {% for ad in ads %}
-                        <div class="col-md-6 col-lg-4">
-                            {% include "partials/_ad_card_component.html" with ad=ad %}
 
-                        </div>
-                    {% empty %}
-                        <div class="col-12">
-                            <div class="alert alert-info text-center">{% trans "لا توجد إعلانات تطابق معايير البحث." %}</div>
-                        </div>
-                    {% endfor %}
+            {# ── Price ── #}
+            <div class="filter-card open">
+              <div class="filter-card-header" onclick="toggleFilterCard(this)">
+                <span class="fch-left">
+                  <i class="fas fa-tag"></i>
+                  {% trans "نطاق السعر" %}
+                </span>
+                <i class="fas fa-chevron-up fch-toggle"></i>
+              </div>
+              <div class="filter-card-body">
+                <p class="filter-label">{% trans "من / إلى" %}</p>
+                <div class="price-pair">
+                  <input type="number" name="min_price" class="al-form-control"
+                         placeholder="{% trans 'من' %}" value="{{ request.GET.min_price }}" min="0">
+                  <input type="number" name="max_price" class="al-form-control"
+                         placeholder="{% trans 'إلى' %}" value="{{ request.GET.max_price }}" min="0">
                 </div>
-                <!-- Pagination -->
-                {% if is_paginated %}
-                    <nav aria-label="Page navigation" class="mt-5">
-                        <ul class="pagination justify-content-center">
-                            {% if page_obj.has_previous %}
-                                <li class="page-item">
-                                    <a class="page-link"
-                                       href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode }}">{% trans "السابق" %}</a>
-                                </li>
-                            {% endif %}
-                            {% for num in paginator.page_range %}
-                                {% if page_obj.number == num %}
-                                    <li class="page-item active">
-                                        <span class="page-link">{{ num }}</span>
-                                    </li>
-                                {% else %}
-                                    <li class="page-item">
-                                        <a class="page-link" href="?page={{ num }}&{{ request.GET.urlencode }}">{{ num }}</a>
-                                    </li>
-                                {% endif %}
-                            {% endfor %}
-                            {% if page_obj.has_next %}
-                                <li class="page-item">
-                                    <a class="page-link"
-                                       href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode }}">{% trans "التالي" %}</a>
-                                </li>
-                            {% endif %}
-                        </ul>
-                    </nav>
+              </div>
+            </div>
+
+            {# ── Ad Type ── #}
+            <div class="filter-card open">
+              <div class="filter-card-header" onclick="toggleFilterCard(this)">
+                <span class="fch-left">
+                  <i class="fas fa-filter"></i>
+                  {% trans "نوع الإعلان" %}
+                </span>
+                <i class="fas fa-chevron-up fch-toggle"></i>
+              </div>
+              <div class="filter-card-body">
+                <label class="check-pill" for="is_featured">
+                  <input class="form-check-input m-0" type="checkbox" name="is_featured" id="is_featured" value="true"
+                         {% if request.GET.is_featured %}checked{% endif %}>
+                  <i class="fas fa-star text-warning"></i> {% trans "مميز" %}
+                </label>
+                <label class="check-pill" for="is_urgent">
+                  <input class="form-check-input m-0" type="checkbox" name="is_urgent" id="is_urgent" value="true"
+                         {% if request.GET.is_urgent %}checked{% endif %}>
+                  <i class="fas fa-bolt text-danger"></i> {% trans "عاجل" %}
+                </label>
+                <label class="check-pill" for="is_negotiable">
+                  <input class="form-check-input m-0" type="checkbox" name="is_negotiable" id="is_negotiable" value="true"
+                         {% if request.GET.is_negotiable %}checked{% endif %}>
+                  <i class="fas fa-handshake text-info"></i> {% trans "قابل للتفاوض" %}
+                </label>
+                <label class="check-pill" for="verified_only">
+                  <input class="form-check-input m-0" type="checkbox" name="verified_only" id="verified_only" value="true"
+                         {% if request.GET.verified_only %}checked{% endif %}>
+                  <i class="fas fa-shield-alt text-success"></i> {% trans "ناشرون موثقون" %}
+                </label>
+              </div>
+            </div>
+
+            {# ── Custom Fields ── #}
+            {% if category_filter_fields %}
+            <div class="filter-card open">
+              <div class="filter-card-header" onclick="toggleFilterCard(this)">
+                <span class="fch-left">
+                  <i class="fas fa-list-check"></i>
+                  {% trans "مواصفات الفئة" %}
+                </span>
+                <i class="fas fa-chevron-up fch-toggle"></i>
+              </div>
+              <div class="filter-card-body">
+                {% for cat_cf in category_filter_fields %}
+                  {% with field=cat_cf.custom_field %}
+                  <p class="filter-label">{{ field.label_ar|default:field.name }}</p>
+                  {% if field.field_type == 'select' or field.field_type == 'radio' %}
+                    {% with field_key="cf_"|add:field.name %}
+                    <select name="cf_{{ field.name }}" class="al-form-control">
+                      <option value="">{% trans "الكل" %}</option>
+                      {% for opt in field.field_options.all %}
+                        <option value="{{ opt.value }}" {% if request.GET|get_item:field_key == opt.value %}selected{% endif %}>
+                          {{ opt.label_ar|default:opt.label }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                    {% endwith %}
+                  {% elif field.field_type == 'number' or field.field_type == 'range' %}
+                    {% with field_key="cf_"|add:field.name %}
+                    <input type="number" name="cf_{{ field.name }}" class="al-form-control"
+                           placeholder="{{ field.placeholder }}" value="{{ request.GET|get_item:field_key }}">
+                    {% endwith %}
+                  {% else %}
+                    {% with field_key="cf_"|add:field.name %}
+                    <input type="text" name="cf_{{ field.name }}" class="al-form-control"
+                           placeholder="{{ field.placeholder }}" value="{{ request.GET|get_item:field_key }}">
+                    {% endwith %}
+                  {% endif %}
+                  {% endwith %}
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+
+            {# ── Sort ── #}
+            <div class="filter-card open">
+              <div class="filter-card-header" onclick="toggleFilterCard(this)">
+                <span class="fch-left">
+                  <i class="fas fa-sort-amount-down"></i>
+                  {% trans "ترتيب حسب" %}
+                </span>
+                <i class="fas fa-chevron-up fch-toggle"></i>
+              </div>
+              <div class="filter-card-body">
+                <p class="filter-label">{% trans "الترتيب" %}</p>
+                <select name="order_by" class="al-form-control">
+                  <option value="">{% trans "— الافتراضي —" %}</option>
+                  <option value="newest"         {% if request.GET.order_by == 'newest'         %}selected{% endif %}>{% trans "الأحدث أولاً" %}</option>
+                  <option value="oldest"         {% if request.GET.order_by == 'oldest'         %}selected{% endif %}>{% trans "الأقدم أولاً" %}</option>
+                  <option value="price_low"      {% if request.GET.order_by == 'price_low'      %}selected{% endif %}>{% trans "السعر: الأقل أولاً" %}</option>
+                  <option value="price_high"     {% if request.GET.order_by == 'price_high'     %}selected{% endif %}>{% trans "السعر: الأعلى أولاً" %}</option>
+                  <option value="most_viewed"    {% if request.GET.order_by == 'most_viewed'    %}selected{% endif %}>{% trans "الأكثر مشاهدة" %}</option>
+                  <option value="featured_first" {% if request.GET.order_by == 'featured_first' %}selected{% endif %}>{% trans "المميزة أولاً" %}</option>
+                </select>
+              </div>
+            </div>
+
+            {# ── Actions ── #}
+            <button type="submit" class="btn-apply-full">
+              <i class="fas fa-check me-1"></i> {% trans "تطبيق الفلتر" %}
+            </button>
+            {% if has_active_filters %}
+            <a href="{% url 'main:ad_list' %}" class="btn-reset-full">
+              <i class="fas fa-times me-1"></i> {% trans "مسح كل الفلاتر" %}
+            </a>
+            {% endif %}
+            {% if request.user.is_authenticated and search_term %}
+            <button type="button" class="btn-reset-full mt-2"
+                    data-bs-toggle="modal" data-bs-target="#saveSearchModal">
+              <i class="fas fa-bookmark me-1"></i> {% trans "حفظ هذا البحث" %}
+            </button>
+            {% endif %}
+
+          </form>
+        </div>{# end al-sidebar #}
+      </div>{# end sidebar col #}
+
+      {# ─── RESULTS ─── #}
+      <div class="col-lg-9">
+
+        {# Results header bar #}
+        <div class="results-header">
+          <span class="results-count">
+            <i class="fas fa-list-ul" style="color:var(--brand);font-size:.8rem;"></i>
+            {% if search_term %}
+              <strong>{{ total_results }}</strong>
+              {% trans "نتيجة لـ" %}
+              <span class="query-badge">{{ search_term }}</span>
+            {% else %}
+              <strong>{{ total_results }}</strong>
+              {% trans "إعلان" %}
+            {% endif %}
+          </span>
+
+          {% if has_active_filters %}
+          <span class="divider-dot">·</span>
+          <div class="filter-chips-wrap">
+            {% for chip in active_filters %}
+            <span class="f-chip">
+              <span style="opacity:.7;">{{ chip.label }}:</span>
+              {{ chip.value }}
+              <a href="?{% for k, v in request.GET.items %}{% if k != chip.key and k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}"
+                 class="chip-del" title="{% trans 'إزالة' %}"><i class="fas fa-times"></i></a>
+            </span>
+            {% endfor %}
+            <a href="{% url 'main:ad_list' %}" class="clear-all-chip">
+              <i class="fas fa-times"></i>{% trans "مسح الكل" %}
+            </a>
+          </div>
+          {% endif %}
+
+          <div class="sort-wrap d-none d-md-block">
+            <select class="sort-select" onchange="applySortChange(this.value)">
+              <option value="">{% trans "ترتيب" %}</option>
+              <option value="newest"         {% if request.GET.order_by == 'newest'         %}selected{% endif %}>{% trans "الأحدث" %}</option>
+              <option value="price_low"      {% if request.GET.order_by == 'price_low'      %}selected{% endif %}>{% trans "سعر ↑" %}</option>
+              <option value="price_high"     {% if request.GET.order_by == 'price_high'     %}selected{% endif %}>{% trans "سعر ↓" %}</option>
+              <option value="most_viewed"    {% if request.GET.order_by == 'most_viewed'    %}selected{% endif %}>{% trans "الأكثر مشاهدة" %}</option>
+              <option value="featured_first" {% if request.GET.order_by == 'featured_first' %}selected{% endif %}>{% trans "المميزة" %}</option>
+            </select>
+          </div>
+        </div>
+
+        {# Category quick pills #}
+        {% if not request.GET.category and root_categories %}
+        <div class="cat-pills">
+          {% for cat in root_categories %}
+          <a href="?{% for k, v in request.GET.items %}{% if k != 'category' and k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}category={{ cat.pk }}"
+             class="cat-pill">
+            {% if cat.icon %}<i class="{{ cat.icon }}"></i>{% endif %}
+            {{ cat.display_name }}
+          </a>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Ads grid #}
+        <div class="row g-3">
+          {% for ad in ads %}
+            <div class="col-sm-6 col-xl-4">
+              {% include "partials/_ad_card_component.html" with ad=ad %}
+            </div>
+          {% empty %}
+            <div class="col-12">
+              <div class="al-empty">
+                <div class="al-empty-icon">
+                  <i class="fas fa-search-minus"></i>
+                </div>
+                <h4>{% trans "لا توجد نتائج" %}</h4>
+                {% if search_term %}
+                <p>{% blocktrans with q=search_term %}لم يُعثر على إعلانات تطابق "{{ q }}"{% endblocktrans %}</p>
+                <p class="hint">{% trans "جرّب كلمات أقصر، أو تحقق من الإملاء، أو ابحث بـ 'كل الحقول'" %}</p>
+                {% else %}
+                <p>{% trans "لا توجد إعلانات تطابق معايير البحث الحالية" %}</p>
                 {% endif %}
+                <a href="{% url 'main:ad_list' %}" class="btn-empty">
+                  <i class="fas fa-redo"></i>
+                  {% trans "عرض كل الإعلانات" %}
+                </a>
+              </div>
             </div>
+          {% endfor %}
         </div>
-    </div>
-</section>
+
+        {# Pagination #}
+        {% if is_paginated %}
+        <div class="al-pag">
+          {% if page_obj.has_previous %}
+          <a class="nav-btn" href="?page={{ page_obj.previous_page_number }}&{% for k, v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}">
+            <i class="fas fa-chevron-right"></i>
+          </a>
+          {% endif %}
+
+          {% for num in paginator.page_range %}
+            {% if page_obj.number == num %}
+              <span class="current">{{ num }}</span>
+            {% elif num == 1 or num == paginator.num_pages or num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+              <a href="?page={{ num }}&{% for k, v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}">{{ num }}</a>
+            {% elif num == page_obj.number|add:"-3" or num == page_obj.number|add:"3" %}
+              <span class="dots">…</span>
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+          <a class="nav-btn" href="?page={{ page_obj.next_page_number }}&{% for k, v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}">
+            <i class="fas fa-chevron-left"></i>
+          </a>
+          {% endif %}
+        </div>
+        {% endif %}
+
+      </div>{# end results col #}
+    </div>{# end row #}
+  </div>{# end container #}
+</div>{# end al-body #}
 
 {% endblock content %}
 
+
 {% block extra_js %}
-    <script>
-        // Get CSRF token from cookie
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
-            }
-            return cookieValue;
-        }
+<script>
+/* Search-by tabs */
+document.querySelectorAll('.sb-tab').forEach(function(tab) {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('.sb-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const mode = tab.dataset.mode;
+    document.getElementById('searchByInput').value = mode;
+    if (mode === 'city') {
+      const cityInput = document.querySelector('[name="city"]');
+      const heroInput = document.getElementById('heroSearchInput');
+      if (cityInput && heroInput) cityInput.value = heroInput.value;
+    }
+  });
+});
 
-        // Show notification function
-        function showNotification(message, type) {
-            // Create toast container if it doesn't exist
-            let toastContainer = document.querySelector('.toast-container');
-            if (!toastContainer) {
-                toastContainer = document.createElement('div');
-                toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
-                toastContainer.style.zIndex = '9999';
-                document.body.appendChild(toastContainer);
-            }
+/* Inline sort */
+function applySortChange(val) {
+  const url = new URL(window.location.href);
+  if (val) url.searchParams.set('order_by', val);
+  else url.searchParams.delete('order_by');
+  url.searchParams.delete('page');
+  window.location.href = url.toString();
+}
 
-            // Create toast element
-            const toastId = 'toast-' + Date.now();
-            const bgClass = type === 'success' ? 'bg-success' : 'bg-danger';
-            const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+/* Mobile sidebar toggle */
+const toggleBtn = document.getElementById('filtersToggle');
+const sidebarWrap = document.getElementById('sidebarWrapper');
+if (toggleBtn && sidebarWrap) {
+  toggleBtn.addEventListener('click', function() {
+    sidebarWrap.classList.toggle('open');
+    const icon = toggleBtn.querySelector('.fa-chevron-down, .fa-chevron-up');
+    if (icon) { icon.classList.toggle('fa-chevron-down'); icon.classList.toggle('fa-chevron-up'); }
+  });
+}
 
-            const toastHTML = `
-                <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                    <div class="d-flex">
-                        <div class="toast-body">
-                            <i class="fas ${icon} me-2"></i>${message}
-                        </div>
-                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                    </div>
-                </div>
-            `;
+/* Collapsible filter cards */
+function toggleFilterCard(header) {
+  const card = header.closest('.filter-card');
+  card.classList.toggle('open');
+}
 
-            toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+/* Category auto-submit */
+const catSelect = document.getElementById('sidebarCategory');
+if (catSelect) {
+  catSelect.addEventListener('change', function() {
+    document.getElementById('sidebarFilterForm').submit();
+  });
+}
 
-            const toastElement = document.getElementById(toastId);
-            const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
-            toast.show();
+/* Style country select from Django form */
+document.querySelectorAll('#sidebarFilterForm select').forEach(function(el) {
+  if (!el.classList.contains('al-form-control')) {
+    el.classList.add('al-form-control');
+  }
+});
 
-            // Remove toast element after it's hidden
-            toastElement.addEventListener('hidden.bs.toast', function() {
-                toastElement.remove();
-            });
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            const saveSearchForm = document.getElementById('saveSearchForm');
-            if (saveSearchForm) {
-                saveSearchForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    const searchNameInput = document.getElementById('searchNameInput');
-                    const searchName = searchNameInput.value.trim();
-
-                    if (!searchName) return;
-
-                    const queryParams = window.location.search.substring(1);
-                    const csrfToken = getCookie('csrftoken') || document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-
-                    fetch("{% url 'main:save_search' %}", {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded',
-                                'X-CSRFToken': csrfToken
-                            },
-                            body: new URLSearchParams({
-                                'name': searchName,
-                                'query_params': queryParams
-                            })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            showNotification(data.message, data.success ? 'success' : 'error');
-                            if (data.success) {
-                                const modal = bootstrap.Modal.getInstance(document.getElementById('saveSearchModal'));
-                                if (modal) modal.hide();
-                                searchNameInput.value = '';
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            showNotification('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error');
-                        });
-                });
-            }
-        });
-    </script>
-
+/* Save search */
+function getCookie(name) {
+  let c = null;
+  if (document.cookie) {
+    document.cookie.split(';').forEach(function(s) {
+      const parts = s.trim().split('=');
+      if (parts[0] === name) c = decodeURIComponent(parts.slice(1).join('='));
+    });
+  }
+  return c;
+}
+function showToast(msg, type) {
+  let container = document.querySelector('.toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.className = 'toast-container position-fixed top-0 end-0 p-3';
+    container.style.zIndex = '9999';
+    document.body.appendChild(container);
+  }
+  const id = 'toast-' + Date.now();
+  const bg = type === 'success' ? 'bg-success' : 'bg-danger';
+  const ico = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+  container.insertAdjacentHTML('beforeend', `
+    <div id="${id}" class="toast align-items-center text-white ${bg} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body"><i class="fas ${ico} me-2"></i>${msg}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>`);
+  const el = document.getElementById(id);
+  new bootstrap.Toast(el, { delay: 3000 }).show();
+  el.addEventListener('hidden.bs.toast', () => el.remove());
+}
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('saveSearchForm');
+  if (!form) return;
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const name = document.getElementById('searchNameInput').value.trim();
+    if (!name) return;
+    const token = getCookie('csrftoken') || document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    fetch("{% url 'main:save_search' %}", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': token },
+      body: new URLSearchParams({ name, query_params: window.location.search.substring(1) })
+    })
+    .then(r => r.json())
+    .then(d => {
+      showToast(d.message, d.success ? 'success' : 'error');
+      if (d.success) {
+        bootstrap.Modal.getInstance(document.getElementById('saveSearchModal'))?.hide();
+        document.getElementById('searchNameInput').value = '';
+      }
+    })
+    .catch(() => showToast('{% trans "حدث خطأ في الاتصال بالخادم" %}', 'error'));
+  });
+});
+</script>
 {% endblock extra_js %}

@@ -97,6 +97,67 @@ class ClassifiedAdListView(FilterView):
             except Category.DoesNotExist:
                 pass
 
+        # ── Search context ────────────────────────────────────────────
+        from django.utils.translation import gettext as _
+        from content.models import Country as ContentCountry
+
+        search_term = self.request.GET.get('search', '').strip()
+        context['search_term'] = search_term
+
+        # Build human-readable active-filter chips
+        active_filters = []
+        params = self.request.GET
+
+        if search_term:
+            active_filters.append({'label': _('بحث'), 'value': search_term, 'key': 'search'})
+
+        city_val = params.get('city', '').strip()
+        if city_val:
+            active_filters.append({'label': _('المدينة'), 'value': city_val, 'key': 'city'})
+
+        country_val = params.get('country', '').strip()
+        if country_val:
+            try:
+                c = ContentCountry.objects.get(pk=country_val)
+                active_filters.append({'label': _('الدولة'), 'value': c.name, 'key': 'country'})
+            except Exception:
+                active_filters.append({'label': _('الدولة'), 'value': country_val, 'key': 'country'})
+
+        if category_id:
+            try:
+                cat = Category.objects.get(pk=category_id)
+                active_filters.append({'label': _('القسم'), 'value': cat.name, 'key': 'category'})
+            except Exception:
+                pass
+
+        min_price = params.get('min_price', '').strip()
+        max_price = params.get('max_price', '').strip()
+        if min_price:
+            active_filters.append({'label': _('السعر من'), 'value': min_price, 'key': 'min_price'})
+        if max_price:
+            active_filters.append({'label': _('السعر إلى'), 'value': max_price, 'key': 'max_price'})
+
+        brand_val = params.get('brand', '').strip()
+        if brand_val:
+            active_filters.append({'label': _('الماركة'), 'value': brand_val, 'key': 'brand'})
+
+        for key, value in params.items():
+            if key.startswith('cf_') and value.strip():
+                active_filters.append({'label': key[3:].replace('_', ' '), 'value': value, 'key': key})
+
+        context['active_filters'] = active_filters
+        context['has_active_filters'] = bool(active_filters)
+
+        # Total count of filtered results (before pagination)
+        context['total_results'] = self.object_list.count() if hasattr(self, 'object_list') else 0
+
+        # Pass all root categories for "search by category" quick pick
+        context['root_categories'] = Category.objects.filter(
+            section_type=Category.SectionType.CLASSIFIED,
+            parent__isnull=True,
+            is_active=True,
+        ).order_by('order', 'name')
+
         return context
 
 

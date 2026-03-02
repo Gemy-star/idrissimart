@@ -1140,6 +1140,15 @@ class Category(MPTTModel):
     def __str__(self):
         return self.name
 
+    @property
+    def display_name(self):
+        """Return the localized name based on the active language."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar') and self.name_ar:
+            return self.name_ar
+        return self.name
+
     def save(self, *args, **kwargs):
         """Override save to ensure slug_ar is set and add watermark to category images"""
         # Add watermark to category image if it's a new upload
@@ -4110,6 +4119,15 @@ class FAQCategory(models.Model):
     def __str__(self):
         return self.name_ar or self.name
 
+    @property
+    def display_name(self):
+        """Return the localized name based on the active language."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar') and self.name_ar:
+            return self.name_ar
+        return self.name
+
 
 class FAQ(models.Model):
     """Frequently Asked Questions Model"""
@@ -4149,6 +4167,24 @@ class FAQ(models.Model):
 
     def __str__(self):
         return self.question_ar or self.question
+
+    @property
+    def display_question(self):
+        """Return the localized question based on the active language."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar') and self.question_ar:
+            return self.question_ar
+        return self.question
+
+    @property
+    def display_answer(self):
+        """Return the localized answer based on the active language."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar') and self.answer_ar:
+            return self.answer_ar
+        return self.answer
 
     def increment_views(self):
         """Increment views count atomically"""

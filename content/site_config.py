@@ -900,6 +900,24 @@ class WhyChooseUsFeature(models.Model):
     def __str__(self):
         return self.title_ar or self.title
 
+    @property
+    def display_title(self):
+        """Return localized title based on active language."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar') and self.title_ar:
+            return self.title_ar
+        return self.title
+
+    @property
+    def display_description(self):
+        """Return localized description based on active language."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar') and self.description_ar:
+            return self.description_ar
+        return self.description
+
 
 class TermsPage(SingletonModel):
     """Terms and Conditions page content"""

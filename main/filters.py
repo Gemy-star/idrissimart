@@ -122,17 +122,80 @@ class ClassifiedAdFilter(django_filters.FilterSet):
         label=_("ترتيب حسب"),
     )
 
+    # ------------------------------------------------------------------
+    # Arabic text normalisation helpers
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _normalize_arabic(text: str) -> str:
+        """
+        Normalise Arabic text so that variant forms of the same letter
+        match each other:
+          - Alef variants  (أ إ آ ٱ) → ا
+          - Teh marbuta    (ة)        → ه
+          - Yeh variants   (ى)        → ي
+          - Strip tashkeel (diacritics / harakat)
+        """
+        import re
+        # Remove diacritics (tashkeel / harakat)
+        text = re.sub(r'[\u064B-\u065F\u0670\u0640]', '', text)
+        # Normalize alef variants → bare alef
+        text = re.sub(r'[أإآٱ]', 'ا', text)
+        # Normalize alef wasla
+        text = text.replace('\u0671', 'ا')
+        # Normalize teh marbuta → heh
+        text = text.replace('ة', 'ه')
+        # Normalize alef maqsura → yeh
+        text = text.replace('ى', 'ي')
+        return text
+
     def filter_search(self, queryset, name, value):
-        """Enhanced search functionality"""
-        if value:
-            return queryset.filter(
-                Q(title__icontains=value)
-                | Q(description__icontains=value)
-                | Q(custom_fields__brand__icontains=value)
-                | Q(custom_fields__book_type__icontains=value)
-                | Q(custom_fields__program_type__icontains=value)
+        """
+        Comprehensive search across all meaningful fields:
+          • title (AR/EN)
+          • description
+          • city / address
+          • ALL custom field values (entire JSON blob)
+          • publisher username / full name / company name
+          • category name (AR/EN)
+
+        Arabic text is normalised before matching so that users who type
+        without diacritics, or use different alef forms (أ/إ/آ/ا), still
+        get relevant results.
+        """
+        if not value:
+            return queryset
+
+        term = value.strip()
+        norm = self._normalize_arabic(term)
+
+        def make_q(t):
+            """Build the Q tree for a given search term *t*."""
+            return (
+                # ── Core ad fields ─────────────────────────────────────────
+                Q(title__icontains=t)
+                | Q(description__icontains=t)
+                # ── Location ───────────────────────────────────────────────
+                | Q(city__icontains=t)
+                | Q(address__icontains=t)
+                # ── All custom-field values (searches raw JSON blob) ───────
+                | Q(custom_fields__icontains=t)
+                # ── Publisher identity ─────────────────────────────────────
+                | Q(user__username__icontains=t)
+                | Q(user__first_name__icontains=t)
+                | Q(user__last_name__icontains=t)
+                | Q(user__company_name__icontains=t)
+                # ── Category ───────────────────────────────────────────────
+                | Q(category__name__icontains=t)
+                | Q(category__name_ar__icontains=t)
             )
-        return queryset
+
+        combined = make_q(term)
+
+        # If normalisation produced a different string, also search that form
+        if norm != term:
+            combined |= make_q(norm)
+
+        return queryset.filter(combined).distinct()
 
     def filter_verified_users(self, queryset, name, value):
         """Filter for verified users only"""
