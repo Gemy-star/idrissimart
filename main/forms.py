@@ -279,7 +279,10 @@ class ClassifiedAdForm(forms.ModelForm):
 
         for cf in category_fields:
             field = cf.custom_field
-            field_name = f"custom_{field.name}"
+            import re as _re
+            # Sanitize name: replace spaces and non-word chars with underscores
+            safe_name = _re.sub(r'[^\w]', '_', field.name)
+            field_name = f"custom_{safe_name}"
             field_label = field.label_ar or field.name
             field_type = field.field_type
             is_required = cf.is_required  # Use the category-specific requirement
@@ -298,16 +301,21 @@ class ClassifiedAdForm(forms.ModelForm):
             if field_type == "select" or field_type == "radio":
                 # Get options from CustomFieldOption model
                 options = field.field_options.filter(is_active=True).order_by("order")
-                choices = [("", "---------")] + [
-                    (opt.value, opt.label_ar) for opt in options
-                ]
-                widget_attrs["class"] = "form-select"
 
                 if field_type == "radio":
+                    # Radio buttons must NOT have a blank choice — it would be
+                    # pre-selected as a radio and make required validation impossible.
+                    choices = [(opt.value, opt.label_ar) for opt in options]
                     self.fields[field_name] = forms.ChoiceField(
-                        **field_kwargs, choices=choices, widget=forms.RadioSelect()
+                        **field_kwargs,
+                        choices=choices,
+                        widget=forms.RadioSelect(attrs={"class": "form-check-input"}),
                     )
                 else:
+                    choices = [("", "---------")] + [
+                        (opt.value, opt.label_ar) for opt in options
+                    ]
+                    widget_attrs["class"] = "form-select"
                     self.fields[field_name] = forms.ChoiceField(
                         **field_kwargs,
                         choices=choices,
@@ -411,7 +419,9 @@ class ClassifiedAdForm(forms.ModelForm):
 
             for cf in category_fields:
                 field = cf.custom_field
-                field_name = f"custom_{field.name}"
+                import re as _re
+                safe_name = _re.sub(r'[^\w]', '_', field.name)
+                field_name = f"custom_{safe_name}"
 
                 # Get value from cleaned_data if available, otherwise from data dict
                 if field_name in self.cleaned_data:
@@ -1261,7 +1271,9 @@ class AdminClassifiedAdForm(forms.ModelForm):
 
         for cf in category_fields:
             field = cf.custom_field
-            field_name = f"custom_{field.name}"
+            import re as _re
+            safe_name = _re.sub(r'[^\w]', '_', field.name)
+            field_name = f"custom_{safe_name}"
             field_label = field.label_ar or field.name
             field_type = field.field_type
             is_required = cf.is_required
@@ -1360,6 +1372,7 @@ class AdminClassifiedAdForm(forms.ModelForm):
 
     def save(self, commit=True):
         from decimal import Decimal
+        import re as _re
         instance = super().save(commit=False)
         from main.models import CategoryCustomField
 
@@ -1379,9 +1392,8 @@ class AdminClassifiedAdForm(forms.ModelForm):
 
             for cf in category_fields:
                 field = cf.custom_field
-                field_name = f"custom_{field.name}"
-
-                # Get value from cleaned_data if available, otherwise from data dict
+                safe_name = _re.sub(r'[^\w]', '_', field.name)
+                field_name = f"custom_{safe_name}"
                 if field_name in self.cleaned_data:
                     value = self.cleaned_data[field_name]
                 elif self.data and field_name in self.data:

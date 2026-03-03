@@ -200,15 +200,46 @@
                 {% endif %}
             </div>
 
+            <!-- ===== Category Hierarchical Selection ===== -->
             <div class="form-group">
-                <label for="{{ form.category.id_for_label }}">
-                    {{ form.category.label }} <span style="color: red;">*</span>
-                </label>
-                {{ form.category }}
-                {% if form.category.errors %}
-                    {{ form.category.errors }}
-                {% endif %}
+                <label>{% trans "القسم الرئيسي" %} <span style="color:red;">*</span></label>
+                <select id="mainCategorySelect" class="form-select" required>
+                    <option value="">--- {% trans "اختر القسم الرئيسي" %} ---</option>
+                    {% for cat in ad_categories %}
+                        <option value="{{ cat.pk }}"
+                                data-has-subcats="{{ cat.subcategories.all|length }}"
+                                {% if selected_category_ids.0 == cat.pk|stringformat:"s" %}selected{% endif %}>
+                            {% if LANGUAGE_CODE == 'ar' and cat.name_ar %}{{ cat.name_ar }}{% else %}{{ cat.name }}{% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
             </div>
+
+            <div class="form-group" id="subcategoryContainer" style="display:none;">
+                <label>{% trans "القسم الفرعي" %} <span style="color:red;">*</span></label>
+                <select id="subcategorySelect" class="form-select">
+                    <option value="">--- {% trans "اختر القسم الفرعي" %} ---</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="subSubcategoryContainer" style="display:none;">
+                <label>{% trans "القسم الفرعي الثاني" %}</label>
+                <select id="subSubcategorySelect" class="form-select">
+                    <option value="">--- {% trans "اختر القسم الفرعي الثاني" %} ---</option>
+                </select>
+            </div>
+
+            <!-- Hidden input that holds the final selected category id for form submission -->
+            <input type="hidden" name="{{ form.category.name }}" id="{{ form.category.id_for_label }}"
+                   value="{{ form.category.value|default:'' }}">
+
+            {% if form.category.errors %}
+                <ul class="errorlist">
+                    {% for error in form.category.errors %}
+                        <li style="color:red;">{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
 
             <!-- Custom Fields Section -->
             {% for field in form %}
@@ -329,40 +360,165 @@
 </div>
 
 <script>
-    // Dynamic subcategory loading
-    document.getElementById('{{ form.category.id_for_label }}').addEventListener('change', function() {
-        const categoryId = this.value;
-        const subcategorySelect = document.getElementById('{{ form.subcategory.id_for_label }}');
+    // ===== Hierarchical Category Selection =====
+    const subcategoriesData = {
+        {% for cat in ad_categories %}
+        "{{ cat.pk }}": [
+            {% for sub in cat.subcategories.all %}
+            {
+                id: {{ sub.pk }},
+                name: "{% if LANGUAGE_CODE == 'ar' and sub.name_ar %}{{ sub.name_ar|escapejs }}{% else %}{{ sub.name|escapejs }}{% endif %}",
+                hasSubcats: {{ sub.subcategories.all|length }},
+                subcategories: [
+                    {% for subsub in sub.subcategories.all %}
+                    {
+                        id: {{ subsub.pk }},
+                        name: "{% if LANGUAGE_CODE == 'ar' and subsub.name_ar %}{{ subsub.name_ar|escapejs }}{% else %}{{ subsub.name|escapejs }}{% endif %}"
+                    }{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ]
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ]{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    };
 
-        if (!categoryId) {
-            subcategorySelect.innerHTML = '<option value="">---------</option>';
+    // Pre-selected ids passed from edit-mode view (may be empty)
+    const preSelectedIds = {{ selected_category_ids|default:"[]"|safe }};
+
+    const mainCategorySelect    = document.getElementById('mainCategorySelect');
+    const subcategorySelect     = document.getElementById('subcategorySelect');
+    const subSubcategorySelect  = document.getElementById('subSubcategorySelect');
+    const subcategoryContainer  = document.getElementById('subcategoryContainer');
+    const subSubcatContainer    = document.getElementById('subSubcategoryContainer');
+    const hiddenCategoryInput   = document.getElementById('{{ form.category.id_for_label }}');
+
+    function populateSubcategories(mainCatId, preSelectSubId) {
+        subcategorySelect.innerHTML = '<option value="">--- {% trans "اختر القسم الفرعي" %} ---</option>';
+        subSubcategorySelect.innerHTML = '<option value="">--- {% trans "اختر القسم الفرعي الثاني" %} ---</option>';
+        subSubcatContainer.style.display = 'none';
+
+        const subs = subcategoriesData[mainCatId];
+        if (!subs || subs.length === 0) {
+            subcategoryContainer.style.display = 'none';
+            hiddenCategoryInput.value = mainCatId;
             return;
         }
 
-        fetch(`/ajax/subcategories/?category_id=${categoryId}`)
-            .then(response => response.json())
-            .then(data => {
-                subcategorySelect.innerHTML = '<option value="">---------</option>';
-                data.forEach(subcategory => {
-                    const option = document.createElement('option');
-                    option.value = subcategory.id;
-                    option.textContent = subcategory.name;
-                    subcategorySelect.appendChild(option);
-                });
-            });
+        subcategoryContainer.style.display = 'block';
+        subs.forEach(sub => {
+            const opt = document.createElement('option');
+            opt.value = sub.id;
+            opt.textContent = sub.name;
+            opt.dataset.hasSubcats = sub.hasSubcats;
+            if (preSelectSubId && sub.id == preSelectSubId) opt.selected = true;
+            subcategorySelect.appendChild(opt);
+        });
+
+        // If nothing pre-selected, leave hidden empty (don't use main cat)
+        if (!preSelectSubId) {
+            hiddenCategoryInput.value = '';
+        }
+    }
+
+    function populateSubSubcategories(mainCatId, subCatId, preSelectSubSubId) {
+        subSubcategorySelect.innerHTML = '<option value="">--- {% trans "اختر القسم الفرعي الثاني" %} ---</option>';
+
+        const subs = subcategoriesData[mainCatId];
+        if (!subs) return;
+        const sub = subs.find(s => s.id == subCatId);
+        if (!sub || !sub.subcategories || sub.subcategories.length === 0) {
+            subSubcatContainer.style.display = 'none';
+            hiddenCategoryInput.value = subCatId;
+            return;
+        }
+
+        subSubcatContainer.style.display = 'block';
+        sub.subcategories.forEach(ss => {
+            const opt = document.createElement('option');
+            opt.value = ss.id;
+            opt.textContent = ss.name;
+            if (preSelectSubSubId && ss.id == preSelectSubSubId) opt.selected = true;
+            subSubcategorySelect.appendChild(opt);
+        });
+
+        if (!preSelectSubSubId) {
+            hiddenCategoryInput.value = '';
+        }
+    }
+
+    // -- Event listeners --
+    mainCategorySelect.addEventListener('change', function() {
+        const id = this.value;
+        if (!id) {
+            subcategoryContainer.style.display = 'none';
+            subSubcatContainer.style.display = 'none';
+            hiddenCategoryInput.value = '';
+            return;
+        }
+        populateSubcategories(id, null);
+        // If no subcategories will be shown, set hidden to this category
+        const subs = subcategoriesData[id];
+        if (!subs || subs.length === 0) {
+            hiddenCategoryInput.value = id;
+        }
+    });
+
+    subcategorySelect.addEventListener('change', function() {
+        const subId = this.value;
+        const mainId = mainCategorySelect.value;
+        if (!subId) {
+            subSubcatContainer.style.display = 'none';
+            hiddenCategoryInput.value = '';
+            return;
+        }
+        populateSubSubcategories(mainId, subId, null);
+        // If no sub-sub categories, set hidden to subcategory
+        const subs = subcategoriesData[mainId];
+        const sub = subs && subs.find(s => s.id == subId);
+        if (!sub || !sub.subcategories || sub.subcategories.length === 0) {
+            hiddenCategoryInput.value = subId;
+        }
+    });
+
+    subSubcategorySelect.addEventListener('change', function() {
+        hiddenCategoryInput.value = this.value || subcategorySelect.value || mainCategorySelect.value;
+    });
+
+    // -- Pre-populate in edit mode --
+    document.addEventListener('DOMContentLoaded', function() {
+        if (preSelectedIds.length > 0) {
+            const mainId = preSelectedIds[0];
+            // Select main category
+            for (let opt of mainCategorySelect.options) {
+                if (opt.value === mainId) { opt.selected = true; break; }
+            }
+
+            const subId    = preSelectedIds[1] || null;
+            const subSubId = preSelectedIds[2] || null;
+
+            if (mainId) {
+                populateSubcategories(mainId, subId);
+                if (subId) {
+                    populateSubSubcategories(mainId, subId, subSubId);
+                    if (subSubId) {
+                        hiddenCategoryInput.value = subSubId;
+                    } else {
+                        hiddenCategoryInput.value = subId;
+                    }
+                } else {
+                    hiddenCategoryInput.value = mainId;
+                }
+            }
+        }
     });
 
     // Dynamic city loading
-    document.getElementById('{{ form.country.id_for_label }}').addEventListener('change', function() {
-        const countryId = this.value;
-        const citySelect = document.getElementById('{{ form.city.id_for_label }}');
-
-        if (!categoryId) {
-            citySelect.innerHTML = '<option value="">---------</option>';
-            return;
-        }
-
-        // You can implement similar AJAX for cities
-    });
+    const countrySelectEl = document.getElementById('{{ form.country.id_for_label }}');
+    if (countrySelectEl) {
+        countrySelectEl.addEventListener('change', function() {
+            // placeholder – implement city AJAX if needed
+        });
+    }
 </script>
 {% endblock %}

@@ -321,6 +321,26 @@ class AdminAdCreateView(SuperadminRequiredMixin, CreateView):
         context["active_nav"] = "all_ads"
         context["page_title"] = "إضافة إعلان جديد"
         context["form_action"] = "create"
+        from django.db.models import Prefetch
+        context["ad_categories"] = (
+            Category.objects.filter(
+                section_type=Category.SectionType.CLASSIFIED,
+                is_active=True,
+                parent__isnull=True,
+            )
+            .prefetch_related(
+                Prefetch(
+                    "subcategories",
+                    queryset=Category.objects.filter(is_active=True).prefetch_related(
+                        Prefetch(
+                            "subcategories",
+                            queryset=Category.objects.filter(is_active=True),
+                        )
+                    ),
+                )
+            )
+            .order_by("order", "name")
+        )
         return context
 
     def form_valid(self, form):
@@ -354,6 +374,31 @@ class AdminAdUpdateView(SuperadminRequiredMixin, UpdateView):
         context["active_nav"] = "all_ads"
         context["page_title"] = f"تعديل الإعلان: {self.object.title}"
         context["form_action"] = "update"
+        from django.db.models import Prefetch
+        context["ad_categories"] = (
+            Category.objects.filter(
+                section_type=Category.SectionType.CLASSIFIED,
+                is_active=True,
+                parent__isnull=True,
+            )
+            .prefetch_related(
+                Prefetch(
+                    "subcategories",
+                    queryset=Category.objects.filter(is_active=True).prefetch_related(
+                        Prefetch(
+                            "subcategories",
+                            queryset=Category.objects.filter(is_active=True),
+                        )
+                    ),
+                )
+            )
+            .order_by("order", "name")
+        )
+        # Pass current category ancestors for pre-selection in edit mode
+        if self.object.category:
+            cat = self.object.category
+            ancestors = list(cat.get_ancestors(include_self=True))
+            context["selected_category_ids"] = [str(a.pk) for a in ancestors]
         return context
 
     def form_valid(self, form):

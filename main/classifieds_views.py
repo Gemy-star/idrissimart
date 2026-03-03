@@ -1698,7 +1698,7 @@ class CategorySaveView(LoginRequiredMixin, View):
         allow_cart = request.POST.get("allow_cart") == "on"
         require_admin_approval = request.POST.get("require_admin_approval") == "on"
         is_active = request.POST.get("is_active") == "on"
-        order = request.POST.get("order") or 0
+        order = request.POST.get("order")
         icon = request.POST.get("icon", "")
         color = request.POST.get("color", "")
         country_code = request.POST.get("country")  # optional
@@ -1793,7 +1793,8 @@ class CategorySaveView(LoginRequiredMixin, View):
                 category.description_en = description_en
 
             category.icon = icon
-            category.order = int(order) if str(order).isdigit() else 0
+            if order is not None:
+                category.order = int(order) if str(order).isdigit() else 0
             # Optional color stored in meta or dedicated field if exists
             if hasattr(category, "color"):
                 setattr(category, "color", color)
@@ -2258,7 +2259,10 @@ def get_category_custom_fields(request, category_id):
     from .models import CategoryCustomField, Category
 
     try:
-        category = Category.objects.get(pk=category_id, is_active=True)
+        # Don't filter by is_active here — the dropdown already only shows active
+        # categories. Filtering by is_active caused fields to vanish when a category
+        # was accidentally deactivated (e.g. by the admin edit bug).
+        category = Category.objects.get(pk=category_id)
 
         # Get all active custom fields for this category
         category_fields = (
@@ -2271,10 +2275,12 @@ def get_category_custom_fields(request, category_id):
             return JsonResponse({"success": True, "html": "", "has_fields": False})
 
         # Build form fields dynamically
+        import re as _re
         fields_html = []
         for cf in category_fields:
             field = cf.custom_field
-            field_name = f"custom_{field.name}"
+            safe_name = _re.sub(r'[^\w]', '_', field.name)
+            field_name = f"custom_{safe_name}"
             field_label = field.label_ar or field.name
             field_type = field.field_type
             is_required = cf.is_required

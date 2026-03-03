@@ -2130,6 +2130,15 @@
                 const categoryId = hiddenCategoryInput.value;
                 const customFieldsContainer = document.getElementById('custom-fields-container');
 
+                // Preserve server-rendered fields: in edit mode or after a POST validation
+                // error, Django has already rendered the correct fields (with values and
+                // error messages). Replacing them with a fresh AJAX load would wipe errors
+                // and the previously submitted values.
+                if (customFieldsContainer && customFieldsContainer.children.length > 0 &&
+                    (hasFormErrors || isEditMode)) {
+                    return;
+                }
+
                 // Clear container if no category selected
                 if (!categoryId || categoryId === '' || categoryId === 'null') {
                     customFieldsContainer.innerHTML = '';
