@@ -1137,6 +1137,7 @@
                                             {% for category in ad_categories %}
                                                 <option value="{{ category.pk }}"
                                                         data-has-subcats="{{ category.subcategories.all|length|default:0 }}"
+                                                        data-price="{{ category.get_effective_ad_creation_price|default:0 }}"
                                                         data-custom-fields="{{ category.custom_field_schema|to_json }}">
                                                     {% if LANGUAGE_CODE == 'ar' and category.name_ar %}{{ category.name_ar }}{% else %}{{ category.name }}{% endif %}
                                                 </option>
@@ -2099,6 +2100,7 @@
             }
 
             // Hierarchical categories data structure (level 1 → level 2 → level 3)
+            // price = effective price (own or inherited from parent), rendered server-side
             const subcategoriesData = {
                 {% for category in ad_categories %}
                     {{ category.pk }}: [
@@ -2106,6 +2108,7 @@
                             {
                                 id: {{ subcat.pk }},
                                 name: "{% if LANGUAGE_CODE == 'ar' and subcat.name_ar %}{{ subcat.name_ar|escapejs }}{% else %}{{ subcat.name|escapejs }}{% endif %}",
+                                price: {{ subcat.get_effective_ad_creation_price|default:0 }},
                                 customFields: {{ subcat.custom_field_schema|to_json }},
                                 hasSubcats: {{ subcat.subcategories.all|length|default:0 }},
                                 subcategories: [
@@ -2113,6 +2116,7 @@
                                         {
                                             id: {{ subsubcat.pk }},
                                             name: "{% if LANGUAGE_CODE == 'ar' and subsubcat.name_ar %}{{ subsubcat.name_ar|escapejs }}{% else %}{{ subsubcat.name|escapejs }}{% endif %}",
+                                            price: {{ subsubcat.get_effective_ad_creation_price|default:0 }},
                                             customFields: {{ subsubcat.custom_field_schema|to_json }}
                                         }{% if not forloop.last %},{% endif %}
                                     {% endfor %}
@@ -2649,15 +2653,31 @@
 
             console.log('💵 Site Default Base Fee:', siteDefaultBaseFee, '| 🎁 Free Ads Count:', freeAdsCount);
 
-            // ---- Price cache (populated by API on every category change) ----
-            // Seed from the server-rendered inline data so the first render is instant.
+            // ---- Price cache: seeded from server-rendered DOM prices ----
+            // Each option's data-price and each subcategoriesData entry has the
+            // effective price rendered by Django — this is always accurate.
             const categoryPriceCache = {};
-            try {
-                const inlinePricing = {{ categories_pricing|safe }};
-                for (const [id, data] of Object.entries(inlinePricing)) {
-                    categoryPriceCache[id] = data.ad_creation_price || 0;
+
+            // Seed from main category options
+            mainCategorySelect.querySelectorAll('option[value]').forEach(opt => {
+                if (opt.value && opt.dataset.price !== undefined) {
+                    categoryPriceCache[opt.value] = parseFloat(opt.dataset.price) || 0;
                 }
-            } catch(e) { console.warn('Could not seed price cache from inline data', e); }
+            });
+
+            // Seed from subcategoriesData with server-rendered prices
+            function seedSubcatPrices() {
+                for (const [parentId, subs] of Object.entries(subcategoriesData)) {
+                    subs.forEach(sub => {
+                        if (sub.price !== undefined) categoryPriceCache[String(sub.id)] = sub.price;
+                        (sub.subcategories || []).forEach(ss => {
+                            if (ss.price !== undefined) categoryPriceCache[String(ss.id)] = ss.price;
+                        });
+                    });
+                }
+            }
+            seedSubcatPrices(); // all DOM prices now in cache
+            console.log('💰 Price cache seeded:', Object.keys(categoryPriceCache).length, 'categories');
 
             /**
              * Return the cached price for categoryId, or fall back to siteDefaultBaseFee.
@@ -2680,31 +2700,37 @@
             }
 
             /**
-             * Fetch the effective price for categoryId from the API,
-             * store in cache, then call calculateTotalCost().
+             * Update price summary using the DOM-seeded cache (instant, no network),
+             * then refresh via API to catch any price changes made since page load.
              */
             function fetchAndCachePrice(categoryId) {
                 if (!categoryId) {
                     calculateTotalCost();
                     return;
                 }
-                const baseFeeEl   = document.getElementById('final-base-fee');
-                const totalCostEl = document.getElementById('final-total-cost');
-                if (baseFeeEl)   baseFeeEl.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-                if (totalCostEl) totalCostEl.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
 
+                // Render immediately with DOM-seeded price (always accurate at page load)
+                calculateTotalCost();
+
+                // Then confirm/refresh price from API (picks up admin changes without reload)
                 fetch(`/api/category-price/${categoryId}/`)
                     .then(r => r.json())
                     .then(data => {
-                        if (data.ad_creation_price !== undefined) {
+                        if (data.ad_creation_price !== undefined && data.ad_creation_price > 0) {
+                            // Only update cache if API returns a concrete price
                             categoryPriceCache[String(categoryId)] = data.ad_creation_price;
                             console.log('✅ API price for', categoryId, '→', data.ad_creation_price);
+                            calculateTotalCost(); // re-render with confirmed price
+                        } else if (!categoryPriceCache[String(categoryId)]) {
+                            // API returned 0 AND we have no DOM-seeded price → use site base fee
+                            categoryPriceCache[String(categoryId)] = siteDefaultBaseFee;
+                            calculateTotalCost();
                         }
-                        calculateTotalCost();
+                        // If API returns 0 but DOM already seeded a non-zero price, keep DOM price
                     })
                     .catch(err => {
-                        console.warn('Price API error, using cached/inline data:', err);
-                        calculateTotalCost();
+                        console.warn('Price API error, keeping DOM-seeded price:', err);
+                        // calculateTotalCost already called above with DOM price
                     });
             }
 
