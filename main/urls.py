@@ -331,12 +331,6 @@ urlpatterns = [
         views.get_subcategories_ajax,
         name="ajax_get_subcategories",
     ),
-    # API: fetch effective ad-creation price for a category
-    path(
-        "api/category-price/<int:category_id>/",
-        views.get_category_price_api,
-        name="api_category_price",
-    ),
     path(
         "ajax/category-custom-fields/<int:category_id>/",
         views.get_category_custom_fields_ajax,

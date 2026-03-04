@@ -7,6 +7,8 @@ from main import chatbot_views
 urlpatterns = [
     # Country selection
     path("set-country/", views.set_country, name="set_country"),
+    # Category price API
+    path("category-price/<int:category_id>/", views.get_category_price_api, name="api_category_price"),
     # Cart management - Using database-backed implementation
     path("cart/add/", cart_wishlist_views.add_to_cart, name="add_to_cart"),
     path("cart/remove/", cart_wishlist_views.remove_from_cart, name="remove_from_cart"),
