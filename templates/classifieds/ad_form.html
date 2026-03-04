@@ -2265,13 +2265,10 @@
                     hiddenCategoryInput.value = selectedCategoryId;
                     subcategorySelect.required = false;
 
-                    // Update custom fields for main category
+                    // Update custom fields and pricing for main category
                     if (selectedCategoryId) {
                         updateCustomFields();
-                        // Update pricing display
-                        updatePricingDisplay(selectedCategoryId);
-                        // Recalculate total cost with new category price
-                        calculateTotalCost();
+                        fetchAndCachePrice(selectedCategoryId);
                     }
                 }
 
@@ -2321,19 +2318,13 @@
                         hiddenCategoryInput.value = selectedSubcatId;
                         subSubcategorySelect.required = false;
                         updateCustomFields();
-                        // Update pricing display
-                        updatePricingDisplay(selectedSubcatId);
-                        // Recalculate total cost with new category price
-                        calculateTotalCost();
+                        fetchAndCachePrice(selectedSubcatId);
                     }
                 } else {
                     subSubcategoryContainer.style.display = 'none';
                     hiddenCategoryInput.value = '';
                     subSubcategorySelect.required = false;
-                    // Clear pricing display
-                    updatePricingDisplay(null);
-                    // Recalculate with no category
-                    calculateTotalCost();
+                    fetchAndCachePrice(null);
                 }
             });
 
@@ -2348,16 +2339,10 @@
                     // Set the hidden input to sub-subcategory
                     hiddenCategoryInput.value = selectedSubSubcatId;
                     updateCustomFields();
-                    // Update pricing display
-                    updatePricingDisplay(selectedSubSubcatId);
-                    // Recalculate total cost with new category price
-                    calculateTotalCost();
+                    fetchAndCachePrice(selectedSubSubcatId);
                 } else {
                     hiddenCategoryInput.value = '';
-                    // Clear pricing display
-                    updatePricingDisplay(null);
-                    // Recalculate with no category
-                    calculateTotalCost();
+                    fetchAndCachePrice(null);
                 }
             });
 
@@ -2365,8 +2350,8 @@
             {% if form.category.value %}
                 const initialCategoryId = {{ form.category.value|default:"null" }};
 
-                // Update pricing display for initial category
-                updatePricingDisplay(initialCategoryId);
+                // Fetch fresh pricing for initial category (edit mode)
+                fetchAndCachePrice(initialCategoryId);
 
                 // Check if it's a subcategory
                 let isSubcategory = false;
@@ -2655,7 +2640,7 @@
 
 
             // Get pricing from context (package or site defaults)
-            const siteDefaultBaseFee = parseFloat('{{ ad_base_fee }}') || 0;
+            const siteDefaultBaseFee = {{ ad_base_fee|default:0 }};
             const featuredPrice = parseFloat('{{ feature_prices.highlighted|floatformat:False|default:"50" }}');
             const pinnedPrice = parseFloat('{{ feature_prices.pinned|floatformat:False|default:"100" }}');
 
@@ -2664,22 +2649,63 @@
 
             console.log('💵 Site Default Base Fee:', siteDefaultBaseFee, '| 🎁 Free Ads Count:', freeAdsCount);
 
-            // Function to get current category price
-            // Uses category's own price (or inherited from parent, resolved server-side).
-            // Falls back to site default if no price is set on the category tree.
+            // ---- Price cache (populated by API on every category change) ----
+            // Seed from the server-rendered inline data so the first render is instant.
+            const categoryPriceCache = {};
+            try {
+                const inlinePricing = {{ categories_pricing|safe }};
+                for (const [id, data] of Object.entries(inlinePricing)) {
+                    categoryPriceCache[id] = data.ad_creation_price || 0;
+                }
+            } catch(e) { console.warn('Could not seed price cache from inline data', e); }
+
+            /**
+             * Return the cached price for categoryId, or fall back to siteDefaultBaseFee.
+             * Always sync – use fetchAndCachePrice() to refresh from the API first.
+             */
             function getCurrentCategoryPrice() {
                 const categoryId = hiddenCategoryInput.value;
                 if (!categoryId) return siteDefaultBaseFee;
 
-                const categoryData = categoriesPricing[categoryId];
-                if (!categoryData) return siteDefaultBaseFee;
+                // Try live API cache first
+                if (categoryPriceCache.hasOwnProperty(categoryId)) {
+                    const p = categoryPriceCache[categoryId];
+                    console.log('🏷️ Category', categoryId, 'price (cache):', p);
+                    return p;
+                }
+                // Fallback: inline data
+                const inline = (typeof categoriesPricing !== 'undefined') ? categoriesPricing[categoryId] : null;
+                if (inline) return inline.ad_creation_price > 0 ? inline.ad_creation_price : siteDefaultBaseFee;
+                return siteDefaultBaseFee;
+            }
 
-                const price = categoryData.ad_creation_price > 0
-                    ? categoryData.ad_creation_price
-                    : siteDefaultBaseFee;
+            /**
+             * Fetch the effective price for categoryId from the API,
+             * store in cache, then call calculateTotalCost().
+             */
+            function fetchAndCachePrice(categoryId) {
+                if (!categoryId) {
+                    calculateTotalCost();
+                    return;
+                }
+                const baseFeeEl   = document.getElementById('final-base-fee');
+                const totalCostEl = document.getElementById('final-total-cost');
+                if (baseFeeEl)   baseFeeEl.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+                if (totalCostEl) totalCostEl.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
 
-                console.log('🏷️ Category', categoryId, 'price:', price);
-                return price;
+                fetch(`/api/category-price/${categoryId}/`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.ad_creation_price !== undefined) {
+                            categoryPriceCache[String(categoryId)] = data.ad_creation_price;
+                            console.log('✅ API price for', categoryId, '→', data.ad_creation_price);
+                        }
+                        calculateTotalCost();
+                    })
+                    .catch(err => {
+                        console.warn('Price API error, using cached/inline data:', err);
+                        calculateTotalCost();
+                    });
             }
 
             let currentTotalCost = 0;

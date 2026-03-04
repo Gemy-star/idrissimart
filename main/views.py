@@ -2064,6 +2064,65 @@ def get_subcategories_ajax(request, category_id):
         return JsonResponse({"error": _("القسم غير موجود")}, status=404)
 
 
+def get_category_price_api(request, category_id):
+    """
+    API endpoint: return the effective ad_creation_price for a given category.
+
+    Effective price = category's own price if > 0, else walk up ancestors until
+    a price is found, else fall back to the site-wide ad_base_fee.
+
+    Response (JSON):
+        {
+            "category_id": 42,
+            "ad_creation_price": 25.00,   # effective price
+            "has_own_price": true,         # category has its own (non-zero) price
+            "price_inherited_from": null,  # id of ancestor that supplied the price (or null)
+            "site_base_fee": 10.00,        # site-wide fallback
+            "currency": "ج.م"
+        }
+    """
+    try:
+        from content.models import SiteConfiguration
+
+        category = Category.objects.get(id=category_id, is_active=True)
+
+        # Walk up the MPTT ancestor chain to find the first non-zero price
+        effective_price = float(category.ad_creation_price or 0)
+        has_own_price = effective_price > 0
+        inherited_from = None
+
+        if not has_own_price:
+            for ancestor in category.get_ancestors(ascending=True):
+                ancestor_price = float(ancestor.ad_creation_price or 0)
+                if ancestor_price > 0:
+                    effective_price = ancestor_price
+                    inherited_from = ancestor.id
+                    break
+
+        site_config = SiteConfiguration.get_solo()
+        site_base_fee = float(site_config.ad_base_fee) if site_config.ad_base_fee else 0.0
+
+        # Final fallback to site base fee if no category price found
+        if effective_price == 0:
+            effective_price = site_base_fee
+
+        return JsonResponse(
+            {
+                "category_id": category.id,
+                "category_name": category.name_ar or category.name,
+                "ad_creation_price": effective_price,
+                "has_own_price": has_own_price,
+                "price_inherited_from": inherited_from,
+                "site_base_fee": site_base_fee,
+                "currency": "ج.م",
+            }
+        )
+    except Category.DoesNotExist:
+        return JsonResponse({"error": _("القسم غير موجود")}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
 def get_category_custom_fields_ajax(request, category_id):
     """Get custom fields for a category via AJAX for filter display"""
     from django.template.loader import render_to_string
