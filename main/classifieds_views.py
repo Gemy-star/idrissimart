@@ -412,7 +412,7 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
                 "default_reservation_percentage",
                 "min_reservation_amount",
                 "max_reservation_amount",
-                "ad_creation_price",
+                # DO NOT defer ad_creation_price - it's needed for template rendering
             )
             .prefetch_related(
                 Prefetch(
@@ -421,7 +421,7 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
                         "default_reservation_percentage",
                         "min_reservation_amount",
                         "max_reservation_amount",
-                        "ad_creation_price",
+                        # DO NOT defer ad_creation_price - it's needed for template rendering
                     ),
                 )
             )
@@ -790,19 +790,131 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
                 queryset=self.object.images.all(),
                 form_kwargs={"request": self.request},
             )
-        context["ad_categories"] = Category.objects.filter(
-            section_type=Category.SectionType.CLASSIFIED,
-            is_active=True,
-            parent__isnull=True,  # Only root categories
-        ).prefetch_related("subcategories")
+
+        from django.db.models import Prefetch
+
+        context["ad_categories"] = (
+            Category.objects.filter(
+                section_type=Category.SectionType.CLASSIFIED,
+                is_active=True,
+                parent__isnull=True,  # Only root categories
+            )
+            .defer(
+                "default_reservation_percentage",
+                "min_reservation_amount",
+                "max_reservation_amount",
+                # DO NOT defer ad_creation_price - it's needed for template rendering
+            )
+            .prefetch_related(
+                Prefetch(
+                    "subcategories",
+                    queryset=Category.objects.filter(is_active=True).defer(
+                        "default_reservation_percentage",
+                        "min_reservation_amount",
+                        "max_reservation_amount",
+                        # DO NOT defer ad_creation_price - it's needed for template rendering
+                    ),
+                )
+            )
+        )
         context["is_editing"] = True
         context["original_category"] = self.object.category
+
+        # Prepare categories data with pricing for JavaScript (all levels)
+        import json
+        from django.core.serializers.json import DjangoJSONEncoder
+
+        categories_data = {}
+        raw_cats = list(Category.objects.filter(
+            is_active=True,
+        ).values('id', 'name', 'parent_id', 'ad_creation_price'))
+
+        # Build lookups
+        own_price_map = {c['id']: float(c['ad_creation_price'] or 0) for c in raw_cats}
+        parent_map    = {c['id']: c['parent_id'] for c in raw_cats}
+
+        def _effective_price(cat_id, depth=0):
+            if depth > 5:
+                return 0.0
+            p = own_price_map.get(cat_id, 0.0)
+            if p > 0:
+                return p
+            pid = parent_map.get(cat_id)
+            if pid:
+                return _effective_price(pid, depth + 1)
+            return 0.0
+
+        for c in raw_cats:
+            own_p = own_price_map[c['id']]
+            eff_p = _effective_price(c['id'])
+            categories_data[c['id']] = {
+                "ad_creation_price": eff_p,
+                "name": c['name'],
+                "parent_id": c['parent_id'],
+                "has_own_price": own_p > 0,
+                "is_price_inherited": own_p == 0 and c['parent_id'] is not None,
+            }
+        context["categories_pricing"] = json.dumps(
+            categories_data, cls=DjangoJSONEncoder
+        )
+        context["categories_pricing_safe"] = True
 
         # Add mobile verification setting
         from content.models import SiteConfiguration
 
         site_config = SiteConfiguration.get_solo()
         context["mobile_verification_enabled"] = site_config.require_phone_verification
+        context["ad_base_fee"] = (
+            float(site_config.ad_base_fee) if site_config.ad_base_fee else 0.0
+        )
+
+        # Add feature prices (for consistency with create view)
+        if self.request.user.is_authenticated:
+            active_packages = UserPackage.objects.filter(
+                user=self.request.user,
+                expiry_date__gte=timezone.now(),
+                ads_remaining__gt=0,
+            )
+            total_ads_remaining = sum(pkg.ads_remaining for pkg in active_packages)
+            context["has_free_ads"] = total_ads_remaining > 0
+            context["free_ads_remaining"] = total_ads_remaining
+
+            active_package = (
+                UserPackage.objects.filter(
+                    user=self.request.user,
+                    expiry_date__gte=timezone.now(),
+                )
+                .order_by("expiry_date")
+                .first()
+            )
+
+            if active_package and active_package.package:
+                package = active_package.package
+                context["feature_prices"] = {
+                    "highlighted": (
+                        float(package.feature_highlighted_price)
+                        if package.feature_highlighted_price
+                        else 0.0
+                    ),
+                    "pinned": (
+                        float(package.feature_pinned_price)
+                        if package.feature_pinned_price
+                        else 0.0
+                    ),
+                }
+            else:
+                context["feature_prices"] = {
+                    "highlighted": (
+                        float(site_config.featured_ad_price)
+                        if site_config.featured_ad_price
+                        else 50.0
+                    ),
+                    "pinned": (
+                        float(site_config.pinned_ad_price)
+                        if site_config.pinned_ad_price
+                        else 100.0
+                    ),
+                }
 
         return context
 
