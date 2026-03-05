@@ -2321,6 +2321,17 @@
                         subSubcategoryContainer.style.display = 'none';
                         hiddenCategoryInput.value = selectedSubcatId;
                         subSubcategorySelect.required = false;
+
+                        // If subcategory has no own price, seed cache with main category's price
+                        // so calculateTotalCost() shows the correct price immediately (before API responds)
+                        if (selectedSubcat && !selectedSubcat.price) {
+                            const parentPrice = categoryPriceCache[mainCategoryId] ||
+                                ((typeof categoriesPricing !== 'undefined') && categoriesPricing[mainCategoryId] && categoriesPricing[mainCategoryId].ad_creation_price) || 0;
+                            if (parentPrice > 0) {
+                                categoryPriceCache[String(selectedSubcatId)] = parentPrice;
+                            }
+                        }
+
                         updateCustomFields();
                         fetchAndCachePrice(selectedSubcatId);
                     }
@@ -2680,22 +2691,40 @@
             console.log('💰 Price cache seeded:', Object.keys(categoryPriceCache).length, 'categories');
 
             /**
-             * Return the cached price for categoryId, or fall back to siteDefaultBaseFee.
-             * Always sync – use fetchAndCachePrice() to refresh from the API first.
+             * Return the effective price for the selected category.
+             * Priority: live API cache → inline categoriesPricing → main category price → siteDefaultBaseFee.
+             * A cached 0 is treated as "no price" and falls through to the next source,
+             * so that subcategories without their own price inherit the main category's price.
              */
             function getCurrentCategoryPrice() {
                 const categoryId = hiddenCategoryInput.value;
                 if (!categoryId) return siteDefaultBaseFee;
 
-                // Try live API cache first
+                // 1. Try live API cache (only if price > 0)
                 if (categoryPriceCache.hasOwnProperty(categoryId)) {
                     const p = categoryPriceCache[categoryId];
-                    console.log('🏷️ Category', categoryId, 'price (cache):', p);
-                    return p;
+                    if (p > 0) {
+                        console.log('🏷️ Category', categoryId, 'price (cache):', p);
+                        return p;
+                    }
+                    // p === 0 → fall through; subcategory may inherit from parent
                 }
-                // Fallback: inline data
+
+                // 2. Fallback: inline categoriesPricing (already has effective/inherited price)
                 const inline = (typeof categoriesPricing !== 'undefined') ? categoriesPricing[categoryId] : null;
-                if (inline) return inline.ad_creation_price > 0 ? inline.ad_creation_price : siteDefaultBaseFee;
+                if (inline && inline.ad_creation_price > 0) return inline.ad_creation_price;
+
+                // 3. If this is a subcategory with no price, use the main category's price
+                const mainCatId = mainCategorySelect ? mainCategorySelect.value : null;
+                if (mainCatId && mainCatId !== String(categoryId)) {
+                    if (categoryPriceCache[mainCatId] > 0) {
+                        console.log('🏷️ Subcategory has no price, using main category', mainCatId, ':', categoryPriceCache[mainCatId]);
+                        return categoryPriceCache[mainCatId];
+                    }
+                    const mainInline = (typeof categoriesPricing !== 'undefined') ? categoriesPricing[mainCatId] : null;
+                    if (mainInline && mainInline.ad_creation_price > 0) return mainInline.ad_creation_price;
+                }
+
                 return siteDefaultBaseFee;
             }
 
