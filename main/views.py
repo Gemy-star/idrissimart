@@ -4692,6 +4692,18 @@ def admin_category_get(request, category_id):
     try:
         category = get_object_or_404(Category, pk=category_id)
 
+        # Get pricing information with inheritance
+        effective_price = float(category.get_effective_ad_creation_price() or 0)
+        own_price = float(category.ad_creation_price or 0)
+        price_source = None
+        is_inherited = False
+
+        if effective_price > 0 and own_price == 0:
+            is_inherited = True
+            price_source_cat = category.get_price_source() if hasattr(category, 'get_price_source') else None
+            if price_source_cat:
+                price_source = price_source_cat.name
+
         return JsonResponse(
             {
                 "success": True,
@@ -4711,6 +4723,10 @@ def admin_category_get(request, category_id):
                 "is_active": getattr(category, "is_active", True),
                 "allow_cart": category.allow_cart,
                 "parent_id": category.parent.id if category.parent else None,
+                "ad_creation_price": own_price,
+                "effective_ad_creation_price": effective_price,
+                "ad_creation_inherited": is_inherited,
+                "ad_creation_source": price_source,
             }
         )
     except Exception as e:
@@ -4782,11 +4798,13 @@ def admin_category_save(request):
             category.color = request.POST.get("color", "")
         if hasattr(category, "order") and "order" in request.POST:
             category.order = int(request.POST.get("order", 0))
-        if hasattr(category, "is_active") and "is_active" in request.POST:
-            category.is_active = (
-                request.POST.get("is_active") == "on"
-                or request.POST.get("is_active") == "true"
-            )
+
+        # is_active is a checkbox — always evaluate (unchecked = not submitted = False)
+        # But only when the form is being used (not when updating from other sources)
+        category.is_active = (
+            request.POST.get("is_active") == "on"
+            or request.POST.get("is_active") == "true"
+        )
 
         # allow_cart is a checkbox — always evaluate (unchecked = not submitted = False)
         category.allow_cart = (
