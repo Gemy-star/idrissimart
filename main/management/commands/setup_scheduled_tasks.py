@@ -20,7 +20,7 @@ class Command(BaseCommand):
             help="حذف المهام الموجودة وإعادة إنشائها - Delete existing tasks and recreate them",
         )
         parser.add_argument(
-            "--settings",
+            "--task-settings",
             type=str,
             default=None,
             help="Django settings module to use for scheduled tasks (e.g., 'idrissimart.settings.production')",
@@ -28,7 +28,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         reset = options["reset"]
-        settings_module = options.get("settings")
+        settings_module = options.get("task_settings")
 
         if reset:
             self.stdout.write(

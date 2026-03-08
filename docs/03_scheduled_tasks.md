@@ -192,20 +192,20 @@ You can also set up all scheduled tasks programmatically. The project includes a
 python manage.py setup_scheduled_tasks
 
 # Setup with specific Django settings module (for production)
-python manage.py setup_scheduled_tasks --settings=idrissimart.settings.production
+python manage.py setup_scheduled_tasks --task-settings=idrissimart.settings.production
 
 # Reset all tasks and recreate them
 python manage.py setup_scheduled_tasks --reset
 
 # Reset with specific settings
-python manage.py setup_scheduled_tasks --reset --settings=idrissimart.settings.production
+python manage.py setup_scheduled_tasks --reset --task-settings=idrissimart.settings.production
 ```
 
 **Options:**
 - `--reset`: Delete all existing scheduled tasks and recreate them
-- `--settings`: Specify Django settings module for scheduled tasks (e.g., `idrissimart.settings.production`)
+- `--task-settings`: Specify Django settings module for scheduled tasks (e.g., `idrissimart.settings.production`)
 
-When you specify `--settings`, the command will automatically append the settings argument to all scheduled tasks, ensuring they use the correct configuration when running.
+When you specify `--task-settings`, the command will automatically append the settings argument to all scheduled tasks, ensuring they use the correct configuration when running.
 
 This will create all the scheduled tasks in Django-Q2 automatically.
 

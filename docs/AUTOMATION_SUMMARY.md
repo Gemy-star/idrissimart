@@ -138,10 +138,10 @@ python manage.py migrate
 python manage.py setup_scheduled_tasks
 
 # Production (with specific settings)
-python manage.py setup_scheduled_tasks --settings=idrissimart.settings.production
+python manage.py setup_scheduled_tasks --task-settings=idrissimart.settings.production
 
 # Reset and recreate all tasks
-python manage.py setup_scheduled_tasks --reset --settings=idrissimart.settings.production
+python manage.py setup_scheduled_tasks --reset --task-settings=idrissimart.settings.production
 ```
 
 ### 3. Start the Worker
