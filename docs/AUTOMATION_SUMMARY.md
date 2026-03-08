@@ -232,6 +232,20 @@ TWILIO_AUTH_TOKEN = "your_auth_token"
 TWILIO_PHONE_NUMBER = "+12605822569"
 ```
 
+## ⚠️ Important: SMS Configuration
+
+**Before deploying to production**, configure these settings in Django Admin > Constance:
+
+```
+ADMIN_ALERT_PHONE = "+966512345678"  # Required for SMS alerts
+TWILIO_ENABLED = True
+TWILIO_ACCOUNT_SID = "your_account_sid"
+TWILIO_AUTH_TOKEN = "your_auth_token"
+TWILIO_PHONE_NUMBER = "+12605822569"
+```
+
+**Scheduled tasks are pre-configured with SMS alerts enabled.** If Twilio is not configured, commands will log errors but continue running.
+
 ## 📚 Documentation
 
 - Full documentation: [docs/03_scheduled_tasks.md](docs/03_scheduled_tasks.md)

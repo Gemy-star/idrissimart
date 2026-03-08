@@ -72,7 +72,7 @@ class Command(BaseCommand):
             {
                 "func": "django.core.management.call_command",
                 "name": "Daily Subscription Check",
-                "args": format_args("check_expired_subscriptions"),
+                "args": format_args("check_expired_subscriptions,--send-sms"),
                 "schedule_type": Schedule.DAILY,
                 "repeats": -1,
                 "next_run": next_day_2am.replace(minute=10),
@@ -88,7 +88,7 @@ class Command(BaseCommand):
             {
                 "func": "django.core.management.call_command",
                 "name": "Hourly Order Expiration Check",
-                "args": format_args("check_expired_orders"),
+                "args": format_args("check_expired_orders,--notify-users,--send-sms"),
                 "schedule_type": Schedule.HOURLY,
                 "repeats": -1,
                 "minutes": 60,
@@ -121,7 +121,7 @@ class Command(BaseCommand):
             {
                 "func": "django.core.management.call_command",
                 "name": "Daily Payment Timeout Check",
-                "args": format_args("check_pending_payments"),
+                "args": format_args("check_pending_payments,--send-sms"),
                 "schedule_type": Schedule.DAILY,
                 "repeats": -1,
                 "next_run": next_day_2am.replace(minute=30),
@@ -138,7 +138,7 @@ class Command(BaseCommand):
             {
                 "func": "django.core.management.call_command",
                 "name": "Daily Facebook Request Processing",
-                "args": format_args("process_facebook_share_requests,--notify-admins"),
+                "args": format_args("process_facebook_share_requests,--notify-admins,--send-sms"),
                 "schedule_type": Schedule.DAILY,
                 "repeats": -1,
                 "next_run": next_day_2am.replace(hour=10, minute=0),

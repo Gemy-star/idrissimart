@@ -131,7 +131,9 @@ Once saved, `django-q2` will automatically queue these commands to run at their 
 
 ### SMS Alert Configuration
 
-Several commands support SMS alerts via Twilio. To enable SMS alerts:
+Several commands support SMS alerts via Twilio. **Scheduled tasks are pre-configured with SMS alerts enabled** (see Automation Setup Script section below).
+
+To enable SMS alerts:
 
 1. **Configure Twilio** in Django admin or constance settings:
    - `TWILIO_ENABLED`: Enable/disable Twilio service
@@ -140,7 +142,7 @@ Several commands support SMS alerts via Twilio. To enable SMS alerts:
    - `TWILIO_PHONE_NUMBER`: Your Twilio phone number
    - `ADMIN_ALERT_PHONE`: Admin phone number for receiving alerts (e.g., `+966512345678`)
 
-2. **Use `--send-sms` flag** when running commands:
+2. **Manual execution** - Use `--send-sms` flag when running commands manually:
    ```bash
    python manage.py check_expired_orders --notify-users --send-sms
    python manage.py check_expired_subscriptions --send-sms
@@ -153,6 +155,8 @@ Several commands support SMS alerts via Twilio. To enable SMS alerts:
 - ✅ Admin alerts for failed payments
 - ✅ Admin alerts for pending Facebook requests
 - ✅ Development mode for testing (logs to console instead of sending)
+
+**Note:** If Twilio is not configured, commands will log errors but continue running normally.
 
 ### Testing Commands
 
@@ -212,7 +216,29 @@ These commands should run daily to maintain core functionality:
 
 ## 🔧 Automation Setup Script
 
-You can also set up all scheduled tasks programmatically. The project includes a setup command:
+### IMPORTANT: Configure SMS First! ⚠️
+
+Before setting up scheduled tasks, configure SMS settings in Django Admin > Constance:
+
+```
+ADMIN_ALERT_PHONE = "+966512345678"  # Required for admin SMS alerts
+TWILIO_ENABLED = True
+TWILIO_ACCOUNT_SID = "your_account_sid"
+TWILIO_AUTH_TOKEN = "your_auth_token"
+TWILIO_PHONE_NUMBER = "+12605822569"
+```
+
+**Note:** The `setup_scheduled_tasks` command configures all tasks with SMS alerts enabled by default for:
+- ✅ Order cancellations (sends SMS to users)
+- ✅ Expired subscriptions (sends SMS to admin)
+- ✅ Failed payments (sends SMS to admin)
+- ✅ Pending Facebook requests (sends SMS to admin)
+
+If Twilio is not configured, commands will log errors but continue running normally.
+
+### Setup Commands
+
+You can set up all scheduled tasks programmatically. The project includes a setup command:
 
 ```bash
 # Basic setup (uses default settings)
