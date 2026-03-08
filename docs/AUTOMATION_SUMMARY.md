@@ -216,8 +216,20 @@ python manage.py cleanup_old_notifications --days 60
 ### Enable Notifications
 ```bash
 # Add flags when scheduling
-python manage.py check_expired_orders --notify-users
-python manage.py process_facebook_share_requests --notify-admins
+python manage.py check_expired_orders --notify-users --send-sms
+python manage.py process_facebook_share_requests --notify-admins --send-sms
+python manage.py check_expired_subscriptions --send-sms
+```
+
+### Configure SMS Alerts
+```bash
+# In Django Admin > Constance > Config
+# Set these values:
+ADMIN_ALERT_PHONE = "+966512345678"  # Admin phone for alerts
+TWILIO_ENABLED = True
+TWILIO_ACCOUNT_SID = "your_account_sid"
+TWILIO_AUTH_TOKEN = "your_auth_token"
+TWILIO_PHONE_NUMBER = "+12605822569"
 ```
 
 ## 📚 Documentation

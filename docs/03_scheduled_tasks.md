@@ -129,6 +129,31 @@ Once saved, `django-q2` will automatically queue these commands to run at their 
 
 ## 📝 Command Details & Best Practices
 
+### SMS Alert Configuration
+
+Several commands support SMS alerts via Twilio. To enable SMS alerts:
+
+1. **Configure Twilio** in Django admin or constance settings:
+   - `TWILIO_ENABLED`: Enable/disable Twilio service
+   - `TWILIO_ACCOUNT_SID`: Your Twilio account SID
+   - `TWILIO_AUTH_TOKEN`: Your Twilio auth token
+   - `TWILIO_PHONE_NUMBER`: Your Twilio phone number
+   - `ADMIN_ALERT_PHONE`: Admin phone number for receiving alerts (e.g., `+966512345678`)
+
+2. **Use `--send-sms` flag** when running commands:
+   ```bash
+   python manage.py check_expired_orders --notify-users --send-sms
+   python manage.py check_expired_subscriptions --send-sms
+   python manage.py process_facebook_share_requests --notify-admins --send-sms
+   ```
+
+**SMS Alert Features:**
+- ✅ User alerts for cancelled orders
+- ✅ Admin alerts for expired subscriptions
+- ✅ Admin alerts for failed payments
+- ✅ Admin alerts for pending Facebook requests
+- ✅ Development mode for testing (logs to console instead of sending)
+
 ### Testing Commands
 
 All commands support `--dry-run` mode to preview what would happen without making changes:
@@ -144,9 +169,13 @@ python manage.py check_pending_payments --hours 48 --dry-run
 
 #### check_expired_orders
 - `--notify-users`: Send notifications to users about cancelled orders
+- `--send-sms`: Send SMS alerts to users about cancelled orders (requires --notify-users and Twilio)
 
 #### check_expired_packages
 - `--notify-users`: Send notifications to users about expired packages with remaining ads
+
+#### check_expired_subscriptions
+- `--send-sms`: Send SMS alert to admin when subscriptions expire (requires ADMIN_ALERT_PHONE in config)
 
 #### cleanup_old_notifications
 - `--days 30`: Delete notifications older than specified days (default: 30)
@@ -154,6 +183,7 @@ python manage.py check_pending_payments --hours 48 --dry-run
 
 #### check_pending_payments
 - `--hours 24`: Mark payments as failed after specified hours (default: 24)
+- `--send-sms`: Send SMS alert to admin about failed payments (requires ADMIN_ALERT_PHONE in config)
 
 #### send_expiration_notifications
 - `--days 3`: Send notifications X days before expiration (default: 3)
@@ -161,10 +191,7 @@ python manage.py check_pending_payments --hours 48 --dry-run
 #### process_facebook_share_requests
 - `--auto-reject-days 30`: Auto-reject requests older than specified days (default: 30)
 - `--notify-admins`: Send notifications to admins about pending requests
-
-### Recommended Schedule
-
-#### Critical (Daily)
+- `--send-sms`: Send SMS alert to admin about pending requests (requires ADMIN_ALERT_PHONE in config)
 These commands should run daily to maintain core functionality:
 - `check_expired_ads` - Expire old ads
 - `check_expired_subscriptions` - Deactivate expired premium subscriptions

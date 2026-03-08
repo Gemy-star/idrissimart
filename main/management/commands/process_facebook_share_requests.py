@@ -10,6 +10,8 @@ from django.utils import timezone
 from datetime import timedelta
 from django.contrib.auth import get_user_model
 from main.models import FacebookShareRequest, Notification
+from main.services.sms_service import SMSService
+from constance import config
 import logging
 
 logger = logging.getLogger(__name__)
@@ -40,6 +42,11 @@ class Command(BaseCommand):
             help="Send notifications to admins about pending requests",
         )
         parser.add_argument(
+            "--send-sms",
+            action="store_true",
+            help="Send SMS alerts to admin phone (requires ADMIN_ALERT_PHONE in config)",
+        )
+        parser.add_argument(
             "--dry-run",
             action="store_true",
             help="If set, the command will only show what would be done without actually doing it.",
@@ -49,6 +56,7 @@ class Command(BaseCommand):
         """The main logic for the command."""
         auto_reject_days = kwargs["auto_reject_days"]
         notify_admins = kwargs["notify_admins"]
+        send_sms = kwargs["send_sms"]
         dry_run = kwargs["dry_run"]
 
         self.stdout.write(
@@ -150,6 +158,28 @@ class Command(BaseCommand):
                         self.stdout.write(
                             self.style.WARNING(
                                 "⚠ No active admin users found to notify."
+                            )
+                        )
+
+                    # Send SMS alert to admin if enabled
+                    if send_sms and SMSService.is_enabled() and remaining_pending > 0:
+                        try:
+                            admin_phone = getattr(config, 'ADMIN_ALERT_PHONE', None)
+
+                            if admin_phone:
+                                sms_message = f"{config.SITE_NAME}: {remaining_pending} طلب نشر فيسبوك قيد الانتظار"
+                                if SMSService.send_sms(admin_phone, sms_message):
+                                    self.stdout.write(
+                                        self.style.SUCCESS(
+                                            f"✓ SMS alert sent to admin."
+                                        )
+                                    )
+                        except Exception as sms_error:
+                            logger.error(f"Failed to send SMS alert: {sms_error}")
+                    elif send_sms and not SMSService.is_enabled():
+                        self.stdout.write(
+                            self.style.WARNING(
+                                "⚠ SMS service not enabled (Twilio not configured)."
                             )
                         )
 

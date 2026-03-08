@@ -7,6 +7,7 @@ This should be run hourly or daily via cron job or django-q2 scheduler.
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from main.models import Order, Notification
+from main.services.sms_service import SMSService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -32,12 +33,18 @@ class Command(BaseCommand):
             action="store_true",
             help="Send notifications to users about their cancelled orders.",
         )
+        parser.add_argument(
+            "--send-sms",
+            action="store_true",
+            help="Send SMS alerts to users about cancelled orders (requires --notify-users).",
+        )
 
     def handle(self, *args, **kwargs):
         """The main logic for the command."""
         now = timezone.now()
         dry_run = kwargs["dry_run"]
         notify_users = kwargs["notify_users"]
+        send_sms = kwargs["send_sms"]
 
         self.stdout.write(
             self.style.NOTICE(
@@ -75,6 +82,7 @@ class Command(BaseCommand):
             else:
                 cancelled_count = 0
                 notification_count = 0
+                sms_count = 0
 
                 for order in expired_orders:
                     try:
@@ -93,6 +101,15 @@ class Command(BaseCommand):
                                 is_read=False
                             )
                             notification_count += 1
+
+                            # Send SMS if enabled and user has phone
+                            if send_sms and SMSService.is_enabled() and order.user.phone:
+                                try:
+                                    sms_message = f"تم إلغاء الطلب #{order.order_number} بسبب انتهاء المهلة. المبلغ: {order.total_amount} {order.currency}"
+                                    if SMSService.send_sms(order.user.phone, sms_message):
+                                        sms_count += 1
+                                except Exception as sms_error:
+                                    logger.error(f"Failed to send SMS to {order.user.username}: {sms_error}")
                     except Exception as e:
                         logger.error(f"Failed to cancel order {order.order_number}: {e}")
 
@@ -108,6 +125,20 @@ class Command(BaseCommand):
                             f"✓ Created {notification_count} notification(s)."
                         )
                     )
+
+                    if send_sms:
+                        if SMSService.is_enabled():
+                            self.stdout.write(
+                                self.style.SUCCESS(
+                                    f"✓ Sent {sms_count} SMS alert(s)."
+                                )
+                            )
+                        else:
+                            self.stdout.write(
+                                self.style.WARNING(
+                                    "⚠ SMS service not enabled (Twilio not configured)."
+                                )
+                            )
 
                 # Log the action
                 logger.info(f"Auto-cancelled {cancelled_count} expired orders")
