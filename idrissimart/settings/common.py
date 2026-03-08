@@ -338,7 +338,7 @@ MAX_CART_ITEMS = 100
 MAX_WISHLIST_ITEMS = 50
 
 # Country settings
-DEFAULT_COUNTRY = "SA"
+DEFAULT_COUNTRY = "EG"
 SUPPORTED_COUNTRIES = ["SA", "AE", "EG", "KW", "QA", "BH", "OM", "JO"]
 
 # ===========================

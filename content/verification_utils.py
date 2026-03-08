@@ -111,3 +111,80 @@ def get_verification_requirements():
         "google_auth_enabled": is_google_auth_configured(),
         "facebook_auth_enabled": is_facebook_auth_configured(),
     }
+
+
+def phone_needs_verification(user, phone_number, country_code="EG"):
+    """
+    Check if a phone number needs verification for the given user.
+    Returns True if:
+    - Phone verification is required AND
+    - User's phone is not verified OR
+    - The provided phone number is different from user's verified phone
+
+    Args:
+        user: User instance
+        phone_number: Phone number to check (can be with or without country code)
+        country_code: Country code (default: SA)
+
+    Returns:
+        tuple: (needs_verification: bool, message: str)
+    """
+    from main.utils import normalize_phone_number
+
+    # If phone verification is not required globally, no need to verify
+    if not is_phone_verification_required():
+        return False, ""
+
+    # If user is not authenticated, require verification
+    if not user or not user.is_authenticated:
+        return True, "يجب تسجيل الدخول أولاً"
+
+    # Staff and superusers bypass verification
+    if user.is_staff or user.is_superuser:
+        return False, ""
+
+    # If user has no verified phone, require verification
+    if not hasattr(user, 'is_mobile_verified') or not user.is_mobile_verified:
+        return True, "يجب التحقق من رقم الجوال قبل المتابعة"
+
+    # If user has no phone stored, require verification
+    if not hasattr(user, 'phone') or not user.phone:
+        return True, "يجب إدخال والتحقق من رقم الجوال"
+
+    # Normalize both phone numbers for comparison
+    try:
+        user_phone = normalize_phone_number(user.phone, country_code)
+        new_phone = normalize_phone_number(phone_number, country_code)
+
+        # If phones are different, require verification
+        if user_phone != new_phone:
+            return True, "رقم الجوال المدخل مختلف عن الرقم الموثق. يجب التحقق من الرقم الجديد"
+    except Exception:
+        # If normalization fails, require verification to be safe
+        return True, "يجب التحقق من رقم الجوال"
+
+    # Phone is verified and matches user's verified phone
+    return False, ""
+
+
+def check_session_phone_verification(request, phone_number, country_code="EG"):
+    """
+    Check if a phone number has been verified in the current session.
+    This is used during checkout/payment when user might verify a new number.
+
+    Args:
+        request: Django request object
+        phone_number: Phone number to check
+        country_code: Country code (default: SA)
+
+    Returns:
+        bool: True if phone is verified in session
+    """
+    from main.utils import normalize_phone_number
+
+    try:
+        normalized_phone = normalize_phone_number(phone_number, country_code)
+        session_key = f"phone_verified_{normalized_phone}"
+        return request.session.get(session_key, False)
+    except Exception:
+        return False

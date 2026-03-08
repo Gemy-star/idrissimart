@@ -529,7 +529,7 @@ class ClassifiedAdForm(forms.ModelForm):
         }
 
         # Get country code
-        country_code = country.code if country else "SA"
+        country_code = country.code if country else "EG"
 
         # Get validation rule for country
         rule = validation_rules.get(country_code)
@@ -952,7 +952,7 @@ class RegistrationForm(forms.Form):
         phone = self.cleaned_data.get("phone")
         # Get country code from either country_code field or country field
         country_code = self.data.get("country_code") or self.cleaned_data.get(
-            "country", "SA"
+            "country", "EG"
         )
         country_code = country_code.upper()
 

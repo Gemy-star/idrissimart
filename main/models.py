@@ -749,6 +749,65 @@ class User(AbstractUser):  # This model is correct, no changes needed here.
         }
         return permission_map.get(action, False)
 
+    def save(self, *args, **kwargs):
+        """Override save to handle phone number changes"""
+        from main.utils import normalize_phone_number
+
+        # Check if this is an update (not a new instance)
+        if self.pk:
+            try:
+                old_instance = User.objects.get(pk=self.pk)
+                # Check if phone has changed
+                if old_instance.phone and self.phone:
+                    try:
+                        old_phone_normalized = normalize_phone_number(
+                           old_instance.phone,
+                            self.country.code if self.country else "SA"
+                        )
+                        new_phone_normalized = normalize_phone_number(
+                            self.phone,
+                            self.country.code if self.country else "SA"
+                        )
+
+                        # If phone changed and was verified, unverify it
+                        if old_phone_normalized != new_phone_normalized and old_instance.is_mobile_verified:
+                            self.is_mobile_verified = False
+                            self.mobile_verification_code = ""
+                            self.mobile_verification_expires = None
+                    except Exception:
+                        # If normalization fails, unverify to be safe
+                        if old_instance.phone != self.phone and old_instance.is_mobile_verified:
+                            self.is_mobile_verified = False
+                            self.mobile_verification_code = ""
+                            self.mobile_verification_expires = None
+            except User.DoesNotExist:
+                pass
+
+        super().save(*args, **kwargs)
+
+    def phone_matches_verified(self, phone_number, country_code="SA"):
+        """
+        Check if a given phone number matches the user's verified phone
+
+        Args:
+            phone_number: Phone number to check
+            country_code: Country code for normalization (default: SA)
+
+        Returns:
+            bool: True if phone matches and is verified, False otherwise
+        """
+        from main.utils import normalize_phone_number
+
+        if not self.is_mobile_verified or not self.phone:
+            return False
+
+        try:
+            user_phone = normalize_phone_number(self.phone, country_code)
+            check_phone = normalize_phone_number(phone_number, country_code)
+            return user_phone == check_phone
+        except Exception:
+            return False
+
     def upgrade_to_publisher(self):
         """
         Upgrade user from default to publisher via package purchase

@@ -187,7 +187,7 @@ def get_country_currency(context):
     Returns the currency code for the selected country from context.
     Usage: {% get_country_currency as currency %}
     """
-    selected_country_code = context.get("selected_country", "SA")
+    selected_country_code = context.get("selected_country", "EG")
     try:
         from content.models import Country
 

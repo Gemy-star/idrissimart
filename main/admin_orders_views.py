@@ -90,7 +90,7 @@ def admin_orders_list(request):
     currency = "SAR"  # Default
     currency_symbol = "ر.س"
 
-    selected_country_code = get_selected_country_from_request(request, default="SA")
+    selected_country_code = get_selected_country_from_request(request, default="EG")
     try:
         country = Country.objects.get(code=selected_country_code)
         currency = country.currency or "SAR"
@@ -148,7 +148,7 @@ def admin_order_detail(request, order_id):
     currency = "SAR"
     currency_symbol = "ر.س"
 
-    selected_country_code = get_selected_country_from_request(request, default="SA")
+    selected_country_code = get_selected_country_from_request(request, default="EG")
     try:
         country = Country.objects.get(code=selected_country_code)
         currency = country.currency or "SAR"
@@ -275,7 +275,7 @@ def admin_orders_statistics(request):
     currency = "SAR"
     currency_symbol = "ر.س"
 
-    selected_country_code = get_selected_country_from_request(request, default="SA")
+    selected_country_code = get_selected_country_from_request(request, default="EG")
     try:
         country = Country.objects.get(code=selected_country_code)
         currency = country.currency or "SAR"

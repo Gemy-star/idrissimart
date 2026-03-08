@@ -385,6 +385,7 @@ def checkout_view(request):
         try:
             from main.models import Order, OrderItem
             from django.db import transaction
+            from content.verification_utils import phone_needs_verification, check_session_phone_verification
 
             # Get form data
             full_name = request.POST.get("full_name")
@@ -395,6 +396,22 @@ def checkout_view(request):
             postal_code = request.POST.get("postal_code", "")
             notes = request.POST.get("notes", "")
             payment_method = request.POST.get("payment_method", "cod")
+
+            # Check if phone number needs verification
+            needs_verification, verification_msg = phone_needs_verification(
+                request.user, phone, request.POST.get("country_code", "EG")
+            )
+
+            if needs_verification:
+                # Check if phone was verified in this session
+                if not check_session_phone_verification(request, phone, request.POST.get("country_code", "EG")):
+                    return JsonResponse(
+                        {
+                            "success": False,
+                            "message": verification_msg or _("يجب التحقق من رقم الجوال قبل إتمام عملية الشراء"),
+                        },
+                        status=400,
+                    )
 
             # Validate payment method is allowed
             if not is_payment_method_allowed(payment_method, PaymentContext.PRODUCT_PURCHASE):

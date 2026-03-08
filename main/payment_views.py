@@ -832,7 +832,7 @@ def package_checkout(request, package_id):
         return redirect("main:my_ads")
 
     # Get currency from session (selected country) or default
-    selected_country_code = request.session.get("selected_country", "SA")
+    selected_country_code = request.session.get("selected_country", "EG")
     currency = "SAR"  # default
     try:
         from content.models import Country

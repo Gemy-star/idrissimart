@@ -352,7 +352,7 @@ class RegisterView(CreateView):
             data = form.cleaned_data
             profile_type = data.get("profile_type")
             phone = data.get("phone")
-            country_code = request.POST.get("country_code", "SA").upper()
+            country_code = request.POST.get("country_code", "EG").upper()
 
             # Check if phone verification is required
             phone_verification_required = is_phone_verification_required()
@@ -593,7 +593,7 @@ def send_phone_verification_code(request):
     try:
         data = json.loads(request.body)
         phone = data.get("phone", "").strip()
-        country_code = data.get("country_code", "SA").upper()
+        country_code = data.get("country_code", "EG").upper()
 
         if not phone:
             return JsonResponse(
@@ -695,7 +695,7 @@ def verify_phone_code(request):
         data = json.loads(request.body)
         phone = data.get("phone", "").strip()
         code = data.get("code", "").strip()
-        country_code = data.get("country_code", "SA").upper()
+        country_code = data.get("country_code", "EG").upper()
 
         if not phone or not code:
             return JsonResponse(
@@ -741,6 +741,19 @@ def verify_phone_code(request):
             # Mark as verified in session
             request.session[f"phone_verified_{normalized_phone}"] = True
             del request.session[session_key]
+
+            # If user is logged in, update their phone and verification status
+            if request.user.is_authenticated:
+                user = request.user
+                # Update phone number if it's different or empty
+                if not user.phone or user.phone != normalized_phone:
+                    user.phone = normalized_phone
+                    user.is_mobile_verified = True
+                    user.save(update_fields=["phone", "is_mobile_verified"])
+                elif not user.is_mobile_verified:
+                    # Phone matches but wasn't verified - mark as verified
+                    user.is_mobile_verified = True
+                    user.save(update_fields=["is_mobile_verified"])
 
             return JsonResponse(
                 {

@@ -407,10 +407,10 @@ def get_country_phone_patterns(country_code):
         },
     }
 
-    return patterns.get(country_code, patterns["SA"])  # Default to SA
+    return patterns.get(country_code, patterns["EG"])  # Default to EG
 
 
-def validate_phone_number(phone, country_code="SA"):
+def validate_phone_number(phone, country_code="EG"):
     """
     Validate phone number format based on country
     """
@@ -427,7 +427,7 @@ def validate_phone_number(phone, country_code="SA"):
     return any(re.match(pattern, phone) for pattern in patterns)
 
 
-def normalize_phone_number(phone, country_code="SA"):
+def normalize_phone_number(phone, country_code="EG"):
     """
     Normalize phone number to international format based on country
     """
