@@ -15,10 +15,16 @@ def is_email_verification_required():
 
 def is_phone_verification_required():
     """Check if phone verification is required during registration"""
+    from constance import config
     from content.site_config import SiteConfiguration
 
+    # Check both django-constance and site_config
+    constance_enabled = getattr(config, "ENABLE_MOBILE_VERIFICATION", True)
     site_config = SiteConfiguration.get_solo()
-    return site_config.require_phone_verification
+    site_config_enabled = site_config.require_phone_verification
+
+    # Return True if either is enabled
+    return constance_enabled or site_config_enabled
 
 
 def is_verification_required_for_services():
@@ -28,7 +34,7 @@ def is_verification_required_for_services():
     site_config = SiteConfiguration.get_solo()
     return site_config.require_verification_for_services
 
-                                                                      
+
 def is_free_package_verification_required():
     """Check if email/phone verification is required before assigning the free package"""
     from content.site_config import SiteConfiguration

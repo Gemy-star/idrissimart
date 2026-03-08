@@ -27,6 +27,23 @@ logger = logging.getLogger(__name__)
 @login_required
 def payment_page(request, package_id=None):
     """Display payment options page"""
+    from constance import config as constance_config
+    from content.site_config import SiteConfiguration
+    from django.contrib import messages
+
+    # Check phone verification requirement
+    constance_enabled = getattr(constance_config, "ENABLE_MOBILE_VERIFICATION", True)
+    site_config = SiteConfiguration.get_solo()
+    site_config_enabled = site_config.require_phone_verification
+
+    # If either is enabled and user's phone is not verified, redirect
+    if (constance_enabled or site_config_enabled) and not request.user.is_mobile_verified:
+        messages.warning(
+            request,
+            _("يجب التحقق من رقم هاتفك قبل إتمام عملية الدفع. الرجاء تأكيد رقم هاتفك أولاً.")
+        )
+        return redirect("main:phone_verification_required")
+
     package = None
     if package_id:
         package = get_object_or_404(AdPackage, id=package_id)
@@ -329,6 +346,23 @@ def payment_history(request):
 @login_required
 def payment_page_upgrade(request, payment_id):
     """Display payment options page for ad upgrades"""
+    from constance import config as constance_config
+    from content.site_config import SiteConfiguration
+    from django.contrib import messages
+
+    # Check phone verification requirement
+    constance_enabled = getattr(constance_config, "ENABLE_MOBILE_VERIFICATION", True)
+    site_config = SiteConfiguration.get_solo()
+    site_config_enabled = site_config.require_phone_verification
+
+    # If either is enabled and user's phone is not verified, redirect
+    if (constance_enabled or site_config_enabled) and not request.user.is_mobile_verified:
+        messages.warning(
+            request,
+            _("يجب التحقق من رقم هاتفك قبل ترقية الإعلانات. الرجاء تأكيد رقم هاتفك أولاً.")
+        )
+        return redirect("main:phone_verification_required")
+
     payment = get_object_or_404(Payment, id=payment_id, user=request.user)
 
     # Get upgrade data from payment metadata
@@ -370,11 +404,25 @@ def payment_page_upgrade(request, payment_id):
 def ad_payment(request, ad_id):
     """Payment page for new ad with features"""
     from .models import ClassifiedAd
+    from constance import config as constance_config
     from content.models import SiteConfiguration
     from .payment_utils import get_allowed_payment_methods, PaymentContext
+    from django.contrib import messages
+
+    # Check phone verification requirement
+    constance_enabled = getattr(constance_config, "ENABLE_MOBILE_VERIFICATION", True)
+    site_config = SiteConfiguration.get_solo()
+    site_config_enabled = site_config.require_phone_verification
+
+    # If either is enabled and user's phone is not verified, redirect
+    if (constance_enabled or site_config_enabled) and not request.user.is_mobile_verified:
+        messages.warning(
+            request,
+            _("يجب التحقق من رقم هاتفك قبل نشر الإعلانات. الرجاء تأكيد رقم هاتفك أولاً.")
+        )
+        return redirect("main:phone_verification_required")
 
     ad = get_object_or_404(ClassifiedAd, id=ad_id, user=request.user)
-    site_config = SiteConfiguration.get_solo()
 
     # Get payment details from session
     total_amount = Decimal(request.session.get("ad_payment_amount", "0"))
@@ -730,11 +778,24 @@ def confirm_ad_payment(request, payment_id):
 @login_required
 def package_checkout(request, package_id):
     """Checkout page for package purchase with offline/online payment options"""
+    from constance import config
     from content.models import SiteConfiguration
     from .payment_utils import get_allowed_payment_methods, PaymentContext
 
-    package = get_object_or_404(AdPackage, id=package_id, is_active=True)
+    # Check phone verification requirement
+    constance_enabled = getattr(config, "ENABLE_MOBILE_VERIFICATION", True)
     site_config = SiteConfiguration.get_solo()
+    site_config_enabled = site_config.require_phone_verification
+
+    # If either is enabled and user's phone is not verified, redirect
+    if (constance_enabled or site_config_enabled) and not request.user.is_mobile_verified:
+        messages.warning(
+            request,
+            _("يجب التحقق من رقم هاتفك قبل شراء الباقات. الرجاء تأكيد رقم هاتفك أولاً.")
+        )
+        return redirect("main:phone_verification_required")
+
+    package = get_object_or_404(AdPackage, id=package_id, is_active=True)
 
     # Verify package is in session
     session_package_id = request.session.get("package_checkout_id")

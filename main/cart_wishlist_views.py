@@ -343,7 +343,23 @@ def check_partial_payment_eligibility(request):
 @login_required
 def checkout_view(request):
     """Display checkout page"""
+    from constance import config
+    from content.site_config import SiteConfiguration
+    from django.contrib import messages
     from main.payment_utils import get_allowed_payment_methods, is_payment_method_allowed, PaymentContext
+
+    # Check phone verification requirement
+    constance_enabled = getattr(config, "ENABLE_MOBILE_VERIFICATION", True)
+    site_config = SiteConfiguration.get_solo()
+    site_config_enabled = site_config.require_phone_verification
+
+    # If either is enabled and user's phone is not verified, redirect
+    if (constance_enabled or site_config_enabled) and not request.user.is_mobile_verified:
+        messages.warning(
+            request,
+            _("يجب التحقق من رقم هاتفك قبل إتمام عملية الشراء. الرجاء تأكيد رقم هاتفك أولاً.")
+        )
+        return redirect("main:phone_verification_required")
 
     cart = get_or_create_cart(request.user)
     cart_items = (

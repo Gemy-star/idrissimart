@@ -584,9 +584,8 @@ def send_phone_verification_code(request):
     Send verification code to phone number via SMS
     إمكانية الدخول برقم الهاتف المسجل والتحقق منه مسبقاً وكاتبه اليه
     """
-    from constance import config
-
-    if not is_phone_verification_required() and not getattr(config, "ENABLE_MOBILE_VERIFICATION", True):
+    # Check if phone verification is enabled (checks both constance and site_config)
+    if not is_phone_verification_required():
         return JsonResponse(
             {"success": False, "message": _("التحقق من الجوال غير مفعّل")}, status=400
         )
@@ -686,9 +685,8 @@ def verify_phone_code(request):
     Verify the phone verification code entered by user
     اليه الفرق عند التسجيل بين حساب غداء وعشاء ؟
     """
-    from constance import config
-
-    if not is_phone_verification_required() and not getattr(config, "ENABLE_MOBILE_VERIFICATION", True):
+    # Check if phone verification is enabled (checks both constance and site_config)
+    if not is_phone_verification_required():
         return JsonResponse(
             {"success": False, "message": _("التحقق من الجوال غير مفعّل")}, status=400
         )

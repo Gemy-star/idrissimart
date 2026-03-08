@@ -355,6 +355,23 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             # Let LoginRequiredMixin handle the redirect
             return super().dispatch(request, *args, **kwargs)
 
+        # Check phone verification requirement
+        from constance import config
+        from content.site_config import SiteConfiguration
+
+        # Check if phone verification is enabled from constance or site_config
+        constance_enabled = getattr(config, "ENABLE_MOBILE_VERIFICATION", True)
+        site_config = SiteConfiguration.get_solo()
+        site_config_enabled = site_config.require_phone_verification
+
+        # If either is enabled and user's phone is not verified, redirect
+        if (constance_enabled or site_config_enabled) and not request.user.is_mobile_verified:
+            messages.warning(
+                request,
+                _("يجب التحقق من رقم هاتفك قبل نشر الإعلانات. الرجاء تأكيد رقم هاتفك أولاً."),
+            )
+            return redirect("main:phone_verification_required")
+
         # Check if user has any active package with remaining ads (for display purposes)
         active_package = (
             UserPackage.objects.filter(
@@ -2066,6 +2083,31 @@ class AdUpgradeCheckoutView(LoginRequiredMixin, DetailView):
     model = ClassifiedAd
     template_name = "classifieds/ad_upgrade_checkout.html"
     context_object_name = "ad"
+
+    def dispatch(self, request, *args, **kwargs):
+        """Check phone verification before allowing ad upgrades"""
+        # First check if user is authenticated (LoginRequiredMixin handles this)
+        if not request.user.is_authenticated:
+            return super().dispatch(request, *args, **kwargs)
+
+        # Check phone verification requirement
+        from constance import config
+        from content.site_config import SiteConfiguration
+
+        # Check if phone verification is enabled from constance or site_config
+        constance_enabled = getattr(config, "ENABLE_MOBILE_VERIFICATION", True)
+        site_config = SiteConfiguration.get_solo()
+        site_config_enabled = site_config.require_phone_verification
+
+        # If either is enabled and user's phone is not verified, redirect
+        if (constance_enabled or site_config_enabled) and not request.user.is_mobile_verified:
+            messages.warning(
+                request,
+                _("يجب التحقق من رقم هاتفك قبل ترقية الإعلانات. الرجاء تأكيد رقم هاتفك أولاً.")
+            )
+            return redirect("main:phone_verification_required")
+
+        return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         # Only allow users to upgrade their own ads
