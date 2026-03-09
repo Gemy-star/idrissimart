@@ -2393,7 +2393,7 @@ class AdUpgradeProcessView(LoginRequiredMixin, View):
             user=request.user,
             provider="pending",  # Will be set when user selects payment method
             amount=total_amount,
-            currency="SAR",
+            currency="EGP",
             status=Payment.PaymentStatus.PENDING,
             description=_("ترقية إعلان: {}").format(ad.title),
             metadata={"ad_id": ad.pk, "upgrades": upgrades},

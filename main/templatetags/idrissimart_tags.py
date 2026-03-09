@@ -165,11 +165,11 @@ CURRENCY_NAMES = {
 def get_currency(ad):
     """
     Returns the currency code for the ad based on its country.
-    Falls back to 'SAR' if no country or currency is set.
+    Falls back to 'EGP' if no country or currency is set.
     """
     if ad and hasattr(ad, "country") and ad.country:
-        return ad.country.currency or "SAR"
-    return "SAR"
+        return ad.country.currency or "EGP"
+    return "EGP"
 
 
 @register.simple_tag
@@ -192,9 +192,9 @@ def get_country_currency(context):
         from content.models import Country
 
         country = Country.objects.get(code=selected_country_code)
-        return country.currency or "SAR"
+        return country.currency or "EGP"
     except Exception:
-        return "SAR"
+        return "EGP"
 
 
 @register.filter
@@ -204,7 +204,7 @@ def currency_symbol(currency_code):
     Usage: {{ order.currency|currency_symbol }}
     """
     if not currency_code:
-        currency_code = "SAR"
+        currency_code = "EGP"
     return CURRENCY_SYMBOLS.get(currency_code, currency_code)
 
 
@@ -215,7 +215,7 @@ def currency_name(currency_code):
     Usage: {{ order.currency|currency_name }}
     """
     if not currency_code:
-        currency_code = "SAR"
+        currency_code = "EGP"
     return CURRENCY_NAMES.get(currency_code, currency_code)
 
 

@@ -1,0 +1,457 @@
+{% extends "dashboard/base.html" %}
+{% load static i18n %}
+
+{% block publisher_title %}
+    {% trans "الدفع - طلب نشر فيسبوك" %} - {% trans "إدريسي مارت" %}
+{% endblock %}
+
+{% block publisher_extra_css %}
+<style>
+    .payment-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .payment-header {
+        background: linear-gradient(135deg, #1877f2 0%, #0d5dbf 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 16px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 20px rgba(24, 119, 242, 0.2);
+    }
+
+    .ad-summary-card {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .ad-preview-large {
+        display: flex;
+        gap: 1.5rem;
+        align-items: start;
+    }
+
+    .ad-thumbnail-large {
+        width: 150px;
+        height: 150px;
+        border-radius: 12px;
+        object-fit: cover;
+    }
+
+    .payment-amount-box {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .amount-value {
+        font-size: 3rem;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .amount-label {
+        font-size: 1.2rem;
+        opacity: 0.9;
+        margin-top: 0.5rem;
+    }
+
+    .payment-methods-card {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .payment-method {
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 1.5rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-bottom: 1rem;
+    }
+
+    .payment-method:hover {
+        border-color: #1877f2;
+        background: #f8f9ff;
+    }
+
+    .payment-method.selected {
+        border-color: #1877f2;
+        background: #f8f9ff;
+        box-shadow: 0 4px 12px rgba(24, 119, 242, 0.2);
+    }
+
+    .payment-method input[type="radio"] {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+    }
+
+    .payment-method-icon {
+        font-size: 2rem;
+        color: #1877f2;
+        margin-right: 1rem;
+    }
+
+    .payment-method-info h5 {
+        margin: 0 0 0.5rem 0;
+        color: #333;
+    }
+
+    .payment-method-info p {
+        margin: 0;
+        color: #666;
+        font-size: 0.9rem;
+    }
+
+    .bank-details-card {
+        background: #f8f9fa;
+        border: 2px dashed #1877f2;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+        display: none;
+    }
+
+    .bank-details-card.show {
+        display: block;
+    }
+
+    .bank-info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .bank-info-row:last-child {
+        border-bottom: none;
+    }
+
+    .copy-btn {
+        padding: 4px 12px;
+        font-size: 0.85rem;
+        border-radius: 6px;
+    }
+
+    .file-upload-area {
+        border: 2px dashed #dee2e6;
+        border-radius: 12px;
+        padding: 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .file-upload-area:hover {
+        border-color: #1877f2;
+        background: #f8f9ff;
+    }
+
+    .file-upload-area.dragover {
+        border-color: #1877f2;
+        background: #f8f9ff;
+    }
+
+    .file-preview {
+        margin-top: 1rem;
+        display: none;
+    }
+
+    .file-preview.show {
+        display: block;
+    }
+
+    .file-preview img {
+        max-width: 200px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .btn-facebook {
+        background: #1877f2;
+        color: white;
+        border: none;
+        padding: 0.75rem 2rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border-radius: 8px;
+    }
+
+    .btn-facebook:hover {
+        background: #0d5dbf;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block publisher_content %}
+<div class="payment-container">
+    <!-- Header -->
+    <div class="payment-header">
+        <h1 class="mb-2">
+            <i class="fas fa-credit-card me-3"></i>
+            {% trans "الدفع - طلب نشر فيسبوك" %}
+        </h1>
+        <p class="mb-0 opacity-90">{% trans "أكمل الدفع لتفعيل طلب النشر على صفحة فيسبوك المنصة" %}</p>
+    </div>
+
+    <!-- Ad Summary -->
+    <div class="ad-summary-card">
+        <h4 class="mb-3">
+            <i class="fas fa-bullhorn me-2"></i>
+            {% trans "تفاصيل الإعلان" %}
+        </h4>
+        <div class="ad-preview-large">
+            {% if ad.images.first %}
+                <img src="{{ ad.images.first.image.url }}" alt="{{ ad.title }}" class="ad-thumbnail-large">
+            {% else %}
+                <div class="ad-thumbnail-large bg-secondary d-flex align-items-center justify-content-center">
+                    <i class="fas fa-image text-white fa-3x"></i>
+                </div>
+            {% endif %}
+            <div class="flex-grow-1">
+                <h3>{{ ad.title }}</h3>
+                <div class="text-muted mb-2">
+                    <i class="fas fa-tag me-2"></i>{{ ad.category.name }}
+                </div>
+                <div class="text-muted">
+                    <i class="fas fa-calendar me-2"></i>{% trans "تاريخ الطلب:" %} {{ share_request.requested_at|date:"d M, Y H:i" }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Amount -->
+    <div class="payment-amount-box">
+        <div class="amount-label">{% trans "المبلغ المطلوب" %}</div>
+        <h2 class="amount-value">{{ payment_amount }} {% trans "EGP" %}</h2>
+        <p class="mb-0 mt-2">{% trans "لنشر الإعلان على صفحة فيسبوك المنصة" %}</p>
+    </div>
+
+    <!-- Payment Form -->
+    <form method="post" enctype="multipart/form-data" id="paymentForm">
+        {% csrf_token %}
+
+        <!-- Payment Methods -->
+        <div class="payment-methods-card">
+            <h4 class="mb-3">
+                <i class="fas fa-wallet me-2"></i>
+                {% trans "اختر طريقة الدفع" %}
+            </h4>
+
+            {% for method in payment_methods %}
+            <div class="payment-method" data-method="{{ method.id }}" onclick="selectPaymentMethod('{{ method.id }}')">
+                <div class="d-flex align-items-center">
+                    <input type="radio" name="payment_method" value="{{ method.id }}" id="method_{{ method.id }}" required>
+                    <i class="{{ method.icon }} payment-method-icon"></i>
+                    <div class="payment-method-info flex-grow-1">
+                        <h5>{{ method.name }}</h5>
+                        <p>{{ method.description }}</p>
+                    </div>
+                </div>
+
+                {% if method.id == 'bank_transfer' %}
+                <div class="bank-details-card" id="bankDetails">
+                    <h5 class="mb-3">
+                        <i class="fas fa-university me-2"></i>
+                        {% trans "معلومات الحساب البنكي" %}
+                    </h5>
+                    <div class="bank-info-row">
+                        <span class="fw-bold">{% trans "اسم البنك:" %}</span>
+                        <span>
+                            {{ bank_details.bank_name }}
+                            <button type="button" class="btn btn-sm btn-outline-primary copy-btn" onclick="copyToClipboard('{{ bank_details.bank_name }}')">
+                                <i class="fas fa-copy"></i> {% trans "نسخ" %}
+                            </button>
+                        </span>
+                    </div>
+                    <div class="bank-info-row">
+                        <span class="fw-bold">{% trans "اسم الحساب:" %}</span>
+                        <span>
+                            {{ bank_details.account_name }}
+                            <button type="button" class="btn btn-sm btn-outline-primary copy-btn" onclick="copyToClipboard('{{ bank_details.account_name }}')">
+                                <i class="fas fa-copy"></i> {% trans "نسخ" %}
+                            </button>
+                        </span>
+                    </div>
+                    <div class="bank-info-row">
+                        <span class="fw-bold">{% trans "رقم الحساب:" %}</span>
+                        <span>
+                            {{ bank_details.account_number }}
+                            <button type="button" class="btn btn-sm btn-outline-primary copy-btn" onclick="copyToClipboard('{{ bank_details.account_number }}')">
+                                <i class="fas fa-copy"></i> {% trans "نسخ" %}
+                            </button>
+                        </span>
+                    </div>
+                    <div class="bank-info-row">
+                        <span class="fw-bold">IBAN:</span>
+                        <span>
+                            {{ bank_details.iban }}
+                            <button type="button" class="btn btn-sm btn-outline-primary copy-btn" onclick="copyToClipboard('{{ bank_details.iban }}')">
+                                <i class="fas fa-copy"></i> {% trans "نسخ" %}
+                            </button>
+                        </span>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Payment Proof Upload -->
+        <div class="payment-methods-card">
+            <h4 class="mb-3">
+                <i class="fas fa-file-upload me-2"></i>
+                {% trans "إثبات الدفع" %}
+            </h4>
+            <p class="text-muted mb-3">{% trans "قم برفع صورة أو ملف PDF لإثبات الدفع (اختياري)" %}</p>
+
+            <div class="file-upload-area" id="fileUploadArea">
+                <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+                <p class="mb-0">{% trans "اسحب الملف هنا أو انقر للاختيار" %}</p>
+                <input type="file" name="payment_proof" id="paymentProof" accept="image/*,.pdf" style="display: none;">
+            </div>
+
+            <div class="file-preview" id="filePreview">
+                <img id="previewImage" src="" alt="Preview">
+                <p class="mt-2 mb-0" id="fileName"></p>
+            </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="payment-methods-card">
+            <h4 class="mb-3">
+                <i class="fas fa-sticky-note me-2"></i>
+                {% trans "ملاحظات إضافية" %}
+            </h4>
+            <textarea name="notes" class="form-control" rows="4" placeholder="{% trans 'أي ملاحظات أو تفاصيل إضافية...' %}"></textarea>
+        </div>
+
+        <!-- Submit Buttons -->
+        <div class="d-flex gap-2 justify-content-end">
+            <a href="{% url 'main:publisher_facebook_requests' %}" class="btn btn-outline-secondary btn-lg">
+                <i class="fas fa-times me-2"></i>
+                {% trans "إلغاء" %}
+            </a>
+            <button type="submit" class="btn btn-facebook btn-lg">
+                <i class="fas fa-check me-2"></i>
+                {% trans "إتمام الدفع" %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function selectPaymentMethod(methodId) {
+    // Remove selected class from all methods
+    document.querySelectorAll('.payment-method').forEach(method => {
+        method.classList.remove('selected');
+    });
+
+    // Add selected class to clicked method
+    const selectedMethod = document.querySelector(`[data-method="${methodId}"]`);
+    selectedMethod.classList.add('selected');
+
+    // Check the radio button
+    document.getElementById(`method_${methodId}`).checked = true;
+
+    // Show/hide bank details
+    const bankDetails = document.getElementById('bankDetails');
+    if (methodId === 'bank_transfer') {
+        bankDetails.classList.add('show');
+    } else {
+        bankDetails.classList.remove('show');
+    }
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        // Show success message
+        const toast = document.createElement('div');
+        toast.className = 'alert alert-success position-fixed top-0 start-50 translate-middle-x mt-3';
+        toast.style.zIndex = '9999';
+        toast.innerHTML = '<i class="fas fa-check me-2"></i>{% trans "تم النسخ بنجاح" %}';
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.remove();
+        }, 2000);
+    });
+}
+
+// File upload handling
+document.addEventListener('DOMContentLoaded', function() {
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const fileInput = document.getElementById('paymentProof');
+    const filePreview = document.getElementById('filePreview');
+    const previewImage = document.getElementById('previewImage');
+    const fileName = document.getElementById('fileName');
+
+    fileUploadArea.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            fileName.textContent = file.name;
+
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImage.src = e.target.result;
+                    filePreview.style.display = 'block';
+                    filePreview.classList.add('show');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                previewImage.src = '';
+                filePreview.classList.add('show');
+            }
+        }
+    });
+
+    // Drag and drop
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        fileUploadArea.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        fileUploadArea.addEventListener(eventName, () => {
+            fileUploadArea.classList.add('dragover');
+        });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        fileUploadArea.addEventListener(eventName, () => {
+            fileUploadArea.classList.remove('dragover');
+        });
+    });
+
+    fileUploadArea.addEventListener('drop', function(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        fileInput.files = files;
+        fileInput.dispatchEvent(new Event('change'));
+    });
+});
+</script>
+{% endblock %}

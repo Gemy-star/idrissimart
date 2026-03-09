@@ -1571,6 +1571,11 @@ class AdDetailView(DetailView):
             category_name = ad.category.name_ar
 
         context["page_title"] = f"{ad.title} - {category_name}"
+
+        # Get category-specific safety tips
+        from main.models import SafetyTip
+        context["safety_tips"] = SafetyTip.get_tips_for_category(ad.category)
+
         return context
 
 
@@ -4324,9 +4329,9 @@ class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
             from content.models import Country
 
             country = Country.objects.get(code=selected_country, is_active=True)
-            context["currency"] = country.currency or "SAR"
+            context["currency"] = country.currency or "EGP"
         except:
-            context["currency"] = "SAR"
+            context["currency"] = "EGP"
 
         context["active_nav"] = "payments"
 
@@ -4462,7 +4467,7 @@ def admin_payment_transaction_detail(request, transaction_id):
                     "user_email": transaction.user.email,
                     "description": transaction.description or "غير محدد",
                     "amount": str(transaction.amount),
-                    "currency": transaction.currency or "SAR",
+                    "currency": transaction.currency or "EGP",
                     "provider": transaction.get_provider_display() if transaction.provider else "غير محدد",
                     "status": transaction.status,
                     "status_display": transaction.get_status_display(),

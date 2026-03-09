@@ -365,49 +365,49 @@ CONSTANCE_CONFIG = {
     # Ad Upgrade Pricing (7 Days)
     "FEATURED_AD_PRICE_7DAYS": (
         50.00,
-        _("Featured ad price for 7 days (SAR)"),
+        _("Featured ad price for 7 days (EGP)"),
         float,
     ),
     "PINNED_AD_PRICE_7DAYS": (
         75.00,
-        _("Pinned ad price for 7 days (SAR)"),
+        _("Pinned ad price for 7 days (EGP)"),
         float,
     ),
     "URGENT_AD_PRICE_7DAYS": (
         30.00,
-        _("Urgent ad price for 7 days (SAR)"),
+        _("Urgent ad price for 7 days (EGP)"),
         float,
     ),
     # Ad Upgrade Pricing (14 Days)
     "FEATURED_AD_PRICE_14DAYS": (
         80.00,
-        _("Featured ad price for 14 days (SAR)"),
+        _("Featured ad price for 14 days (EGP)"),
         float,
     ),
     "PINNED_AD_PRICE_14DAYS": (
         120.00,
-        _("Pinned ad price for 14 days (SAR)"),
+        _("Pinned ad price for 14 days (EGP)"),
         float,
     ),
     "URGENT_AD_PRICE_14DAYS": (
         48.00,
-        _("Urgent ad price for 14 days (SAR)"),
+        _("Urgent ad price for 14 days (EGP)"),
         float,
     ),
     # Ad Upgrade Pricing (30 Days)
     "FEATURED_AD_PRICE_30DAYS": (
         100.00,
-        _("Featured ad price for 30 days (SAR)"),
+        _("Featured ad price for 30 days (EGP)"),
         float,
     ),
     "PINNED_AD_PRICE_30DAYS": (
         150.00,
-        _("Pinned ad price for 30 days (SAR)"),
+        _("Pinned ad price for 30 days (EGP)"),
         float,
     ),
     "URGENT_AD_PRICE_30DAYS": (
         60.00,
-        _("Urgent ad price for 30 days (SAR)"),
+        _("Urgent ad price for 30 days (EGP)"),
         float,
     ),
     # Admin Notification Settings

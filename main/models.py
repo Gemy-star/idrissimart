@@ -2926,7 +2926,7 @@ class Payment(models.Model):
         max_digits=10, decimal_places=2, verbose_name=_("المبلغ - Amount")
     )
     currency = models.CharField(
-        max_length=3, default="SAR", verbose_name=_("العملة - Currency")
+        max_length=3, default="EGP", verbose_name=_("العملة - Currency")
     )
     status = models.CharField(
         max_length=20,
@@ -3634,7 +3634,7 @@ class Order(models.Model):
     )
     currency = models.CharField(
         max_length=3,
-        default="SAR",
+        default="EGP",
         verbose_name=_("العملة - Currency"),
         help_text=_("العملة المستخدمة للطلب"),
     )
@@ -4364,3 +4364,135 @@ class FacebookShareRequest(models.Model):
         self.ad.facebook_share_requested = False
         self.ad.save(update_fields=["share_on_facebook", "facebook_share_requested"])
         self.save()
+
+
+class SafetyTip(models.Model):
+    """
+    Model for managing category-specific safety tips displayed on ad detail pages
+    """
+
+    class ColorTheme(models.TextChoices):
+        BLUE = "tip-blue", _("أزرق - Blue")
+        GREEN = "tip-green", _("أخضر - Green")
+        ORANGE = "tip-orange", _("برتقالي - Orange")
+        RED = "tip-red", _("أحمر - Red")
+        PURPLE = "tip-purple", _("بنفسجي - Purple")
+        TEAL = "tip-teal", _("تركواز - Teal")
+
+    # Core fields
+    title = models.CharField(
+        max_length=200,
+        verbose_name=_("العنوان - Title"),
+        help_text=_("عنوان النصيحة (مثال: قابل البائع شخصياً)")
+    )
+    title_en = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name=_("Title (English)"),
+        help_text=_("English title for the tip")
+    )
+    description = models.TextField(
+        verbose_name=_("الوصف - Description"),
+        help_text=_("وصف تفصيلي للنصيحة")
+    )
+    description_en = models.TextField(
+        blank=True,
+        verbose_name=_("Description (English)"),
+        help_text=_("English description for the tip")
+    )
+
+    # Icon
+    icon_class = models.CharField(
+        max_length=100,
+        default="fas fa-info-circle",
+        verbose_name=_("أيقونة - Icon Class"),
+        help_text=_("FontAwesome icon class (e.g., fas fa-handshake)")
+    )
+
+    # Color theme
+    color_theme = models.CharField(
+        max_length=20,
+        choices=ColorTheme.choices,
+        default=ColorTheme.BLUE,
+        verbose_name=_("نمط اللون - Color Theme")
+    )
+
+    # Category association (null = applies to all categories)
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="safety_tips",
+        verbose_name=_("الفئة - Category"),
+        help_text=_("اختر فئة محددة أو اتركها فارغة للتطبيق على جميع الفئات")
+    )
+
+    # Multiple categories support (if you want a tip to appear in multiple categories)
+    categories = models.ManyToManyField(
+        Category,
+        blank=True,
+        related_name="multi_safety_tips",
+        verbose_name=_("فئات متعددة - Multiple Categories"),
+        help_text=_("اختر عدة فئات لعرض هذه النصيحة فيها")
+    )
+
+    # Display settings
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_("نشط - Active"),
+        help_text=_("إظهار هذه النصيحة للمستخدمين")
+    )
+    order = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("الترتيب - Order"),
+        help_text=_("ترتيب عرض النصيحة (الأقل رقماً يظهر أولاً)")
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإنشاء"))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("تاريخ التحديث"))
+
+    class Meta:
+        db_table = "safety_tips"
+        verbose_name = _("نصيحة أمان")
+        verbose_name_plural = _("نصائح الأمان")
+        ordering = ["order", "id"]
+        indexes = [
+            models.Index(fields=["is_active", "order"]),
+            models.Index(fields=["category", "is_active"]),
+        ]
+
+    def __str__(self):
+        category_name = self.category.name if self.category else _("جميع الفئات")
+        return f"{self.title} ({category_name})"
+
+    @classmethod
+    def get_tips_for_category(cls, category):
+        """
+        Get all active safety tips for a specific category
+        Returns: QuerySet of SafetyTip objects
+        """
+        # Get tips that:
+        # 1. Are active
+        # 2. Either have no category (general tips) OR belong to the category
+        # 3. OR are in the multiple categories relationship
+        general_tips = cls.objects.filter(
+            is_active=True,
+            category__isnull=True
+        )
+
+        category_specific_tips = cls.objects.filter(
+            is_active=True,
+            category=category
+        )
+
+        multi_category_tips = cls.objects.filter(
+            is_active=True,
+            categories=category
+        )
+
+        # Combine and remove duplicates
+        all_tips = (general_tips | category_specific_tips | multi_category_tips).distinct()
+
+        return all_tips.order_by('order', 'id')

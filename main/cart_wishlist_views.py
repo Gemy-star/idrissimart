@@ -279,9 +279,9 @@ def cart_view(request):
         _country = _Country.objects.get(
             code=request.session.get("selected_country", "EG"), is_active=True
         )
-        _currency = _country.currency or "SAR"
+        _currency = _country.currency or "EGP"
     except Exception:
-        _currency = "SAR"
+        _currency = "EGP"
 
     cart_js_data = {
         "currency": _currency,

@@ -87,13 +87,13 @@ def admin_orders_list(request):
     from content.models import Country
     from main.utils import get_selected_country_from_request
 
-    currency = "SAR"  # Default
-    currency_symbol = "ر.س"
+    currency = "EGP"  # Default
+    currency_symbol = "ج.م"
 
     selected_country_code = get_selected_country_from_request(request, default="EG")
     try:
         country = Country.objects.get(code=selected_country_code)
-        currency = country.currency or "SAR"
+        currency = country.currency or "EGP"
     except Country.DoesNotExist:
         pass
 
@@ -145,13 +145,13 @@ def admin_order_detail(request, order_id):
     from content.models import Country
     from main.utils import get_selected_country_from_request
 
-    currency = "SAR"
-    currency_symbol = "ر.س"
+    currency = "EGP"
+    currency_symbol = "ج.م"
 
     selected_country_code = get_selected_country_from_request(request, default="EG")
     try:
         country = Country.objects.get(code=selected_country_code)
-        currency = country.currency or "SAR"
+        currency = country.currency or "EGP"
     except Country.DoesNotExist:
         pass
 
@@ -272,13 +272,13 @@ def admin_orders_statistics(request):
     from content.models import Country
     from main.utils import get_selected_country_from_request
 
-    currency = "SAR"
-    currency_symbol = "ر.س"
+    currency = "EGP"
+    currency_symbol = "ج.م"
 
     selected_country_code = get_selected_country_from_request(request, default="EG")
     try:
         country = Country.objects.get(code=selected_country_code)
-        currency = country.currency or "SAR"
+        currency = country.currency or "EGP"
     except Country.DoesNotExist:
         pass
 

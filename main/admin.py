@@ -38,6 +38,7 @@ from .models import (
     Order,
     OrderItem,
     Payment,
+    SafetyTip,
     SavedSearch,
     User,
     UserPackage,
@@ -2485,7 +2486,7 @@ class CartItemInline(admin.TabularInline):
     def get_total_price_display(self, obj):
         try:
             from main.templatetags.idrissimart_tags import CURRENCY_SYMBOLS
-            currency = obj.ad.country.currency if obj.ad and obj.ad.country else "SAR"
+            currency = obj.ad.country.currency if obj.ad and obj.ad.country else "EGP"
             symbol = CURRENCY_SYMBOLS.get(currency, currency)
             return f"{obj.get_total_price()} {symbol}"
         except Exception:
@@ -2547,7 +2548,7 @@ class CartItemAdmin(admin.ModelAdmin):
     def total_price_display(self, obj):
         try:
             from main.templatetags.idrissimart_tags import CURRENCY_SYMBOLS
-            currency = obj.ad.country.currency if obj.ad and obj.ad.country else "SAR"
+            currency = obj.ad.country.currency if obj.ad and obj.ad.country else "EGP"
             symbol = CURRENCY_SYMBOLS.get(currency, currency)
             return f"{obj.get_total_price()} {symbol}"
         except Exception:
@@ -2895,3 +2896,212 @@ class FacebookShareRequestAdmin(admin.ModelAdmin):
         self.message_user(request, f"{updated} طلب تم تأكيد الدفع له")
 
     confirm_payment.short_description = _("تأكيد الدفع")
+
+
+@admin.register(SafetyTip)
+class SafetyTipAdmin(admin.ModelAdmin):
+    """
+    Custom admin for managing safety tips with preview and category filtering
+    """
+
+    list_display = [
+        "title_display",
+        "category_display",
+        "icon_preview",
+        "color_badge",
+        "order",
+        "is_active",
+        "preview_button",
+    ]
+
+    list_filter = [
+        "is_active",
+        "color_theme",
+        "category",
+        "created_at",
+    ]
+
+    search_fields = [
+        "title",
+        "title_en",
+        "description",
+        "description_en",
+    ]
+
+    list_editable = ["order", "is_active"]
+
+    fieldsets = (
+        (_("معلومات أساسية - Basic Information"), {
+            "fields": ("title", "title_en", "description", "description_en")
+        }),
+        (_("تصميم - Design"), {
+            "fields": ("icon_class", "color_theme", "order")
+        }),
+        (_("الفئات - Categories"), {
+            "fields": ("category", "categories"),
+            "description": _("اختر فئة واحدة محددة أو عدة فئات. اترك الحقول فارغة للتطبيق على جميع الفئات.")
+        }),
+        (_("إعدادات - Settings"), {
+            "fields": ("is_active",)
+        }),
+    )
+
+    filter_horizontal = ["categories"]
+
+    ordering = ["order", "id"]
+
+    actions = [
+        "activate_tips",
+        "deactivate_tips",
+        "duplicate_tip",
+    ]
+
+    class Media:
+        css = {
+            "all": ("admin/css/safety_tips_admin.css",)
+        }
+        js = ("admin/js/safety_tips_admin.js",)
+
+    def title_display(self, obj):
+        """Display title with icon"""
+        return format_html(
+            '<span style="font-weight: 600;"><i class="{}" style="margin-left: 8px; color: #667eea;"></i>{}</span>',
+            obj.icon_class,
+            obj.title
+        )
+
+    title_display.short_description = _("النصيحة - Tip")
+
+    def category_display(self, obj):
+        """Display category or 'All Categories'"""
+        if obj.category:
+            return format_html(
+                '<span style="background: #e3f2fd; color: #1976d2; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500;">{}</span>',
+                obj.category.name
+            )
+        elif obj.categories.exists():
+            count = obj.categories.count()
+            categories_list = ", ".join([cat.name for cat in obj.categories.all()[:3]])
+            if count > 3:
+                categories_list += f" +{count - 3}"
+            return format_html(
+                '<span style="background: #fff3e0; color: #e65100; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500;">{}</span>',
+                categories_list
+            )
+        else:
+            return format_html(
+                '<span style="background: #f3e5f5; color: #7b1fa2; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500;">📌 {}</span>',
+                _("جميع الفئات")
+            )
+
+    category_display.short_description = _("الفئة - Category")
+
+    def icon_preview(self, obj):
+        """Preview the icon"""
+        return format_html(
+            '<i class="{}" style="font-size: 24px; color: #667eea;"></i>',
+            obj.icon_class
+        )
+
+    icon_preview.short_description = _("أيقونة - Icon")
+
+    def color_badge(self, obj):
+        """Display color theme badge"""
+        color_map = {
+            "tip-blue": ("#2196f3", "🔵"),
+            "tip-green": ("#4caf50", "🟢"),
+            "tip-orange": ("#ff9800", "🟠"),
+            "tip-red": ("#e91e63", "🔴"),
+            "tip-purple": ("#9c27b0", "🟣"),
+            "tip-teal": ("#009688", "🔷"),
+        }
+        color, emoji = color_map.get(obj.color_theme, ("#999", "⚪"))
+        return format_html(
+            '<span style="background: {}; color: white; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 600;">{} {}</span>',
+            color,
+            emoji,
+            obj.get_color_theme_display()
+        )
+
+    color_badge.short_description = _("اللون - Color")
+
+    def preview_button(self, obj):
+        """Add preview button"""
+        return format_html(
+            '<a href="{}?tip_id={}" class="button" target="_blank" style="background: #667eea; color: white; padding: 6px 12px; text-decoration: none; border-radius: 6px; font-size: 12px;">'
+            '<i class="fas fa-eye"></i> {}</a>',
+            "/admin/main/safetytip/preview/",
+            obj.id,
+            _("معاينة")
+        )
+
+    preview_button.short_description = _("معاينة -Preview")
+
+    def activate_tips(self, request, queryset):
+        """Activate selected tips"""
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f"✅ تم تفعيل {updated} نصيحة")
+
+    activate_tips.short_description = _("✅ تفعيل النصائح المحددة")
+
+    def deactivate_tips(self, request, queryset):
+        """Deactivate selected tips"""
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f"❌ تم إلغاء تفعيل {updated} نصيحة")
+
+    deactivate_tips.short_description = _("❌ إلغاء تفعيل النصائح المحددة")
+
+    def duplicate_tip(self, request, queryset):
+        """Duplicate selected tips for easy creation of similar tips"""
+        for tip in queryset:
+            tip.pk = None
+            tip.title = f"{tip.title} (نسخة)"
+            tip.is_active = False
+            tip.save()
+        self.message_user(request, f"✨ تم تكرار {queryset.count()} نصيحة")
+
+    duplicate_tip.short_description = _("✨ تكرار النصائح المحددة")
+
+    def get_urls(self):
+        """Add custom preview URL"""
+        from django.urls import path
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "preview/",
+                self.admin_site.admin_view(self.preview_view),
+                name="safetytip_preview",
+            ),
+        ]
+        return custom_urls + urls
+
+    def preview_view(self, request):
+        """Custom preview view for safety tips"""
+        from django.shortcuts import render
+        from django.db.models import Q
+
+        # Get tip_id from query params
+        tip_id = request.GET.get("tip_id")
+        selected_category = request.GET.get("category")
+
+        # Get all categories for dropdown
+        categories = Category.objects.filter(parent__isnull=True)
+
+        # Get tips to preview
+        if tip_id:
+            tips = SafetyTip.objects.filter(id=tip_id, is_active=True)
+        elif selected_category:
+            category = Category.objects.get(id=selected_category)
+            tips = SafetyTip.get_tips_for_category(category)
+        else:
+            tips = SafetyTip.objects.filter(is_active=True).order_by("order")[:8]
+
+        context = {
+            "tips": tips,
+            "categories": categories,
+            "selected_category": selected_category,
+            "site_header": self.admin_site.site_header,
+            "has_permission": True,
+        }
+
+        return render(request, "admin/main/safetytip/preview.html", context)

@@ -1,0 +1,172 @@
+{% extends "dashboard/base.html" %}
+{% load static i18n %}
+
+{% block publisher_title %}{% trans "طلب نشر جديد على فيسبوك" %} - {% trans "إدريسي مارت" %}{% endblock %}
+
+{% block publisher_extra_css %}
+<style>
+    .create-container { max-width: 700px; margin: 0 auto; }
+
+    .create-header {
+        background: linear-gradient(135deg, #1877f2 0%, #0d5dbf 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 16px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 20px rgba(24, 119, 242, 0.2);
+    }
+
+    .create-card {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    [data-theme='dark'] .create-card {
+        background: rgba(30, 30, 46, 0.95);
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .ad-option {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-bottom: 10px;
+    }
+
+    .ad-option:hover { border-color: #1877f2; background: #f0f5ff; }
+
+    [data-theme='dark'] .ad-option { border-color: rgba(255,255,255,0.1); }
+    [data-theme='dark'] .ad-option:hover { border-color: #1877f2; background: rgba(24,119,242,0.1); }
+
+    .ad-option input[type="radio"] { accent-color: #1877f2; width: 18px; height: 18px; flex-shrink: 0; }
+
+    .ad-option.selected { border-color: #1877f2; background: #f0f5ff; }
+    [data-theme='dark'] .ad-option.selected { background: rgba(24,119,242,0.15); }
+
+    .ad-info { flex: 1; min-width: 0; }
+    .ad-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ad-meta { font-size: 0.78rem; color: #6b7280; }
+
+    .price-note {
+        background: #f0f9ff;
+        border: 1px solid #bae6fd;
+        border-radius: 8px;
+        padding: 12px 16px;
+        font-size: 0.875rem;
+        color: #0369a1;
+        margin-bottom: 1.5rem;
+    }
+
+    [data-theme='dark'] .price-note {
+        background: rgba(3,105,161,0.15);
+        border-color: rgba(3,105,161,0.3);
+        color: #7dd3fc;
+    }
+
+    .btn-submit {
+        background: linear-gradient(135deg, #1877f2, #0d5dbf);
+        color: white;
+        border: none;
+        padding: 12px 32px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        width: 100%;
+    }
+
+    .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(24,119,242,0.35); }
+    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .empty-ads {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6b7280;
+    }
+    .empty-ads i { font-size: 3rem; opacity: 0.3; margin-bottom: 16px; }
+</style>
+{% endblock %}
+
+{% block publisher_content %}
+<div class="create-container">
+
+    <div class="create-header">
+        <div class="d-flex align-items-center gap-3">
+            <i class="fab fa-facebook" style="font-size: 2.5rem; opacity: 0.9;"></i>
+            <div>
+                <h1 class="h4 mb-1">{% trans "طلب نشر جديد على فيسبوك" %}</h1>
+                <p class="mb-0" style="opacity: 0.85; font-size: 0.9rem;">{% trans "اختر الإعلان الذي تريد نشره على صفحتنا الرسمية" %}</p>
+            </div>
+        </div>
+    </div>
+
+    {% if ads %}
+        <div class="create-card">
+            <div class="price-note">
+                <i class="fas fa-info-circle me-2"></i>
+                {% trans "تكلفة النشر" %}: <strong>{{ payment_amount }} {% trans "ريال" %}</strong> —
+                {% trans "ستنتقل إلى صفحة الدفع بعد اختيار الإعلان." %}
+            </div>
+
+            <form method="post" id="createForm">
+                {% csrf_token %}
+                <p class="fw-semibold mb-3">{% trans "اختر إعلاناً" %}:</p>
+
+                <div id="adList">
+                    {% for ad in ads %}
+                        <label class="ad-option" for="ad_{{ ad.id }}">
+                            <input type="radio" name="ad_id" id="ad_{{ ad.id }}" value="{{ ad.id }}" required>
+                            <div class="ad-info">
+                                <div class="ad-title">{{ ad.title }}</div>
+                                <div class="ad-meta">
+                                    {% if ad.category %}{{ ad.category.display_name }} · {% endif %}
+                                    {{ ad.created_at|date:"Y-m-d" }}
+                                </div>
+                            </div>
+                            {% if ad.price %}
+                                <span style="font-weight: 600; color: #1877f2; white-space: nowrap;">{{ ad.price }} {% trans "ريال" %}</span>
+                            {% endif %}
+                        </label>
+                    {% endfor %}
+                </div>
+
+                <button type="submit" class="btn-submit mt-3" id="submitBtn" disabled>
+                    <i class="fab fa-facebook me-2"></i>
+                    {% trans "متابعة للدفع" %}
+                </button>
+            </form>
+        </div>
+    {% else %}
+        <div class="create-card empty-ads">
+            <i class="fas fa-bullhorn d-block"></i>
+            <h5>{% trans "لا توجد إعلانات متاحة" %}</h5>
+            <p class="mb-4">{% trans "جميع إعلاناتك النشطة لديها طلبات نشر بالفعل، أو ليس لديك إعلانات نشطة حالياً." %}</p>
+            <a href="{% url 'main:my_ads' %}" class="btn btn-primary">
+                <i class="fas fa-list me-2"></i>
+                {% trans "إدارة الإعلانات" %}
+            </a>
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.ad-option input[type="radio"]').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+        document.querySelectorAll('.ad-option').forEach(el => el.classList.remove('selected'));
+        this.closest('.ad-option').classList.add('selected');
+        document.getElementById('submitBtn').disabled = false;
+    });
+});
+</script>
+{% endblock %}

@@ -3,6 +3,8 @@ Publisher Dashboard Views - CRUD Operations
 Full CRUD operations for publishers to manage their own ads and upgrades
 """
 
+from decimal import Decimal
+
 from django.contrib import messages
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
@@ -16,7 +18,7 @@ from django.views.generic import (
     UpdateView,
     DeleteView,
 )
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from django.views.decorators.http import require_POST
 from datetime import timedelta
 
@@ -176,7 +178,7 @@ class PublisherAdDetailView(PublisherRequiredMixin, DetailView):
         # Stats
         context["stats"] = {
             "total_views": ad.views_count,
-            "total_favorites": ad.favorited_by.count(),
+            "total_favorites": ad.wishlist_items.count(),
             "days_since_created": (timezone.now() - ad.created_at).days,
         }
 
@@ -270,13 +272,15 @@ class PublisherAdDeleteView(PublisherRequiredMixin, DeleteView):
 @require_POST
 def publisher_renew_ad(request, ad_id):
     """
-    Renew an expired ad
+    Renew an expired ad — returns JSON for AJAX callers.
     """
     ad = get_object_or_404(ClassifiedAd, pk=ad_id, user=request.user)
 
     if ad.status != ClassifiedAd.AdStatus.EXPIRED:
-        messages.error(request, "يمكن فقط تجديد الإعلانات المنتهية.")
-        return redirect("main:publisher_ad_detail", ad_id=ad_id)
+        return JsonResponse(
+            {"success": False, "message": "يمكن فقط تجديد الإعلانات المنتهية."},
+            status=400,
+        )
 
     # Check ad balance
     active_packages = UserPackage.objects.filter(
@@ -284,8 +288,37 @@ def publisher_renew_ad(request, ad_id):
     )
 
     if not active_packages.exists():
-        messages.error(request, "ليس لديك رصيد إعلاني كافٍ. يرجى شراء باقة جديدة.")
-        return redirect("main:publisher_ad_detail", ad_id=ad_id)
+        # Get renewal fee from the ad's category (or subcategory)
+        renewal_fee = Decimal('0')
+        if ad.category:
+            renewal_fee = ad.category.get_effective_ad_creation_price() or Decimal('0')
+
+        if renewal_fee > 0:
+            # Store renewal context in session so ad_payment view can read it
+            request.session['ad_payment_amount'] = str(renewal_fee)
+            request.session['ad_base_fee'] = str(renewal_fee)
+            request.session['ad_features_cost'] = '0'
+            request.session['ad_features'] = {}
+            request.session['ad_renewal'] = True  # flag for process_ad_payment
+            payment_url = reverse('main:ad_payment', kwargs={'ad_id': ad.id})
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": "ليس لديك رصيد إعلاني كافٍ. يرجى الدفع لتجديد الإعلان.",
+                    "redirect_url": payment_url,
+                },
+                status=400,
+            )
+
+        # Free category but no packages — redirect to packages list
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "ليس لديك رصيد إعلاني كافٍ. يرجى شراء باقة جديدة.",
+                "redirect_url": reverse('main:packages_list'),
+            },
+            status=400,
+        )
 
     # Renew the ad
     ad.status = ClassifiedAd.AdStatus.PENDING
@@ -296,10 +329,9 @@ def publisher_renew_ad(request, ad_id):
     package.ads_used += 1
     package.save()
 
-    messages.success(
-        request, f'تم تجديد الإعلان "{ad.title}" بنجاح. الآن في حالة المراجعة.'
+    return JsonResponse(
+        {"success": True, "message": f'تم تجديد الإعلان "{ad.title}" بنجاح. الآن في حالة المراجعة.'}
     )
-    return redirect("main:publisher_ad_detail", ad_id=ad_id)
 
 
 @publisher_required
@@ -471,14 +503,29 @@ def publisher_cancel_upgrade(request, upgrade_id):
 @publisher_required
 def publisher_ad_statistics(request, ad_id):
     """
-    Detailed statistics for a specific ad
+    Detailed statistics for a specific ad.
+    Returns JSON for AJAX requests, HTML otherwise.
     """
     ad = get_object_or_404(ClassifiedAd, pk=ad_id, user=request.user)
 
-    # Calculate statistics
+    favorites_count = ad.wishlist_items.count()
+
+    # Return JSON for AJAX callers (the modal stats fetch)
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.GET.get("format") == "json":
+        from main.models import ChatMessage
+        messages_count = ChatMessage.objects.filter(
+            room__ad=ad, is_read=False
+        ).exclude(sender=request.user).count()
+        return JsonResponse({
+            "success": True,
+            "favorites": favorites_count,
+            "messages": messages_count,
+        })
+
+    # Calculate statistics for HTML template
     stats = {
         "views_total": ad.views_count,
-        "favorites_total": ad.favorited_by.count(),
+        "favorites_total": favorites_count,
         "days_active": (timezone.now() - ad.created_at).days,
         "upgrade_history": ad.upgrade_history.all().order_by("-created_at"),
         "active_upgrades": ad.get_active_upgrades(),

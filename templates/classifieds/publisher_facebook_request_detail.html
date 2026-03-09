@@ -1,0 +1,459 @@
+{% extends "dashboard/base.html" %}
+{% load static i18n %}
+
+{% block publisher_title %}
+    {% trans "تفاصيل الطلب" %} - {% trans "إدريسي مارت" %}
+{% endblock %}
+
+{% block publisher_extra_css %}
+<style>
+    .detail-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .detail-header {
+        background: linear-gradient(135deg, #1877f2 0%, #0d5dbf 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 16px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 20px rgba(24, 119, 242, 0.2);
+    }
+
+    .status-badge-large {
+        display: inline-block;
+        padding: 0.5rem 1.5rem;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+
+    .ad-section {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .ad-preview-full {
+        display: flex;
+        gap: 2rem;
+        align-items: start;
+    }
+
+    .ad-image-large {
+        width: 250px;
+        height: 250px;
+        border-radius: 12px;
+        object-fit: cover;
+    }
+
+    .timeline-section {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .timeline {
+        position: relative;
+        padding-left: 3rem;
+    }
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 10px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e5e7eb;
+    }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 2rem;
+    }
+
+    .timeline-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: -2.8rem;
+        top: 0;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: white;
+        border: 3px solid #1877f2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        color: #1877f2;
+    }
+
+    .timeline-marker.completed {
+        background: #10b981;
+        border-color: #10b981;
+        color: white;
+    }
+
+    .timeline-marker.rejected {
+        background: #ef4444;
+        border-color: #ef4444;
+        color: white;
+    }
+
+    .timeline-content {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 12px;
+        border-left: 3px solid #1877f2;
+    }
+
+    .payment-history-section {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .payment-card {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        border-left: 4px solid;
+    }
+
+    .payment-card.completed {
+        border-left-color: #10b981;
+    }
+
+    .payment-card.pending {
+        border-left-color: #f59e0b;
+    }
+
+    .payment-card.failed {
+        border-left-color: #ef4444;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .info-item {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+    }
+
+    .info-label {
+        font-size: 0.85rem;
+        color: #666;
+        margin-bottom: 0.5rem;
+    }
+
+    .info-value {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .facebook-link {
+        display: inline-block;
+        background: #1877f2;
+        color: white;
+        padding: 0.75rem 2rem;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .facebook-link:hover {
+        background: #0d5dbf;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(24, 119, 242, 0.3);
+    }
+</style>
+{% endblock %}
+
+{% block publisher_content %}
+<div class="detail-container">
+    <!-- Header -->
+    <div class="detail-header">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="mb-2">
+                    <i class="fab fa-facebook-square me-3"></i>
+                    {% trans "تفاصيل طلب النشر" %}
+                </h1>
+                <p class="mb-0 opacity-90">{% trans "رقم الطلب:" %} #{{ share_request.id }}</p>
+            </div>
+            <span class="status-badge-large bg-{% if share_request.status == 'pending' %}warning{% elif share_request.status == 'in_progress' %}info{% elif share_request.status == 'completed' %}success{% else %}danger{% endif %}">
+                {{ share_request.get_status_display }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Ad Information -->
+    <div class="ad-section">
+        <h3 class="mb-4">
+            <i class="fas fa-bullhorn me-2"></i>
+            {% trans "معلومات الإعلان" %}
+        </h3>
+        <div class="ad-preview-full">
+            {% if share_request.ad.images.first %}
+                <img src="{{ share_request.ad.images.first.image.url }}" alt="{{ share_request.ad.title }}" class="ad-image-large">
+            {% else %}
+                <div class="ad-image-large bg-secondary d-flex align-items-center justify-content-center">
+                    <i class="fas fa-image text-white fa-3x"></i>
+                </div>
+            {% endif %}
+            <div class="flex-grow-1">
+                <h2>{{ share_request.ad.title }}</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">{% trans "الفئة" %}</div>
+                        <div class="info-value">
+                            <i class="fas fa-tag me-2"></i>{{ share_request.ad.category.name }}
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">{% trans "السعر" %}</div>
+                        <div class="info-value">
+                            <i class="fas fa-money-bill-wave me-2"></i>
+                            {% if share_request.ad.price %}
+                                {{ share_request.ad.price }} {% trans "EGP" %}
+                            {% else %}
+                                {% trans "غير محدد" %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">{% trans "الموقع" %}</div>
+                        <div class="info-value">
+                            <i class="fas fa-map-marker-alt me-2"></i>{{ share_request.ad.city.name }}, {{ share_request.ad.country.name }}
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">{% trans "تاريخ النشر" %}</div>
+                        <div class="info-value">
+                            <i class="fas fa-calendar me-2"></i>{{ share_request.ad.published_at|date:"d M, Y" }}
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <a href="{% url 'main:ad_detail' share_request.ad.slug %}" class="btn btn-outline-primary" target="_blank">
+                        <i class="fas fa-external-link-alt me-2"></i>
+                        {% trans "عرض الإعلان" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Request Timeline -->
+    <div class="timeline-section">
+        <h3 class="mb-4">
+            <i class="fas fa-history me-2"></i>
+            {% trans "تاريخ الطلب" %}
+        </h3>
+        <div class="timeline">
+            <div class="timeline-item">
+                <div class="timeline-marker {% if share_request.status != 'pending' %}completed{% endif %}">
+                    <i class="fas fa-check"></i>
+                </div>
+                <div class="timeline-content">
+                    <h5>{% trans "تم إنشاء الطلب" %}</h5>
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-clock me-2"></i>{{ share_request.requested_at|date:"d M, Y H:i" }}
+                    </p>
+                </div>
+            </div>
+
+            {% if share_request.admin_notes %}
+            <div class="timeline-item">
+                <div class="timeline-marker {% if share_request.status == 'completed' %}completed{% elif share_request.status == 'rejected' %}rejected{% endif %}">
+                    <i class="fas fa-comment"></i>
+                </div>
+                <div class="timeline-content">
+                    <h5>{% trans "ملاحظات الإدارة" %}</h5>
+                    <p class="mb-0">{{ share_request.admin_notes }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if share_request.processed_at %}
+            <div class="timeline-item">
+                <div class="timeline-marker {% if share_request.status == 'completed' %}completed{% elif share_request.status == 'rejected' %}rejected{% endif %}">
+                    <i class="fas fa-{% if share_request.status == 'completed' %}check{% else %}times{% endif %}"></i>
+                </div>
+                <div class="timeline-content">
+                    <h5>
+                        {% if share_request.status == 'completed' %}
+                            {% trans "تم النشر بنجاح" %}
+                        {% elif share_request.status == 'rejected' %}
+                            {% trans "تم رفض الطلب" %}
+                        {% else %}
+                            {% trans "تمت المعالجة" %}
+                        {% endif %}
+                    </h5>
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-clock me-2"></i>{{ share_request.processed_at|date:"d M, Y H:i" }}
+                    </p>
+                    {% if share_request.processed_by %}
+                    <p class="text-muted mb-0 mt-1">
+                        <i class="fas fa-user me-2"></i>{% trans "بواسطة:" %} {{ share_request.processed_by.get_full_name|default:share_request.processed_by.username }}
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if share_request.facebook_post_url %}
+            <div class="timeline-item">
+                <div class="timeline-marker completed">
+                    <i class="fab fa-facebook"></i>
+                </div>
+                <div class="timeline-content">
+                    <h5>{% trans "تم النشر على فيسبوك" %}</h5>
+                    <p class="mb-3">{% trans "الإعلان متاح الآن على صفحة فيسبوك المنصة" %}</p>
+                    <a href="{{ share_request.facebook_post_url }}" target="_blank" class="facebook-link">
+                        <i class="fab fa-facebook me-2"></i>
+                        {% trans "عرض المنشور" %}
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Payment History -->
+    <div class="payment-history-section">
+        <h3 class="mb-4">
+            <i class="fas fa-money-check-alt me-2"></i>
+            {% trans "سجل الدفع" %}
+        </h3>
+
+        {% if payments %}
+            {% for payment in payments %}
+            <div class="payment-card {{ payment.status }}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5>
+                            <span class="badge bg-{% if payment.status == 'completed' %}success{% elif payment.status == 'pending' %}warning{% else %}danger{% endif %} me-2">
+                                {{ payment.get_status_display }}
+                            </span>
+                            {{ payment.amount }} {% trans "EGP" %}
+                        </h5>
+                        <p class="text-muted mb-2">
+                            <i class="fas fa-wallet me-2"></i>{{ payment.get_payment_method_display }}
+                        </p>
+                        <p class="text-muted mb-0">
+                            <i class="fas fa-clock me-2"></i>{{ payment.created_at|date:"d M, Y H:i" }}
+                        </p>
+                        {% if payment.notes %}
+                        <p class="mt-2 mb-0">
+                            <i class="fas fa-sticky-note me-2"></i>{{ payment.notes }}
+                        </p>
+                        {% endif %}
+                    </div>
+                    {% if payment.payment_proof %}
+                    <a href="{{ payment.payment_proof.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-file-download me-2"></i>
+                        {% trans "عرض الإثبات" %}
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                {% trans "لا توجد عمليات دفع مسجلة لهذا الطلب" %}
+            </div>
+
+            {% if share_request.status == 'pending' and share_request.payment_status != 'paid' %}
+            <div class="mt-3">
+                <a href="{% url 'main:publisher_facebook_payment' share_request.id %}" class="btn btn-success btn-lg">
+                    <i class="fas fa-credit-card me-2"></i>
+                    {% trans "إتمام الدفع الآن" %}
+                </a>
+            </div>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <!-- Actions -->
+    <div class="d-flex gap-2 justify-content-between">
+        <a href="{% url 'main:publisher_facebook_requests' %}" class="btn btn-outline-secondary btn-lg">
+            <i class="fas fa-arrow-right me-2"></i>
+            {% trans "العودة للقائمة" %}
+        </a>
+
+        <div class="d-flex gap-2">
+            {% if share_request.status == 'pending' %}
+                {% if share_request.payment_status != 'paid' %}
+                <a href="{% url 'main:publisher_facebook_payment' share_request.id %}" class="btn btn-success btn-lg">
+                    <i class="fas fa-credit-card me-2"></i>
+                    {% trans "إتمام الدفع" %}
+                </a>
+                {% endif %}
+
+                <button type="button" class="btn btn-danger btn-lg" onclick="cancelRequest({{ share_request.id }})">
+                    <i class="fas fa-times me-2"></i>
+                    {% trans "إلغاء الطلب" %}
+                </button>
+            {% elif share_request.status == 'completed' and share_request.facebook_post_url %}
+                <a href="{{ share_request.facebook_post_url }}" target="_blank" class="btn btn-primary btn-lg facebook-link">
+                    <i class="fab fa-facebook me-2"></i>
+                    {% trans "عرض المنشور" %}
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function cancelRequest(requestId) {
+    if (!confirm('{% trans "هل أنت متأكد من إلغاء هذا الطلب؟" %}')) {
+        return;
+    }
+
+    fetch(`{% url 'main:cancel_facebook_request' 0 %}`.replace('0', requestId), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = '{% url "main:publisher_facebook_requests" %}';
+        } else {
+            alert(data.error || '{% trans "حدث خطأ أثناء إلغاء الطلب" %}');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('{% trans "حدث خطأ أثناء إلغاء الطلب" %}');
+    });
+}
+</script>
+{% endblock %}

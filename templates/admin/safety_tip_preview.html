@@ -1,0 +1,371 @@
+{% extends "admin_dashboard/base.html" %}
+{% load static i18n %}
+
+{% block title %}{% trans "معاينة نصائح السلامة" %}{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+    .preview-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 30px 20px;
+    }
+
+    .page-header {
+        margin-bottom: 30px;
+        text-align: center;
+    }
+
+    .page-header h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 12px;
+    }
+
+    [data-theme='dark'] .page-header h1 {
+        color: #f9fafb;
+    }
+
+    .category-filter {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-bottom: 30px;
+    }
+
+    [data-theme='dark'] .category-filter {
+        background: rgba(30, 30, 46, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .category-filter label {
+        font-weight: 600;
+        margin-bottom: 10px;
+        display: block;
+        color: #374151;
+    }
+
+    [data-theme='dark'] .category-filter label {
+        color: #d1d5db;
+    }
+
+    .category-filter select {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        background: white;
+    }
+
+    [data-theme='dark'] .category-filter select {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
+        color: #e5e7eb;
+    }
+
+    .tips-section {
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    [data-theme='dark'] .tips-section {
+        background: rgba(30, 30, 46, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .tips-section h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 24px;
+        padding-bottom: 12px;
+        border-bottom: 3px solid #667eea;
+    }
+
+    [data-theme='dark'] .tips-section h2 {
+        color: #f9fafb;
+    }
+
+    .safety-tips-container {
+        display: grid;
+        gap: 20px;
+    }
+
+    .safety-tip-card {
+        display: flex;
+        align-items: start;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .safety-tip-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+    }
+
+    /* Color themes */
+    .tip-blue {
+        background: rgba(52, 152, 219, 0.15);
+        border-right: 4px solid #3498DB;
+    }
+
+    .tip-green {
+        background: rgba(46, 204, 113, 0.15);
+        border-right: 4px solid #2ECC71;
+    }
+
+    .tip-orange {
+        background: rgba(243, 156, 18, 0.15);
+        border-right: 4px solid #F39C12;
+    }
+
+    .tip-red {
+        background: rgba(231, 76, 60, 0.15);
+        border-right: 4px solid #E74C3C;
+    }
+
+    .tip-purple {
+        background: rgba(155, 89, 182, 0.15);
+        border-right: 4px solid #9B59B6;
+    }
+
+    .tip-teal {
+        background: rgba(23, 162, 184, 0.15);
+        border-right: 4px solid #17A2B8;
+    }
+
+    [data-theme='dark'] .safety-tip-card {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tip-icon {
+        font-size: 2rem;
+        margin-left: 20px;
+        flex-shrink: 0;
+    }
+
+    .tip-info .tip-icon {
+        color: #3498DB;
+    }
+
+    .tip-success .tip-icon {
+        color: #2ECC71;
+    }
+
+    .tip-warning .tip-icon {
+        color: #F39C12;
+    }
+
+    .tip-danger .tip-icon {
+        color: #E74C3C;
+    }
+
+    .tip-primary .tip-icon {
+        color: #9B59B6;
+    }
+
+    .tip-secondary .tip-icon {
+        color: #95A5A6;
+    }
+
+    .tip-content {
+        flex: 1;
+    }
+
+    .tip-title {
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 8px;
+    }
+
+    [data-theme='dark'] .tip-title {
+        color: #f9fafb;
+    }
+
+    .tip-description {
+        color: #4b5563;
+        line-height: 1.6;
+        margin: 0;
+    }
+
+    [data-theme='dark'] .tip-description {
+        color: #d1d5db;
+    }
+
+    .tip-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-top: 8px;
+        background: rgba(102, 126, 234, 0.15);
+        color: #667eea;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6b7280;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        opacity: 0.3;
+        margin-bottom: 20px;
+    }
+
+    .btn-back {
+        display: inline-block;
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-back:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="preview-container">
+    <!-- Back Button -->
+    <a href="{% url 'main:admin_safety_tips' %}" class="btn-back">
+        <i class="fas fa-arrow-right me-2"></i>
+        {% trans "العودة إلى الإدارة" %}
+    </a>
+
+    <!-- Header -->
+    <div class="page-header">
+        <h1>
+            <i class="fas fa-eye me-3"></i>
+            {% trans "معاينة نصائح السلامة" %}
+        </h1>
+        <p class="text-muted">{% trans "عرض النصائح حسب الفئات" %}</p>
+    </div>
+
+    <!-- Category Filter -->
+    <div class="category-filter">
+        <label>
+            <i class="fas fa-filter me-2"></i>
+            {% trans "اختر فئة لمعاينة النصائح المخصصة لها" %}
+        </label>
+        <select id="categorySelect" onchange="filterByCategory(this.value)">
+            <option value="">{% trans "النصائح العامة (لجميع الفئات)" %}</option>
+            {% for category in categories %}
+                <option value="{{ category.id }}" {% if selected_category == category.id %}selected{% endif %}>
+                    {% if LANGUAGE_CODE == 'ar' and category.name_ar %}
+                        {{ category.name_ar }}
+                    {% else %}
+                        {{ category.name }}
+                    {% endif %}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Tips Display -->
+    <div class="tips-section">
+        {% if selected_category %}
+            <h2>
+                <i class="fas fa-tag me-2"></i>
+                {% trans "نصائح فئة" %}: {{ category_name }}
+            </h2>
+        {% else %}
+            <h2>
+                <i class="fas fa-globe me-2"></i>
+                {% trans "النصائح العامة" %}
+            </h2>
+        {% endif %}
+
+        {% if tips %}
+            <div class="safety-tips-container">
+                {% for tip in tips %}
+                    <div class="safety-tip-card {{ tip.color_theme }}">
+                        <i class="{{ tip.icon_class }} tip-icon"></i>
+                        <div class="tip-content">
+                            <h3 class="tip-title">{{ tip.title }}</h3>
+                            <p class="tip-description">{{ tip.description }}</p>
+
+                            {% if tip.category %}
+                                <span class="tip-badge">
+                                    <i class="fas fa-tag me-1"></i>
+                                    {% if LANGUAGE_CODE == 'ar' and tip.category.name_ar %}{{ tip.category.name_ar }}{% else %}{{ tip.category.name }}{% endif %}
+                                </span>
+                            {% else %}
+                                <span class="tip-badge">
+                                    <i class="fas fa-globe me-1"></i>
+                                    {% trans "عام" %}
+                                </span>
+                            {% endif %}
+
+                            {% if tip.categories.all %}
+                                {% for cat in tip.categories.all %}
+                                    <span class="tip-badge">
+                                        <i class="fas fa-tags me-1"></i>
+                                        {% if LANGUAGE_CODE == 'ar' and cat.name_ar %}{{ cat.name_ar }}{% else %}{{ cat.name }}{% endif %}
+                                    </span>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-shield-alt"></i>
+                <h3>{% trans "لا توجد نصائح" %}</h3>
+                <p>
+                    {% if selected_category %}
+                        {% trans "لا توجد نصائح سلامة مخصصة لهذه الفئة" %}
+                    {% else %}
+                        {% trans "لا توجد نصائح سلامة عامة" %}
+                    {% endif %}
+                </p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Info Box -->
+    <div class="mt-4 p-3" style="background: rgba(102, 126, 234, 0.1); border-radius: 12px; border-right: 4px solid #667eea;">
+        <h4 style="font-size: 1rem; font-weight: 700; margin-bottom: 8px; color: #667eea;">
+            <i class="fas fa-info-circle me-2"></i>
+            {% trans "كيف تعمل نصائح السلامة؟" %}
+        </h4>
+        <ul style="margin: 0; padding-right: 20px; color: #4b5563;">
+            <li>{% trans "النصائح العامة تظهر في جميع الإعلانات" %}</li>
+            <li>{% trans "النصائح المخصصة تظهر فقط في إعلانات الفئة المحددة" %}</li>
+            <li>{% trans "يمكن ربط نصيحة واحدة بعدة فئات باستخدام الفئات المتعددة" %}</li>
+            <li>{% trans "الترتيب يحدد تسلسل ظهورالنصائح (الأصغر أولاً)" %}</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterByCategory(categoryId) {
+    if (categoryId) {
+        window.location.href = `?category=${categoryId}`;
+    } else {
+        window.location.href = '?';
+    }
+}
+</script>
+{% endblock %}

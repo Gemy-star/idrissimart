@@ -67,7 +67,7 @@ def create_payment(request):
     provider = request.POST.get("provider")
     package_id = request.POST.get("package_id")
     amount = request.POST.get("amount")
-    currency = request.POST.get("currency", "SAR")
+    currency = request.POST.get("currency", "EGP")
 
     if not all([provider, amount]):
         return JsonResponse({"success": False, "message": _("بيانات الدفع غير مكتملة")})
@@ -429,11 +429,12 @@ def ad_payment(request, ad_id):
     base_fee = Decimal(request.session.get("ad_base_fee", "0"))
     features_cost = Decimal(request.session.get("ad_features_cost", "0"))
     features = request.session.get("ad_features", {})
+    is_renewal = request.session.get("ad_renewal", False)
 
     # Get currency from ad's country
-    currency = "SAR"  # default
+    currency = "EGP"  # default
     if ad.country:
-        currency = ad.country.currency or "SAR"
+        currency = ad.country.currency or "EGP"
 
     # Get allowed payment methods for platform payments
     allowed_payment_methods = get_allowed_payment_methods(
@@ -545,6 +546,7 @@ def ad_payment(request, ad_id):
                     "features": features,
                     "base_fee": str(base_fee),
                     "features_cost": str(features_cost),
+                    "is_renewal": is_renewal,
                 },
             )
 
@@ -560,6 +562,7 @@ def ad_payment(request, ad_id):
                 "ad_payment_amount",
                 "ad_base_fee",
                 "ad_features_cost",
+                "ad_renewal",
             ]:
                 request.session.pop(key, None)
 
@@ -582,6 +585,7 @@ def ad_payment(request, ad_id):
                     "features": features,
                     "base_fee": str(base_fee),
                     "features_cost": str(features_cost),
+                    "is_renewal": is_renewal,
                 },
             )
 
@@ -680,26 +684,29 @@ def process_ad_payment(payment):
         # Mark ad as paid
         ad.is_paid = True
 
-        # Change status from DRAFT to PENDING — admin must approve before going ACTIVE
-        if ad.status == ClassifiedAd.AdStatus.DRAFT:
+        # Change status based on current ad state
+        is_renewal = payment.metadata.get("is_renewal", False)
+
+        if ad.status == ClassifiedAd.AdStatus.DRAFT or (
+            is_renewal and ad.status == ClassifiedAd.AdStatus.EXPIRED
+        ):
             ad.status = ClassifiedAd.AdStatus.PENDING
             status_msg = _("قيد المراجعة")
 
-            # Notify all staff users that a new paid ad needs review
+            # Notify all staff users that an ad needs review
             from .models import User as UserModel
             staff_users = UserModel.objects.filter(is_staff=True, is_active=True)
             for staff_user in staff_users:
                 Notification.objects.create(
                     user=staff_user,
                     notification_type=Notification.NotificationType.GENERAL,
-                    title=_("إعلان جديد ينتظر المراجعة"),
-                    message=_("تم تقديم إعلان جديد بعنوان '{}' وتم سداد رسومه.").format(ad.title),
+                    title=_("إعلان ينتظر المراجعة"),
+                    message=_("تم تقديم إعلان بعنوان '{}' وتم سداد رسومه.").format(ad.title),
                     link=ad.get_absolute_url(),
                 )
 
-            # If user paid base fee (no package), check if they should get a package
-            # Otherwise, deduct from their active package
-            if base_fee == 0:
+            # If user paid base fee (no package), don't deduct from package
+            if base_fee == 0 and not is_renewal:
                 # User had a package, deduct ad count
                 active_package = (
                     UserPackage.objects.filter(
@@ -727,12 +734,12 @@ def process_ad_payment(payment):
             )
 
             logger.info(
-                f"Ad {ad.id} status changed from DRAFT to {ad.status} after payment {payment.id}"
+                f"Ad {ad.id} status changed to PENDING after payment {payment.id}"
             )
             return True
         else:
             logger.warning(
-                f"Ad {ad.id} is not in DRAFT status, current status: {ad.status}"
+                f"Ad {ad.id} is not in DRAFT/EXPIRED status, current status: {ad.status}"
             )
             return False
 
@@ -833,11 +840,11 @@ def package_checkout(request, package_id):
 
     # Get currency from session (selected country) or default
     selected_country_code = request.session.get("selected_country", "EG")
-    currency = "SAR"  # default
+    currency = "EGP"  # default
     try:
         from content.models import Country
         country = Country.objects.get(code=selected_country_code)
-        currency = country.currency or "SAR"
+        currency = country.currency or "EGP"
     except:
         pass
 
@@ -1050,9 +1057,9 @@ def ad_upgrade_payment(request, ad_id):
     upgrade_features = request.session.get("upgrade_features", {})
 
     # Get currency from ad's country
-    currency = "SAR"  # default
+    currency = "EGP"  # default
     if ad.country:
-        currency = ad.country.currency or "SAR"
+        currency = ad.country.currency or "EGP"
 
     # Get allowed payment methods for platform payments
     allowed_payment_methods = get_allowed_payment_methods(

@@ -178,7 +178,7 @@ def confirm_offline_order_payment(request):
             defaults={
                 "provider": Payment.PaymentProvider.BANK_TRANSFER,
                 "amount": order.total_amount,
-                "currency": "SAR",  # You can customize this
+                "currency": "EGP",  # You can customize this
                 "status": Payment.PaymentStatus.COMPLETED,
                 "description": f"Payment for Order #{order.order_number}",
                 "completed_at": timezone.now(),

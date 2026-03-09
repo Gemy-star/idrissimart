@@ -1,0 +1,709 @@
+{% extends "admin_dashboard/base.html" %}
+{% load static i18n %}
+
+{% block title %}{% trans "إدارة طلبات النشر على فيسبوك" %}{% endblock %}
+
+{% block admin_extra_css %}
+<link rel="stylesheet" href="{% static 'admin/css/admin_tables.css' %}">
+<style>
+    :root {
+        --status-pending: #FFA500;
+        --status-in-progress: #2196F3;
+        --status-completed: #4CAF50;
+        --status-rejected: #F44336;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stat-card {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        text-align: center;
+    }
+
+    [data-theme='dark'] .stat-card {
+        background: rgba(30, 30, 46, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .stat-card h3 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+
+    .stat-card p {
+        color: #6b7280;
+        font-size: 0.875rem;
+        margin: 0;
+    }
+
+    [data-theme='dark'] .stat-card p {
+        color: #9ca3af;
+    }
+
+    .filters-bar {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-bottom: 25px;
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    [data-theme='dark'] .filters-bar {
+        background: rgba(30, 30, 46, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .filter-group {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .filter-group label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-bottom: 5px;
+        color: #374151;
+    }
+
+    [data-theme='dark'] .filter-group label {
+        color: #d1d5db;
+    }
+
+    .filter-group select,
+    .filter-group input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        background: white;
+    }
+
+    [data-theme='dark'] .filter-group select,
+    [data-theme='dark'] .filter-group input {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
+        color: #e5e7eb;
+    }
+
+    .requests-table {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+
+    [data-theme='dark'] .requests-table {
+        background: rgba(30, 30, 46, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    thead {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    thead th {
+        padding: 15px 20px;
+        text-align: right;
+        font-weight: 600;
+        color: white;
+        font-size: 0.875rem;
+    }
+
+    tbody tr {
+        border-bottom: 1px solid #f3f4f6;
+        transition: background 0.2s ease;
+    }
+
+    [data-theme='dark'] tbody tr {
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+
+    tbody tr:hover {
+        background: #f9fafb;
+    }
+
+    [data-theme='dark'] tbody tr:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    tbody td {
+        padding: 15px 20px;
+        font-size: 0.875rem;
+    }
+
+    .status-badge {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        display: inline-block;
+    }
+
+    .status-pending {
+        background: #FFF4E6;
+        color: #E65100;
+    }
+
+    .status-in_progress {
+        background: #E3F2FD;
+        color: #1565C0;
+    }
+
+    .status-completed {
+        background: #E8F5E9;
+        color: #2E7D32;
+    }
+
+    .status-rejected {
+        background: #FFEBEE;
+        color: #C62828;
+    }
+
+    [data-theme='dark'] .status-pending {
+        background: rgba(255, 160, 0, 0.2);
+        color: #FFB74D;
+    }
+
+    [data-theme='dark'] .status-in_progress {
+        background: rgba(33, 150, 243, 0.2);
+        color: #64B5F6;
+    }
+
+    [data-theme='dark'] .status-completed {
+        background: rgba(76, 175, 80, 0.2);
+        color: #81C784;
+    }
+
+    [data-theme='dark'] .status-rejected {
+        background: rgba(244, 67, 54, 0.2);
+        color: #E57373;
+    }
+
+    .payment-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .payment-confirmed {
+        background: #10B981;
+        color: white;
+    }
+
+    .payment-pending {
+        background: #F59E0B;
+        color: white;
+    }
+
+    .action-btn {
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: none;
+        font-size: 0.75rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        color: white;
+        text-decoration: none;
+        display: inline-block;
+        margin-right: 5px;
+    }
+
+    .btn-process {
+        background: linear-gradient(135deg, #10B981, #059669);
+    }
+
+    .btn-reject {
+        background: linear-gradient(135deg, #EF4444, #DC2626);
+    }
+
+    .btn-view {
+        background: linear-gradient(135deg, #06B6D4, #0891B2);
+    }
+
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    /* Modal styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 10600;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+    }
+
+    .modal.active {
+        display: flex;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 600px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    [data-theme='dark'] .modal-content {
+        background: #1e1e2e;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6b7280;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        opacity: 0.3;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+    <!-- Header -->
+    <div class="admin-dashboard-header">
+        <div class="row align-items-center">
+            <div class="col">
+                <h1 class="display-6 mb-1">
+                    <i class="fab fa-facebook me-3"></i>
+                    {% trans "إدارة طلبات النشر على فيسبوك" %}
+                </h1>
+                <p class="text-muted mb-0">{% trans "معالجة ومتابعة طلبات نشر الإعلانات على فيسبوك" %}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3 style="color: #667eea;">{{ stats.total }}</h3>
+            <p>{% trans "إجمالي الطلبات" %}</p>
+        </div>
+        <div class="stat-card">
+            <h3 style="color: #FFA500;">{{ stats.pending }}</h3>
+            <p>{% trans "قيد الانتظار" %}</p>
+        </div>
+        <div class="stat-card">
+            <h3 style="color: #2196F3;">{{ stats.in_progress }}</h3>
+            <p>{% trans "جاري التنفيذ" %}</p>
+        </div>
+        <div class="stat-card">
+            <h3 style="color: #4CAF50;">{{ stats.completed }}</h3>
+            <p>{% trans "مكتمل" %}</p>
+        </div>
+        <div class="stat-card">
+            <h3 style="color: #F44336;">{{ stats.rejected }}</h3>
+            <p>{% trans "مرفوض" %}</p>
+        </div>
+        <div class="stat-card">
+            <h3 style="color: #F59E0B;">{{ stats.payment_pending }}</h3>
+            <p>{% trans "بانتظار الدفع" %}</p>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <form method="get" class="filters-bar">
+        <div class="filter-group">
+            <label>{% trans "الحالة" %}</label>
+            <select name="status" onchange="this.form.submit()">
+                <option value="">{% trans "الكل" %}</option>
+                <option value="pending" {% if current_status == 'pending' %}selected{% endif %}>{% trans "قيد الانتظار" %}</option>
+                <option value="in_progress" {% if current_status == 'in_progress' %}selected{% endif %}>{% trans "جاري التنفيذ" %}</option>
+                <option value="completed" {% if current_status == 'completed' %}selected{% endif %}>{% trans "مكتمل" %}</option>
+                <option value="rejected" {% if current_status == 'rejected' %}selected{% endif %}>{% trans "مرفوض" %}</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>{% trans "حالة الدفع" %}</label>
+            <select name="payment_confirmed" onchange="this.form.submit()">
+                <option value="">{% trans "الكل" %}</option>
+                <option value="true" {% if current_payment == 'true' %}selected{% endif %}>{% trans "مؤكد" %}</option>
+                <option value="false" {% if current_payment == 'false' %}selected{% endif %}>{% trans "غير مؤكد" %}</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>{% trans "بحث" %}</label>
+            <input type="text" name="search" placeholder="{% trans 'اسم الإعلان أو المستخدم...' %}" value="{{ search_query }}">
+        </div>
+        <div class="filter-group" style="align-self: flex-end;">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search me-2"></i>
+                {% trans "بحث" %}
+            </button>
+        </div>
+    </form>
+
+    <!-- Requests Table -->
+    <div class="requests-table">
+        {% if requests %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>{% trans "الإعلان" %}</th>
+                        <th>{% trans "المستخدم" %}</th>
+                        <th>{% trans "الحالة" %}</th>
+                        <th>{% trans "الدفع" %}</th>
+                        <th>{% trans "المبلغ" %}</th>
+                        <th>{% trans "تاريخ الطلب" %}</th>
+                        <th>{% trans "الإجراءات" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in requests %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'main:ad_detail' req.ad.slug %}" target="_blank" style="color: #667eea; text-decoration: none;">
+                                    {{ req.ad.title|truncatewords:8 }}
+                                </a>
+                            </td>
+                            <td>{{ req.ad.user.username }}</td>
+                            <td>
+                                <span class="status-badge status-{{ req.status }}">
+                                    {% if req.status == 'pending' %}{% trans "قيد الانتظار" %}
+                                    {% elif req.status == 'in_progress' %}{% trans "جاري التنفيذ" %}
+                                    {% elif req.status == 'completed' %}{% trans "مكتمل" %}
+                                    {% elif req.status == 'rejected' %}{% trans "مرفوض" %}
+                                    {% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                {% if req.payment_confirmed %}
+                                    <span class="payment-badge payment-confirmed">✓ {% trans "مؤكد" %}</span>
+                                {% else %}
+                                    <span class="payment-badge payment-pending">⏳ {% trans "بانتظار" %}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ req.payment_amount }} {% trans "ريال" %}</td>
+                            <td>{{ req.requested_at|date:"Y-m-d" }}</td>
+                            <td>
+                                <button onclick="viewRequest({{ req.id }})" class="action-btn btn-view">
+                                    <i class="fas fa-eye"></i> {% trans "عرض" %}
+                                </button>
+                                {% if req.status == 'pending' %}
+                                    <button onclick="processRequest({{ req.id }}, 'complete')" class="action-btn btn-process">
+                                        <i class="fas fa-check"></i> {% trans "إكمال" %}
+                                    </button>
+                                    <button onclick="processRequest({{ req.id }}, 'reject')" class="action-btn btn-reject">
+                                        <i class="fas fa-times"></i> {% trans "رفض" %}
+                                    </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty-state">
+                <i class="fab fa-facebook"></i>
+                <h3>{% trans "لا توجد طلبات" %}</h3>
+                <p>{% trans "لم يتم تقديم أي طلبات للنشر على فيسبوك بعد" %}</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- View Details Modal -->
+    <div id="viewModal" class="modal">
+        <div class="modal-content" style="max-width: 650px;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px 24px; border-radius: 16px 16px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="color: white; margin: 0; font-size: 1.25rem; font-weight: 700;">
+                    <i class="fab fa-facebook me-2"></i>
+                    {% trans "تفاصيل الطلب" %} <span id="viewModalId"></span>
+                </h2>
+                <button onclick="closeViewModal()" style="background: rgba(255,255,255,0.2); border: none; color: white; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-size: 1rem;">&times;</button>
+            </div>
+            <div style="padding: 24px;" id="viewModalBody">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label style="font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase;">{% trans "الإعلان" %}</label>
+                        <p id="vmAdTitle" style="font-weight: 600; margin: 4px 0 0;"></p>
+                    </div>
+                    <div class="col-6">
+                        <label style="font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase;">{% trans "المستخدم" %}</label>
+                        <p id="vmUser" style="margin: 4px 0 0;"></p>
+                    </div>
+                    <div class="col-6">
+                        <label style="font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase;">{% trans "الحالة" %}</label>
+                        <p id="vmStatus" style="margin: 4px 0 0;"></p>
+                    </div>
+                    <div class="col-6">
+                        <label style="font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase;">{% trans "المبلغ" %}</label>
+                        <p id="vmAmount" style="margin: 4px 0 0;"></p>
+                    </div>
+                    <div class="col-6">
+                        <label style="font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase;">{% trans "الدفع" %}</label>
+                        <p id="vmPayment" style="margin: 4px 0 0;"></p>
+                    </div>
+                    <div class="col-6">
+                        <label style="font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase;">{% trans "تاريخ الطلب" %}</label>
+                        <p id="vmRequestedAt" style="margin: 4px 0 0;"></p>
+                    </div>
+                    <div class="col-6">
+                        <label style="font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase;">{% trans "معالج بواسطة" %}</label>
+                        <p id="vmProcessedBy" style="margin: 4px 0 0;"></p>
+                    </div>
+                    <div id="vmFbUrlRow" class="col-12" style="display:none;">
+                        <label style="font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase;">{% trans "رابط المنشور" %}</label>
+                        <p id="vmFbUrl" style="margin: 4px 0 0;"></p>
+                    </div>
+                    <div id="vmNotesRow" class="col-12" style="display:none;">
+                        <label style="font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase;">{% trans "ملاحظات" %}</label>
+                        <p id="vmNotes" style="margin: 4px 0 0;"></p>
+                    </div>
+                </div>
+            </div>
+            <div style="padding: 16px 24px; border-top: 1px solid #f3f4f6; display: flex; justify-content: flex-end;">
+                <button onclick="closeViewModal()" style="padding: 10px 24px; background: #e5e7eb; color: #374151; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">{% trans "إغلاق" %}</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Action Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content" style="max-width: 520px;">
+            <div id="confirmModalHeader" style="padding: 20px 24px; border-radius: 16px 16px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                <h2 id="confirmModalTitle" style="color: white; margin: 0; font-size: 1.25rem; font-weight: 700;"></h2>
+                <button onclick="closeConfirmModal()" style="background: rgba(255,255,255,0.2); border: none; color: white; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-size: 1rem;">&times;</button>
+            </div>
+            <div style="padding: 24px;">
+                <p id="confirmModalMsg" style="color: #374151; margin-bottom: 20px;"></p>
+                <div id="fbUrlField" style="display:none; margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.875rem;">{% trans "رابط المنشور على فيسبوك" %}</label>
+                    <input type="url" id="fbUrlInput" placeholder="https://facebook.com/..." style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.875rem;">
+                </div>
+                <div id="rejectNotesField" style="display:none; margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.875rem;">{% trans "سبب الرفض (اختياري)" %}</label>
+                    <textarea id="rejectNotesInput" rows="3" style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.875rem; resize: vertical;"></textarea>
+                </div>
+            </div>
+            <div style="padding: 16px 24px; border-top: 1px solid #f3f4f6; display: flex; justify-content: flex-end; gap: 10px;">
+                <button onclick="closeConfirmModal()" style="padding: 10px 24px; background: #e5e7eb; color: #374151; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">{% trans "إلغاء" %}</button>
+                <button id="confirmModalBtn" style="padding: 10px 24px; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">{% trans "تأكيد" %}</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+        <div class="pagination-container mt-4">
+            <nav>
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if current_status %}&status={{ current_status }}{% endif %}">{% trans "الأولى" %}</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}">{% trans "السابقة" %}</a>
+                        </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}">{% trans "التالية" %}</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if current_status %}&status={{ current_status }}{% endif %}">{% trans "الأخيرة" %}</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const statusLabels = {
+    'pending': '{% trans "قيد الانتظار" %}',
+    'in_progress': '{% trans "جاري التنفيذ" %}',
+    'completed': '{% trans "مكتمل" %}',
+    'rejected': '{% trans "مرفوض" %}',
+};
+
+// ── View modal ────────────────────────────────────────────────
+function viewRequest(requestId) {
+    fetch(`/admin/facebook-share-requests/${requestId}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) return;
+
+            document.getElementById('viewModalId').textContent = `#${data.id}`;
+            document.getElementById('vmAdTitle').textContent = data.ad_title;
+            document.getElementById('vmUser').textContent = data.ad_user;
+            document.getElementById('vmStatus').textContent = statusLabels[data.status] || data.status;
+            document.getElementById('vmAmount').textContent = `${data.payment_amount} {% trans "ريال" %}`;
+            document.getElementById('vmPayment').textContent = data.payment_confirmed ? '✓ {% trans "مؤكد" %}' : '⏳ {% trans "بانتظار" %}';
+            document.getElementById('vmRequestedAt').textContent = data.requested_at ? data.requested_at.slice(0, 10) : '—';
+            document.getElementById('vmProcessedBy').textContent = data.processed_by || '—';
+
+            const fbRow = document.getElementById('vmFbUrlRow');
+            if (data.facebook_post_url) {
+                fbRow.style.display = '';
+                document.getElementById('vmFbUrl').innerHTML = `<a href="${data.facebook_post_url}" target="_blank">${data.facebook_post_url}</a>`;
+            } else {
+                fbRow.style.display = 'none';
+            }
+
+            const notesRow = document.getElementById('vmNotesRow');
+            if (data.admin_notes) {
+                notesRow.style.display = '';
+                document.getElementById('vmNotes').textContent = data.admin_notes;
+            } else {
+                notesRow.style.display = 'none';
+            }
+
+            document.getElementById('viewModal').classList.add('active');
+        });
+}
+
+function closeViewModal() {
+    document.getElementById('viewModal').classList.remove('active');
+}
+
+// ── Confirm action modal ──────────────────────────────────────
+let _pendingAction = null;
+
+function processRequest(requestId, action) {
+    _pendingAction = { requestId, action };
+
+    const isComplete = action === 'complete';
+    const header = document.getElementById('confirmModalHeader');
+    const btn = document.getElementById('confirmModalBtn');
+
+    btn.style.display = '';
+    if (isComplete) {
+        header.style.background = 'linear-gradient(135deg, #10B981, #059669)';
+        btn.style.background = 'linear-gradient(135deg, #10B981, #059669)';
+        document.getElementById('confirmModalTitle').textContent = '{% trans "إكمال الطلب" %}';
+        document.getElementById('confirmModalMsg').textContent = '{% trans "هل أنت متأكد من إكمال هذا الطلب؟ أدخل رابط المنشور على فيسبوك أدناه." %}';
+        document.getElementById('fbUrlField').style.display = '';
+        document.getElementById('rejectNotesField').style.display = 'none';
+        document.getElementById('fbUrlInput').value = '';
+    } else {
+        header.style.background = 'linear-gradient(135deg, #EF4444, #DC2626)';
+        btn.style.background = 'linear-gradient(135deg, #EF4444, #DC2626)';
+        document.getElementById('confirmModalTitle').textContent = '{% trans "رفض الطلب" %}';
+        document.getElementById('confirmModalMsg').textContent = '{% trans "هل أنت متأكد من رفض هذا الطلب؟" %}';
+        document.getElementById('fbUrlField').style.display = 'none';
+        document.getElementById('rejectNotesField').style.display = '';
+        document.getElementById('rejectNotesInput').value = '';
+    }
+
+    document.getElementById('confirmModal').classList.add('active');
+}
+
+function closeConfirmModal() {
+    document.getElementById('confirmModal').classList.remove('active');
+    _pendingAction = null;
+}
+
+document.getElementById('confirmModalBtn').addEventListener('click', function () {
+    if (!_pendingAction) return;
+    const { requestId, action } = _pendingAction;
+
+    const formData = new FormData();
+    formData.append('request_id', requestId);
+    formData.append('action', action);
+
+    if (action === 'complete') {
+        const fbUrl = document.getElementById('fbUrlInput').value.trim();
+        if (fbUrl) formData.append('facebook_post_url', fbUrl);
+    } else {
+        const reason = document.getElementById('rejectNotesInput').value.trim();
+        if (reason) formData.append('admin_notes', reason);
+    }
+
+    fetch('/admin/facebook-share-requests/process/', {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    })
+    .then(response => response.json())
+    .then(data => {
+        closeConfirmModal();
+        if (data.success) {
+            if (window.showNotification) {
+                window.showNotification(data.message, 'success');
+            }
+            location.reload();
+        } else {
+            showErrorModal(data.message);
+        }
+    });
+});
+
+function showErrorModal(msg) {
+    // Reuse confirmModal as a simple error display
+    document.getElementById('confirmModalHeader').style.background = 'linear-gradient(135deg, #F59E0B, #D97706)';
+    document.getElementById('confirmModalTitle').textContent = '{% trans "خطأ" %}';
+    document.getElementById('confirmModalMsg').textContent = msg;
+    document.getElementById('fbUrlField').style.display = 'none';
+    document.getElementById('rejectNotesField').style.display = 'none';
+    document.getElementById('confirmModalBtn').style.display = 'none';
+    document.getElementById('confirmModal').classList.add('active');
+}
+
+// Close modals on backdrop click
+document.getElementById('viewModal').addEventListener('click', function (e) {
+    if (e.target === this) closeViewModal();
+});
+document.getElementById('confirmModal').addEventListener('click', function (e) {
+    if (e.target === this) closeConfirmModal();
+});
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

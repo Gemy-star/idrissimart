@@ -48,9 +48,9 @@ def user_preferences(request):
     # Get currency for selected country
     try:
         country = Country.objects.get(code=selected_country, is_active=True)
-        currency = country.currency or "SAR"
+        currency = country.currency or "EGP"
     except Country.DoesNotExist:
-        currency = "SAR"  # Default to SAR if country not found
+        currency = "EGP"  # Default to EGP if country not found
 
     return {
         "selected_country": selected_country,
@@ -167,7 +167,7 @@ def site_configuration(request):
     Includes helper functions to get appropriate logo based on theme
     """
     site_config = SiteConfiguration.get_solo()
-    
+
     return {
         "site_config": site_config,
         "get_theme_logo": lambda theme='light': site_config.get_logo_for_theme(theme),

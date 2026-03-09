@@ -826,7 +826,7 @@
                                             </td>
                                             <td>
                                                 <span class="category-badge">
-                                                    {{ ad.category.name }}
+                                                    {{ ad.category.display_name }}
                                                 </span>
                                             </td>
                                             <td>
@@ -1272,17 +1272,18 @@
         if (!adIdToRenew) return;
 
         try {
-            const response = await fetch(`/ar/publisher/ads/${adIdToRenew}/renew/`, {
+            const renewFormData = new FormData();
+            renewFormData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+            const response = await fetch(`{% url 'main:publisher_renew_ad' 0 %}`.replace('/0/', `/${adIdToRenew}/`), {
                 method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken'),
-                    'Content-Type': 'application/json'
-                }
+                body: renewFormData,
             });
 
             const data = await response.json();
 
-            if (data.success) {
+            if (data.redirect_url) {
+                window.location.href = data.redirect_url;
+            } else if (data.success) {
                 bootstrap.Modal.getInstance(document.getElementById('renewAdModal')).hide();
                 showNotification(data.message || '{% trans "تم تجديد الإعلان بنجاح" %}', 'success');
                 setTimeout(() => window.location.reload(), 1000);
@@ -1301,9 +1302,9 @@
         document.getElementById('statsViews').textContent = views;
         
         // Fetch additional stats
-        fetch(`/ar/publisher/ads/${adId}/stats/`, {
+        fetch(`{% url 'main:publisher_ad_statistics' 0 %}`.replace('/0/', `/${adId}/`) + '?format=json', {
             headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
+                'X-Requested-With': 'XMLHttpRequest',
             }
         })
         .then(response => response.json())

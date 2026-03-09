@@ -1062,7 +1062,7 @@ class SimpleEnhancedAdForm(forms.ModelForm):
                 }
             ),
             "price": forms.NumberInput(
-                attrs={"class": "form-control", "placeholder": _("السعر بالريال")}
+                attrs={"class": "form-control", "placeholder": _("السعر بالجنيه المصري")}
             ),
             "category": forms.Select(attrs={"class": "form-control select2"}),
             "city": forms.Select(attrs={"class": "form-select", "id": "id_city"}),

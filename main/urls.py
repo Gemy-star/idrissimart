@@ -13,6 +13,7 @@ from . import admin_ad_views
 from . import admin_content_views
 from . import admin_orders_views, offline_payment_views
 from . import publisher_views
+from . import publisher_facebook_views
 from . import review_views
 from . import admin_review_views
 from . import publisher_review_views
@@ -22,6 +23,8 @@ from . import user_orders_views
 from . import verification_views
 from . import ad_features_views
 from . import pricing_views
+from . import facebook_share_admin_views
+from . import safety_tip_admin_views
 from django.contrib.auth import views as dj_auth_views
 
 
@@ -916,6 +919,58 @@ urlpatterns = [
         admin_review_views.admin_bulk_reject_reviews,
         name="admin_bulk_reject_reviews",
     ),
+    # Admin Facebook Share Requests Management
+    path(
+        "admin/facebook-share-requests/",
+        facebook_share_admin_views.AdminFacebookShareRequestsView.as_view(),
+        name="admin_facebook_share_requests",
+    ),
+    path(
+        "admin/facebook-share-requests/<int:request_id>/",
+        facebook_share_admin_views.FacebookShareRequestDetailView.as_view(),
+        name="admin_facebook_share_request_detail",
+    ),
+    path(
+        "admin/facebook-share-requests/<int:request_id>/process/",
+        facebook_share_admin_views.FacebookShareRequestProcessView.as_view(),
+        name="admin_facebook_share_request_process",
+    ),
+    path(
+        "admin/facebook-share-requests/bulk-action/",
+        facebook_share_admin_views.FacebookShareRequestBulkActionView.as_view(),
+        name="admin_facebook_share_request_bulk_action",
+    ),
+    # Admin Safety Tips Management
+    path(
+        "admin/safety-tips/",
+        safety_tip_admin_views.AdminSafetyTipsView.as_view(),
+        name="admin_safety_tips",
+    ),
+    path(
+        "admin/safety-tips/<int:tip_id>/",
+        safety_tip_admin_views.SafetyTipDetailView.as_view(),
+        name="admin_safety_tip_detail",
+    ),
+    path(
+        "admin/safety-tips/save/",
+        safety_tip_admin_views.SafetyTipSaveView.as_view(),
+        name="admin_safety_tip_save",
+    ),
+    path(
+        "admin/safety-tips/<int:tip_id>/delete/",
+        safety_tip_admin_views.SafetyTipDeleteView.as_view(),
+        name="admin_safety_tip_delete",
+    ),
+    path(
+        "admin/safety-tips/bulk-action/",
+        safety_tip_admin_views.SafetyTipBulkActionView.as_view(),
+        name="admin_safety_tip_bulk_action",
+    ),
+    path(
+        "admin/safety-tips/preview/",
+        safety_tip_admin_views.SafetyTipPreviewView.as_view(),
+        name="admin_safety_tip_preview",
+    ),
     path(
         "admin/reviews/bulk/delete/",
         admin_review_views.admin_bulk_delete_reviews,
@@ -1756,6 +1811,11 @@ urlpatterns = [
         publisher_views.publisher_duplicate_ad,
         name="publisher_duplicate_ad",
     ),
+    path(
+        "publisher/ads/<int:pk>/edit/",
+        classifieds_views.ClassifiedAdUpdateView.as_view(),
+        name="publisher_ad_update",
+    ),
     # Publisher Expired Ads
     path(
         "publisher/expired-ads/",
@@ -1809,6 +1869,32 @@ urlpatterns = [
         "publisher/dashboard/stats/",
         publisher_views.publisher_dashboard_stats_ajax,
         name="publisher_dashboard_stats",
+    ),
+    # Publisher Facebook Share Requests
+    path(
+        "publisher/facebook-requests/",
+        publisher_facebook_views.PublisherFacebookShareRequestsView.as_view(),
+        name="publisher_facebook_requests",
+    ),
+    path(
+        "publisher/facebook-requests/new/",
+        publisher_facebook_views.CreateFacebookShareRequestView.as_view(),
+        name="create_facebook_request",
+    ),
+    path(
+        "publisher/facebook-requests/<int:request_id>/",
+        publisher_facebook_views.FacebookShareRequestDetailView.as_view(),
+        name="publisher_facebook_request_detail",
+    ),
+    path(
+        "publisher/facebook-requests/<int:request_id>/payment/",
+        publisher_facebook_views.PublisherFacebookSharePaymentView.as_view(),
+        name="publisher_facebook_payment",
+    ),
+    path(
+        "publisher/facebook-requests/<int:request_id>/cancel/",
+        publisher_facebook_views.CancelFacebookShareRequestView.as_view(),
+        name="cancel_facebook_request",
     ),
     # Report URLs
     path("report/ad/<int:ad_id>/", report_views.report_ad, name="report_ad"),

@@ -1,0 +1,419 @@
+{% extends "publisher_dashboard/base.html" %}
+{% load static i18n %}
+
+{% block title %}{% trans "طلبات النشر على فيسبوك" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .requests-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 30px 20px;
+    }
+
+    .page-header {
+        margin-bottom: 30px;
+    }
+
+    .page-header h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 8px;
+    }
+
+    [data-theme='dark'] .page-header h1 {
+        color: #f9fafb;
+    }
+
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stat-box {
+        background: white;
+        padding: 24px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        text-align: center;
+    }
+
+    [data-theme='dark'] .stat-box {
+        background: rgba(30, 30, 46, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .stat-box h3 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+
+    .stat-box p {
+        color: #6b7280;
+        font-size: 0.875rem;
+        margin: 0;
+    }
+
+    [data-theme='dark'] .stat-box p {
+        color: #9ca3af;
+    }
+
+    .requests-grid {
+        display: grid;
+        gap: 20px;
+    }
+
+    .request-card {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    [data-theme='dark'] .request-card {
+        background: rgba(30, 30, 46, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .request-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+    }
+
+    .request-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 16px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #f3f4f6;
+    }
+
+    [data-theme='dark'] .request-header {
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .request-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 4px;
+    }
+
+    [data-theme='dark'] .request-title {
+        color: #f9fafb;
+    }
+
+    .request-date {
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+
+    [data-theme='dark'] .request-date {
+        color: #9ca3af;
+    }
+
+    .status-badge {
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        display: inline-block;
+    }
+
+    .status-pending {
+        background: #FFF4E6;
+        color: #E65100;
+    }
+
+    .status-in_progress {
+        background: #E3F2FD;
+        color: #1565C0;
+    }
+
+    .status-completed {
+        background: #E8F5E9;
+        color: #2E7D32;
+    }
+
+    .status-rejected {
+        background: #FFEBEE;
+        color: #C62828;
+    }
+
+    [data-theme='dark'] .status-pending {
+        background: rgba(255, 160, 0, 0.2);
+        color: #FFB74D;
+    }
+
+    [data-theme='dark'] .status-in_progress {
+        background: rgba(33, 150, 243, 0.2);
+        color: #64B5F6;
+    }
+
+    [data-theme='dark'] .status-completed {
+        background: rgba(76, 175, 80, 0.2);
+        color: #81C784;
+    }
+
+    [data-theme='dark'] .status-rejected {
+        background: rgba(244, 67, 54, 0.2);
+        color: #E57373;
+    }
+
+    .request-details {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+
+    .detail-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .detail-label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+    }
+
+    [data-theme='dark'] .detail-label {
+        color: #9ca3af;
+    }
+
+    .detail-value {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1f2937;
+    }
+
+    [data-theme='dark'] .detail-value {
+        color: #f9fafb;
+    }
+
+    .payment-confirmed {
+        color: #10B981;
+    }
+
+    .payment-pending {
+        color: #F59E0B;
+    }
+
+    .facebook-link {
+        display: inline-block;
+        margin-top: 12px;
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #1877f2 0%, #0d5dba 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: transform 0.3s ease;
+    }
+
+    .facebook-link:hover {
+        transform: translateY(-2px);
+        color: white;
+    }
+
+    .admin-notes {
+        margin-top: 16px;
+        padding: 12px;
+        background: #f9fafb;
+        border-radius: 8px;
+        border-right: 4px solid #667eea;
+    }
+
+    [data-theme='dark'] .admin-notes {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .admin-notes h4 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #667eea;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 80px 20px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    [data-theme='dark'] .empty-state {
+        background: rgba(30, 30, 46, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .empty-state i {
+        font-size: 5rem;
+        color: #d1d5db;
+        margin-bottom: 24px;
+    }
+
+    .empty-state h3 {
+        font-size: 1.5rem;
+        color: #6b7280;
+        margin-bottom: 12px;
+    }
+
+    [data-theme='dark'] .empty-state h3 {
+        color: #9ca3af;
+    }
+</style>
+{% endblock %}
+
+{% block publisher_content %}
+<div class="requests-container">
+    <!-- Header -->
+    <div class="page-header">
+        <h1>
+            <i class="fab fa-facebook me-3"></i>
+            {% trans "طلبات النشر على فيسبوك" %}
+        </h1>
+        <p class="text-muted">{% trans "تتبع حالة طلباتك للنشر على صفحة فيسبوك الخاصة بالموقع" %}</p>
+    </div>
+
+    <!-- Statistics -->
+    <div class="stats-row">
+        <div class="stat-box">
+            <h3 style="color: #667eea;">{{ stats.total }}</h3>
+            <p>{% trans "إجمالي الطلبات" %}</p>
+        </div>
+        <div class="stat-box">
+            <h3 style="color: #FFA500;">{{ stats.pending }}</h3>
+            <p>{% trans "قيد الانتظار" %}</p>
+        </div>
+        <div class="stat-box">
+            <h3 style="color: #2196F3;">{{ stats.in_progress }}</h3>
+            <p>{% trans "جاري التنفيذ" %}</p>
+        </div>
+        <div class="stat-box">
+            <h3 style="color: #4CAF50;">{{ stats.completed }}</h3>
+            <p>{% trans "مكتمل" %}</p>
+        </div>
+    </div>
+
+    <!-- Requests List -->
+    {% if requests %}
+        <div class="requests-grid">
+            {% for req in requests %}
+                <div class="request-card">
+                    <div class="request-header">
+                        <div>
+                            <div class="request-title">{{ req.ad.title }}</div>
+                            <div class="request-date">
+                                <i class="far fa-calendar me-2"></i>
+                                {{ req.requested_at|date:"Y/m/d H:i" }}
+                            </div>
+                        </div>
+                        <span class="status-badge status-{{ req.status }}">
+                            {% if req.status == 'pending' %}
+                                <i class="far fa-clock me-1"></i> {% trans "قيد الانتظار" %}
+                            {% elif req.status == 'in_progress' %}
+                                <i class="fas fa-spinner me-1"></i> {% trans "جاري التنفيذ" %}
+                            {% elif req.status == 'completed' %}
+                                <i class="fas fa-check-circle me-1"></i> {% trans "مكتمل" %}
+                            {% elif req.status == 'rejected' %}
+                                <i class="fas fa-times-circle me-1"></i> {% trans "مرفوض" %}
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <div class="request-details">
+                        <div class="detail-item">
+                            <span class="detail-label">{% trans "المبلغ المدفوع" %}</span>
+                            <span class="detail-value">{{ req.payment_amount }} {% trans "EGP" %}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">{% trans "حالة الدفع" %}</span>
+                            <span class="detail-value {% if req.payment_confirmed %}payment-confirmed{% else %}payment-pending{% endif %}">
+                                {% if req.payment_confirmed %}
+                                    <i class="fas fa-check-circle me-1"></i> {% trans "مؤكد" %}
+                                {% else %}
+                                    <i class="far fa-clock me-1"></i> {% trans "بانتظار التأكيد" %}
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% if req.payment_screenshot %}
+                            <div class="detail-item">
+                                <span class="detail-label">{% trans "إيصال الدفع" %}</span>
+                                <a href="{{ req.payment_screenshot.url }}" target="_blank" class="detail-value" style="color: #667eea;">
+                                    <i class="fas fa-file-image me-1"></i> {% trans "عرض الإيصال" %}
+                                </a>
+                            </div>
+                        {% endif %}
+                        {% if req.status == 'completed' and req.completed_at %}
+                            <div class="detail-item">
+                                <span class="detail-label">{% trans "تاريخ الإكمال" %}</span>
+                                <span class="detail-value">{{ req.completed_at|date:"Y/m/d" }}</span>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    {% if req.status == 'completed' and req.facebook_post_url %}
+                        <a href="{{ req.facebook_post_url }}" target="_blank" class="facebook-link">
+                            <i class="fab fa-facebook me-2"></i>
+                            {% trans "عرض المنشور على فيسبوك" %}
+                        </a>
+                    {% endif %}
+
+                    {% if req.admin_notes %}
+                        <div class="admin-notes">
+                            <h4>
+                                <i class="fas fa-sticky-note me-2"></i>
+                                {% trans "ملاحظات الإدارة" %}
+                            </h4>
+                            <p style="margin: 0; color: #4b5563;">{{ req.admin_notes }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+            <div class="d-flex justify-content-center mt-4">
+                <nav>
+                    <ul class="pagination">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">{% trans "السابقة" %}</a>
+                            </li>
+                        {% endif %}
+
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+                        </li>
+
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}">{% trans "التالية" %}</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="empty-state">
+            <i class="fab fa-facebook"></i>
+            <h3>{% trans "لا توجد طلبات بعد" %}</h3>
+            <p style="color: #9ca3af;">
+                {% trans "لم تقم بطلب نشر أي إعلان على فيسبوك حتى الآن" %}
+            </p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

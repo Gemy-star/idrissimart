@@ -1,0 +1,417 @@
+{% extends "dashboard/base.html" %}
+{% load static i18n %}
+
+{% block publisher_title %}
+    {% trans "طلبات النشر على فيسبوك" %} - {% trans "إدريسي مارت" %}
+{% endblock %}
+
+{% block publisher_extra_css %}
+<style>
+    .facebook-requests-header {
+        background: linear-gradient(135deg, #1877f2 0%, #0d5dbf 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 16px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 20px rgba(24, 119, 242, 0.2);
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        border-left: 4px solid #1877f2;
+        transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1877f2;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        color: #666;
+        font-size: 0.9rem;
+    }
+
+    .filter-bar {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .request-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+    }
+
+    .request-card:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+
+    .status-badge {
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .status-pending {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .status-in_progress {
+        background: #cfe2ff;
+        color: #084298;
+    }
+
+    .status-completed {
+        background: #d1e7dd;
+        color: #0a3622;
+    }
+
+    .status-rejected {
+        background: #f8d7da;
+        color: #842029;
+    }
+
+    .payment-badge {
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .payment-paid {
+        background: #d1e7dd;
+        color: #0a3622;
+    }
+
+    .payment-unpaid {
+        background: #f8d7da;
+        color: #842029;
+    }
+
+    .ad-preview {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .ad-thumbnail {
+        width: 80px;
+        height: 80px;
+        border-radius: 8px;
+        object-fit: cover;
+    }
+
+    .ad-info h5 {
+        margin: 0;
+        font-size: 1.1rem;
+        color: #333;
+    }
+
+    .ad-meta {
+        color: #666;
+        font-size: 0.9rem;
+        margin-top: 0.25rem;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-facebook {
+        background: #1877f2;
+        color: white;
+        border: none;
+    }
+
+    .btn-facebook:hover {
+        background: #0d5dbf;
+        color: white;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: #999;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}
+
+{% block publisher_content %}
+<div class="facebook-requests-container">
+    <!-- Header -->
+    <div class="facebook-requests-header">
+        <h1 class="mb-2">
+            <i class="fab fa-facebook-square me-3"></i>
+            {% trans "طلبات النشر على فيسبوك" %}
+        </h1>
+        <p class="mb-0 opacity-90">{% trans "تتبع وإدارة طلبات نشر إعلاناتك على صفحة فيسبوك المنصة" %}</p>
+    </div>
+
+    <!-- Statistics -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.total }}</div>
+            <div class="stat-label">
+                <i class="fas fa-list me-1"></i>
+                {% trans "إجمالي الطلبات" %}
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.pending }}</div>
+            <div class="stat-label">
+                <i class="fas fa-clock me-1"></i>
+                {% trans "قيد الانتظار" %}
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.completed }}</div>
+            <div class="stat-label">
+                <i class="fas fa-check-circle me-1"></i>
+                {% trans "تم التنفيذ" %}
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.unpaid }}</div>
+            <div class="stat-label">
+                <i class="fas fa-money-bill-wave me-1"></i>
+                {% trans "في انتظار الدفع" %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-bar">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">{% trans "الحالة" %}</label>
+                <select name="status" class="form-select" onchange="this.form.submit()">
+                    <option value="">{% trans "جميع الحالات" %}</option>
+                    <option value="pending" {% if current_status == 'pending' %}selected{% endif %}>{% trans "قيد الانتظار" %}</option>
+                    <option value="in_progress" {% if current_status == 'in_progress' %}selected{% endif %}>{% trans "جاري التنفيذ" %}</option>
+                    <option value="completed" {% if current_status == 'completed' %}selected{% endif %}>{% trans "تم التنفيذ" %}</option>
+                    <option value="rejected" {% if current_status == 'rejected' %}selected{% endif %}>{% trans "مرفوض" %}</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">{% trans "حالة الدفع" %}</label>
+                <select name="payment_status" class="form-select" onchange="this.form.submit()">
+                    <option value="">{% trans "الكل" %}</option>
+                    <option value="paid" {% if current_payment_status == 'paid' %}selected{% endif %}>{% trans "مدفوع" %}</option>
+                    <option value="unpaid" {% if current_payment_status == 'unpaid' %}selected{% endif %}>{% trans "غير مدفوع" %}</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">{% trans "بحث" %}</label>
+                <input type="text" name="search" class="form-control" placeholder="{% trans 'ابحث عن إعلان...' %}" value="{{ search_query }}">
+            </div>
+        </form>
+    </div>
+
+    <!-- Requests List -->
+    {% if requests %}
+        <div class="requests-list">
+            {% for request in requests %}
+            <div class="request-card">
+                <div class="row align-items-center">
+                    <div class="col-lg-8">
+                        <div class="ad-preview">
+                            {% if request.ad.images.first %}
+                                <img src="{{ request.ad.images.first.image.url }}" alt="{{ request.ad.title }}" class="ad-thumbnail">
+                            {% else %}
+                                <div class="ad-thumbnail bg-secondary d-flex align-items-center justify-content-center">
+                                    <i class="fas fa-image text-white fa-2x"></i>
+                                </div>
+                            {% endif %}
+                            <div class="ad-info flex-grow-1">
+                                <h5>{{ request.ad.title }}</h5>
+                                <div class="ad-meta">
+                                    <i class="fas fa-tag me-1"></i> {{ request.ad.category.name }}
+                                    <span class="mx-2">|</span>
+                                    <i class="fas fa-calendar me-1"></i> {{ request.requested_at|date:"d M, Y" }}
+                                </div>
+                                <div class="mt-2">
+                                    <span class="status-badge status-{{ request.status }}">
+                                        {% if request.status == 'pending' %}
+                                            <i class="fas fa-clock"></i>
+                                        {% elif request.status == 'in_progress' %}
+                                            <i class="fas fa-spinner"></i>
+                                        {% elif request.status == 'completed' %}
+                                            <i class="fas fa-check-circle"></i>
+                                        {% else %}
+                                            <i class="fas fa-times-circle"></i>
+                                        {% endif %}
+                                        {{ request.get_status_display }}
+                                    </span>
+                                    <span class="payment-badge payment-{% if request.payment_confirmed %}paid{% else %}unpaid{% endif %} me-2">
+                                        <i class="fas fa-money-bill-wave"></i>
+                                        {% if request.payment_confirmed %}{% trans "مدفوع" %}{% else %}{% trans "غير مدفوع" %}{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="action-buttons justify-content-end">
+                            <a href="{% url 'main:publisher_facebook_request_detail' request.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye me-1"></i>
+                                {% trans "التفاصيل" %}
+                            </a>
+
+                            {% if not request.payment_confirmed and request.status == 'pending' %}
+                                <a href="{% url 'main:publisher_facebook_payment' request.id %}" class="btn btn-sm btn-facebook">
+                                    <i class="fas fa-credit-card me-1"></i>
+                                    {% trans "الدفع الآن" %}
+                                </a>
+                            {% endif %}
+
+                            {% if request.status == 'completed' and request.facebook_post_url %}
+                                <a href="{{ request.facebook_post_url }}" target="_blank" class="btn btn-sm btn-facebook">
+                                    <i class="fab fa-facebook me-1"></i>
+                                    {% trans "عرض المنشور" %}
+                                </a>
+                            {% endif %}
+
+                            {% if request.status == 'pending' %}
+                                <button class="btn btn-sm btn-outline-danger cancel-request-btn" data-request-id="{{ request.id }}">
+                                    <i class="fas fa-times me-1"></i>
+                                    {% trans "إلغاء" %}
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                {% if request.admin_notes %}
+                <div class="alert alert-info mt-3 mb-0">
+                    <strong><i class="fas fa-info-circle me-2"></i>{% trans "ملاحظات الإدارة:" %}</strong>
+                    <p class="mb-0 mt-2">{{ request.admin_notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if current_status %}&status={{ current_status }}{% endif %}{% if current_payment_status %}&payment_status={{ current_payment_status }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="fas fa-angle-double-right"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_payment_status %}&payment_status={{ current_payment_status }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="fas fa-angle-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+                </li>
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_payment_status %}&payment_status={{ current_payment_status }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="fas fa-angle-left"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_payment_status %}&payment_status={{ current_payment_status }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="fas fa-angle-double-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    {% else %}
+        <div class="empty-state">
+            <i class="fab fa-facebook-square"></i>
+            <h3>{% trans "لا توجد طلبات نشر على فيسبوك" %}</h3>
+            <p>{% trans "لم تقم بإنشاء أي طلبات نشر على فيسبوك بعد" %}</p>
+            <a href="{% url 'main:create_facebook_request' %}" class="btn btn-facebook mt-3">
+                <i class="fas fa-plus me-2"></i>
+                {% trans "إنشاء طلب نشر جديد" %}
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Cancel request functionality
+    const cancelButtons = document.querySelectorAll('.cancel-request-btn');
+
+    cancelButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const requestId = this.dataset.requestId;
+
+            if (confirm('{% trans "هل أنت متأكد من إلغاء هذا الطلب؟" %}')) {
+                fetch(`/publisher/facebook-requests/${requestId}/cancel/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('{% trans "حدث خطأ أثناء إلغاء الطلب" %}');
+                });
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

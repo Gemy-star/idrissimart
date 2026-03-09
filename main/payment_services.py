@@ -104,7 +104,7 @@ class PaymentService:
                 {
                     "id": "paypal",
                     "name": "PayPal",
-                    "currencies": ["USD", "EUR", "SAR"],
+                    "currencies": ["USD", "EUR", "EGP"],
                     "icon": "fab fa-cc-paypal",
                 }
             )
@@ -125,7 +125,7 @@ class PaymentService:
                 {
                     "id": "mastercard",
                     "name": "Mastercard",
-                    "currencies": ["EGP", "SAR"],
+                    "currencies": ["EGP"],
                     "icon": "fab fa-cc-mastercard",
                 }
             )
@@ -134,7 +134,7 @@ class PaymentService:
                 {
                     "id": "visa",
                     "name": "Visa",
-                    "currencies": ["EGP", "SAR", "USD"],
+                    "currencies": ["EGP", "USD"],
                     "icon": "fab fa-cc-visa",
                 }
             )

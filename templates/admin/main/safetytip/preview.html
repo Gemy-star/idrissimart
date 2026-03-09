@@ -1,0 +1,324 @@
+{% load static i18n %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "معاينة نصائح الأمان - Safety Tips Preview" %}</title>
+
+    <!-- Bootstrap RTL -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-tertiary: #ffffff;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --text-muted: #999999;
+            --border-color: #e5e7eb;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+
+        .preview-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .preview-header {
+            background: white;
+            padding: 30px;
+            border-radius: 16px 16px 0 0;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .preview-header h1 {
+            color: var(--primary-color);
+            font-weight: 700;
+            margin: 0 0 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .preview-header h1 i {
+            font-size: 2rem;
+        }
+
+        .filter-section {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-section select {
+            padding: 10px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            min-width: 200px;
+        }
+
+        .filter-section button {
+            padding: 10px 20px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-section button:hover {
+            background: var(--secondary-color);
+            transform: translateY(-2px);
+        }
+
+        .preview-body {
+            background: white;
+            padding: 40px;
+            border-radius: 0 0 16px 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Safety Tips Card Styles */
+        .safety-tips-card {
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+        }
+
+        .safety-tips-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            padding: 1.5rem 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .safety-header-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .safety-icon-box {
+            width: 56px;
+            height: 56px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .safety-icon-box i {
+            font-size: 1.6rem;
+            color: white;
+        }
+
+        .safety-title {
+            color: white;
+            font-weight: 800;
+            font-size: 1.4rem;
+            margin: 0;
+        }
+
+        .safety-tips-body {
+            padding: 1.5rem;
+            background: var(--bg-primary);
+        }
+
+        .safety-tip-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.875rem;
+            padding: 1rem;
+            border-radius: 12px;
+            height: 100%;
+            transition: all 0.3s ease;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+        }
+
+        .safety-tip-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .tip-icon-wrapper {
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s ease;
+        }
+
+        .tip-icon-wrapper i {
+            font-size: 1.1rem;
+            color: white;
+        }
+
+        .tip-content h6 {
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 0.25rem;
+            color: var(--text-primary);
+        }
+
+        .tip-content p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        /* Color Variants */
+        .tip-blue .tip-icon-wrapper { background: linear-gradient(135deg, #2196f3, #1976d2); }
+        .tip-blue { border-right: 4px solid #2196f3; }
+
+        .tip-green .tip-icon-wrapper { background: linear-gradient(135deg, #4caf50, #388e3c); }
+        .tip-green { border-right: 4px solid #4caf50; }
+
+        .tip-orange .tip-icon-wrapper { background: linear-gradient(135deg, #ff9800, #f57c00); }
+        .tip-orange { border-right: 4px solid #ff9800; }
+
+        .tip-red .tip-icon-wrapper { background: linear-gradient(135deg, #e91e63, #c2185b); }
+        .tip-red { border-right: 4px solid #e91e63; }
+
+        .tip-purple .tip-icon-wrapper { background: linear-gradient(135deg, #9c27b0, #7b1fa2); }
+        .tip-purple { border-right: 4px solid #9c27b0; }
+
+        .tip-teal .tip-icon-wrapper { background: linear-gradient(135deg, #009688, #00796b); }
+        .tip-teal { border-right: 4px solid #009688; }
+
+        .no-tips-message {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+
+        .no-tips-message i {
+            font-size: 4rem;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+        }
+
+        .back-to-admin {
+            display: inline-block;
+            margin-top: 30px;
+            padding: 12px 24px;
+            background: white;
+            color: var(--primary-color);
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .back-to-admin:hover {
+            background: var(--bg-secondary);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-container">
+        <!-- Header -->
+        <div class="preview-header">
+            <h1>
+                <i class="fas fa-shield-alt"></i>
+                {% trans "معاينة نصائح الأمان" %}
+            </h1>
+
+            <form method="get" class="filter-section">
+                <label for="category">{% trans "اختر فئة للمعاينة:" %}</label>
+                <select name="category" id="category" onchange="this.form.submit()">
+                    <option value="">{% trans "جميع الفئات" %}</option>
+                    {% for category in categories %}
+                        <option value="{{ category.id }}" {% if selected_category == category.id|stringformat:"s" %}selected{% endif %}>
+                            {{ category.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <button type="submit">
+                    <i class="fas fa-sync-alt me-2"></i>
+                    {% trans "تحديث المعاينة" %}
+                </button>
+            </form>
+
+            <a href="{% url 'admin:main_safetytip_changelist' %}" class="back-to-admin" style="margin-top: 20px;">
+                <i class="fas fa-arrow-right me-2"></i>
+                {% trans "العودة إلى قائمة النصائح" %}
+            </a>
+        </div>
+
+        <!-- Preview Body -->
+        <div class="preview-body">
+            {% if tips %}
+                <div class="safety-tips-card">
+                    <!-- Header -->
+                    <div class="safety-tips-header">
+                        <div class="safety-header-content">
+                            <div class="safety-icon-box">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <h4 class="safety-title">{% trans "نصائح للأمان" %}</h4>
+                        </div>
+                    </div>
+
+                    <!-- Tips Body -->
+                    <div class="safety-tips-body">
+                        <div class="row g-3">
+                            {% for tip in tips %}
+                                <div class="col-md-6">
+                                    <div class="safety-tip-item {{ tip.color_theme }}">
+                                        <div class="tip-icon-wrapper">
+                                            <i class="{{ tip.icon_class }}"></i>
+                                        </div>
+                                        <div class="tip-content">
+                                            <h6>{{ tip.title }}</h6>
+                                            <p>{{ tip.description }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="no-tips-message">
+                    <i class="fas fa-info-circle"></i>
+                    <h3>{% trans "لا توجد نصائح متاحة" %}</h3>
+                    <p>{% trans "لم يتم العثور على نصائح أمان لهذه الفئة. يرجى إضافة نصائح جديدة من لوحة التحكم." %}</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

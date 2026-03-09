@@ -1,0 +1,944 @@
+{% extends "admin_dashboard/base.html" %}
+{% load static i18n %}
+
+{% block title %}{% trans "إدارة نصائح السلامة" %}{% endblock %}
+
+{% block admin_extra_css %}
+<link rel="stylesheet" href="{% static 'admin/css/safety_tips_admin.css' %}">
+<style>
+    :root {
+        --color-info: #3498DB;
+        --color-success: #2ECC71;
+        --color-warning: #F39C12;
+        --color-danger: #E74C3C;
+        --color-primary: #9B59B6;
+        --color-secondary: #95A5A6;
+        --color-tip-blue: #3498DB;
+        --color-tip-green: #2ECC71;
+        --color-tip-orange: #F39C12;
+        --color-tip-red: #E74C3C;
+        --color-tip-purple: #9B59B6;
+        --color-tip-teal: #17A2B8;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stat-card {
+        background: white;
+        padding: 24px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        text-align: center;
+        transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+    }
+
+    [data-theme='dark'] .stat-card {
+        background: rgba(30, 30, 46, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .stat-card h3 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+
+    .stat-card p {
+        color: #6b7280;
+        font-size: 0.875rem;
+        margin: 0;
+    }
+
+    [data-theme='dark'] .stat-card p {
+        color: #9ca3af;
+    }
+
+    .actions-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 25px;
+        flex-wrap: wrap;
+    }
+
+    .filters {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        flex: 1;
+        align-items: center;
+    }
+
+    .filter-group {
+        position: relative;
+        min-width: 180px;
+    }
+
+    .filter-group i {
+        position: absolute;
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af;
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    .filters select,
+    .filters input[type="text"] {
+        padding: 12px 16px 12px 44px;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        font-size: 0.875rem;
+        width: 100%;
+        background: white;
+        transition: all 0.3s ease;
+        appearance: none;
+        cursor: pointer;
+    }
+
+    .filters input[type="text"] {
+        cursor: text;
+    }
+
+    .filters select:hover,
+    .filters input[type="text"]:hover {
+        border-color: #667eea;
+    }
+
+    .filters select:focus,
+    .filters input[type="text"]:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    [data-theme='dark'] .filters select,
+    [data-theme='dark'] .filters input {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
+        color: #e5e7eb;
+    }
+
+    [data-theme='dark'] .filters select:hover,
+    [data-theme='dark'] .filters input:hover {
+        border-color: rgba(102, 126, 234, 0.5);
+    }
+
+    .color-option {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-left: 8px;
+        vertical-align: middle;
+    }
+
+    .btn-clear-filters {
+        background: #f3f4f6;
+        color: #6b7280;
+        padding: 12px 20px;
+        border-radius: 10px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        white-space: nowrap;
+    }
+
+    .btn-clear-filters:hover {
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    [data-theme='dark'] .btn-clear-filters {
+        background: rgba(255, 255, 255, 0.1);
+        color: #9ca3af;
+    }
+
+    [data-theme='dark'] .btn-clear-filters:hover {
+        background: rgba(255, 255, 255, 0.15);
+        color: #e5e7eb;
+    }
+
+    .btn-add {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 10px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-add:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-preview {
+        background: linear-gradient(135deg, #10B981, #059669);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 10px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-preview:hover {
+        transform: translateY(-2px);
+    }
+
+    .tips-table {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+
+    [data-theme='dark'] .tips-table {
+        background: rgba(30, 30, 46, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    thead {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    thead th {
+        padding: 16px 20px;
+        text-align: right;
+        font-weight: 600;
+        color: white;
+        font-size: 0.875rem;
+    }
+
+    tbody tr {
+        border-bottom: 1px solid #f3f4f6;
+        transition: background 0.2s ease;
+    }
+
+    [data-theme='dark'] tbody tr {
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+
+    tbody tr:hover {
+        background: #f9fafb;
+    }
+
+    [data-theme='dark'] tbody tr:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    tbody td {
+        padding: 16px 20px;
+        font-size: 0.875rem;
+    }
+
+    .color-badge {
+        display: inline-block;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .active-badge {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .badge-active {
+        background: #E8F5E9;
+        color: #2E7D32;
+    }
+
+    .badge-inactive {
+        background: #FFEBEE;
+        color: #C62828;
+    }
+
+    [data-theme='dark'] .badge-active {
+        background: rgba(76, 175, 80, 0.2);
+        color: #81C784;
+    }
+
+    [data-theme='dark'] .badge-inactive {
+        background: rgba(244, 67, 54, 0.2);
+        color: #E57373;
+    }
+
+    .action-btn {
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: none;
+        font-size: 0.75rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        color: white;
+        margin-left: 5px;
+    }
+
+    .btn-edit {
+        background: linear-gradient(135deg, #06B6D4, #0891B2);
+    }
+
+    .btn-delete {
+        background: linear-gradient(135deg, #EF4444, #DC2626);
+    }
+
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    /* Modal */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 10600;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+    }
+
+    .modal.active {
+        display: flex;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 16px;
+        padding: 0;
+        max-width: 700px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    [data-theme='dark'] .modal-content {
+        background: #1e1e2e;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .modal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 24px 30px;
+        border-radius: 16px 16px 0 0;
+    }
+
+    .modal-header h2 {
+        color: white;
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    .modal-body {
+        padding: 30px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #374151;
+    }
+
+    [data-theme='dark'] .form-group label {
+        color: #d1d5db;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        transition: border-color 0.3s ease;
+    }
+
+    [data-theme='dark'] .form-group input,
+    [data-theme='dark'] .form-group textarea,
+    [data-theme='dark'] .form-group select {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
+        color: #e5e7eb;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-group textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 24px;
+    }
+
+    .btn-cancel {
+        padding: 12px 24px;
+        background: #e5e7eb;
+        color: #374151;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .btn-save {
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #10B981, #059669);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .color-selector {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+
+    .color-option {
+        padding: 10px;
+        border: 3px solid transparent;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+    }
+
+    .color-option.selected {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    }
+
+    .color-option:hover {
+        transform: scale(1.05);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6b7280;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        opacity: 0.3;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+    <!-- Header -->
+    <div class="admin-dashboard-header">
+        <div class="row align-items-center">
+            <div class="col">
+                <h1 class="display-6 mb-1">
+                    <i class="fas fa-shield-alt me-3"></i>
+                    {% trans "إدارة نصائح السلامة" %}
+                </h1>
+                <p class="text-muted mb-0">{% trans "إدارة وتخصيص نصائح السلامة حسب الفئات" %}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3 style="color: #667eea;">{{ stats.total }}</h3>
+            <p>{% trans "إجمالي النصائح" %}</p>
+        </div>
+        <div class="stat-card">
+            <h3 style="color: #10B981;">{{ stats.active }}</h3>
+            <p>{% trans "نصائح نشطة" %}</p>
+        </div>
+        <div class="stat-card">
+            <h3 style="color: #EF4444;">{{ stats.inactive }}</h3>
+            <p>{% trans "نصائح غير نشطة" %}</p>
+        </div>
+        <div class="stat-card">
+            <h3 style="color: #F59E0B;">{{ stats.general }}</h3>
+            <p>{% trans "نصائح عامة" %}</p>
+        </div>
+    </div>
+
+    <!-- Actions & Filters -->
+    <div class="actions-bar">
+        <div class="filters">
+            <div class="filter-group">
+                <i class="fas fa-toggle-on"></i>
+                <select id="filterActive" onchange="applyFilters()">
+                    <option value="">{% trans "كل الحالات" %}</option>
+                    <option value="true" {% if current_status == 'true' %}selected{% endif %}>✓ {% trans "نشط" %}</option>
+                    <option value="false" {% if current_status == 'false' %}selected{% endif %}>✗ {% trans "غير نشط" %}</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <i class="fas fa-tags"></i>
+                <select id="filterCategory" onchange="applyFilters()">
+                    <option value="">{% trans "كل الفئات" %}</option>
+                    <option value="general" {% if current_category == 'general' %}selected{% endif %}>
+                        🌐 {% trans "نصائح عامة" %}
+                    </option>
+                    {% for cat in all_categories %}
+                        <option value="{{ cat.id }}" {% if current_category == cat.id|stringformat:"s" %}selected{% endif %}>
+                            📁 {% if LANGUAGE_CODE == 'ar' and cat.name_ar %}{{ cat.name_ar }}{% else %}{{ cat.name }}{% endif %}
+                        </option>
+                        {% if cat.subcategories.all %}
+                            {% for subcat in cat.subcategories.all %}
+                                <option value="{{ subcat.id }}" {% if current_category == subcat.id|stringformat:"s" %}selected{% endif %}>
+                                    &nbsp;&nbsp;↳ {% if LANGUAGE_CODE == 'ar' and subcat.name_ar %}{{ subcat.name_ar }}{% else %}{{ subcat.name }}{% endif %}
+                                </option>
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <i class="fas fa-palette"></i>
+                <select id="filterColor" onchange="applyFilters()">
+                    <option value="">{% trans "كل الألوان" %}</option>
+                    <option value="tip-blue" {% if current_color == 'tip-blue' %}selected{% endif %}>
+                        🔵 {% trans "أزرق (معلومات)" %}
+                    </option>
+                    <option value="tip-green" {% if current_color == 'tip-green' %}selected{% endif %}>
+                        🟢 {% trans "أخضر (نجاح)" %}
+                    </option>
+                    <option value="tip-yellow" {% if current_color == 'tip-yellow' %}selected{% endif %}>
+                        🟡 {% trans "أصفر (تنبيه)" %}
+                    </option>
+                    <option value="tip-orange" {% if current_color == 'tip-orange' %}selected{% endif %}>
+                        🟠 {% trans "برتقالي (تحذير)" %}
+                    </option>
+                    <option value="tip-red" {% if current_color == 'tip-red' %}selected{% endif %}>
+                        🔴 {% trans "أحمر (خطر)" %}
+                    </option>
+                    <option value="tip-purple" {% if current_color == 'tip-purple' %}selected{% endif %}>
+                        🟣 {% trans "بنفسجي (مميز)" %}
+                    </option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="{% trans 'بحث في العنوان أو الوصف...' %}" value="{{ search_query }}">
+            </div>
+
+            <button class="btn-clear-filters" onclick="clearFilters()">
+                <i class="fas fa-times-circle me-2"></i>
+                {% trans "مسح الفلاتر" %}
+            </button>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+            <button class="btn-preview" onclick="window.open('/admin/safety-tips/preview/', '_blank')">
+                <i class="fas fa-eye me-2"></i>
+                {% trans "معاينة" %}
+            </button>
+            <button class="btn-add" onclick="openModal()">
+                <i class="fas fa-plus me-2"></i>
+                {% trans "إضافة نصيحة جديدة" %}
+            </button>
+        </div>
+    </div>
+
+    <!-- Tips Table -->
+    <div class="tips-table">
+        {% if tips %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>{% trans "الأيقونة" %}</th>
+                        <th>{% trans "العنوان" %}</th>
+                        <th>{% trans "الفئة" %}</th>
+                        <th>{% trans "اللون" %}</th>
+                        <th>{% trans "الحالة" %}</th>
+                        <th>{% trans "الترتيب" %}</th>
+                        <th>{% trans "الإجراءات" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tip in tips %}
+                        <tr>
+                            <td>
+                                <i class="{{ tip.icon_class }}" style="font-size: 1.5rem; color: var(--color-{{ tip.color_theme }});"></i>
+                            </td>
+                            <td>
+                                <div style="font-weight: 600;">{{ tip.title }}</div>
+                                <div style="color: #6b7280; font-size: 0.75rem;">{{ tip.description|truncatewords:12 }}</div>
+                            </td>
+                            <td>
+                                {% if tip.category %}
+                                    <span style="background: #E0E7FF; color: #4F46E5; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem;">
+                                        {% if LANGUAGE_CODE == 'ar' and tip.category.name_ar %}{{ tip.category.name_ar }}{% else %}{{ tip.category.name }}{% endif %}
+                                    </span>
+                                {% else %}
+                                    <span style="color: #9ca3af;">{% trans "عام" %}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="color-badge" style="background: var(--color-{{ tip.color_theme }});"></span>
+                            </td>
+                            <td>
+                                <span class="active-badge {% if tip.is_active %}badge-active{% else %}badge-inactive{% endif %}">
+                                    {% if tip.is_active %}
+                                        <i class="fas fa-check-circle me-1"></i> {% trans "نشط" %}
+                                    {% else %}
+                                        <i class="fas fa-times-circle me-1"></i> {% trans "غير نشط" %}
+                                    {% endif %}
+                                </span>
+                            </td>
+                            <td>{{ tip.order }}</td>
+                            <td>
+                                <button onclick="editTip({{ tip.id }})" class="action-btn btn-edit">
+                                    <i class="fas fa-edit"></i> {% trans "تعديل" %}
+                                </button>
+                                <button onclick="deleteTip({{ tip.id }})" class="action-btn btn-delete">
+                                    <i class="fas fa-trash"></i> {% trans "حذف" %}
+                                </button>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty-state">
+<i class="fas fa-shield-alt"></i>
+                <h3>{% trans "لا توجد نصائح" %}</h3>
+                <p>{% trans "لم يتم إضافة أي نصائح سلامة بعد" %}</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+        <div class="pagination-container mt-4">
+            <nav>
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">{% trans "السابقة" %}</a>
+                        </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">{% trans "التالية" %}</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    {% endif %}
+
+    <!-- Modal -->
+    <div id="tipModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">{% trans "إضافة نصيحة جديدة" %}</h2>
+            </div>
+            <div class="modal-body">
+                <form id="tipForm">
+                    <input type="hidden" id="tipId" name="tip_id">
+
+                    <div class="form-group">
+                        <label>{% trans "العنوان (عربي)" %}</label>
+                        <input type="text" id="title" name="title" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>{% trans "العنوان (English)" %}</label>
+                        <input type="text" id="title_en" name="title_en">
+                    </div>
+
+                    <div class="form-group">
+                        <label>{% trans "الوصف (عربي)" %}</label>
+                        <textarea id="description" name="description" required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>{% trans "الوصف (English)" %}</label>
+                        <textarea id="description_en" name="description_en"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>{% trans "الأيقونة (Font Awesome Class)" %}</label>
+                        <input type="text" id="icon_class" name="icon_class" placeholder="fas fa-shield-alt" required>
+                        <small style="color: #6b7280;">مثال: fas fa-shield-alt, fas fa-exclamation-triangle</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>{% trans "لون الخلفية" %}</label>
+                        <div class="color-selector">
+                            <div class="color-option" data-color="info" onclick="selectColor('info')">
+                                <div class="color-badge" style="background: var(--color-info); width: 100%; height: 40px; margin-bottom: 5px;"></div>
+                                <small>{% trans "أزرق" %}</small>
+                            </div>
+                            <div class="color-option" data-color="success" onclick="selectColor('success')">
+                                <div class="color-badge" style="background: var(--color-success); width: 100%; height: 40px; margin-bottom: 5px;"></div>
+                                <small>{% trans "أخضر" %}</small>
+                            </div>
+                            <div class="color-option" data-color="warning" onclick="selectColor('warning')">
+                                <div class="color-badge" style="background: var(--color-warning); width: 100%; height: 40px; margin-bottom: 5px;"></div>
+                                <small>{% trans "برتقالي" %}</small>
+                            </div>
+                            <div class="color-option" data-color="danger" onclick="selectColor('danger')">
+                                <div class="color-badge" style="background: var(--color-danger); width: 100%; height: 40px; margin-bottom: 5px;"></div>
+                                <small>{% trans "أحمر" %}</small>
+                            </div>
+                            <div class="color-option" data-color="primary" onclick="selectColor('primary')">
+                                <div class="color-badge" style="background: var(--color-primary); width: 100%; height: 40px; margin-bottom: 5px;"></div>
+                                <small>{% trans "بنفسجي" %}</small>
+                            </div>
+                            <div class="color-option" data-color="secondary" onclick="selectColor('secondary')">
+                                <div class="color-badge" style="background: var(--color-secondary); width: 100%; height: 40px; margin-bottom: 5px;"></div>
+                                <small>{% trans "رمادي" %}</small>
+                            </div>
+                        </div>
+                        <input type="hidden" id="color_theme" name="color_theme" value="info">
+                    </div>
+
+                    <div class="form-group">
+                        <label>{% trans "الفئة" %}</label>
+                        <select id="category" name="category">
+                            <option value="">{% trans "عام (لجميع الفئات)" %}</option>
+                            {% for cat in all_categories %}
+                                <option value="{{ cat.id }}">
+                                    {% if LANGUAGE_CODE == 'ar' and cat.name_ar %}{{ cat.name_ar }}{% else %}{{ cat.name }}{% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>{% trans "الترتيب" %}</label>
+                        <input type="number" id="order" name="order" value="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="is_active" name="is_active" checked>
+                            {% trans "نصيحة نشطة" %}
+                        </label>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn-cancel" onclick="closeModal()">
+                            {% trans "إلغاء" %}
+                        </button>
+                        <button type="submit" class="btn-save">
+                            <i class="fas fa-save me-2"></i>
+                            {% trans "حفظ" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedColor = 'info';
+
+function openModal(tipId = null) {
+    document.getElementById('tipModal').classList.add('active');
+    if (!tipId) {
+        document.getElementById('modalTitle').textContent = '{% trans "إضافة نصيحة جديدة" %}';
+        document.getElementById('tipForm').reset();
+        selectColor('info');
+    }
+}
+
+function closeModal() {
+    document.getElementById('tipModal').classList.remove('active');
+}
+
+function selectColor(color) {
+    selectedColor = color;
+    document.getElementById('color_theme').value = color;
+    document.querySelectorAll('.color-option').forEach(opt => {
+        opt.classList.remove('selected');
+    });
+    document.querySelector(`[data-color="${color}"]`).classList.add('selected');
+}
+
+function editTip(tipId) {
+    fetch(`/admin/safety-tips/${tipId}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('modalTitle').textContent = '{% trans "تعديل نصيحة" %}';
+                document.getElementById('tipId').value = data.id;
+                document.getElementById('title').value = data.title;
+                document.getElementById('title_en').value = data.title_en || '';
+                document.getElementById('description').value = data.description;
+                document.getElementById('description_en').value = data.description_en || '';
+                document.getElementById('icon_class').value = data.icon_class;
+                document.getElementById('category').value = data.category || '';
+                document.getElementById('order').value = data.order;
+                document.getElementById('is_active').checked = data.is_active;
+
+                selectColor(data.color_theme);
+                openModal(tipId);
+            }
+        });
+}
+
+function deleteTip(tipId) {
+    if (!confirm('{% trans "هل أنت متأكد من حذف هذه النصيحة؟" %}')) return;
+
+    const formData = new FormData();
+    formData.append('tip_id', tipId);
+
+    fetch(`/admin/safety-tips/${tipId}/delete/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
+}
+
+document.getElementById('tipForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+
+    fetch('/admin/safety-tips/save/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeModal();
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
+});
+
+function applyFilters() {
+    const active = document.getElementById('filterActive').value;
+    const category = document.getElementById('filterCategory').value;
+    const color = document.getElementById('filterColor').value;
+    const search = document.getElementById('searchInput').value;
+
+    let url = '?';
+    if (active) url += `is_active=${active}&`;
+    if (category) url += `category=${category}&`;
+    if (color) url += `color=${color}&`;
+    if (search) url += `search=${search}&`;
+
+    window.location.href = url;
+}
+
+function clearFilters() {
+    // Reset all filter inputs
+    document.getElementById('filterActive').value = '';
+    document.getElementById('filterCategory').value = '';
+    document.getElementById('filterColor').value = '';
+    document.getElementById('searchInput').value = '';
+
+    // Redirect to base URL without query parameters
+    window.location.href = window.location.pathname;
+}
+
+document. getElementById('searchInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        applyFilters();
+    }
+});
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Close modal on outside click
+document.getElementById('tipModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeModal();
+    }
+});
+</script>
+{% endblock %}
