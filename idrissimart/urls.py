@@ -6,7 +6,7 @@ from django.urls import include, path
 
 urlpatterns = [
     path("i18n/", include("django.conf.urls.i18n")),
-    path("api/", include("main.api.api_url")),
+    path("api/", include("api.urls", namespace="api")),  # Mobile API
     path("rosetta/", include("rosetta.urls")),  # Add Rosetta
     path("ckeditor5/", include("django_ckeditor_5.urls")),  # CKEditor 5 URLs
 ]
