@@ -1058,7 +1058,7 @@ JAZZMIN_SETTINGS = {
     # Title on the login screen and browser tab
     "site_title": "Idrissimart Admin",
     "site_header": "Idrissimart",
-    "site_brand": "Idrissimart",
+    "site_brand": "",
 
     # Logo shown in the top-left navbar (path relative to STATICFILES)
     "site_logo": "images/logos/logo-white-theme.png",
