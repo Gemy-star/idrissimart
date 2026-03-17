@@ -1057,7 +1057,7 @@ REDOC_SETTINGS = {
 JAZZMIN_SETTINGS = {
     # Title on the login screen and browser tab
     "site_title": "Idrissimart Admin",
-    "site_header": "Idrissimart",
+    "site_header": "",
     "site_brand": "",
 
     # Logo shown in the top-left navbar (path relative to STATICFILES)
