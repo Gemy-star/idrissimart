@@ -1060,8 +1060,17 @@ JAZZMIN_SETTINGS = {
     "site_header": "Idrissimart",
     "site_brand": "Idrissimart",
 
-    # Logo (relative to STATIC_ROOT / MEDIA_ROOT). Use None for text brand.
-    "site_logo": None,
+    # Logo shown in the top-left navbar (path relative to STATICFILES)
+    "site_logo": "images/logos/logo-white-theme.png",
+
+    # Logo shown on the login page  (path relative to STATICFILES)
+    "login_logo": "images/logos/logo.png",
+
+    # Dark-mode login logo
+    "login_logo_dark": "images/logos/logo-dark-theme.png",
+
+    # CSS classes applied to the site_logo img tag
+    "site_logo_classes": "img-fluid",
 
     # Welcome text on the login screen
     "welcome_sign": "Welcome to Idrissimart Administration",
@@ -1071,9 +1080,6 @@ JAZZMIN_SETTINGS = {
 
     # Field names on user model to search
     "search_model": ["auth.User"],
-
-    # Whether to show the UI customizer on the sidebar
-    "show_ui_builder": False,
 
     # Top menu links
     "topmenu_links": [
@@ -1103,7 +1109,7 @@ JAZZMIN_SETTINGS = {
     "related_modal_active": True,
 
     # Custom CSS / JS (relative to STATICFILES)
-    "custom_css": None,
+    "custom_css": "admin/css/jazzmin_custom.css",
     "custom_js": None,
 
     # Whether to link font from fonts.googleapis.com
