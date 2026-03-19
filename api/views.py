@@ -5,6 +5,7 @@ from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
+from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Count, Avg
 from django.utils import timezone
@@ -54,6 +55,8 @@ from .serializers import (
     TermsPageSerializer, PrivacyPageSerializer,
     # Custom field serializers
     CustomFieldSerializer,
+    # Home content serializer
+    HomePageSerializer,
 )
 from .permissions import IsOwnerOrReadOnly, IsAdOwnerOrReadOnly, IsPublisherOrClient
 from django.contrib.auth import get_user_model
@@ -715,3 +718,105 @@ class CustomFieldViewSet(viewsets.ReadOnlyModelViewSet):
         fields = [cf.custom_field for cf in category_fields]
         serializer = self.get_serializer(fields, many=True)
         return Response(serializer.data)
+
+
+# ==================== Home Content API View ====================
+
+class HomeAPIView(APIView):
+    """
+    Single endpoint that returns all data needed to render the home page.
+
+    Query Parameters:
+        country (str): Country code (e.g. "EG"). Falls back to "EG" if omitted.
+        latest_ads_limit (int): Max number of latest ads to return (default 20).
+        featured_ads_limit (int): Max number of featured ads to return (default 20).
+        blogs_limit (int): Max number of latest blogs to return (default 10).
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from content.site_config import HomePage
+        from content.models import HomeSlider, WhyChooseUsFeature, Blog
+        from main.utils import get_selected_country_from_request
+
+        # Resolve country: prefer explicit query param, then request middleware/session
+        country_code = request.query_params.get('country') or get_selected_country_from_request(request)
+
+        # Limits
+        try:
+            latest_limit = int(request.query_params.get('latest_ads_limit', 20))
+            featured_limit = int(request.query_params.get('featured_ads_limit', 20))
+            blogs_limit = int(request.query_params.get('blogs_limit', 10))
+        except (ValueError, TypeError):
+            latest_limit = featured_limit = 20
+            blogs_limit = 10
+
+        # HomePage singleton
+        home_page = HomePage.get_solo()
+
+        # Sliders filtered by country (include global sliders with no country)
+        sliders = HomeSlider.objects.filter(is_active=True).filter(
+            Q(country__code=country_code) | Q(country__isnull=True)
+        ).order_by('order')
+
+        # Categories by section (root + level-1, active, for this country)
+        categories_qs = (
+            Category.objects.filter(
+                section_type__isnull=False,
+                country__code=country_code,
+                level__lte=1,
+                is_active=True,
+            )
+            .select_related('parent')
+            .prefetch_related('subcategories')
+            .order_by('section_type', 'level', 'order', 'name')
+        )
+
+        categories_by_section = {}
+        for cat in categories_qs:
+            section = cat.section_type
+            if section not in categories_by_section:
+                categories_by_section[section] = []
+            if cat.level == 0:  # root only in the grouped list
+                categories_by_section[section].append(cat)
+
+        categories_data = [
+            {
+                'section_type': section,
+                'section_name': dict(Category.SectionType.choices).get(section, section),
+                'categories': CategoryDetailSerializer(
+                    cats, many=True, context={'request': request}
+                ).data,
+            }
+            for section, cats in categories_by_section.items()
+        ]
+
+        # Latest ads
+        latest_ads_qs = ClassifiedAd.objects.active_for_country(country_code)[:latest_limit]
+
+        # Featured ads (fall back to latest if empty)
+        featured_ads_qs = ClassifiedAd.objects.featured_for_country(country_code)[:featured_limit]
+        if not featured_ads_qs.exists():
+            featured_ads_qs = ClassifiedAd.objects.active_for_country(country_code)[:featured_limit]
+
+        # Latest blogs
+        latest_blogs_qs = (
+            Blog.objects.filter(is_published=True)
+            .order_by('-published_date')
+            .select_related('author', 'category')
+        )[:blogs_limit]
+
+        return Response({
+            'home_page': HomePageSerializer(home_page, context={'request': request}).data,
+            'sliders': HomeSliderSerializer(sliders, many=True, context={'request': request}).data,
+            'categories_by_section': categories_data,
+            'latest_ads': ClassifiedAdListSerializer(
+                latest_ads_qs, many=True, context={'request': request}
+            ).data,
+            'featured_ads': ClassifiedAdListSerializer(
+                featured_ads_qs, many=True, context={'request': request}
+            ).data,
+            'latest_blogs': BlogListSerializer(
+                latest_blogs_qs, many=True, context={'request': request}
+            ).data,
+        })

@@ -42,6 +42,8 @@ from .views import (
     AboutPageViewSet, ContactPageViewSet, TermsPageViewSet, PrivacyPageViewSet,
     # Custom Fields ViewSets
     CustomFieldViewSet,
+    # Home Content
+    HomeAPIView,
 )
 
 app_name = 'api'
@@ -161,6 +163,8 @@ urlpatterns = [
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
 
+    # Home content endpoint
+    path('home/', HomeAPIView.as_view(), name='home'),
 
     # API endpoints
     path('', include(router.urls)),

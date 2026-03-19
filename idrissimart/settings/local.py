@@ -87,25 +87,53 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:8000",
 ]
 
-# Database for local development
+# =======================
+# CORS Settings (for frontend development)
+# =======================
+# Override common.py CORS settings for local development
+# Allows various frontend dev servers to access the API
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # React dev server
+    "http://127.0.0.1:3000",
+    "http://localhost:8080",  # Vue.js dev server
+    "http://127.0.0.1:8080",
+    "http://localhost:8082",  # React Native dev server
+    "http://127.0.0.1:8082",
+    "http://localhost:8081",  # React Native dev server
+    "http://127.0.0.1:8081",
+]
+
+# =======================
+# Database for Local Development
+# =======================
+# Using SQLite for easy local development (no server setup required)
+# The database file will be created in the project root directory
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": os.getenv("DB_NAME", "idrissimartdb"),
-        "USER": os.getenv("DB_USER", "idrissimart"),
-        "PASSWORD": os.getenv("DB_PASSWORD", "Gemy@2803150"),
-        "HOST": os.getenv("DB_HOST", "127.0.0.1"),
-        "PORT": os.getenv("DB_PORT", "3306"),
-        "OPTIONS": {
-            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
-            "charset": "utf8mb4",
-            "use_unicode": True,
-        },
-        "CONN_MAX_AGE": 60,
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR.parent / "db.sqlite3",
         "ATOMIC_REQUESTS": True,  # Better transaction handling
-        "AUTOCOMMIT": True,
     }
 }
+
+# To switch back to MySQL for testing production-like setup, uncomment:
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.mysql",
+#         "NAME": os.getenv("DB_NAME", "idrissimartdb"),
+#         "USER": os.getenv("DB_USER", "idrissimart"),
+#         "PASSWORD": os.getenv("DB_PASSWORD", "Gemy@2803150"),
+#         "HOST": os.getenv("DB_HOST", "127.0.0.1"),
+#         "PORT": os.getenv("DB_PORT", "3306"),
+#         "OPTIONS": {
+#             "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+#             "charset": "utf8mb4",
+#             "use_unicode": True,
+#         },
+#         "CONN_MAX_AGE": 60,
+#         "ATOMIC_REQUESTS": True,
+#     }
+# }
 
 # =======================
 # Email Configuration - SMTP4Dev (Local Development)

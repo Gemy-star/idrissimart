@@ -661,3 +661,36 @@ class PrivacyPageSerializer(serializers.ModelSerializer):
     class Meta:
         model = PrivacyPage
         fields = ['id', 'content', 'content_ar']
+
+
+# ==================== Home Page Content Serializer ====================
+
+class HomePageSerializer(serializers.ModelSerializer):
+    """Serializer for the HomePage singleton (hero + statistics + section flags)"""
+    why_choose_us_features = WhyChooseUsFeatureSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = HomePage
+        fields = [
+            # Hero
+            'hero_title', 'hero_title_ar',
+            'hero_subtitle', 'hero_subtitle_ar',
+            'hero_image',
+            'hero_button_text', 'hero_button_text_ar', 'hero_button_url',
+            # Why choose us
+            'show_why_choose_us',
+            'why_choose_us_title', 'why_choose_us_title_ar',
+            'why_choose_us_subtitle', 'why_choose_us_subtitle_ar',
+            'why_choose_us_features',
+            # Section visibility
+            'show_featured_categories', 'show_featured_ads', 'show_statistics',
+            # Statistics
+            'stat1_value', 'stat1_title', 'stat1_title_ar',
+            'stat1_subtitle', 'stat1_subtitle_ar', 'stat1_icon',
+            'stat2_value', 'stat2_title', 'stat2_title_ar',
+            'stat2_subtitle', 'stat2_subtitle_ar', 'stat2_icon',
+            'stat3_value', 'stat3_title', 'stat3_title_ar',
+            'stat3_subtitle', 'stat3_subtitle_ar', 'stat3_icon',
+            'stat4_value', 'stat4_title', 'stat4_title_ar',
+            'stat4_subtitle', 'stat4_subtitle_ar', 'stat4_icon',
+        ]
