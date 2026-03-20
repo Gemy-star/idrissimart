@@ -10,6 +10,9 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Count, Avg
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 
 from main.models import (
     Category, ClassifiedAd, AdImage, AdReview, AdFeature, AdPackage,
@@ -26,6 +29,7 @@ from content.models import (
 from .serializers import (
     # User serializers
     UserListSerializer, UserDetailSerializer, UserRegistrationSerializer, UserUpdateSerializer,
+    ForgotPasswordSerializer, ResetPasswordSerializer,
     # Country serializers
     CountrySerializer,
     # Category serializers
@@ -820,3 +824,91 @@ class HomeAPIView(APIView):
                 latest_blogs_qs, many=True, context={'request': request}
             ).data,
         })
+
+
+# ==================== Password Reset API Views ====================
+
+class ForgotPasswordView(APIView):
+    """
+    POST /api/auth/forgot-password/
+
+    Accepts { "email": "user@example.com" } and sends a password-reset
+    email containing a uid + token pair when the address is registered.
+    Always returns 200 so as not to leak whether an account exists.
+    """
+    permission_classes = [AllowAny]
+    serializer_class = ForgotPasswordSerializer  # for Swagger
+
+    def post(self, request):
+        serializer = ForgotPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        email = serializer.validated_data['email']
+        try:
+            user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
+            # Return success anyway to avoid email enumeration
+            return Response({'detail': 'If that email is registered, a reset link has been sent.'})
+
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+
+        from main.services.email_service import EmailService
+        from constance import config
+
+        reset_url = f"{request.scheme}://{request.get_host()}/api/auth/reset-password/?uid={uid}&token={token}"
+
+        html_content = f"""
+        <p>Hello {user.get_full_name() or user.username},</p>
+        <p>You requested a password reset for your {config.SITE_NAME} account.</p>
+        <p>Use the following credentials to reset your password via the API:</p>
+        <ul>
+            <li><strong>uid:</strong> {uid}</li>
+            <li><strong>token:</strong> {token}</li>
+        </ul>
+        <p>Or follow this link: <a href="{reset_url}">{reset_url}</a></p>
+        <p>This link expires in 24 hours. If you did not request a reset, ignore this email.</p>
+        """
+
+        EmailService.send_email(
+            to_emails=[user.email],
+            subject=f"{config.SITE_NAME} - Password Reset",
+            html_content=html_content,
+        )
+
+        return Response({'detail': 'If that email is registered, a reset link has been sent.'})
+
+
+class ResetPasswordView(APIView):
+    """
+    POST /api/auth/reset-password/
+
+    Accepts { "uid": "…", "token": "…", "new_password": "…", "new_password_confirm": "…" }
+    and sets the new password when the uid/token pair is valid.
+    """
+    permission_classes = [AllowAny]
+    serializer_class = ResetPasswordSerializer  # for Swagger
+
+    def post(self, request):
+        serializer = ResetPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            uid = force_str(urlsafe_base64_decode(serializer.validated_data['uid']))
+            user = User.objects.get(pk=uid)
+        except (User.DoesNotExist, ValueError, TypeError):
+            return Response(
+                {'detail': 'Invalid reset link.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not default_token_generator.check_token(user, serializer.validated_data['token']):
+            return Response(
+                {'detail': 'Invalid or expired reset token.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(serializer.validated_data['new_password'])
+        user.save()
+
+        return Response({'detail': 'Password has been reset successfully.'})

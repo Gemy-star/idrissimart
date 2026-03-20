@@ -1118,6 +1118,9 @@ JAZZMIN_SETTINGS = {
     # Whether to show the UI customizer on the sidebar
     "show_ui_builder": False,
 
+    # Show theme/dark-mode chooser button in the navbar
+    "show_theme_chooser": True,
+
     # Change view layout
     "changeform_format": "horizontal_tabs",
 }

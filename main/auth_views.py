@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib import messages
 from django.contrib.auth import login, logout, authenticate, get_user_model
 from django.contrib.auth.decorators import login_required
@@ -5,22 +7,21 @@ from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.views import LoginView
 from django.contrib.sites.shortcuts import get_current_site
-from django.core.mail import EmailMultiAlternatives, send_mail, BadHeaderError
 from django.core.validators import validate_email
 from django.http import HttpResponse, JsonResponse, HttpResponseRedirect
 from django.shortcuts import redirect, render
-from django.template.loader import render_to_string
 from django.urls import reverse_lazy, reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.utils.translation import gettext_lazy as _
-from django.utils.html import strip_tags
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.views.generic.edit import CreateView
 from django.utils import timezone
 from datetime import timedelta
 import json
+
+logger = logging.getLogger(__name__)
 
 from .forms import RegistrationForm
 from .models import User
@@ -790,7 +791,7 @@ def verify_phone_code(request):
 
 
 def password_reset_request(request):
-    """Fixed password reset view - نسيت كلمه المرور لا تعمل"""
+    """Password reset view that sends reset link via SendGrid (constance config)."""
     if request.method == "POST":
         password_reset_form = PasswordResetForm(request.POST)
         if password_reset_form.is_valid():
@@ -800,8 +801,9 @@ def password_reset_request(request):
             )
 
             if associated_users.exists():
+                from .email_service import send_password_reset_email
+
                 for user in associated_users:
-                    # Check if user is suspended - don't allow password reset for suspended accounts
                     if user.is_suspended:
                         messages.error(
                             request,
@@ -809,70 +811,22 @@ def password_reset_request(request):
                         )
                         continue
 
-                    current_site = get_current_site(request)
-                    subject = _("طلب إعادة تعيين كلمة المرور - Password Reset")
-                    email_template_name = "password/password_reset_email.txt"
-                    context = {
-                        "email": user.email,
-                        "domain": current_site.domain,
-                        "site_name": current_site.name,
-                        "uid": urlsafe_base64_encode(force_bytes(user.pk)),
-                        "user": user,
-                        "token": default_token_generator.make_token(user),
-                        "protocol": "https" if request.is_secure() else "http",
-                    }
-                    email_body = render_to_string(email_template_name, context)
+                    uid = urlsafe_base64_encode(force_bytes(user.pk))
+                    token = default_token_generator.make_token(user)
 
-                    # Import Django settings to check if we're in DEBUG mode
-                    from django.conf import settings
+                    sent = send_password_reset_email(request, user, uid, token)
 
-                    try:
-                        send_mail(
-                            subject,
-                            email_body,
-                            settings.DEFAULT_FROM_EMAIL,
-                            [user.email],
-                            fail_silently=False,
-                        )
-
-                        # If in DEBUG mode, also log the reset link to console for testing
-                        if settings.DEBUG:
-                            reset_link = f"{context['protocol']}://{context['domain']}/reset/{context['uid']}/{context['token']}/"
-                            print(f"\n{'='*60}")
-                            print(f"PASSWORD RESET LINK FOR: {user.email}")
-                            print(f"Link: {reset_link}")
-                            print(f"{'='*60}\n")
-
+                    if sent:
                         messages.success(
                             request,
-                            _(
-                                "تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني"
-                            ),
+                            _("تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني"),
                         )
-                    except BadHeaderError:
-                        messages.error(request, _("حدث خطأ. الرجاء المحاولة لاحقاً"))
-                        return HttpResponse("Invalid header found.")
-                    except Exception as e:
-                        # Log the error for debugging
-                        import logging
-
-                        logger = logging.getLogger(__name__)
-                        logger.error(f"Failed to send password reset email: {str(e)}")
-
-                        # In DEBUG mode, show the error and still allow the process to continue
+                    else:
+                        from django.conf import settings
                         if settings.DEBUG:
-                            reset_link = f"{context['protocol']}://{context['domain']}/reset/{context['uid']}/{context['token']}/"
-                            print(f"\n{'='*60}")
-                            print(f"EMAIL SEND FAILED - DEBUG MODE")
-                            print(f"Error: {str(e)}")
-                            print(f"PASSWORD RESET LINK FOR: {user.email}")
-                            print(f"Link: {reset_link}")
-                            print(f"{'='*60}\n")
                             messages.warning(
                                 request,
-                                _(
-                                    "لم يتم إرسال البريد (وضع التطوير)، تحقق من console للحصول على الرابط"
-                                ),
+                                _("لم يتم إرسال البريد (وضع التطوير)، تحقق من console للحصول على الرابط"),
                             )
                         else:
                             messages.error(
@@ -899,13 +853,11 @@ def password_reset_request(request):
 
 
 def send_email_verification(request, user):
-    """Send email verification link to user"""
+    """Send email verification link to user via SendGrid."""
     import uuid
     from datetime import timedelta
-    from django.core.mail import send_mail
-    from django.template.loader import render_to_string
     from django.contrib.sites.shortcuts import get_current_site
-    from django.conf import settings
+    from .email_service import send_verification_email
 
     # Generate verification token
     token = str(uuid.uuid4())
@@ -919,34 +871,12 @@ def send_email_verification(request, user):
         f"{request.scheme}://{current_site.domain}/verify-email/{user.id}/{token}/"
     )
 
-    # Send email
-    subject = _("تأكيد البريد الإلكتروني - Verify Your Email")
-    message = render_to_string(
-        "emails/email_verification.html",
-        {
-            "user": user,
-            "verification_link": verification_link,
-            "site_name": "إدريسي مارت",
-        },
-    )
-
-    try:
-        send_mail(
-            subject,
-            "",
-            settings.DEFAULT_FROM_EMAIL,
-            [user.email],
-            html_message=message,
-            fail_silently=False,
-        )
-        return True
-    except Exception as e:
-        print(f"Error sending verification email: {e}")
-        # Log the verification link for development
+    sent = send_verification_email(request, user, verification_link)
+    if not sent:
+        logger.error("Failed to send verification email to %s", user.email)
         print(f"Verification link for {user.email}: {verification_link}")
-        # Still return True in development so the user gets a success message
-        # In production, you should fix the email backend
-        return True
+
+    return True
 
 
 def verify_email(request, user_id, token):

@@ -46,6 +46,32 @@
 }
 
 /* ──────────────────────────────────────────────────────────
+   0c. DARK MODE VARIABLE OVERRIDES
+   When the user (or jazzmin theme chooser) sets data-bs-theme="dark",
+   these override the brand variables so our custom CSS adapts.
+   ────────────────────────────────────────────────────────── */
+[data-bs-theme="dark"] {
+    /* Brand stays purple/orange — just lighten for dark surfaces */
+    --im-primary:        #7c5c8f;
+    --im-primary-dark:   #5e4070;
+    --im-primary-light:  #9d7fad;
+    /* Neutrals */
+    --im-bg:             #1a1620;
+    --im-bg-alt:         #221d29;
+    --im-white:          #f0ecf4;
+    --im-border:         #3b3045;
+    --im-text:           #e8e0ef;
+    --im-text-secondary: #ccc2d8;
+    --im-text-muted:     #998eaa;
+    /* BS5 surface overrides so body/cards follow dark theme */
+    --bs-body-bg:        #1a1620;
+    --bs-body-color:     #e8e0ef;
+    --bs-border-color:   #3b3045;
+    --bs-secondary-bg:   #221d29;
+    --bs-tertiary-bg:    #2c2535;
+}
+
+/* ──────────────────────────────────────────────────────────
    1. LOGIN PAGE
    Structure: body.login-page > .login-box > .card > .card-body.login-card-body
    ────────────────────────────────────────────────────────── */
@@ -359,16 +385,51 @@ html[dir="rtl"] .app-sidebar .sidebar-link {
     padding-left: 0.5rem;
 }
 
+/* Text <p> inside nav-link */
+html[dir="rtl"] .app-sidebar .nav-link p,
+html[dir="rtl"] .app-sidebar .nav-link > p {
+    text-align: right;
+    direction: rtl;
+    flex: 1;
+    margin-right: 0;
+    margin-left: 0;
+}
+
+/* Arrow inside <p> stays end of text → push it to the left in RTL */
+html[dir="rtl"] .app-sidebar .nav-link p .nav-arrow {
+    float: left;
+    margin-left: 0;
+    margin-right: auto;
+}
+
 html[dir="rtl"] .app-sidebar .nav-icon,
 html[dir="rtl"] .app-sidebar .nav-link .nav-icon {
     margin-right: 0 !important;
     margin-left: 0.5rem !important;
 }
 
+/* ── User panel: align username to the right ── */
+html[dir="rtl"] .app-sidebar .user-panel {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .app-sidebar .user-panel .info {
+    text-align: right;
+    padding-right: 0.5rem;
+    padding-left: 0;
+}
+
+html[dir="rtl"] .app-sidebar .user-panel .info a,
+html[dir="rtl"] .app-sidebar .user-panel .info span {
+    text-align: right;
+    direction: rtl;
+}
+
 /* ── Nav section headers ── */
 html[dir="rtl"] .app-sidebar .nav-header,
 html[dir="rtl"] .app-sidebar .sidebar-header {
     text-align: right;
+    direction: rtl;
     padding-right: 1rem;
     padding-left: 0.5rem;
 }
@@ -415,8 +476,10 @@ html[dir="rtl"] .app-sidebar .os-viewport {
 }
 
 /* ── Breadcrumb arrow direction ── */
+/* Bootstrap 5 uses content:var(--bs-breadcrumb-divider) — override both */
 html[dir="rtl"] .breadcrumb-item + .breadcrumb-item::before {
-    content: "\2039"; /* ‹ */
+    content: "\2039" !important; /* ‹ */
+    float: left !important; /* sits to the left of current item (between it and the parent on its right) */
 }
 
 /* ── Changelist filter panel: pin to left in RTL ── */
@@ -592,9 +655,55 @@ html[dir="rtl"] #content-main h1 {
 }
 
 /* ── Breadcrumb ── */
+/* Force container to float right (Bootstrap RTL flips float-sm-end → float:left) */
+html[dir="rtl"] .app-content-header .float-sm-end {
+    float: right !important;
+}
 html[dir="rtl"] .breadcrumb {
     direction: rtl;
-    justify-content: flex-end;
+    justify-content: flex-start; /* flex-start = physical RIGHT in RTL, aligns items to the right */
+    --bs-breadcrumb-divider: "\2039"; /* set the Bootstrap variable too */
+}
+
+/* ── Navbar: RTL dropdown fix ──
+   The ms-auto nav (theme + user) is pushed to the LEFT side in RTL.
+   Bootstrap 5 RTL already maps dropdown-menu-end → left:0 (opens
+   rightward), but adminlte.rtl.min.css may override it back.
+   Explicitly force correct opening direction per side.             ── */
+
+/* Left-side dropdowns (theme, user) → open rightward */
+html[dir="rtl"] #jazzy-navbar .navbar-nav.ms-auto .dropdown-menu {
+    inset-inline-end: auto !important;
+    inset-inline-start: 0 !important;
+    right: auto !important;
+    left: 0 !important;
+}
+
+/* Right-side dropdowns (top-menu children, if any) → open leftward */
+html[dir="rtl"] #jazzy-navbar .navbar-nav:not(.ms-auto) .dropdown-menu {
+    inset-inline-start: auto !important;
+    inset-inline-end: 0 !important;
+    left: auto !important;
+    right: 0 !important;
+}
+
+/* ── Navbar: search form ──
+   In Bootstrap 5 RTL the adminlte css maps ms-* → margin-right-*.
+   The search <form class="d-flex ms-2"> already gets margin-right: 0.5rem
+   which spaces it from the left nav correctly in RTL — no change needed.
+   Just make the input and button border-radius swap for RTL.        ── */
+html[dir="rtl"] #jazzy-navbar .input-group .form-control {
+    border-radius: 0 var(--im-radius-sm) var(--im-radius-sm) 0;
+    text-align: right;
+}
+
+html[dir="rtl"] #jazzy-navbar .input-group .btn-navbar {
+    border-radius: var(--im-radius-sm) 0 0 var(--im-radius-sm);
+}
+
+/* ── Navbar: theme chooser dropdown sizing ── */
+#jazzy-theme-chooser {
+    min-width: 210px;
 }
 
 /* ── Filter headings ── */
@@ -1133,5 +1242,223 @@ fieldset.module h2 {
 /* Hide "Django administration" brand text in sidebar */
 .brand-link .brand-text.fw-light {
     display: none !important;
+}
+
+/* ──────────────────────────────────────────────────────────
+   22. DARK MODE – adaptive overrides
+   These rules run when jazzmin's color-scheme toggle sets
+   data-bs-theme="dark" on <html>. They override the light-mode
+   backgrounds / borders set above so the admin stays usable.
+   ────────────────────────────────────────────────────────── */
+[data-bs-theme="dark"] .app-header.navbar,
+[data-bs-theme="dark"] .main-header {
+    background-color: var(--im-primary-dark) !important;
+}
+
+[data-bs-theme="dark"] .app-sidebar,
+[data-bs-theme="dark"] .main-sidebar {
+    background-color: #221d29 !important;
+}
+
+[data-bs-theme="dark"] .app-sidebar .brand-link,
+[data-bs-theme="dark"] .app-sidebar .sidebar-brand {
+    background-color: #1a1620 !important;
+}
+
+[data-bs-theme="dark"] .card {
+    background-color: #221d29;
+    border-color: var(--im-border);
+}
+
+[data-bs-theme="dark"] .card-header {
+    background-color: var(--im-primary-dark);
+}
+
+[data-bs-theme="dark"] .card-footer {
+    background-color: #2c2535;
+    border-color: var(--im-border);
+}
+
+[data-bs-theme="dark"] .form-control,
+[data-bs-theme="dark"] .form-select {
+    background-color: #2c2535;
+    border-color: var(--im-border);
+    color: var(--im-text);
+}
+
+[data-bs-theme="dark"] .form-control:focus,
+[data-bs-theme="dark"] .form-select:focus {
+    background-color: #342c3d;
+    color: var(--im-text);
+}
+
+[data-bs-theme="dark"] .form-label,
+[data-bs-theme="dark"] label {
+    color: var(--im-text-secondary);
+}
+
+[data-bs-theme="dark"] #result_list tbody tr,
+[data-bs-theme="dark"] .app-content table tbody tr {
+    background-color: #221d29;
+    color: var(--im-text);
+    border-color: var(--im-border);
+}
+
+[data-bs-theme="dark"] #result_list tbody tr:hover,
+[data-bs-theme="dark"] .app-content table tbody tr:hover {
+    background-color: rgba(124, 92, 143, .15);
+}
+
+[data-bs-theme="dark"] .app-content,
+[data-bs-theme="dark"] .app-main {
+    background-color: var(--im-bg);
+    color: var(--im-text);
+}
+
+[data-bs-theme="dark"] .dropdown-menu {
+    background-color: #2c2535;
+    border-color: var(--im-border);
+    color: var(--im-text);
+}
+
+[data-bs-theme="dark"] .dropdown-item {
+    color: var(--im-text);
+}
+
+[data-bs-theme="dark"] .dropdown-item:hover,
+[data-bs-theme="dark"] .dropdown-item:focus {
+    background-color: rgba(124, 92, 143, .20);
+    color: var(--im-white);
+}
+
+[data-bs-theme="dark"] .dropdown-divider {
+    border-color: var(--im-border);
+}
+
+[data-bs-theme="dark"] .breadcrumb-item a {
+    color: var(--im-primary-light);
+}
+
+[data-bs-theme="dark"] #content h1 {
+    color: var(--im-primary-light);
+    border-color: var(--im-border);
+}
+
+[data-bs-theme="dark"] a {
+    color: var(--im-primary-light);
+}
+
+[data-bs-theme="dark"] .pagination .page-link {
+    background-color: #2c2535;
+    border-color: var(--im-border);
+    color: var(--im-primary-light);
+}
+
+[data-bs-theme="dark"] #jazzy-theme-chooser,
+[data-bs-theme="dark"] #jazzy-usermenu {
+    background-color: #2c2535;
+    border-color: var(--im-border);
+}
+
+/* ──────────────────────────────────────────────────────────
+   23. NAVBAR – DROPDOWN CONTENT STYLING (light + dark)
+   ────────────────────────────────────────────────────────── */
+
+/* Dropdown shell: consistent shadow/radius regardless of theme */
+#jazzy-navbar .dropdown-menu {
+    border-radius: var(--im-radius-md);
+    box-shadow: var(--im-shadow-md);
+}
+
+/* Dropdown section headers */
+#jazzy-theme-chooser .dropdown-header,
+#jazzy-usermenu .dropdown-header {
+    color: var(--im-text-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+/* Theme chooser selects – light mode */
+#jazzy-theme-chooser .form-select {
+    color: var(--bs-body-color);
+    background-color: var(--bs-body-bg);
+    border-color: var(--bs-border-color);
+    border-radius: var(--im-radius-sm);
+}
+
+/* Theme chooser selects – dark mode */
+[data-bs-theme="dark"] #jazzy-theme-chooser .form-select {
+    background-color: #342c3d;
+    border-color: var(--im-border);
+    color: var(--im-text);
+}
+
+/* Navbar search button */
+#jazzy-navbar .btn-navbar {
+    color: rgba(255, 255, 255, .80);
+    background-color: transparent;
+    border-color: transparent;
+    transition: var(--im-transition);
+}
+
+#jazzy-navbar .btn-navbar:hover,
+#jazzy-navbar .btn-navbar:focus {
+    color: var(--im-white);
+    background-color: rgba(255, 255, 255, .12);
+}
+
+/* User menu footer link */
+#jazzy-usermenu .dropdown-footer {
+    display: block;
+    text-align: center;
+    font-size: 0.85rem;
+    padding: 0.5rem 1rem;
+}
+
+/* ──────────────────────────────────────────────────────────
+   24. NAVBAR – RTL LAYOUT & CONTENT
+   ────────────────────────────────────────────────────────── */
+
+/* Reverse the inline axis so items flow right→left:
+   - left-nav (hamburger, links) lands at the physical RIGHT  ✓
+   - search form stays in the middle                          ✓
+   - right-nav (ms-auto, theme, user) lands at physical LEFT  ✓ */
+html[dir="rtl"] #jazzy-navbar .container-fluid {
+    direction: rtl;
+}
+
+/* Keep icon rows inside each nav horizontal */
+html[dir="rtl"] #jazzy-navbar .navbar-nav {
+    flex-direction: row;
+}
+
+/* Search form: swap spacing so it sits next to the left-nav on the right */
+html[dir="rtl"] #jazzy-navbar form.d-flex {
+    margin-inline-start: 0 !important;
+    margin-inline-end: 0.5rem;
+}
+
+/* User menu dropdown items: right-align text, icons on left */
+html[dir="rtl"] #jazzy-usermenu .dropdown-item {
+    direction: rtl;
+    text-align: right;
+}
+
+html[dir="rtl"] #jazzy-usermenu .dropdown-item i {
+    margin-right: 0 !important;
+    margin-left: 0.5rem !important;
+}
+
+/* User menu footer: keep centered */
+html[dir="rtl"] #jazzy-usermenu .dropdown-footer {
+    text-align: center;
+}
+
+/* Theme chooser: keep text left-to-right inside the panel */
+html[dir="rtl"] #jazzy-theme-chooser {
+    direction: ltr;
+    text-align: left;
 }
 

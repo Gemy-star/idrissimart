@@ -12,6 +12,8 @@ from drf_yasg import openapi
 from .views import (
     # User ViewSets
     UserViewSet,
+    # Password reset views
+    ForgotPasswordView, ResetPasswordView,
     # Country ViewSets
     CountryViewSet,
     # Category ViewSets
@@ -165,6 +167,14 @@ urlpatterns = [
 
     # Home content endpoint
     path('home/', HomeAPIView.as_view(), name='home'),
+
+    # JWT token endpoints
+    path('auth/token/', TokenObtainPairView.as_view(), name='token-obtain-pair'),
+    path('auth/token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
+
+    # Password reset endpoints
+    path('auth/forgot-password/', ForgotPasswordView.as_view(), name='forgot-password'),
+    path('auth/reset-password/', ResetPasswordView.as_view(), name='reset-password'),
 
     # API endpoints
     path('', include(router.urls)),

@@ -1936,6 +1936,12 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
             return (self.price * self.reservation_percentage) / 100
         return self.reservation_amount
 
+    def increment_views(self):
+        """Atomically increment the views counter"""
+        from django.db.models import F
+        ClassifiedAd.objects.filter(pk=self.pk).update(views_count=F("views_count") + 1)
+        self.refresh_from_db(fields=["views_count"])
+
     def can_user_view(self, user):
         """Check if user can view this ad based on visibility settings"""
         if self.is_hidden:
@@ -3364,6 +3370,10 @@ class CustomField(models.Model):
     @property
     def label(self):
         """Return the appropriate label based on current language."""
+        from django.utils.translation import get_language
+
+        if get_language() == "en" and self.label_en:
+            return self.label_en
         return self.label_ar or self.name
 
 

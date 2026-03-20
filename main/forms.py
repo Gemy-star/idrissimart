@@ -283,7 +283,7 @@ class ClassifiedAdForm(forms.ModelForm):
             # Sanitize name: replace spaces and non-word chars with underscores
             safe_name = _re.sub(r'[^\w]', '_', field.name)
             field_name = f"custom_{safe_name}"
-            field_label = field.label_ar or field.name
+            field_label = field.label
             field_type = field.field_type
             is_required = cf.is_required  # Use the category-specific requirement
 
@@ -1274,7 +1274,7 @@ class AdminClassifiedAdForm(forms.ModelForm):
             import re as _re
             safe_name = _re.sub(r'[^\w]', '_', field.name)
             field_name = f"custom_{safe_name}"
-            field_label = field.label_ar or field.name
+            field_label = field.label
             field_type = field.field_type
             is_required = cf.is_required
 

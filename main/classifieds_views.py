@@ -2435,7 +2435,7 @@ def get_category_custom_fields(request, category_id):
             field = cf.custom_field
             safe_name = _re.sub(r'[^\w]', '_', field.name)
             field_name = f"custom_{safe_name}"
-            field_label = field.label_ar or field.name
+            field_label = field.label
             field_type = field.field_type
             is_required = cf.is_required
 
