@@ -992,6 +992,7 @@
 
     <section class="ad-form-section py-5">
         <div class="container">
+
             <!-- Steps Progress -->
             <div class="steps-container">
                 <div class="steps-progress" data-progress="1">
@@ -1277,40 +1278,42 @@
 
                                         <!-- Mobile Verification UI -->
                                         <div id="mobile-verification-section" class="mt-3" style="display: none;">
-                                            <div class="alert alert-warning" role="alert">
-                                                <i class="fas fa-exclamation-triangle me-2"></i>
-                                                {% trans "يجب التحقق من رقم الجوال قبل نشر الإعلان" %}
-                                            </div>
-
-                                            <div class="row">
-                                                <div class="col-md-8">
-                                                    <button type="button" id="send-otp-btn" class="btn btn-outline-primary">
-                                                        <i class="fas fa-sms me-2"></i>
-                                                        {% trans "إرسال رمز التحقق" %}
+                                            <div class="row g-2 align-items-end">
+                                                <div class="col-md-5">
+                                                    <label class="form-label fw-semibold">{% trans "رقم الهاتف" %}</label>
+                                                    <input type="tel" id="banner-phone-input" class="form-control"
+                                                           placeholder="{% trans 'أدخل رقم هاتفك' %}"
+                                                           value="{{ request.user.mobile|default:request.user.phone|default:'' }}">
+                                                </div>
+                                                <div class="col-auto">
+                                                    <button type="button" id="send-otp-btn" class="btn btn-primary">
+                                                        <i class="fas fa-sms me-1"></i> {% trans "إرسال رمز التحقق" %}
                                                     </button>
                                                 </div>
                                             </div>
 
-                                            <div id="otp-input-section" class="mt-3" style="display: none;">
-                                                <div class="row">
-                                                    <div class="col-md-6">
-                                                        <label for="verification_code" class="form-label">{% trans "رمز التحقق" %}</label>
+                                            <div id="otp-input-section" class="mt-3" style="display:none;">
+                                                <div class="row g-2 align-items-end">
+                                                    <div class="col-md-4">
+                                                        <label class="form-label fw-semibold">{% trans "رمز التحقق" %}</label>
                                                         <input type="text" id="verification_code" class="form-control"
-                                                               placeholder="{% trans 'أدخل الرمز المرسل' %}" maxlength="6">
+                                                               placeholder="{% trans '6 أرقام' %}" maxlength="6" inputmode="numeric">
                                                     </div>
-                                                    <div class="col-md-6 d-flex align-items-end">
+                                                    <div class="col-auto">
                                                         <button type="button" id="verify-otp-btn" class="btn btn-success">
-                                                            <i class="fas fa-check me-2"></i>
-                                                            {% trans "تحقق" %}
+                                                            <i class="fas fa-check me-1"></i> {% trans "تحقق" %}
+                                                        </button>
+                                                        <button type="button" id="resend-otp-btn" class="btn btn-link btn-sm ms-2" style="display:none;">
+                                                            {% trans "إعادة إرسال" %}
                                                         </button>
                                                     </div>
                                                 </div>
                                                 <div class="form-text">{% trans "سيتم إرسال رمز التحقق خلال دقائق قليلة" %}</div>
                                             </div>
 
-                                            <div id="verification-success" class="alert alert-success mt-3" style="display: none;">
+                                            <div id="verification-success" class="alert alert-success mt-3 py-2" style="display: none;">
                                                 <i class="fas fa-check-circle me-2"></i>
-                                                {% trans "تم التحقق من رقم الجوال بنجاح" %}
+                                                {% trans "تم التحقق من رقم هاتفك بنجاح! يمكنك الآن نشر الإعلان." %}
                                             </div>
                                         </div>
                                     </div>
@@ -2507,15 +2510,18 @@
 
                 if (mobileNumber === userMobile && isMobileVerified) {
                     verificationSection.style.display = 'block';
-                    verificationSection.querySelector('.alert-warning').style.display = 'none';
                     verificationSuccess.style.display = 'block';
                     otpInputSection.style.display = 'none';
                     isVerified = true;
                 } else {
                     verificationSection.style.display = 'block';
-                    verificationSection.querySelector('.alert-warning').style.display = 'block';
                     verificationSuccess.style.display = 'none';
                     isVerified = false;
+                    // Sync banner phone input with whatever the user typed
+                    const bannerPhoneInput = document.getElementById('banner-phone-input');
+                    if (bannerPhoneInput && !bannerPhoneInput.value) {
+                        bannerPhoneInput.value = mobileNumber;
+                    }
                 }
             }
 
@@ -2536,7 +2542,9 @@
                 e.preventDefault(); // Prevent any default behavior
                 e.stopPropagation(); // Stop event bubbling
 
-                const mobileNumber = mobileInput.value.trim();
+                // Prefer the banner phone input (user may have typed a different number there)
+                const bannerInput = document.getElementById('banner-phone-input');
+                const mobileNumber = (bannerInput && bannerInput.value.trim()) || mobileInput.value.trim();
                 if (!mobileNumber) {
                     showToast('{% trans "يرجى إدخال رقم الجوال أولاً" %}', 'warning');
                     return;
@@ -2568,13 +2576,18 @@
                     if (data.success) {
                         if (data.verified) {
                             verificationSuccess.style.display = 'block';
-                            verificationSection.querySelector('.alert-warning').style.display = 'none';
+                            otpInputSection.style.display = 'none';
                             isVerified = true;
                             showToast('{% trans "الرقم مُحقق مسبقاً" %}', 'success');
                         } else {
                             otpInputSection.style.display = 'block';
                             verificationCodeInput.focus();
                             showToast('{% trans "تم إرسال رمز التحقق" %}', 'success');
+                            // Show resend button after 60s
+                            setTimeout(() => {
+                                const resendBtn = document.getElementById('resend-otp-btn');
+                                if (resendBtn) resendBtn.style.display = 'inline-block';
+                            }, 60000);
                         }
                     } else {
                         showToast(data.message || '{% trans "حدث خطأ في إرسال رمز التحقق" %}', 'danger');
@@ -2587,6 +2600,15 @@
                     showToast('{% trans "حدث خطأ في الاتصال" %}', 'danger');
                 });
             });
+
+            // Resend OTP — hide the button then re-trigger the send handler
+            const resendOtpBtn = document.getElementById('resend-otp-btn');
+            if (resendOtpBtn) {
+                resendOtpBtn.addEventListener('click', function() {
+                    this.style.display = 'none';
+                    sendOtpBtn.click();
+                });
+            }
 
             verifyOtpBtn.addEventListener('click', function(e) {
                 e.preventDefault(); // Prevent any default behavior
@@ -2623,7 +2645,6 @@
                     if (data.success) {
                         otpInputSection.style.display = 'none';
                         verificationSuccess.style.display = 'block';
-                        verificationSection.querySelector('.alert-warning').style.display = 'none';
                         isVerified = true;
                         showToast('{% trans "تم التحقق بنجاح!" %}', 'success');
 
@@ -3476,5 +3497,6 @@
                 }
             }, 1000);
         });
+
     </script>
 {% endblock extra_js %}

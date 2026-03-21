@@ -46,6 +46,10 @@ from .views import (
     CustomFieldViewSet,
     # Home Content
     HomeAPIView,
+    # Payment Callback
+    PaymobCallbackView,
+    # Phone OTP Verification
+    SendOTPView, VerifyOTPView,
 )
 
 app_name = 'api'
@@ -168,6 +172,9 @@ urlpatterns = [
     # Home content endpoint
     path('home/', HomeAPIView.as_view(), name='home'),
 
+    # Payment gateway callbacks (no auth)
+    path('payments/paymob/callback/', PaymobCallbackView.as_view(), name='paymob-callback'),
+
     # JWT token endpoints
     path('auth/token/', TokenObtainPairView.as_view(), name='token-obtain-pair'),
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
@@ -175,6 +182,10 @@ urlpatterns = [
     # Password reset endpoints
     path('auth/forgot-password/', ForgotPasswordView.as_view(), name='forgot-password'),
     path('auth/reset-password/', ResetPasswordView.as_view(), name='reset-password'),
+
+    # Phone OTP verification endpoints
+    path('auth/send-otp/', SendOTPView.as_view(), name='send-otp'),
+    path('auth/verify-otp/', VerifyOTPView.as_view(), name='verify-otp'),
 
     # API endpoints
     path('', include(router.urls)),

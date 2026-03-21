@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
 from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Count, Avg
 from django.utils import timezone
@@ -13,6 +14,7 @@ from django.shortcuts import get_object_or_404
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+import logging
 
 from main.models import (
     Category, ClassifiedAd, AdImage, AdReview, AdFeature, AdPackage,
@@ -30,6 +32,7 @@ from .serializers import (
     # User serializers
     UserListSerializer, UserDetailSerializer, UserRegistrationSerializer, UserUpdateSerializer,
     ForgotPasswordSerializer, ResetPasswordSerializer,
+    SendOTPSerializer, VerifyOTPSerializer,
     # Country serializers
     CountrySerializer,
     # Category serializers
@@ -47,6 +50,8 @@ from .serializers import (
     NotificationSerializer,
     # Package & Payment serializers
     AdFeatureSerializer, AdPackageSerializer, PaymentSerializer, UserPackageSerializer,
+    PaymentInitiateSerializer, PaymentMethodSerializer, PayPalCaptureSerializer,
+    UploadReceiptSerializer,
     # FAQ serializers
     FAQCategorySerializer, FAQSerializer,
     # Safety Tips serializers
@@ -65,6 +70,7 @@ from .serializers import (
 from .permissions import IsOwnerOrReadOnly, IsAdOwnerOrReadOnly, IsPublisherOrClient
 from django.contrib.auth import get_user_model
 
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
@@ -538,16 +544,299 @@ class AdPackageViewSet(viewsets.ReadOnlyModelViewSet):
 
 class PaymentViewSet(viewsets.ModelViewSet):
     """
-    Payment management endpoint
+    Payment management endpoints.
+
+    Supports all payment providers: Paymob (card/wallet), PayPal,
+    Bank Transfer, Mobile Wallet, and InstaPay.
     """
     serializer_class = PaymentSerializer
     permission_classes = [IsAuthenticated]
+    http_method_names = ['get', 'post', 'head', 'options']
 
     def get_queryset(self):
-        # Short-circuit for Swagger schema generation
         if getattr(self, 'swagger_fake_view', False):
             return Payment.objects.none()
-        return Payment.objects.filter(user=self.request.user)
+        return Payment.objects.filter(user=self.request.user).order_by('-created_at')
+
+    # ------------------------------------------------------------------
+    # GET /payments/methods/
+    # ------------------------------------------------------------------
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def methods(self, request):
+        """
+        Return available payment methods for a given context.
+
+        Query parameters:
+          - context: ad_posting | ad_upgrade | package_purchase | product_purchase
+        """
+        from main.payment_utils import get_allowed_payment_methods
+        context = request.query_params.get('context', 'ad_posting')
+        allowed = get_allowed_payment_methods(context)
+        data = [{'code': code, 'label': str(label)} for code, label in allowed]
+        serializer = PaymentMethodSerializer(data, many=True)
+        return Response(serializer.data)
+
+    # ------------------------------------------------------------------
+    # POST /payments/initiate/
+    # ------------------------------------------------------------------
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated],
+            parser_classes=[JSONParser, MultiPartParser, FormParser])
+    def initiate(self, request):
+        """
+        Initiate a payment with any supported provider.
+
+        **Paymob** — returns `checkout_url` to redirect/open in WebView.
+        **PayPal**  — returns `approval_url` to redirect/open in WebView.
+        **Offline** (bank_transfer / wallet / instapay) — creates a pending Payment
+          record; use `POST /payments/{id}/upload_receipt/` to attach the receipt.
+        """
+        serializer = PaymentInitiateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        data = serializer.validated_data
+        provider = data['provider']
+        amount = data['amount']
+        currency = data['currency']
+        description = data.get('description', '')
+        metadata = data.get('metadata', {})
+
+        # Validate method is allowed for the given context
+        from main.payment_utils import get_allowed_payment_methods, is_payment_method_allowed
+        context = data.get('context', 'ad_posting')
+        if not is_payment_method_allowed(provider, context):
+            return Response(
+                {'error': f"Payment method '{provider}' is not available for context '{context}'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Create a pending Payment record
+        payment = Payment.objects.create(
+            user=request.user,
+            provider=provider if provider in ['paymob', 'paypal', 'bank_transfer'] else 'bank_transfer',
+            amount=amount,
+            currency=currency,
+            status=Payment.PaymentStatus.PENDING,
+            description=description,
+            metadata={**metadata, 'context': context, 'provider_input': provider},
+        )
+
+        # --- Paymob ---
+        if provider == 'paymob':
+            from main.services.paymob_service import PaymobService
+            if not PaymobService.is_enabled():
+                payment.mark_failed('Paymob gateway disabled')
+                return Response({'error': 'Paymob payment gateway is not configured.'},
+                                status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+            billing_data = data.get('billing_data') or {}
+            # Enrich billing from user profile if missing
+            user = request.user
+            billing_data.setdefault('first_name', user.first_name or user.username)
+            billing_data.setdefault('last_name', user.last_name or 'N/A')
+            billing_data.setdefault('email', user.email or 'noreply@example.com')
+            billing_data.setdefault('phone_number', getattr(user, 'phone', None) or getattr(user, 'mobile', None) or 'N/A')
+            billing_data.setdefault('city', getattr(user, 'city', None) or 'N/A')
+            billing_data.setdefault('country', 'EG')
+
+            success, checkout_url, error, intention_id = PaymobService.process_payment(
+                amount=amount,
+                order_id=str(payment.id),
+                billing_data=billing_data,
+                notification_url=data.get('notification_url') or None,
+                redirection_url=data.get('redirection_url') or None,
+            )
+
+            if not success:
+                payment.mark_failed(error)
+                return Response({'error': error}, status=status.HTTP_502_BAD_GATEWAY)
+
+            if intention_id:
+                payment.provider_transaction_id = intention_id
+                payment.save(update_fields=['provider_transaction_id'])
+
+            return Response({
+                'payment_id': payment.id,
+                'provider': 'paymob',
+                'status': payment.status,
+                'checkout_url': checkout_url,
+            }, status=status.HTTP_201_CREATED)
+
+        # --- PayPal ---
+        elif provider == 'paypal':
+            from main.services.paypal_service import PayPalService
+            if not PayPalService.is_enabled():
+                payment.mark_failed('PayPal gateway disabled')
+                return Response({'error': 'PayPal payment gateway is not configured.'},
+                                status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+            success, order_data, error = PayPalService.create_order(
+                amount=amount,
+                currency=currency,
+                order_id=str(payment.id),
+                description=description,
+                return_url=data.get('return_url') or None,
+                cancel_url=data.get('cancel_url') or None,
+            )
+
+            if not success:
+                payment.mark_failed(error)
+                return Response({'error': error}, status=status.HTTP_502_BAD_GATEWAY)
+
+            paypal_order_id = order_data.get('id')
+            approval_url = next(
+                (link['href'] for link in order_data.get('links', []) if link['rel'] == 'approve'),
+                None,
+            )
+
+            payment.provider_transaction_id = paypal_order_id or ''
+            payment.save(update_fields=['provider_transaction_id'])
+
+            return Response({
+                'payment_id': payment.id,
+                'provider': 'paypal',
+                'status': payment.status,
+                'paypal_order_id': paypal_order_id,
+                'approval_url': approval_url,
+            }, status=status.HTTP_201_CREATED)
+
+        # --- Offline methods: bank_transfer, wallet, instapay ---
+        else:
+            # Map provider label for the Payment model (stored as bank_transfer for all offline)
+            payment.metadata['offline_method'] = provider
+            payment.save(update_fields=['metadata'])
+            return Response({
+                'payment_id': payment.id,
+                'provider': provider,
+                'status': payment.status,
+                'message': 'Payment record created. Please upload your receipt using POST /payments/{id}/upload_receipt/',
+            }, status=status.HTTP_201_CREATED)
+
+    # ------------------------------------------------------------------
+    # POST /payments/{id}/upload_receipt/
+    # ------------------------------------------------------------------
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated],
+            parser_classes=[MultiPartParser, FormParser])
+    def upload_receipt(self, request, pk=None):
+        """
+        Upload an offline payment receipt (image).
+        Only the payment owner can upload.
+        """
+        payment = get_object_or_404(Payment, pk=pk, user=request.user)
+        if payment.status not in [Payment.PaymentStatus.PENDING]:
+            return Response(
+                {'error': 'Receipt can only be uploaded for pending payments.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        serializer = UploadReceiptSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        payment.offline_payment_receipt = serializer.validated_data['receipt']
+        payment.save(update_fields=['offline_payment_receipt'])
+        return Response(PaymentSerializer(payment, context={'request': request}).data)
+
+    # ------------------------------------------------------------------
+    # POST /payments/paypal/capture/
+    # ------------------------------------------------------------------
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated],
+            url_path='paypal/capture')
+    def paypal_capture(self, request):
+        """
+        Capture an approved PayPal order.
+        Call this after the buyer is redirected back from PayPal's approval page.
+        """
+        serializer = PayPalCaptureSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        payment_id = serializer.validated_data['payment_id']
+        paypal_order_id = serializer.validated_data['paypal_order_id']
+
+        payment = get_object_or_404(Payment, pk=payment_id, user=request.user)
+
+        if payment.status == Payment.PaymentStatus.COMPLETED:
+            return Response(PaymentSerializer(payment, context={'request': request}).data)
+
+        from main.services.paypal_service import PayPalService
+        success, capture_data, error = PayPalService.capture_order(paypal_order_id)
+
+        if not success:
+            payment.mark_failed(error)
+            return Response({'error': error}, status=status.HTTP_502_BAD_GATEWAY)
+
+        capture_id = None
+        try:
+            capture_id = capture_data['purchase_units'][0]['payments']['captures'][0]['id']
+        except (KeyError, IndexError, TypeError):
+            pass
+
+        payment.mark_completed(transaction_id=capture_id or paypal_order_id)
+        return Response(PaymentSerializer(payment, context={'request': request}).data)
+
+    # ------------------------------------------------------------------
+    # GET /payments/{id}/status/
+    # ------------------------------------------------------------------
+
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    def payment_status(self, request, pk=None):
+        """Get the current status of a payment."""
+        payment = get_object_or_404(Payment, pk=pk, user=request.user)
+        return Response({
+            'payment_id': payment.id,
+            'status': payment.status,
+            'provider': payment.provider,
+            'amount': str(payment.amount),
+            'currency': payment.currency,
+            'provider_transaction_id': payment.provider_transaction_id,
+            'created_at': payment.created_at,
+            'completed_at': payment.completed_at,
+        })
+
+
+# ==================== Paymob Callback (Webhook) ====================
+
+class PaymobCallbackView(APIView):
+    """
+    Webhook endpoint for Paymob transaction callbacks.
+    No authentication required — validated via HMAC signature.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        from main.services.paymob_service import PaymobService
+
+        data = request.data
+        if not PaymobService.verify_hmac(data):
+            logger.warning("Paymob callback: HMAC verification failed")
+            return Response({'error': 'Invalid HMAC'}, status=status.HTTP_400_BAD_REQUEST)
+
+        success = str(data.get('success', '')).lower() == 'true'
+        merchant_order_id = data.get('extras', {}).get('merchant_order_id') or data.get('order', {}).get('merchant_order_id')
+        transaction_id = str(data.get('id', ''))
+
+        if merchant_order_id:
+            try:
+                payment = Payment.objects.get(pk=int(merchant_order_id))
+                if success:
+                    payment.mark_completed(transaction_id=transaction_id)
+                    logger.info(f"Paymob payment {payment.id} marked completed via callback")
+                else:
+                    payment.mark_failed(reason=data.get('data', {}).get('message', 'Payment failed'))
+                    logger.info(f"Paymob payment {payment.id} marked failed via callback")
+            except (Payment.DoesNotExist, ValueError):
+                logger.error(f"Paymob callback: Payment not found for merchant_order_id={merchant_order_id}")
+
+        return Response({'status': 'received'})
+
+    def get(self, request):
+        """Paymob sometimes sends GET callbacks with query params."""
+        return self.post(request)
 
 
 class UserPackageViewSet(viewsets.ReadOnlyModelViewSet):
@@ -912,3 +1201,71 @@ class ResetPasswordView(APIView):
         user.save()
 
         return Response({'detail': 'Password has been reset successfully.'})
+
+
+# ==================== Phone OTP Verification API Views ====================
+
+class SendOTPView(APIView):
+    """
+    POST /api/auth/send-otp/
+
+    Sends a one-time password (OTP) to the given phone number.
+    Requires authentication. The phone number is saved on the user
+    profile and an SMS is dispatched via the configured SMS provider.
+
+    Request body: { "phone": "+201234567890" }
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = SendOTPSerializer
+
+    def post(self, request):
+        serializer = SendOTPSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        phone = serializer.validated_data['phone']
+
+        from main.services.mobile_verification_service import MobileVerificationService
+        service = MobileVerificationService()
+        success, message = service.initiate_verification(request.user, phone)
+
+        if success:
+            return Response({'detail': str(message)})
+        return Response({'detail': str(message)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class VerifyOTPView(APIView):
+    """
+    POST /api/auth/verify-otp/
+
+    Verifies the OTP code previously sent to the user's phone.
+    On success, the user's phone is marked as verified.
+
+    Request body: { "otp_code": "123456" }
+
+    GET /api/auth/verify-otp/
+
+    Returns the current phone verification status for the authenticated user.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = VerifyOTPSerializer
+
+    def get(self, request):
+        return Response({
+            'is_mobile_verified': request.user.is_mobile_verified,
+            'phone': getattr(request.user, 'mobile', None) or getattr(request.user, 'phone', None),
+        })
+
+    def post(self, request):
+        serializer = VerifyOTPSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        otp_code = serializer.validated_data['otp_code']
+
+        from main.services.mobile_verification_service import MobileVerificationService
+        service = MobileVerificationService()
+        success, message = service.verify_mobile_for_ad(request.user, otp_code)
+
+        if success:
+            return Response({
+                'detail': str(message),
+                'is_mobile_verified': True,
+            })
+        return Response({'detail': str(message)}, status=status.HTTP_400_BAD_REQUEST)

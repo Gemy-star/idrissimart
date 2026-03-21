@@ -121,6 +121,16 @@ class ResetPasswordSerializer(serializers.Serializer):
         return data
 
 
+class SendOTPSerializer(serializers.Serializer):
+    """Send OTP to a phone number for verification"""
+    phone = serializers.CharField(max_length=20)
+
+
+class VerifyOTPSerializer(serializers.Serializer):
+    """Verify OTP code to confirm phone ownership"""
+    otp_code = serializers.CharField(min_length=4, max_length=6)
+
+
 # ==================== Country Serializers ====================
 
 class CountrySerializer(serializers.ModelSerializer):
@@ -526,6 +536,61 @@ class PaymentSerializer(serializers.ModelSerializer):
             'offline_payment_receipt', 'created_at', 'updated_at', 'completed_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'completed_at']
+
+
+class PaymentInitiateSerializer(serializers.Serializer):
+    """Serializer for initiating a payment"""
+    PROVIDER_CHOICES = [
+        ('paymob', 'Paymob (Card / Wallet)'),
+        ('paypal', 'PayPal'),
+        ('bank_transfer', 'Bank Transfer'),
+        ('wallet', 'Mobile Wallet'),
+        ('instapay', 'InstaPay'),
+    ]
+    CONTEXT_CHOICES = [
+        ('ad_posting', 'Ad Posting'),
+        ('ad_upgrade', 'Ad Upgrade'),
+        ('package_purchase', 'Package Purchase'),
+        ('product_purchase', 'Product Purchase'),
+    ]
+
+    provider = serializers.ChoiceField(choices=PROVIDER_CHOICES)
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    currency = serializers.CharField(max_length=3, default='EGP')
+    description = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    context = serializers.ChoiceField(choices=CONTEXT_CHOICES, default='ad_posting')
+    metadata = serializers.JSONField(required=False, default=dict)
+
+    # Paymob-specific fields
+    billing_data = serializers.JSONField(required=False, default=dict,
+        help_text="Required for Paymob: first_name, last_name, email, phone_number, etc.")
+    notification_url = serializers.URLField(required=False, allow_blank=True,
+        help_text="Paymob webhook callback URL")
+    redirection_url = serializers.URLField(required=False, allow_blank=True,
+        help_text="Paymob redirection URL after payment")
+
+    # PayPal-specific fields
+    return_url = serializers.URLField(required=False, allow_blank=True,
+        help_text="PayPal: URL to redirect after successful payment")
+    cancel_url = serializers.URLField(required=False, allow_blank=True,
+        help_text="PayPal: URL to redirect if payment is cancelled")
+
+
+class PaymentMethodSerializer(serializers.Serializer):
+    """Represents a single available payment method"""
+    code = serializers.CharField()
+    label = serializers.CharField()
+
+
+class PayPalCaptureSerializer(serializers.Serializer):
+    """Serializer for capturing a PayPal order"""
+    payment_id = serializers.IntegerField(help_text="Internal Payment record ID")
+    paypal_order_id = serializers.CharField(help_text="PayPal order ID returned after buyer approval")
+
+
+class UploadReceiptSerializer(serializers.Serializer):
+    """Serializer for uploading an offline payment receipt"""
+    receipt = serializers.ImageField(help_text="Image or screenshot of the payment receipt")
 
 
 class UserPackageSerializer(serializers.ModelSerializer):

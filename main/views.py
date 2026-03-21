@@ -1606,13 +1606,7 @@ class AdCreateView(LoginRequiredMixin, CreateView):
         site_config = SiteConfiguration.get_solo()
         site_config_enabled = site_config.require_phone_verification
 
-        # If either is enabled and user's phone is not verified, redirect
-        if (constance_enabled or site_config_enabled) and not request.user.is_mobile_verified:
-            messages.warning(
-                request,
-                _("يجب التحقق من رقم هاتفك قبل نشر الإعلانات. الرجاء تأكيد رقم هاتفك أولاً."),
-            )
-            return redirect("main:phone_verification_required")
+        # Phone verification is enforced inline in the form
 
         return super().dispatch(request, *args, **kwargs)
 
@@ -2003,13 +1997,7 @@ def enhanced_ad_create_view(request):
     site_config = SiteConfiguration.get_solo()
     site_config_enabled = site_config.require_phone_verification
 
-    # If either is enabled and user's phone is not verified, redirect
-    if (constance_enabled or site_config_enabled) and not request.user.is_mobile_verified:
-        messages.warning(
-            request,
-            _("يجب التحقق من رقم هاتفك قبل نشر الإعلانات. الرجاء تأكيد رقم هاتفك أولاً."),
-        )
-        return redirect("main:phone_verification_required")
+    # Phone verification is enforced inline in the form
 
     # Check if user has any active package with remaining ads (for display)
     active_package = (

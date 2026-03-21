@@ -364,13 +364,8 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         site_config = SiteConfiguration.get_solo()
         site_config_enabled = site_config.require_phone_verification
 
-        # If either is enabled and user's phone is not verified, redirect
-        if (constance_enabled or site_config_enabled) and not request.user.is_mobile_verified:
-            messages.warning(
-                request,
-                _("يجب التحقق من رقم هاتفك قبل نشر الإعلانات. الرجاء تأكيد رقم هاتفك أولاً."),
-            )
-            return redirect("main:phone_verification_required")
+        # If phone verification required, let the form handle it inline
+        # (no redirect — the form will show the verification UI)
 
         # Check if user has any active package with remaining ads (for display purposes)
         active_package = (
@@ -518,6 +513,16 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
 
         # Add mobile verification setting for form validation
         context["mobile_verification_enabled"] = site_config.require_phone_verification
+
+        # Inline phone verification: flag if the user still needs to verify
+        from constance import config as constance_config
+        constance_phone_enabled = getattr(constance_config, "ENABLE_MOBILE_VERIFICATION", True)
+        phone_verification_needed = (
+            (constance_phone_enabled or site_config.require_phone_verification)
+            and self.request.user.is_authenticated
+            and not self.request.user.is_mobile_verified
+        )
+        context["phone_verification_needed"] = phone_verification_needed
 
         # Get user's active package to determine feature prices
         if self.request.user.is_authenticated:
@@ -2099,13 +2104,7 @@ class AdUpgradeCheckoutView(LoginRequiredMixin, DetailView):
         site_config = SiteConfiguration.get_solo()
         site_config_enabled = site_config.require_phone_verification
 
-        # If either is enabled and user's phone is not verified, redirect
-        if (constance_enabled or site_config_enabled) and not request.user.is_mobile_verified:
-            messages.warning(
-                request,
-                _("يجب التحقق من رقم هاتفك قبل ترقية الإعلانات. الرجاء تأكيد رقم هاتفك أولاً.")
-            )
-            return redirect("main:phone_verification_required")
+        # Phone verification is handled inline in the form
 
         return super().dispatch(request, *args, **kwargs)
 
