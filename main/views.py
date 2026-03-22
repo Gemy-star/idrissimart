@@ -6413,22 +6413,34 @@ def admin_translations_auto_translate(request, lang):
                 translated_count += 1
         else:
             translator = GoogleTranslator(source=source_lang, target=lang)
+
+            # Collect entries that need translation
+            entries_to_translate = []
             for entry in po:
                 if entry.obsolete or not entry.msgid:
                     continue
                 if entry.msgstr and not overwrite:
                     skipped_count += 1
                     continue
+                entries_to_translate.append(entry)
+
+            # Batch translate in chunks of 50 (API limit safety)
+            CHUNK_SIZE = 50
+            for i in range(0, len(entries_to_translate), CHUNK_SIZE):
+                chunk = entries_to_translate[i : i + CHUNK_SIZE]
+                texts = [e.msgid for e in chunk]
                 try:
-                    translated = translator.translate(entry.msgid)
-                    if translated:
-                        entry.msgstr = translated
-                        if "fuzzy" in entry.flags:
-                            entry.flags.remove("fuzzy")
-                        translated_count += 1
+                    results = translator.translate_batch(texts)
+                    for entry, translated in zip(chunk, results):
+                        if translated:
+                            entry.msgstr = translated
+                            if "fuzzy" in entry.flags:
+                                entry.flags.remove("fuzzy")
+                            translated_count += 1
+                        else:
+                            error_count += 1
                 except Exception:
-                    error_count += 1
-                    continue
+                    error_count += len(chunk)
 
         po.save(locale_path)
         mo_path = os.path.join(
