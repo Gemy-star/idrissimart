@@ -1398,6 +1398,11 @@ urlpatterns = [
         views.admin_translations_save,
         name="admin_translations_save",
     ),
+    path(
+        "admin/translations/auto-translate/<str:lang>/",
+        views.admin_translations_auto_translate,
+        name="admin_translations_auto_translate",
+    ),
     # Cart URLs
     path("api/cart/add/", cart_wishlist_views.add_to_cart, name="cart_add"),
     path("api/cart/remove/", cart_wishlist_views.remove_from_cart, name="cart_remove"),

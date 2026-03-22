@@ -369,6 +369,7 @@ class BlogDetailSerializer(serializers.ModelSerializer):
     comments = serializers.SerializerMethodField()
     likes_count = serializers.SerializerMethodField()
     is_liked = serializers.SerializerMethodField()
+    tags = serializers.SerializerMethodField()
 
     class Meta:
         model = Blog
@@ -390,6 +391,9 @@ class BlogDetailSerializer(serializers.ModelSerializer):
         if request and request.user.is_authenticated:
             return obj.likes.filter(id=request.user.id).exists()
         return False
+
+    def get_tags(self, obj):
+        return list(obj.tags.values_list('name', flat=True))
 
 
 class CommentSerializer(serializers.ModelSerializer):

@@ -1,7 +1,7 @@
 # Makefile for Django Project - إدريسي مارت
 # Usage: make <command>
 
-.PHONY: help install setup test lint format clean run migrate shell
+.PHONY: help install setup test lint format clean run migrate shell trans-update trans-compile trans trans-stats trans-missing
 
 # Default target
 .DEFAULT_GOAL := help
@@ -288,6 +288,82 @@ test-twilio: ## Test Twilio SMS service
 test-sms: ## Test SMS sending to a phone number (usage: make test-sms PHONE=+201234567890)
 	@echo '$(BLUE)📱 Testing SMS to $(PHONE)...$(NC)'
 	python test_production_services.py --sms $(PHONE)
+
+# ============================================
+# Translations  (i18n workflow)
+# ============================================
+#
+# HOW TRANSLATIONS WORK
+# ─────────────────────
+# 1. Strings are marked in Python with gettext_lazy / gettext:
+#       from django.utils.translation import gettext_lazy as _
+#       label = _("Hello")
+#
+# 2. Strings are marked in templates with {% trans %}:
+#       {% trans "Hello" %}
+#       {% blocktrans %}Hello {{ name }}{% endblocktrans %}
+#    NOTE: {% load i18n %} is NOT required — it is globally loaded via
+#    TEMPLATES["builtins"] in settings/common.py.
+#
+# 3. Run `make trans-update` to scan all code/templates and update .po files.
+#
+# 4. Translate missing strings (empty msgstr "") in:
+#       locale/ar/LC_MESSAGES/django.po   ← Arabic
+#       locale/en/LC_MESSAGES/django.po   ← English
+#    Or use the web UI:  http://localhost:8000/ar/super-admin/translations/
+#    (requires superuser login)
+#
+# 5. Run `make trans-compile` to produce the binary .mo files Django reads.
+#
+# 6. Restart the dev server — translations are loaded at startup.
+#
+# QUICK CYCLE
+# ───────────
+#   make trans           # update + compile in one step
+#
+# ============================================
+
+trans-update: ## Extract/update translatable strings → updates .po files
+	@echo '$(BLUE)🌍 Scanning code for translatable strings...$(NC)'
+	python manage.py makemessages -l ar -l en \
+		--ignore=".venv/*" \
+		--ignore="node_modules/*" \
+		--ignore="staticfiles/*" \
+		--no-obsolete
+	@echo '$(GREEN)✅ .po files updated$(NC)'
+	@echo '$(YELLOW)ℹ️  Edit locale/ar/LC_MESSAGES/django.po to add Arabic translations$(NC)'
+	@echo '$(YELLOW)ℹ️  Or use the web UI: http://localhost:8000/ar/super-admin/translations/$(NC)'
+
+trans-compile: ## Compile .po → .mo (binary files Django reads)
+	@echo '$(BLUE)⚙️  Compiling message files...$(NC)'
+	python manage.py compilemessages -l ar -l en
+	@echo '$(GREEN)✅ Compiled — restart server to apply$(NC)'
+
+trans: trans-update trans-compile ## Full cycle: extract + compile translations
+
+trans-stats: ## Show translation coverage for each locale
+	@echo '$(BLUE)📊 Translation statistics:$(NC)'
+	@echo ''
+	@echo '$(YELLOW)Arabic (ar):$(NC)'
+	@total=$$(grep -c '^msgid' locale/ar/LC_MESSAGES/django.po); \
+	 missing=$$(grep -c 'msgstr ""$$' locale/ar/LC_MESSAGES/django.po); \
+	 done=$$((total - missing)); \
+	 echo "  Total strings : $$total"; \
+	 echo "  Translated    : $$done"; \
+	 echo "  Missing       : $$missing"
+	@echo ''
+	@echo '$(YELLOW)English (en):$(NC)'
+	@total=$$(grep -c '^msgid' locale/en/LC_MESSAGES/django.po); \
+	 missing=$$(grep -c 'msgstr ""$$' locale/en/LC_MESSAGES/django.po); \
+	 done=$$((total - missing)); \
+	 echo "  Total strings : $$total"; \
+	 echo "  Translated    : $$done"; \
+	 echo "  Missing       : $$missing"
+
+trans-missing: ## List all untranslated Arabic strings
+	@echo '$(YELLOW)Untranslated strings in locale/ar/LC_MESSAGES/django.po:$(NC)'
+	@awk '/^msgid /{id=$$0} /^msgstr ""$$/{print id}' \
+		locale/ar/LC_MESSAGES/django.po | sed 's/^msgid //' | head -50
 
 # ============================================
 # Aliases

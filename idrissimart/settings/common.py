@@ -142,6 +142,10 @@ TEMPLATES = [
                 "main.context_processors.cart_wishlist_counts",
                 "main.context_processors.recaptcha_keys",
             ],
+            "builtins": [
+                "django.templatetags.i18n",
+                "django.templatetags.l10n",
+            ],
         },
     },
 ]
@@ -188,6 +192,39 @@ LANGUAGES = [
     ("ar", _("Arabic")),
 ]
 LOCALE_PATHS = [BASE_DIR / "locale"]
+
+# =======================
+# Rosetta (Translation UI)
+# =======================
+# Access: /ar/super-admin/translations/
+# Requires: staff + superuser
+ROSETTA_MESSAGES_PER_PAGE = 25
+ROSETTA_ENABLE_TRANSLATION_SUGGESTIONS = False  # set True & add API key to enable AI suggestions
+ROSETTA_AUTO_COMPILE = True          # auto-compile .mo after saving in UI
+ROSETTA_REQUIRES_AUTH = True         # must be logged in
+ROSETTA_SHOW_AT_ADMIN_PANEL = True   # show link in Django admin sidebar
+ROSETTA_SHOW_OCCURRENCES = True      # show where each string appears in code
+ROSETTA_EXCLUDED_APPLICATIONS = (    # skip third-party app translations
+    "django",
+    "rosetta",
+    "allauth",
+    "rest_framework",
+    "django_q",
+    "mptt",
+    "filer",
+    "easy_thumbnails",
+    "import_export",
+    "jazzmin",
+    "ckeditor5",
+    "constance",
+    "recaptcha",
+    "taggit",
+    "corsheaders",
+)
+ROSETTA_POFILE_WRAP_WIDTH = 0        # don't wrap long strings (easier to read)
+ROSETTA_MAIN_LANGUAGE = "ar"         # Arabic is the primary language
+ROSETTA_MESSAGES_SOURCE_LANGUAGE_CODE = "ar"
+ROSETTA_MESSAGES_SOURCE_LANGUAGE_NAME = "Arabic"
 
 # =======================
 # Static & Media

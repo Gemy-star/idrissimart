@@ -702,6 +702,10 @@
                         <i class="fas fa-edit"></i>
                         <span>{% trans "تحرير الترجمات" %}</span>
                     </button>
+                    <button type="button" onclick="showAutoTranslateModal('ar')" class="action-button secondary" title="{% trans 'ترجمة تلقائية' %}">
+                        <i class="fas fa-robot"></i>
+                        <span class="d-none d-lg-inline">{% trans "ترجمة تلقائية" %}</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -743,6 +747,10 @@
                     <button type="button" onclick="loadLanguageTranslations('en')" class="action-button primary flex-grow-1">
                         <i class="fas fa-edit"></i>
                         <span>{% trans "تحرير الترجمات" %}</span>
+                    </button>
+                    <button type="button" onclick="showAutoTranslateModal('en')" class="action-button secondary" title="{% trans 'ترجمة تلقائية' %}">
+                        <i class="fas fa-robot"></i>
+                        <span class="d-none d-lg-inline">{% trans "ترجمة تلقائية" %}</span>
                     </button>
                 </div>
             </div>
@@ -934,6 +942,45 @@
     </div>
 </div>
 
+<!-- Auto Translate Modal -->
+<div class="modal fade" id="autoTranslateModal" tabindex="-1" aria-labelledby="autoTranslateModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="autoTranslateModalLabel">
+                    <i class="fas fa-robot me-2"></i>
+                    {% trans "ترجمة تلقائية" %}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>
+                    {% trans "سيتم ترجمة جميع النصوص غير المترجمة تلقائياً باستخدام Google Translate." %}
+                </p>
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" id="overwriteExisting">
+                    <label class="form-check-label" for="overwriteExisting">
+                        {% trans "استبدال الترجمات الموجودة أيضاً" %}
+                    </label>
+                </div>
+                <p class="text-warning mt-3 mb-0">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    {% trans "قد تستغرق هذه العملية بعض الوقت حسب عدد النصوص." %}
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    {% trans "إلغاء" %}
+                </button>
+                <button type="button" class="btn btn-success" id="confirmAutoTranslateBtn">
+                    <i class="fas fa-robot me-2"></i>
+                    {% trans "ترجمة" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Toast Container -->
 <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 10500;"></div>
 {% endblock %}
@@ -943,7 +990,8 @@
     // URL patterns with language prefix
     const TRANSLATION_URLS = {
         get: (lang) => `{% url "main:admin_translations_get" "LANG" %}`.replace('LANG', lang),
-        save: (lang) => `{% url "main:admin_translations_save" "LANG" %}`.replace('LANG', lang)
+        save: (lang) => `{% url "main:admin_translations_save" "LANG" %}`.replace('LANG', lang),
+        autoTranslate: (lang) => `{% url "main:admin_translations_auto_translate" "LANG" %}`.replace('LANG', lang),
     };
 
     // Get CSRF token
@@ -1027,6 +1075,66 @@
 
     function showAutoTranslateInfo() {
         showToast('{% trans "يمكنك تحرير الترجمات مباشرة من خلال هذه الواجهة. قم بالبحث عن النص المطلوب وأدخل الترجمة المناسبة، ثم احفظ التغييرات." %}', 'info', 8000);
+    }
+
+    let autoTranslateLang = '';
+    const autoTranslateModal = new bootstrap.Modal(document.getElementById('autoTranslateModal'));
+
+    function showAutoTranslateModal(lang) {
+        autoTranslateLang = lang;
+        document.getElementById('overwriteExisting').checked = false;
+        autoTranslateModal.show();
+    }
+
+    document.getElementById('confirmAutoTranslateBtn').addEventListener('click', function () {
+        const overwrite = document.getElementById('overwriteExisting').checked;
+        autoTranslateModal.hide();
+        runAutoTranslate(autoTranslateLang, overwrite);
+    });
+
+    function runAutoTranslate(lang, overwrite) {
+        const btn = document.querySelector(`button[onclick="showAutoTranslateModal('${lang}')"]`);
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+        showToast('{% trans "جاري الترجمة التلقائية، قد يستغرق هذا بعض الوقت..." %}', 'info', 15000);
+
+        fetch(TRANSLATION_URLS.autoTranslate(lang), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify({ overwrite: overwrite }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-robot"></i><span class="d-none d-lg-inline"> {% trans "ترجمة تلقائية" %}</span>';
+            }
+            if (data.success) {
+                showToast(
+                    `{% trans "تمت الترجمة:" %} ${data.translated_count} {% trans "نص" %} | {% trans "تم تخطي:" %} ${data.skipped_count} | {% trans "أخطاء:" %} ${data.error_count}`,
+                    'success', 8000
+                );
+                loadTranslationStats();
+                if (currentLanguage === lang) {
+                    loadLanguageTranslations(lang);
+                }
+            } else {
+                showToast(`{% trans "فشلت الترجمة التلقائية:" %} ${data.message}`, 'error', 8000);
+            }
+        })
+        .catch(error => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-robot"></i><span class="d-none d-lg-inline"> {% trans "ترجمة تلقائية" %}</span>';
+            }
+            showToast(`{% trans "حدث خطأ أثناء الترجمة التلقائية:" %} ${error.message}`, 'error');
+        });
     }
 
     // Inline Translation Editor Functions

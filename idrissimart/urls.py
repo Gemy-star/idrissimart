@@ -7,13 +7,13 @@ from django.urls import include, path
 urlpatterns = [
     path("i18n/", include("django.conf.urls.i18n")),
     path("api/", include("api.urls", namespace="api")),  # Mobile API
-    path("rosetta/", include("rosetta.urls")),  # Add Rosetta
     path("ckeditor5/", include("django_ckeditor_5.urls")),  # CKEditor 5 URLs
 ]
 
 urlpatterns += i18n_patterns(
     path("", include("main.urls", namespace="main")),  # Your main app
     path("super-admin/", admin.site.urls),
+    path("super-admin/translations/", include("rosetta.urls")),  # Translation manager
     path("content/", include("content.urls", namespace="content")),  # Your content app
 )
 

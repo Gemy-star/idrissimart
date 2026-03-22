@@ -334,6 +334,7 @@ class BlogViewSet(viewsets.ReadOnlyModelViewSet):
     Blog listing endpoint
     """
     queryset = Blog.objects.filter(is_published=True)
+    permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['category', 'author']
     search_fields = ['title', 'content']

@@ -6351,6 +6351,108 @@ def admin_translations_save(request, lang):
         return JsonResponse({"success": False, "message": str(e)}, status=500)
 
 
+@superadmin_required
+@require_POST
+def admin_translations_auto_translate(request, lang):
+    """Auto-translate untranslated entries using deep-translator (Google Translate)"""
+    try:
+        import os
+        import json
+        from django.conf import settings
+
+        try:
+            import polib
+        except ImportError:
+            return JsonResponse(
+                {"success": False, "message": "polib is not installed"}, status=500
+            )
+
+        try:
+            from deep_translator import GoogleTranslator
+        except ImportError:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": "deep-translator is not installed. Run: pip install deep-translator",
+                },
+                status=500,
+            )
+
+        locale_path = os.path.join(
+            settings.BASE_DIR, "locale", lang, "LC_MESSAGES", "django.po"
+        )
+
+        if not os.path.exists(locale_path):
+            return JsonResponse(
+                {"success": False, "message": f"Translation file for {lang} not found"},
+                status=404,
+            )
+
+        data = json.loads(request.body)
+        overwrite = data.get("overwrite", False)
+
+        po = polib.pofile(locale_path)
+        translated_count = 0
+        skipped_count = 0
+        error_count = 0
+
+        # Source language is Arabic (msgids are in Arabic)
+        source_lang = "ar"
+
+        if lang == source_lang:
+            # For Arabic locale, just copy msgid → msgstr for empty entries
+            for entry in po:
+                if entry.obsolete or not entry.msgid:
+                    continue
+                if entry.msgstr and not overwrite:
+                    skipped_count += 1
+                    continue
+                entry.msgstr = entry.msgid
+                if "fuzzy" in entry.flags:
+                    entry.flags.remove("fuzzy")
+                translated_count += 1
+        else:
+            translator = GoogleTranslator(source=source_lang, target=lang)
+            for entry in po:
+                if entry.obsolete or not entry.msgid:
+                    continue
+                if entry.msgstr and not overwrite:
+                    skipped_count += 1
+                    continue
+                try:
+                    translated = translator.translate(entry.msgid)
+                    if translated:
+                        entry.msgstr = translated
+                        if "fuzzy" in entry.flags:
+                            entry.flags.remove("fuzzy")
+                        translated_count += 1
+                except Exception:
+                    error_count += 1
+                    continue
+
+        po.save(locale_path)
+        mo_path = os.path.join(
+            settings.BASE_DIR, "locale", lang, "LC_MESSAGES", "django.mo"
+        )
+        po.save_as_mofile(mo_path)
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": f"Translated {translated_count} strings",
+                "translated_count": translated_count,
+                "skipped_count": skipped_count,
+                "error_count": error_count,
+            }
+        )
+
+    except Exception as e:
+        import traceback
+
+        print(f"Auto translate error: {traceback.format_exc()}")
+        return JsonResponse({"success": False, "message": str(e)}, status=500)
+
+
 # Settings AJAX Endpoints
 
 
