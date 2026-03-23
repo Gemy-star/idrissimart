@@ -384,3 +384,86 @@ def privacy_page_edit(request):
     }
 
     return render(request, "admin_dashboard/edit_privacy_page.html", context)
+
+
+# Newsletter Views
+def newsletter_subscribe(request):
+    """Handle newsletter subscription"""
+    if request.method != "POST":
+        return JsonResponse(
+            {"success": False, "message": "يجب استخدام طريقة POST"},
+            status=400,
+        )
+
+    email = request.POST.get("email", "").strip()
+
+    if not email:
+        return JsonResponse(
+            {"success": False, "message": "يرجى إدخال بريد إلكتروني"},
+            status=400,
+        )
+
+    # Validate email format
+    from django.core.validators import validate_email
+    from django.core.exceptions import ValidationError
+
+    try:
+        validate_email(email)
+    except ValidationError:
+        return JsonResponse(
+            {"success": False, "message": "صيغة البريد الإلكتروني غير صحيحة"},
+            status=400,
+        )
+
+    from .models import Newsletter
+
+    # Check if already subscribed
+    newsletter, created = Newsletter.objects.get_or_create(
+        email=email,
+        defaults={
+            "receive_email": True,
+            "receive_sms": False,
+            "ip_address": get_client_ip(request),
+            "user_agent": request.META.get("HTTP_USER_AGENT", "")[:500],
+            "is_active": True,
+        },
+    )
+
+    if not created and not newsletter.is_active:
+        # Reactivate existing inactive subscription
+        newsletter.is_active = True
+        newsletter.save(update_fields=["is_active", "updated_at"])
+
+    if not created and newsletter.is_active:
+        return JsonResponse(
+            {"success": False, "message": "هذا البريد الإلكتروني مشترك بالفعل"},
+            status=400,
+        )
+
+    # Queue task to send subscription confirmation email
+    from django_q.tasks import async_task
+
+    try:
+        async_task(
+            "content.tasks.send_newsletter_confirmation_email",
+            newsletter.id,
+        )
+    except Exception as e:
+        print(f"Error queuing newsletter confirmation email: {e}")
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "شكراً لاشتراكك في نشرتنا البريدية! تم إرسال رسالة تأكيد لبريدك الإلكتروني.",
+        }
+    )
+
+
+def get_client_ip(request):
+    """Get client IP address from request"""
+    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(",")[0]
+    else:
+        ip = request.META.get("REMOTE_ADDR")
+    return ip

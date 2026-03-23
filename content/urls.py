@@ -6,6 +6,7 @@ from .views import (
     BlogListView,
     get_cities,
     get_cities_by_id,
+    newsletter_subscribe,
     payment_methods_config,
     site_configuration_edit,
     terms_page_edit,
@@ -46,6 +47,12 @@ urlpatterns = [
         "admin/privacy-page/",
         privacy_page_edit,
         name="privacy_page_edit",
+    ),
+    # Newsletter subscription
+    path(
+        "api/newsletter/subscribe/",
+        newsletter_subscribe,
+        name="newsletter_subscribe",
     ),
     # Tag filter MUST come before blog detail to avoid conflicts (supports Arabic)
     re_path(

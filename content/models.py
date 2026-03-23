@@ -2,6 +2,7 @@
 from django.conf import settings
 from django.db import models
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 from taggit.managers import TaggableManager
@@ -703,3 +704,58 @@ class PaymentMethodConfig(models.Model):
             )
 
         return defaults
+
+
+class Newsletter(models.Model):
+    """Model for newsletter subscriptions"""
+
+    email = models.EmailField(
+        unique=True, verbose_name=_("البريد الإلكتروني"), db_index=True
+    )
+    phone = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name=_("رقم الهاتف"),
+        help_text=_("رقم الهاتف لإرسال المحتوى عبر SMS (اختياري)"),
+    )
+    receive_email = models.BooleanField(
+        default=True, verbose_name=_("استقبال عبر البريد الإلكتروني")
+    )
+    receive_sms = models.BooleanField(
+        default=False, verbose_name=_("استقبال عبر رسائل نصية")
+    )
+    country = models.ForeignKey(
+        Country,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("الدولة"),
+    )
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
+    ip_address = models.GenericIPAddressField(
+        blank=True, null=True, verbose_name=_("عنوان IP")
+    )
+    user_agent = models.TextField(blank=True, verbose_name=_("معلومات المتصفح"))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الاشتراك"))
+    updated_at = models.DateTimeField(auto_now=True)
+    last_notification_sent = models.DateTimeField(
+        null=True, blank=True, verbose_name=_("آخر تنبيه تم إرساله")
+    )
+
+    class Meta:
+        verbose_name = _("اشتراك النشرة البريدية")
+        verbose_name_plural = _("اشتراكات النشرة البريدية")
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["email"]),
+            models.Index(fields=["is_active"]),
+            models.Index(fields=["created_at"]),
+        ]
+
+    def __str__(self):
+        return self.email
+
+    def mark_notification_sent(self):
+        """Update last_notification_sent timestamp"""
+        self.last_notification_sent = timezone.now()
+        self.save(update_fields=["last_notification_sent", "updated_at"])

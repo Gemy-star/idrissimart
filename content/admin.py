@@ -13,6 +13,7 @@ from .models import (
     Comment,
     Country,
     HomeSlider,
+    Newsletter,
     SiteConfiguration,
     AboutPage,
     AboutPageSection,
@@ -929,3 +930,172 @@ class PaymentMethodConfigAdmin(admin.ModelAdmin):
             )
 
         super().save_model(request, obj, form, change)
+
+
+@admin.register(Newsletter)
+class NewsletterAdmin(admin.ModelAdmin):
+    """Admin interface for Newsletter subscriptions"""
+
+    list_display = [
+        "email",
+        "country",
+        "email_status",
+        "sms_status",
+        "is_active",
+        "created_at",
+        "last_notification_sent",
+    ]
+    list_filter = [
+        "is_active",
+        "receive_email",
+        "receive_sms",
+        "country",
+        "created_at",
+    ]
+    search_fields = ["email", "phone"]
+    readonly_fields = [
+        "ip_address",
+        "user_agent",
+        "created_at",
+        "updated_at",
+        "last_notification_sent",
+    ]
+    list_per_page = 50
+    date_hierarchy = "created_at"
+
+    fieldsets = (
+        (
+            _("معلومات الاشتراك"),
+            {"fields": ("email", "phone", "country", "is_active")},
+        ),
+        (
+            _("تفضيلات الاستقبال"),
+            {"fields": ("receive_email", "receive_sms")},
+        ),
+        (
+            _("معلومات تقنية"),
+            {
+                "fields": ("ip_address", "user_agent"),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            _("التواريخ"),
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                    "last_notification_sent",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+    actions = [
+        "activate_subscribers",
+        "deactivate_subscribers",
+        "send_test_email",
+    ]
+
+    def email_status(self, obj):
+        """Display email subscription status"""
+        if obj.receive_email:
+            return format_html(
+                '<span style="color: green;">✓ {}</span>',
+                _("بريد إلكتروني"),
+            )
+        return format_html(
+            '<span style="color: red;">✗ {}</span>',
+            _("بدون"),
+        )
+
+    email_status.short_description = _("البريد الإلكتروني")
+
+    def sms_status(self, obj):
+        """Display SMS subscription status"""
+        if obj.receive_sms and obj.phone:
+            return format_html(
+                '<span style="color: green;">✓ {}</span>',
+                _("رسالة نصية"),
+            )
+        return format_html(
+            '<span style="color: red;">✗ {}</span>',
+            _("بدون"),
+        )
+
+    sms_status.short_description = _("الرسائل النصية")
+
+    def activate_subscribers(self, request, queryset):
+        """Activate selected subscribers"""
+        updated = queryset.update(is_active=True)
+        self.message_user(
+            request,
+            format_html(
+                _("<strong>{}</strong> مشترك تم تفعيله بنجاح"),
+                updated,
+            ),
+        )
+
+    activate_subscribers.short_description = _("تفعيل الاشتراكات المحددة")
+
+    def deactivate_subscribers(self, request, queryset):
+        """Deactivate selected subscribers"""
+        updated = queryset.update(is_active=False)
+        self.message_user(
+            request,
+            format_html(
+                _("<strong>{}</strong> مشترك تم إلغاء تفعيله"),
+                updated,
+            ),
+        )
+
+    deactivate_subscribers.short_description = _("إلغاء تفعيل الاشتراكات المحددة")
+
+    def send_test_email(self, request, queryset):
+        """Send test email to selected subscribers"""
+        from django.conf import settings
+        from django.core.mail import send_mail
+        from django.template.loader import render_to_string
+        from django.utils.html import strip_tags
+
+        for subscriber in queryset[:5]:  # Limit to 5 to avoid spam
+            subject = _("رسالة اختبار من إدريسي مارت")
+            context = {
+                "email": subscriber.email,
+                "site_name": getattr(settings, "SITE_NAME", "Idrissi Smart"),
+            }
+
+            html_message = render_to_string(
+                "email/newsletter_confirmation.html", context
+            )
+            plain_message = strip_tags(html_message)
+
+            try:
+                send_mail(
+                    subject=subject,
+                    message=plain_message,
+                    from_email=getattr(
+                        settings, "DEFAULT_FROM_EMAIL", "noreply@idrissimart.com"
+                    ),
+                    recipient_list=[subscriber.email],
+                    html_message=html_message,
+                    fail_silently=False,
+                )
+            except Exception as e:
+                print(f"Error sending test email to {subscriber.email}: {e}")
+
+        self.message_user(
+            request,
+            _("تم إرسال رسائل اختبار للمشتركين المحددين"),
+        )
+
+    send_test_email.short_description = _("إرسال رسالة اختبار")
+
+    def has_add_permission(self, request):
+        """Allow adding subscribers through admin"""
+        return True
+
+    def has_delete_permission(self, request, obj=None):
+        """Allow deleting subscribers"""
+        return request.user.is_superuser
