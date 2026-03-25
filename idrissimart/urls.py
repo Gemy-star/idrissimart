@@ -7,9 +7,8 @@ from main import cart_wishlist_views
 
 urlpatterns = [
     path("i18n/", include("django.conf.urls.i18n")),
-    path("api/", include("api.urls", namespace="api")),  # Mobile API
-    path("ckeditor5/", include("django_ckeditor_5.urls")),  # CKEditor 5 URLs
-    # Cart & Wishlist APIs — outside i18n_patterns to prevent POST→GET redirect
+    # Cart & Wishlist APIs — BEFORE api/ include to avoid DRF router conflict
+    # (DRF router matches wishlist/{pk}/ with pk="add" → 405 if placed after)
     path("api/cart/add/", cart_wishlist_views.add_to_cart),
     path("api/cart/remove/", cart_wishlist_views.remove_from_cart),
     path("api/cart/update-quantity/", cart_wishlist_views.update_cart_quantity),
@@ -19,6 +18,8 @@ urlpatterns = [
     path("api/wishlist/toggle/", cart_wishlist_views.toggle_wishlist),
     path("api/wishlist/count/", cart_wishlist_views.get_wishlist_count),
     path("api/wishlist/status/", cart_wishlist_views.check_wishlist_status),
+    path("api/", include("api.urls", namespace="api")),  # Mobile API
+    path("ckeditor5/", include("django_ckeditor_5.urls")),  # CKEditor 5 URLs
 ]
 
 urlpatterns += i18n_patterns(
