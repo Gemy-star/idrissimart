@@ -32,7 +32,6 @@ ALLOWED_HOSTS = []
 # Apps
 # =======================
 INSTALLED_APPS = [
-    "jazzmin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -1091,109 +1090,4 @@ REDOC_SETTINGS = {
     'PATH_IN_MIDDLE': True,
 }
 
-# =======================
-# Jazzmin Admin Settings
-# =======================
-JAZZMIN_SETTINGS = {
-    # Title on the login screen and browser tab
-    "site_title": "Idrissimart Admin",
-    "site_header": "",
-    "site_brand": "",
-
-    # Logo shown in the top-left navbar (path relative to STATICFILES)
-    "site_logo": "images/logos/logo-white-theme.png",
-
-    # Logo shown on the login page  (path relative to STATICFILES)
-    "login_logo": "images/logos/logo.png",
-
-    # Dark-mode login logo
-    "login_logo_dark": "images/logos/logo-dark-theme.png",
-
-    # CSS classes applied to the site_logo img tag
-    "site_logo_classes": "img-fluid",
-
-    # Welcome text on the login screen
-    "welcome_sign": "Welcome to Idrissimart Administration",
-
-    # Copyright footer
-    "copyright": "Idrissimart",
-
-    # Field names on user model to search
-    "search_model": ["auth.User"],
-
-    # Top menu links
-    "topmenu_links": [
-        {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
-        {"name": "View Site", "url": "/", "new_window": True},
-    ],
-
-    # Side menu apps order / labels
-    "order_with_respect_to": [
-        "auth",
-        "content",
-        "main",
-    ],
-
-    # Icons (FontAwesome 5 classes)
-    "icons": {
-        "auth": "fas fa-users-cog",
-        "auth.user": "fas fa-user",
-        "auth.Group": "fas fa-users",
-    },
-
-    # Default icon for apps / models
-    "default_icon_parents": "fas fa-chevron-circle-right",
-    "default_icon_children": "fas fa-circle",
-
-    # Use modals instead of popups
-    "related_modal_active": True,
-
-    # Custom CSS / JS (relative to STATICFILES)
-    "custom_css": "admin/css/jazzmin_custom.css",
-    "custom_js": None,
-
-    # Whether to link font from fonts.googleapis.com
-    "use_google_fonts_cdn": True,
-
-    # Whether to show the UI customizer on the sidebar
-    "show_ui_builder": False,
-
-    # Show theme/dark-mode chooser button in the navbar
-    "show_theme_chooser": True,
-
-    # Change view layout
-    "changeform_format": "horizontal_tabs",
-}
-
-JAZZMIN_UI_TWEAKS = {
-    "navbar_small_text": False,
-    "footer_small_text": False,
-    "body_small_text": False,
-    "brand_small_text": False,
-    "brand_colour": "navbar-dark",
-    "accent": "accent-primary",
-    "navbar": "navbar-dark",
-    "no_navbar_border": False,
-    "navbar_fixed": True,
-    "layout_boxed": False,
-    "footer_fixed": False,
-    "sidebar_fixed": True,
-    "sidebar": "sidebar-dark-primary",
-    "sidebar_nav_small_text": False,
-    "sidebar_disable_expand": False,
-    "sidebar_nav_child_indent": True,
-    "sidebar_nav_compact_style": False,
-    "sidebar_nav_legacy_style": False,
-    "sidebar_nav_flat_style": False,
-    "theme": "default",
-    "dark_mode_theme": None,
-    "button_classes": {
-        "primary": "btn-primary",
-        "secondary": "btn-secondary",
-        "info": "btn-info",
-        "warning": "btn-warning",
-        "danger": "btn-danger",
-        "success": "btn-success",
-    },
-}
 
