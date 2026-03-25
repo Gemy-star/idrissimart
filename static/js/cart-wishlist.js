@@ -23,9 +23,6 @@ function getCookie(name) {
 
 const csrftoken = getCookie('csrftoken');
 
-// Language-prefixed base path for all cart/wishlist API calls
-const _apiBase = (window.LANG_PREFIX || '') + '/api';
-
 /**
  * Check if user is authenticated
  */
@@ -115,8 +112,8 @@ async function addToCart(itemId, itemName = 'المنتج') {
     }
 
     try {
-        console.log('[addToCart] Sending request to', _apiBase + '/cart/add/');
-        const response = await fetch(_apiBase + '/cart/add/', {
+        console.log('[addToCart] Sending request to /api/cart/add/');
+        const response = await fetch('/api/cart/add/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -169,8 +166,8 @@ async function removeFromCart(itemId, itemName = 'المنتج') {
     }
 
     try {
-        console.log('[removeFromCart] Sending request to', _apiBase + '/cart/remove/');
-        const response = await fetch(_apiBase + '/cart/remove/', {
+        console.log('[removeFromCart] Sending request to /api/cart/remove/');
+        const response = await fetch('/api/cart/remove/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -227,8 +224,8 @@ async function addToWishlist(itemId, itemName = 'المنتج') {
     }
 
     try {
-        console.log('[addToWishlist] Sending request to', _apiBase + '/wishlist/add/');
-        const response = await fetch(_apiBase + '/wishlist/add/', {
+        console.log('[addToWishlist] Sending request to /api/wishlist/add/');
+        const response = await fetch('/api/wishlist/add/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -284,8 +281,8 @@ async function removeFromWishlist(itemId, itemName = 'المنتج') {
     }
 
     try {
-        console.log('[removeFromWishlist] Sending request to', _apiBase + '/wishlist/remove/');
-        const response = await fetch(_apiBase + '/wishlist/remove/', {
+        console.log('[removeFromWishlist] Sending request to /api/wishlist/remove/');
+        const response = await fetch('/api/wishlist/remove/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -665,7 +662,7 @@ async function refreshCountsFromServer() {
 
     try {
         // Fetch cart count
-        const cartResponse = await fetch(_apiBase + '/cart/count/', {
+        const cartResponse = await fetch('/api/cart/count/', {
             method: 'GET',
             headers: {
                 'X-CSRFToken': csrftoken
@@ -680,7 +677,7 @@ async function refreshCountsFromServer() {
         }
 
         // Fetch wishlist count
-        const wishlistResponse = await fetch(_apiBase + '/wishlist/count/', {
+        const wishlistResponse = await fetch('/api/wishlist/count/', {
             method: 'GET',
             headers: {
                 'X-CSRFToken': csrftoken
