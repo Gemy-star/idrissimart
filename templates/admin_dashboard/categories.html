@@ -1227,7 +1227,6 @@
                 <form id="categoryForm" novalidate>
                     <input type="hidden" id="categoryId" name="id">
                     <input type="hidden" id="parentId" name="parent_id">
-                    <input type="hidden" id="sectionType" name="section_type">
                     <input type="hidden" id="categoryOrder" name="order">
 
                     <!-- Language Tabs -->
@@ -1269,6 +1268,17 @@
 
                     <!-- Settings Tab -->
                     <div class="lang-pane" id="tab-settings">
+                        <div class="fgroup">
+                            <label class="flabel" for="sectionType">{% trans "نوع القسم" %} <span class="req">*</span></label>
+                            <select class="finput" id="sectionType" name="section_type" required onchange="toggleAllowCartField()">
+                                <option value="classified" selected>{% trans "إعلانات مبوبة" %}</option>
+                                <option value="product">{% trans "متجر" %}</option>
+                                <option value="service">{% trans "طلب خدمة" %}</option>
+                                <option value="job">{% trans "التوظيف" %}</option>
+                                <option value="course">{% trans "الدورات التدريبية" %}</option>
+                            </select>
+                        </div>
+
                         <div class="fgroup">
                             <label class="flabel" for="adCreationPrice">{% trans "سعر نشر الإعلان" %}</label>
                             <div class="finput-prefix">
@@ -1406,7 +1416,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!btn) return;
         const action = btn.dataset.action;
 
-        if (action === 'add-category')              { openAddCategoryModal(); }
+        if (action === 'add-category')              { openAddCategoryModal(null, 'classified'); }
         else if (action === 'add-section-category') { openAddCategoryModal(null, btn.dataset.section); }
         else if (action === 'edit-category')        { editCategory(+btn.dataset.categoryId); }
         else if (action === 'add-subcategory')      { openAddCategoryModal(+btn.dataset.parentId, btn.dataset.section || null); }
@@ -1493,10 +1503,11 @@ function openAddCategoryModal(parentId = null, sectionCode = null) {
 function resetCategoryModal() {
     const form = document.getElementById('categoryForm');
     if (form) form.reset();
-    ['categoryId','parentId','sectionType','categoryOrder'].forEach(id => {
+    ['categoryId','parentId','categoryOrder'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
+    document.getElementById('sectionType').value = 'classified';
     ['adCreationPriceInheritInfo'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.remove('show');

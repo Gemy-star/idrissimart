@@ -213,7 +213,6 @@ ROSETTA_EXCLUDED_APPLICATIONS = (    # skip third-party app translations
     "filer",
     "easy_thumbnails",
     "import_export",
-    "jazzmin",
     "ckeditor5",
     "constance",
     "recaptcha",

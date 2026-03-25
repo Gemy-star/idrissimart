@@ -2108,8 +2108,9 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
             if field_key in seen_fields or field_value is None or field_value == "":
                 continue
 
-            # Create a simple label from the field key
-            label = field_key.replace('_', ' ').title()
+            # Create a simple label from the field key (strip 'custom_' prefix)
+            display_key = field_key.removeprefix('custom_')
+            label = display_key.replace('_', ' ').title()
 
             fields_to_display.append(
                 {

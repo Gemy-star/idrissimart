@@ -3622,12 +3622,14 @@ class AdminCustomFieldGetView(SuperadminRequiredMixin, View):
 
             # Get options for select/radio/checkbox fields
             options_list = []
+            options_ar_list = []
+            options_en_list = []
             if field.field_type in ["select", "radio", "checkbox"]:
-                options_list = list(
-                    field.field_options.filter(is_active=True)
-                    .values_list("value", flat=True)
-                    .order_by("order")
+                existing_options = list(
+                    field.field_options.filter(is_active=True).order_by("order")
                 )
+                options_ar_list = [o.label_ar for o in existing_options]
+                options_en_list = [o.label_en for o in existing_options]
 
             # Get categories this field is associated with
             category_ids = list(field.categories.values_list("id", flat=True))
@@ -3642,9 +3644,10 @@ class AdminCustomFieldGetView(SuperadminRequiredMixin, View):
                 "help_text": field.help_text,
                 "placeholder": field.placeholder,
                 "default_value": field.default_value,
-                "options": ",".join(options_list),  # Join for backward compatibility
+                "options_ar": ",".join(options_ar_list),
+                "options_en": ",".join(options_en_list),
                 "is_active": field.is_active,
-                "category_ids": category_ids,  # Multiple categories now
+                "category_ids": category_ids,
             }
             return JsonResponse({"success": True, "field": data})
         except Http404:
@@ -3785,21 +3788,26 @@ class AdminCustomFieldSaveView(SuperadminRequiredMixin, View):
                     }
 
             # Handle options for select/radio/checkbox fields
-            options_str = data.get("options", "")
-            if options_str and field.field_type in ["select", "radio", "checkbox"]:
+            options_ar_str = data.get("options_ar", data.get("options", ""))
+            options_en_str = data.get("options_en", "")
+            if options_ar_str and field.field_type in ["select", "radio", "checkbox"]:
                 # Delete existing options
                 CustomFieldOption.objects.filter(custom_field=field).delete()
 
                 # Create new options
-                options_list = [
-                    opt.strip() for opt in options_str.split(",") if opt.strip()
+                options_ar_list = [
+                    opt.strip() for opt in options_ar_str.split(",") if opt.strip()
                 ]
-                for index, option_value in enumerate(options_list):
+                options_en_list = [
+                    opt.strip() for opt in options_en_str.split(",") if opt.strip()
+                ]
+                for index, label_ar in enumerate(options_ar_list):
+                    label_en = options_en_list[index] if index < len(options_en_list) else label_ar
                     CustomFieldOption.objects.create(
                         custom_field=field,
-                        label_ar=option_value,
-                        label_en=option_value,
-                        value=option_value,
+                        label_ar=label_ar,
+                        label_en=label_en,
+                        value=label_ar,
                         order=index,
                         is_active=True,
                     )

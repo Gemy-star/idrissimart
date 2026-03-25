@@ -82,7 +82,7 @@ def header_categories(request):
             db_models.Q(country=country)
             | db_models.Q(countries=country)
             | db_models.Q(country__isnull=True, countries__isnull=True)
-        ).order_by("order", "name")[:8]
+        ).order_by("order", "name")[:20]
     except Country.DoesNotExist:
         categories = Category.objects.none()
 
