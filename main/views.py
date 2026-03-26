@@ -2068,8 +2068,8 @@ def get_subcategories_ajax(request, category_id):
                 .select_related("custom_field")
                 .values(
                     "custom_field__name",
-                    "custom_field__label",
                     "custom_field__label_ar",
+                    "custom_field__label_en",
                     "custom_field__icon",
                 )
             )

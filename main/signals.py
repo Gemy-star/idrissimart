@@ -187,6 +187,13 @@ def assign_default_package_to_new_user(sender, instance, created, **kwargs):
     """
     if created and instance.profile_type == User.ProfileType.DEFAULT:
         try:
+            # Guard: never assign more than one free package to a user
+            if UserPackage.objects.filter(user=instance).exists():
+                logger.info(
+                    f"User {instance.username} already has a package, skipping default assignment"
+                )
+                return
+
             from content.verification_utils import is_free_package_verification_required
 
             # Check if verification is required for free package
