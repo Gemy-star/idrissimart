@@ -407,6 +407,9 @@
     </div>
 </section>
 
+{% endblock %}
+
+{% block modals %}
 <!-- Validation Modal -->
 <div class="modal fade" id="paymentValidationModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -483,13 +486,18 @@ document.addEventListener('DOMContentLoaded', function() {
     // Form validation
     const form = document.getElementById('paymentForm');
     form.addEventListener('submit', function(e) {
-        const selectedMethod = document.querySelector('input[name="payment_method"]:checked');
+        // Accept checked radio OR hidden free-payment input
+        const selectedMethod = document.querySelector('input[name="payment_method"]:checked')
+                            || document.querySelector('input[name="payment_method"][type="hidden"]');
 
         if (!selectedMethod) {
             e.preventDefault();
             showPaymentAlert('{% trans "يرجى اختيار طريقة الدفع" %}');
             return false;
         }
+
+        // Skip further validation for free ads
+        if (selectedMethod.value === 'free') { return true; }
 
         // Validate offline payment methods
         if (selectedMethod.value === 'instapay') {
