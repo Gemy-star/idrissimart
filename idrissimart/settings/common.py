@@ -236,31 +236,8 @@ MEDIA_ROOT = BASE_DIR / "media"
 # =======================
 # Email Configuration
 # =======================
-# Use console backend for development if SendGrid is not configured
-SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
-
-try:
-    import sendgrid_backend
-
-    # Only use SendGrid if API key is configured
-    if SENDGRID_API_KEY:
-        EMAIL_BACKEND = "sendgrid_backend.SendGridBackend"
-        SENDGRID_SANDBOX_MODE_IN_DEBUG = True
-    else:
-        # Fallback to console backend if no API key
-        EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-        import logging
-
-        logging.warning("SendGrid API key not configured. Using console email backend.")
-except ImportError:
-    # Fallback to console backend for development
-    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-    import logging
-
-    logging.warning("SendGrid backend not installed. Using console email backend.")
-
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@idrissimart.com")
-EMAIL_HOST_USER = DEFAULT_FROM_EMAIL
 
 # =======================
 # Google reCAPTCHA v2

@@ -166,19 +166,6 @@ CONSTANCE_CONFIG = {
         _("نسبة الضريبة (%) - Tax Rate"),
         float,
     ),
-    # Email Settings - SendGrid
-    "SENDGRID_API_KEY": (
-        os.getenv("SENDGRID_API_KEY", ""),
-        _("SendGrid API Key (loaded from environment)"),
-    ),
-    "SENDGRID_FROM_EMAIL": (
-        "noreply@idrissimart.com",
-        _("SendGrid From Email"),
-    ),
-    "SENDGRID_FROM_NAME": (
-        "إدريسي مارت",
-        _("SendGrid From Name"),
-    ),
     # Google reCAPTCHA v2 Settings
     "RECAPTCHA_SITE_KEY": (
         "6LcUMSYsAAAAAGKWlIEtHtmD7ecT5U1Vi3B098dD",
@@ -191,11 +178,6 @@ CONSTANCE_CONFIG = {
     "RECAPTCHA_ENABLED": (
         True,
         _("Enable reCAPTCHA verification on forms"),
-        bool,
-    ),
-    "SENDGRID_ENABLED": (
-        True,
-        _("Enable SendGrid email service"),
         bool,
     ),
     # Social Authentication Settings
@@ -542,12 +524,6 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "PAYMOB_WALLET_INTEGRATION_ID",
     ),
     "Payment General Settings": ("TAX_RATE",),
-    "Email Settings - SendGrid": (
-        "SENDGRID_ENABLED",
-        "SENDGRID_API_KEY",
-        "SENDGRID_FROM_EMAIL",
-        "SENDGRID_FROM_NAME",
-    ),
     "Security & Verification - reCAPTCHA": (
         "RECAPTCHA_ENABLED",
         "RECAPTCHA_SITE_KEY",

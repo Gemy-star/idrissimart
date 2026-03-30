@@ -104,9 +104,7 @@ def send_ad_approval_notification(sender, instance, **kwargs):
                 )
 
                 # 2. Send an email notification
-                email_notifications_enabled = EmailService.is_enabled()
-
-                if email_notifications_enabled:
+                if True:
                     try:
                         email_service = EmailService()
                         success = email_service.send_ad_approved_email(
@@ -452,7 +450,7 @@ def send_order_notifications(sender, instance, created, **kwargs):
             )
 
             # 2. Send customer email
-            if EmailService.is_enabled():
+            if True:
                 try:
                     from django.conf import settings
 
@@ -596,7 +594,7 @@ def send_order_status_notifications(sender, instance, created, **kwargs):
                 )
 
                 # Send email notification for order status update
-                if EmailService.is_enabled():
+                if True:
                     try:
                         # Get currency from order's ad
                         currency = "ج.م"
@@ -762,7 +760,7 @@ def activate_package_on_payment_completion(sender, instance, created, **kwargs):
                     )
 
                     # Send email notification
-                    if EmailService.is_enabled():
+                    if True:
                         try:
                             email_service = EmailService()
                             email_service.send_template_email(

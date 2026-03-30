@@ -1,29 +1,20 @@
 """
-Email Service using SendGrid
-Integrates with django-constance for dynamic configuration
+Email Service using Django's built-in email backend.
 """
 
 import logging
 from typing import List, Optional
 
-from constance import config
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, Email, To, Content
 
 logger = logging.getLogger(__name__)
 
 
 class EmailService:
-    """Service for sending emails using SendGrid"""
-
-    @staticmethod
-    def is_enabled() -> bool:
-        """Check if SendGrid email service is enabled"""
-        return config.SENDGRID_ENABLED and bool(config.SENDGRID_API_KEY)
+    """Service for sending emails using Django's email backend."""
 
     @staticmethod
     def send_email(
@@ -36,58 +27,34 @@ class EmailService:
         reply_to: Optional[str] = None,
         attachments: Optional[List] = None,
     ) -> bool:
-        """
-        Send email using SendGrid
-
-        Args:
-            to_emails: List of recipient email addresses
-            subject: Email subject
-            html_content: HTML content of the email
-            text_content: Plain text content (optional, auto-generated from HTML if not provided)
-            from_email: Sender email (uses config if not provided)
-            from_name: Sender name (uses config if not provided)
-            reply_to: Reply-to email address
-            attachments: List of attachments
-
-        Returns:
-            bool: True if email sent successfully, False otherwise
-        """
-        if not EmailService.is_enabled():
-            logger.warning("SendGrid email service is disabled")
-            return False
-
         try:
-            # Use configured values if not provided
-            from_email = from_email or config.SENDGRID_FROM_EMAIL
-            from_name = from_name or config.SENDGRID_FROM_NAME
+            sender_email = from_email or getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@idrissimart.com")
+            if from_name:
+                sender = f"{from_name} <{sender_email}>"
+            else:
+                sender = sender_email
 
-            # Auto-generate text content if not provided
-            if not text_content:
-                text_content = strip_tags(html_content)
+            plain_text = text_content or strip_tags(html_content)
 
-            # Create email message
             email = EmailMultiAlternatives(
                 subject=subject,
-                body=text_content,
-                from_email=f"{from_name} <{from_email}>",
+                body=plain_text,
+                from_email=sender,
                 to=to_emails,
                 reply_to=[reply_to] if reply_to else None,
             )
             email.attach_alternative(html_content, "text/html")
 
-            # Add attachments if provided
             if attachments:
                 for attachment in attachments:
                     email.attach(*attachment)
 
-            # Send email
             email.send()
-
-            logger.info(f"Email sent successfully to {', '.join(to_emails)}")
+            logger.info("Email sent successfully to %s", ", ".join(to_emails))
             return True
 
         except Exception as e:
-            logger.error(f"Failed to send email: {str(e)}")
+            logger.error("Failed to send email: %s", str(e))
             return False
 
     @staticmethod
@@ -100,26 +67,8 @@ class EmailService:
         from_name: Optional[str] = None,
         reply_to: Optional[str] = None,
     ) -> bool:
-        """
-        Send email using Django template
-
-        Args:
-            to_emails: List of recipient email addresses
-            subject: Email subject
-            template_name: Path to email template
-            context: Template context dictionary
-            from_email: Sender email (uses config if not provided)
-            from_name: Sender name (uses config if not provided)
-            reply_to: Reply-to email address
-
-        Returns:
-            bool: True if email sent successfully, False otherwise
-        """
         try:
-            # Render template
             html_content = render_to_string(template_name, context)
-
-            # Send email
             return EmailService.send_email(
                 to_emails=to_emails,
                 subject=subject,
@@ -128,33 +77,21 @@ class EmailService:
                 from_name=from_name,
                 reply_to=reply_to,
             )
-
         except Exception as e:
-            logger.error(f"Failed to send template email: {str(e)}")
+            logger.error("Failed to send template email: %s", str(e))
             return False
 
     @staticmethod
     def send_otp_email(email: str, otp_code: str, user_name: str = "") -> bool:
-        """
-        Send OTP verification email
+        from constance import config
 
-        Args:
-            email: Recipient email address
-            otp_code: OTP code
-            user_name: User's name (optional)
-
-        Returns:
-            bool: True if email sent successfully, False otherwise
-        """
         subject = f"{config.SITE_NAME} - رمز التحقق"
-
         context = {
             "site_name": config.SITE_NAME,
             "user_name": user_name,
             "otp_code": otp_code,
             "expiry_minutes": config.OTP_EXPIRY_MINUTES,
         }
-
         return EmailService.send_template_email(
             to_emails=[email],
             subject=subject,
@@ -164,24 +101,14 @@ class EmailService:
 
     @staticmethod
     def send_welcome_email(email: str, user_name: str) -> bool:
-        """
-        Send welcome email to new user
+        from constance import config
 
-        Args:
-            email: Recipient email address
-            user_name: User's name
-
-        Returns:
-            bool: True if email sent successfully, False otherwise
-        """
         subject = f"مرحباً بك في {config.SITE_NAME}"
-
         context = {
             "site_name": config.SITE_NAME,
             "user_name": user_name,
             "site_url": config.SITE_URL,
         }
-
         return EmailService.send_template_email(
             to_emails=[email],
             subject=subject,
@@ -193,25 +120,14 @@ class EmailService:
     def send_password_reset_email(
         email: str, reset_link: str, user_name: str = ""
     ) -> bool:
-        """
-        Send password reset email
+        from constance import config
 
-        Args:
-            email: Recipient email address
-            reset_link: Password reset link
-            user_name: User's name (optional)
-
-        Returns:
-            bool: True if email sent successfully, False otherwise
-        """
         subject = f"{config.SITE_NAME} - إعادة تعيين كلمة المرور"
-
         context = {
             "site_name": config.SITE_NAME,
             "user_name": user_name,
             "reset_link": reset_link,
         }
-
         return EmailService.send_template_email(
             to_emails=[email],
             subject=subject,
@@ -223,27 +139,15 @@ class EmailService:
     def send_ad_approved_email(
         email: str, ad_title: str, ad_url: str, user_name: str = ""
     ) -> bool:
-        """
-        Send ad approval notification email
+        from constance import config
 
-        Args:
-            email: Recipient email address
-            ad_title: Ad title
-            ad_url: URL to the ad
-            user_name: User's name (optional)
-
-        Returns:
-            bool: True if email sent successfully, False otherwise
-        """
         subject = config.AD_APPROVAL_EMAIL_SUBJECT.format(ad_title=ad_title)
-
         context = {
             "site_name": config.SITE_NAME,
             "user_name": user_name,
             "ad_title": ad_title,
             "ad_url": ad_url,
         }
-
         return EmailService.send_template_email(
             to_emails=[email],
             subject=subject,
@@ -256,21 +160,9 @@ class EmailService:
     def send_saved_search_notification(
         email: str, search_name: str, ads: list, search_url: str, user_name: str = ""
     ) -> bool:
-        """
-        Send saved search notification email
+        from constance import config
 
-        Args:
-            email: Recipient email address
-            search_name: Name of the saved search
-            ads: List of new ads matching the search
-            search_url: URL to view the search results
-            user_name: User's name (optional)
-
-        Returns:
-            bool: True if email sent successfully, False otherwise
-        """
         subject = config.SAVED_SEARCH_EMAIL_SUBJECT.format(search_name=search_name)
-
         context = {
             "site_name": config.SITE_NAME,
             "user_name": user_name,
@@ -278,7 +170,6 @@ class EmailService:
             "ads": ads,
             "search_url": search_url,
         }
-
         return EmailService.send_template_email(
             to_emails=[email],
             subject=subject,

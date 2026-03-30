@@ -188,3 +188,15 @@ CSRF_TRUSTED_ORIGINS = [
 
 # Admin URL path - change this to something unique for security
 # ADMIN_URL = os.getenv("ADMIN_URL", "admin/")
+
+# =======================
+# Email / SMTP
+# =======================
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", 25))
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "False").lower() in ("true", "1")
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "admin@idrissimart.com")
+SERVER_EMAIL = os.getenv("SERVER_EMAIL", "admin@idrissimart.com")
