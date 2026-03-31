@@ -1,0 +1,84 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "معاينة القالب" %}: {{ template.name_ar|default:template.key }}{% endblock %}
+
+{% block admin_content %}
+<div class="row mb-4">
+    <div class="col">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{% url 'main:admin_email_templates' %}">{% trans "قوالب البريد الإلكتروني" %}</a>
+                </li>
+                <li class="breadcrumb-item active">{% trans "معاينة" %}</li>
+            </ol>
+        </nav>
+        <div class="d-flex justify-content-between align-items-center">
+            <h2><i class="fas fa-eye me-2"></i>{% trans "معاينة القالب" %}</h2>
+            <div class="btn-group">
+                <a href="?lang=ar" class="btn {% if lang == 'ar' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    {% trans "عربي" %}
+                </a>
+                <a href="?lang=en" class="btn {% if lang == 'en' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    English
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8 offset-lg-2">
+
+        <!-- Subject preview -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <span class="text-muted small">{% trans "الموضوع:" %}</span>
+                <strong class="ms-2">{{ preview_subject|default:"—" }}</strong>
+            </div>
+        </div>
+
+        <!-- Email preview frame -->
+        <div class="card shadow">
+            <div class="card-header d-flex align-items-center gap-2 bg-light">
+                <span class="badge bg-secondary">{{ template.key }}</span>
+                <span class="text-muted small">{% trans "معاينة الرسالة" %}</span>
+            </div>
+            <div class="card-body p-0">
+                <iframe id="previewFrame" style="width:100%;min-height:500px;border:none;" srcdoc=""
+                        sandbox="allow-same-origin"></iframe>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="d-flex gap-2 mt-3">
+            <a href="{% url 'main:admin_email_template_edit' template.id %}" class="btn btn-primary">
+                <i class="fas fa-edit me-2"></i>{% trans "تعديل" %}
+            </a>
+            <a href="{% url 'main:admin_email_templates' %}" class="btn btn-outline-secondary">
+                {% trans "رجوع" %}
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block admin_extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const body = {{ preview_body|default:"''"|safe }};
+    const frame = document.getElementById("previewFrame");
+    if (frame && body) {
+        const doc = frame.contentDocument || frame.contentWindow.document;
+        doc.open();
+        doc.write(body);
+        doc.close();
+        // Auto-resize
+        setTimeout(function () {
+            frame.style.height = (doc.body.scrollHeight + 40) + "px";
+        }, 300);
+    }
+});
+</script>
+{% endblock %}

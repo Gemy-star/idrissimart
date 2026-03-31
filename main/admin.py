@@ -30,6 +30,7 @@ from .models import (
     ContactMessage,
     CustomField,
     CustomFieldOption,
+    EmailTemplate,
     FAQ,
     FAQCategory,
     FacebookShareRequest,
@@ -3105,3 +3106,65 @@ class SafetyTipAdmin(admin.ModelAdmin):
         }
 
         return render(request, "admin/main/safetytip/preview.html", context)
+
+
+@admin.register(EmailTemplate)
+class EmailTemplateAdmin(admin.ModelAdmin):
+    list_display = ("key", "display_name_ar", "display_subject_ar", "is_active", "updated_at")
+    list_filter = ("is_active", "key")
+    search_fields = ("key", "name", "name_ar", "subject", "subject_ar")
+    list_editable = ("is_active",)
+    readonly_fields = ("created_at", "updated_at")
+    ordering = ("key",)
+
+    formfield_overrides = {
+        __import__("django.db.models", fromlist=["TextField"]).TextField: {
+            "widget": __import__("django_ckeditor_5.widgets", fromlist=["CKEditor5Widget"]).CKEditor5Widget(
+                attrs={"class": "django_ckeditor_5"}, config_name="extends"
+            )
+        },
+    }
+
+    fieldsets = (
+        (
+            "المعرّف - Identifier",
+            {
+                "fields": ("key", "is_active"),
+            },
+        ),
+        (
+            "الاسم - Name",
+            {
+                "fields": ("name", "name_ar"),
+            },
+        ),
+        (
+            "الموضوع - Subject",
+            {
+                "fields": ("subject", "subject_ar"),
+                "description": "موضوع البريد الإلكتروني. يمكن استخدام متغيرات مثل {site_name} / Email subject. Variables like {site_name} are supported.",
+            },
+        ),
+        (
+            "المحتوى - Body",
+            {
+                "fields": ("body", "body_ar"),
+                "description": "محتوى الرسالة بتنسيق HTML. يمكن استخدام المتغيرات المذكورة أدناه / HTML body content. Use variables listed below.",
+            },
+        ),
+        (
+            "المتغيرات والتواريخ - Variables & Dates",
+            {
+                "fields": ("available_variables", "created_at", "updated_at"),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+    def display_name_ar(self, obj):
+        return obj.name_ar or obj.name
+    display_name_ar.short_description = "الاسم"
+
+    def display_subject_ar(self, obj):
+        return obj.subject_ar or obj.subject
+    display_subject_ar.short_description = "الموضوع"

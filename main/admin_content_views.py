@@ -2,6 +2,7 @@
 Admin views for content management (HomeSlider, etc.)
 """
 
+from django.db import models
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -975,3 +976,161 @@ def admin_faq_category_delete(request, category_id):
     }
 
     return render(request, "admin_dashboard/faqs/category_delete.html", context)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Email Templates
+# ─────────────────────────────────────────────────────────────────────────────
+
+@login_required
+@user_passes_test(is_admin)
+def admin_email_templates(request):
+    """List all email templates."""
+    from main.models import EmailTemplate
+
+    templates = EmailTemplate.objects.all()
+
+    search = request.GET.get("search", "").strip()
+    if search:
+        templates = templates.filter(
+            models.Q(name__icontains=search)
+            | models.Q(name_ar__icontains=search)
+            | models.Q(key__icontains=search)
+        )
+
+    status_filter = request.GET.get("status", "")
+    if status_filter == "active":
+        templates = templates.filter(is_active=True)
+    elif status_filter == "inactive":
+        templates = templates.filter(is_active=False)
+
+    paginator = Paginator(templates, 20)
+    page_obj = paginator.get_page(request.GET.get("page", 1))
+
+    context = {
+        "templates": page_obj,
+        "total_count": EmailTemplate.objects.count(),
+        "active_count": EmailTemplate.objects.filter(is_active=True).count(),
+        "inactive_count": EmailTemplate.objects.filter(is_active=False).count(),
+        "search_query": search,
+        "status_filter": status_filter,
+        "active_nav": "email_templates",
+    }
+    return render(request, "admin_dashboard/email_templates/list.html", context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_email_template_create(request):
+    """Create a new email template."""
+    from main.models import EmailTemplate
+
+    if request.method == "POST":
+        key = request.POST.get("key", "").strip()
+        name = request.POST.get("name", "").strip()
+        name_ar = request.POST.get("name_ar", "").strip()
+        subject = request.POST.get("subject", "").strip()
+        subject_ar = request.POST.get("subject_ar", "").strip()
+        body = request.POST.get("body", "").strip()
+        body_ar = request.POST.get("body_ar", "").strip()
+        available_variables = request.POST.get("available_variables", "").strip()
+        is_active = request.POST.get("is_active") == "on"
+
+        if not key:
+            messages.error(request, _("المفتاح (Key) مطلوب"))
+        elif not name_ar and not name:
+            messages.error(request, _("الاسم مطلوب"))
+        elif EmailTemplate.objects.filter(key=key).exists():
+            messages.error(request, _("هذا المفتاح موجود بالفعل"))
+        else:
+            EmailTemplate.objects.create(
+                key=key,
+                name=name,
+                name_ar=name_ar,
+                subject=subject,
+                subject_ar=subject_ar,
+                body=body,
+                body_ar=body_ar,
+                available_variables=available_variables,
+                is_active=is_active,
+            )
+            messages.success(request, _("تم إنشاء القالب بنجاح"))
+            return redirect("main:admin_email_templates")
+
+    context = {
+        "template_keys": EmailTemplate.TemplateKey.choices,
+        "active_nav": "email_templates",
+    }
+    return render(request, "admin_dashboard/email_templates/create.html", context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_email_template_edit(request, template_id):
+    """Edit an existing email template."""
+    from main.models import EmailTemplate
+
+    template = get_object_or_404(EmailTemplate, id=template_id)
+
+    if request.method == "POST":
+        template.name = request.POST.get("name", "").strip()
+        template.name_ar = request.POST.get("name_ar", "").strip()
+        template.subject = request.POST.get("subject", "").strip()
+        template.subject_ar = request.POST.get("subject_ar", "").strip()
+        template.body = request.POST.get("body", "").strip()
+        template.body_ar = request.POST.get("body_ar", "").strip()
+        template.available_variables = request.POST.get("available_variables", "").strip()
+        template.is_active = request.POST.get("is_active") == "on"
+        template.save()
+        messages.success(request, _("تم تحديث القالب بنجاح"))
+        return redirect("main:admin_email_templates")
+
+    context = {
+        "template": template,
+        "template_keys": EmailTemplate.TemplateKey.choices,
+        "active_nav": "email_templates",
+    }
+    return render(request, "admin_dashboard/email_templates/edit.html", context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_email_template_delete(request, template_id):
+    """Delete an email template."""
+    from main.models import EmailTemplate
+
+    template = get_object_or_404(EmailTemplate, id=template_id)
+
+    if request.method == "POST":
+        name = template.name_ar or template.name
+        template.delete()
+        messages.success(request, f"تم حذف القالب '{name}' بنجاح")
+        return redirect("main:admin_email_templates")
+
+    context = {
+        "template": template,
+        "active_nav": "email_templates",
+    }
+    return render(request, "admin_dashboard/email_templates/delete.html", context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_email_template_preview(request, template_id):
+    """Preview an email template rendered with sample variables."""
+    from main.models import EmailTemplate
+
+    template = get_object_or_404(EmailTemplate, id=template_id)
+    lang = request.GET.get("lang", "ar")
+
+    subject = template.subject_ar if lang == "ar" else template.subject
+    body = template.body_ar if lang == "ar" else template.body
+
+    context = {
+        "template": template,
+        "preview_subject": subject,
+        "preview_body": body,
+        "lang": lang,
+        "active_nav": "email_templates",
+    }
+    return render(request, "admin_dashboard/email_templates/preview.html", context)

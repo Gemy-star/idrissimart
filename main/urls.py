@@ -1162,6 +1162,32 @@ urlpatterns = [
         admin_content_views.admin_faq_category_delete,
         name="admin_faq_category_delete",
     ),
+    # Email Template Management URLs
+    path(
+        "admin/email-templates/",
+        admin_content_views.admin_email_templates,
+        name="admin_email_templates",
+    ),
+    path(
+        "admin/email-templates/create/",
+        admin_content_views.admin_email_template_create,
+        name="admin_email_template_create",
+    ),
+    path(
+        "admin/email-templates/<int:template_id>/edit/",
+        admin_content_views.admin_email_template_edit,
+        name="admin_email_template_edit",
+    ),
+    path(
+        "admin/email-templates/<int:template_id>/delete/",
+        admin_content_views.admin_email_template_delete,
+        name="admin_email_template_delete",
+    ),
+    path(
+        "admin/email-templates/<int:template_id>/preview/",
+        admin_content_views.admin_email_template_preview,
+        name="admin_email_template_preview",
+    ),
     path(
         "admin/categories/",
         views.AdminCategoriesView.as_view(),

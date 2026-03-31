@@ -33,49 +33,40 @@ def send_email(to_email, subject, html_content, text_content=None):
 
 
 def send_password_reset_email(request, user, uid, token):
-    """Send password reset email to user."""
+    """Send password reset email to user. Tries DB template first, falls back to file."""
     from django.contrib.sites.shortcuts import get_current_site
+    from main.services.email_service import EmailService
 
     current_site = get_current_site(request)
     protocol = "https" if request.is_secure() else "http"
-
-    context = {
-        "user": user,
-        "uid": uid,
-        "token": token,
-        "domain": current_site.domain,
-        "site_name": current_site.name,
-        "protocol": protocol,
-    }
-
-    html_content = render_to_string("emails/password_reset_email.html", context)
-    text_content = render_to_string("password/password_reset_email.txt", context)
-
-    subject = "طلب إعادة تعيين كلمة المرور - Password Reset"
-
-    success = send_email(user.email, subject, html_content, text_content)
+    reset_link = f"{protocol}://{current_site.domain}/reset/{uid}/{token}/"
 
     if settings.DEBUG:
-        reset_link = f"{protocol}://{current_site.domain}/reset/{uid}/{token}/"
-        if not success:
-            logger.warning("Email send failed (DEBUG). Reset link for %s: %s", user.email, reset_link)
         print(f"\n{'='*60}")
         print(f"PASSWORD RESET LINK FOR: {user.email}")
         print(f"Link: {reset_link}")
         print(f"{'='*60}\n")
 
+    user_name = user.get_full_name() or user.username
+    success = EmailService.send_password_reset_email(
+        email=user.email,
+        reset_link=reset_link,
+        user_name=user_name,
+    )
+
+    if not success and settings.DEBUG:
+        logger.warning("Email send failed (DEBUG). Reset link for %s: %s", user.email, reset_link)
+
     return success
 
 
 def send_verification_email(request, user, verification_link):
-    """Send email verification link to user."""
-    context = {
-        "user": user,
-        "verification_link": verification_link,
-        "site_name": "إدريسي مارت",
-    }
+    """Send email verification link to user. Tries DB template first, falls back to file."""
+    from main.services.email_service import EmailService
 
-    html_content = render_to_string("emails/email_verification.html", context)
-    subject = "تأكيد البريد الإلكتروني - Verify Your Email"
-
-    return send_email(user.email, subject, html_content)
+    user_name = user.get_full_name() or user.username
+    return EmailService.send_email_verification_email(
+        email=user.email,
+        verification_link=verification_link,
+        user_name=user_name,
+    )

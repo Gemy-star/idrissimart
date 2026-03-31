@@ -1,0 +1,153 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load i18n static %}
+
+{% block title %}{% trans "إدارة قوالب البريد الإلكتروني" %}{% endblock %}
+
+{% block admin_content %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h2><i class="fas fa-envelope-open-text me-2"></i>{% trans "قوالب البريد الإلكتروني" %}</h2>
+    </div>
+    <div class="col-md-6 text-end">
+        <a href="{% url 'main:admin_email_template_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>{% trans "إضافة قالب جديد" %}
+        </a>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5>{% trans "إجمالي القوالب" %}</h5>
+                <h2>{{ total_count }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h5>{% trans "قوالب نشطة" %}</h5>
+                <h2>{{ active_count }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-secondary text-white">
+            <div class="card-body">
+                <h5>{% trans "قوالب غير نشطة" %}</h5>
+                <h2>{{ inactive_count }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">{% trans "الحالة" %}</label>
+                <select name="status" class="form-select">
+                    <option value="">{% trans "الكل" %}</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>{% trans "نشط" %}</option>
+                    <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>{% trans "غير نشط" %}</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">{% trans "البحث" %}</label>
+                <input type="text" name="search" class="form-control"
+                       placeholder="{% trans 'ابحث بالاسم أو المفتاح...' %}" value="{{ search_query }}">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search me-1"></i>{% trans "بحث" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Templates Table -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>{% trans "المفتاح" %}</th>
+                        <th>{% trans "الاسم (عربي)" %}</th>
+                        <th>{% trans "الاسم (إنجليزي)" %}</th>
+                        <th>{% trans "الموضوع (عربي)" %}</th>
+                        <th>{% trans "الحالة" %}</th>
+                        <th>{% trans "آخر تعديل" %}</th>
+                        <th>{% trans "الإجراءات" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tmpl in templates %}
+                    <tr>
+                        <td>{{ tmpl.id }}</td>
+                        <td><code class="text-primary">{{ tmpl.key }}</code></td>
+                        <td><strong>{{ tmpl.name_ar|default:"-" }}</strong></td>
+                        <td><small class="text-muted">{{ tmpl.name|default:"-" }}</small></td>
+                        <td>{{ tmpl.subject_ar|default:tmpl.subject|truncatechars:50|default:"-" }}</td>
+                        <td>
+                            {% if tmpl.is_active %}
+                                <span class="badge bg-success">{% trans "نشط" %}</span>
+                            {% else %}
+                                <span class="badge bg-danger">{% trans "غير نشط" %}</span>
+                            {% endif %}
+                        </td>
+                        <td><small class="text-muted">{{ tmpl.updated_at|date:"Y/m/d" }}</small></td>
+                        <td>
+                            <a href="{% url 'main:admin_email_template_preview' tmpl.id %}"
+                               class="btn btn-sm btn-outline-info" title="{% trans 'معاينة' %}">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{% url 'main:admin_email_template_edit' tmpl.id %}"
+                               class="btn btn-sm btn-primary" title="{% trans 'تعديل' %}">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{% url 'main:admin_email_template_delete' tmpl.id %}"
+                               class="btn btn-sm btn-danger" title="{% trans 'حذف' %}">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-5">
+                            <i class="fas fa-envelope fa-3x mb-3 d-block"></i>
+                            {% trans "لا توجد قوالب بريد إلكتروني" %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if templates.has_other_pages %}
+        <nav>
+            <ul class="pagination justify-content-center mt-3">
+                {% if templates.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ templates.previous_page_number }}&search={{ search_query }}&status={{ status_filter }}">{% trans "السابق" %}</a>
+                </li>
+                {% endif %}
+                <li class="page-item active">
+                    <span class="page-link">{{ templates.number }} / {{ templates.paginator.num_pages }}</span>
+                </li>
+                {% if templates.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ templates.next_page_number }}&search={{ search_query }}&status={{ status_filter }}">{% trans "التالي" %}</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

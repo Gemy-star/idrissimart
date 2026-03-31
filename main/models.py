@@ -4507,3 +4507,113 @@ class SafetyTip(models.Model):
         all_tips = (general_tips | category_specific_tips | multi_category_tips).distinct()
 
         return all_tips.order_by('order', 'id')
+
+
+class EmailTemplate(models.Model):
+    """DB-managed email templates with Arabic/English bilingual support."""
+
+    class TemplateKey(models.TextChoices):
+        WELCOME = "welcome", _("ترحيب - Welcome")
+        PASSWORD_RESET = "password_reset", _("إعادة تعيين كلمة المرور - Password Reset")
+        EMAIL_VERIFICATION = "email_verification", _("تأكيد البريد الإلكتروني - Email Verification")
+        OTP_VERIFICATION = "otp_verification", _("رمز التحقق - OTP Verification")
+        AD_APPROVED = "ad_approved", _("قبول الإعلان - Ad Approved")
+        AD_REJECTED = "ad_rejected", _("رفض الإعلان - Ad Rejected")
+        ORDER_CREATED = "order_created", _("تأكيد الطلب - Order Created")
+        ORDER_STATUS_UPDATE = "order_status_update", _("تحديث حالة الطلب - Order Status Update")
+        SAVED_SEARCH_NOTIFICATION = "saved_search_notification", _("إشعار البحث المحفوظ - Saved Search Notification")
+        NEWSLETTER_CONFIRMATION = "newsletter_confirmation", _("تأكيد النشرة البريدية - Newsletter Confirmation")
+        CONTACT_FORM = "contact_form", _("نموذج التواصل - Contact Form")
+        CUSTOM = "custom", _("مخصص - Custom")
+
+    key = models.CharField(
+        max_length=60,
+        choices=TemplateKey.choices,
+        unique=True,
+        verbose_name=_("المفتاح - Key"),
+        help_text=_("معرّف فريد يُستخدم في الكود لاستدعاء القالب / Unique identifier used in code to call this template"),
+    )
+    name = models.CharField(
+        max_length=200,
+        verbose_name=_("الاسم بالإنجليزية - Name (English)"),
+    )
+    name_ar = models.CharField(
+        max_length=200,
+        verbose_name=_("الاسم بالعربية - Name (Arabic)"),
+        blank=True,
+    )
+    subject = models.CharField(
+        max_length=300,
+        verbose_name=_("موضوع الرسالة بالإنجليزية - Subject (English)"),
+        blank=True,
+    )
+    subject_ar = models.CharField(
+        max_length=300,
+        verbose_name=_("موضوع الرسالة بالعربية - Subject (Arabic)"),
+        blank=True,
+    )
+    body = CKEditor5Field(
+        config_name="extends",
+        verbose_name=_("محتوى الرسالة بالإنجليزية - Body (English)"),
+        blank=True,
+    )
+    body_ar = CKEditor5Field(
+        config_name="extends",
+        verbose_name=_("محتوى الرسالة بالعربية - Body (Arabic)"),
+        blank=True,
+    )
+    available_variables = models.TextField(
+        verbose_name=_("المتغيرات المتاحة - Available Variables"),
+        blank=True,
+        help_text=_(
+            "المتغيرات التي يمكن استخدامها في القالب، مثال: {{user_name}}, {{site_name}}\n"
+            "Variables available in this template, e.g.: {{user_name}}, {{site_name}}"
+        ),
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_("نشط - Active"),
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإنشاء"))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("تاريخ التعديل"))
+
+    class Meta:
+        db_table = "email_templates"
+        verbose_name = _("قالب بريد إلكتروني - Email Template")
+        verbose_name_plural = _("قوالب البريد الإلكتروني - Email Templates")
+        ordering = ["key"]
+
+    def __str__(self):
+        return self.name_ar or self.name or self.key
+
+    @property
+    def display_name(self):
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith("ar") and self.name_ar:
+            return self.name_ar
+        return self.name or self.key
+
+    @property
+    def display_subject(self):
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith("ar") and self.subject_ar:
+            return self.subject_ar
+        return self.subject
+
+    @property
+    def display_body(self):
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith("ar") and self.body_ar:
+            return self.body_ar
+        return self.body
+
+    @classmethod
+    def get_template(cls, key):
+        """Return active template by key, or None if not found/inactive."""
+        try:
+            return cls.objects.get(key=key, is_active=True)
+        except cls.DoesNotExist:
+            return None

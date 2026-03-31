@@ -1,0 +1,180 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load i18n static %}
+
+{% block title %}{% trans "إضافة قالب بريد إلكتروني" %}{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+.lang-tabs .nav-link { font-weight: 600; }
+.variable-pill {
+    display: inline-block;
+    background: #f0e6ff;
+    color: #6B4C7A;
+    border: 1px solid #c9a8e8;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-family: monospace;
+    cursor: pointer;
+}
+.variable-pill:hover { background: #6B4C7A; color: #fff; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="row mb-4">
+    <div class="col">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{% url 'main:admin_email_templates' %}">{% trans "قوالب البريد الإلكتروني" %}</a>
+                </li>
+                <li class="breadcrumb-item active">{% trans "إضافة قالب جديد" %}</li>
+            </ol>
+        </nav>
+        <h2><i class="fas fa-plus-circle me-2"></i>{% trans "إضافة قالب بريد إلكتروني" %}</h2>
+    </div>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    <div class="row">
+        <!-- Left: form fields -->
+        <div class="col-lg-8">
+
+            <!-- Identifier -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-key me-2"></i>{% trans "المعرّف - Identifier" %}
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label fw-bold">
+                                {% trans "المفتاح (Key)" %} <span class="text-danger">*</span>
+                            </label>
+                            <select name="key" class="form-select" required>
+                                <option value="">{% trans "-- اختر مفتاحاً --" %}</option>
+                                {% for val, label in template_keys %}
+                                <option value="{{ val }}">{{ val }} — {{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">{% trans "معرّف القالب المستخدم في الكود" %}</div>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-center pt-4">
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" name="is_active"
+                                       id="is_active" checked>
+                                <label class="form-check-label" for="is_active">{% trans "نشط" %}</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Name -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-tag me-2"></i>{% trans "الاسم - Name" %}
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{% trans "الاسم بالعربية" %} <span class="text-danger">*</span></label>
+                            <input type="text" name="name_ar" class="form-control"
+                                   placeholder="{% trans 'مثال: بريد الترحيب' %}" dir="rtl" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{% trans "Name (English)" %}</label>
+                            <input type="text" name="name" class="form-control"
+                                   placeholder="e.g. Welcome Email" dir="ltr">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Subject -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-heading me-2"></i>{% trans "موضوع الرسالة - Subject" %}
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{% trans "الموضوع بالعربية" %}</label>
+                            <input type="text" name="subject_ar" class="form-control"
+                                   placeholder="{% trans 'مثال: مرحباً بك في {site_name}' %}" dir="rtl">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{% trans "Subject (English)" %}</label>
+                            <input type="text" name="subject" class="form-control"
+                                   placeholder="e.g. Welcome to {site_name}" dir="ltr">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Body -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-align-left me-2"></i>{% trans "محتوى الرسالة - Body" %}
+                </div>
+                <div class="card-body">
+                    <ul class="nav nav-tabs lang-tabs mb-3" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active" data-bs-toggle="tab"
+                                    data-bs-target="#tab-body-ar" type="button">
+                                <i class="fas fa-language me-1"></i>{% trans "عربي" %}
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" data-bs-toggle="tab"
+                                    data-bs-target="#tab-body-en" type="button">
+                                <i class="fas fa-language me-1"></i>English
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="tab-body-ar">
+                            <label class="form-label fw-bold">{% trans "المحتوى بالعربية" %}</label>
+                            <textarea name="body_ar" class="django_ckeditor_5" dir="rtl"
+                                      rows="12" style="width:100%"></textarea>
+                        </div>
+                        <div class="tab-pane fade" id="tab-body-en">
+                            <label class="form-label fw-bold">Body (English)</label>
+                            <textarea name="body" class="django_ckeditor_5" dir="ltr"
+                                      rows="12" style="width:100%"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right: variables & actions -->
+        <div class="col-lg-4">
+            <div class="card mb-4 sticky-top" style="top:20px">
+                <div class="card-header bg-light">
+                    <i class="fas fa-code me-2"></i>{% trans "المتغيرات المتاحة" %}
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">
+                        {% trans "أدخل المتغيرات التي يمكن استخدامها في الموضوع والمحتوى، مثال:" %}
+                        <br><code>{% verbatim %}{{user_name}}, {{site_name}}, {{reset_link}}{% endverbatim %}</code>
+                    </p>
+                    <textarea name="available_variables" class="form-control font-monospace"
+                              rows="6" placeholder="{% trans 'كل متغير في سطر منفصل...' %}&#10;{{user_name}}&#10;{{site_name}}&#10;{{site_url}}"></textarea>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="fas fa-save me-2"></i>{% trans "حفظ القالب" %}
+                    </button>
+                    <a href="{% url 'main:admin_email_templates' %}" class="btn btn-outline-secondary w-100 mt-2">
+                        {% trans "إلغاء" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}

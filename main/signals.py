@@ -452,24 +452,12 @@ def send_order_notifications(sender, instance, created, **kwargs):
             # 2. Send customer email
             if True:
                 try:
-                    from django.conf import settings
-
-                    # Get site URL from settings or use default
-                    site_url = getattr(settings, "SITE_URL", "http://localhost:8000")
-
                     email_service = EmailService()
-                    email_service.send_template_email(
-                        to_emails=[instance.user.email],
-                        subject=_("تأكيد الطلب - {order_number}").format(
-                            order_number=instance.order_number
-                        ),
-                        template_name="emails/order_created.html",
-                        context={
-                            "order": instance,
-                            "user": instance.user,
-                            "items": instance.items.all(),
-                            "site_url": site_url,
-                        },
+                    user_name = instance.user.get_full_name() or instance.user.username
+                    email_service.send_order_created_email(
+                        email=instance.user.email,
+                        order=instance,
+                        user_name=user_name,
                     )
                 except Exception as e:
                     logger.error(f"Failed to send order creation email: {str(e)}")
@@ -596,26 +584,12 @@ def send_order_status_notifications(sender, instance, created, **kwargs):
                 # Send email notification for order status update
                 if True:
                     try:
-                        # Get currency from order's ad
-                        currency = "ج.م"
-                        if instance.items.exists():
-                            first_item = instance.items.first()
-                            if first_item.ad and first_item.ad.country:
-                                currency = first_item.ad.country.currency_symbol
-
                         email_service = EmailService()
-                        email_service.send_template_email(
-                            to_emails=[instance.user.email],
-                            subject=_("تحديث حالة الطلب - {order_number}").format(
-                                order_number=instance.order_number
-                            ),
-                            template_name="emails/order_status_update.html",
-                            context={
-                                "order": instance,
-                                "currency": currency,
-                                "site_name": config.SITE_NAME,
-                                "site_url": config.SITE_URL,
-                            },
+                        user_name = instance.user.get_full_name() or instance.user.username
+                        email_service.send_order_status_update_email(
+                            email=instance.user.email,
+                            order=instance,
+                            user_name=user_name,
                         )
                     except Exception as e:
                         logger.error(
@@ -763,18 +737,14 @@ def activate_package_on_payment_completion(sender, instance, created, **kwargs):
                     if True:
                         try:
                             email_service = EmailService()
-                            email_service.send_template_email(
-                                to_emails=[instance.user.email],
-                                subject=_("تم تفعيل باقتك - Package Activated"),
-                                template_name="emails/package_activated.html",
-                                context={
-                                    "user": instance.user,
-                                    "package": package,
-                                    "user_package": user_package,
-                                    "payment_amount": instance.amount,
-                                    "site_name": config.SITE_NAME,
-                                    "site_url": config.SITE_URL,
-                                },
+                            user_name = instance.user.get_full_name() or instance.user.username
+                            email_service.send_package_activated_email(
+                                email=instance.user.email,
+                                user=instance.user,
+                                package=package,
+                                user_package=user_package,
+                                payment_amount=instance.amount,
+                                user_name=user_name,
                             )
                         except Exception as e:
                             logger.error(
