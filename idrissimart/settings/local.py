@@ -106,34 +106,49 @@ CORS_ALLOWED_ORIGINS = [
 # =======================
 # Database for Local Development
 # =======================
-# Using SQLite for easy local development (no server setup required)
-# The database file will be created in the project root directory
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR.parent / "db.sqlite3",
-        "ATOMIC_REQUESTS": True,  # Better transaction handling
-    }
-}
+# Tries MariaDB/MySQL first; falls back to SQLite if connection fails.
 
-# To switch back to MySQL for testing production-like setup, uncomment:
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.mysql",
-#         "NAME": os.getenv("DB_NAME", "idrissimartdb"),
-#         "USER": os.getenv("DB_USER", "idrissimart"),
-#         "PASSWORD": os.getenv("DB_PASSWORD", "Gemy@2803150"),
-#         "HOST": os.getenv("DB_HOST", "127.0.0.1"),
-#         "PORT": os.getenv("DB_PORT", "3306"),
-#         "OPTIONS": {
-#             "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
-#             "charset": "utf8mb4",
-#             "use_unicode": True,
-#         },
-#         "CONN_MAX_AGE": 60,
-#         "ATOMIC_REQUESTS": True,
-#     }
-# }
+def _get_database_config():
+    import warnings
+    _mysql_config = {
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": os.getenv("DB_NAME", "idrissimartdb"),
+        "USER": os.getenv("DB_USER", "idrissimart"),
+        "PASSWORD": os.getenv("DB_PASSWORD", "Gemy@2803150"),
+        "HOST": os.getenv("DB_HOST", "127.0.0.1"),
+        "PORT": os.getenv("DB_PORT", "3306"),
+        "OPTIONS": {
+            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+            "charset": "utf8mb4",
+            "use_unicode": True,
+            "connect_timeout": 3,
+        },
+        "CONN_MAX_AGE": 60,
+        "ATOMIC_REQUESTS": True,
+    }
+    try:
+        import MySQLdb
+        conn = MySQLdb.connect(
+            host=os.getenv("DB_HOST", "127.0.0.1"),
+            port=int(os.getenv("DB_PORT", "3306")),
+            user=os.getenv("DB_USER", "idrissimart"),
+            passwd=os.getenv("DB_PASSWORD", "Gemy@2803150"),
+            db=os.getenv("DB_NAME", "idrissimartdb"),
+            connect_timeout=3,
+        )
+        conn.close()
+        return _mysql_config
+    except Exception as e:
+        warnings.warn(f"MariaDB unavailable ({e}), falling back to SQLite.", stacklevel=2)
+        return {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+            "OPTIONS": {
+                "timeout": 20,
+            },
+        }
+
+DATABASES = {"default": _get_database_config()}
 
 # =======================
 # Email Configuration - SMTP4Dev (Local Development)
