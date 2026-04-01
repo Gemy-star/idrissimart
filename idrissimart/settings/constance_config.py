@@ -88,6 +88,17 @@ CONSTANCE_CONFIG = {
         _("Enable All Saved Search Notifications"),
         bool,
     ),
+    # Global Notification Toggles
+    "ENABLE_EMAIL_NOTIFICATIONS": (
+        True,
+        _("Enable Email Notifications (global toggle for all transactional emails)"),
+        bool,
+    ),
+    "ENABLE_SMS_NOTIFICATIONS": (
+        True,
+        _("Enable SMS Notifications (global toggle for all transactional SMS, requires Twilio credentials)"),
+        bool,
+    ),
     # Ad Approval Emails
     "AD_APPROVAL_EMAIL_SUBJECT": (
         'Your Ad "{ad_title}" Has Been Approved!',
@@ -499,11 +510,15 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "YOUTUBE_SUBSCRIBERS",
     ),
     "Email Settings": (
+        "ENABLE_EMAIL_NOTIFICATIONS",
         "SAVED_SEARCH_EMAIL_SUBJECT",
         "SAVED_SEARCH_FROM_EMAIL",
         "ENABLE_SAVED_SEARCH_NOTIFICATIONS",
         "AD_APPROVAL_EMAIL_SUBJECT",
         "AD_APPROVAL_FROM_EMAIL",
+    ),
+    "SMS Settings - Global": (
+        "ENABLE_SMS_NOTIFICATIONS",
     ),
     "Payment Settings - PayPal": (
         "PAYPAL_CLIENT_ID",

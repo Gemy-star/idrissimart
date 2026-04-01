@@ -375,6 +375,11 @@ class EmailService:
     ) -> bool:
         from constance import config
 
+        if not getattr(config, "ENABLE_EMAIL_NOTIFICATIONS", True):
+            return False
+        if not getattr(config, "ENABLE_SAVED_SEARCH_NOTIFICATIONS", True):
+            return False
+
         context = {
             "site_name": config.SITE_NAME,
             "user_name": user_name,

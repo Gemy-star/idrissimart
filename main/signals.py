@@ -22,6 +22,27 @@ from .services.sms_service import SMSService
 logger = logging.getLogger(__name__)
 
 
+def _email_enabled(user=None) -> bool:
+    """Return True if email notifications are globally enabled and user hasn't opted out."""
+    if not getattr(config, "ENABLE_EMAIL_NOTIFICATIONS", True):
+        return False
+    if user is not None and not getattr(user, "email_notifications", True):
+        return False
+    return True
+
+
+def _sms_enabled(user=None) -> bool:
+    """Return True if SMS notifications are globally enabled (Twilio configured) and user hasn't opted out."""
+    if not getattr(config, "ENABLE_SMS_NOTIFICATIONS", True):
+        return False
+    if not SMSService.is_enabled():
+        return False
+    if user is not None and not getattr(user, "email_notifications", True):
+        # Use email_notifications as the single notification preference flag
+        return False
+    return True
+
+
 @receiver(post_save, sender=ClassifiedAd)
 def notify_admin_new_ad(sender, instance, created, **kwargs):
     """
@@ -30,7 +51,7 @@ def notify_admin_new_ad(sender, instance, created, **kwargs):
     """
     if created:
         # Send SMS to ad creator confirming submission (independent of admin notification flag)
-        if SMSService.is_enabled():
+        if _sms_enabled(instance.user):
             try:
                 user_phone = getattr(instance.user, "mobile", None) or getattr(instance.user, "phone", None)
                 if user_phone and getattr(instance.user, "is_mobile_verified", False):
@@ -104,7 +125,7 @@ def send_ad_approval_notification(sender, instance, **kwargs):
                 )
 
                 # 2. Send an email notification
-                if True:
+                if _email_enabled(instance.user):
                     try:
                         email_service = EmailService()
                         success = email_service.send_ad_approved_email(
@@ -122,7 +143,7 @@ def send_ad_approval_notification(sender, instance, **kwargs):
                         logger.error(f"Failed to send approval email: {str(e)}")
 
                 # 3. Send SMS notification for ad approval
-                if SMSService.is_enabled():
+                if _sms_enabled(instance.user):
                     try:
                         user_phone = getattr(instance.user, "mobile", None) or getattr(
                             instance.user, "phone", None
@@ -155,7 +176,7 @@ def send_ad_approval_notification(sender, instance, **kwargs):
                 )
 
                 # 2. Send SMS notification for ad rejection
-                if SMSService.is_enabled():
+                if _sms_enabled(instance.user):
                     try:
                         user_phone = getattr(instance.user, "mobile", None) or getattr(
                             instance.user, "phone", None
@@ -248,7 +269,7 @@ def assign_default_package_to_new_user(sender, instance, created, **kwargs):
                 )
 
                 # Send welcome SMS if mobile is verified
-                if SMSService.is_enabled():
+                if _sms_enabled(instance):
                     try:
                         user_phone = getattr(instance, "mobile", None) or getattr(instance, "phone", None)
                         if user_phone and getattr(instance, "is_mobile_verified", False):
@@ -281,7 +302,7 @@ def assign_default_package_to_new_user(sender, instance, created, **kwargs):
                 )
 
                 # Send welcome SMS if mobile is verified
-                if SMSService.is_enabled():
+                if _sms_enabled(instance):
                     try:
                         user_phone = getattr(instance, "mobile", None) or getattr(instance, "phone", None)
                         if user_phone and getattr(instance, "is_mobile_verified", False):
@@ -362,7 +383,7 @@ def assign_package_after_verification(sender, instance, **kwargs):
                         )
 
                         # Send welcome SMS now that mobile is verified
-                        if SMSService.is_enabled():
+                        if _sms_enabled(instance):
                             try:
                                 user_phone = getattr(instance, "mobile", None) or getattr(instance, "phone", None)
                                 if user_phone:
@@ -395,7 +416,7 @@ def assign_package_after_verification(sender, instance, **kwargs):
                         )
 
                         # Send welcome SMS now that mobile is verified
-                        if SMSService.is_enabled():
+                        if _sms_enabled(instance):
                             try:
                                 user_phone = getattr(instance, "mobile", None) or getattr(instance, "phone", None)
                                 if user_phone:
@@ -450,7 +471,7 @@ def send_order_notifications(sender, instance, created, **kwargs):
             )
 
             # 2. Send customer email
-            if True:
+            if _email_enabled(instance.user):
                 try:
                     email_service = EmailService()
                     user_name = instance.user.get_full_name() or instance.user.username
@@ -463,7 +484,7 @@ def send_order_notifications(sender, instance, created, **kwargs):
                     logger.error(f"Failed to send order creation email: {str(e)}")
 
             # 3. Send customer SMS
-            if SMSService.is_enabled() and instance.phone:
+            if _sms_enabled(instance.user) and instance.phone:
                 try:
                     sms_service = SMSService()
                     message = _(
@@ -582,7 +603,7 @@ def send_order_status_notifications(sender, instance, created, **kwargs):
                 )
 
                 # Send email notification for order status update
-                if True:
+                if _email_enabled(instance.user):
                     try:
                         email_service = EmailService()
                         user_name = instance.user.get_full_name() or instance.user.username
@@ -598,7 +619,7 @@ def send_order_status_notifications(sender, instance, created, **kwargs):
 
                 # Send SMS for important status changes
                 if (
-                    SMSService.is_enabled()
+                    _sms_enabled(instance.user)
                     and instance.phone
                     and instance.status in ["shipped", "delivered"]
                 ):
@@ -646,7 +667,7 @@ def send_order_status_notifications(sender, instance, created, **kwargs):
                     )
 
                     # Send SMS
-                    if SMSService.is_enabled() and instance.phone:
+                    if _sms_enabled(instance.user) and instance.phone:
                         try:
                             sms_service = SMSService()
                             message = _(
@@ -734,7 +755,7 @@ def activate_package_on_payment_completion(sender, instance, created, **kwargs):
                     )
 
                     # Send email notification
-                    if True:
+                    if _email_enabled(instance.user):
                         try:
                             email_service = EmailService()
                             user_name = instance.user.get_full_name() or instance.user.username
@@ -752,7 +773,7 @@ def activate_package_on_payment_completion(sender, instance, created, **kwargs):
                             )
 
                     # Send SMS notification for package activation
-                    if SMSService.is_enabled():
+                    if _sms_enabled(instance.user):
                         try:
                             user_phone = getattr(
                                 instance.user, "mobile", None
