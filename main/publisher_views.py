@@ -630,14 +630,25 @@ def publisher_renew_ad_options(request, ad_id):
         messages.error(request, "هذا الإعلان لا يمكن تجديده في الوقت الحالي.")
         return redirect("main:publisher_my_ads")
 
-    # Get renewal options
+    # Check if user has active package with ads remaining (for free renewal)
+    has_free_ads = UserPackage.objects.filter(
+        user=request.user,
+        ads_remaining__gt=0,
+        expiry_date__gte=timezone.now(),
+    ).exists()
+
+    # Get renewal options, filtering out free option if no ads remaining
     renewal_options = ad.get_renewal_options()
+    if not has_free_ads:
+        renewal_options = [opt for opt in renewal_options if opt["type"] != "free"]
 
     context = {
         "ad": ad,
         "renewal_options": renewal_options,
         "days_left": ad.days_until_expiry(),
         "is_expired": ad.is_expired(),
+        "has_free_ads": has_free_ads,
+        "active_nav": "expired_ads",
     }
 
     return render(request, "dashboard/renew_ad_options.html", context)

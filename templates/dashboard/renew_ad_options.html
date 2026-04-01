@@ -1,280 +1,456 @@
 {% extends 'dashboard/base.html' %}
-{% load static i18n %}
+{% load static i18n idrissimart_tags %}
 
 {% block publisher_title %}{% trans "تجديد الإعلان" %}{% endblock %}
 
+{% block publisher_extra_css %}
+<style>
+    .renew-header {
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(5,150,105,0.05));
+        border-radius: 12px;
+        border-left: 4px solid #10b981;
+    }
+    [data-theme='dark'] .renew-header {
+        background: linear-gradient(135deg, rgba(52,211,153,0.1), rgba(16,185,129,0.08));
+        border-left-color: #34d399;
+    }
+    .renew-header h1 { font-weight: 700; margin-bottom: 0.25rem; }
+
+    /* Ad preview card */
+    .ad-preview-card {
+        border-radius: 12px;
+        border: 1px solid rgba(0,0,0,0.07);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        margin-bottom: 2rem;
+        overflow: hidden;
+    }
+    [data-theme='dark'] .ad-preview-card {
+        border-color: rgba(255,255,255,0.1);
+        background: #1e1e2e;
+    }
+    .ad-preview-card .card-header {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: #fff;
+        padding: 0.85rem 1.25rem;
+        font-weight: 600;
+    }
+    .ad-preview-img {
+        width: 100%; height: 130px; object-fit: cover; border-radius: 8px;
+    }
+    .no-img-placeholder {
+        width: 100%; height: 130px; background: #f1f5f9;
+        border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    }
+    [data-theme='dark'] .no-img-placeholder { background: rgba(255,255,255,0.05); }
+
+    /* Tabs */
+    .renew-tabs {
+        border-bottom: 2px solid var(--border-color, #dee2e6);
+        margin-bottom: 1.75rem;
+    }
+    .renew-tabs .nav-link {
+        color: var(--text-muted, #6c757d);
+        border: none;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+        padding: 0.65rem 1.25rem;
+        font-weight: 600;
+        border-radius: 0;
+        transition: all 0.2s;
+    }
+    .renew-tabs .nav-link:hover { color: #10b981; border-bottom-color: rgba(16,185,129,0.4); }
+    .renew-tabs .nav-link.active { color: #10b981; border-bottom-color: #10b981; background: transparent; }
+    [data-theme='dark'] .renew-tabs .nav-link { color: #adb5bd; }
+    [data-theme='dark'] .renew-tabs .nav-link.active { color: #34d399; border-bottom-color: #34d399; }
+
+    /* Feature / renewal cards */
+    .renewal-card {
+        border: 2px solid var(--border-color, #dee2e6);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        background: var(--bg-primary, #fff);
+        position: relative;
+    }
+    [data-theme='dark'] .renewal-card {
+        background: rgba(255,255,255,0.03);
+        border-color: rgba(255,255,255,0.1);
+    }
+    .renewal-card:hover {
+        border-color: #10b981;
+        box-shadow: 0 4px 16px rgba(16,185,129,0.18);
+        transform: translateY(-2px);
+    }
+    .renewal-card.selected {
+        border-color: #10b981;
+        background: rgba(16,185,129,0.05);
+    }
+    [data-theme='dark'] .renewal-card.selected {
+        background: rgba(16,185,129,0.1);
+        border-color: #34d399;
+    }
+    .renewal-card .form-check-input { display: none; }
+    .renewal-card label { cursor: pointer; width: 100%; }
+
+    .renewal-badge {
+        font-size: 0.8rem;
+        font-weight: 700;
+        padding: 0.3rem 0.7rem;
+        border-radius: 20px;
+    }
+    .renewal-duration {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        padding: 0.3rem 0.75rem;
+        background: #f1f5f9; border-radius: 20px;
+        font-size: 0.85rem; font-weight: 600; color: #374151;
+    }
+    [data-theme='dark'] .renewal-duration { background: rgba(255,255,255,0.07); color: #d1d5db; }
+
+    .renewal-feature-list { list-style: none; padding: 0; margin: 0; }
+    .renewal-feature-list li { font-size: 0.88rem; color: #374151; padding: 0.2rem 0; display: flex; align-items: center; gap: 0.5rem; }
+    [data-theme='dark'] .renewal-feature-list li { color: #d1d5db; }
+    .renewal-feature-list li i { color: #10b981; font-size: 0.8rem; }
+
+    /* Free badge */
+    .free-badge { background: linear-gradient(135deg,#10b981,#059669); color:#fff; }
+    /* Popular badge */
+    .popular-badge { background: linear-gradient(135deg,#f59e0b,#d97706); color:#fff; }
+
+    /* Selected radio indicator */
+    .radio-indicator {
+        width: 20px; height: 20px;
+        border: 2px solid #dee2e6;
+        border-radius: 50%;
+        flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        transition: all 0.2s;
+    }
+    .renewal-card.selected .radio-indicator {
+        border-color: #10b981;
+        background: #10b981;
+    }
+    .renewal-card.selected .radio-indicator::after {
+        content: '';
+        width: 8px; height: 8px;
+        background: #fff; border-radius: 50%;
+    }
+
+    /* Upgrade card  */
+    .upgrades-card {
+        border-radius: 12px;
+        border: 1px solid rgba(0,0,0,0.07);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        margin-top: 1.5rem;
+    }
+    [data-theme='dark'] .upgrades-card {
+        background: #1e1e2e;
+        border-color: rgba(255,255,255,0.1);
+    }
+
+    /* Action buttons */
+    .btn-confirm-renew {
+        padding: 0.85rem 2.5rem;
+        font-size: 1.05rem;
+        font-weight: 700;
+        border-radius: 10px;
+        background: linear-gradient(135deg,#10b981,#059669);
+        color: #fff;
+        border: none;
+        box-shadow: 0 4px 15px rgba(16,185,129,.3);
+        transition: all .3s;
+    }
+    .btn-confirm-renew:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(16,185,129,.4);
+        color:#fff;
+    }
+    .btn-confirm-renew:disabled { background: #9ca3af; box-shadow:none; cursor:not-allowed; }
+
+    /* No-free-ads notice */
+    .no-free-notice {
+        background: rgba(245,158,11,0.08);
+        border: 1px solid rgba(245,158,11,0.3);
+        border-radius: 10px;
+        padding: 0.85rem 1.25rem;
+        font-size: 0.9rem;
+        color: #92400e;
+    }
+    [data-theme='dark'] .no-free-notice { color: #fcd34d; background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.25); }
+</style>
+{% endblock %}
+
 {% block publisher_content %}
-<div class="dashboard-header mb-4">
-    <div class="d-flex justify-content-between align-items-center">
+<!-- Page Header -->
+<div class="renew-header">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
-            <h1><i class="fas fa-sync-alt"></i> {% trans "تجديد الإعلان" %}</h1>
-            <p class="text-muted">{% trans "اختر خطة التجديد المناسبة لك" %}</p>
+            <h1 class="h3 mb-1"><i class="fas fa-sync-alt me-2 text-success"></i>{% trans "تجديد الإعلان" %}</h1>
+            <p class="text-muted mb-0">{% trans "اختر خطة التجديد المناسبة لك" %}</p>
         </div>
-        <a href="{% url 'main:publisher_expired_ads' %}" class="btn btn-outline-primary">
-            <i class="fas fa-arrow-right"></i> {% trans "العودة" %}
+        <a href="{% url 'main:publisher_expired_ads' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-right me-1"></i> {% trans "العودة" %}
         </a>
     </div>
 </div>
 
 <!-- Ad Preview -->
-<div class="card mb-4">
-    <div class="card-header bg-primary text-white">
-        <h5 class="mb-0"><i class="fas fa-ad"></i> {% trans "الإعلان المراد تجديده" %}</h5>
+<div class="ad-preview-card card">
+    <div class="card-header">
+        <i class="fas fa-ad me-2"></i>{% trans "الإعلان المراد تجديده" %}
     </div>
     <div class="card-body">
-        <div class="row">
-            <div class="col-md-3">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-3 col-4">
                 {% if ad.images.first %}
-                <img src="{{ ad.images.first.image.url }}" class="img-fluid rounded" alt="{{ ad.title }}" style="height: 150px; width: 100%; object-fit: cover;">
+                <img src="{{ ad.images.first.image.url }}" class="ad-preview-img" alt="{{ ad.title }}">
                 {% else %}
-                <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 150px;">
-                    <i class="fas fa-image fa-3x text-muted"></i>
+                <div class="no-img-placeholder">
+                    <i class="fas fa-image fa-2x text-muted"></i>
                 </div>
                 {% endif %}
             </div>
-            <div class="col-md-9">
-                <h4>{{ ad.title }}</h4>
-                <p class="text-muted mb-2">{{ ad.description|striptags|truncatechars:150 }}</p>
-
-                <div class="row">
-                    {% load idrissimart_tags %}
-                    <div class="col-md-4">
-                        <strong>{% trans "السعر:" %}</strong>
-                        <span class="text-primary">{{ ad.price }} {% get_currency_symbol ad %}</span>
-                    </div>
-                    <div class="col-md-4">
-                        <strong>{% trans "المشاهدات:" %}</strong>
-                        <span class="badge bg-info">{{ ad.views_count }}</span>
-                    </div>
-                    <div class="col-md-4">
-                        {% if is_expired %}
-                        <strong class="text-danger">{% trans "الحالة:" %}</strong>
-                        <span class="badge bg-danger">{% trans "منتهي" %}</span>
-                        {% else %}
-                        <strong class="text-warning">{% trans "باقي:" %}</strong>
-                        <span class="badge bg-warning">{{ days_left }} {% trans "يوم" %}</span>
-                        {% endif %}
-                    </div>
+            <div class="col-md-9 col-8">
+                <h5 class="mb-2">{{ ad.title }}</h5>
+                <div class="d-flex flex-wrap gap-3">
+                    <span class="text-muted small"><i class="fas fa-tag me-1"></i>{{ ad.price }} {% get_currency_symbol ad %}</span>
+                    <span class="text-muted small"><i class="fas fa-eye me-1"></i>{{ ad.views_count }}</span>
+                    {% if is_expired %}
+                    <span class="badge bg-danger"><i class="fas fa-calendar-times me-1"></i>{% trans "منتهي" %}</span>
+                    {% else %}
+                    <span class="badge bg-warning text-dark"><i class="fas fa-hourglass-half me-1"></i>{{ days_left }} {% trans "يوم متبقي" %}</span>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Renewal Options -->
-<h3 class="mb-4"><i class="fas fa-gift"></i> {% trans "اختر خطة التجديد" %}</h3>
+{% if not has_free_ads and renewal_options|length == 0 %}
+<!-- No options available -->
+<div class="alert alert-warning d-flex align-items-center gap-2">
+    <i class="fas fa-exclamation-triangle"></i>
+    <div>{% trans "لا توجد خيارات تجديد متاحة حالياً. يرجى شراء باقة جديدة." %}</div>
+</div>
+{% else %}
 
-<div class="row">
+<!-- No free ads notice -->
+{% if not has_free_ads %}
+<div class="no-free-notice mb-3">
+    <i class="fas fa-info-circle me-2"></i>
+    {% trans "ليس لديك إعلانات مجانية متبقية في باقتك. يمكنك اختيار أحد خيارات التجديد المدفوعة أدناه." %}
+</div>
+{% endif %}
+
+<!-- Tab Navigation -->
+<ul class="nav renew-tabs" id="renewTabs" role="tablist">
     {% for option in renewal_options %}
-    <div class="col-md-6 mb-4">
-        <div class="card pricing-card {% if option.type == 'free' %}border-success{% elif option.type == 'featured_30' %}border-warning featured-option{% endif %}" data-option-type="{{ option.type }}">
-            <div class="card-header text-center {% if option.type == 'free' %}bg-success text-white{% elif option.type == 'featured_30' %}bg-warning text-dark{% else %}bg-primary text-white{% endif %}">
-                <h4 class="mb-0">{{ option.name }}</h4>
-                {% if option.type == 'free' %}
-                <span class="badge bg-light text-success">{% trans "مجاني" %}</span>
-                {% elif option.type == 'featured_30' %}
-                <span class="badge bg-light text-warning">{% trans "الأكثر شعبية" %}</span>
-                {% endif %}
-            </div>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link {% if forloop.first %}active{% endif %}"
+                id="tab-{{ option.type }}"
+                data-bs-toggle="tab"
+                data-bs-target="#pane-{{ option.type }}"
+                type="button" role="tab"
+                aria-controls="pane-{{ option.type }}"
+                aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+            {% if option.type == 'free' %}
+            <i class="fas fa-gift me-1"></i>{% trans "مجاني" %}
+            {% elif option.type == 'featured_30' %}
+            <i class="fas fa-star me-1"></i>{% trans "مميز" %}
+            {% elif option.type == 'paid_60' %}
+            <i class="fas fa-calendar me-1"></i>{% trans "60 يوم" %}
+            {% elif option.type == 'paid_90' %}
+            <i class="fas fa-calendar-alt me-1"></i>{% trans "90 يوم" %}
+            {% else %}
+            <i class="fas fa-sync-alt me-1"></i>{{ option.name }}
+            {% endif %}
+        </button>
+    </li>
+    {% endfor %}
+</ul>
 
-            <div class="card-body text-center">
-                <div class="price-tag mb-3">
-                    {% if option.price == 0 %}
-                    <h2 class="text-success">{% trans "مجاناً" %}</h2>
-                    {% else %}
-                    <h2>{{ option.price }} <small>{{ selected_currency|currency_symbol }}</small></h2>
-                    {% endif %}
+<!-- Tab Panes / Renewal Option Cards -->
+<div class="tab-content" id="renewTabContent">
+    {% for option in renewal_options %}
+    <div class="tab-pane fade {% if forloop.first %}show active{% endif %}"
+         id="pane-{{ option.type }}"
+         role="tabpanel"
+         aria-labelledby="tab-{{ option.type }}">
+
+        <div class="row g-3 justify-content-center">
+            <div class="col-lg-7 col-md-9">
+                <div class="renewal-card p-3 {% if forloop.first %}selected{% endif %}" id="card-{{ option.type }}"
+                     onclick="selectOption('{{ option.type }}', this)">
+                    <label class="d-block">
+                        <input class="form-check-input" type="radio" name="renewal_type"
+                               id="opt-{{ option.type }}" value="{{ option.type }}"
+                               {% if forloop.first %}checked{% endif %}>
+
+                        <!-- Card top row -->
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="radio-indicator" id="indicator-{{ option.type }}"></div>
+                                <h5 class="mb-0 fw-bold">{{ option.name }}</h5>
+                            </div>
+                            {% if option.type == 'free' %}
+                            <span class="renewal-badge free-badge">{% trans "مجاناً" %}</span>
+                            {% elif option.type == 'featured_30' %}
+                            <span class="renewal-badge popular-badge">{% trans "الأكثر شعبية" %}</span>
+                            {% else %}
+                            <span class="renewal-badge bg-primary text-white">
+                                {{ option.price }} {% trans "ج.م" %}
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Price / Duration -->
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <div class="renewal-duration">
+                                <i class="fas fa-calendar-alt text-success"></i>
+                                <strong>{{ option.duration_days }}</strong> {% trans "يوم" %}
+                            </div>
+                            {% if option.price == 0 %}
+                            <span class="text-success fw-bold fs-5">{% trans "مجاناً" %}</span>
+                            {% else %}
+                            <span class="fw-bold fs-5 text-primary">{{ option.price }} <small class="fs-6 fw-normal text-muted">{% trans "ج.م" %}</small></span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Description -->
+                        <p class="text-muted small mb-3">{{ option.description }}</p>
+
+                        <!-- Features list -->
+                        <ul class="renewal-feature-list">
+                            <li><i class="fas fa-check-circle"></i>{% trans "تجديد الإعلان لمدة" %} {{ option.duration_days }} {% trans "يوم" %}</li>
+                            <li><i class="fas fa-check-circle"></i>{% trans "إعادة تفعيل الإعلان فوراً" %}</li>
+                            {% if option.includes_highlight %}
+                            <li><i class="fas fa-check-circle"></i>{% trans "تمييز الإعلان" %}</li>
+                            <li><i class="fas fa-check-circle"></i>{% trans "ظهور أولوية في نتائج البحث" %}</li>
+                            <li><i class="fas fa-check-circle"></i>{% trans "زيادة المشاهدات" %}</li>
+                            {% endif %}
+                            {% if option.type == 'free' %}
+                            <li><i class="fas fa-check-circle"></i>{% trans "مجاني ضمن باقتك المشتركة" %}</li>
+                            {% endif %}
+                        </ul>
+                    </label>
                 </div>
-
-                <div class="duration-tag mb-3">
-                    <i class="fas fa-calendar-alt"></i>
-                    <strong>{{ option.duration_days }}</strong> {% trans "يوم" %}
-                </div>
-
-                <p class="text-muted">{{ option.description }}</p>
-
-                {% if option.includes_highlight %}
-                <div class="features-list mb-3">
-                    <p class="text-success mb-1">
-                        <i class="fas fa-check-circle"></i> {% trans "تمييز الإعلان" %}
-                    </p>
-                    <p class="text-success mb-1">
-                        <i class="fas fa-check-circle"></i> {% trans "ظهور أولوية" %}
-                    </p>
-                    <p class="text-success mb-1">
-                        <i class="fas fa-check-circle"></i> {% trans "مشاهدات أعلى" %}
-                    </p>
-                </div>
-                {% endif %}
-
-                <button type="button" class="btn {% if option.type == 'free' %}btn-success{% elif option.type == 'featured_30' %}btn-warning{% else %}btn-primary{% endif %} btn-lg w-100 renew-btn"
-                        data-option-type="{{ option.type }}"
-                        data-duration="{{ option.duration_days }}"
-                        data-price="{{ option.price }}"
-                        data-name="{{ option.name }}">
-                    <i class="fas fa-sync-alt"></i>
-                    {% if option.price == 0 %}
-                    {% trans "تجديد مجاني" %}
-                    {% else %}
-                    {% trans "تجديد الآن" %}
-                    {% endif %}
-                </button>
             </div>
         </div>
     </div>
     {% endfor %}
 </div>
 
-<!-- Upgrade Renewal Option -->
-<div class="card bg-light mb-4">
+<!-- Renew Upgrades Option -->
+<div class="upgrades-card card">
     <div class="card-body">
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="renewUpgrades" name="renew_upgrades">
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="renewUpgrades" name="renew_upgrades" role="switch">
             <label class="form-check-label" for="renewUpgrades">
                 <strong>{% trans "تجديد التمييزات أيضاً" %}</strong>
-                <p class="text-muted mb-0 small">
-                    {% trans "إذا كان لديك تمييزات نشطة (تمييز/عاجل/مثبت)، سيتم تجديدها مع الإعلان" %}
-                </p>
+                <span class="d-block text-muted small mt-1">{% trans "إذا كان لديك تمييزات نشطة (تمييز/عاجل/مثبت)، سيتم تجديدها مع الإعلان." %}</span>
             </label>
         </div>
     </div>
 </div>
 
 <!-- Info Box -->
-<div class="card border-info">
-    <div class="card-body">
-        <h5 class="text-info"><i class="fas fa-info-circle"></i> {% trans "معلومات هامة" %}</h5>
-        <ul class="mb-0">
-            <li>{% trans "بعد التجديد، سيكون إعلانك نشطاً فوراً" %}</li>
-            <li>{% trans "يمكنك تجديد الإعلان أكثر من مرة" %}</li>
-            <li>{% trans "التجديد المجاني متاح مرة واحدة كل 30 يوم" %}</li>
-            <li>{% trans "الخطط المدفوعة تعطي مدة أطول ومميزات إضافية" %}</li>
-        </ul>
-    </div>
+<div class="alert alert-info d-flex gap-2 mt-3">
+    <i class="fas fa-info-circle mt-1 flex-shrink-0"></i>
+    <ul class="mb-0 ps-2 small">
+        <li>{% trans "بعد التجديد، سيكون إعلانك نشطاً فوراً." %}</li>
+        <li>{% trans "يمكنك تجديد الإعلان أكثر من مرة." %}</li>
+        {% if has_free_ads %}<li>{% trans "التجديد المجاني يستخدم إعلاناً من باقتك المشتركة." %}</li>{% endif %}
+        <li>{% trans "الخطط المدفوعة تعطي مدة أطول ومميزات إضافية." %}</li>
+    </ul>
 </div>
 
+<!-- Confirm Button -->
+<div class="text-center mt-4 mb-2">
+    <button type="button" id="confirmRenewBtn" class="btn-confirm-renew" onclick="submitRenewal()">
+        <i class="fas fa-sync-alt me-2"></i>{% trans "تأكيد التجديد" %}
+    </button>
+</div>
+
+{% endif %}
 {% endblock %}
 
-{% block extra_css %}
-<style>
-.pricing-card {
-    transition: transform 0.3s, box-shadow 0.3s;
-    border-width: 2px;
-}
-
-.pricing-card:hover {
-    transform: translateY(-10px);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.15);
-}
-
-.featured-option {
-    position: relative;
-    border-width: 3px !important;
-}
-
-.featured-option::before {
-    content: "⭐";
-    position: absolute;
-    top: -15px;
-    right: 15px;
-    font-size: 2rem;
-}
-
-.price-tag h2 {
-    font-size: 2.5rem;
-    font-weight: bold;
-}
-
-.duration-tag {
-    padding: 10px;
-    background: #f8f9fa;
-    border-radius: 5px;
-}
-
-.features-list {
-    text-align: left;
-    padding-left: 20px;
-}
-
-.renew-btn {
-    font-size: 1.1rem;
-    padding: 12px;
-    border-radius: 8px;
-    transition: all 0.3s;
-}
-
-.renew-btn:hover {
-    transform: scale(1.05);
-}
-</style>
-{% endblock %}
-
-{% block extra_js %}
+{% block publisher_extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const renewButtons = document.querySelectorAll('.renew-btn');
-    const renewUpgradesCheckbox = document.getElementById('renewUpgrades');
+(function() {
+    let selectedType = document.querySelector('input[name="renewal_type"]:checked')?.value || null;
 
-    renewButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const optionType = this.dataset.optionType;
-            const duration = this.dataset.duration;
-            const price = parseFloat(this.dataset.price);
-            const name = this.dataset.name;
-            const renewUpgrades = renewUpgradesCheckbox.checked;
+    window.selectOption = function(type, cardEl) {
+        // Deselect all
+        document.querySelectorAll('.renewal-card').forEach(c => c.classList.remove('selected'));
+        // Select clicked
+        cardEl.classList.add('selected');
+        selectedType = type;
+        const radio = document.getElementById('opt-' + type);
+        if (radio) radio.checked = true;
+    };
 
-            // Confirm renewal
-            const message = price > 0
-                ? `{% trans "هل تريد تجديد الإعلان بـ" %} ${name} (${price} {% trans "ج.م" %})؟`
-                : `{% trans "هل تريد تجديد الإعلان مجاناً لمدة" %} ${duration} {% trans "يوم" %}؟`;
-
-            if (!confirm(message)) {
-                return;
-            }
-
-            // Disable button
-            this.disabled = true;
-            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري التجديد..." %}';
-
-            // Send renewal request
-            const formData = new FormData();
-            formData.append('renewal_type', optionType);
-            formData.append('renew_upgrades', renewUpgrades);
-            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-
-            fetch('{% url "main:publisher_process_renewal" ad.id %}', {
-                method: 'POST',
-                body: formData,
-                credentials: 'same-origin'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Show success message
-                    alert(data.message);
-
-                    // Redirect
-                    if (data.redirect_url) {
-                        window.location.href = data.redirect_url;
-                    }
-                } else if (data.requires_payment) {
-                    // Redirect to payment page
-                    alert(data.message);
-                    window.location.href = data.payment_url;
-                } else {
-                    alert(data.message);
-                    this.disabled = false;
-                    this.innerHTML = `<i class="fas fa-sync-alt"></i> ${price > 0 ? '{% trans "تجديد الآن" %}' : '{% trans "تجديد مجاني" %}'}`;
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('{% trans "حدث خطأ. يرجى المحاولة مرة أخرى." %}');
-                this.disabled = false;
-                this.innerHTML = `<i class="fas fa-sync-alt"></i> ${price > 0 ? '{% trans "تجديد الآن" %}' : '{% trans "تجديد مجاني" %}'}`;
-            });
+    // Sync tab switch -> select the card in active tab
+    document.querySelectorAll('#renewTabs button[data-bs-toggle="tab"]').forEach(btn => {
+        btn.addEventListener('shown.bs.tab', function(e) {
+            const paneId = e.target.getAttribute('data-bs-target').replace('#pane-', '');
+            const card = document.getElementById('card-' + paneId);
+            if (card) selectOption(paneId, card);
         });
     });
-});
+
+    window.submitRenewal = function() {
+        if (!selectedType) {
+            alert('{% trans "الرجاء اختيار خطة التجديد أولاً." %}');
+            return;
+        }
+
+        const renewUpgrades = document.getElementById('renewUpgrades').checked;
+        const btn = document.getElementById('confirmRenewBtn');
+        const priceEl = document.querySelector(`#card-${selectedType} .fs-5`);
+        const priceText = priceEl ? priceEl.textContent.trim() : '';
+        const isFree = selectedType === 'free' || priceText.includes('مجاناً');
+
+        const message = isFree
+            ? '{% trans "هل تريد تجديد الإعلان مجاناً؟" %}'
+            : `{% trans "هل تريد تجديد الإعلان بهذه الخطة؟" %} (${priceText})`;
+
+        if (!confirm(message)) return;
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري التجديد..." %}';
+
+        const formData = new FormData();
+        formData.append('renewal_type', selectedType);
+        formData.append('renew_upgrades', renewUpgrades);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch('{% url "main:publisher_process_renewal" ad.id %}', {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                window.location.href = data.redirect_url || '{% url "main:publisher_expired_ads" %}';
+            } else if (data.requires_payment) {
+                alert(data.message);
+                window.location.href = data.payment_url;
+            } else {
+                alert(data.message || '{% trans "حدث خطأ. يرجى المحاولة مرة أخرى." %}');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>{% trans "تأكيد التجديد" %}';
+            }
+        })
+        .catch(() => {
+            alert('{% trans "حدث خطأ. يرجى المحاولة مرة أخرى." %}');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>{% trans "تأكيد التجديد" %}';
+        });
+    };
+})();
 </script>
 {% endblock %}
+
