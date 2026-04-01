@@ -968,6 +968,17 @@ def email_verification_required(request):
     return render(request, "pages/email_verification_required.html")
 
 
+def phone_verification_required(request):
+    """Show phone verification required page"""
+    if not request.user.is_authenticated:
+        return redirect("main:login")
+
+    if request.user.is_mobile_verified:
+        return redirect("main:dashboard")
+
+    return render(request, "pages/phone_verification_required.html")
+
+
 @require_POST
 def mark_phone_verified(request):
     """Mark user's phone as verified after successful OTP verification"""

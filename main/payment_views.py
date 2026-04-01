@@ -31,19 +31,6 @@ def payment_page(request, package_id=None):
     from content.site_config import SiteConfiguration
     from django.contrib import messages
 
-    # Check phone verification requirement
-    constance_enabled = getattr(constance_config, "ENABLE_MOBILE_VERIFICATION", True)
-    site_config = SiteConfiguration.get_solo()
-    site_config_enabled = site_config.require_phone_verification
-
-    # If either is enabled and user's phone is not verified, redirect
-    if (constance_enabled or site_config_enabled) and not request.user.is_mobile_verified:
-        messages.warning(
-            request,
-            _("يجب التحقق من رقم هاتفك قبل إتمام عملية الدفع. الرجاء تأكيد رقم هاتفك أولاً.")
-        )
-        return redirect("main:phone_verification_required")
-
     package = None
     if package_id:
         package = get_object_or_404(AdPackage, id=package_id)
@@ -789,19 +776,10 @@ def package_checkout(request, package_id):
     from content.models import SiteConfiguration
     from .payment_utils import get_allowed_payment_methods, PaymentContext
 
-    # Check phone verification requirement
-    constance_enabled = getattr(config, "ENABLE_MOBILE_VERIFICATION", True)
+    from content.verification_utils import is_phone_verification_required
+    phone_verification_required = is_phone_verification_required()
+
     site_config = SiteConfiguration.get_solo()
-    site_config_enabled = site_config.require_phone_verification
-
-    # If either is enabled and user's phone is not verified, redirect
-    if (constance_enabled or site_config_enabled) and not request.user.is_mobile_verified:
-        messages.warning(
-            request,
-            _("يجب التحقق من رقم هاتفك قبل شراء الباقات. الرجاء تأكيد رقم هاتفك أولاً.")
-        )
-        return redirect("main:phone_verification_required")
-
     package = get_object_or_404(AdPackage, id=package_id, is_active=True)
 
     # Verify package is in session
@@ -995,6 +973,7 @@ def package_checkout(request, package_id):
         "allow_offline_payment": site_config.allow_offline_payment,
         "offline_payment_instructions": site_config.offline_payment_instructions,
         "currency": currency,
+        "phone_verification_required": phone_verification_required,
     }
 
     return render(request, "payments/package_checkout.html", context)

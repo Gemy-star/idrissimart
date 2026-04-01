@@ -166,6 +166,55 @@
                 </div>
             </div>
 
+            <!-- Phone Verification (inline) -->
+            {% if phone_verification_required and not request.user.is_mobile_verified %}
+            <div class="payment-card" id="phoneVerificationCard">
+                <h3 class="mb-3">
+                    <i class="fas fa-shield-alt me-2 text-warning"></i>
+                    {% trans "التحقق من رقم الهاتف" %}
+                </h3>
+                <p class="text-muted mb-3" style="font-size:.9rem;">
+                    <i class="fas fa-info-circle me-1"></i>
+                    {% trans "يجب التحقق من رقم هاتفك قبل إتمام الشراء" %}
+                </p>
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">{% trans "رقم الهاتف" %}</label>
+                        <div class="input-group">
+                            <input type="tel" id="pkgPhone" class="form-control"
+                                   value="{{ request.user.mobile|default:request.user.phone }}"
+                                   placeholder="{% trans 'أدخل رقم هاتفك' %}">
+                            <button type="button" class="btn btn-outline-primary" id="pkgSendCodeBtn" onclick="pkgSendCode()">
+                                <i class="fas fa-paper-plane me-1"></i>{% trans "إرسال رمز" %}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="pkgOtpGroup" style="display:none;" class="mt-3">
+                    <label class="form-label fw-bold">{% trans "رمز التحقق" %}</label>
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <div class="input-group">
+                                <input type="text" id="pkgOtpCode" class="form-control"
+                                       placeholder="● ● ● ● ● ●" maxlength="6"
+                                       style="letter-spacing:.3rem;text-align:center;font-size:1.1rem;">
+                                <button type="button" class="btn btn-success" onclick="pkgVerifyCode()">
+                                    <i class="fas fa-check me-1"></i>{% trans "تأكيد" %}
+                                </button>
+                            </div>
+                            <small class="text-muted">
+                                <i class="fas fa-clock me-1"></i>{% trans "سينتهي الرمز في 10 دقائق" %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div id="pkgPhoneVerifiedMsg" style="display:none;" class="mt-3 alert alert-success py-2">
+                    <i class="fas fa-check-circle me-1"></i>
+                    {% trans "تم التحقق من رقم الهاتف بنجاح" %}
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Payment Methods -->
             <div class="payment-card">
                 <h3 class="mb-4">
@@ -399,6 +448,66 @@
 
 {% block extra_js %}
 <script>
+{% if phone_verification_required %}
+let pkgPhoneVerified = {{ request.user.is_mobile_verified|yesno:"true,false" }};
+let pkgCurrentPhone = "{{ request.user.mobile|default:request.user.phone }}";
+
+function pkgSendCode() {
+    const phone = document.getElementById('pkgPhone').value.trim();
+    if (!phone) { alert('{% trans "يرجى إدخال رقم الهاتف" %}'); return; }
+    pkgCurrentPhone = phone;
+    const btn = document.getElementById('pkgSendCodeBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>{% trans "جاري الإرسال..." %}';
+
+    fetch('{% url "main:send_phone_code" %}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+        body: JSON.stringify({phone: phone, country_code: 'EG'})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('pkgOtpGroup').style.display = 'block';
+            document.getElementById('pkgOtpCode').focus();
+        } else {
+            alert(data.message || '{% trans "حدث خطأ في إرسال الرمز" %}');
+        }
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>{% trans "إرسال رمز" %}';
+    })
+    .catch(() => {
+        alert('{% trans "حدث خطأ في إرسال الرمز" %}');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>{% trans "إرسال رمز" %}';
+    });
+}
+
+function pkgVerifyCode() {
+    const code = document.getElementById('pkgOtpCode').value.trim();
+    if (!code) { alert('{% trans "يرجى إدخال رمز التحقق" %}'); return; }
+
+    fetch('{% url "main:verify_phone_code" %}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+        body: JSON.stringify({phone: pkgCurrentPhone, code: code, country_code: 'EG'})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            pkgPhoneVerified = true;
+            document.getElementById('pkgOtpGroup').style.display = 'none';
+            document.getElementById('pkgPhoneVerifiedMsg').style.display = 'block';
+            const card = document.getElementById('phoneVerificationCard');
+            if (card) card.style.borderColor = '#22c55e';
+        } else {
+            alert(data.message || '{% trans "رمز التحقق غير صحيح" %}');
+        }
+    })
+    .catch(() => alert('{% trans "حدث خطأ في التحقق" %}'));
+}
+{% endif %}
+
 function showPaymentAlert(message) {
     document.getElementById('paymentValidationMessage').textContent = message;
     new bootstrap.Modal(document.getElementById('paymentValidationModal')).show();
@@ -447,6 +556,15 @@ function showPaymentAlert(message) {
 
     // Form validation
     document.getElementById('paymentForm').addEventListener('submit', function(e) {
+        {% if phone_verification_required %}
+        if (!pkgPhoneVerified) {
+            e.preventDefault();
+            showPaymentAlert('{% trans "يجب التحقق من رقم هاتفك قبل إتمام الشراء" %}');
+            document.getElementById('pkgPhone')?.focus();
+            return false;
+        }
+        {% endif %}
+
         const selectedMethod = document.querySelector('input[name="payment_method"]:checked');
 
         if (!selectedMethod) {

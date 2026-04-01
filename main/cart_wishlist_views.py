@@ -348,18 +348,9 @@ def checkout_view(request):
     from django.contrib import messages
     from main.payment_utils import get_allowed_payment_methods, is_payment_method_allowed, PaymentContext
 
-    # Check phone verification requirement
-    constance_enabled = getattr(config, "ENABLE_MOBILE_VERIFICATION", True)
+    from content.verification_utils import is_phone_verification_required
+    phone_verification_required_flag = is_phone_verification_required()
     site_config = SiteConfiguration.get_solo()
-    site_config_enabled = site_config.require_phone_verification
-
-    # If either is enabled and user's phone is not verified, redirect
-    if (constance_enabled or site_config_enabled) and not request.user.is_mobile_verified:
-        messages.warning(
-            request,
-            _("يجب التحقق من رقم هاتفك قبل إتمام عملية الشراء. الرجاء تأكيد رقم هاتفك أولاً.")
-        )
-        return redirect("main:phone_verification_required")
 
     cart = get_or_create_cart(request.user)
     cart_items = (
@@ -684,6 +675,7 @@ def checkout_view(request):
         "site_config": site_config,
         "config": config,
         "allowed_payment_methods": allowed_payment_methods,
+        "phone_verification_required": phone_verification_required_flag,
     }
 
     return render(request, "cart/checkout.html", context)

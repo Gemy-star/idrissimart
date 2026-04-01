@@ -84,6 +84,11 @@ urlpatterns = [
         name="email_verification_required",
     ),
     path(
+        "phone-verification-required/",
+        auth_views.phone_verification_required,
+        name="phone_verification_required",
+    ),
+    path(
         "mark-phone-verified/",
         auth_views.mark_phone_verified,
         name="mark_phone_verified",
