@@ -143,6 +143,14 @@ class Command(BaseCommand):
                 "repeats": -1,
                 "next_run": next_day_2am.replace(hour=10, minute=0),
             },
+            # === ADMIN REPORTS ===
+            {
+                "func": "main.scheduled_tasks.send_daily_admin_report_task",
+                "name": "Daily Admin Report Email",
+                "schedule_type": Schedule.DAILY,
+                "repeats": -1,
+                "next_run": next_day_2am.replace(hour=8, minute=0, second=0, microsecond=0),
+            },
         ]
 
         created_count = 0

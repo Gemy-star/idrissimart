@@ -9,6 +9,7 @@ from django.conf import settings
 from django.template.loader import render_to_string
 from main.models import ClassifiedAd, Notification
 import logging
+from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -282,6 +283,101 @@ def check_upgrade_expiry_task():
         }
 
 
+def send_daily_admin_report_task():
+    """
+    Task to send a daily summary report to the admin email.
+    مهمة لإرسال تقرير يومي ملخص إلى بريد المسؤول
+
+    Schedule: Daily at 8:00 AM
+    """
+    try:
+        from constance import config
+        from main.models import User
+
+        now = timezone.now()
+        since = now - timedelta(hours=24)
+
+        # --- Last 24h stats ---
+        new_users = User.objects.filter(created_at__gte=since).count()
+        new_ads = ClassifiedAd.objects.filter(created_at__gte=since).count()
+        expired_today = ClassifiedAd.objects.filter(
+            status=ClassifiedAd.AdStatus.EXPIRED,
+            updated_at__gte=since,
+        ).count()
+        rejected_today = ClassifiedAd.objects.filter(
+            status=ClassifiedAd.AdStatus.REJECTED,
+            updated_at__gte=since,
+        ).count()
+        sold_today = ClassifiedAd.objects.filter(
+            status=ClassifiedAd.AdStatus.SOLD,
+            updated_at__gte=since,
+        ).count()
+        new_verification_requests = User.objects.filter(
+            verification_status=User.VerificationStatus.PENDING,
+            updated_at__gte=since,
+        ).count()
+
+        # --- Pending actions ---
+        pending_ads = ClassifiedAd.objects.filter(
+            status=ClassifiedAd.AdStatus.PENDING
+        ).count()
+        pending_verifications = User.objects.filter(
+            verification_status=User.VerificationStatus.PENDING
+        ).count()
+
+        # --- Platform totals ---
+        total_active_ads = ClassifiedAd.objects.filter(
+            status=ClassifiedAd.AdStatus.ACTIVE
+        ).count()
+        total_users = User.objects.filter(is_active=True).count()
+        premium_users = User.objects.filter(is_premium=True).count()
+
+        admin_email = getattr(config, "ADMIN_NOTIFICATION_EMAIL", None) or getattr(
+            settings, "ADMINS", [("Admin", "admin@idrissimart.com")]
+        )[0][1]
+
+        site_url = getattr(config, "SITE_URL", getattr(settings, "SITE_URL", ""))
+        admin_url = f"{site_url}/admin/"
+        site_name = getattr(config, "SITE_NAME", "إدريسي مارت")
+
+        context = {
+            "report_date": now.strftime("%Y-%m-%d"),
+            "new_users": new_users,
+            "new_ads": new_ads,
+            "expired_today": expired_today,
+            "rejected_today": rejected_today,
+            "sold_today": sold_today,
+            "new_verification_requests": new_verification_requests,
+            "pending_ads": pending_ads,
+            "pending_verifications": pending_verifications,
+            "total_active_ads": total_active_ads,
+            "total_users": total_users,
+            "premium_users": premium_users,
+            "admin_url": admin_url,
+            "site_name": site_name,
+        }
+
+        from main.services.email_service import EmailService
+
+        sent = EmailService.send_template_email(
+            to_emails=[admin_email],
+            subject=f"[{site_name}] التقرير اليومي - {context['report_date']}",
+            template_name="emails/daily_admin_report.html",
+            context=context,
+        )
+
+        if sent:
+            logger.info(f"✅ Daily admin report sent to {admin_email}")
+            return {"success": True, "recipient": admin_email}
+        else:
+            logger.error("❌ Failed to send daily admin report")
+            return {"success": False, "error": "Email send failed"}
+
+    except Exception as e:
+        logger.error(f"❌ Error in send_daily_admin_report_task: {str(e)}")
+        return {"success": False, "error": str(e)}
+
+
 # =======================
 # Task Registration
 # =======================
@@ -336,6 +432,13 @@ def register_scheduled_tasks():
             "schedule_type": Schedule.HOURLY,
             "repeats": -1,
             "minutes": 360,  # Every 6 hours
+        },
+        {
+            "func": "main.scheduled_tasks.send_daily_admin_report_task",
+            "name": "Send Daily Admin Report",
+            "schedule_type": Schedule.DAILY,
+            "repeats": -1,
+            "next_run": timezone.now().replace(hour=8, minute=0, second=0, microsecond=0),
         },
     ]
 
