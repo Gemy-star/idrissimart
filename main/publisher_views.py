@@ -326,8 +326,7 @@ def publisher_renew_ad(request, ad_id):
 
     # Deduct from package
     package = active_packages.first()
-    package.ads_used += 1
-    package.save()
+    package.use_ad()
 
     return JsonResponse(
         {"success": True, "message": f'تم تجديد الإعلان "{ad.title}" بنجاح. الآن في حالة المراجعة.'}
@@ -689,15 +688,25 @@ def publisher_process_renewal(request, ad_id):
 
     # Check if payment required
     if selected_option["price"] > 0:
-        # For paid renewals, create payment intent or redirect to payment
-        # This is a placeholder - implement payment logic here
+        # Set session variables for payment
+        request.session["ad_payment_amount"] = str(selected_option["price"])
+        request.session["ad_base_fee"] = str(selected_option["price"])
+        request.session["ad_features_cost"] = "0"
+        request.session["ad_features"] = {}
+        request.session["ad_renewal"] = True
+        request.session["renewal_duration_days"] = selected_option["duration_days"]
+        request.session["renew_upgrades"] = renew_upgrades
+
+        # Return redirect to payment page
+        from django.urls import reverse
+        payment_url = reverse("main:ad_payment", kwargs={"ad_id": ad.id})
+
         return JsonResponse(
             {
-                "success": False,
-                "message": "يتطلب هذا الخيار الدفع. سيتم توجيهك لصفحة الدفع.",
+                "success": True,
                 "requires_payment": True,
                 "amount": float(selected_option["price"]),
-                "payment_url": f"/payments/renew-ad/{ad_id}/?type={renewal_type}",
+                "payment_url": payment_url,
             }
         )
 
@@ -712,10 +721,12 @@ def publisher_process_renewal(request, ad_id):
         # Create notification
         Notification.objects.create(
             user=request.user,
-            notification_type="ad_renewed",
-            message_ar=f'تم تجديد إعلانك "{ad.title}" بنجاح لمدة {selected_option["duration_days"]} يوم.',
-            message_en=f'Your ad "{ad.title}" has been renewed for {selected_option["duration_days"]} days.',
-            related_ad=ad,
+            notification_type=Notification.NotificationType.GENERAL,
+            title=_("تم تجديد إعلانك"),
+            message=_('تم تجديد إعلانك "{}" بنجاح لمدة {} يوم.').format(
+                ad.title, selected_option["duration_days"]
+            ),
+            link=ad.get_absolute_url(),
         )
 
         return JsonResponse(

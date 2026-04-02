@@ -127,11 +127,12 @@ def send_ad_approval_notification(sender, instance, **kwargs):
                 # 2. Send an email notification
                 if _email_enabled(instance.user):
                     try:
-                        email_service = EmailService()
-                        success = email_service.send_ad_approved_email(
-                            user=instance.user,
+                        user_name = instance.user.get_full_name() or instance.user.username
+                        success = EmailService.send_ad_approved_email(
+                            email=instance.user.email,
                             ad_title=instance.title,
                             ad_url=instance.get_absolute_url(),
+                            user_name=user_name,
                         )
 
                         if not success:
@@ -175,7 +176,20 @@ def send_ad_approval_notification(sender, instance, **kwargs):
                     notification_type=Notification.NotificationType.GENERAL,
                 )
 
-                # 2. Send SMS notification for ad rejection
+                # 2. Send email notification for rejection
+                if _email_enabled(instance.user):
+                    try:
+                        user_name = instance.user.get_full_name() or instance.user.username
+                        EmailService.send_ad_rejected_email(
+                            email=instance.user.email,
+                            ad_title=instance.title,
+                            reject_reason=rejection_reason,
+                            user_name=user_name,
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to send ad rejection email: {str(e)}")
+
+                # 3. Send SMS notification for ad rejection
                 if _sms_enabled(instance.user):
                     try:
                         user_phone = getattr(instance.user, "mobile", None) or getattr(

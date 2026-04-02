@@ -534,6 +534,8 @@ def ad_payment(request, ad_id):
                     "base_fee": str(base_fee),
                     "features_cost": str(features_cost),
                     "is_renewal": is_renewal,
+                    "renewal_duration_days": request.session.get("renewal_duration_days", 30),
+                    "renew_upgrades": request.session.get("renew_upgrades", False),
                 },
             )
 
@@ -573,6 +575,8 @@ def ad_payment(request, ad_id):
                     "base_fee": str(base_fee),
                     "features_cost": str(features_cost),
                     "is_renewal": is_renewal,
+                    "renewal_duration_days": request.session.get("renewal_duration_days", 30),
+                    "renew_upgrades": request.session.get("renew_upgrades", False),
                 },
             )
 
@@ -674,7 +678,52 @@ def process_ad_payment(payment):
         # Change status based on current ad state
         is_renewal = payment.metadata.get("is_renewal", False)
 
-        if ad.status == ClassifiedAd.AdStatus.DRAFT or (
+        if is_renewal:
+            # Process ad renewal
+            renewal_duration_days = payment.metadata.get("renewal_duration_days", 30)
+            renew_upgrades = payment.metadata.get("renew_upgrades", False)
+
+            # Renew the ad
+            success = ad.renew(
+                duration_days=renewal_duration_days,
+                is_free=False,
+                renew_upgrades=renew_upgrades,
+            )
+
+            if not success:
+                logger.error(f"Failed to renew ad {ad.id} after payment {payment.id}")
+                return False
+
+            # Ad status is set to PENDING by renew() method
+            status_msg = _("قيد المراجعة")
+
+            # Notify user
+            Notification.objects.create(
+                user=ad.user,
+                notification_type=Notification.NotificationType.GENERAL,
+                title=_("تم تجديد إعلانك"),
+                message=_("تم تأكيد دفع تجديد إعلانك '{}' وتحويله إلى {}.").format(
+                    ad.title, status_msg
+                ),
+                link=ad.get_absolute_url(),
+            )
+
+            # Notify staff
+            from .models import User as UserModel
+            staff_users = UserModel.objects.filter(is_staff=True, is_active=True)
+            for staff_user in staff_users:
+                Notification.objects.create(
+                    user=staff_user,
+                    notification_type=Notification.NotificationType.GENERAL,
+                    title=_("إعلان مجدد ينتظر المراجعة"),
+                    message=_("تم تجديد إعلان بعنوان '{}' وتم سداد رسومه.").format(ad.title),
+                    link=ad.get_absolute_url(),
+                )
+
+            logger.info(f"Ad {ad.id} renewed after payment {payment.id}")
+            return True
+
+        elif ad.status == ClassifiedAd.AdStatus.DRAFT or (
             is_renewal and ad.status == ClassifiedAd.AdStatus.EXPIRED
         ):
             ad.status = ClassifiedAd.AdStatus.PENDING
