@@ -8,6 +8,16 @@ load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env.development", 
 
 from .common import *
 
+# Allow Django's MySQL backend to work even when mysqlclient is not installed.
+try:
+    import pymysql
+
+    pymysql.version_info = (1, 4, 6, "final", 0)
+    pymysql.install_as_MySQLdb()
+except Exception:
+    # If PyMySQL is unavailable, local settings will gracefully fall back to SQLite.
+    pass
+
 DEBUG = True
 ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 
@@ -106,10 +116,10 @@ CORS_ALLOWED_ORIGINS = [
 # =======================
 # Database for Local Development
 # =======================
-# Tries MariaDB/MySQL first; falls back to SQLite if connection fails.
+# Uses MariaDB/MySQL by default; falls back to SQLite only when MySQL drivers
+# are not available in the local Python environment.
 
 def _get_database_config():
-    import warnings
     _mysql_config = {
         "ENGINE": "django.db.backends.mysql",
         "NAME": os.getenv("DB_NAME", "idrissimartdb"),
@@ -126,19 +136,16 @@ def _get_database_config():
         "CONN_MAX_AGE": 60,
         "ATOMIC_REQUESTS": True,
     }
+
     try:
+        # Driver presence check only; do not force a live connection at import-time.
+        # This avoids accidental SQLite fallback while MariaDB is still starting.
         import MySQLdb
-        conn = MySQLdb.connect(
-            host=os.getenv("DB_HOST", "127.0.0.1"),
-            port=int(os.getenv("DB_PORT", "3306")),
-            user=os.getenv("DB_USER", "idrissimart"),
-            passwd=os.getenv("DB_PASSWORD", "Gemy@2803150"),
-            db=os.getenv("DB_NAME", "idrissimartdb"),
-            connect_timeout=3,
-        )
-        conn.close()
+        _ = MySQLdb
         return _mysql_config
     except Exception as e:
+        import warnings
+
         warnings.warn(f"MariaDB unavailable ({e}), falling back to SQLite.", stacklevel=2)
         return {
             "ENGINE": "django.db.backends.sqlite3",
@@ -153,25 +160,20 @@ DATABASES = {"default": _get_database_config()}
 # =======================
 # Email Configuration - SMTP4Dev (Local Development)
 # =======================
-# Using smtp4dev for local email testing
-# All emails are captured and displayed in web UI at http://localhost:3100
-# No real emails are sent - perfect for development and testing
+# SMTP4Dev runs in Docker, but Django runs on the host.
+# So SMTP must be reached via localhost using mapped host ports.
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp4dev"  # Docker container name
-EMAIL_PORT = 25  # Internal container port
-EMAIL_HOST_USER = ""  # No authentication needed
-EMAIL_HOST_PASSWORD = ""  # No authentication needed
-EMAIL_USE_TLS = False
-EMAIL_USE_SSL = False
-DEFAULT_FROM_EMAIL = "noreply@idrissimart.local"
-SERVER_EMAIL = "server@idrissimart.local"
+EMAIL_HOST = os.getenv("EMAIL_HOST", "127.0.0.1")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "2525"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "False").lower() == "true"
+EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False").lower() == "true"
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@idrissimart.local")
+SERVER_EMAIL = os.getenv("SERVER_EMAIL", "server@idrissimart.local")
 
-# For local development without Docker, use:
-# EMAIL_HOST = "localhost"
-# EMAIL_PORT = 2525  # Host port mapping
-
-# To view sent emails, open: http://localhost:3100
+# SMTP4Dev UI: http://localhost:3100
 
 # =======================
 # Payment & Third-party Secrets (from .env.development)

@@ -245,6 +245,11 @@ CONSTANCE_CONFIG = {
         _("Enable Mobile Number Verification"),
         bool,
     ),
+    "ENABLE_EMAIL_VERIFICATION": (
+        True,
+        _("Enable Email Verification during registration"),
+        bool,
+    ),
     "OTP_EXPIRY_MINUTES": (
         10,
         _("OTP Expiry Time (minutes)"),
@@ -560,6 +565,7 @@ CONSTANCE_CONFIG_FIELDSETS = {
     ),
     "Security Settings": (
         "ENABLE_MOBILE_VERIFICATION",
+        "ENABLE_EMAIL_VERIFICATION",
         "OTP_EXPIRY_MINUTES",
         "MAX_OTP_ATTEMPTS",
     ),

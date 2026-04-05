@@ -1,0 +1,59 @@
+# Local infrastructure only (for host-based Django development)
+# Starts MariaDB + Redis from Docker images while the app runs directly on macOS.
+
+name: idrissimart-local-infra
+
+services:
+  db:
+    image: mariadb:11.2
+    container_name: idrissimart_mariadb_local
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: idrissimartdb
+      MYSQL_USER: idrissimart
+      MYSQL_PASSWORD: Gemy@2803150
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+    volumes:
+      - mariadb_local_data:/var/lib/mysql
+      - ./docker/mariadb/conf.d:/etc/mysql/conf.d:ro
+      # Imported automatically only on first database initialization.
+      - ./dump.sql:/docker-entrypoint-initdb.d/01-dump.sql:ro
+    ports:
+      - "3306:3306"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: idrissimart_redis_local
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_local_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+
+  smtp4dev:
+    image: rnwood/smtp4dev:latest
+    container_name: idrissimart_smtp4dev_local
+    ports:
+      - "3100:80"
+      - "2525:25"
+    restart: unless-stopped
+
+volumes:
+  mariadb_local_data:
+    driver: local
+  redis_local_data:
+    driver: local

@@ -35,6 +35,7 @@ from content.verification_utils import (
     is_email_verification_required,
     is_phone_verification_required,
 )
+from .services.email_verification_service import EmailVerificationService
 
 
 class CustomLoginView(LoginView):
@@ -357,6 +358,10 @@ class RegisterView(CreateView):
 
             # Check if phone verification is required
             phone_verification_required = is_phone_verification_required()
+            
+            # Check if email verification is required
+            email_verification_required = is_email_verification_required()
+            email = data.get("email")
 
             # CONDITIONAL: Check if phone was verified in session (only if required)
             if phone_verification_required:
@@ -373,6 +378,29 @@ class RegisterView(CreateView):
                         ),
                     )
                     form.add_error("phone", _("لم يتم التحقق من رقم الهاتف"))
+                    return render(
+                        request,
+                        self.template_name,
+                        {
+                            "form": form,
+                            "countries": countries,
+                            "profile_type_settings": profile_type_settings,
+                            "phone_verification_required": phone_verification_required,
+                        },
+                    )
+            
+            # CONDITIONAL: Check if email was verified in session (only if required)
+            if email_verification_required:
+                email_verified = request.session.get(f"email_verified_{email}", False)
+                
+                if not email_verified:
+                    messages.error(
+                        request,
+                        _(
+                            "التحقق من البريد الإلكتروني إلزامي. يرجى إكمال التحقق من شروط إكمال التسجيل"
+                        ),
+                    )
+                    form.add_error("email", _("لم يتم التحقق من البريد الإلكتروني"))
                     return render(
                         request,
                         self.template_name,
@@ -441,8 +469,14 @@ class RegisterView(CreateView):
             # Mark phone as verified if verification was required and completed
             if phone_verification_required:
                 user.is_mobile_verified = True
+            
+            # Mark email as verified if verification was required and completed
+            if email_verification_required:
+                email_verified = request.session.get(f"email_verified_{email}", False)
+                if email_verified:
+                    user.is_email_verified = True
 
-            user.save(update_fields=["is_mobile_verified", "country"])
+            user.save(update_fields=["is_mobile_verified", "is_email_verified", "country"])
 
             # Clear phone verification from session if it was required
             if phone_verification_required:
@@ -450,6 +484,11 @@ class RegisterView(CreateView):
                 normalized_phone = normalize_phone_number(phone, phone_country_code)
                 if f"phone_verified_{normalized_phone}" in request.session:
                     del request.session[f"phone_verified_{normalized_phone}"]
+            
+            # Clear email verification from session if it was required
+            if email_verification_required:
+                if f"email_verified_{email}" in request.session:
+                    del request.session[f"email_verified_{email}"]
 
             # Create free ads package for new user
             from main.models import UserPackage
@@ -479,10 +518,12 @@ class RegisterView(CreateView):
                     request, _("تم منحك 3 إعلانات مجانية صالحة لمدة 30 يوم! 🎁")
                 )
 
-            # Send email verification (CONDITIONAL based on settings)
-            email_verification_required = is_email_verification_required()
-            if email_verification_required:
-                email_sent = send_email_verification(request, user)
+            # Send email verification OTP only if not already verified (CONDITIONAL based on settings)
+            # If email was verified during registration via OTP, skip sending again
+            email_was_pre_verified = request.session.get(f"email_verified_{email}", False)
+            if email_verification_required and not email_was_pre_verified:
+                email_verification_service = EmailVerificationService()
+                email_sent, message = email_verification_service.initiate_verification(user)
 
             # Auto login after registration
             login(request, user, backend="django.contrib.auth.backends.ModelBackend")
@@ -491,12 +532,13 @@ class RegisterView(CreateView):
                 request, _("مرحباً بك في إدريسي مارت! 🎉 تم إنشاء حسابك بنجاح")
             )
 
-            if email_verification_required:
+            # Show messages based on verification status
+            if email_verification_required and not email_was_pre_verified:
                 if email_sent:
                     messages.info(
                         request,
                         _(
-                            "تم إرسال رابط تأكيد إلى بريدك الإلكتروني. التحقق من البريد الإلكتروني إلزامي من شروط إكمال التسجيل."
+                            "تم إرسال رمز التحقق إلى بريدك الإلكتروني. التحقق من البريد الإلكتروني إلزامي من شروط إكمال التسجيل."
                         ),
                     )
                 else:
@@ -506,6 +548,10 @@ class RegisterView(CreateView):
                             "فشل إرسال رسالة التحقق. يمكنك طلب إعادة الإرسال من الإعدادات."
                         ),
                     )
+            elif email_verification_required and email_was_pre_verified:
+                messages.success(
+                    request, _("تم التحقق من بريدك الإلكتروني بنجاح! ✅")
+                )
 
             return HttpResponseRedirect(self.get_success_url())
         else:
@@ -582,17 +628,98 @@ def get_client_ip(request):
 @require_POST
 def send_phone_verification_code(request):
     """
-    Send verification code to phone number via SMS
+    Send verification code to phone number via SMS or email OTP
     إمكانية الدخول برقم الهاتف المسجل والتحقق منه مسبقاً وكاتبه اليه
     """
-    # Check if phone verification is enabled (checks both constance and site_config)
-    if not is_phone_verification_required():
-        return JsonResponse(
-            {"success": False, "message": _("التحقق من الجوال غير مفعّل")}, status=400
-        )
-
     try:
         data = json.loads(request.body)
+        action = data.get("action", "").strip()
+        
+        # Handle email OTP request
+        if action == "send_email_otp":
+            from main.services.email_verification_service import EmailVerificationService
+            from main.services.email_service import EmailService
+            
+            # Check if email verification is enabled
+            if not is_email_verification_required():
+                return JsonResponse(
+                    {"success": False, "message": _("التحقق من البريد الإلكتروني غير مفعّل")}, 
+                    status=400
+                )
+            
+            email = data.get("email", "").strip()
+            
+            if not email:
+                return JsonResponse(
+                    {"success": False, "message": _("البريد الإلكتروني مطلوب")}, 
+                    status=400
+                )
+            
+            # Validate email format
+            from django.core.validators import validate_email as django_validate_email
+            from django.core.exceptions import ValidationError
+            
+            try:
+                django_validate_email(email)
+            except ValidationError:
+                return JsonResponse(
+                    {"success": False, "message": _("البريد الإلكتروني غير صحيح")}, 
+                    status=400
+                )
+            
+            # Check if email already registered
+            if User.objects.filter(email=email).exists():
+                # If it's the current user's email and already verified, don't allow
+                if request.user.is_authenticated and request.user.email == email and request.user.is_email_verified:
+                    return JsonResponse(
+                        {"success": False, "message": _("البريد الإلكتروني موثق بالفعل")}, 
+                        status=400
+                    )
+                # If it belongs to another user
+                elif not request.user.is_authenticated or request.user.email != email:
+                    return JsonResponse(
+                        {"success": False, "message": _("البريد الإلكتروني مسجل مسبقاً")}, 
+                        status=400
+                    )
+            
+            # Generate OTP code
+            otp_code = EmailVerificationService().generate_otp(length=6)
+            
+            # Store OTP in session (for non-authenticated users during registration)
+            request.session[f'email_otp_{email}'] = {
+                'code': otp_code,
+                'expires': (timezone.now() + timedelta(minutes=10)).isoformat(),
+                'attempts': 0,
+            }
+            
+            # Send OTP email
+            email_service = EmailService()
+            success = email_service.send_otp_email(
+                email=email,
+                otp_code=otp_code,
+                user_name=email.split('@')[0]  # Use email prefix as name for new users
+            )
+            
+            if success:
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "message": _("تم إرسال رمز التحقق إلى بريدك الإلكتروني"),
+                    }
+                )
+            else:
+                return JsonResponse(
+                    {"success": False, "message": _("فشل إرسال رمز التحقق. الرجاء المحاولة لاحقاً")}, 
+                    status=500
+                )
+        
+        # Handle phone verification (original code)
+        # Check if phone verification is enabled (checks both constance and site_config)
+        if not is_phone_verification_required():
+            return JsonResponse(
+                {"success": False, "message": _("التحقق من الجوال غير مفعّل")}, status=400
+            )
+
         phone = data.get("phone", "").strip()
         country_code = data.get("country_code", "EG").upper()
 
@@ -683,17 +810,99 @@ def send_phone_verification_code(request):
 @require_POST
 def verify_phone_code(request):
     """
-    Verify the phone verification code entered by user
+    Verify the phone verification code or email OTP entered by user
     اليه الفرق عند التسجيل بين حساب غداء وعشاء ؟
     """
-    # Check if phone verification is enabled (checks both constance and site_config)
-    if not is_phone_verification_required():
-        return JsonResponse(
-            {"success": False, "message": _("التحقق من الجوال غير مفعّل")}, status=400
-        )
-
     try:
         data = json.loads(request.body)
+        action = data.get("action", "").strip()
+        
+        # Handle email OTP verification
+        if action == "verify_email_otp":
+            from main.services.email_verification_service import EmailVerificationService
+            
+            # Check if email verification is enabled
+            if not is_email_verification_required():
+                return JsonResponse(
+                    {"success": False, "message": _("التحقق من البريد الإلكتروني غير مفعّل")}, 
+                    status=400
+                )
+            
+            email = data.get("email", "").strip()
+            code = data.get("code", "").strip()
+            
+            if not email or not code:
+                return JsonResponse(
+                    {"success": False, "message": _("الرجاء إدخال البريد الإلكتروني ورمز التحقق")}, 
+                    status=400
+                )
+            
+            # Get stored OTP from session
+            session_key = f'email_otp_{email}'
+            otp_data = request.session.get(session_key)
+            
+            if not otp_data:
+                return JsonResponse(
+                    {"success": False, "message": _("لم يتم إرسال رمز تحقق لهذا البريد الإلكتروني")}, 
+                    status=400
+                )
+            
+            # Check expiry
+            expires = timezone.datetime.fromisoformat(otp_data['expires'])
+            if timezone.now() > expires:
+                del request.session[session_key]
+                return JsonResponse(
+                    {"success": False, "message": _("انتهت صلاحية رمز التحقق. الرجاء طلب رمز جديد")}, 
+                    status=400
+                )
+            
+            # Check attempts (max 5)
+            if otp_data.get('attempts', 0) >= 5:
+                del request.session[session_key]
+                return JsonResponse(
+                    {"success": False, "message": _("تم تجاوز عدد المحاولات المسموحة")}, 
+                    status=400
+                )
+            
+            # Verify OTP
+            if code == otp_data['code']:
+                # Mark email as verified in session
+                request.session[f'email_verified_{email}'] = True
+                del request.session[session_key]
+                
+                # If user exists and is authenticated, update their verification status
+                if request.user.is_authenticated and request.user.email == email:
+                    request.user.is_email_verified = True
+                    request.user.save(update_fields=['is_email_verified'])
+                
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "message": _("تم التحقق من البريد الإلكتروني بنجاح"),
+                        "verified": True,
+                    }
+                )
+            else:
+                # Increment attempts
+                otp_data['attempts'] = otp_data.get('attempts', 0) + 1
+                request.session[session_key] = otp_data
+                
+                remaining = 5 - otp_data['attempts']
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": _("رمز التحقق غير صحيح. المحاولات المتبقية: {}").format(remaining)
+                    }, 
+                    status=400
+                )
+        
+        # Handle phone verification (original code)
+        # Check if phone verification is enabled (checks both constance and site_config)
+        if not is_phone_verification_required():
+            return JsonResponse(
+                {"success": False, "message": _("التحقق من الجوال غير مفعّل")}, status=400
+            )
+
         phone = data.get("phone", "").strip()
         code = data.get("code", "").strip()
         country_code = data.get("country_code", "EG").upper()
@@ -853,34 +1062,14 @@ def password_reset_request(request):
 
 
 def send_email_verification(request, user):
-    """Send email verification link to user via SendGrid."""
-    import uuid
-    from datetime import timedelta
-    from django.contrib.sites.shortcuts import get_current_site
-    from .email_service import send_verification_email
-
-    # Generate verification token
-    token = str(uuid.uuid4())
-    user.email_verification_token = token
-    user.email_verification_expires = timezone.now() + timedelta(hours=24)
-    user.save(update_fields=["email_verification_token", "email_verification_expires"])
-
-    # Build verification link
-    current_site = get_current_site(request)
-    verification_link = (
-        f"{request.scheme}://{current_site.domain}/verify-email/{user.id}/{token}/"
-    )
-
-    sent = send_verification_email(request, user, verification_link)
-    if not sent:
-        logger.error("Failed to send verification email to %s", user.email)
-        print(f"Verification link for {user.email}: {verification_link}")
-
-    return True
+    """Send email verification OTP to user."""
+    email_verification_service = EmailVerificationService()
+    success, message = email_verification_service.initiate_verification(user)
+    return success
 
 
 def verify_email(request, user_id, token):
-    """Verify user email with token"""
+    """Legacy verify user email with token - kept for backward compatibility"""
     try:
         user = User.objects.get(id=user_id)
 
@@ -908,6 +1097,78 @@ def verify_email(request, user_id, token):
         messages.error(request, _("المستخدم غير موجود."))
 
     return redirect("main:home")
+
+
+@login_required
+@require_POST
+def verify_email_otp(request):
+    """Verify email using OTP code"""
+    otp_code = request.POST.get("otp_code", "").strip()
+    
+    if not otp_code:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse(
+                {"success": False, "message": _("يرجى إدخال رمز التحقق")},
+                status=400,
+            )
+        messages.error(request, _("يرجى إدخال رمز التحقق"))
+        return redirect("main:dashboard")
+    
+    email_verification_service = EmailVerificationService()
+    success, message = email_verification_service.verify_email_otp(request.user, otp_code)
+    
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse({"success": success, "message": str(message)})
+    
+    if success:
+        messages.success(request, message)
+        
+        # Check if user should get free package after email verification
+        from main.models import UserPackage
+        from content.models import SiteConfiguration
+        
+        site_config = SiteConfiguration.get_solo()
+        if site_config.require_verification_for_free_package:
+            # Check if user now qualifies for free package
+            if request.user.is_email_verified and request.user.is_mobile_verified:
+                # Check if user doesn't already have a free package
+                has_free_package = UserPackage.objects.filter(
+                    user=request.user, package__isnull=True
+                ).exists()
+                
+                if not has_free_package:
+                    UserPackage.objects.create(
+                        user=request.user,
+                        package=None,
+                        ads_remaining=3,
+                        ads_used=0,
+                        expiry_date=timezone.now() + timedelta(days=30),
+                    )
+                    messages.success(
+                        request, _("تم منحك 3 إعلانات مجانية صالحة لمدة 30 يوم! 🎁")
+                    )
+    else:
+        messages.error(request, message)
+    
+    return redirect("main:dashboard")
+
+
+@login_required
+@require_POST
+def resend_email_otp(request):
+    """Resend email verification OTP"""
+    email_verification_service = EmailVerificationService()
+    success, message = email_verification_service.resend_otp(request.user)
+    
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse({"success": success, "message": str(message)})
+    
+    if success:
+        messages.success(request, message)
+    else:
+        messages.error(request, message)
+    
+    return redirect("main:dashboard")
 
 
 def resend_email_verification(request):

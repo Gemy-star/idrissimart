@@ -7,10 +7,12 @@ from django.utils.translation import get_language
 
 def is_email_verification_required():
     """Check if email verification is required during registration"""
+    from constance import config
     from content.site_config import SiteConfiguration
 
+    constance_enabled = getattr(config, "ENABLE_EMAIL_VERIFICATION", True)
     site_config = SiteConfiguration.get_solo()
-    return site_config.require_email_verification
+    return constance_enabled or site_config.require_email_verification
 
 
 def is_phone_verification_required():

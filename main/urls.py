@@ -74,6 +74,16 @@ urlpatterns = [
         name="verify_email",
     ),
     path(
+        "verify-email-otp/",
+        auth_views.verify_email_otp,
+        name="verify_email_otp",
+    ),
+    path(
+        "resend-email-otp/",
+        auth_views.resend_email_otp,
+        name="resend_email_otp",
+    ),
+    path(
         "resend-verification-email/",
         auth_views.resend_email_verification,
         name="resend_email_verification",

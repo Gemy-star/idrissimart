@@ -129,6 +129,36 @@ db-reset: ## Reset database (WARNING: Deletes all data!)
 	fi
 
 # ============================================
+# Local Docker Infrastructure (MariaDB + Redis only)
+# ============================================
+
+infra-up: ## Start local MariaDB and Redis in Docker
+	@echo '$(BLUE)🐳 Starting local infrastructure (MariaDB + Redis)...$(NC)'
+	docker compose -f docker-compose.local-infra.yml up -d
+	@echo '$(GREEN)✅ Infrastructure started$(NC)'
+
+infra-down: ## Stop local MariaDB and Redis containers
+	@echo '$(YELLOW)Stopping local infrastructure...$(NC)'
+	docker compose -f docker-compose.local-infra.yml down
+	@echo '$(GREEN)✅ Infrastructure stopped$(NC)'
+
+infra-logs: ## Follow logs for local MariaDB and Redis
+	docker compose -f docker-compose.local-infra.yml logs -f
+
+infra-db-import: ## Import dump.sql into local Docker MariaDB
+	@echo '$(BLUE)🗄️  Importing dump.sql into MariaDB...$(NC)'
+	docker compose -f docker-compose.local-infra.yml exec -T db \
+		mysql -u$${DB_USER:-idrissimart} -p$${DB_PASSWORD:-Gemy@2803150} $${DB_NAME:-idrissimartdb} < dump.sql
+	@echo '$(GREEN)✅ Import complete$(NC)'
+
+infra-db-shell: ## Open MariaDB shell in local Docker DB
+	docker compose -f docker-compose.local-infra.yml exec db \
+		mysql -u$${DB_USER:-idrissimart} -p$${DB_PASSWORD:-Gemy@2803150} $${DB_NAME:-idrissimartdb}
+
+infra-redis-cli: ## Open Redis CLI in local Docker Redis
+	docker compose -f docker-compose.local-infra.yml exec redis redis-cli
+
+# ============================================
 # Development
 # ============================================
 

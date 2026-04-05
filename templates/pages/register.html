@@ -97,12 +97,47 @@
                     </label>
                     <div class="form-control-wrapper">
                         <input type="email"
+                               id="email"
                                name="email"
                                class="form-control"
                                placeholder="{% trans 'أدخل بريدك الإلكتروني' %}"
                                value="{{ form_data.email|default:'' }}"
                                required />
                         <i class="fas fa-envelope"></i>
+                    </div>
+                    <div class="d-flex gap-2 mt-2">
+                        <button type="button"
+                                id="sendEmailOtpBtn"
+                                class="btn btn-outline-primary btn-sm flex-shrink-0"
+                                onclick="sendEmailOtp()">
+                            <i class="fas fa-paper-plane me-1"></i>
+                            {% trans "إرسال رمز التحقق" %}
+                        </button>
+                        <span id="emailOtpCountdown" class="text-muted small align-self-center" style="display: none;"></span>
+                    </div>
+                    <div id="emailOtpVerificationSection" class="mt-3" style="display: none;">
+                        <label class="form-label text-primary">
+                            <i class="fas fa-key me-1"></i>
+                            {% trans "رمز التحقق من البريد الإلكتروني" %}
+                        </label>
+                        <div class="input-group">
+                            <input type="text"
+                                   id="emailOtpCode"
+                                   class="form-control"
+                                   placeholder="{% trans 'أدخل الرمز المرسل إلى بريدك' %}"
+                                   maxlength="6"
+                                   pattern="[0-9]{6}" />
+                            <button type="button"
+                                    class="btn btn-success"
+                                    onclick="verifyEmailOtp()">
+                                <i class="fas fa-check me-1"></i>
+                                {% trans "تحقق" %}
+                            </button>
+                        </div>
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            {% trans "تحقق من بريدك الوارد أو البريد المزعج" %}
+                        </small>
                     </div>
                 </div>
                 <!-- Country Selection -->
@@ -780,6 +815,178 @@
                 formatHelp.textContent = phoneFormats[countryCode] || phoneCode + ' XXXXXXXXX';
             }
         });
+
+        // ==========================================
+        // Email OTP Functions
+        // ==========================================
+        let emailOtpCountdownInterval = null;
+        let emailOtpVerified = false;
+
+        function sendEmailOtp() {
+            const emailInput = document.getElementById('email');
+            const email = emailInput.value.trim();
+            const sendBtn = document.getElementById('sendEmailOtpBtn');
+
+            if (!email) {
+                showToast('{% trans "الرجاء إدخال البريد الإلكتروني" %}', 'warning');
+                emailInput.focus();
+                return;
+            }
+
+            // Basic email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                showToast('{% trans "الرجاء إدخال بريد إلكتروني صحيح" %}', 'warning');
+                emailInput.focus();
+                return;
+            }
+
+            // Disable button and show loading
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> {% trans "جاري الإرسال..." %}';
+
+            fetch('{% url "main:send_phone_code" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    email: email,
+                    action: 'send_email_otp'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message || '{% trans "تم إرسال رمز التحقق إلى بريدك الإلكتروني" %}', 'success');
+                    // Show verification code input
+                    document.getElementById('emailOtpVerificationSection').style.display = 'block';
+                    document.getElementById('emailOtpCode').focus();
+                    // Re-enable button and update text
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '<i class="fas fa-redo me-1"></i> {% trans "إعادة إرسال" %}';
+                    // Start countdown (10 minutes = 600 seconds)
+                    startEmailOtpCountdown(600);
+                } else {
+                    showToast(data.message || '{% trans "حدث خطأ في إرسال الرمز" %}', 'error');
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i> {% trans "إرسال رمز التحقق" %}';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('{% trans "حدث خطأ. الرجاء المحاولة لاحقاً" %}', 'error');
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i> {% trans "إرسال رمز التحقق" %}';
+            });
+        }
+
+        function verifyEmailOtp() {
+            const emailInput = document.getElementById('email');
+            const codeInput = document.getElementById('emailOtpCode');
+            const email = emailInput.value.trim();
+            const code = codeInput.value.trim();
+
+            if (!code) {
+                showToast('{% trans "الرجاء إدخال رمز التحقق" %}', 'warning');
+                codeInput.focus();
+                return;
+            }
+
+            if (code.length !== 6) {
+                showToast('{% trans "رمز التحقق يجب أن يكون 6 أرقام" %}', 'warning');
+                return;
+            }
+
+            // Show loading on verify button
+            const verifyBtn = event.target;
+            verifyBtn.disabled = true;
+            verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> {% trans "جاري التحقق..." %}';
+
+            fetch('{% url "main:verify_phone_code" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    email: email,
+                    code: code,
+                    action: 'verify_email_otp'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    emailOtpVerified = true;
+                    showToast(data.message || '{% trans "تم التحقق من البريد الإلكتروني بنجاح" %}', 'success');
+                    
+                    // Update verification section to show success
+                    document.getElementById('emailOtpVerificationSection').innerHTML = `
+                        <div class="alert alert-success border-0 shadow-sm">
+                            <i class="fas fa-check-circle me-2"></i>
+                            {% trans "تم التحقق من البريد الإلكتروني بنجاح" %}
+                        </div>
+                    `;
+                    
+                    // Make email readonly
+                    emailInput.readOnly = true;
+                    emailInput.style.backgroundColor = 'var(--bg-secondary)';
+                    emailInput.style.cursor = 'not-allowed';
+                    
+                    // Disable send button
+                    document.getElementById('sendEmailOtpBtn').disabled = true;
+                    document.getElementById('sendEmailOtpBtn').innerHTML = '<i class="fas fa-check-circle me-1"></i> {% trans "تم التحقق" %}';
+                    
+                    // Stop countdown
+                    if (emailOtpCountdownInterval) {
+                        clearInterval(emailOtpCountdownInterval);
+                        document.getElementById('emailOtpCountdown').style.display = 'none';
+                    }
+                } else {
+                    showToast(data.message || '{% trans "رمز التحقق غير صحيح" %}', 'error');
+                    verifyBtn.disabled = false;
+                    verifyBtn.innerHTML = '<i class="fas fa-check me-1"></i> {% trans "تحقق" %}';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('{% trans "حدث خطأ. الرجاء المحاولة لاحقاً" %}', 'error');
+                verifyBtn.disabled = false;
+                verifyBtn.innerHTML = '<i class="fas fa-check me-1"></i> {% trans "تحقق" %}';
+            });
+        }
+
+        function startEmailOtpCountdown(seconds) {
+            const countdownEl = document.getElementById('emailOtpCountdown');
+            const sendBtn = document.getElementById('sendEmailOtpBtn');
+
+            countdownEl.style.display = 'inline';
+            let remaining = seconds;
+
+            const updateDisplay = () => {
+                const minutes = Math.floor(remaining / 60);
+                const secs = remaining % 60;
+                countdownEl.textContent = `{% trans "يمكن إعادة الإرسال بعد" %} ${minutes}:${secs.toString().padStart(2, '0')}`;
+            };
+
+            updateDisplay();
+
+            emailOtpCountdownInterval = setInterval(() => {
+                remaining--;
+
+                if (remaining <= 0) {
+                    clearInterval(emailOtpCountdownInterval);
+                    countdownEl.style.display = 'none';
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '<i class="fas fa-redo me-1"></i> {% trans "إعادة إرسال" %}';
+                } else {
+                    updateDisplay();
+                }
+            }, 1000);
+        }
+
     </script>
 
 {% endblock %}
