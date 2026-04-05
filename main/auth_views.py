@@ -315,6 +315,9 @@ class RegisterView(CreateView):
 
         # Check if phone verification is required
         phone_verification_required = is_phone_verification_required()
+        
+        # Check if email verification is required
+        email_verification_required = is_email_verification_required()
 
         return render(
             request,
@@ -324,6 +327,7 @@ class RegisterView(CreateView):
                 "countries": countries,
                 "profile_type_settings": profile_type_settings,
                 "phone_verification_required": phone_verification_required,
+                "email_verification_required": email_verification_required,
             },
         )
 
@@ -575,6 +579,9 @@ class RegisterView(CreateView):
 
             # Check if phone verification is required for error case
             phone_verification_required = is_phone_verification_required()
+            
+            # Check if email verification is required for error case
+            email_verification_required_err = is_email_verification_required()
 
             return render(
                 request,
@@ -584,6 +591,7 @@ class RegisterView(CreateView):
                     "countries": countries,
                     "profile_type_settings": profile_type_settings,
                     "phone_verification_required": phone_verification_required,
+                    "email_verification_required": email_verification_required_err,
                 },
             )
 
