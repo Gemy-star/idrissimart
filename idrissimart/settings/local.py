@@ -91,6 +91,8 @@ CSRF_COOKIE_SECURE = False  # HTTP is fine for local
 CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access in dev
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_TRUSTED_ORIGINS = [
+    "http://127.0.0.1:5455",
+    "http://localhost:5455",
     "http://127.0.0.1:6522",
     "http://localhost:6522",
     "http://127.0.0.1:8000",
@@ -158,22 +160,16 @@ def _get_database_config():
 DATABASES = {"default": _get_database_config()}
 
 # =======================
-# Email Configuration - SMTP4Dev (Local Development)
+# Email Configuration - Local SMTP Server
 # =======================
-# SMTP4Dev runs in Docker, but Django runs on the host.
-# So SMTP must be reached via localhost using mapped host ports.
+# Using local SMTP server on port 25
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = os.getenv("EMAIL_HOST", "127.0.0.1")
-EMAIL_PORT = int(os.getenv("EMAIL_PORT", "2525"))
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
-EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "False").lower() == "true"
-EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False").lower() == "true"
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@idrissimart.local")
-SERVER_EMAIL = os.getenv("SERVER_EMAIL", "server@idrissimart.local")
-
-# SMTP4Dev UI: http://localhost:3100
+EMAIL_HOST = "127.0.0.1"
+EMAIL_PORT = 25
+# EMAIL_USE_TLS = True  # Does not work with our SMTP server
+# Email address used to send regular messages
+DEFAULT_FROM_EMAIL = "admin@idrissimart.com"
 
 # =======================
 # Payment & Third-party Secrets (from .env.development)
@@ -197,6 +193,9 @@ RECAPTCHA_SECRET_KEY = RECAPTCHA_PRIVATE_KEY
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
 TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "")
+
+# SMS will be sent to console in local development instead of using Twilio
+TWILIO_DEVELOPMENT_MODE = True
 
 # =======================
 # Logging Configuration for Local Development

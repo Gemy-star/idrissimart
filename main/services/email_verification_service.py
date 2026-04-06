@@ -70,9 +70,6 @@ class EmailVerificationService:
         )
 
         if success:
-            logger.info(
-                f"Email verification code sent to user {user.username} at {user.email}"
-            )
             return True, _("تم إرسال رمز التحقق إلى بريدك الإلكتروني بنجاح")
         else:
             logger.error(
@@ -94,10 +91,10 @@ class EmailVerificationService:
         # Check max attempts
         max_attempts = getattr(config, "MAX_OTP_ATTEMPTS", 3)
         attempts_key = f"email_otp_attempts_{user.id}"
-        
+
         # Get current attempt count from session or user meta
         # For now, we'll implement by checking the code directly
-        
+
         if user.email_verification_token != otp_code:
             return False, _("رمز التحقق غير صحيح")
 

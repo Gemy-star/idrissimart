@@ -114,7 +114,7 @@
                             <i class="fas fa-paper-plane me-1"></i>
                             {% trans "إرسال رمز التحقق" %}
                         </button>
-                        <span id="emailOtpCountdown" class="text-muted small align-self-center" style="display: none;"></span>
+                        <span id="emailOtpCountdown" class="countdown-timer" style="display: none;"></span>
                     </div>
                     <div id="emailOtpVerificationSection" class="mt-3" style="display: none;">
                         <label class="form-label text-primary">
@@ -192,7 +192,7 @@
                                         onclick="sendVerificationCode()">
                                     {% trans "إرسال رمز التحقق" %}
                                 </button>
-                                <span id="countdown" class="text-muted small align-self-center" style="display: none;"></span>
+                                <span id="countdown" class="countdown-timer" style="display: none;"></span>
                             </div>
                             {% endif %}
                         </div>
@@ -441,6 +441,62 @@
 
 {% endblock %}
 
+{% block extra_css %}
+    <style>
+        /* Countdown Timer Styling */
+        .countdown-timer {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, rgba(75, 49, 94, 0.08) 0%, rgba(255, 96, 1, 0.08) 100%);
+            border: 2px solid #4b315e;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #4b315e;
+            white-space: nowrap;
+            box-shadow: 0 2px 6px rgba(75, 49, 94, 0.15);
+            transition: all 0.3s ease;
+            animation: pulse-border 2s ease-in-out infinite;
+        }
+
+        .countdown-timer:hover {
+            box-shadow: 0 4px 10px rgba(75, 49, 94, 0.25);
+            transform: translateY(-1px);
+        }
+
+        @keyframes pulse-border {
+            0%, 100% {
+                border-color: #4b315e;
+                box-shadow: 0 2px 6px rgba(75, 49, 94, 0.15);
+            }
+            50% {
+                border-color: #ff6001;
+                box-shadow: 0 2px 8px rgba(255, 96, 1, 0.25);
+            }
+        }
+
+        /* Dark mode support */
+        [data-bs-theme="dark"] .countdown-timer {
+            background: linear-gradient(135deg, rgba(75, 49, 94, 0.15) 0%, rgba(255, 96, 1, 0.15) 100%);
+            border-color: #ff6001;
+            color: #ff6001;
+            box-shadow: 0 2px 6px rgba(255, 96, 1, 0.2);
+        }
+
+        [data-bs-theme="dark"] .countdown-timer:hover {
+            box-shadow: 0 4px 10px rgba(255, 96, 1, 0.3);
+        }
+
+        @media (max-width: 576px) {
+            .countdown-timer {
+                padding: 6px 12px;
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+{% endblock %}
+
 {% block extra_js %}
     <script>
         function togglePassword(inputId) {
@@ -488,7 +544,7 @@
                 showToast('{% trans "كلمات المرور غير متطابقة" %}', 'warning')
                 return false
             }
-            
+
             // Check email verification if required
             {% if email_verification_required %}
             if (typeof emailOtpVerified === 'undefined' || !emailOtpVerified) {
@@ -589,6 +645,7 @@
 
             fetch('{% url "main:send_phone_code" %}', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}'
@@ -650,6 +707,7 @@
 
             fetch('{% url "main:verify_phone_code" %}', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}'
@@ -704,13 +762,15 @@
             const countdownEl = document.getElementById('countdown');
             const sendBtn = document.getElementById('sendCodeBtn');
 
-            countdownEl.style.display = 'inline';
+            countdownEl.style.display = 'inline-flex';
             let remaining = seconds;
 
             const updateDisplay = () => {
                 const minutes = Math.floor(remaining / 60);
                 const secs = remaining % 60;
-                countdownEl.textContent = `{% trans "يمكن إعادة الإرسال بعد" %} ${minutes}:${secs.toString().padStart(2, '0')}`;
+                const minutesStr = minutes.toString().padStart(2, '0');
+                const secsStr = secs.toString().padStart(2, '0');
+                countdownEl.innerHTML = `{% trans "يمكن إعادة الإرسال بعد" %} ${minutesStr}:${secsStr}`;
             };
 
             updateDisplay();
@@ -860,6 +920,7 @@
 
             fetch('{% url "main:send_phone_code" %}', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}'
@@ -919,6 +980,7 @@
 
             fetch('{% url "main:verify_phone_code" %}', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}'
@@ -934,7 +996,7 @@
                 if (data.success) {
                     emailOtpVerified = true;
                     showToast(data.message || '{% trans "تم التحقق من البريد الإلكتروني بنجاح" %}', 'success');
-                    
+
                     // Update verification section to show success
                     document.getElementById('emailOtpVerificationSection').innerHTML = `
                         <div class="alert alert-success border-0 shadow-sm">
@@ -942,16 +1004,16 @@
                             {% trans "تم التحقق من البريد الإلكتروني بنجاح" %}
                         </div>
                     `;
-                    
+
                     // Make email readonly
                     emailInput.readOnly = true;
                     emailInput.style.backgroundColor = 'var(--bg-secondary)';
                     emailInput.style.cursor = 'not-allowed';
-                    
+
                     // Disable send button
                     document.getElementById('sendEmailOtpBtn').disabled = true;
                     document.getElementById('sendEmailOtpBtn').innerHTML = '<i class="fas fa-check-circle me-1"></i> {% trans "تم التحقق" %}';
-                    
+
                     // Stop countdown
                     if (emailOtpCountdownInterval) {
                         clearInterval(emailOtpCountdownInterval);
@@ -975,13 +1037,15 @@
             const countdownEl = document.getElementById('emailOtpCountdown');
             const sendBtn = document.getElementById('sendEmailOtpBtn');
 
-            countdownEl.style.display = 'inline';
+            countdownEl.style.display = 'inline-flex';
             let remaining = seconds;
 
             const updateDisplay = () => {
                 const minutes = Math.floor(remaining / 60);
                 const secs = remaining % 60;
-                countdownEl.textContent = `{% trans "يمكن إعادة الإرسال بعد" %} ${minutes}:${secs.toString().padStart(2, '0')}`;
+                const minutesStr = minutes.toString().padStart(2, '0');
+                const secsStr = secs.toString().padStart(2, '0');
+                countdownEl.innerHTML = `{% trans "يمكن إعادة الإرسال بعد" %} ${minutesStr}:${secsStr}`;
             };
 
             updateDisplay();

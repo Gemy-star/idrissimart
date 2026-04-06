@@ -7,6 +7,7 @@ import logging
 from typing import Optional
 
 from constance import config
+from django.conf import settings
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioRestException
 
@@ -55,8 +56,8 @@ class SMSService:
         Returns:
             bool: True if SMS sent successfully, False otherwise
         """
-        # Check if development mode is enabled
-        if config.TWILIO_DEVELOPMENT_MODE:
+        # Check if development mode is enabled (Django settings takes priority over constance DB)
+        if getattr(settings, 'TWILIO_DEVELOPMENT_MODE', False) or config.TWILIO_DEVELOPMENT_MODE:
             logger.info(f"[DEVELOPMENT MODE] SMS to {to_number}: {message}")
             print(f"\n{'='*50}")
             print(f"SMS DEVELOPMENT MODE")
@@ -109,6 +110,14 @@ class SMSService:
         Returns:
             bool: True if SMS sent successfully, False otherwise
         """
+        # Print OTP to console for debugging
+        print(f"\n{'🔐'*25}")
+        print(f"📱 OTP CODE FOR: {phone_number}")
+        print(f"🔢 CODE: {otp_code}")
+        print(f"⏰ Valid for: {config.OTP_EXPIRY_MINUTES} minutes")
+        print(f"{'🔐'*25}\n")
+        logger.info(f"OTP generated for {phone_number}: {otp_code}")
+
         message = (
             f"{config.SITE_NAME}\n"
             f"رمز التحقق الخاص بك: {otp_code}\n"
@@ -132,6 +141,14 @@ class SMSService:
         Returns:
             bool: True if SMS sent successfully, False otherwise
         """
+        # Print verification code to console for debugging
+        print(f"\n{'🔐'*25}")
+        print(f"📱 VERIFICATION CODE FOR: {phone_number}")
+        print(f"🔢 CODE: {code}")
+        print(f"📋 Purpose: {purpose}")
+        print(f"{'🔐'*25}\n")
+        logger.info(f"Verification code generated for {phone_number}: {code} (Purpose: {purpose})")
+
         message = f"{config.SITE_NAME}\nرمز {purpose}: {code}"
 
         return SMSService.send_sms(phone_number, message)

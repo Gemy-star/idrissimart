@@ -951,9 +951,10 @@ class RegistrationForm(forms.Form):
 
         phone = self.cleaned_data.get("phone")
         # Get country code from either country_code field or country field
-        country_code = self.data.get("country_code") or self.cleaned_data.get(
-            "country", "EG"
-        )
+        country_code = self.data.get("country_code") or ""
+        if not country_code:
+            country_obj = self.cleaned_data.get("country")
+            country_code = country_obj.code if hasattr(country_obj, "code") else str(country_obj or "EG")
         country_code = country_code.upper()
 
         # Check if phone verification is required

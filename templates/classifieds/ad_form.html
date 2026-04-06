@@ -1256,65 +1256,66 @@
                                             <i class="fas fa-phone me-2 text-primary"></i>
                                             {{ form.mobile_number.label }}
                                             {% if form.mobile_number.field.required %}<span class="text-danger">*</span>{% endif %}
+                                            {% if request.user.is_authenticated and request.user.is_mobile_verified %}
+                                                <span class="badge bg-success ms-2">
+                                                    <i class="fas fa-check-circle"></i> {% trans "محقق" %}
+                                                </span>
+                                            {% endif %}
                                         </label>
                                         <div class="input-group {% if form.mobile_number.errors %}is-invalid{% endif %}">
                                             <span class="input-group-text" id="ad-phone-code-display" style="font-weight: 600; background-color: #f8f9fa;">{{ form.country.initial.phone_code|default:"+966" }}</span>
                                             {{ form.mobile_number }}
+                                            <button type="button" id="change-phone-btn" class="btn btn-outline-secondary" title="{% trans 'تغيير رقم الهاتف' %}" style="{% if not request.user.is_authenticated or not request.user.is_mobile_verified %}display: none;{% endif %}">
+                                                <i class="fas fa-edit"></i> {% trans "تغيير" %}
+                                            </button>
+                                            <button type="button" id="send-otp-inline-btn" class="btn btn-primary" style="{% if request.user.is_authenticated and request.user.is_mobile_verified %}display: none;{% endif %}">
+                                                <i class="fas fa-sms me-1"></i> {% trans "إرسال رمز التحقق" %}
+                                            </button>
                                         </div>
                                         {% if form.mobile_number.errors %}
                                             <div class="invalid-feedback d-block">
                                                 {{ form.mobile_number.errors|first }}
                                             </div>
                                         {% endif %}
-                                        <small class="form-text text-muted d-block mt-1">
-                                            <i class="fas fa-info-circle me-1"></i>
-                                            <strong>{% trans "مهم:" %}</strong> {% trans "أدخل رقم الجوال بدون كود الدولة أو الصفر الأول" %}
-                                        </small>
+                                        {% if request.user.is_authenticated and request.user.is_mobile_verified %}
+                                            <small class="form-text text-success d-block mt-1">
+                                                <i class="fas fa-check-circle me-1"></i>
+                                                {% trans "رقم هاتفك محقق. للتغيير، انقر على زر 'تغيير' وأعد التحقق من الرقم الجديد." %}
+                                            </small>
+                                        {% else %}
+                                            <small class="form-text text-muted d-block mt-1">
+                                                <i class="fas fa-info-circle me-1"></i>
+                                                <strong>{% trans "مهم:" %}</strong> {% trans "أدخل رقم الجوال بدون كود الدولة أو الصفر الأول" %}
+                                            </small>
+                                        {% endif %}
                                         <div class="alert alert-info mt-2 py-2 px-3" id="ad-phone-format-help" style="font-size: 0.875rem;">
                                             <i class="fas fa-info-circle me-1"></i>
                                             <strong>{% trans "الصيغة الصحيحة:" %}</strong>
                                             <span id="ad-phone-format-example">+966 50 123 4567 (9 أرقام)</span>
                                         </div>
 
-                                        <!-- Mobile Verification UI -->
-                                        <div id="mobile-verification-section" class="mt-3" style="display: none;">
+                                        <div id="otp-input-section" class="mt-3" style="display:none;">
                                             <div class="row g-2 align-items-end">
-                                                <div class="col-md-5">
-                                                    <label class="form-label fw-semibold">{% trans "رقم الهاتف" %}</label>
-                                                    <input type="tel" id="banner-phone-input" class="form-control"
-                                                           placeholder="{% trans 'أدخل رقم هاتفك' %}"
-                                                           value="{{ request.user.mobile|default:request.user.phone|default:'' }}">
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold">{% trans "رمز التحقق" %}</label>
+                                                    <input type="text" id="verification_code" class="form-control"
+                                                           placeholder="{% trans '6 أرقام' %}" maxlength="6" inputmode="numeric">
                                                 </div>
-                                                <div class="col-auto">
-                                                    <button type="button" id="send-otp-btn" class="btn btn-primary">
-                                                        <i class="fas fa-sms me-1"></i> {% trans "إرسال رمز التحقق" %}
+                                                <div class="col-auto d-flex align-items-end">
+                                                    <button type="button" id="verify-otp-btn" class="btn btn-success">
+                                                        <i class="fas fa-check me-1"></i> {% trans "تحقق" %}
+                                                    </button>
+                                                    <button type="button" id="resend-otp-btn" class="btn btn-link btn-sm ms-2" style="display:none;">
+                                                        {% trans "إعادة إرسال" %}
                                                     </button>
                                                 </div>
                                             </div>
+                                            <div id="otp-help-text" class="form-text mt-2" style="display:none;">{% trans "سيتم إرسال رمز التحقق خلال دقائق قليلة" %}</div>
+                                        </div>
 
-                                            <div id="otp-input-section" class="mt-3" style="display:none;">
-                                                <div class="row g-2 align-items-end">
-                                                    <div class="col-md-4">
-                                                        <label class="form-label fw-semibold">{% trans "رمز التحقق" %}</label>
-                                                        <input type="text" id="verification_code" class="form-control"
-                                                               placeholder="{% trans '6 أرقام' %}" maxlength="6" inputmode="numeric">
-                                                    </div>
-                                                    <div class="col-auto">
-                                                        <button type="button" id="verify-otp-btn" class="btn btn-success">
-                                                            <i class="fas fa-check me-1"></i> {% trans "تحقق" %}
-                                                        </button>
-                                                        <button type="button" id="resend-otp-btn" class="btn btn-link btn-sm ms-2" style="display:none;">
-                                                            {% trans "إعادة إرسال" %}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                <div class="form-text">{% trans "سيتم إرسال رمز التحقق خلال دقائق قليلة" %}</div>
-                                            </div>
-
-                                            <div id="verification-success" class="alert alert-success mt-3 py-2" style="display: none;">
-                                                <i class="fas fa-check-circle me-2"></i>
-                                                {% trans "تم التحقق من رقم هاتفك بنجاح! يمكنك الآن نشر الإعلان." %}
-                                            </div>
+                                        <div id="verification-success" class="alert alert-success mt-3 py-2" style="display: none;">
+                                            <i class="fas fa-check-circle me-2"></i>
+                                            {% trans "تم التحقق من رقم هاتفك بنجاح! يمكنك الآن نشر الإعلان." %}
                                         </div>
                                     </div>
 
@@ -2443,229 +2444,291 @@
 
             // ========== Mobile Verification Logic ==========
             const mobileInput = document.getElementById('{{ form.mobile_number.id_for_label }}');
-            const verificationSection = document.getElementById('mobile-verification-section');
-            const sendOtpBtn = document.getElementById('send-otp-btn');
+            const sendOtpBtn = document.getElementById('send-otp-inline-btn');
+            const changePhoneBtn = document.getElementById('change-phone-btn');
             const otpInputSection = document.getElementById('otp-input-section');
             const verifyOtpBtn = document.getElementById('verify-otp-btn');
+            const resendOtpBtn = document.getElementById('resend-otp-btn');
+            const otpHelpText = document.getElementById('otp-help-text');
             const verificationCodeInput = document.getElementById('verification_code');
             const verificationSuccess = document.getElementById('verification-success');
+            let isVerified = false;
 
-            // ========== Phone Number Formatting ==========
-            function formatPhoneNumber(value) {
-                // Remove all non-digit characters
-                let cleaned = value.replace(/\D/g, '');
-
-                // Strip common country codes if present
-                // Saudi Arabia: +966 (3 digits)
-                // Egypt: +20 (2 digits)
-                // UAE: +971 (3 digits)
-                // Kuwait: +965 (3 digits)
-                if (cleaned.startsWith('966')) {
-                    cleaned = cleaned.substring(3); // Remove Saudi code
-                } else if (cleaned.startsWith('20')) {
-                    cleaned = cleaned.substring(2); // Remove Egypt code
-                } else if (cleaned.startsWith('971')) {
-                    cleaned = cleaned.substring(3); // Remove UAE code
-                } else if (cleaned.startsWith('965')) {
-                    cleaned = cleaned.substring(3); // Remove Kuwait code
-                }
-
-                // Remove leading zero if present
-                if (cleaned.startsWith('0')) {
-                    cleaned = cleaned.substring(1);
-                }
-
-                // Return the cleaned number without formatting (normal number format)
-                return cleaned;
-            }
-
-            // Apply formatting on input
             if (mobileInput) {
-                mobileInput.addEventListener('input', function(e) {
-                    const formattedValue = formatPhoneNumber(this.value);
-                    this.value = formattedValue;
+                const verificationEnabled = {% if mobile_verification_enabled %}true{% else %}false{% endif %};
+                const userMobile = '{{ request.user.mobile|default:"" }}';
+                const isMobileVerified = {% if request.user.is_authenticated and request.user.is_mobile_verified %}true{% else %}false{% endif %};
+
+                function normalizePhoneForComparison(phone) {
+                    if (!phone) {
+                        return '';
+                    }
+
+                    let cleaned = phone.replace(/\D/g, '');
+
+                    if (cleaned.startsWith('966')) {
+                        cleaned = cleaned.substring(3);
+                    } else if (cleaned.startsWith('20')) {
+                        cleaned = cleaned.substring(2);
+                    } else if (cleaned.startsWith('971')) {
+                        cleaned = cleaned.substring(3);
+                    } else if (cleaned.startsWith('965')) {
+                        cleaned = cleaned.substring(3);
+                    }
+
+                    if (cleaned.startsWith('0')) {
+                        cleaned = cleaned.substring(1);
+                    }
+
+                    return cleaned;
+                }
+
+                function formatPhoneNumber(value) {
+                    return normalizePhoneForComparison(value);
+                }
+
+                const initialVerifiedPhone = isMobileVerified
+                    ? normalizePhoneForComparison(userMobile)
+                    : '';
+                let verifiedPhoneValue = initialVerifiedPhone;
+                let allowPhoneEdit = false;
+
+                function setPhoneReadonly(isReadonly) {
+                    if (isReadonly) {
+                        mobileInput.setAttribute('readonly', 'readonly');
+                        mobileInput.style.backgroundColor = '#e9ecef';
+                        mobileInput.style.cursor = 'not-allowed';
+                    } else {
+                        mobileInput.removeAttribute('readonly');
+                        mobileInput.style.backgroundColor = '';
+                        mobileInput.style.cursor = '';
+                    }
+                }
+
+                function updatePhoneFieldState() {
+                    const currentPhone = normalizePhoneForComparison(mobileInput.value);
+                    const hasPhone = Boolean(currentPhone);
+                    const hasLockedVerifiedPhone = Boolean(verifiedPhoneValue)
+                        && currentPhone === verifiedPhoneValue
+                        && !allowPhoneEdit;
+
+                    if (!verificationEnabled) {
+                        isVerified = true;
+                        setPhoneReadonly(false);
+                        if (sendOtpBtn) sendOtpBtn.style.display = 'none';
+                        if (changePhoneBtn) changePhoneBtn.style.display = 'none';
+                        if (otpInputSection) otpInputSection.style.display = 'none';
+                        if (otpHelpText) otpHelpText.style.display = 'none';
+                        if (verificationSuccess) verificationSuccess.style.display = 'none';
+                        return;
+                    }
+
+                    if (!hasPhone) {
+                        isVerified = true;
+                        setPhoneReadonly(false);
+                        if (sendOtpBtn) sendOtpBtn.style.display = 'none';
+                        if (changePhoneBtn) changePhoneBtn.style.display = 'none';
+                        if (otpInputSection) otpInputSection.style.display = 'none';
+                        if (otpHelpText) otpHelpText.style.display = 'none';
+                        if (verificationSuccess) verificationSuccess.style.display = 'none';
+                        return;
+                    }
+
+                    if (hasLockedVerifiedPhone) {
+                        isVerified = true;
+                        setPhoneReadonly(true);
+                        if (sendOtpBtn) sendOtpBtn.style.display = 'none';
+                        if (changePhoneBtn) changePhoneBtn.style.display = 'inline-flex';
+                        if (otpInputSection) otpInputSection.style.display = 'none';
+                        if (otpHelpText) otpHelpText.style.display = 'none';
+                        if (verificationSuccess) verificationSuccess.style.display = 'block';
+                        return;
+                    }
+
+                    isVerified = Boolean(verifiedPhoneValue) && currentPhone === verifiedPhoneValue;
+                    setPhoneReadonly(false);
+                    if (sendOtpBtn) sendOtpBtn.style.display = 'inline-flex';
+                    if (changePhoneBtn) changePhoneBtn.style.display = 'none';
+                    if (!isVerified && verificationSuccess) verificationSuccess.style.display = 'none';
+                }
+
+                mobileInput.addEventListener('input', function() {
+                    this.value = formatPhoneNumber(this.value);
+
+                    const currentPhone = normalizePhoneForComparison(this.value);
+                    if (!currentPhone || currentPhone !== verifiedPhoneValue) {
+                        isVerified = false;
+                        if (verificationSuccess) verificationSuccess.style.display = 'none';
+                        if (otpInputSection) otpInputSection.style.display = 'none';
+                        if (otpHelpText) otpHelpText.style.display = 'none';
+                        if (resendOtpBtn) resendOtpBtn.style.display = 'none';
+                    }
+
+                    updatePhoneFieldState();
                 });
 
-                // Format on page load if there's a value
                 if (mobileInput.value) {
                     mobileInput.value = formatPhoneNumber(mobileInput.value);
                 }
-            }
 
-            // Check if user's mobile is already verified
-            const userMobile = '{{ request.user.mobile|default:"" }}';
-            const isMobileVerified = {% if request.user.is_authenticated and request.user.is_mobile_verified %}true{% else %}false{% endif %};
-            let isVerified = (mobileInput.value.trim() === userMobile && isMobileVerified);
-
-            // Show verification status on page load
-            function checkVerificationStatus() {
-                const mobileNumber = mobileInput.value.trim();
-                const verificationEnabled = {% if mobile_verification_enabled %}true{% else %}false{% endif %};
-
-                if (!mobileNumber || !verificationEnabled) {
-                    verificationSection.style.display = 'none';
-                    isVerified = true; // Allow submission if no phone or verification disabled
-                    return;
+                if (changePhoneBtn) {
+                    changePhoneBtn.addEventListener('click', function() {
+                        allowPhoneEdit = true;
+                        isVerified = false;
+                        setPhoneReadonly(false);
+                        if (changePhoneBtn) changePhoneBtn.style.display = 'none';
+                        if (sendOtpBtn) sendOtpBtn.style.display = 'inline-flex';
+                        if (otpInputSection) otpInputSection.style.display = 'none';
+                        if (otpHelpText) otpHelpText.style.display = 'none';
+                        if (verificationSuccess) verificationSuccess.style.display = 'none';
+                        if (verificationCodeInput) verificationCodeInput.value = '';
+                        if (resendOtpBtn) resendOtpBtn.style.display = 'none';
+                        mobileInput.focus();
+                        showToast('{% trans "يمكنك الآن تغيير رقم الهاتف. سيتطلب ذلك إعادة التحقق." %}', 'info');
+                    });
                 }
 
-                if (mobileNumber === userMobile && isMobileVerified) {
-                    verificationSection.style.display = 'block';
-                    verificationSuccess.style.display = 'block';
-                    otpInputSection.style.display = 'none';
-                    isVerified = true;
-                } else {
-                    verificationSection.style.display = 'block';
-                    verificationSuccess.style.display = 'none';
-                    isVerified = false;
-                    // Sync banner phone input with whatever the user typed
-                    const bannerPhoneInput = document.getElementById('banner-phone-input');
-                    if (bannerPhoneInput && !bannerPhoneInput.value) {
-                        bannerPhoneInput.value = mobileNumber;
-                    }
-                }
-            }
+                if (sendOtpBtn) {
+                    sendOtpBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
 
-            // Check on page load
-            checkVerificationStatus();
-
-            mobileInput.addEventListener('blur', checkVerificationStatus);
-            mobileInput.addEventListener('input', function() {
-                // Reset verification when number changes
-                if (this.value.trim() !== userMobile || !isMobileVerified) {
-                    isVerified = false;
-                    verificationSuccess.style.display = 'none';
-                    otpInputSection.style.display = 'none';
-                }
-            });
-
-            sendOtpBtn.addEventListener('click', function(e) {
-                e.preventDefault(); // Prevent any default behavior
-                e.stopPropagation(); // Stop event bubbling
-
-                // Prefer the banner phone input (user may have typed a different number there)
-                const bannerInput = document.getElementById('banner-phone-input');
-                const mobileNumber = (bannerInput && bannerInput.value.trim()) || mobileInput.value.trim();
-                if (!mobileNumber) {
-                    showToast('{% trans "يرجى إدخال رقم الجوال أولاً" %}', 'warning');
-                    return;
-                }
-
-                const button = this;
-                button.disabled = true;
-                button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري الإرسال..." %}';
-
-                fetch('{% url "main:send_mobile_verification" %}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                    },
-                    body: 'mobile_number=' + encodeURIComponent(mobileNumber)
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('OTP Send Response:', data);
-                    button.disabled = false;
-                    button.innerHTML = '<i class="fas fa-sms me-2"></i>{% trans "إرسال رمز التحقق" %}';
-
-                    if (data.success) {
-                        if (data.verified) {
-                            verificationSuccess.style.display = 'block';
-                            otpInputSection.style.display = 'none';
-                            isVerified = true;
-                            showToast('{% trans "الرقم مُحقق مسبقاً" %}', 'success');
-                        } else {
-                            otpInputSection.style.display = 'block';
-                            verificationCodeInput.focus();
-                            showToast('{% trans "تم إرسال رمز التحقق" %}', 'success');
-                            // Show resend button after 60s
-                            setTimeout(() => {
-                                const resendBtn = document.getElementById('resend-otp-btn');
-                                if (resendBtn) resendBtn.style.display = 'inline-block';
-                            }, 60000);
+                        const mobileNumber = mobileInput.value.trim();
+                        if (!mobileNumber) {
+                            showToast('{% trans "يرجى إدخال رقم الجوال أولاً" %}', 'warning');
+                            return;
                         }
-                    } else {
-                        showToast(data.message || '{% trans "حدث خطأ في إرسال رمز التحقق" %}', 'danger');
-                    }
-                })
-                .catch(error => {
-                    console.error('OTP send error:', error);
-                    button.disabled = false;
-                    button.innerHTML = '<i class="fas fa-sms me-2"></i>{% trans "إرسال رمز التحقق" %}';
-                    showToast('{% trans "حدث خطأ في الاتصال" %}', 'danger');
-                });
-            });
 
-            // Resend OTP — hide the button then re-trigger the send handler
-            const resendOtpBtn = document.getElementById('resend-otp-btn');
-            if (resendOtpBtn) {
-                resendOtpBtn.addEventListener('click', function() {
-                    this.style.display = 'none';
-                    sendOtpBtn.click();
-                });
-            }
+                        const button = this;
+                        button.disabled = true;
+                        button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري الإرسال..." %}';
 
-            verifyOtpBtn.addEventListener('click', function(e) {
-                e.preventDefault(); // Prevent any default behavior
-                e.stopPropagation(); // Stop event bubbling
+                        fetch('{% url "main:send_mobile_verification" %}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                            },
+                            body: 'mobile_number=' + encodeURIComponent(mobileNumber)
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            button.disabled = false;
+                            button.innerHTML = '<i class="fas fa-sms me-2"></i>{% trans "إرسال رمز التحقق" %}';
 
-                const verificationCode = verificationCodeInput.value.trim();
-                if (!verificationCode) {
-                    showToast('{% trans "يرجى إدخال رمز التحقق" %}', 'warning');
-                    return;
+                            if (!data.success) {
+                                showToast(data.message || '{% trans "حدث خطأ في إرسال رمز التحقق" %}', 'danger');
+                                return;
+                            }
+
+                            if (data.verified) {
+                                verifiedPhoneValue = normalizePhoneForComparison(mobileNumber);
+                                allowPhoneEdit = false;
+                                isVerified = true;
+                                updatePhoneFieldState();
+                                showToast('{% trans "الرقم مُحقق مسبقاً" %}', 'success');
+                                return;
+                            }
+
+                            if (otpInputSection) otpInputSection.style.display = 'block';
+                            if (otpHelpText) otpHelpText.style.display = 'block';
+                            if (verificationSuccess) verificationSuccess.style.display = 'none';
+                            if (verificationCodeInput) verificationCodeInput.focus();
+                            showToast('{% trans "تم إرسال رمز التحقق" %}', 'success');
+
+                            setTimeout(() => {
+                                if (resendOtpBtn) {
+                                    resendOtpBtn.style.display = 'inline-block';
+                                }
+                            }, 60000);
+                        })
+                        .catch(error => {
+                            console.error('OTP send error:', error);
+                            button.disabled = false;
+                            button.innerHTML = '<i class="fas fa-sms me-2"></i>{% trans "إرسال رمز التحقق" %}';
+                            showToast('{% trans "حدث خطأ في الاتصال" %}', 'danger');
+                        });
+                    });
                 }
 
-                const button = this;
-                button.disabled = true;
-                button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري التحقق..." %}';
+                if (resendOtpBtn) {
+                    resendOtpBtn.addEventListener('click', function() {
+                        this.style.display = 'none';
+                        if (sendOtpBtn) {
+                            sendOtpBtn.click();
+                        }
+                    });
+                }
 
-                fetch('{% url "main:verify_mobile_otp" %}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                    },
-                    body: 'verification_code=' + encodeURIComponent(verificationCode)
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    button.disabled = false;
-                    button.innerHTML = '<i class="fas fa-check me-2"></i>{% trans "تحقق" %}';
+                if (verifyOtpBtn) {
+                    verifyOtpBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
 
-                    if (data.success) {
-                        otpInputSection.style.display = 'none';
-                        verificationSuccess.style.display = 'block';
-                        isVerified = true;
-                        showToast('{% trans "تم التحقق بنجاح!" %}', 'success');
+                        const verificationCode = verificationCodeInput.value.trim();
+                        if (!verificationCode) {
+                            showToast('{% trans "يرجى إدخال رمز التحقق" %}', 'warning');
+                            return;
+                        }
 
-                        // Auto-proceed to next step after successful verification
-                        setTimeout(() => {
-                            if (currentStep === 4) {
-                                currentStep++;
-                                showStep(currentStep);
+                        const button = this;
+                        button.disabled = true;
+                        button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري التحقق..." %}';
+
+                        fetch('{% url "main:verify_mobile_otp" %}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                            },
+                            body: 'verification_code=' + encodeURIComponent(verificationCode)
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
                             }
-                        }, 1500);
-                    } else {
-                        showToast(data.message || '{% trans "رمز التحقق غير صحيح" %}', 'danger');
-                    }
-                })
-                .catch(error => {
-                    console.error('OTP verification error:', error);
-                    button.disabled = false;
-                    button.innerHTML = '<i class="fas fa-check me-2"></i>{% trans "تحقق" %}';
-                    showToast('{% trans "حدث خطأ في التحقق" %}', 'danger');
-                });
-            });
+                            return response.json();
+                        })
+                        .then(data => {
+                            button.disabled = false;
+                            button.innerHTML = '<i class="fas fa-check me-2"></i>{% trans "تحقق" %}';
+
+                            if (!data.success) {
+                                showToast(data.message || '{% trans "رمز التحقق غير صحيح" %}', 'danger');
+                                return;
+                            }
+
+                            verifiedPhoneValue = normalizePhoneForComparison(mobileInput.value);
+                            allowPhoneEdit = false;
+                            isVerified = true;
+                            if (verificationCodeInput) verificationCodeInput.value = '';
+                            if (resendOtpBtn) resendOtpBtn.style.display = 'none';
+                            updatePhoneFieldState();
+                            showToast('{% trans "تم التحقق بنجاح!" %}', 'success');
+
+                            setTimeout(() => {
+                                if (currentStep === 4) {
+                                    currentStep++;
+                                    showStep(currentStep);
+                                }
+                            }, 1500);
+                        })
+                        .catch(error => {
+                            console.error('OTP verification error:', error);
+                            button.disabled = false;
+                            button.innerHTML = '<i class="fas fa-check me-2"></i>{% trans "تحقق" %}';
+                            showToast('{% trans "حدث خطأ في التحقق" %}', 'danger');
+                        });
+                    });
+                }
+
+                updatePhoneFieldState();
+            }
 
             // ========== Ad Features & Price Calculation Logic ==========
             const featureCheckboxes = document.querySelectorAll('.feature-checkbox');

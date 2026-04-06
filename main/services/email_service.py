@@ -110,6 +110,15 @@ class EmailService:
     def send_otp_email(email: str, otp_code: str, user_name: str = "") -> bool:
         from constance import config
 
+        # Print OTP to console for debugging
+        print(f"\n{'📧'*25}")
+        print(f"✉️  EMAIL OTP FOR: {email}")
+        print(f"🔢 CODE: {otp_code}")
+        print(f"👤 User: {user_name or 'N/A'}")
+        print(f"⏰ Valid for: {config.OTP_EXPIRY_MINUTES} minutes")
+        print(f"{'📧'*25}\n")
+        logger.info(f"Email OTP generated for {email}: {otp_code}")
+
         context = {
             "site_name": config.SITE_NAME,
             "user_name": user_name,
