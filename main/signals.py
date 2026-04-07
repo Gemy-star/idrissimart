@@ -63,6 +63,21 @@ def notify_admin_new_ad(sender, instance, created, **kwargs):
             except Exception as e:
                 logger.error(f"Failed to send ad creation SMS for ad #{instance.pk}: {e}")
 
+        # Send email to ad creator confirming submission
+        if _email_enabled(instance.user):
+            try:
+                user_name = instance.user.get_full_name() or instance.user.username
+                ad_url = instance.get_absolute_url() if hasattr(instance, "get_absolute_url") else ""
+                EmailService.send_ad_created_email(
+                    email=instance.user.email,
+                    ad_title=instance.title,
+                    ad_url=ad_url,
+                    user_name=user_name,
+                    ad_status=str(instance.status),
+                )
+            except Exception as e:
+                logger.error(f"Failed to send ad creation email for ad #{instance.pk}: {e}")
+
         # Check if admin notifications are enabled
         notify_enabled = getattr(config, "NOTIFY_ADMIN_NEW_ADS", False)
         if not notify_enabled:
@@ -282,6 +297,14 @@ def assign_default_package_to_new_user(sender, instance, created, **kwargs):
                     notification_type=Notification.NotificationType.GENERAL,
                 )
 
+                # Send welcome email
+                if _email_enabled(instance):
+                    try:
+                        user_name = instance.get_full_name() or instance.username
+                        EmailService.send_welcome_email(email=instance.email, user_name=user_name)
+                    except Exception as e:
+                        logger.error(f"Failed to send welcome email to user {instance.username}: {e}")
+
                 # Send welcome SMS if mobile is verified
                 if _sms_enabled(instance):
                     try:
@@ -314,6 +337,14 @@ def assign_default_package_to_new_user(sender, instance, created, **kwargs):
                     ),
                     notification_type=Notification.NotificationType.GENERAL,
                 )
+
+                # Send welcome email
+                if _email_enabled(instance):
+                    try:
+                        user_name = instance.get_full_name() or instance.username
+                        EmailService.send_welcome_email(email=instance.email, user_name=user_name)
+                    except Exception as e:
+                        logger.error(f"Failed to send welcome email to user {instance.username}: {e}")
 
                 # Send welcome SMS if mobile is verified
                 if _sms_enabled(instance):
@@ -396,6 +427,14 @@ def assign_package_after_verification(sender, instance, **kwargs):
                             notification_type=Notification.NotificationType.GENERAL,
                         )
 
+                        # Send welcome email now that user is verified
+                        if _email_enabled(instance):
+                            try:
+                                user_name = instance.get_full_name() or instance.username
+                                EmailService.send_welcome_email(email=instance.email, user_name=user_name)
+                            except Exception as e:
+                                logger.error(f"Failed to send welcome email after verification for {instance.username}: {e}")
+
                         # Send welcome SMS now that mobile is verified
                         if _sms_enabled(instance):
                             try:
@@ -428,6 +467,14 @@ def assign_package_after_verification(sender, instance, **kwargs):
                             ),
                             notification_type=Notification.NotificationType.GENERAL,
                         )
+
+                        # Send welcome email now that user is verified
+                        if _email_enabled(instance):
+                            try:
+                                user_name = instance.get_full_name() or instance.username
+                                EmailService.send_welcome_email(email=instance.email, user_name=user_name)
+                            except Exception as e:
+                                logger.error(f"Failed to send welcome email after verification for {instance.username}: {e}")
 
                         # Send welcome SMS now that mobile is verified
                         if _sms_enabled(instance):
@@ -693,6 +740,18 @@ def send_order_status_notifications(sender, instance, created, **kwargs):
                                 f"Failed to send payment confirmation SMS: {str(e)}"
                             )
 
+                    # Send email for payment confirmation
+                    if _email_enabled(instance.user):
+                        try:
+                            user_name = instance.user.get_full_name() or instance.user.username
+                            EmailService.send_order_status_update_email(
+                                email=instance.user.email,
+                                order=instance,
+                                user_name=user_name,
+                            )
+                        except Exception as e:
+                            logger.error(f"Failed to send payment confirmation email: {str(e)}")
+
                 elif instance.payment_status == "partial":
                     # Notify customer of partial payment
                     Notification.objects.create(
@@ -710,6 +769,32 @@ def send_order_status_notifications(sender, instance, created, **kwargs):
                         link=f"/orders/{instance.id}/",
                         notification_type=Notification.NotificationType.GENERAL,
                     )
+
+                    # Send email for partial payment
+                    if _email_enabled(instance.user):
+                        try:
+                            user_name = instance.user.get_full_name() or instance.user.username
+                            EmailService.send_order_status_update_email(
+                                email=instance.user.email,
+                                order=instance,
+                                user_name=user_name,
+                            )
+                        except Exception as e:
+                            logger.error(f"Failed to send partial payment email: {str(e)}")
+
+                    # Send SMS for partial payment
+                    if _sms_enabled(instance.user) and instance.phone:
+                        try:
+                            sms_service = SMSService()
+                            message = _(
+                                "تم استلام دفعة جزئية لطلبك {order_number}. المبلغ المتبقي: {remaining}"
+                            ).format(
+                                order_number=instance.order_number,
+                                remaining=instance.remaining_amount,
+                            )
+                            sms_service.send_sms(instance.phone, message)
+                        except Exception as e:
+                            logger.error(f"Failed to send partial payment SMS: {str(e)}")
 
                 # Clean up the flag
                 del instance._payment_status_changed

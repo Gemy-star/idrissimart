@@ -252,6 +252,31 @@ class EmailService:
         return EmailService.send_email(to_emails=[email], subject=subject, html_content=html_content)
 
     @staticmethod
+    def send_ad_created_email(
+        email: str, ad_title: str, ad_url: str, user_name: str = "", ad_status: str = ""
+    ) -> bool:
+        from constance import config
+
+        context = {
+            "site_name": config.SITE_NAME,
+            "user_name": user_name,
+            "ad_title": ad_title,
+            "ad_url": ad_url,
+            "ad_status": ad_status,
+            "site_url": config.SITE_URL,
+        }
+        db = EmailService._render_db_template("ad_created", context)
+        if db:
+            subject, html_content = db
+            return EmailService.send_email(to_emails=[email], subject=subject, html_content=html_content)
+
+        subject = f"{config.SITE_NAME} - تم استلام إعلانك"
+        return EmailService.send_template_email(
+            to_emails=[email], subject=subject,
+            template_name="emails/ad_created.html", context=context,
+        )
+
+    @staticmethod
     def send_order_created_email(email: str, order, user_name: str = "") -> bool:
         from constance import config
         from django.conf import settings
