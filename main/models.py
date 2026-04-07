@@ -4617,3 +4617,406 @@ class EmailTemplate(models.Model):
             return cls.objects.get(key=key, is_active=True)
         except cls.DoesNotExist:
             return None
+
+
+class PaidAdvertisement(models.Model):
+    """
+    Model for paid banner advertisements that can appear on the homepage or specific category pages.
+    These are separate from ClassifiedAd and are for promotional banners, sponsored content, etc.
+    """
+
+    class AdType(models.TextChoices):
+        BANNER = "banner", _("بانر إعلاني - Banner")
+        SIDEBAR = "sidebar", _("إعلان جانبي - Sidebar")
+        POPUP = "popup", _("نافذة منبثقة - Popup")
+        FEATURED_BOX = "featured_box", _("صندوق مميز - Featured Box")
+
+    class PlacementType(models.TextChoices):
+        GENERAL = "general", _("عام (الصفحة الرئيسية) - General (Homepage)")
+        CATEGORY = "category", _("قسم محدد - Specific Category")
+        SUBCATEGORY = "subcategory", _("قسم فرعي محدد - Specific Subcategory")
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", _("مسودة - Draft")
+        ACTIVE = "active", _("نشط - Active")
+        PAUSED = "paused", _("متوقف مؤقتاً - Paused")
+        EXPIRED = "expired", _("منتهي - Expired")
+        PENDING_APPROVAL = "pending", _("قيد المراجعة - Pending Approval")
+
+    # Basic Information
+    title = models.CharField(
+        max_length=200,
+        verbose_name=_("العنوان - Title"),
+        help_text=_("عنوان الإعلان المدفوع")
+    )
+    title_ar = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name=_("العنوان بالعربية"),
+    )
+    
+    description = models.TextField(
+        blank=True,
+        verbose_name=_("الوصف - Description"),
+        help_text=_("وصف مختصر للإعلان")
+    )
+    description_ar = models.TextField(
+        blank=True,
+        verbose_name=_("الوصف بالعربية"),
+    )
+
+    # Advertiser Information
+    advertiser = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="paid_advertisements",
+        verbose_name=_("المعلن - Advertiser"),
+    )
+    company_name = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name=_("اسم الشركة - Company Name"),
+    )
+    contact_email = models.EmailField(
+        blank=True,
+        verbose_name=_("بريد التواصل - Contact Email"),
+    )
+    contact_phone = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name=_("هاتف التواصل - Contact Phone"),
+    )
+
+    # Visual Content
+    image = models.ImageField(
+        upload_to="paid_ads/%Y/%m/",
+        verbose_name=_("صورة الإعلان - Ad Image"),
+        help_text=_("الحجم الموصى به: 1200x600 بكسل للبانر، 300x600 للجانبي")
+    )
+    mobile_image = models.ImageField(
+        upload_to="paid_ads/%Y/%m/mobile/",
+        blank=True,
+        null=True,
+        verbose_name=_("صورة الموبايل - Mobile Image"),
+        help_text=_("صورة مخصصة للأجهزة المحمولة (اختياري)")
+    )
+
+    # Link & CTA
+    target_url = models.URLField(
+        verbose_name=_("رابط الإعلان - Target URL"),
+        help_text=_("الرابط الذي سيتم توجيه المستخدم إليه عند النقر")
+    )
+    cta_text = models.CharField(
+        max_length=50,
+        default="المزيد",
+        verbose_name=_("نص زر الإجراء - CTA Button Text"),
+    )
+    cta_text_ar = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name=_("نص زر الإجراء بالعربية"),
+    )
+    open_in_new_tab = models.BooleanField(
+        default=True,
+        verbose_name=_("فتح في تبويب جديد - Open in New Tab"),
+    )
+
+    # Placement Configuration
+    ad_type = models.CharField(
+        max_length=20,
+        choices=AdType.choices,
+        default=AdType.BANNER,
+        verbose_name=_("نوع الإعلان - Ad Type"),
+    )
+    placement_type = models.CharField(
+        max_length=20,
+        choices=PlacementType.choices,
+        default=PlacementType.GENERAL,
+        verbose_name=_("نوع الموضع - Placement Type"),
+        help_text=_("حدد أين سيظهر الإعلان: الصفحة الرئيسية، قسم محدد، أو قسم فرعي")
+    )
+
+    # Location Targeting
+    country = models.ForeignKey(
+        "content.Country",
+        on_delete=models.CASCADE,
+        related_name="paid_advertisements",
+        verbose_name=_("الدولة - Country"),
+        help_text=_("الدولة التي سيظهر فيها الإعلان")
+    )
+
+    # Category Targeting (nullable for general placement)
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="paid_advertisements",
+        verbose_name=_("القسم - Category"),
+        help_text=_("القسم الذي سيظهر فيه الإعلان (اختياري - للإعلانات المرتبطة بقسم)")
+    )
+    subcategory = models.ForeignKey(
+        Category,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="paid_advertisements_subcategory",
+        verbose_name=_("القسم الفرعي - Subcategory"),
+        help_text=_("القسم الفرعي المحدد (اختياري)")
+    )
+
+    # Multiple Categories Support
+    categories = models.ManyToManyField(
+        Category,
+        blank=True,
+        related_name="multi_paid_advertisements",
+        verbose_name=_("أقسام متعددة - Multiple Categories"),
+        help_text=_("اختر عدة أقسام لعرض هذا الإعلان فيها")
+    )
+
+    # Schedule & Duration
+    start_date = models.DateTimeField(
+        verbose_name=_("تاريخ البدء - Start Date"),
+        help_text=_("متى يبدأ عرض الإعلان")
+    )
+    end_date = models.DateTimeField(
+        verbose_name=_("تاريخ الانتهاء - End Date"),
+        help_text=_("متى ينتهي عرض الإعلان")
+    )
+
+    # Status & Display
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING_APPROVAL,
+        verbose_name=_("الحالة - Status"),
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_("نشط - Active"),
+        help_text=_("تفعيل/إيقاف الإعلان مؤقتاً")
+    )
+    
+    # Display Priority & Order
+    priority = models.IntegerField(
+        default=0,
+        verbose_name=_("الأولوية - Priority"),
+        help_text=_("الإعلانات ذات الأولوية الأعلى تظهر أولاً (الأرقام الأكبر أولوية أعلى)")
+    )
+    order = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("الترتيب - Order"),
+        help_text=_("ترتيب العرض ضمن نفس مستوى الأولوية")
+    )
+
+    # Pricing & Payment
+    price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name=_("السعر - Price"),
+        help_text=_("تكلفة الإعلان المدفوع")
+    )
+    currency = models.CharField(
+        max_length=3,
+        default="EGP",
+        verbose_name=_("العملة - Currency"),
+    )
+    payment_status = models.CharField(
+        max_length=20,
+        choices=[
+            ("unpaid", _("غير مدفوع - Unpaid")),
+            ("paid", _("مدفوع - Paid")),
+            ("refunded", _("مسترد - Refunded")),
+        ],
+        default="unpaid",
+        verbose_name=_("حالة الدفع - Payment Status"),
+    )
+    payment_reference = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name=_("مرجع الدفع - Payment Reference"),
+    )
+
+    # Analytics
+    views_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("عدد المشاهدات - Views Count"),
+    )
+    clicks_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("عدد النقرات - Clicks Count"),
+    )
+
+    # Admin Notes
+    admin_notes = models.TextField(
+        blank=True,
+        verbose_name=_("ملاحظات الإدارة - Admin Notes"),
+    )
+    approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_paid_ads",
+        verbose_name=_("تمت الموافقة بواسطة - Approved By"),
+    )
+    approved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_("تاريخ الموافقة - Approval Date"),
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإنشاء"))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("تاريخ التحديث"))
+
+    class Meta:
+        db_table = "paid_advertisements"
+        verbose_name = _("إعلان مدفوع - Paid Advertisement")
+        verbose_name_plural = _("الإعلانات المدفوعة - Paid Advertisements")
+        ordering = ["-priority", "order", "-created_at"]
+        indexes = [
+            models.Index(fields=["status", "is_active", "start_date", "end_date"]),
+            models.Index(fields=["country", "placement_type"]),
+            models.Index(fields=["category", "is_active"]),
+            models.Index(fields=["-priority", "order"]),
+        ]
+
+    def __str__(self):
+        return f"{self.title} - {self.get_placement_type_display()} ({self.country.code})"
+
+    def clean(self):
+        """Validate model data"""
+        from django.core.exceptions import ValidationError
+
+        # Validate placement type and category relationships
+        if self.placement_type == self.PlacementType.CATEGORY and not self.category:
+            raise ValidationError({
+                'category': _("يجب تحديد قسم عند اختيار موضع 'قسم محدد'")
+            })
+        
+        if self.placement_type == self.PlacementType.SUBCATEGORY and not self.subcategory:
+            raise ValidationError({
+                'subcategory': _("يجب تحديد قسم فرعي عند اختيار موضع 'قسم فرعي محدد'")
+            })
+
+        # Validate dates
+        if self.start_date and self.end_date and self.start_date >= self.end_date:
+            raise ValidationError({
+                'end_date': _("تاريخ الانتهاء يجب أن يكون بعد تاريخ البدء")
+            })
+
+    def save(self, *args, **kwargs):
+        # Auto-update status based on dates
+        if self.status == self.Status.ACTIVE:
+            now = timezone.now()
+            if self.end_date and now > self.end_date:
+                self.status = self.Status.EXPIRED
+            elif self.start_date and now < self.start_date:
+                self.status = self.Status.PENDING_APPROVAL
+
+        super().save(*args, **kwargs)
+
+    @property
+    def is_currently_active(self):
+        """Check if ad is currently active and within date range"""
+        if not self.is_active or self.status != self.Status.ACTIVE:
+            return False
+        
+        now = timezone.now()
+        return self.start_date <= now <= self.end_date
+
+    @property
+    def days_remaining(self):
+        """Calculate days remaining until expiration"""
+        if not self.end_date:
+            return None
+        
+        now = timezone.now()
+        if now > self.end_date:
+            return 0
+        
+        delta = self.end_date - now
+        return delta.days
+
+    @property
+    def ctr(self):
+        """Calculate Click-Through Rate (CTR)"""
+        if self.views_count == 0:
+            return 0
+        return (self.clicks_count / self.views_count) * 100
+
+    def increment_views(self):
+        """Increment views count atomically"""
+        from django.db.models import F
+        PaidAdvertisement.objects.filter(pk=self.pk).update(views_count=F("views_count") + 1)
+        self.refresh_from_db(fields=["views_count"])
+
+    def increment_clicks(self):
+        """Increment clicks count atomically"""
+        from django.db.models import F
+        PaidAdvertisement.objects.filter(pk=self.pk).update(clicks_count=F("clicks_count") + 1)
+        self.refresh_from_db(fields=["clicks_count"])
+
+    def approve(self, admin_user):
+        """Approve the advertisement"""
+        self.status = self.Status.ACTIVE
+        self.approved_by = admin_user
+        self.approved_at = timezone.now()
+        self.save(update_fields=["status", "approved_by", "approved_at"])
+
+    def pause(self):
+        """Pause the advertisement"""
+        self.status = self.Status.PAUSED
+        self.save(update_fields=["status"])
+
+    def resume(self):
+        """Resume a paused advertisement"""
+        if self.status == self.Status.PAUSED:
+            self.status = self.Status.ACTIVE
+            self.save(update_fields=["status"])
+
+    @classmethod
+    def get_active_ads(cls, country_code=None, placement_type=None, category=None):
+        """Get all currently active ads based on filters"""
+        now = timezone.now()
+        queryset = cls.objects.filter(
+            is_active=True,
+            status=cls.Status.ACTIVE,
+            start_date__lte=now,
+            end_date__gte=now,
+        )
+
+        if country_code:
+            queryset = queryset.filter(country__code=country_code)
+        
+        if placement_type:
+            queryset = queryset.filter(placement_type=placement_type)
+        
+        if category:
+            # Include ads for this category or general ads
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(placement_type=cls.PlacementType.GENERAL) |
+                Q(category=category) |
+                Q(categories=category)
+            ).distinct()
+
+        return queryset.order_by("-priority", "order")
+
+    @classmethod
+    def get_homepage_ads(cls, country_code):
+        """Get ads for homepage"""
+        return cls.get_active_ads(
+            country_code=country_code,
+            placement_type=cls.PlacementType.GENERAL
+        )
+
+    @classmethod
+    def get_category_ads(cls, category, country_code):
+        """Get ads for a specific category page"""
+        return cls.get_active_ads(
+            country_code=country_code,
+            placement_type=cls.PlacementType.CATEGORY,
+            category=category
+        )

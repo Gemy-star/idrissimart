@@ -521,12 +521,15 @@ class RegisterView(CreateView):
             # in main/signals.py (assign_default_package_to_new_user)
             # Don't create duplicate packages here
 
-            # Send email verification OTP only if not already verified (CONDITIONAL based on settings)
-            # If email was verified during registration via OTP, skip sending again
-            email_was_pre_verified = request.session.get(f"email_verified_{email}", False)
-            if email_verification_required and not email_was_pre_verified:
-                email_verification_service = EmailVerificationService()
-                email_sent, message = email_verification_service.initiate_verification(user)
+            # Send welcome email to the new user
+            from main.services.email_service import EmailService
+            try:
+                EmailService.send_welcome_email(
+                    email=user.email,
+                    user_name=user.get_full_name() or user.username
+                )
+            except Exception as e:
+                logger.warning(f"Failed to send welcome email to {user.email}: {str(e)}")
 
             # Auto login after registration
             login(request, user, backend="django.contrib.auth.backends.ModelBackend")
@@ -534,27 +537,6 @@ class RegisterView(CreateView):
             messages.success(
                 request, _("مرحباً بك في إدريسي مارت! 🎉 تم إنشاء حسابك بنجاح")
             )
-
-            # Show messages based on verification status
-            if email_verification_required and not email_was_pre_verified:
-                if email_sent:
-                    messages.info(
-                        request,
-                        _(
-                            "تم إرسال رمز التحقق إلى بريدك الإلكتروني. التحقق من البريد الإلكتروني إلزامي من شروط إكمال التسجيل."
-                        ),
-                    )
-                else:
-                    messages.warning(
-                        request,
-                        _(
-                            "فشل إرسال رسالة التحقق. يمكنك طلب إعادة الإرسال من الإعدادات."
-                        ),
-                    )
-            elif email_verification_required and email_was_pre_verified:
-                messages.success(
-                    request, _("تم التحقق من بريدك الإلكتروني بنجاح! ✅")
-                )
 
             return HttpResponseRedirect(self.get_success_url())
         else:

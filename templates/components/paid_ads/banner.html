@@ -1,0 +1,132 @@
+{% load static i18n %}
+{# Banner Paid Advertisement Component #}
+{# Usage: {% include 'components/paid_ads/banner.html' with ad=ad_object %} #}
+
+{% if ad and ad.is_currently_active %}
+<div class="paid-ad-banner mb-4" data-ad-id="{{ ad.id }}" data-ad-type="banner">
+    <a href="{{ ad.target_url }}" 
+       {% if ad.open_in_new_tab %}target="_blank" rel="noopener noreferrer"{% endif %}
+       class="paid-ad-link"
+       onclick="trackPaidAdClick('{{ ad.id }}')">
+        
+        <div class="banner-container position-relative overflow-hidden rounded shadow-sm" 
+             style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            
+            {# Desktop/Tablet Image #}
+            <div class="d-none d-md-block">
+                <img src="{{ ad.image.url }}" 
+                     alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
+                     class="w-100 banner-image"
+                     style="max-height: 250px; object-fit: cover;">
+            </div>
+            
+            {# Mobile Image (if available) #}
+            {% if ad.mobile_image %}
+            <div class="d-block d-md-none">
+                <img src="{{ ad.mobile_image.url }}" 
+                     alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
+                     class="w-100 banner-image"
+                     style="max-height: 200px; object-fit: cover;">
+            </div>
+            {% else %}
+            <div class="d-block d-md-none">
+                <img src="{{ ad.image.url }}" 
+                     alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
+                     class="w-100 banner-image"
+                     style="max-height: 200px; object-fit: cover;">
+            </div>
+            {% endif %}
+            
+            {# Overlay Content #}
+            <div class="banner-overlay position-absolute bottom-0 start-0 end-0 p-3 text-white" 
+                 style="background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);">
+                <div class="d-flex justify-content-between align-items-end">
+                    <div>
+                        {% if ad.company_name %}
+                        <small class="d-block text-white-50 mb-1">{{ ad.company_name }}</small>
+                        {% endif %}
+                        <h5 class="mb-0 fw-bold">
+                            {% if LANGUAGE_CODE == 'ar' and ad.title_ar %}
+                                {{ ad.title_ar }}
+                            {% else %}
+                                {{ ad.title }}
+                            {% endif %}
+                        </h5>
+                    </div>
+                    
+                    {% if ad.cta_text or ad.cta_text_ar %}
+                    <button class="btn btn-light btn-sm shadow-sm px-3">
+                        {% if LANGUAGE_CODE == 'ar' and ad.cta_text_ar %}
+                            {{ ad.cta_text_ar }}
+                        {% else %}
+                            {{ ad.cta_text }}
+                        {% endif %}
+                        <i class="fas fa-arrow-{% if LANGUAGE_CODE == 'ar' %}left{% else %}right{% endif %} ms-1"></i>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {# Sponsored Badge #}
+            <div class="position-absolute top-0 start-0 m-2">
+                <span class="badge bg-dark bg-opacity-75 text-white-50 px-2 py-1">
+                    <i class="fas fa-ad me-1"></i>
+                    {% trans "إعلان مدفوع" %}
+                </span>
+            </div>
+        </div>
+    </a>
+</div>
+
+<style>
+.paid-ad-banner {
+    transition: transform 0.3s ease;
+}
+
+.paid-ad-banner:hover {
+    transform: translateY(-2px);
+}
+
+.banner-image {
+    transition: transform 0.3s ease;
+}
+
+.paid-ad-link:hover .banner-image {
+    transform: scale(1.05);
+}
+
+.banner-overlay h5 {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='dark'] .banner-container {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
+}
+</style>
+
+<script>
+function trackPaidAdClick(adId) {
+    fetch(`/api/paid-ads/${adId}/click/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    }).catch(err => console.error('Failed to track ad click:', err));
+}
+
+// Track ad view on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const adElement = document.querySelector('[data-ad-id="{{ ad.id }}"]');
+    if (adElement) {
+        fetch(`/api/paid-ads/{{ ad.id }}/view/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        }).catch(err => console.error('Failed to track ad view:', err));
+    }
+});
+</script>
+{% endif %}

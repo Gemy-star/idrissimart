@@ -173,3 +173,37 @@ def site_configuration(request):
         "get_theme_logo": lambda theme='light': site_config.get_logo_for_theme(theme),
         "get_loader_logo": lambda: site_config.get_loader_logo(),
     }
+
+
+def paid_advertisements(request):
+    """
+    Context processor to make paid advertisements available in all templates.
+    Filters ads based on current page context and selected country.
+    """
+    from main.models import PaidAdvertisement
+    
+    selected_country = request.session.get("selected_country", "EG")
+    
+    context = {
+        "homepage_paid_ads": [],
+        "sidebar_paid_ads": [],
+        "banner_paid_ads": [],
+    }
+    
+    # Get homepage ads (general placement)
+    context["homepage_paid_ads"] = PaidAdvertisement.get_active_ads(
+        country_code=selected_country,
+        placement_type=PaidAdvertisement.PlacementType.GENERAL
+    )
+    
+    # Get sidebar ads for current page
+    context["sidebar_paid_ads"] = PaidAdvertisement.get_active_ads(
+        country_code=selected_country
+    ).filter(ad_type=PaidAdvertisement.AdType.SIDEBAR)[:3]
+    
+    # Get banner ads for current page
+    context["banner_paid_ads"] = PaidAdvertisement.get_active_ads(
+        country_code=selected_country
+    ).filter(ad_type=PaidAdvertisement.AdType.BANNER)[:2]
+    
+    return context

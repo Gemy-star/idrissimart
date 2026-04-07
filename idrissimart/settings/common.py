@@ -138,6 +138,7 @@ TEMPLATES = [
                 "content.context_processors.notifications",
                 "content.context_processors.verification_settings",
                 "content.context_processors.site_configuration",
+                "content.context_processors.paid_advertisements",
                 "main.context_processors.cart_wishlist_counts",
                 "main.context_processors.recaptcha_keys",
             ],

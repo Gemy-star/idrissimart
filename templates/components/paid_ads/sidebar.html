@@ -1,0 +1,123 @@
+{% load static i18n %}
+{# Sidebar Paid Advertisement Component #}
+{# Usage: {% include 'components/paid_ads/sidebar.html' with ad=ad_object %} #}
+
+{% if ad and ad.is_currently_active %}
+<div class="paid-ad-sidebar card border-0 shadow-sm mb-3" data-ad-id="{{ ad.id }}" data-ad-type="sidebar">
+    <a href="{{ ad.target_url }}" 
+       {% if ad.open_in_new_tab %}target="_blank" rel="noopener noreferrer"{% endif %}
+       class="paid-ad-link text-decoration-none"
+       onclick="trackPaidAdClick('{{ ad.id }}')">
+        
+        <div class="position-relative overflow-hidden">
+            <img src="{{ ad.image.url }}" 
+                 alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
+                 class="card-img-top sidebar-ad-image"
+                 style="height: 200px; object-fit: cover;">
+            
+            {# Sponsored Badge #}
+            <div class="position-absolute top-0 end-0 m-2">
+                <span class="badge bg-dark bg-opacity-75 text-white-50 px-2 py-1" style="font-size: 0.7rem;">
+                    <i class="fas fa-ad me-1"></i>
+                    {% trans "إعلان" %}
+                </span>
+            </div>
+        </div>
+        
+        <div class="card-body p-3">
+            {% if ad.company_name %}
+            <small class="text-muted d-block mb-1">{{ ad.company_name }}</small>
+            {% endif %}
+            
+            <h6 class="card-title mb-2 fw-bold text-dark">
+                {% if LANGUAGE_CODE == 'ar' and ad.title_ar %}
+                    {{ ad.title_ar }}
+                {% else %}
+                    {{ ad.title }}
+                {% endif %}
+            </h6>
+            
+            {% if ad.description or ad.description_ar %}
+            <p class="card-text small text-muted mb-2" style="font-size: 0.85rem;">
+                {% if LANGUAGE_CODE == 'ar' and ad.description_ar %}
+                    {{ ad.description_ar|truncatewords:15 }}
+                {% else %}
+                    {{ ad.description|truncatewords:15 }}
+                {% endif %}
+            </p>
+            {% endif %}
+            
+            {% if ad.cta_text or ad.cta_text_ar %}
+            <div class="d-grid mt-2">
+                <button class="btn btn-primary btn-sm">
+                    {% if LANGUAGE_CODE == 'ar' and ad.cta_text_ar %}
+                        {{ ad.cta_text_ar }}
+                    {% else %}
+                        {{ ad.cta_text }}
+                    {% endif %}
+                    <i class="fas fa-arrow-{% if LANGUAGE_CODE == 'ar' %}left{% else %}right{% endif %} ms-1"></i>
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </a>
+</div>
+
+<style>
+.paid-ad-sidebar {
+    transition: all 0.3s ease;
+}
+
+.paid-ad-sidebar:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15) !important;
+}
+
+.sidebar-ad-image {
+    transition: transform 0.3s ease;
+}
+
+.paid-ad-sidebar:hover .sidebar-ad-image {
+    transform: scale(1.05);
+}
+
+[data-theme='dark'] .paid-ad-sidebar {
+    background: rgba(30, 30, 46, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme='dark'] .paid-ad-sidebar .card-title {
+    color: #e9ecef !important;
+}
+
+[data-theme='dark'] .paid-ad-sidebar .text-muted {
+    color: #adb5bd !important;
+}
+</style>
+
+<script>
+function trackPaidAdClick(adId) {
+    fetch(`/api/paid-ads/${adId}/click/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    }).catch(err => console.error('Failed to track ad click:', err));
+}
+
+// Track ad view on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const adElement = document.querySelector('[data-ad-id="{{ ad.id }}"]');
+    if (adElement) {
+        fetch(`/api/paid-ads/{{ ad.id }}/view/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        }).catch(err => console.error('Failed to track ad view:', err));
+    }
+});
+</script>
+{% endif %}

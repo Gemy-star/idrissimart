@@ -1,0 +1,409 @@
+{% comment %}
+===========================================
+PAID ADVERTISEMENTS - CATEGORY PAGE SNIPPET
+===========================================
+Copy and paste these sections into your category_detail.html 
+where you want paid ads to appear.
+
+Usage: Just copy the section you need!
+===========================================
+{% endcomment %}
+
+{% load static i18n %}
+
+
+{% comment %}
+===========================================
+SECTION 1: TOP BANNER (after Hero section)
+Place this right after your hero/header section
+===========================================
+{% endcomment %}
+
+{% if category_paid_ads %}
+    <!-- Top Banner Paid Advertisement -->
+    <section class="paid-ads-top-section">
+        <div class="container my-4">
+            {% for ad in category_paid_ads %}
+                {% if ad.ad_type == 'banner' and forloop.counter == 1 %}
+                    {% include 'components/paid_ads/banner.html' with ad=ad %}
+                {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+{% endif %}
+
+
+{% comment %}
+===========================================
+SECTION 2: FEATURED BOX (before ads listing)
+Place this before your classified ads grid
+===========================================
+{% endcomment %}
+
+{% if category_paid_ads %}
+    <!-- Featured Box Paid Advertisement -->
+    <section class="paid-ads-featured-section">
+        <div class="container my-5">
+            {% for ad in category_paid_ads %}
+                {% if ad.ad_type == 'featured_box' %}
+                    {% include 'components/paid_ads/featured_box.html' with ad=ad %}
+                {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+{% endif %}
+
+
+{% comment %}
+===========================================
+SECTION 3: SIDEBAR ADS (in sidebar)
+Place this in your sidebar section
+===========================================
+{% endcomment %}
+
+{% if category_paid_ads %}
+    <!-- Sidebar Paid Advertisements -->
+    <div class="sidebar-paid-ads mt-4">
+        <h5 class="mb-3">
+            <i class="fas fa-star text-warning me-2"></i>
+            {% trans "إعلانات مميزة" %}
+        </h5>
+        {% for ad in category_paid_ads %}
+            {% if ad.ad_type == 'sidebar' %}
+                <div class="mb-3">
+                    {% include 'components/paid_ads/sidebar.html' with ad=ad %}
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+{% endif %}
+
+
+{% comment %}
+===========================================
+SECTION 4: BETWEEN ADS (in ads grid)
+Place this inside your ads loop to show paid ads between regular ads
+===========================================
+{% endcomment %}
+
+<div class="ads-grid row">
+    {% for ad in ads %}
+        <!-- Regular classified ad -->
+        <div class="col-md-4 mb-4">
+            {% comment %} Your regular ad card here {% endcomment %}
+        </div>
+
+        <!-- Insert paid ad after every 6 regular ads -->
+        {% if forloop.counter|divisibleby:6 and category_paid_ads %}
+            <div class="col-12 my-4">
+                {% with paid_index=forloop.counter|floatformat:0|divisibleby:6|yesno:"0,1,2" %}
+                    {% with paid_ad=category_paid_ads|first %}
+                        {% if paid_ad and paid_ad.ad_type == 'banner' %}
+                            {% include 'components/paid_ads/banner.html' with ad=paid_ad %}
+                        {% endif %}
+                    {% endwith %}
+                {% endwith %}
+            </div>
+        {% endif %}
+    {% endfor %}
+</div>
+
+
+{% comment %}
+===========================================
+SECTION 5: COMPLETE LAYOUT EXAMPLE
+Full example with all sections in proper places
+===========================================
+{% endcomment %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="categories-hero">
+    <div class="container">
+        <div class="hero-content-wrapper">
+            <h1 class="hero-title">
+                {% if LANGUAGE_CODE == 'ar' and category.name_ar %}
+                    {{ category.name_ar }}
+                {% else %}
+                    {{ category.name }}
+                {% endif %}
+            </h1>
+            <p class="hero-subtitle">
+                {% trans "تصفح الإعلانات في هذا القسم" %}
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- PAID AD: Top Banner -->
+{% if category_paid_ads %}
+    <div class="container my-4">
+        {% for ad in category_paid_ads %}
+            {% if ad.ad_type == 'banner' and forloop.first %}
+                {% include 'components/paid_ads/banner.html' with ad=ad %}
+            {% endif %}
+        {% endfor %}
+    </div>
+{% endif %}
+
+<!-- Breadcrumb -->
+{% if breadcrumbs %}
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'main:home' %}">{% trans "الرئيسية" %}</a></li>
+                {% for crumb in breadcrumbs %}
+                    <li class="breadcrumb-item"><a href="{{ crumb.url }}">{{ crumb.name }}</a></li>
+                {% endfor %}
+                <li class="breadcrumb-item active">{{ category.name }}</li>
+            </ol>
+        </nav>
+    </div>
+{% endif %}
+
+<!-- Main Content -->
+<div class="container my-5">
+    <div class="row">
+        <!-- Sidebar -->
+        <aside class="col-lg-3">
+            <!-- Filters -->
+            <div class="filters-card">
+                <h5>{% trans "فلترة النتائج" %}</h5>
+                <!-- Your filter form here -->
+            </div>
+
+            <!-- PAID AD: Sidebar -->
+            {% if category_paid_ads %}
+                <div class="mt-4">
+                    {% for ad in category_paid_ads %}
+                        {% if ad.ad_type == 'sidebar' %}
+                            {% include 'components/paid_ads/sidebar.html' with ad=ad %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </aside>
+
+        <!-- Main Content -->
+        <main class="col-lg-9">
+            <!-- Category Info -->
+            <div class="category-info-card mb-4">
+                <h2>{{ category.name }}</h2>
+                <p class="text-muted">
+                    {% trans "عدد الإعلانات:" %} {{ total_ads }}
+                </p>
+            </div>
+
+            <!-- PAID AD: Featured Box -->
+            {% if category_paid_ads %}
+                {% for ad in category_paid_ads %}
+                    {% if ad.ad_type == 'featured_box' %}
+                        <div class="mb-4">
+                            {% include 'components/paid_ads/featured_box.html' with ad=ad %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+
+            <!-- Subcategories (if any) -->
+            {% if subcategories %}
+                <div class="subcategories-section mb-5">
+                    <h4 class="mb-3">{% trans "الأقسام الفرعية" %}</h4>
+                    <div class="row">
+                        {% for subcat in subcategories %}
+                            <div class="col-md-4 mb-3">
+                                <a href="{% url 'main:subcategory_detail' subcat.category.slug %}" class="subcategory-card">
+                                    <i class="{{ subcat.category.icon|default:'fas fa-folder' }} me-2"></i>
+                                    {{ subcat.category.name }}
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Classified Ads Grid -->
+            <div class="ads-section">
+                <h4 class="mb-4">
+                    {% trans "الإعلانات" %}
+                    <span class="badge bg-secondary">{{ total_ads }}</span>
+                </h4>
+
+                <div class="row">
+                    {% for ad in ads %}
+                        <div class="col-md-4 mb-4">
+                            <!-- Your regular ad card -->
+                            <div class="ad-card">
+                                <h5>{{ ad.title }}</h5>
+                                <p>{{ ad.price }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Insert paid ad after every 6 regular ads -->
+                        {% if forloop.counter|divisibleby:6 and category_paid_ads %}
+                            <div class="col-12 my-4">
+                                {% with banner_ads=category_paid_ads|slice:":1" %}
+                                    {% for paid_ad in banner_ads %}
+                                        {% if paid_ad.ad_type == 'banner' %}
+                                            {% include 'components/paid_ads/banner.html' with ad=paid_ad %}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endwith %}
+                            </div>
+                        {% endif %}
+                    {% empty %}
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                {% trans "لا توجد إعلانات في هذا القسم حالياً" %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Pagination -->
+                {% if is_paginated %}
+                    <div class="pagination-wrapper mt-5">
+                        {% include 'partials/pagination.html' %}
+                    </div>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}
+
+
+{% comment %}
+===========================================
+SECTION 6: MINIMAL VERSION (just essentials)
+Simplest implementation with just top banner
+===========================================
+{% endcomment %}
+
+<!-- Add this after your hero section -->
+{% if category_paid_ads %}
+    <div class="container my-4">
+        {% for ad in category_paid_ads|slice:":1" %}
+            {% if ad.ad_type == 'banner' %}
+                {% include 'components/paid_ads/banner.html' with ad=ad %}
+            {% endif %}
+        {% endfor %}
+    </div>
+{% endif %}
+
+
+{% comment %}
+===========================================
+SECTION 7: ADVANCED - MIXED TYPES
+Show different ad types in optimal positions
+===========================================
+{% endcomment %}
+
+{% if category_paid_ads %}
+    <!-- Separate ads by type -->
+    {% with banner_ads=category_paid_ads|dictsortreversed:"priority" %}
+        {% with sidebar_ads=category_paid_ads|dictsortreversed:"priority" %}
+            {% with featured_ads=category_paid_ads|dictsortreversed:"priority" %}
+                
+                <!-- Banner at top (highest priority only) -->
+                <div class="container my-4">
+                    {% for ad in banner_ads %}
+                        {% if ad.ad_type == 'banner' and forloop.first %}
+                            {% include 'components/paid_ads/banner.html' with ad=ad %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+
+                <!-- Featured box before content (top 2) -->
+                <div class="container my-5">
+                    {% for ad in featured_ads %}
+                        {% if ad.ad_type == 'featured_box' and forloop.counter <= 2 %}
+                            {% include 'components/paid_ads/featured_box.html' with ad=ad %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+
+                <!-- Sidebar ads (top 3) -->
+                <div class="sidebar-section">
+                    {% for ad in sidebar_ads %}
+                        {% if ad.ad_type == 'sidebar' and forloop.counter <= 3 %}
+                            <div class="mb-3">
+                                {% include 'components/paid_ads/sidebar.html' with ad=ad %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+
+            {% endwith %}
+        {% endwith %}
+    {% endwith %}
+{% endif %}
+
+
+{% comment %}
+===========================================
+STYLING (optional - add to your CSS)
+===========================================
+{% endcomment %}
+
+<style>
+/* Paid Ads Section Styling */
+.paid-ads-top-section,
+.paid-ads-featured-section {
+    background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.02), transparent);
+    padding: 1rem 0;
+}
+
+[data-theme='dark'] .paid-ads-top-section,
+[data-theme='dark'] .paid-ads-featured-section {
+    background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.02), transparent);
+}
+
+.sidebar-paid-ads h5 {
+    color: var(--primary-color);
+    font-size: 1rem;
+    font-weight: 600;
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 0.5rem;
+}
+
+[data-theme='dark'] .sidebar-paid-ads h5 {
+    color: #ff6001;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .paid-ads-top-section,
+    .paid-ads-featured-section {
+        padding: 0.5rem 0;
+    }
+    
+    .sidebar-paid-ads {
+        margin-top: 2rem;
+    }
+}
+</style>
+
+
+{% comment %}
+===========================================
+USAGE NOTES:
+===========================================
+
+1. Choose ONE placement strategy (don't mix all at once)
+2. For category detail: Use Sections 1, 2, and 3
+3. For subcategory detail: Use Sections 1 and 3 (simpler)
+4. Test on mobile devices
+5. Monitor ad performance in admin panel
+
+VARIABLES AVAILABLE:
+- category_paid_ads: List of paid ads for this category
+- Each ad has: ad_type, title, image, target_url, etc.
+
+AD TYPES:
+- 'banner': Full-width banner
+- 'featured_box': Large featured box
+- 'sidebar': Sidebar ad
+- 'popup': Popup (future)
+===========================================
+{% endcomment %}

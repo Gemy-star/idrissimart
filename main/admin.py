@@ -6,6 +6,11 @@ from django.db import models
 from mptt.admin import MPTTModelAdmin
 from django_ckeditor_5.widgets import CKEditor5Widget
 
+# Admin site configuration
+admin.site.site_header = _("إدارة المنصة")
+admin.site.site_title = _("لوحة تحكم المنصة")
+admin.site.index_title = _("مرحباً بك في لوحة التحكم")
+
 # Import chatbot admin configurations
 from .chatbot_admin import *
 
@@ -38,6 +43,7 @@ from .models import (
     Notification,
     Order,
     OrderItem,
+    PaidAdvertisement,
     Payment,
     SafetyTip,
     SavedSearch,
@@ -300,6 +306,20 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
 
     mark_as_pending.short_description = _("تعيين كـ قيد المراجعة")
 
+    def mark_as_paid(self, request, queryset):
+        """Mark selected ads as paid"""
+        updated = queryset.update(is_paid=True)
+        self.message_user(request, _("{} إعلان تم تحديده كمدفوع").format(updated))
+
+    mark_as_paid.short_description = _("تحديد كمدفوع")
+
+    def mark_as_unpaid(self, request, queryset):
+        """Mark selected ads as unpaid"""
+        updated = queryset.update(is_paid=False)
+        self.message_user(request, _("{} إعلان تم تحديده كغير مدفوع").format(updated))
+
+    mark_as_unpaid.short_description = _("تحديد كغير مدفوع")
+
     def activate_upgrades_action(self, request, queryset):
         """Check and expire old upgrades for selected ads"""
         count = 0
@@ -501,12 +521,15 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "status",
+                    "is_paid",
                     "is_resubmitted",
                     "reviewed_by",
                     "reviewed_at",
                     "admin_notes",
                     "expires_at",
                     "views_count",
+                    "created_at",
+                    "updated_at",
                 )
             },
         ),
@@ -1021,14 +1044,25 @@ class SavedSearchAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "user",
-        "created_at",
-        "last_notified_at",
         "email_notifications",
+        "last_notified_at",
+        "created_at",
     )
-    list_filter = ("created_at", "email_notifications")
-    search_fields = ("name", "user__username", "query_params")
+    list_filter = ("email_notifications", "created_at")
+    search_fields = ("name", "user__username", "user__email")
     list_editable = ("email_notifications",)
-    readonly_fields = ("last_notified_at", "unsubscribe_token")
+    readonly_fields = ("last_notified_at", "unsubscribe_token", "created_at")
+    date_hierarchy = "created_at"
+    ordering = ("-created_at",)
+
+    fieldsets = (
+        (_("معلومات البحث"), {"fields": ("user", "name", "query_params")}),
+        (
+            _("الإشعارات"),
+            {"fields": ("email_notifications", "last_notified_at", "unsubscribe_token")},
+        ),
+        (_("التواريخ"), {"fields": ("created_at",), "classes": ("collapse",)}),
+    )
 
 
 @admin.register(Notification)
@@ -1251,7 +1285,13 @@ class AdFeaturePriceAdmin(admin.ModelAdmin):
     list_display = ("category", "feature_type", "price", "duration_days", "is_active")
     list_filter = ("feature_type", "is_active", "category")
     search_fields = ("category__name", "category__name_ar")
-    list_editable = ("is_active",)
+    list_editable = ("price", "duration_days", "is_active")
+    ordering = ("category", "feature_type")
+
+    fieldsets = (
+        (_("القسم والميزة"), {"fields": ("category", "feature_type")}),
+        (_("التسعير"), {"fields": ("price", "duration_days", "is_active")}),
+    )
 
 
 @admin.register(CartSettings)
@@ -1264,6 +1304,15 @@ class CartSettingsAdmin(admin.ModelAdmin):
     )
     list_filter = ("is_enabled", "category")
     search_fields = ("category__name", "category__name_ar")
+    list_editable = ("is_enabled", "reservation_percentage")
+
+    fieldsets = (
+        (_("القسم"), {"fields": ("category", "is_enabled")}),
+        (
+            _("إعدادات الحجز"),
+            {"fields": ("reservation_percentage", "minimum_reservation")},
+        ),
+    )
 
 
 @admin.register(AdTransaction)
@@ -1273,6 +1322,13 @@ class AdTransactionAdmin(admin.ModelAdmin):
     search_fields = ("ad__title", "user__username", "transaction_id")
     readonly_fields = ("created_at", "transaction_id")
     date_hierarchy = "created_at"
+    ordering = ("-created_at",)
+
+    fieldsets = (
+        (_("معلومات المعاملة"), {"fields": ("ad", "user", "transaction_type")}),
+        (_("المبلغ"), {"fields": ("amount", "transaction_id")}),
+        (_("التواريخ"), {"fields": ("created_at",), "classes": ("collapse",)}),
+    )
 
 
 class CustomFieldOptionInline(admin.TabularInline):
@@ -1684,16 +1740,54 @@ class CategoryCustomFieldAdmin(admin.ModelAdmin):
 class UserPermissionLogAdmin(admin.ModelAdmin):
     list_display = ("user", "action", "created_at")
     list_filter = ("action", "created_at")
-    search_fields = ("user__username",)
+    search_fields = ("user__username", "user__email")
     readonly_fields = ("created_at",)
+    date_hierarchy = "created_at"
+    ordering = ("-created_at",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    fieldsets = (
+        (_("معلومات السجل"), {"fields": ("user", "action")}),
+        (_("التواريخ"), {"fields": ("created_at",), "classes": ("collapse",)}),
+    )
 
 
 @admin.register(UserVerificationRequest)
 class UserVerificationRequestAdmin(admin.ModelAdmin):
     list_display = ("user", "status", "created_at", "reviewed_at", "reviewed_by")
-    list_filter = ("status", "created_at", "reviewed_at")
+    list_filter = ("status", "created_at")
     search_fields = ("user__username", "user__email")
-    readonly_fields = ("created_at",)
+    readonly_fields = ("created_at", "reviewed_at")
+    date_hierarchy = "created_at"
+    ordering = ("-created_at",)
+    actions = ["approve_requests", "reject_requests"]
+
+    fieldsets = (
+        (_("معلومات الطلب"), {"fields": ("user", "status")}),
+        (_("مراجعة الطلب"), {"fields": ("reviewed_by", "reviewed_at")}),
+        (_("التواريخ"), {"fields": ("created_at",), "classes": ("collapse",)}),
+    )
+
+    def approve_requests(self, request, queryset):
+        updated = queryset.filter(status="pending").update(
+            status="approved", reviewed_by=request.user
+        )
+        self.message_user(request, _("{} طلب تم قبوله").format(updated))
+
+    approve_requests.short_description = _("✓ قبول الطلبات المحددة")
+
+    def reject_requests(self, request, queryset):
+        updated = queryset.filter(status="pending").update(
+            status="rejected", reviewed_by=request.user
+        )
+        self.message_user(request, _("{} طلب تم رفضه").format(updated))
+
+    reject_requests.short_description = _("✗ رفض الطلبات المحددة")
 
 
 @admin.register(UserSubscription)
@@ -1708,6 +1802,12 @@ class UserSubscriptionAdmin(admin.ModelAdmin):
     list_filter = ("is_active", "auto_renew", "start_date")
     search_fields = ("user__username", "user__email")
     date_hierarchy = "start_date"
+    readonly_fields = ("start_date",)
+
+    fieldsets = (
+        (_("المستخدم والاشتراك"), {"fields": ("user", "is_active", "auto_renew")}),
+        (_("التواريخ"), {"fields": ("start_date", "end_date")}),
+    )
 
 
 @admin.register(Visitor)
@@ -3168,3 +3268,317 @@ class EmailTemplateAdmin(admin.ModelAdmin):
     def display_subject_ar(self, obj):
         return obj.subject_ar or obj.subject
     display_subject_ar.short_description = "الموضوع"
+
+
+@admin.register(PaidAdvertisement)
+class PaidAdvertisementAdmin(admin.ModelAdmin):
+    """Admin interface for Paid Advertisement management"""
+
+    list_display = (
+        "title",
+        "ad_type_badge",
+        "placement_display",
+        "country",
+        "status_badge",
+        "payment_status_badge",
+        "date_range_display",
+        "views_count",
+        "clicks_count",
+        "ctr_display",
+        "priority",
+        "is_active",
+    )
+
+    list_filter = (
+        "status",
+        "payment_status",
+        "ad_type",
+        "placement_type",
+        "country",
+        "is_active",
+        "start_date",
+        "end_date",
+        "created_at",
+    )
+
+    search_fields = (
+        "title",
+        "title_ar",
+        "description",
+        "company_name",
+        "advertiser__username",
+        "advertiser__email",
+    )
+
+    readonly_fields = (
+        "views_count",
+        "clicks_count",
+        "ctr_display",
+        "created_at",
+        "updated_at",
+        "approved_by",
+        "approved_at",
+    )
+
+    fieldsets = (
+        (
+            _("معلومات أساسية - Basic Information"),
+            {
+                "fields": (
+                    "title",
+                    "title_ar",
+                    "description",
+                    "description_ar",
+                    "status",
+                    "is_active",
+                )
+            },
+        ),
+        (
+            _("معلومات المعلن - Advertiser Information"),
+            {
+                "fields": (
+                    "advertiser",
+                    "company_name",
+                    "contact_email",
+                    "contact_phone",
+                )
+            },
+        ),
+        (
+            _("المحتوى المرئي - Visual Content"),
+            {
+                "fields": (
+                    "image",
+                    "mobile_image",
+                    "ad_type",
+                )
+            },
+        ),
+        (
+            _("الرابط والإجراء - Link & CTA"),
+            {
+                "fields": (
+                    "target_url",
+                    "cta_text",
+                    "cta_text_ar",
+                    "open_in_new_tab",
+                )
+            },
+        ),
+        (
+            _("الموضع والاستهداف - Placement & Targeting"),
+            {
+                "fields": (
+                    "placement_type",
+                    "country",
+                    "category",
+                    "subcategory",
+                    "categories",
+                )
+            },
+        ),
+        (
+            _("الجدولة والمدة - Schedule & Duration"),
+            {
+                "fields": (
+                    "start_date",
+                    "end_date",
+                )
+            },
+        ),
+        (
+            _("الأولوية والترتيب - Priority & Order"),
+            {
+                "fields": (
+                    "priority",
+                    "order",
+                )
+            },
+        ),
+        (
+            _("التسعير والدفع - Pricing & Payment"),
+            {
+                "fields": (
+                    "price",
+                    "currency",
+                    "payment_status",
+                    "payment_reference",
+                )
+            },
+        ),
+        (
+            _("إحصائيات - Analytics"),
+            {
+                "fields": (
+                    "views_count",
+                    "clicks_count",
+                    "ctr_display",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            _("ملاحظات إدارية - Admin Notes"),
+            {
+                "fields": (
+                    "admin_notes",
+                    "approved_by",
+                    "approved_at",
+                    "created_at",
+                    "updated_at",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+    filter_horizontal = ("categories",)
+
+    actions = [
+        "approve_ads",
+        "pause_ads",
+        "resume_ads",
+        "mark_as_paid",
+        "mark_as_expired",
+    ]
+
+    def ad_type_badge(self, obj):
+        """Display ad type with badge"""
+        colors = {
+            "banner": "#3498db",
+            "sidebar": "#9b59b6",
+            "popup": "#e74c3c",
+            "featured_box": "#f39c12",
+        }
+        color = colors.get(obj.ad_type, "#95a5a6")
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 10px; '
+            'border-radius: 3px; font-weight: bold;">{}</span>',
+            color,
+            obj.get_ad_type_display(),
+        )
+    ad_type_badge.short_description = _("نوع الإعلان")
+
+    def status_badge(self, obj):
+        """Display status with colored badge"""
+        colors = {
+            "draft": "#95a5a6",
+            "active": "#27ae60",
+            "paused": "#f39c12",
+            "expired": "#e74c3c",
+            "pending": "#3498db",
+        }
+        color = colors.get(obj.status, "#95a5a6")
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 10px; '
+            'border-radius: 3px; font-weight: bold;">{}</span>',
+            color,
+            obj.get_status_display(),
+        )
+    status_badge.short_description = _("الحالة")
+
+    def payment_status_badge(self, obj):
+        """Display payment status with colored badge"""
+        colors = {
+            "unpaid": "#e74c3c",
+            "paid": "#27ae60",
+            "refunded": "#95a5a6",
+        }
+        color = colors.get(obj.payment_status, "#95a5a6")
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 10px; '
+            'border-radius: 3px; font-weight: bold;">{}</span>',
+            color,
+            obj.get_payment_status_display(),
+        )
+    payment_status_badge.short_description = _("حالة الدفع")
+
+    def placement_display(self, obj):
+        """Display placement information"""
+        if obj.placement_type == "general":
+            return format_html('<span style="color: #27ae60;"><i class="fas fa-home"></i> الصفحة الرئيسية</span>')
+        elif obj.placement_type == "category" and obj.category:
+            return format_html('<span style="color: #3498db;"><i class="fas fa-folder"></i> {}</span>', obj.category.name)
+        elif obj.placement_type == "subcategory" and obj.subcategory:
+            return format_html('<span style="color: #9b59b6;"><i class="fas fa-folder-open"></i> {}</span>', obj.subcategory.name)
+        return "-"
+    placement_display.short_description = _("الموضع")
+
+    def date_range_display(self, obj):
+        """Display date range in a compact format"""
+        from django.utils import timezone
+        now = timezone.now()
+        
+        if obj.end_date < now:
+            status_icon = '🔴'
+            status_text = 'منتهي'
+        elif obj.start_date > now:
+            status_icon = '🟡'
+            status_text = 'قادم'
+        else:
+            status_icon = '🟢'
+            status_text = 'نشط'
+        
+        return format_html(
+            '{} <small>{}</small><br><small>{} - {}</small>',
+            status_icon,
+            status_text,
+            obj.start_date.strftime('%Y-%m-%d'),
+            obj.end_date.strftime('%Y-%m-%d'),
+        )
+    date_range_display.short_description = _("الفترة")
+
+    def ctr_display(self, obj):
+        """Display Click-Through Rate"""
+        ctr = obj.ctr
+        if ctr >= 5:
+            color = "#27ae60"  # Green - excellent
+        elif ctr >= 2:
+            color = "#f39c12"  # Orange - good
+        else:
+            color = "#e74c3c"  # Red - needs improvement
+        
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{:.2f}%</span>',
+            color,
+            ctr,
+        )
+    ctr_display.short_description = _("معدل النقر (CTR)")
+
+    # Actions
+    def approve_ads(self, request, queryset):
+        """Approve selected ads"""
+        count = 0
+        for ad in queryset:
+            ad.approve(request.user)
+            count += 1
+        self.message_user(request, _("تم الموافقة على {} إعلان").format(count))
+    approve_ads.short_description = _("الموافقة على الإعلانات المحددة")
+
+    def pause_ads(self, request, queryset):
+        """Pause selected ads"""
+        count = queryset.update(status=PaidAdvertisement.Status.PAUSED)
+        self.message_user(request, _("تم إيقاف {} إعلان مؤقتاً").format(count))
+    pause_ads.short_description = _("إيقاف الإعلانات مؤقتاً")
+
+    def resume_ads(self, request, queryset):
+        """Resume paused ads"""
+        count = 0
+        for ad in queryset.filter(status=PaidAdvertisement.Status.PAUSED):
+            ad.resume()
+            count += 1
+        self.message_user(request, _("تم استئناف {} إعلان").format(count))
+    resume_ads.short_description = _("استئناف الإعلانات")
+
+    def mark_as_paid(self, request, queryset):
+        """Mark ads as paid"""
+        count = queryset.update(payment_status="paid")
+        self.message_user(request, _("تم تحديد {} إعلان كمدفوع").format(count))
+    mark_as_paid.short_description = _("تحديد كمدفوع")
+
+    def mark_as_expired(self, request, queryset):
+        """Mark ads as expired"""
+        count = queryset.update(status=PaidAdvertisement.Status.EXPIRED)
+        self.message_user(request, _("تم تحديد {} إعلان كمنتهي").format(count))
+    mark_as_expired.short_description = _("تحديد كمنتهي")

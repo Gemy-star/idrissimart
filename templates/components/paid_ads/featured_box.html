@@ -1,0 +1,124 @@
+{% load static i18n %}
+{# Featured Box Paid Advertisement Component #}
+{# Usage: {% include 'components/paid_ads/featured_box.html' with ad=ad_object %} #}
+
+{% if ad and ad.is_currently_active %}
+<div class="paid-ad-featured-box mb-4" data-ad-id="{{ ad.id }}" data-ad-type="featured_box">
+    <a href="{{ ad.target_url }}" 
+       {% if ad.open_in_new_tab %}target="_blank" rel="noopener noreferrer"{% endif %}
+       class="paid-ad-link text-decoration-none"
+       onclick="trackPaidAdClick('{{ ad.id }}')">
+        
+        <div class="card border-0 shadow-lg overflow-hidden" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="row g-0">
+                <div class="col-md-6">
+                    <img src="{{ ad.image.url }}" 
+                         alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
+                         class="featured-box-image w-100 h-100"
+                         style="object-fit: cover; min-height: 250px;">
+                </div>
+                <div class="col-md-6 d-flex align-items-center">
+                    <div class="p-4 text-white">
+                        {# Sponsored Badge #}
+                        <span class="badge bg-white text-primary mb-3">
+                            <i class="fas fa-star me-1"></i>
+                            {% trans "إعلان مميز" %}
+                        </span>
+                        
+                        {% if ad.company_name %}
+                        <small class="d-block text-white-50 mb-2">{{ ad.company_name }}</small>
+                        {% endif %}
+                        
+                        <h3 class="fw-bold mb-3">
+                            {% if LANGUAGE_CODE == 'ar' and ad.title_ar %}
+                                {{ ad.title_ar }}
+                            {% else %}
+                                {{ ad.title }}
+                            {% endif %}
+                        </h3>
+                        
+                        {% if ad.description or ad.description_ar %}
+                        <p class="mb-4 text-white-75">
+                            {% if LANGUAGE_CODE == 'ar' and ad.description_ar %}
+                                {{ ad.description_ar|truncatewords:25 }}
+                            {% else %}
+                                {{ ad.description|truncatewords:25 }}
+                            {% endif %}
+                        </p>
+                        {% endif %}
+                        
+                        {% if ad.cta_text or ad.cta_text_ar %}
+                        <button class="btn btn-light btn-lg shadow-sm px-4">
+                            {% if LANGUAGE_CODE == 'ar' and ad.cta_text_ar %}
+                                {{ ad.cta_text_ar }}
+                            {% else %}
+                                {{ ad.cta_text }}
+                            {% endif %}
+                            <i class="fas fa-arrow-{% if LANGUAGE_CODE == 'ar' %}left{% else %}right{% endif %} ms-2"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </a>
+</div>
+
+<style>
+.paid-ad-featured-box {
+    transition: transform 0.3s ease;
+}
+
+.paid-ad-featured-box:hover {
+    transform: translateY(-5px);
+}
+
+.featured-box-image {
+    transition: transform 0.3s ease;
+}
+
+.paid-ad-featured-box:hover .featured-box-image {
+    transform: scale(1.1);
+}
+
+.text-white-75 {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+[data-theme='dark'] .paid-ad-featured-box .card {
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
+@media (max-width: 767px) {
+    .paid-ad-featured-box .row {
+        flex-direction: column-reverse;
+    }
+}
+</style>
+
+<script>
+function trackPaidAdClick(adId) {
+    fetch(`/api/paid-ads/${adId}/click/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    }).catch(err => console.error('Failed to track ad click:', err));
+}
+
+// Track ad view on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const adElement = document.querySelector('[data-ad-id="{{ ad.id }}"]');
+    if (adElement) {
+        fetch(`/api/paid-ads/{{ ad.id }}/view/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        }).catch(err => console.error('Failed to track ad view:', err));
+    }
+});
+</script>
+{% endif %}

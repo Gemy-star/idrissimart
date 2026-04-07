@@ -857,6 +857,13 @@ class CategoryDetailView(FilterView):
             "verified_only": bool(self.request.GET.get("verified_only")),
         }
 
+        # Get paid advertisements for this category
+        from main.models import PaidAdvertisement
+        category_paid_ads = PaidAdvertisement.get_category_ads(
+            category=self.category,
+            country_code=selected_country
+        )
+
         # Get custom fields for filters from this category and descendants
         # Deduplicate by custom_field_id so each field appears only once
         from main.models import CategoryCustomField
@@ -908,6 +915,7 @@ class CategoryDetailView(FilterView):
                 "selected_country": selected_country,
                 "custom_fields_for_filters": custom_fields_for_filters,
                 "category_filter_fields": custom_fields_for_filters,  # Alias for consistency
+                "category_paid_ads": category_paid_ads,  # Paid advertisements for this category
                 "page_title": (
                     self.category.name_ar
                     if self.category.name_ar
@@ -1095,6 +1103,13 @@ class SubcategoryDetailView(FilterView):
         )
         total_subcategories = subcategories.count()
 
+        # Get paid advertisements for this subcategory
+        from main.models import PaidAdvertisement
+        category_paid_ads = PaidAdvertisement.get_category_ads(
+            category=self.category,
+            country_code=selected_country
+        )
+
         # Current filters for display
         current_filters = {
             "search": self.request.GET.get("search", ""),
@@ -1116,6 +1131,7 @@ class SubcategoryDetailView(FilterView):
                 "total_ads": total_ads,
                 "current_filters": current_filters,
                 "selected_country": selected_country,
+                "category_paid_ads": category_paid_ads,  # Paid advertisements for this subcategory
                 "page_title": (
                     self.category.name_ar
                     if self.category.name_ar
