@@ -4,11 +4,13 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 from main import cart_wishlist_views
+from main import views as main_views
 
 urlpatterns = [
     path("i18n/", include("django.conf.urls.i18n")),
     # Cart & Wishlist APIs — BEFORE api/ include to avoid DRF router conflict
     # (DRF router matches wishlist/{pk}/ with pk="add" → 405 if placed after)
+    path("api/category-price/<int:category_id>/", main_views.get_category_price_api, name="api_category_price"),
     path("api/cart/add/", cart_wishlist_views.add_to_cart),
     path("api/cart/remove/", cart_wishlist_views.remove_from_cart),
     path("api/cart/update-quantity/", cart_wishlist_views.update_cart_quantity),

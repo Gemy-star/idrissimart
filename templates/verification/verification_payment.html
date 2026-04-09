@@ -451,6 +451,69 @@
                         </div>
                     </label>
 
+                    <!-- Wallet details (shown when wallet is selected) -->
+                    <div id="walletDetails" class="offline-details" style="display:none; margin: 0.5rem 0 1rem 1rem;">
+                        {% if site_config.wallet_phone %}
+                        <p class="mb-2">
+                            <i class="fas fa-phone me-2"></i>
+                            <strong>{% trans "رقم المحفظة:" %}</strong> {{ site_config.wallet_phone }}
+                        </p>
+                        {% endif %}
+                        {% if site_config.wallet_payment_link %}
+                        <a href="{{ site_config.wallet_payment_link }}" target="_blank" class="btn btn-sm btn-success mb-3">
+                            <i class="fas fa-external-link-alt me-2"></i>
+                            {% trans "افتح رابط الدفع" %}
+                        </a>
+                        {% endif %}
+                        <div class="mb-2">
+                            <label for="wallet_receipt" class="form-label fw-bold">
+                                <i class="fas fa-receipt me-2"></i>
+                                {% trans "إيصال الدفع:" %}
+                            </label>
+                            <input type="file" class="form-control" id="wallet_receipt" name="payment_receipt" accept="image/*,.pdf">
+                        </div>
+                    </div>
+
+                    {% if site_config.instapay_qr_code or site_config.instapay_phone %}
+                    <label class="method-card" for="instapay">
+                        <input type="radio" name="payment_method" id="instapay" value="instapay">
+                        <div class="method-content">
+                            <div class="method-icon">
+                                <i class="fas fa-qrcode"></i>
+                            </div>
+                            <div class="method-info">
+                                <h4>InstaPay</h4>
+                                <p>{% trans "الدفع عبر InstaPay" %}</p>
+                            </div>
+                            <div class="method-check">
+                                <i class="fas fa-check"></i>
+                            </div>
+                        </div>
+                    </label>
+
+                    <!-- InstaPay details (shown when instapay is selected) -->
+                    <div id="instapayDetails" class="offline-details" style="display:none; margin: 0.5rem 0 1rem 1rem;">
+                        {% if site_config.instapay_phone %}
+                        <p class="mb-2">
+                            <i class="fas fa-phone me-2"></i>
+                            <strong>{% trans "رقم InstaPay:" %}</strong> {{ site_config.instapay_phone }}
+                        </p>
+                        {% endif %}
+                        {% if site_config.instapay_qr_code %}
+                        <div class="text-center mb-3">
+                            <img src="{{ site_config.instapay_qr_code.url }}" alt="InstaPay QR" style="max-width:220px; border:1px solid #ddd; border-radius:8px; padding:8px;">
+                        </div>
+                        {% endif %}
+                        <div class="mb-2">
+                            <label for="instapay_receipt" class="form-label fw-bold">
+                                <i class="fas fa-receipt me-2"></i>
+                                {% trans "إيصال الدفع:" %}
+                            </label>
+                            <input type="file" class="form-control" id="instapay_receipt" name="payment_receipt" accept="image/*,.pdf">
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <label class="method-card" for="bank">
                         <input type="radio" name="payment_method" id="bank" value="bank_transfer">
                         <div class="method-content">
@@ -505,11 +568,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle payment method selection
     const methodCards = document.querySelectorAll('.method-card');
     const radioInputs = document.querySelectorAll('input[name="payment_method"]');
+    const offlineDetailsPanels = {'wallet': document.getElementById('walletDetails'), 'instapay': document.getElementById('instapayDetails')};
 
     radioInputs.forEach(radio => {
         radio.addEventListener('change', function() {
             methodCards.forEach(card => card.classList.remove('selected'));
             this.closest('.method-card').classList.add('selected');
+            // Show/hide offline detail panels
+            Object.values(offlineDetailsPanels).forEach(p => { if (p) p.style.display = 'none'; });
+            if (offlineDetailsPanels[this.value]) offlineDetailsPanels[this.value].style.display = 'block';
         });
     });
 

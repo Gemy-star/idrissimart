@@ -108,8 +108,11 @@ class PublisherFacebookSharePaymentView(LoginRequiredMixin, TemplateView):
         payment_amount = getattr(config, 'FACEBOOK_SHARE_PRICE', Decimal('50.00'))
         context['payment_amount'] = payment_amount
 
-        # Payment methods
-        context['payment_methods'] = [
+        from content.site_config import SiteConfiguration
+        site_config = SiteConfiguration.get_solo()
+
+        # Build payment methods list — only include instapay/wallet if configured
+        payment_methods = [
             {
                 'id': 'bank_transfer',
                 'name': _('تحويل بنكي'),
@@ -117,35 +120,31 @@ class PublisherFacebookSharePaymentView(LoginRequiredMixin, TemplateView):
                 'icon': 'fas fa-university',
                 'description': _('تحويل مباشر إلى الحساب البنكي'),
             },
-            {
-                'id': 'credit_card',
-                'name': _('بطاقة ائتمان'),
-                'name_en': 'Credit Card',
-                'icon': 'fas fa-credit-card',
-                'description': _('الدفع باستخدام بطاقة الائتمان'),
-            },
-            {
-                'id': 'paypal',
-                'name': _('PayPal'),
-                'name_en': 'PayPal',
-                'icon': 'fab fa-paypal',
-                'description': _('الدفع عبر PayPal'),
-            },
-            {
-                'id': 'cash',
-                'name': _('دفع نقدي'),
-                'name_en': 'Cash Payment',
-                'icon': 'fas fa-money-bill-wave',
-                'description': _('الدفع نقداً عند الاستلام'),
-            },
         ]
+        if site_config.instapay_qr_code or site_config.instapay_phone:
+            payment_methods.append({
+                'id': 'instapay',
+                'name': 'InstaPay',
+                'name_en': 'InstaPay',
+                'icon': 'fas fa-qrcode',
+                'description': _('الدفع عبر InstaPay'),
+            })
+        if site_config.wallet_payment_link or site_config.wallet_phone:
+            payment_methods.append({
+                'id': 'wallet',
+                'name': _('محفظة إلكترونية'),
+                'name_en': 'Mobile Wallet',
+                'icon': 'fas fa-wallet',
+                'description': _('الدفع عبر فودافون كاش أو محافظ أخرى'),
+            })
+        context['payment_methods'] = payment_methods
 
-        # Bank details from constance
+        # Bank details from site_config (with constance fallback for legacy fields)
         context['bank_details'] = {
-            'bank_name': getattr(config, 'BANK_NAME', 'البنك الأهلي السعودي'),
-            'account_name': getattr(config, 'BANK_ACCOUNT_NAME', 'إدريسي مارت'),
-            'account_number': getattr(config, 'BANK_ACCOUNT_NUMBER', 'SA00 0000 0000 0000 0000'),
-            'iban': getattr(config, 'BANK_IBAN', 'SA00 0000 0000 0000 0000'),
+            'bank_name': getattr(site_config, 'bank_name', None) or getattr(config, 'BANK_NAME', ''),
+            'account_name': getattr(site_config, 'bank_account_name', None) or getattr(config, 'BANK_ACCOUNT_NAME', ''),
+            'account_number': getattr(site_config, 'bank_account_number', None) or getattr(config, 'BANK_ACCOUNT_NUMBER', ''),
+            'iban': getattr(site_config, 'bank_iban', None) or getattr(config, 'BANK_IBAN', ''),
         }
 
         return context

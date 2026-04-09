@@ -802,47 +802,7 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             self.request.session["has_free_ads"] = has_free_ads
             self.request.session.modified = True  # force session save
 
-            # If total cost is zero (free ad from package), skip payment page entirely
-            if total_cost == Decimal("0.00") and has_free_ads:
-                ad = self.object
-                ad.is_paid = True
-                ad.status = ClassifiedAd.AdStatus.PENDING
-                ad.is_highlighted = feature_highlighted
-                ad.is_urgent = feature_urgent
-                ad.is_pinned = feature_pinned
-                ad.contact_for_price = feature_contact_for_price
-                ad.features_price = Decimal("0.00")
-                ad.save()
-
-                # Deduct one ad from the earliest-expiring package with ads remaining
-                package_with_ads = UserPackage.objects.filter(
-                    user=ad.user,
-                    expiry_date__gte=timezone.now(),
-                    ads_remaining__gt=0,
-                ).order_by("expiry_date").first()
-                if package_with_ads:
-                    package_with_ads.use_ad()
-
-                # Notify staff
-                staff_users = User.objects.filter(is_staff=True, is_active=True)
-                for staff_user in staff_users:
-                    Notification.objects.create(
-                        user=staff_user,
-                        notification_type=Notification.NotificationType.GENERAL,
-                        title=_("إعلان جديد ينتظر المراجعة"),
-                        message=_("تم تقديم إعلان جديد بعنوان '{}' من المستخدم {}.").format(
-                            ad.title, ad.user.get_full_name() or ad.user.username
-                        ),
-                        link=ad.get_absolute_url(),
-                    )
-
-                messages.info(
-                    self.request,
-                    _("تم إرسال إعلانك للمراجعة وسيتم نشره بعد موافقة الإدارة.")
-                )
-                return redirect("main:ad_create_success", pk=ad.pk)
-
-            # User has no free ads — redirect to payment page
+            # Always route through payment page — handles both free/package and paid cases
             return redirect("main:ad_payment", ad_id=self.object.pk)
         else:
             return self.render_to_response(self.get_context_data(form=form))

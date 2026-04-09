@@ -579,10 +579,22 @@ class ClassifiedAdForm(forms.ModelForm):
                             'mobile_number': _("يجب التحقق من رقم الجوال قبل نشر الإعلان")
                         })
 
-                    if self.user.mobile and str(self.user.mobile).replace(' ', '') != mobile_number.replace(' ', ''):
-                        raise forms.ValidationError({
-                            'mobile_number': _("رقم الجوال يجب أن يطابق رقم الجوال المسجل والموثق في حسابك")
-                        })
+                    if self.user.mobile:
+                        # Normalize both numbers the same way clean_mobile_number() does
+                        # before comparing, so e.g. "+966501234567" matches "501234567".
+                        def _strip_phone(phone):
+                            cleaned = "".join(filter(str.isdigit, str(phone)))
+                            cleaned = cleaned.lstrip("0")
+                            for code in ["966", "20", "971", "965", "974", "973", "968", "962"]:
+                                if cleaned.startswith(code):
+                                    cleaned = cleaned[len(code):]
+                                    break
+                            return cleaned.lstrip("0")
+
+                        if _strip_phone(self.user.mobile) != _strip_phone(mobile_number):
+                            raise forms.ValidationError({
+                                'mobile_number': _("رقم الجوال يجب أن يطابق رقم الجوال المسجل والموثق في حسابك")
+                            })
 
         # ---- Duplicate ad detection ----
         title = cleaned_data.get("title")

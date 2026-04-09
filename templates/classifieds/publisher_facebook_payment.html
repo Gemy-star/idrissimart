@@ -261,8 +261,34 @@
                     </div>
                 </div>
 
-                {% if method.id == 'bank_transfer' %}
-                <div class="bank-details-card" id="bankDetails">
+                {% if method.id == 'instapay' %}
+                <div class="bank-details-card" id="instapayDetails" style="display:none;">
+                    {% if site_config.instapay_phone %}
+                    <p class="mb-2"><i class="fas fa-phone me-2"></i><strong>{% trans "رقم InstaPay:" %}</strong> {{ site_config.instapay_phone }}</p>
+                    {% endif %}
+                    {% if site_config.instapay_qr_code %}
+                    <div class="text-center mb-3">
+                        <img src="{{ site_config.instapay_qr_code.url }}" alt="InstaPay QR" style="max-width:220px; border:1px solid #ddd; border-radius:8px; padding:8px;">
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% elif method.id == 'wallet' %}
+                <div class="bank-details-card" id="walletDetails" style="display:none;">
+                    {% if site_config.wallet_phone %}
+                    <p class="mb-2"><i class="fas fa-phone me-2"></i><strong>{% trans "رقم المحفظة:" %}</strong> {{ site_config.wallet_phone }}</p>
+                    {% endif %}
+                    {% if site_config.wallet_payment_link %}
+                    <div class="text-center mb-3">
+                        <a href="{{ site_config.wallet_payment_link }}" target="_blank" class="btn btn-success">
+                            <i class="fas fa-external-link-alt me-2"></i>{% trans "افتح رابط الدفع" %}
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% elif method.id == 'bank_transfer' %}
+                <div class="bank-details-card" id="bankDetails" style="display:none;">
                     <h5 class="mb-3">
                         <i class="fas fa-university me-2"></i>
                         {% trans "معلومات الحساب البنكي" %}
@@ -368,13 +394,14 @@ function selectPaymentMethod(methodId) {
     // Check the radio button
     document.getElementById(`method_${methodId}`).checked = true;
 
-    // Show/hide bank details
-    const bankDetails = document.getElementById('bankDetails');
-    if (methodId === 'bank_transfer') {
-        bankDetails.classList.add('show');
-    } else {
-        bankDetails.classList.remove('show');
-    }
+    // Show/hide payment detail panels
+    const panels = {
+        'bank_transfer': document.getElementById('bankDetails'),
+        'instapay': document.getElementById('instapayDetails'),
+        'wallet': document.getElementById('walletDetails'),
+    };
+    Object.values(panels).forEach(p => { if (p) { p.classList.remove('show'); p.style.display = 'none'; } });
+    if (panels[methodId]) { panels[methodId].classList.add('show'); panels[methodId].style.display = 'block'; }
 }
 
 function copyToClipboard(text) {

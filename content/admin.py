@@ -161,7 +161,6 @@ class BlogCategoryAdmin(admin.ModelAdmin):
                     "name_en",
                     "slug",
                     "description",
-                    "description_en",
                 )
             },
         ),
