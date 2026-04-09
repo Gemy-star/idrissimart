@@ -1,0 +1,311 @@
+{% extends 'dashboard/base.html' %}
+{% load i18n static %}
+
+{% block publisher_title %}{% trans "إنشاء إعلان بانري مدفوع" %}{% endblock %}
+
+{% block publisher_extra_css %}
+<style>
+.pricing-card {
+    border: 2px solid var(--border-color, #dee2e6);
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all .25s;
+}
+.pricing-card:hover,
+.pricing-card.selected {
+    border-color: var(--primary-color, #6b4c7a);
+    background: rgba(107,76,122,.06);
+}
+.pricing-card .price-tag {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--primary-color, #6b4c7a);
+}
+.form-section {
+    background: var(--bg-primary, #fff);
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.07);
+    margin-bottom: 24px;
+}
+[data-theme='dark'] .form-section {
+    background: var(--card-bg, #2d3748);
+}
+</style>
+{% endblock %}
+
+{% block publisher_content %}
+<div class="dashboard-header mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{% url 'main:publisher_paid_ads' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-right"></i>
+        </a>
+        <div>
+            <h1><i class="fas fa-ad"></i> {% trans "إنشاء إعلان بانري مدفوع" %}</h1>
+            <p class="text-muted mb-0">{% trans "أملأ التفاصيل ثم أكمل الدفع لإرسال الإعلان للمراجعة" %}</p>
+        </div>
+    </div>
+</div>
+
+{% if messages %}
+<div class="mb-3">
+    {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show">
+        {{ msg }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- How it works -->
+<div class="alert alert-info mb-4">
+    <h6 class="mb-2"><i class="fas fa-info-circle"></i> {% trans "كيف يعمل النظام؟" %}</h6>
+    <ol class="mb-0 ps-3">
+        <li>{% trans "أملأ بيانات الإعلان واختر نوعه." %}</li>
+        <li>{% trans "سيتم توجيهك لصفحة الدفع لسداد تكلفة الإعلان." %}</li>
+        <li>{% trans "بعد الدفع، تصلك رسالة تأكيد ويرسل الإعلان للإدارة للمراجعة." %}</li>
+        <li>{% trans "عند الموافقة يبدأ الإعلان في الظهور في الفترة المحددة." %}</li>
+    </ol>
+</div>
+
+<form method="post" enctype="multipart/form-data" id="paidAdForm">
+    {% csrf_token %}
+
+    <!-- === Ad Type & Pricing === -->
+    <div class="form-section">
+        <h5 class="mb-3"><i class="fas fa-tag"></i> {% trans "نوع الإعلان والسعر" %}</h5>
+        <div class="row g-3" id="adTypeCards">
+            <div class="col-sm-6 col-lg-3">
+                <label class="pricing-card d-block text-center selected" data-type="banner">
+                    <input type="radio" name="ad_type" value="banner" class="d-none" checked>
+                    <i class="fas fa-desktop fa-2x mb-2 text-primary"></i>
+                    <div class="fw-semibold">{% trans "بانر" %}</div>
+                    <div class="text-muted small mb-1">{% trans "1200×600 بكسل" %}</div>
+                    <div class="price-tag">{{ pricing.banner }} {% trans "ج.م" %}</div>
+                </label>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <label class="pricing-card d-block text-center" data-type="sidebar">
+                    <input type="radio" name="ad_type" value="sidebar" class="d-none">
+                    <i class="fas fa-columns fa-2x mb-2 text-purple"></i>
+                    <div class="fw-semibold">{% trans "إعلان جانبي" %}</div>
+                    <div class="text-muted small mb-1">{% trans "300×600 بكسل" %}</div>
+                    <div class="price-tag">{{ pricing.sidebar }} {% trans "ج.م" %}</div>
+                </label>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <label class="pricing-card d-block text-center" data-type="popup">
+                    <input type="radio" name="ad_type" value="popup" class="d-none">
+                    <i class="fas fa-window-restore fa-2x mb-2 text-danger"></i>
+                    <div class="fw-semibold">{% trans "نافذة منبثقة" %}</div>
+                    <div class="text-muted small mb-1">{% trans "600×400 بكسل" %}</div>
+                    <div class="price-tag">{{ pricing.popup }} {% trans "ج.م" %}</div>
+                </label>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <label class="pricing-card d-block text-center" data-type="featured_box">
+                    <input type="radio" name="ad_type" value="featured_box" class="d-none">
+                    <i class="fas fa-star fa-2x mb-2 text-warning"></i>
+                    <div class="fw-semibold">{% trans "صندوق مميز" %}</div>
+                    <div class="text-muted small mb-1">{% trans "400×400 بكسل" %}</div>
+                    <div class="price-tag">{{ pricing.featured_box }} {% trans "ج.م" %}</div>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- === Basic Info === -->
+    <div class="form-section">
+        <h5 class="mb-3"><i class="fas fa-file-alt"></i> {% trans "معلومات الإعلان الأساسية" %}</h5>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">{% trans "عنوان الإعلان" %} <span class="text-danger">*</span></label>
+                <input type="text" name="title" class="form-control"
+                       value="{{ post_data.title }}" required
+                       placeholder="{% trans 'العنوان بالعربية أو الإنجليزية' %}">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">{% trans "العنوان بالعربية" %}</label>
+                <input type="text" name="title_ar" class="form-control"
+                       value="{{ post_data.title_ar }}"
+                       placeholder="{% trans 'العنوان بالعربية (اختياري)' %}">
+            </div>
+            <div class="col-12">
+                <label class="form-label fw-semibold">{% trans "الوصف" %}</label>
+                <textarea name="description" class="form-control" rows="3"
+                          placeholder="{% trans 'وصف مختصر للإعلان (اختياري)' %}">{{ post_data.description }}</textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">{% trans "رابط الإعلان" %} <span class="text-danger">*</span></label>
+                <input type="url" name="target_url" class="form-control"
+                       value="{{ post_data.target_url }}" required
+                       placeholder="https://example.com">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">{% trans "نص زر الإجراء (CTA)" %}</label>
+                <input type="text" name="cta_text" class="form-control"
+                       value="{{ post_data.cta_text|default:'المزيد' }}"
+                       placeholder="{% trans 'مثال: اكتشف الآن' %}">
+            </div>
+        </div>
+    </div>
+
+    <!-- === Image Upload === -->
+    <div class="form-section">
+        <h5 class="mb-3"><i class="fas fa-image"></i> {% trans "صورة الإعلان" %}</h5>
+        <div class="mb-3">
+            <label class="form-label fw-semibold">{% trans "اختر صورة الإعلان" %} <span class="text-danger">*</span></label>
+            <input type="file" name="image" id="adImage" class="form-control"
+                   accept="image/jpeg,image/png,image/webp,image/gif" required>
+            <div class="form-text">{% trans "JPG / PNG / WebP — الحجم الأقصى 5 ميغا" %}</div>
+            <div id="imagePreviewContainer" class="mt-2 d-none">
+                <img id="imagePreview" src="" alt="preview"
+                     style="max-height:200px;border-radius:8px;border:2px solid var(--border-color);">
+            </div>
+        </div>
+    </div>
+
+    <!-- === Placement === -->
+    <div class="form-section">
+        <h5 class="mb-3"><i class="fas fa-map-marker-alt"></i> {% trans "موضع الإعلان" %}</h5>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">{% trans "موضع العرض" %}</label>
+                <select name="placement_type" id="placementType" class="form-select">
+                    {% for val, label in placement_types %}
+                    <option value="{{ val }}"
+                        {% if post_data.placement_type == val %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6" id="categoryWrapper">
+                <label class="form-label fw-semibold">{% trans "القسم" %}</label>
+                <select name="category_id" class="form-select">
+                    <option value="">{% trans "— اختر قسماً —" %}</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.pk }}"
+                        {% if post_data.category_id == cat.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ cat.name_ar|default:cat.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- === Schedule === -->
+    <div class="form-section">
+        <h5 class="mb-3"><i class="fas fa-calendar-alt"></i> {% trans "مدة العرض" %}</h5>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">{% trans "تاريخ البدء" %} <span class="text-danger">*</span></label>
+                <input type="date" name="start_date" class="form-control"
+                       value="{{ post_data.start_date }}" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">{% trans "تاريخ الانتهاء" %} <span class="text-danger">*</span></label>
+                <input type="date" name="end_date" class="form-control"
+                       value="{{ post_data.end_date }}" required>
+            </div>
+        </div>
+    </div>
+
+    <!-- === Advertiser Info === -->
+    <div class="form-section">
+        <h5 class="mb-3"><i class="fas fa-user-tie"></i> {% trans "معلومات جهة الإعلان" %}</h5>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">{% trans "اسم الشركة / الجهة" %}</label>
+                <input type="text" name="company_name" class="form-control"
+                       value="{{ post_data.company_name }}"
+                       placeholder="{% trans 'اختياري' %}">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">{% trans "بريد التواصل" %}</label>
+                <input type="email" name="contact_email" class="form-control"
+                       value="{{ post_data.contact_email|default:request.user.email }}">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">{% trans "رقم الهاتف" %}</label>
+                <input type="text" name="contact_phone" class="form-control"
+                       value="{{ post_data.contact_phone }}">
+            </div>
+        </div>
+    </div>
+
+    <!-- === Summary Bar === -->
+    <div class="card border-0 bg-primary text-white mb-4 p-3 rounded-3">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <span class="fw-semibold">{% trans "تكلفة الإعلان:" %}</span>
+                <span id="summaryPrice" class="fs-5 fw-bold ms-2">{{ pricing.banner }} {% trans "ج.م" %}</span>
+            </div>
+            <button type="submit" class="btn btn-light text-primary fw-bold px-4">
+                <i class="fas fa-credit-card me-1"></i>
+                {% trans "متابعة للدفع" %}
+            </button>
+        </div>
+    </div>
+</form>
+
+{% endblock %}
+
+{% block publisher_extra_js %}
+<script>
+(function () {
+    // ---- Ad type card selection ----
+    const pricing = {
+        banner: '{{ pricing.banner }}',
+        sidebar: '{{ pricing.sidebar }}',
+        popup: '{{ pricing.popup }}',
+        featured_box: '{{ pricing.featured_box }}'
+    };
+
+    document.querySelectorAll('#adTypeCards .pricing-card').forEach(card => {
+        card.addEventListener('click', () => {
+            document.querySelectorAll('#adTypeCards .pricing-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            card.querySelector('input[type=radio]').checked = true;
+            const t = card.dataset.type;
+            document.getElementById('summaryPrice').textContent = pricing[t] + ' ج.م';
+        });
+    });
+
+    // ---- Placement type toggle ----
+    const placementSel = document.getElementById('placementType');
+    const catWrapper = document.getElementById('categoryWrapper');
+    function toggleCategory() {
+        const show = ['category', 'subcategory'].includes(placementSel.value);
+        catWrapper.style.display = show ? '' : 'none';
+    }
+    placementSel.addEventListener('change', toggleCategory);
+    toggleCategory();
+
+    // ---- Image preview ----
+    document.getElementById('adImage').addEventListener('change', function () {
+        const file = this.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+            const container = document.getElementById('imagePreviewContainer');
+            const img = document.getElementById('imagePreview');
+            img.src = e.target.result;
+            container.classList.remove('d-none');
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // ---- Set minimum date ----
+    const today = new Date().toISOString().split('T')[0];
+    document.querySelector('[name=start_date]').min = today;
+    document.querySelector('[name=end_date]').min = today;
+    document.querySelector('[name=start_date]').addEventListener('change', function () {
+        document.querySelector('[name=end_date]').min = this.value;
+    });
+})();
+</script>
+{% endblock %}

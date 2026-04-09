@@ -26,6 +26,7 @@ from . import pricing_views
 from . import facebook_share_admin_views
 from . import safety_tip_admin_views
 from . import paid_ad_views
+from . import publisher_paid_ad_views
 from django.contrib.auth import views as dj_auth_views
 
 
@@ -239,6 +240,12 @@ urlpatterns = [
         r"^classifieds/(?P<slug>[\w\-\u0600-\u06FF]+)/$",
         classifieds_views.ClassifiedAdDetailView.as_view(),
         name="ad_detail",
+    ),
+    # Redirect old ID-based ad URLs to slug-based URLs (SEO / old links)
+    path(
+        "classifieds/<int:pk>/",
+        classifieds_views.classifieds_id_redirect,
+        name="ad_detail_by_id",
     ),
     # Ad Review URL
     path(
@@ -1488,10 +1495,35 @@ urlpatterns = [
         cart_wishlist_views.check_wishlist_status,
         name="wishlist_status",
     ),
+    path("api/wishlist/clear/", cart_wishlist_views.clear_wishlist, name="wishlist_clear"),
     path("wishlist/", cart_wishlist_views.wishlist_view, name="wishlist_view"),
     # Bulk Ads API for Guest Wishlist
     path("api/ads/bulk/", cart_wishlist_views.get_bulk_ads, name="get_bulk_ads"),
-    
+
+    # -----------------------------------------------------------------------
+    # Publisher Paid Banner Ads (publisher dashboard)
+    # -----------------------------------------------------------------------
+    path(
+        "dashboard/paid-ads/",
+        publisher_paid_ad_views.PublisherPaidAdListView.as_view(),
+        name="publisher_paid_ads",
+    ),
+    path(
+        "dashboard/paid-ads/create/",
+        publisher_paid_ad_views.publisher_paid_ad_create,
+        name="publisher_paid_ad_create",
+    ),
+    path(
+        "dashboard/paid-ads/payment/",
+        publisher_paid_ad_views.publisher_paid_ad_payment,
+        name="publisher_paid_ad_payment",
+    ),
+    path(
+        "dashboard/paid-ads/<int:pk>/retry-payment/",
+        publisher_paid_ad_views.publisher_paid_ad_retry_payment,
+        name="publisher_paid_ad_retry_payment",
+    ),
+
     # Paid Advertisement Tracking URLs
     path(
         "api/paid-ads/<int:ad_id>/view/",
@@ -1508,7 +1540,7 @@ urlpatterns = [
         paid_ad_views.get_category_paid_ads,
         name="get_category_paid_ads",
     ),
-    
+
     # Chat URLs - User to User Messaging
     path("chat/", chat_views.chat_list, name="chat_list"),
     path("chat/room/<int:room_id>/", chat_views.chat_room, name="chat_room"),

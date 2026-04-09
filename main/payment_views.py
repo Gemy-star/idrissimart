@@ -184,14 +184,17 @@ def paypal_success(request):
             if package_id:
                 process_package_purchase(payment, package_id)
 
-            # Process ad payment or upgrade if applicable
-            ad_id = payment.metadata.get("ad_id")
+            # Process ad payment, upgrade, or paid banner
             payment_type = payment.metadata.get("payment_type", "ad_payment")
-            if ad_id:
-                if payment_type == "ad_upgrade":
-                    process_ad_upgrade_payment(payment)
-                else:
-                    process_ad_payment(payment)
+            if payment_type == "paid_banner":
+                process_paid_banner_payment(payment)
+            else:
+                ad_id = payment.metadata.get("ad_id")
+                if ad_id:
+                    if payment_type == "ad_upgrade":
+                        process_ad_upgrade_payment(payment)
+                    else:
+                        process_ad_payment(payment)
 
             messages.success(request, _("تم الدفع بنجاح"))
             return redirect("main:payment_success", payment_id=payment.id)
@@ -249,14 +252,17 @@ def paymob_callback(request):
             if package_id:
                 process_package_purchase(payment, package_id)
 
-            # Process ad payment or upgrade if applicable
-            ad_id = payment.metadata.get("ad_id")
+            # Process ad payment, upgrade, or paid banner
             payment_type = payment.metadata.get("payment_type", "ad_payment")
-            if ad_id:
-                if payment_type == "ad_upgrade":
-                    process_ad_upgrade_payment(payment)
-                else:
-                    process_ad_payment(payment)
+            if payment_type == "paid_banner":
+                process_paid_banner_payment(payment)
+            else:
+                ad_id = payment.metadata.get("ad_id")
+                if ad_id:
+                    if payment_type == "ad_upgrade":
+                        process_ad_upgrade_payment(payment)
+                    else:
+                        process_ad_payment(payment)
 
             logger.info(f"Paymob payment completed: {payment.id}")
         else:
@@ -787,6 +793,118 @@ def process_ad_payment(payment):
         return False
 
 
+def process_paid_banner_payment(payment):
+    """
+    Mark a PaidAdvertisement as paid after successful online payment,
+    change its status to PENDING_APPROVAL, send email alerts to admin and
+    publisher, and create in-app notifications for staff.
+    """
+    from django.conf import settings
+    from django.contrib.auth import get_user_model
+
+    from main.email_service import send_email
+
+    from .models import Notification, PaidAdvertisement
+
+    User = get_user_model()
+
+    paid_ad_id = payment.metadata.get("paid_banner_ad_id")
+    if not paid_ad_id:
+        logger.error("process_paid_banner_payment: no paid_banner_ad_id in payment %s", payment.id)
+        return False
+
+    try:
+        paid_ad = PaidAdvertisement.objects.select_related("advertiser").get(pk=paid_ad_id)
+        paid_ad.payment_status = "paid"
+        paid_ad.payment_reference = str(payment.id)
+        paid_ad.status = PaidAdvertisement.Status.PENDING_APPROVAL
+        paid_ad.save(update_fields=["payment_status", "payment_reference", "status"])
+
+        advertiser = paid_ad.advertiser
+        advertiser_name = advertiser.get_full_name() or advertiser.username
+        admin_url = f"/admin/main/paidadvertisement/{paid_ad.pk}/change/"
+
+        # ------------------------------------------------------------------
+        # Email alert to admin
+        # ------------------------------------------------------------------
+        try:
+            from constance import config as cc
+            admin_email = getattr(cc, "ADMIN_NOTIFICATION_EMAIL", None)
+        except Exception:
+            admin_email = None
+        admin_email = admin_email or getattr(settings, "DEFAULT_FROM_EMAIL", "admin@idrissimart.com")
+
+        admin_html = (
+            f"<p>تم استلام إعلان بانر مدفوع جديد ويحتاج إلى مراجعتك.</p>"
+            f"<ul>"
+            f"<li><strong>العنوان:</strong> {paid_ad.title}</li>"
+            f"<li><strong>المعلن:</strong> {advertiser_name} ({advertiser.email})</li>"
+            f"<li><strong>المبلغ المدفوع:</strong> {paid_ad.price} {paid_ad.currency}</li>"
+            f"<li><strong>رقم الدفع:</strong> {payment.id}</li>"
+            f"</ul>"
+            f'<p><a href="{admin_url}">مراجعة الإعلان في لوحة الإدارة</a></p>'
+        )
+        send_email(
+            admin_email,
+            f"إعلان بانر مدفوع جديد ينتظر المراجعة – {paid_ad.title}",
+            admin_html,
+        )
+
+        # ------------------------------------------------------------------
+        # Confirmation email to publisher
+        # ------------------------------------------------------------------
+        publisher_html = (
+            f"<p>عزيزي {advertiser_name}،</p>"
+            f"<p>تم استلام دفعتك وتسجيل إعلانك البانري بنجاح.</p>"
+            f"<ul>"
+            f"<li><strong>عنوان الإعلان:</strong> {paid_ad.title}</li>"
+            f"<li><strong>المبلغ المدفوع:</strong> {paid_ad.price} {paid_ad.currency}</li>"
+            f"<li><strong>الحالة:</strong> قيد المراجعة</li>"
+            f"</ul>"
+            f"<p>سيتم مراجعة إعلانك والموافقة عليه من قِبل الإدارة قريباً.</p>"
+            f"<p>شكراً لاستخدامك إدريسي مارت.</p>"
+        )
+        send_email(
+            advertiser.email,
+            f"تأكيد استلام دفع إعلانك البانري – {paid_ad.title}",
+            publisher_html,
+        )
+
+        # ------------------------------------------------------------------
+        # In-app notifications
+        # ------------------------------------------------------------------
+        Notification.objects.create(
+            user=advertiser,
+            notification_type=Notification.NotificationType.GENERAL,
+            title=_("تم استلام دفع إعلانك البانري"),
+            message=_(
+                "تم تأكيد دفع إعلانك البانري «{}» بنجاح. سيتم مراجعته والموافقة عليه من قِبل الإدارة قريباً."
+            ).format(paid_ad.title),
+            link="",
+        )
+
+        for staff_user in User.objects.filter(is_staff=True, is_active=True):
+            Notification.objects.create(
+                user=staff_user,
+                notification_type=Notification.NotificationType.GENERAL,
+                title=_("إعلان بانر مدفوع جديد ينتظر المراجعة"),
+                message=_(
+                    "المعلن {} قدّم إعلاناً مدفوعاً بعنوان «{}» وأتمّ عملية الدفع."
+                ).format(advertiser_name, paid_ad.title),
+                link=admin_url,
+            )
+
+        logger.info("PaidAdvertisement %s marked paid after payment %s", paid_ad.pk, payment.id)
+        return True
+
+    except PaidAdvertisement.DoesNotExist:
+        logger.error("process_paid_banner_payment: PaidAdvertisement %s not found", paid_ad_id)
+        return False
+    except Exception as exc:
+        logger.error("process_paid_banner_payment error for payment %s: %s", payment.id, exc)
+        return False
+
+
 @login_required
 @require_POST
 def confirm_ad_payment(request, payment_id):
@@ -800,7 +918,9 @@ def confirm_ad_payment(request, payment_id):
 
     # Check payment type and process accordingly
     payment_type = payment.metadata.get("payment_type", "ad_payment")
-    if payment_type == "ad_upgrade":
+    if payment_type == "paid_banner":
+        success = process_paid_banner_payment(payment)
+    elif payment_type == "ad_upgrade":
         success = process_ad_upgrade_payment(payment)
     else:
         success = process_ad_payment(payment)

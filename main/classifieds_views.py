@@ -80,7 +80,7 @@ class ClassifiedAdListView(FilterView):
             from .models import CategoryCustomField
 
             try:
-                category = Category.objects.get(pk=category_id)
+                category = Category.objects.get(pk=int(category_id))
                 # Get all custom fields that should show in filters
                 filter_fields = (
                     CategoryCustomField.objects.filter(
@@ -94,7 +94,7 @@ class ClassifiedAdListView(FilterView):
 
                 context['category_filter_fields'] = filter_fields
                 context['selected_category'] = category
-            except Category.DoesNotExist:
+            except (Category.DoesNotExist, ValueError, TypeError):
                 pass
 
         # ── Search context ────────────────────────────────────────────
@@ -526,10 +526,12 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
 
         # Get user's active package to determine feature prices
         if self.request.user.is_authenticated:
+            # Only use package pricing when the user still has free ads remaining
             active_package = (
                 UserPackage.objects.filter(
                     user=self.request.user,
                     expiry_date__gte=timezone.now(),
+                    ads_remaining__gt=0,
                 )
                 .order_by("expiry_date")
                 .first()
@@ -570,59 +572,73 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
                         if package.feature_contact_for_price
                         else 0.0
                     ),
+                    "auto_refresh": (
+                        float(package.feature_auto_refresh_price)
+                        if package.feature_auto_refresh_price
+                        else 0.0
+                    ),
+                    "add_video": (
+                        float(package.feature_add_video_price)
+                        if package.feature_add_video_price
+                        else 0.0
+                    ),
                 }
                 context["pricing_source"] = "package"
                 # Don't pass the active_package object itself, just its data
-                context["active_package_id"] = active_package.id
+                context["active_package_id"] = active_package.pk
                 context["active_package_name"] = (
                     active_package.package.name if active_package.package else None
                 )
             else:
-                # Use site default prices
+                # No free ads remaining — use constance prices
                 context["feature_prices"] = {
-                    "highlighted": (
-                        float(site_config.featured_ad_price)
-                        if site_config.featured_ad_price
-                        else 0.0
+                    "highlighted": float(
+                        getattr(constance_config, "FEATURE_HIGHLIGHTED_PRICE", 50.0)
                     ),
-                    "urgent": (
-                        float(site_config.urgent_ad_price)
-                        if site_config.urgent_ad_price
-                        else 0.0
+                    "urgent": float(
+                        getattr(constance_config, "FEATURE_URGENT_PRICE", 30.0)
                     ),
-                    "pinned": (
-                        float(site_config.pinned_ad_price)
-                        if site_config.pinned_ad_price
-                        else 0.0
+                    "pinned": float(
+                        getattr(constance_config, "FEATURE_PINNED_PRICE", 75.0)
                     ),
-                    "contact_for_price": 0.0,  # Free or unavailable without package
+                    "contact_for_price": float(
+                        getattr(constance_config, "FEATURE_CONTACT_FOR_PRICE", 0.0)
+                    ),
+                    "auto_refresh": float(
+                        getattr(constance_config, "FEATURE_AUTO_REFRESH_PRICE", 35.0)
+                    ),
+                    "add_video": float(
+                        getattr(constance_config, "FEATURE_ADD_VIDEO_PRICE", 25.0)
+                    ),
                 }
-                context["pricing_source"] = "site_default"
+                context["pricing_source"] = "constance"
                 context["active_package_id"] = None
                 context["active_package_name"] = None
         else:
-            # Guest user - show site defaults
+            # Guest user — use constance prices
             context["has_free_ads"] = False
             context["free_ads_remaining"] = 0
             context["feature_prices"] = {
-                "highlighted": (
-                    float(site_config.featured_ad_price)
-                    if site_config.featured_ad_price
-                    else 0.0
+                "highlighted": float(
+                    getattr(constance_config, "FEATURE_HIGHLIGHTED_PRICE", 50.0)
                 ),
-                "urgent": (
-                    float(site_config.urgent_ad_price)
-                    if site_config.urgent_ad_price
-                    else 0.0
+                "urgent": float(
+                    getattr(constance_config, "FEATURE_URGENT_PRICE", 30.0)
                 ),
-                "pinned": (
-                    float(site_config.pinned_ad_price)
-                    if site_config.pinned_ad_price
-                    else 0.0
+                "pinned": float(
+                    getattr(constance_config, "FEATURE_PINNED_PRICE", 75.0)
                 ),
-                "contact_for_price": 0.0,
+                "contact_for_price": float(
+                    getattr(constance_config, "FEATURE_CONTACT_FOR_PRICE", 0.0)
+                ),
+                "auto_refresh": float(
+                    getattr(constance_config, "FEATURE_AUTO_REFRESH_PRICE", 35.0)
+                ),
+                "add_video": float(
+                    getattr(constance_config, "FEATURE_ADD_VIDEO_PRICE", 25.0)
+                ),
             }
-            context["pricing_source"] = "site_default"
+            context["pricing_source"] = "constance"
             context["active_package_id"] = None
             context["active_package_name"] = None
 
@@ -667,11 +683,12 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
                     False  # Reset if category doesn't support cart
                 )
 
-        # Check if user has active package (for both pricing and free ads check)
+        # Check if user has active package with remaining ads (for pricing)
         active_package = (
             UserPackage.objects.filter(
                 user=self.request.user,
                 expiry_date__gte=timezone.now(),
+                ads_remaining__gt=0,
             )
             .order_by("expiry_date")
             .first()
@@ -708,19 +725,32 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             if feature_add_video:
                 features_cost += Decimal(str(package.feature_add_video_price))
         else:
-            # User has no package, use site default pricing
+            # No free ads remaining — use constance pricing
+            from constance import config as constance_cfg
             if feature_highlighted:
-                features_cost += Decimal(str(site_config.featured_ad_price))
+                features_cost += Decimal(
+                    str(getattr(constance_cfg, "FEATURE_HIGHLIGHTED_PRICE", 50.0))
+                )
             if feature_urgent:
-                features_cost += Decimal(str(site_config.urgent_ad_price))
+                features_cost += Decimal(
+                    str(getattr(constance_cfg, "FEATURE_URGENT_PRICE", 30.0))
+                )
             if feature_pinned:
-                features_cost += Decimal(str(site_config.pinned_ad_price))
+                features_cost += Decimal(
+                    str(getattr(constance_cfg, "FEATURE_PINNED_PRICE", 75.0))
+                )
             if feature_contact_for_price:
-                features_cost += Decimal("0.00")
+                features_cost += Decimal(
+                    str(getattr(constance_cfg, "FEATURE_CONTACT_FOR_PRICE", 0.0))
+                )
             if feature_auto_refresh:
-                features_cost += Decimal(str(site_config.auto_refresh_price))
+                features_cost += Decimal(
+                    str(getattr(constance_cfg, "FEATURE_AUTO_REFRESH_PRICE", 35.0))
+                )
             if feature_add_video:
-                features_cost += Decimal(str(site_config.add_video_price))
+                features_cost += Decimal(
+                    str(getattr(constance_cfg, "FEATURE_ADD_VIDEO_PRICE", 25.0))
+                )
 
         # Determine base fee (publishing cost)
         base_fee = Decimal("0.00")
@@ -1063,6 +1093,16 @@ class ClassifiedAdCreateSuccessView(LoginRequiredMixin, DetailView):
 
     def get_queryset(self):
         return ClassifiedAd.objects.filter(user=self.request.user)
+
+
+def classifieds_id_redirect(request, pk):
+    """Redirect old numeric-ID ad URLs to the correct slug URL (permanent 301)."""
+    from django.http import Http404
+    from django.shortcuts import redirect
+    ad = ClassifiedAd.objects.filter(pk=pk).values("slug").first()
+    if not ad:
+        raise Http404
+    return redirect("main:ad_detail", slug=ad["slug"], permanent=True)
 
 
 class ClassifiedAdDetailView(DetailView):

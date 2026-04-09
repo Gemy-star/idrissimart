@@ -7647,17 +7647,24 @@ def custom_404(request, exception=None):
 
     logger = logging.getLogger(__name__)
 
-    # Log the 404 error for debugging
     path = request.get_full_path()
     logger.info(
         f"404 error for path: {path}, exception: {exception}, IP: {request.META.get('REMOTE_ADDR', 'unknown')}"
     )
 
-    # Check if this is an AJAX request
+    # Return a lightweight JSON response for AJAX requests
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         from django.http import JsonResponse
 
         return JsonResponse({"error": "Page not found"}, status=404)
+
+    # Return minimal plain-text 404 for obvious bot/scanner paths to avoid
+    # serving the full 104KB template to automated traffic
+    from django.http import HttpResponse
+
+    _BOT_PREFIXES = ("/profile/", "/home/", "/.env", "/wp-", "/xmlrpc", "/cgi-bin")
+    if any(path.startswith(p) for p in _BOT_PREFIXES):
+        return HttpResponse("Not Found", status=404, content_type="text/plain")
 
     return render(request, "404.html", status=404)
 
@@ -8066,6 +8073,7 @@ def visitor_analytics_data(request):
 
     from django.db.models import Avg, Count, F, ExpressionWrapper, fields
     from datetime import timedelta
+    from .models import Visitor
 
     # Get the number of days from query parameter (default: 30)
     days = int(request.GET.get("days", 30))

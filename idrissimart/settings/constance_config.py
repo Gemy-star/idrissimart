@@ -408,6 +408,37 @@ CONSTANCE_CONFIG = {
         _("Urgent ad price for 30 days (EGP)"),
         float,
     ),
+    # Ad Feature Prices at Creation Time (used when user has no free ads remaining)
+    "FEATURE_HIGHLIGHTED_PRICE": (
+        50.00,
+        _("Featured/highlighted ad price at creation (EGP)"),
+        float,
+    ),
+    "FEATURE_URGENT_PRICE": (
+        30.00,
+        _("Urgent ad price at creation (EGP)"),
+        float,
+    ),
+    "FEATURE_PINNED_PRICE": (
+        75.00,
+        _("Pinned ad price at creation (EGP)"),
+        float,
+    ),
+    "FEATURE_AUTO_REFRESH_PRICE": (
+        35.00,
+        _("Auto-refresh ad price at creation (EGP)"),
+        float,
+    ),
+    "FEATURE_ADD_VIDEO_PRICE": (
+        25.00,
+        _("Add video to ad price at creation (EGP)"),
+        float,
+    ),
+    "FEATURE_CONTACT_FOR_PRICE": (
+        0.00,
+        _("Contact-for-price ad feature price at creation (EGP)"),
+        float,
+    ),
     # Admin Notification Settings
     "NOTIFY_ADMIN_NEW_ADS": (
         True,
@@ -602,6 +633,14 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "FEATURED_AD_PRICE_30DAYS",
         "PINNED_AD_PRICE_30DAYS",
         "URGENT_AD_PRICE_30DAYS",
+    ),
+    "Ad Feature Prices (Creation — no free ads)": (
+        "FEATURE_HIGHLIGHTED_PRICE",
+        "FEATURE_URGENT_PRICE",
+        "FEATURE_PINNED_PRICE",
+        "FEATURE_AUTO_REFRESH_PRICE",
+        "FEATURE_ADD_VIDEO_PRICE",
+        "FEATURE_CONTACT_FOR_PRICE",
     ),
     "Admin Notifications": (
         "NOTIFY_ADMIN_NEW_ADS",

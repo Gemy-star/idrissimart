@@ -91,6 +91,8 @@ CSRF_COOKIE_SECURE = False  # HTTP is fine for local
 CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access in dev
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_TRUSTED_ORIGINS = [
+    "http://127.0.0.1:4554",
+    "http://localhost:4554",
     "http://127.0.0.1:5455",
     "http://localhost:5455",
     "http://127.0.0.1:6522",

@@ -1198,11 +1198,12 @@ class CustomUserAdmin(UserAdmin):
         from django.urls import path
 
         urls = super().get_urls()
+        info = self.opts.app_label, self.opts.model_name
         custom_urls = [
             path(
                 "start-chat/<int:user_id>/",
                 self.admin_site.admin_view(self.start_chat_view),
-                name="user_start_chat",
+                name="%s_%s_start_chat" % info,
             ),
         ]
         return custom_urls + urls
@@ -1221,7 +1222,7 @@ class CustomUserAdmin(UserAdmin):
         )
 
         # Redirect to chat room admin change page
-        return redirect(reverse("admin:main_chatroom_change", args=[chat_room.id]))
+        return redirect(reverse("admin:main_chatroom_change", args=[chat_room.pk]))
 
     def chat_icon(self, obj):
         """Display a chat icon that opens chat with this user"""
@@ -1256,7 +1257,7 @@ class CustomUserAdmin(UserAdmin):
             ).first()
 
             if chat_room:
-                chat_url = reverse("admin:main_chatroom_change", args=[chat_room.id])
+                chat_url = reverse("admin:main_chatroom_change", args=[chat_room.pk])
                 button_text = "Open Existing Chat"
                 button_class = "default"
             else:
@@ -2163,10 +2164,10 @@ class OrderAdmin(admin.ModelAdmin):
     def get_total_amount_display(self, obj):
         """Display formatted total amount"""
         return format_html(
-            '<div style="text-align: right;"><span style="font-weight: bold; color: #28a745;">{:.2f}</span><br>'
-            '<small style="color: #6c757d;">مدفوع: {:.2f}</small></div>',
-            obj.total_amount,
-            obj.paid_amount,
+            '<div style="text-align: right;"><span style="font-weight: bold; color: #28a745;">{}</span><br>'
+            '<small style="color: #6c757d;">مدفوع: {}</small></div>',
+            f"{float(obj.total_amount):.2f}",
+            f"{float(obj.paid_amount):.2f}",
         )
 
     get_total_amount_display.short_description = _("المبلغ")
@@ -3509,7 +3510,7 @@ class PaidAdvertisementAdmin(admin.ModelAdmin):
         """Display date range in a compact format"""
         from django.utils import timezone
         now = timezone.now()
-        
+
         if obj.end_date < now:
             status_icon = '🔴'
             status_text = 'منتهي'
@@ -3519,7 +3520,7 @@ class PaidAdvertisementAdmin(admin.ModelAdmin):
         else:
             status_icon = '🟢'
             status_text = 'نشط'
-        
+
         return format_html(
             '{} <small>{}</small><br><small>{} - {}</small>',
             status_icon,
@@ -3538,7 +3539,7 @@ class PaidAdvertisementAdmin(admin.ModelAdmin):
             color = "#f39c12"  # Orange - good
         else:
             color = "#e74c3c"  # Red - needs improvement
-        
+
         return format_html(
             '<span style="color: {}; font-weight: bold;">{:.2f}%</span>',
             color,
@@ -3548,10 +3549,20 @@ class PaidAdvertisementAdmin(admin.ModelAdmin):
 
     # Actions
     def approve_ads(self, request, queryset):
-        """Approve selected ads"""
+        """Approve selected ads and notify the advertiser"""
+        from .models import Notification
         count = 0
-        for ad in queryset:
+        for ad in queryset.select_related("advertiser"):
             ad.approve(request.user)
+            Notification.objects.create(
+                user=ad.advertiser,
+                notification_type=Notification.NotificationType.AD_APPROVED,
+                title=_("تمت الموافقة على إعلانك البانري"),
+                message=_(
+                    "تمت مراجعة إعلانك البانري «{}» والموافقة عليه. سيبدأ عرضه في الفترة المحددة."
+                ).format(ad.title),
+                link="",
+            )
             count += 1
         self.message_user(request, _("تم الموافقة على {} إعلان").format(count))
     approve_ads.short_description = _("الموافقة على الإعلانات المحددة")

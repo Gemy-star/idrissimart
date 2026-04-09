@@ -1,0 +1,186 @@
+{% extends 'dashboard/base.html' %}
+{% load i18n static %}
+
+{% block publisher_title %}{% trans "إعلاناتي البانرية المدفوعة" %}{% endblock %}
+
+{% block publisher_content %}
+<div class="dashboard-header mb-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h1><i class="fas fa-ad"></i> {% trans "الإعلانات البانرية المدفوعة" %}</h1>
+            <p class="text-muted">{% trans "أنشئ إعلاناً بانرياً مدفوعاً على المنصة وأرسله للموافقة" %}</p>
+        </div>
+        <a href="{% url 'main:publisher_paid_ad_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus-circle"></i> {% trans "إنشاء إعلان جديد" %}
+        </a>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="row mb-4">
+    <div class="col-sm-6 col-lg-3 mb-3">
+        <div class="stats-card">
+            <h3>{{ stats.total }}</h3>
+            <p>{% trans "الإجمالي" %}</p>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3 mb-3">
+        <div class="stats-card">
+            <h3 class="text-success">{{ stats.active }}</h3>
+            <p>{% trans "نشط" %}</p>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3 mb-3">
+        <div class="stats-card">
+            <h3 class="text-warning">{{ stats.pending }}</h3>
+            <p>{% trans "قيد المراجعة" %}</p>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3 mb-3">
+        <div class="stats-card">
+            <h3 class="text-danger">{{ stats.unpaid }}</h3>
+            <p>{% trans "لم يُدفع بعد" %}</p>
+        </div>
+    </div>
+</div>
+
+{% if messages %}
+<div class="mb-3">
+    {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show">
+        {{ msg }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Ads Table -->
+{% if paid_ads %}
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>{% trans "الإعلان" %}</th>
+                        <th>{% trans "النوع" %}</th>
+                        <th>{% trans "الفترة" %}</th>
+                        <th>{% trans "السعر" %}</th>
+                        <th>{% trans "حالة الدفع" %}</th>
+                        <th>{% trans "الحالة" %}</th>
+                        <th>{% trans "إجراء" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ad in paid_ads %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                {% if ad.image %}
+                                <img src="{{ ad.image.url }}" alt="{{ ad.title }}"
+                                     style="width:60px;height:40px;object-fit:cover;border-radius:6px;">
+                                {% else %}
+                                <div class="bg-light d-flex align-items-center justify-content-center"
+                                     style="width:60px;height:40px;border-radius:6px;">
+                                    <i class="fas fa-image text-muted"></i>
+                                </div>
+                                {% endif %}
+                                <div>
+                                    <strong>{{ ad.title }}</strong>
+                                    {% if ad.company_name %}
+                                    <div class="text-muted small">{{ ad.company_name }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if ad.ad_type == 'banner' %}
+                            <span class="badge bg-primary">{% trans "بانر" %}</span>
+                            {% elif ad.ad_type == 'sidebar' %}
+                            <span class="badge bg-purple">{% trans "جانبي" %}</span>
+                            {% elif ad.ad_type == 'popup' %}
+                            <span class="badge bg-danger">{% trans "نافذة منبثقة" %}</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">{% trans "صندوق مميز" %}</span>
+                            {% endif %}
+                        </td>
+                        <td class="small">
+                            <div>{{ ad.start_date|date:"Y‑m‑d" }}</div>
+                            <div class="text-muted">{% trans "حتى" %} {{ ad.end_date|date:"Y‑m‑d" }}</div>
+                        </td>
+                        <td><strong>{{ ad.price }} {{ ad.currency }}</strong></td>
+                        <td>
+                            {% if ad.payment_status == 'paid' %}
+                            <span class="badge bg-success">{% trans "مدفوع" %}</span>
+                            {% elif ad.payment_status == 'refunded' %}
+                            <span class="badge bg-secondary">{% trans "مسترد" %}</span>
+                            {% else %}
+                            <span class="badge bg-danger">{% trans "لم يُدفع" %}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ad.status == 'active' %}
+                            <span class="badge bg-success">{% trans "نشط" %}</span>
+                            {% elif ad.status == 'pending' %}
+                            <span class="badge bg-warning text-dark">{% trans "قيد المراجعة" %}</span>
+                            {% elif ad.status == 'paused' %}
+                            <span class="badge bg-secondary">{% trans "موقوف" %}</span>
+                            {% elif ad.status == 'expired' %}
+                            <span class="badge bg-dark">{% trans "منتهي" %}</span>
+                            {% else %}
+                            <span class="badge bg-light text-dark">{% trans "مسودة" %}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ad.payment_status == 'unpaid' %}
+                            <a href="{% url 'main:publisher_paid_ad_retry_payment' pk=ad.pk %}"
+                               class="btn btn-sm btn-warning">
+                                <i class="fas fa-credit-card"></i> {% trans "ادفع الآن" %}
+                            </a>
+                            {% else %}
+                            <span class="text-muted small">
+                                <i class="fas fa-check-circle text-success"></i>
+                                {% trans "بانتظار الموافقة" %}
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if is_paginated %}
+<nav class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">{% trans "السابق" %}</a>
+        </li>
+        {% endif %}
+        <li class="page-item disabled">
+            <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+        </li>
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}">{% trans "التالي" %}</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="text-center py-5">
+    <i class="fas fa-ad fa-4x text-muted mb-3"></i>
+    <h4>{% trans "لا توجد إعلانات مدفوعة بعد" %}</h4>
+    <p class="text-muted">{% trans "أنشئ أول إعلان بانري مدفوع لك وابدأ الوصول لجمهور أوسع." %}</p>
+    <a href="{% url 'main:publisher_paid_ad_create' %}" class="btn btn-primary btn-lg mt-2">
+        <i class="fas fa-plus-circle"></i> {% trans "إنشاء إعلان الآن" %}
+    </a>
+</div>
+{% endif %}
+{% endblock %}

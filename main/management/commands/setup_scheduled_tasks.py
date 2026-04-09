@@ -54,10 +54,13 @@ class Command(BaseCommand):
             next_day_2am = next_day_2am + timezone.timedelta(days=1)
 
         # Helper function to add settings argument if provided
+        # Args must be a valid Python literal tuple string for ast.literal_eval
         def format_args(command_args):
+            parts = command_args.split(",")
             if settings_module:
-                return f"{command_args},--settings,{settings_module}"
-            return command_args
+                parts.extend(["--settings", settings_module])
+            quoted = ", ".join(f"'{p}'" for p in parts)
+            return f"({quoted},)"
 
         tasks = [
             # === CORE EXPIRATION COMMANDS (Daily) ===

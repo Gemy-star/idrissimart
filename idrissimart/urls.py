@@ -12,12 +12,14 @@ urlpatterns = [
     path("api/cart/add/", cart_wishlist_views.add_to_cart),
     path("api/cart/remove/", cart_wishlist_views.remove_from_cart),
     path("api/cart/update-quantity/", cart_wishlist_views.update_cart_quantity),
+    path("api/cart/clear/", cart_wishlist_views.clear_cart),
     path("api/cart/count/", cart_wishlist_views.get_cart_count_view),
     path("api/wishlist/add/", cart_wishlist_views.add_to_wishlist),
     path("api/wishlist/remove/", cart_wishlist_views.remove_from_wishlist),
     path("api/wishlist/toggle/", cart_wishlist_views.toggle_wishlist),
     path("api/wishlist/count/", cart_wishlist_views.get_wishlist_count),
     path("api/wishlist/status/", cart_wishlist_views.check_wishlist_status),
+    path("api/wishlist/clear/", cart_wishlist_views.clear_wishlist),
     path("api/", include("api.urls", namespace="api")),  # Mobile API
     path("ckeditor5/", include("django_ckeditor_5.urls")),  # CKEditor 5 URLs
 ]

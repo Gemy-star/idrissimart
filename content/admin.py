@@ -307,8 +307,10 @@ class HomeSliderAdmin(admin.ModelAdmin):
                 obj.country.flag_emoji,
                 obj.country.name,
             )
+        from django.utils.translation import gettext as _
         return format_html(
-            '<span style="color: #999;">{% trans "عام - All Countries" %}</span>'
+            '<span style="color: #999;">{}</span>',
+            _("عام - All Countries"),
         )
 
     country_display.short_description = "الدولة"
@@ -360,7 +362,7 @@ class BlogAdmin(admin.ModelAdmin):
         ),
         (
             _("المحتوى"),
-            {"fields": ("content", "featured_image")},
+            {"fields": ("content", "image")},
         ),
         (
             _("الحالة والإحصائيات"),
