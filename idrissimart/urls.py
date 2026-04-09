@@ -26,10 +26,13 @@ urlpatterns = [
     path("ckeditor5/", include("django_ckeditor_5.urls")),  # CKEditor 5 URLs
 ]
 
+urlpatterns += [
+    path("super-admin/", admin.site.urls),
+    path("super-admin/translations/", include("rosetta.urls")),
+]
+
 urlpatterns += i18n_patterns(
     path("", include("main.urls", namespace="main")),  # Your main app
-    path("super-admin/", admin.site.urls),
-    path("super-admin/translations/", include("rosetta.urls")),  # Translation manager
     path("content/", include("content.urls", namespace="content")),  # Your content app
 )
 
