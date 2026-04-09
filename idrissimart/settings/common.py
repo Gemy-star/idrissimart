@@ -94,7 +94,6 @@ MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "content.middleware.ForceAdminEnglishMiddleware",
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -106,6 +105,8 @@ MIDDLEWARE = [
     "main.middleware.BlockMaliciousRequestsMiddleware",
     # force App to open in AR language
     "content.middleware.ForceArabicDefaultMiddleware",
+    # Force English for /super-admin/ — must be after LocaleMiddleware and ForceArabicDefaultMiddleware
+    "content.middleware.ForceAdminEnglishMiddleware",
     # Country filtering middleware
     "main.middleware.CountryFilterMiddleware",
     # User permissions middleware
