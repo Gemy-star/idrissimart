@@ -349,7 +349,8 @@ def payment_page_upgrade(request, payment_id):
     site_config_enabled = site_config.require_phone_verification
 
     # If either is enabled and user's phone is not verified, redirect
-    if (constance_enabled or site_config_enabled) and not request.user.is_mobile_verified:
+    is_mobile_verified = getattr(request.user, "is_mobile_verified", True)
+    if (constance_enabled or site_config_enabled) and not is_mobile_verified:
         messages.warning(
             request,
             _("يجب التحقق من رقم هاتفك قبل ترقية الإعلانات. الرجاء تأكيد رقم هاتفك أولاً.")
@@ -408,7 +409,8 @@ def ad_payment(request, ad_id):
     site_config_enabled = site_config.require_phone_verification
 
     # If either is enabled and user's phone is not verified, redirect
-    if (constance_enabled or site_config_enabled) and not request.user.is_mobile_verified:
+    is_mobile_verified = getattr(request.user, "is_mobile_verified", True)
+    if (constance_enabled or site_config_enabled) and not is_mobile_verified:
         messages.warning(
             request,
             _("يجب التحقق من رقم هاتفك قبل نشر الإعلانات. الرجاء تأكيد رقم هاتفك أولاً.")

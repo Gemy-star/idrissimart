@@ -2,9 +2,23 @@ from django.conf import settings
 from django.conf.urls.i18n import i18n_patterns
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.contrib.admin import AdminSite
 from django.urls import include, path
 from main import cart_wishlist_views
 from main import views as main_views
+
+# Sort models alphabetically within each app in the admin sidebar
+_original_get_app_list = AdminSite.get_app_list
+
+
+def _sorted_get_app_list(self, request, app_label=None):
+    app_list = _original_get_app_list(self, request, app_label)
+    for app in app_list:
+        app["models"].sort(key=lambda m: m["name"].lower())
+    return app_list
+
+
+AdminSite.get_app_list = _sorted_get_app_list
 
 urlpatterns = [
     path("i18n/", include("django.conf.urls.i18n")),

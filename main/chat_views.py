@@ -201,6 +201,79 @@ def send_message(request, room_id):
     chat_room.updated_at = timezone.now()
     chat_room.save(update_fields=["updated_at"])
 
+    # Determine receiver (the other participant)
+    receiver = None
+    if chat_room.room_type == "publisher_admin":
+        # For admin chats: if sender is publisher, receiver is admin/staff
+        # if sender is staff, receiver is publisher
+        if request.user == chat_room.publisher:
+            # Sender is publisher, notify admins (we'll skip this for now)
+            pass
+        else:
+            # Sender is staff, notify publisher
+            receiver = chat_room.publisher
+    else:
+        # For publisher-client chats
+        receiver = chat_room.client if chat_room.publisher == request.user else chat_room.publisher
+
+    # Send notification and email to receiver
+    if receiver:
+        # Create in-app notification
+        from .models import Notification
+
+        sender_name = request.user.get_full_name() or request.user.username
+        ad_title = chat_room.ad.title if chat_room.ad else ""
+
+        notification_title = f"رسالة جديدة من {sender_name}"
+        notification_message = f"لديك رسالة جديدة"
+        if ad_title:
+            notification_message += f" بخصوص إعلانك: {ad_title}"
+
+        # Build chat URL
+        from django.urls import reverse
+        chat_url = reverse("main:chat_room", kwargs={"room_id": chat_room.id})
+
+        # Create notification
+        Notification.objects.create(
+            user=receiver,
+            title=notification_title,
+            message=notification_message,
+            notification_type=Notification.NotificationType.GENERAL,
+            link=chat_url,
+        )
+
+        # Send email notification if user has email notifications enabled
+        receiver_email = receiver.email
+        notify_new_messages = getattr(receiver, "notify_new_messages", True)
+
+        if receiver_email and notify_new_messages:
+            from .services.email_service import EmailService
+            from django.contrib.sites.shortcuts import get_current_site
+
+            receiver_name = receiver.get_full_name() or receiver.username
+            current_site = get_current_site(request)
+            protocol = "https" if request.is_secure() else "http"
+            full_chat_url = f"{protocol}://{current_site.domain}{chat_url}"
+
+            # Truncate message for preview
+            message_preview = message_text[:200] if len(message_text) > 200 else message_text
+
+            # Send email asynchronously (optional: use Celery or Django-Q)
+            try:
+                EmailService.send_new_message_email(
+                    email=receiver_email,
+                    receiver_name=receiver_name,
+                    sender_name=sender_name,
+                    message_preview=message_preview,
+                    chat_url=full_chat_url,
+                    ad_title=ad_title,
+                )
+            except Exception as e:
+                # Log error but don't fail the request
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to send new message email: {e}")
+
     return JsonResponse(
         {
             "success": True,

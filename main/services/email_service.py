@@ -435,3 +435,66 @@ class EmailService:
             template_name="emails/saved_search_notification.html", context=context,
             from_email=config.SAVED_SEARCH_FROM_EMAIL,
         )
+
+    @staticmethod
+    def send_new_message_email(
+        email: str,
+        receiver_name: str,
+        sender_name: str,
+        message_preview: str,
+        chat_url: str,
+        ad_title: str = ""
+    ) -> bool:
+        """
+        Send notification email when a new chat message is received.
+
+        Args:
+            email: Recipient email address
+            receiver_name: Name of the message receiver
+            sender_name: Name of the message sender
+            message_preview: Preview of the message content
+            chat_url: URL to view the full chat
+            ad_title: Title of the related ad (optional)
+
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        from constance import config
+
+        # Check if email notifications are enabled
+        if not getattr(config, "ENABLE_EMAIL_NOTIFICATIONS", True):
+            logger.info("Email notifications disabled in settings")
+            return False
+
+        # Truncate message preview if too long
+        if len(message_preview) > 200:
+            message_preview = message_preview[:200] + "..."
+
+        context = {
+            "site_name": config.SITE_NAME,
+            "receiver_name": receiver_name,
+            "sender_name": sender_name,
+            "message_preview": message_preview,
+            "chat_url": chat_url,
+            "ad_title": ad_title,
+            "site_url": config.SITE_URL,
+        }
+
+        # Try to get template from database first
+        db = EmailService._render_db_template("new_message", context)
+        if db:
+            subject, html_content = db
+            return EmailService.send_email(
+                to_emails=[email],
+                subject=subject,
+                html_content=html_content
+            )
+
+        # Fallback to file template
+        subject = f"{config.SITE_NAME} - رسالة جديدة من {sender_name}"
+        return EmailService.send_template_email(
+            to_emails=[email],
+            subject=subject,
+            template_name="emails/new_message.html",
+            context=context,
+        )

@@ -574,7 +574,8 @@ class ClassifiedAdForm(forms.ModelForm):
                 site_config = SiteConfiguration.get_solo()
 
                 if site_config.require_phone_verification:
-                    if not self.user.is_mobile_verified:
+                    is_mobile_verified = getattr(self.user, "is_mobile_verified", False)
+                    if not is_mobile_verified:
                         raise forms.ValidationError({
                             'mobile_number': _("يجب التحقق من رقم الجوال قبل نشر الإعلان")
                         })

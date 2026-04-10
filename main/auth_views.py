@@ -736,7 +736,8 @@ def send_phone_verification_code(request):
         # Check if phone already registered (but allow if it's the current user's phone)
         if request.user.is_authenticated:
             # For authenticated users, check if phone is already verified
-            if request.user.is_mobile_verified and (
+            is_mobile_verified = getattr(request.user, "is_mobile_verified", False)
+            if is_mobile_verified and (
                 request.user.mobile == normalized_phone
                 or request.user.phone == normalized_phone
             ):
@@ -1256,7 +1257,8 @@ def phone_verification_required(request):
     if not request.user.is_authenticated:
         return redirect("main:login")
 
-    if request.user.is_mobile_verified:
+    is_mobile_verified = getattr(request.user, "is_mobile_verified", False)
+    if is_mobile_verified:
         return redirect("main:dashboard")
 
     return render(request, "pages/phone_verification_required.html")

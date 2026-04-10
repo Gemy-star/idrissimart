@@ -324,7 +324,8 @@ def publisher_paid_ad_payment(request):
     constance_enabled = getattr(constance_config, "ENABLE_MOBILE_VERIFICATION", True)
     site_config = SiteConfiguration.get_solo()
     site_config_enabled = site_config.require_phone_verification
-    if (constance_enabled or site_config_enabled) and not request.user.is_mobile_verified:
+    is_mobile_verified = getattr(request.user, "is_mobile_verified", True)
+    if (constance_enabled or site_config_enabled) and not is_mobile_verified:
         messages.warning(request, _("يجب التحقق من رقم هاتفك أولاً."))
         return redirect("main:phone_verification_required")
 

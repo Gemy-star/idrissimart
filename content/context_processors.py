@@ -150,12 +150,12 @@ def verification_settings(request):
 
     # Add user verification status if authenticated
     if request.user.is_authenticated:
+        is_email_verified = getattr(request.user, "is_email_verified", False)
+        is_mobile_verified = getattr(request.user, "is_mobile_verified", False)
         context["user_verification_status"] = {
-            "is_email_verified": request.user.is_email_verified,
-            "is_phone_verified": request.user.is_mobile_verified,
-            "needs_verification": not (
-                request.user.is_email_verified or request.user.is_mobile_verified
-            ),
+            "is_email_verified": is_email_verified,
+            "is_phone_verified": is_mobile_verified,
+            "needs_verification": not (is_email_verified or is_mobile_verified),
         }
 
     return context
@@ -181,29 +181,29 @@ def paid_advertisements(request):
     Filters ads based on current page context and selected country.
     """
     from main.models import PaidAdvertisement
-    
+
     selected_country = request.session.get("selected_country", "EG")
-    
+
     context = {
         "homepage_paid_ads": [],
         "sidebar_paid_ads": [],
         "banner_paid_ads": [],
     }
-    
+
     # Get homepage ads (general placement)
     context["homepage_paid_ads"] = PaidAdvertisement.get_active_ads(
         country_code=selected_country,
         placement_type=PaidAdvertisement.PlacementType.GENERAL
     )
-    
+
     # Get sidebar ads for current page
     context["sidebar_paid_ads"] = PaidAdvertisement.get_active_ads(
         country_code=selected_country
     ).filter(ad_type=PaidAdvertisement.AdType.SIDEBAR)[:3]
-    
+
     # Get banner ads for current page
     context["banner_paid_ads"] = PaidAdvertisement.get_active_ads(
         country_code=selected_country
     ).filter(ad_type=PaidAdvertisement.AdType.BANNER)[:2]
-    
+
     return context

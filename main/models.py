@@ -2092,7 +2092,8 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
 
                 fields_to_display.append(
                     {
-                        "label": cat_cf.custom_field.label,
+                        "label": cat_cf.custom_field.label_ar or cat_cf.custom_field.name,
+                        "label_en": cat_cf.custom_field.label_en or cat_cf.custom_field.label_ar or cat_cf.custom_field.name,
                         "value": display_value,
                         "type": cat_cf.custom_field.field_type,
                         "name": cat_cf.custom_field.name,
@@ -2603,7 +2604,7 @@ class AdImage(models.Model):  # This model is correct, no changes needed here.
         db_table = "ad_images"
         verbose_name = _("Ad Image")
         verbose_name_plural = _("Ad Images")
-        ordering = ["order"]
+        ordering = ["order", "id"]
 
     def save(self, *args, **kwargs):
         """Add watermark to image before saving"""

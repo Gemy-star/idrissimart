@@ -568,9 +568,10 @@ def ad_image_or_placeholder(context, ad, css_class=""):
 
     default_placeholder = static("images/default-placeholder.svg")
 
-    # Check if ad has images
-    if ad.images.exists():
-        first_image = ad.images.first()
+    # Check if ad has images (uses prefetch cache to avoid extra queries)
+    images = list(ad.images.all())
+    if images:
+        first_image = images[0]
         fallback_url = site_config.logo.url if site_config.logo else default_placeholder
         return format_html(
             '<img src="{}" class="{}" alt="{}" loading="lazy" onerror="this.onerror=null; this.src=\'{}\'; this.classList.add(\'placeholder-fallback\');">',

@@ -1268,6 +1268,10 @@ class ClassifiedAdDetailView(DetailView):
         # Add custom fields for display
         context["custom_fields"] = ad.get_custom_fields_for_detail()
 
+        # Add buyer safety tips
+        from main.models import SafetyTip
+        context["safety_tips"] = SafetyTip.get_tips_for_category(ad.category)
+
         return context
 
 

@@ -1564,7 +1564,8 @@ class AdDetailView(DetailView):
                 if value is not None and value != "":
                     custom_fields_with_labels.append(
                         {
-                            "label": field.label,
+                            "label": field.label_ar or field.name,
+                            "label_en": field.label_en or field.label_ar or field.name,
                             "value": value,
                             "type": field.field_type,
                             "name": field.name,

@@ -43,9 +43,9 @@ def verification_required(redirect_url="main:dashboard"):
                 # Determine where to redirect
                 if not request.user.is_authenticated:
                     return redirect("main:login")
-                elif not request.user.is_email_verified:
+                elif not getattr(request.user, "is_email_verified", False):
                     return redirect("main:email_verification_required")
-                elif not request.user.is_mobile_verified:
+                elif not getattr(request.user, "is_mobile_verified", False):
                     return redirect("main:phone_verification_required")
                 else:
                     return redirect(redirect_url)
@@ -75,7 +75,8 @@ def email_verification_required(redirect_url="main:email_verification_required")
                 messages.warning(request, _("يجب تسجيل الدخول أولاً"))
                 return redirect("main:login")
 
-            if not request.user.is_email_verified:
+            is_email_verified = getattr(request.user, "is_email_verified", False)
+            if not is_email_verified:
                 messages.warning(
                     request, _("يجب التحقق من بريدك الإلكتروني لاستخدام هذه الخدمة")
                 )
@@ -105,7 +106,8 @@ def phone_verification_required(redirect_url="main:phone_verification_required")
                 messages.warning(request, _("يجب تسجيل الدخول أولاً"))
                 return redirect("main:login")
 
-            if not request.user.is_mobile_verified:
+            is_mobile_verified = getattr(request.user, "is_mobile_verified", False)
+            if not is_mobile_verified:
                 messages.warning(
                     request, _("يجب التحقق من رقم هاتفك لاستخدام هذه الخدمة")
                 )
