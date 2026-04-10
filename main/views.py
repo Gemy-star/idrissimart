@@ -1543,7 +1543,7 @@ class AdDetailView(DetailView):
         # Prepare custom fields with labels for clean display in the template
         custom_fields_with_labels = []
         if ad.custom_fields:
-            from main.models import CategoryCustomField
+            from main.models import CategoryCustomField, CustomFieldOption
 
             # Get custom fields for this category and its ancestors (to support subcategories)
             categories_to_check = [ad.category] + list(ad.category.get_ancestors())
@@ -1553,22 +1553,41 @@ class AdDetailView(DetailView):
                     category__in=categories_to_check, is_active=True
                 )
                 .select_related("custom_field")
+                .prefetch_related("custom_field__field_options")
                 .order_by("order")
                 .distinct()
             )
 
             for cf in category_fields:
                 field = cf.custom_field
+                # Try both with and without custom_ prefix for backward compatibility
                 field_name = f"custom_{field.name}"
                 value = ad.custom_fields.get(field_name)
+                if value is None:
+                    # Try without prefix
+                    value = ad.custom_fields.get(field.name)
 
                 # Only show fields that have a value
                 if value is not None and value != "":
+                    # For select/radio fields, get the option labels
+                    display_value = value
+                    display_value_en = value
+                    if field.field_type in ["select", "radio"]:
+                        try:
+                            option = CustomFieldOption.objects.get(
+                                custom_field=field, value=value
+                            )
+                            display_value = option.label_ar
+                            display_value_en = option.label_en or option.label_ar
+                        except CustomFieldOption.DoesNotExist:
+                            pass
+
                     custom_fields_with_labels.append(
                         {
                             "label": field.label_ar or field.name,
                             "label_en": field.label_en or field.label_ar or field.name,
-                            "value": value,
+                            "value": display_value,
+                            "value_en": display_value_en,
                             "type": field.field_type,
                             "name": field.name,
                         }
