@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 @method_decorator(csrf_exempt, name='dispatch')
 class PaidAdViewTrackingView(View):
     """Track paid advertisement views"""
-    
+
     def post(self, request, ad_id):
         try:
             ad = PaidAdvertisement.objects.get(id=ad_id)
@@ -40,7 +40,7 @@ class PaidAdViewTrackingView(View):
 @method_decorator(csrf_exempt, name='dispatch')
 class PaidAdClickTrackingView(View):
     """Track paid advertisement clicks"""
-    
+
     def post(self, request, ad_id):
         try:
             ad = PaidAdvertisement.objects.get(id=ad_id)
@@ -68,13 +68,19 @@ def get_category_paid_ads(request, category_id):
     API endpoint to get paid ads for a specific category
     """
     from main.models import Category
-    
+
     try:
+        # Validate category_id is a valid integer to prevent SQL injection attempts
+        try:
+            category_id = int(category_id)
+        except (ValueError, TypeError):
+            return JsonResponse({"error": "Invalid category ID"}, status=400)
+
         category = Category.objects.get(id=category_id)
         selected_country = request.session.get("selected_country", "EG")
-        
+
         ads = PaidAdvertisement.get_category_ads(category, selected_country)
-        
+
         ads_data = []
         for ad in ads:
             ads_data.append({
@@ -85,7 +91,7 @@ def get_category_paid_ads(request, category_id):
                 'ad_type': ad.ad_type,
                 'cta_text': ad.cta_text_ar if request.LANGUAGE_CODE == 'ar' and ad.cta_text_ar else ad.cta_text,
             })
-        
+
         return JsonResponse({
             'success': True,
             'ads': ads_data,

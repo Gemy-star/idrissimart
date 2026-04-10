@@ -1890,6 +1890,13 @@ class CategorySaveView(LoginRequiredMixin, View):
             import uuid
 
             if category_id:
+                # Validate category_id is a valid integer to prevent SQL injection attempts
+                try:
+                    category_id = int(category_id)
+                except (ValueError, TypeError):
+                    return JsonResponse(
+                        {"success": False, "message": "Invalid category ID"}, status=400
+                    )
                 # Update existing category
                 category = Category.objects.get(id=category_id)
             else:
@@ -1959,9 +1966,10 @@ class CategorySaveView(LoginRequiredMixin, View):
             elif parent_id and not category.pk:
                 # New subcategory: inherit section_type from parent
                 try:
-                    parent_cat = Category.objects.get(id=parent_id)
+                    parent_id_int = int(parent_id)  # Validate integer input
+                    parent_cat = Category.objects.get(id=parent_id_int)
                     category.section_type = parent_cat.section_type
-                except Category.DoesNotExist:
+                except (Category.DoesNotExist, ValueError, TypeError):
                     pass
             # If editing existing category and no section_type provided, keep existing value
             category.description = description
@@ -1983,7 +1991,11 @@ class CategorySaveView(LoginRequiredMixin, View):
             category.is_active = is_active
 
             if parent_id:
-                category.parent = Category.objects.get(id=parent_id)
+                try:
+                    parent_id_int = int(parent_id)  # Validate integer input
+                    category.parent = Category.objects.get(id=parent_id_int)
+                except (Category.DoesNotExist, ValueError, TypeError):
+                    category.parent = None
             else:
                 category.parent = None
 
@@ -2458,6 +2470,12 @@ def get_category_custom_fields(request, category_id):
     from .models import CategoryCustomField, Category
 
     try:
+        # Validate category_id is a valid integer to prevent SQL injection attempts
+        try:
+            category_id = int(category_id)
+        except (ValueError, TypeError):
+            return JsonResponse({"error": "Invalid category ID"}, status=400)
+
         # Don't filter by is_active here — the dropdown already only shows active
         # categories. Filtering by is_active caused fields to vanish when a category
         # was accidentally deactivated (e.g. by the admin edit bug).

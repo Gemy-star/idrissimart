@@ -244,6 +244,7 @@ class CategoriesView(FilterView):
         parent_id = self.request.GET.get("parent")
         if parent_id:
             try:
+                parent_id = int(parent_id)  # Validate integer input
                 parent_category = Category.objects.get(id=parent_id, is_active=True)
                 # Get all descendants (subcategories and sub-subcategories)
                 descendants = parent_category.get_descendants(include_self=True)
@@ -350,6 +351,7 @@ class CategoriesView(FilterView):
         # First check if we have a parent ID
         if parent_id:
             try:
+                parent_id = int(parent_id)  # Validate integer input
                 parent_category = Category.objects.get(id=parent_id, is_active=True)
             except (Category.DoesNotExist, ValueError):
                 parent_category = None
@@ -1957,6 +1959,12 @@ def get_category_stats(request):
             return JsonResponse({"error": _("معرف القسم مطلوب")}, status=400)
 
         try:
+            # Validate category_id is a valid integer to prevent SQL injection attempts
+            try:
+                category_id = int(category_id)
+            except (ValueError, TypeError):
+                return JsonResponse({"error": _("معرف القسم غير صالح")}, status=400)
+
             category = Category.objects.get(id=category_id)
 
             # Get all descendants including self for ads count
@@ -2072,6 +2080,12 @@ def get_subcategories_ajax(request, category_id):
     try:
         from .models import CategoryCustomField
 
+        # Validate category_id is a valid integer to prevent SQL injection attempts
+        try:
+            category_id = int(category_id)
+        except (ValueError, TypeError):
+            return JsonResponse({"error": _("معرف القسم غير صالح")}, status=400)
+
         category = Category.objects.get(id=category_id)
         subcategories = category.get_children().filter(is_active=True)
 
@@ -2137,6 +2151,12 @@ def get_category_price_api(request, category_id):
     try:
         from content.models import SiteConfiguration
 
+        # Validate category_id is a valid integer to prevent SQL injection attempts
+        try:
+            category_id = int(category_id)
+        except (ValueError, TypeError):
+            return JsonResponse({"error": _("معرف القسم غير صالح")}, status=400)
+
         category = Category.objects.get(id=category_id, is_active=True)
 
         effective_price = float(category.get_effective_ad_creation_price() or 0)
@@ -2171,6 +2191,12 @@ def get_category_custom_fields_ajax(request, category_id):
     from .models import CategoryCustomField
 
     try:
+        # Validate category_id is a valid integer to prevent SQL injection attempts
+        try:
+            category_id = int(category_id)
+        except (ValueError, TypeError):
+            return JsonResponse({"error": _("معرف القسم غير صالح")}, status=400)
+
         category = Category.objects.get(id=category_id, is_active=True)
 
         # Get all custom fields that should be shown in filters for this category and its ancestors
@@ -3451,6 +3477,12 @@ class AdminCategoryCustomFieldsView(SuperadminRequiredMixin, View):
         try:
             from main.models import CategoryCustomField, CustomFieldOption
 
+            # Validate category_id is a valid integer to prevent SQL injection attempts
+            try:
+                category_id = int(category_id)
+            except (ValueError, TypeError):
+                return JsonResponse({"error": "Invalid category ID"}, status=400)
+
             category = Category.objects.get(id=category_id)
             category_fields = (
                 CategoryCustomField.objects.filter(category=category)
@@ -3505,6 +3537,12 @@ class AdminCategoryCustomFieldsView(SuperadminRequiredMixin, View):
         try:
             import json
             from main.models import CategoryCustomField, CustomFieldOption
+
+            # Validate category_id is a valid integer to prevent SQL injection attempts
+            try:
+                category_id = int(category_id)
+            except (ValueError, TypeError):
+                return JsonResponse({"error": "Invalid category ID"}, status=400)
 
             category = Category.objects.get(id=category_id)
             data = json.loads(request.body)

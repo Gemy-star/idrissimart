@@ -293,8 +293,13 @@ class SafetyTipPreviewView(LoginRequiredMixin, View):
         if tip_id:
             tips = SafetyTip.objects.filter(id=tip_id, is_active=True)
         elif category_id:
-            category = Category.objects.get(id=category_id)
-            tips = SafetyTip.get_tips_for_category(category)
+            try:
+                # Validate category_id is a valid integer to prevent SQL injection attempts
+                category_id = int(category_id)
+                category = Category.objects.get(id=category_id)
+                tips = SafetyTip.get_tips_for_category(category)
+            except (ValueError, TypeError, Category.DoesNotExist):
+                tips = SafetyTip.objects.filter(is_active=True).order_by('order')[:8]
         else:
             tips = SafetyTip.objects.filter(is_active=True).order_by('order')[:8]
 

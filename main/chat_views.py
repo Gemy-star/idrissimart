@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods, require_POST
 from django.db.models import Q, Max, Count
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 import json
 from django.contrib.auth import get_user_model
 from .models import ChatRoom, ChatMessage
@@ -312,12 +313,20 @@ def get_messages(request, room_id):
             return JsonResponse({"error": "Unauthorized"}, status=403)
 
     # Get messages after specific time (for polling)
-    after_time = request.GET.get("after")
+    after_time_str = request.GET.get("after")
 
     messages_query = chat_room.messages.select_related("sender").order_by("created_at")
 
-    if after_time:
-        messages_query = messages_query.filter(created_at__gt=after_time)
+    if after_time_str:
+        try:
+            # Parse datetime string (handles URL-encoded '+' in timezone offset)
+            after_time = parse_datetime(after_time_str)
+            if after_time is None:
+                # If parsing fails, return error instead of 500
+                return JsonResponse({"error": "Invalid datetime format"}, status=400)
+            messages_query = messages_query.filter(created_at__gt=after_time)
+        except (ValueError, TypeError):
+            return JsonResponse({"error": "Invalid datetime format"}, status=400)
 
     messages = messages_query[:50]  # Limit to last 50 messages
 

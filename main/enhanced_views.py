@@ -221,6 +221,12 @@ def get_custom_fields(request):
         return JsonResponse({"success": False, "error": _("معرف القسم مطلوب")})
 
     try:
+        # Validate category_id is a valid integer to prevent SQL injection attempts
+        try:
+            category_id = int(category_id)
+        except (ValueError, TypeError):
+            return JsonResponse({"success": False, "error": _("معرف القسم غير صالح")})
+
         category = Category.objects.get(id=category_id)
         fields = CustomField.objects.filter(category=category, is_active=True)
 
@@ -251,6 +257,12 @@ def get_features(request):
         return JsonResponse({"success": False, "error": _("معرف القسم مطلوب")})
 
     try:
+        # Validate category_id is a valid integer to prevent SQL injection attempts
+        try:
+            category_id = int(category_id)
+        except (ValueError, TypeError):
+            return JsonResponse({"success": False, "error": _("معرف القسم غير صالح")})
+
         category = Category.objects.get(id=category_id)
         features = AdFeature.objects.filter(is_active=True)
 
@@ -287,6 +299,12 @@ def calculate_features_price(request):
 
         if not category_id:
             return JsonResponse({"success": False, "error": _("معرف القسم مطلوب")})
+
+        # Validate category_id is a valid integer to prevent SQL injection attempts
+        try:
+            category_id = int(category_id)
+        except (ValueError, TypeError):
+            return JsonResponse({"success": False, "error": _("معرف القسم غير صالح")})
 
         category = Category.objects.get(id=category_id)
         total_price = Decimal("0")

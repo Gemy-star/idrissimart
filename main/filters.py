@@ -1,9 +1,24 @@
 import django_filters
 from django.utils.translation import gettext_lazy as _
 from django.db.models import Q
+from django.core.exceptions import ValidationError
 
 from .models import Category, ClassifiedAd
 from content.models import Country
+
+
+class SafeModelChoiceFilter(django_filters.ModelChoiceFilter):
+    """ModelChoiceFilter with SQL injection protection"""
+
+    def filter(self, qs, value):
+        """Override to validate value is actually a valid instance"""
+        if value in django_filters.constants.EMPTY_VALUES:
+            return qs
+        # If value is not a model instance (e.g., it's a string with SQL injection),
+        # return empty queryset
+        if not isinstance(value, self.field.queryset.model):
+            return qs.none()
+        return super().filter(qs, value)
 
 
 class ClassifiedAdFilter(django_filters.FilterSet):
@@ -14,19 +29,21 @@ class ClassifiedAdFilter(django_filters.FilterSet):
     # Text search
     search = django_filters.CharFilter(method="filter_search", label=_("البحث"))
 
-    # Category filtering
-    category = django_filters.ModelChoiceFilter(
+    # Category filtering with SQL injection protection
+    category = SafeModelChoiceFilter(
         queryset=Category.objects.filter(
             section_type=Category.SectionType.CLASSIFIED, is_active=True
         ),
+        method="filter_category",
         label=_("القسم"),
     )
-    subcategory = django_filters.ModelChoiceFilter(
+    subcategory = SafeModelChoiceFilter(
         queryset=Category.objects.filter(
             section_type=Category.SectionType.CLASSIFIED,
             is_active=True,
             parent__isnull=False,
         ),
+        method="filter_subcategory",
         label=_("الفئة الفرعية"),
     )
 
@@ -196,6 +213,27 @@ class ClassifiedAdFilter(django_filters.FilterSet):
             combined |= make_q(norm)
 
         return queryset.filter(combined).distinct()
+
+    def filter_category(self, queryset, name, value):
+        """Safely filter by category with SQL injection protection"""
+        if not value:
+            return queryset
+        # value is already a Category object from ModelChoiceFilter
+        # If invalid, django-filters returns None
+        try:
+            return queryset.filter(category=value)
+        except (ValueError, TypeError):
+            # Return empty queryset for invalid values
+            return queryset.none()
+
+    def filter_subcategory(self, queryset, name, value):
+        """Safely filter by subcategory with SQL injection protection"""
+        if not value:
+            return queryset
+        try:
+            return queryset.filter(category=value)
+        except (ValueError, TypeError):
+            return queryset.none()
 
     def filter_verified_users(self, queryset, name, value):
         """Filter for verified users only"""

@@ -100,7 +100,7 @@ Q_CLUSTER = {
     "cpu_affinity": 1,
     "label": "Django Q Production",
     "sync": False,  # Ensure async execution in production
-    "catch_up": True,  # Catch up missed schedules on restart
+    "catch_up": False,  # Skip missed runs; reschedule to next future slot
     "orm": "default",  # Still use ORM for task results storage
     "recycle": 500,
     "bulk": 10,

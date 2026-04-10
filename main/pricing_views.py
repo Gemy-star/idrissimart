@@ -46,6 +46,8 @@ def ad_pricing_view(request):
 
     if category_id:
         try:
+            # Validate category_id is a valid integer to prevent SQL injection attempts
+            category_id = int(category_id)
             category = Category.objects.get(id=category_id, is_active=True)
             # Check if category has custom pricing (including 0)
             if (

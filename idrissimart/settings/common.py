@@ -403,6 +403,7 @@ Q_CLUSTER = {
     "cpu_affinity": 1,
     "label": "Django Q",
     "orm": "default",  # Use Django's ORM as the broker
+    "catch_up": False,  # Don't pile up missed schedules; run once then reschedule
 }
 
 # ===========================
