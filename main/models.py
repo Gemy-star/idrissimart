@@ -2077,24 +2077,28 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
 
                 # For select/radio fields, get the option label
                 display_value = field_value
+                display_value_en = field_value
                 if cat_cf.custom_field.field_type in ["select", "radio"]:
                     try:
                         option = CustomFieldOption.objects.get(
                             custom_field=cat_cf.custom_field, value=field_value
                         )
-                        display_value = option.label
+                        display_value = option.label_ar
+                        display_value_en = option.label_en or option.label_ar
                     except CustomFieldOption.DoesNotExist:
                         pass
 
                 # For checkbox fields
                 elif cat_cf.custom_field.field_type == "checkbox":
                     display_value = field_value
+                    display_value_en = field_value
 
                 fields_to_display.append(
                     {
                         "label": cat_cf.custom_field.label_ar or cat_cf.custom_field.name,
                         "label_en": cat_cf.custom_field.label_en or cat_cf.custom_field.label_ar or cat_cf.custom_field.name,
                         "value": display_value,
+                        "value_en": display_value_en,
                         "type": cat_cf.custom_field.field_type,
                         "name": cat_cf.custom_field.name,
                     }
@@ -4655,7 +4659,7 @@ class PaidAdvertisement(models.Model):
         blank=True,
         verbose_name=_("العنوان بالعربية"),
     )
-    
+
     description = models.TextField(
         blank=True,
         verbose_name=_("الوصف - Description"),
@@ -4797,7 +4801,7 @@ class PaidAdvertisement(models.Model):
         verbose_name=_("نشط - Active"),
         help_text=_("تفعيل/إيقاف الإعلان مؤقتاً")
     )
-    
+
     # Display Priority & Order
     priority = models.IntegerField(
         default=0,
@@ -4895,7 +4899,7 @@ class PaidAdvertisement(models.Model):
             raise ValidationError({
                 'category': _("يجب تحديد قسم عند اختيار موضع 'قسم محدد'")
             })
-        
+
         if self.placement_type == self.PlacementType.SUBCATEGORY and not self.subcategory:
             raise ValidationError({
                 'subcategory': _("يجب تحديد قسم فرعي عند اختيار موضع 'قسم فرعي محدد'")
@@ -4923,7 +4927,7 @@ class PaidAdvertisement(models.Model):
         """Check if ad is currently active and within date range"""
         if not self.is_active or self.status != self.Status.ACTIVE:
             return False
-        
+
         now = timezone.now()
         return self.start_date <= now <= self.end_date
 
@@ -4932,11 +4936,11 @@ class PaidAdvertisement(models.Model):
         """Calculate days remaining until expiration"""
         if not self.end_date:
             return None
-        
+
         now = timezone.now()
         if now > self.end_date:
             return 0
-        
+
         delta = self.end_date - now
         return delta.days
 
@@ -4990,10 +4994,10 @@ class PaidAdvertisement(models.Model):
 
         if country_code:
             queryset = queryset.filter(country__code=country_code)
-        
+
         if placement_type:
             queryset = queryset.filter(placement_type=placement_type)
-        
+
         if category:
             # Include ads for this category or general ads
             from django.db.models import Q
