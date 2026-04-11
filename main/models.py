@@ -2042,8 +2042,14 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
 
     def get_custom_fields_for_detail(self):
         """Get all custom fields formatted for display on the ad detail page"""
+        import re as _re
+
         if not self.custom_fields or not self.category:
             return []
+
+        def safe_key(name):
+            """Mirrors the transformation used when saving: re.sub(r'[^\w]', '_', name)"""
+            return _re.sub(r'[^\w]', '_', name)
 
         # Get all custom fields for this category and its ancestors
         categories_to_check = [self.category] + list(self.category.get_ancestors())
@@ -2056,98 +2062,103 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
             .select_related("custom_field")
             .prefetch_related("custom_field__field_options")
             .order_by("order")
+            .distinct()
         )
 
         fields_to_display = []
-        seen_fields = set()  # Track which fields we've already added
+        seen_json_keys = set()  # JSON keys already consumed
 
         for cat_cf in category_custom_fields:
-            field_key = cat_cf.custom_field.name
-            field_key_prefixed = f"custom_{field_key}"
+            field = cat_cf.custom_field
 
-            # Skip if we've already processed this field
-            if field_key in seen_fields or field_key_prefixed in seen_fields:
+            # Build ALL possible JSON key variants for this field
+            candidates = [
+                f"custom_{safe_key(field.name)}",   # canonical: "custom_Operating_System"
+                f"custom_{field.name}",              # old space variant: "custom_Operating System"
+                safe_key(field.name),                # no prefix: "Operating_System"
+                field.name,                          # bare name: "Operating System"
+            ]
+
+            # Find which key variant is actually in the stored JSON
+            field_value = None
+            matched_key = None
+            for candidate in candidates:
+                val = self.custom_fields.get(candidate)
+                if val is not None and val != "":
+                    field_value = val
+                    matched_key = candidate
+                    break
+
+            if field_value is None or matched_key in seen_json_keys:
                 continue
 
-            # Check both with and without 'custom_' prefix (backward compatibility)
-            field_value = self.custom_fields.get(field_key_prefixed)
-            if field_value is None:
-                field_value = self.custom_fields.get(field_key)
+            seen_json_keys.add(matched_key)
 
-            if field_value is None or field_value == "":
-                continue
-
-            # For select/radio fields, get the option label
+            # For select/radio fields, resolve option label
             display_value = field_value
             display_value_en = field_value
-            if cat_cf.custom_field.field_type in ["select", "radio"]:
+            if field.field_type in ["select", "radio"]:
                 try:
                     option = CustomFieldOption.objects.get(
-                        custom_field=cat_cf.custom_field, value=field_value
+                        custom_field=field, value=field_value
                     )
                     display_value = option.label_ar
                     display_value_en = option.label_en or option.label_ar
                 except CustomFieldOption.DoesNotExist:
                     pass
-
-            # For checkbox fields
-            elif cat_cf.custom_field.field_type == "checkbox":
+            elif field.field_type == "checkbox":
                 display_value = field_value
                 display_value_en = field_value
 
             fields_to_display.append(
                 {
-                    "label": cat_cf.custom_field.label_ar or cat_cf.custom_field.name,
-                    "label_en": cat_cf.custom_field.label_en or cat_cf.custom_field.label_ar or cat_cf.custom_field.name,
+                    "label": field.label_ar or field.name,
+                    "label_en": field.label_en or field.label_ar or field.name,
                     "value": display_value,
                     "value_en": display_value_en,
-                    "type": cat_cf.custom_field.field_type,
-                    "name": cat_cf.custom_field.name,
+                    "type": field.field_type,
+                    "name": field.name,
                 }
             )
 
-            # Mark both key variants as seen so the fallback skips them
-            seen_fields.add(field_key)
-            seen_fields.add(field_key_prefixed)
+        # Fallback: any remaining JSON keys not matched to a CategoryCustomField
+        # Look them up directly in CustomField by trying normalized name variants
+        unmatched_keys = [k for k in self.custom_fields if k not in seen_json_keys]
+        if unmatched_keys:
+            # Build map: safe_key(name) → CustomField and name → CustomField
+            all_cf = CustomField.objects.all()
+            cf_by_safe = {safe_key(cf.name): cf for cf in all_cf}
+            cf_by_name = {cf.name: cf for cf in all_cf}
 
-        # Add any remaining fields that don't have configuration
-        # (This handles fields saved directly without CategoryCustomField setup)
-        # Build a lookup map of all CustomFields by name for efficient querying
-        bare_keys = set()
-        for field_key in self.custom_fields:
-            if field_key not in seen_fields:
-                bare_keys.add(field_key.removeprefix('custom_'))
+            for field_key in unmatched_keys:
+                field_value = self.custom_fields.get(field_key)
+                if field_value is None or field_value == "":
+                    continue
 
-        orphan_fields_map = {}
-        if bare_keys:
-            for cf in CustomField.objects.filter(name__in=bare_keys):
-                orphan_fields_map[cf.name] = cf
+                # Strip prefix and look up the CustomField
+                bare = field_key.removeprefix('custom_').lstrip('_')
+                cf = cf_by_safe.get(bare) or cf_by_name.get(bare)
 
-        for field_key, field_value in self.custom_fields.items():
-            # Skip if already added or if empty
-            if field_key in seen_fields or field_value is None or field_value == "":
-                continue
+                if cf:
+                    arabic_label = cf.label_ar or cf.name
+                    label_en = cf.label_en or cf.label_ar or cf.name
+                    field_type = cf.field_type
+                else:
+                    # Last resort: generate a human-readable label from the key
+                    arabic_label = bare.replace('_', ' ').title()
+                    label_en = arabic_label
+                    field_type = "text"
 
-            # Derive readable English label from the field key
-            display_key = field_key.removeprefix('custom_')
-            english_label = display_key.replace('_', ' ').title()
-
-            # Try to get Arabic label from the CustomField record
-            cf = orphan_fields_map.get(display_key)
-            arabic_label = (cf.label_ar or cf.name) if cf else english_label
-            label_en = (cf.label_en or arabic_label) if cf else english_label
-            field_type = cf.field_type if cf else "text"
-
-            fields_to_display.append(
-                {
-                    "label": arabic_label,
-                    "label_en": label_en,
-                    "value": field_value,
-                    "value_en": field_value,
-                    "type": field_type,
-                    "name": field_key,
-                }
-            )
+                fields_to_display.append(
+                    {
+                        "label": arabic_label,
+                        "label_en": label_en,
+                        "value": field_value,
+                        "value_en": field_value,
+                        "type": field_type,
+                        "name": field_key,
+                    }
+                )
 
         return fields_to_display
 
