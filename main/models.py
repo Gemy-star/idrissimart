@@ -2063,48 +2063,52 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
 
         for cat_cf in category_custom_fields:
             field_key = cat_cf.custom_field.name
+            field_key_prefixed = f"custom_{field_key}"
 
             # Skip if we've already processed this field
-            if field_key in seen_fields:
+            if field_key in seen_fields or field_key_prefixed in seen_fields:
                 continue
 
-            if field_key in self.custom_fields:
-                field_value = self.custom_fields[field_key]
+            # Check both with and without 'custom_' prefix (backward compatibility)
+            field_value = self.custom_fields.get(field_key_prefixed)
+            if field_value is None:
+                field_value = self.custom_fields.get(field_key)
 
-                # Skip empty values
-                if field_value is None or field_value == "":
-                    continue
+            if field_value is None or field_value == "":
+                continue
 
-                # For select/radio fields, get the option label
+            # For select/radio fields, get the option label
+            display_value = field_value
+            display_value_en = field_value
+            if cat_cf.custom_field.field_type in ["select", "radio"]:
+                try:
+                    option = CustomFieldOption.objects.get(
+                        custom_field=cat_cf.custom_field, value=field_value
+                    )
+                    display_value = option.label_ar
+                    display_value_en = option.label_en or option.label_ar
+                except CustomFieldOption.DoesNotExist:
+                    pass
+
+            # For checkbox fields
+            elif cat_cf.custom_field.field_type == "checkbox":
                 display_value = field_value
                 display_value_en = field_value
-                if cat_cf.custom_field.field_type in ["select", "radio"]:
-                    try:
-                        option = CustomFieldOption.objects.get(
-                            custom_field=cat_cf.custom_field, value=field_value
-                        )
-                        display_value = option.label_ar
-                        display_value_en = option.label_en or option.label_ar
-                    except CustomFieldOption.DoesNotExist:
-                        pass
 
-                # For checkbox fields
-                elif cat_cf.custom_field.field_type == "checkbox":
-                    display_value = field_value
-                    display_value_en = field_value
+            fields_to_display.append(
+                {
+                    "label": cat_cf.custom_field.label_ar or cat_cf.custom_field.name,
+                    "label_en": cat_cf.custom_field.label_en or cat_cf.custom_field.label_ar or cat_cf.custom_field.name,
+                    "value": display_value,
+                    "value_en": display_value_en,
+                    "type": cat_cf.custom_field.field_type,
+                    "name": cat_cf.custom_field.name,
+                }
+            )
 
-                fields_to_display.append(
-                    {
-                        "label": cat_cf.custom_field.label_ar or cat_cf.custom_field.name,
-                        "label_en": cat_cf.custom_field.label_en or cat_cf.custom_field.label_ar or cat_cf.custom_field.name,
-                        "value": display_value,
-                        "value_en": display_value_en,
-                        "type": cat_cf.custom_field.field_type,
-                        "name": cat_cf.custom_field.name,
-                    }
-                )
-
-                seen_fields.add(field_key)
+            # Mark both key variants as seen so the fallback skips them
+            seen_fields.add(field_key)
+            seen_fields.add(field_key_prefixed)
 
         # Add any remaining fields that don't have configuration
         # (This handles fields saved directly without CategoryCustomField setup)
