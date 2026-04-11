@@ -2108,20 +2108,39 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
 
         # Add any remaining fields that don't have configuration
         # (This handles fields saved directly without CategoryCustomField setup)
+        # Build a lookup map of all CustomFields by name for efficient querying
+        bare_keys = set()
+        for field_key in self.custom_fields:
+            if field_key not in seen_fields:
+                bare_keys.add(field_key.removeprefix('custom_'))
+
+        orphan_fields_map = {}
+        if bare_keys:
+            for cf in CustomField.objects.filter(name__in=bare_keys):
+                orphan_fields_map[cf.name] = cf
+
         for field_key, field_value in self.custom_fields.items():
             # Skip if already added or if empty
             if field_key in seen_fields or field_value is None or field_value == "":
                 continue
 
-            # Create a simple label from the field key (strip 'custom_' prefix)
+            # Derive readable English label from the field key
             display_key = field_key.removeprefix('custom_')
-            label = display_key.replace('_', ' ').title()
+            english_label = display_key.replace('_', ' ').title()
+
+            # Try to get Arabic label from the CustomField record
+            cf = orphan_fields_map.get(display_key)
+            arabic_label = (cf.label_ar or cf.name) if cf else english_label
+            label_en = (cf.label_en or arabic_label) if cf else english_label
+            field_type = cf.field_type if cf else "text"
 
             fields_to_display.append(
                 {
-                    "label": label,
+                    "label": arabic_label,
+                    "label_en": label_en,
                     "value": field_value,
-                    "type": "text",  # Default type
+                    "value_en": field_value,
+                    "type": field_type,
                     "name": field_key,
                 }
             )
