@@ -549,48 +549,40 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
             context["free_ads_remaining"] = total_ads_remaining
 
             # Pass feature prices based on package or site defaults
+            # Determine if this is a "free package" (price == 0 or gift single-ad with package=None)
+            is_free_package = active_package and (
+                active_package.package is None
+                or active_package.package.price == 0
+            )
+
             if active_package and active_package.package:
                 package = active_package.package
                 context["feature_prices"] = {
-                    "highlighted": (
-                        float(package.feature_highlighted_price)
-                        if package.feature_highlighted_price
-                        else 0.0
-                    ),
-                    "urgent": (
-                        float(package.feature_urgent_price)
-                        if package.feature_urgent_price
-                        else 0.0
-                    ),
-                    "pinned": (
-                        float(package.feature_pinned_price)
-                        if package.feature_pinned_price
-                        else 0.0
-                    ),
-                    "contact_for_price": (
-                        float(package.feature_contact_for_price)
-                        if package.feature_contact_for_price
-                        else 0.0
-                    ),
-                    "auto_refresh": (
-                        float(package.feature_auto_refresh_price)
-                        if package.feature_auto_refresh_price
-                        else 0.0
-                    ),
-                    "add_video": (
-                        float(package.feature_add_video_price)
-                        if package.feature_add_video_price
-                        else 0.0
-                    ),
+                    "highlighted": float(package.feature_highlighted_price),
+                    "urgent": float(package.feature_urgent_price),
+                    "pinned": float(package.feature_pinned_price),
+                    "contact_for_price": float(package.feature_contact_for_price),
+                    "auto_refresh": float(package.feature_auto_refresh_price),
+                    "add_video": float(package.feature_add_video_price),
                 }
                 context["pricing_source"] = "package"
-                # Don't pass the active_package object itself, just its data
                 context["active_package_id"] = active_package.pk
-                context["active_package_name"] = (
-                    active_package.package.name if active_package.package else None
-                )
+                context["active_package_name"] = active_package.package.name
+            elif is_free_package:
+                # Gift single-ad (package=None) — all features are free
+                context["feature_prices"] = {
+                    "highlighted": 0.0,
+                    "urgent": 0.0,
+                    "pinned": 0.0,
+                    "contact_for_price": 0.0,
+                    "auto_refresh": 0.0,
+                    "add_video": 0.0,
+                }
+                context["pricing_source"] = "free"
+                context["active_package_id"] = active_package.pk
+                context["active_package_name"] = None
             else:
-                # No free ads remaining — use constance prices
+                # No free package — use constance feature prices + category base price
                 context["feature_prices"] = {
                     "highlighted": float(
                         getattr(constance_config, "FEATURE_HIGHLIGHTED_PRICE", 50.0)
@@ -708,9 +700,15 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         # Calculate features cost based on package-specific pricing
         features_cost = Decimal("0.00")
 
-        # Determine which pricing to use (package or site default)
+        # Determine if this is a "free package" (price == 0 or gift single-ad with package=None)
+        is_free_package = active_package and (
+            active_package.package is None
+            or active_package.package.price == 0
+        )
+
+        # Determine which pricing to use: free package → its prices; otherwise → constance
         if active_package and active_package.package:
-            # Use package-specific pricing
+            # Use package-specific pricing (free package has all prices = 0)
             package = active_package.package
             if feature_highlighted:
                 features_cost += Decimal(str(package.feature_highlighted_price))
@@ -724,8 +722,11 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
                 features_cost += Decimal(str(package.feature_auto_refresh_price))
             if feature_add_video:
                 features_cost += Decimal(str(package.feature_add_video_price))
+        elif is_free_package:
+            # Gift single-ad (package=None) — all features are free, features_cost stays 0
+            pass
         else:
-            # No free ads remaining — use constance pricing
+            # No free package — use constance feature prices + category base price
             from constance import config as constance_cfg
             if feature_highlighted:
                 features_cost += Decimal(
