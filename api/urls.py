@@ -44,8 +44,8 @@ from .views import (
     AboutPageViewSet, ContactPageViewSet, TermsPageViewSet, PrivacyPageViewSet,
     # Custom Fields ViewSets
     CustomFieldViewSet,
-    # Paid Advertisement ViewSets
-    PaidAdvertisementViewSet,
+    # Paid Banner ViewSets
+    PaidBannerViewSet,
     # Home Content
     HomeAPIView,
     # Payment Callback
@@ -116,8 +116,8 @@ router.register(r'privacy-page', PrivacyPageViewSet, basename='privacy-page')
 # Custom Fields endpoints
 router.register(r'custom-fields', CustomFieldViewSet, basename='custom-field')
 
-# Paid Advertisement endpoints
-router.register(r'paid-ads', PaidAdvertisementViewSet, basename='paid-ad')
+# Paid Banner endpoints
+router.register(r'paid-ads', PaidBannerViewSet, basename='paid-ad')
 
 # Swagger/OpenAPI Schema
 schema_view = get_schema_view(

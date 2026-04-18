@@ -177,10 +177,10 @@ def site_configuration(request):
 
 def paid_advertisements(request):
     """
-    Context processor to make paid advertisements available in all templates.
-    Filters ads based on current page context and selected country.
+    Context processor to make paid banners and AdSense slots available in all templates.
+    AdSense slots take priority over paid banners when active for the visitor's country.
     """
-    from main.models import PaidAdvertisement
+    from main.models import AdSenseSlot, PaidBanner
 
     selected_country = request.session.get("selected_country", "EG")
 
@@ -188,22 +188,26 @@ def paid_advertisements(request):
         "homepage_paid_ads": [],
         "sidebar_paid_ads": [],
         "banner_paid_ads": [],
+        "adsense_slots": {},
     }
 
+    # AdSense slots — keyed by slot_key, filtered by country
+    context["adsense_slots"] = AdSenseSlot.get_active_slots(country_code=selected_country)
+
     # Get homepage ads (general placement)
-    context["homepage_paid_ads"] = PaidAdvertisement.get_active_ads(
+    context["homepage_paid_ads"] = PaidBanner.get_active_ads(
         country_code=selected_country,
-        placement_type=PaidAdvertisement.PlacementType.GENERAL
+        placement_type=PaidBanner.PlacementType.GENERAL
     )
 
     # Get sidebar ads for current page
-    context["sidebar_paid_ads"] = PaidAdvertisement.get_active_ads(
+    context["sidebar_paid_ads"] = PaidBanner.get_active_ads(
         country_code=selected_country
-    ).filter(ad_type=PaidAdvertisement.AdType.SIDEBAR)[:3]
+    ).filter(ad_type=PaidBanner.AdType.SIDEBAR)[:3]
 
     # Get banner ads for current page
-    context["banner_paid_ads"] = PaidAdvertisement.get_active_ads(
+    context["banner_paid_ads"] = PaidBanner.get_active_ads(
         country_code=selected_country
-    ).filter(ad_type=PaidAdvertisement.AdType.BANNER)[:2]
+    ).filter(ad_type=PaidBanner.AdType.BANNER)[:2]
 
     return context

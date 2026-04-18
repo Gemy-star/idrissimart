@@ -24,8 +24,11 @@ from .models import (
     AdPackage,
     AdReport,
     AdReview,
+    AdSenseSlot,
     AdTransaction,
     AdUpgradeHistory,
+    AdvertisingConfig,
+    BannerPricing,
     Cart,
     CartItem,
     CartSettings,
@@ -43,7 +46,7 @@ from .models import (
     Notification,
     Order,
     OrderItem,
-    PaidAdvertisement,
+    PaidBanner,
     Payment,
     SafetyTip,
     SavedSearch,
@@ -3276,13 +3279,17 @@ class EmailTemplateAdmin(admin.ModelAdmin):
     display_subject_ar.short_description = "الموضوع"
 
 
-@admin.register(PaidAdvertisement)
-class PaidAdvertisementAdmin(admin.ModelAdmin):
-    """Admin interface for Paid Advertisement management"""
+@admin.register(PaidBanner)
+class PaidBannerAdmin(admin.ModelAdmin):
+    """Admin interface for Paid Banners management — accessed via AdvertisingConfig tabs"""
+
+    def has_module_perms(self, request):
+        return False  # hide from sidebar; accessible via AdvertisingConfig tab links
 
     list_display = (
         "title",
         "ad_type_badge",
+        "advertising_space",
         "placement_display",
         "country",
         "status_badge",
@@ -3377,11 +3384,13 @@ class PaidAdvertisementAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "placement_type",
+                    "advertising_space",
                     "country",
                     "category",
                     "subcategory",
                     "categories",
-                )
+                ),
+                "description": _("تحديد المساحة الإعلانية يسمح لعدة معلنين بمشاركة نفس الموقع مع عرض إعلاناتهم بالتناوب")
             },
         ),
         (
@@ -3546,9 +3555,9 @@ class PaidAdvertisementAdmin(admin.ModelAdmin):
             color = "#e74c3c"  # Red - needs improvement
 
         return format_html(
-            '<span style="color: {}; font-weight: bold;">{:.2f}%</span>',
+            '<span style="color: {}; font-weight: bold;">{}%</span>',
             color,
-            ctr,
+            f'{ctr:.2f}',
         )
     ctr_display.short_description = _("معدل النقر (CTR)")
 
@@ -3574,14 +3583,14 @@ class PaidAdvertisementAdmin(admin.ModelAdmin):
 
     def pause_ads(self, request, queryset):
         """Pause selected ads"""
-        count = queryset.update(status=PaidAdvertisement.Status.PAUSED)
+        count = queryset.update(status=PaidBanner.Status.PAUSED)
         self.message_user(request, _("تم إيقاف {} إعلان مؤقتاً").format(count))
     pause_ads.short_description = _("إيقاف الإعلانات مؤقتاً")
 
     def resume_ads(self, request, queryset):
         """Resume paused ads"""
         count = 0
-        for ad in queryset.filter(status=PaidAdvertisement.Status.PAUSED):
+        for ad in queryset.filter(status=PaidBanner.Status.PAUSED):
             ad.resume()
             count += 1
         self.message_user(request, _("تم استئناف {} إعلان").format(count))
@@ -3595,6 +3604,226 @@ class PaidAdvertisementAdmin(admin.ModelAdmin):
 
     def mark_as_expired(self, request, queryset):
         """Mark ads as expired"""
-        count = queryset.update(status=PaidAdvertisement.Status.EXPIRED)
+        count = queryset.update(status=PaidBanner.Status.EXPIRED)
         self.message_user(request, _("تم تحديد {} إعلان كمنتهي").format(count))
     mark_as_expired.short_description = _("تحديد كمنتهي")
+
+
+@admin.register(BannerPricing)
+class BannerPricingAdmin(admin.ModelAdmin):
+    """Admin interface for Banner Pricing — accessed via AdvertisingConfig tabs"""
+
+    def has_module_perms(self, request):
+        return False
+
+    list_display = (
+        "ad_type_display",
+        "placement_type_display",
+        "price",
+        "currency",
+        "is_active",
+        "updated_at",
+    )
+    list_filter = ("ad_type", "placement_type", "is_active", "currency")
+    search_fields = ("ad_type", "placement_type")
+    list_editable = ("price", "is_active")
+    ordering = ["ad_type", "placement_type"]
+
+    fieldsets = (
+        (_("نوع الإعلان - Ad Configuration"), {
+            "fields": ("ad_type", "placement_type")
+        }),
+        (_("السعر - Pricing"), {
+            "fields": ("price", "currency", "is_active")
+        }),
+    )
+
+    def ad_type_display(self, obj):
+        """Display ad type with badge"""
+        colors = {
+            'banner': 'primary',
+            'sidebar': 'info',
+            'popup': 'warning',
+            'featured_box': 'success',
+        }
+        color = colors.get(obj.ad_type, 'secondary')
+        return format_html(
+            '<span class="badge bg-{}">{}</span>',
+            color,
+            obj.get_ad_type_display()
+        )
+    ad_type_display.short_description = _("نوع الإعلان")
+
+    def placement_type_display(self, obj):
+        """Display placement type with badge"""
+        colors = {
+            'general': 'success',
+            'category': 'info',
+            'subcategory': 'warning',
+        }
+        color = colors.get(obj.placement_type, 'secondary')
+        return format_html(
+            '<span class="badge bg-{}">{}</span>',
+            color,
+            obj.get_placement_type_display()
+        )
+    placement_type_display.short_description = _("نوع الموضع")
+
+
+@admin.register(AdSenseSlot)
+class AdSenseSlotAdmin(admin.ModelAdmin):
+    """
+    Admin interface for Google AdSense slot configuration — accessed via AdvertisingConfig tabs.
+    Internal only — not visible to advertisers.
+    """
+
+    def has_module_perms(self, request):
+        return False
+
+    list_display = (
+        "slot_key_badge",
+        "country",
+        "ad_client_short",
+        "ad_slot",
+        "ad_format",
+        "is_responsive",
+        "status_badge",
+        "updated_at",
+    )
+    list_filter = ("slot_key", "country", "is_active", "ad_format")
+    list_editable = ("is_responsive",)
+    search_fields = ("ad_client", "ad_slot", "country__name", "country__code")
+    ordering = ["slot_key", "country__code"]
+
+    fieldsets = (
+        (_("الموضع والدولة"), {
+            "fields": ("slot_key", "country"),
+            "description": _(
+                "كل دولة يمكن أن يكون لها إعداد AdSense مختلف لكل موضع. "
+                "إذا كان الموضع نشطاً سيحل محل البانر المدفوع."
+            ),
+        }),
+        (_("بيانات Google AdSense"), {
+            "fields": ("ad_client", "ad_slot", "ad_format", "is_responsive"),
+        }),
+        (_("الحالة"), {
+            "fields": ("is_active",),
+        }),
+        (_("معاينة الكود"), {
+            "fields": ("adsense_code_preview",),
+            "classes": ("collapse",),
+            "description": _("الكود الذي سيُدرج في الصفحة"),
+        }),
+    )
+
+    readonly_fields = ("adsense_code_preview", "updated_at")
+
+    # ── Display methods ──────────────────────────────────────────────
+
+    def slot_key_badge(self, obj):
+        colors = {
+            "home_banner":   "primary",
+            "home_sidebar":  "info",
+            "home_featured": "success",
+            "category_banner":   "warning",
+            "category_sidebar":  "secondary",
+            "category_featured": "dark",
+        }
+        color = colors.get(obj.slot_key, "secondary")
+        return format_html(
+            '<span class="badge bg-{}">{}</span>',
+            color, obj.get_slot_key_display()
+        )
+    slot_key_badge.short_description = _("الموضع")
+
+    def ad_client_short(self, obj):
+        return format_html(
+            '<code style="font-size:0.8em">{}</code>',
+            obj.ad_client[:30] + ("…" if len(obj.ad_client) > 30 else "")
+        )
+    ad_client_short.short_description = _("Ad Client")
+
+    def status_badge(self, obj):
+        if obj.is_active:
+            return format_html('<span class="badge bg-success">✓ نشط</span>')
+        return format_html('<span class="badge bg-secondary">متوقف</span>')
+    status_badge.short_description = _("الحالة")
+
+    def adsense_code_preview(self, obj):
+        if not obj.ad_client or not obj.ad_slot:
+            return _("أدخل Ad Client و Ad Slot لمعاينة الكود")
+        code = (
+            f'&lt;!-- Google AdSense: {obj.get_slot_key_display()} --&gt;\n'
+            f'&lt;script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js'
+            f'?client={obj.ad_client}" crossorigin="anonymous"&gt;&lt;/script&gt;\n'
+            f'&lt;ins class="adsbygoogle"\n'
+            f'     style="display:block"\n'
+            f'     data-ad-client="{obj.ad_client}"\n'
+            f'     data-ad-slot="{obj.ad_slot}"\n'
+            f'     data-ad-format="{obj.ad_format}"'
+        )
+        if obj.is_responsive:
+            code += '\n     data-full-width-responsive="true"'
+        code += '&gt;&lt;/ins&gt;\n'
+        code += '&lt;script&gt;(adsbygoogle = window.adsbygoogle || []).push({});&lt;/script&gt;'
+        return format_html(
+            '<pre style="background:#1e1e2e;color:#cdd6f4;padding:12px;border-radius:6px;'
+            'font-size:0.78em;overflow-x:auto;white-space:pre-wrap;">{}</pre>',
+            code
+        )
+    adsense_code_preview.short_description = _("معاينة كود AdSense")
+
+
+# ---------------------------------------------------------------------------
+# Unified Advertising Dashboard  (single admin entry — three tabs)
+# ---------------------------------------------------------------------------
+
+@admin.register(AdvertisingConfig)
+class AdvertisingConfigAdmin(admin.ModelAdmin):
+    """
+    Single admin entry that renders PaidBanner + BannerPricing + AdSenseSlot
+    in one page with Bootstrap tabs.  The three underlying ModelAdmin classes
+    remain registered so their add/change/delete pages still work normally.
+    """
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_module_perms(self, request):
+        return True
+
+    def changelist_view(self, request, extra_context=None):
+        from django.template.response import TemplateResponse
+
+        paid_banners  = PaidBanner.objects.select_related("country", "category", "advertiser").order_by("-created_at")[:200]
+        pricing_rows  = BannerPricing.objects.all().order_by("ad_type", "placement_type")
+        adsense_slots = AdSenseSlot.objects.select_related("country").order_by("slot_key", "country__code")
+
+        # Quick stats for paid banners
+        from django.utils import timezone
+        now = timezone.now()
+        stats = {
+            "total":   PaidBanner.objects.count(),
+            "active":  PaidBanner.objects.filter(status=PaidBanner.Status.ACTIVE).count(),
+            "pending": PaidBanner.objects.filter(status=PaidBanner.Status.PENDING_APPROVAL).count(),
+            "unpaid":  PaidBanner.objects.filter(payment_status="unpaid").count(),
+        }
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": _("إدارة الإعلانات المدفوعة"),
+            "paid_banners":  paid_banners,
+            "pricing_rows":  pricing_rows,
+            "adsense_slots": adsense_slots,
+            "stats":         stats,
+            "active_tab":    request.GET.get("tab", "banners"),
+            "opts":          self.model._meta,
+            "has_permission": True,
+        }
+        return TemplateResponse(request, "admin/advertising_tabs.html", context)

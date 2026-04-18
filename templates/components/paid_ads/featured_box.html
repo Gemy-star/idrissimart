@@ -1,124 +1,232 @@
-{% load static i18n %}
-{# Featured Box Paid Advertisement Component #}
-{# Usage: {% include 'components/paid_ads/featured_box.html' with ad=ad_object %} #}
+{% load static i18n idrissimart_tags %}
+{# Featured Box Paid Banner Component - Billboard 970×250 (full-width hero) #}
+{# Usage: {% include 'components/paid_ads/featured_box.html' with ad=ad_object or ads=ad_list %} #}
 
-{% if ad and ad.is_currently_active %}
-<div class="paid-ad-featured-box mb-4" data-ad-id="{{ ad.id }}" data-ad-type="featured_box">
-    <a href="{{ ad.target_url }}" 
-       {% if ad.open_in_new_tab %}target="_blank" rel="noopener noreferrer"{% endif %}
-       class="paid-ad-link text-decoration-none"
-       onclick="trackPaidAdClick('{{ ad.id }}')">
-        
-        <div class="card border-0 shadow-lg overflow-hidden" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-            <div class="row g-0">
-                <div class="col-md-6">
-                    <img src="{{ ad.image.url }}" 
-                         alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
-                         class="featured-box-image w-100 h-100"
-                         style="object-fit: cover; min-height: 250px;">
-                </div>
-                <div class="col-md-6 d-flex align-items-center">
-                    <div class="p-4 text-white">
-                        {# Sponsored Badge #}
-                        <span class="badge bg-white text-primary mb-3">
-                            <i class="fas fa-star me-1"></i>
-                            {% trans "إعلان مميز" %}
-                        </span>
-                        
-                        {% if ad.company_name %}
-                        <small class="d-block text-white-50 mb-2">{{ ad.company_name }}</small>
-                        {% endif %}
-                        
-                        <h3 class="fw-bold mb-3">
-                            {% if LANGUAGE_CODE == 'ar' and ad.title_ar %}
-                                {{ ad.title_ar }}
-                            {% else %}
-                                {{ ad.title }}
-                            {% endif %}
-                        </h3>
-                        
-                        {% if ad.description or ad.description_ar %}
-                        <p class="mb-4 text-white-75">
-                            {% if LANGUAGE_CODE == 'ar' and ad.description_ar %}
-                                {{ ad.description_ar|truncatewords:25 }}
-                            {% else %}
-                                {{ ad.description|truncatewords:25 }}
-                            {% endif %}
-                        </p>
-                        {% endif %}
-                        
-                        {% if ad.cta_text or ad.cta_text_ar %}
-                        <button class="btn btn-light btn-lg shadow-sm px-4">
-                            {% if LANGUAGE_CODE == 'ar' and ad.cta_text_ar %}
-                                {{ ad.cta_text_ar }}
-                            {% else %}
-                                {{ ad.cta_text }}
-                            {% endif %}
-                            <i class="fas fa-arrow-{% if LANGUAGE_CODE == 'ar' %}left{% else %}right{% endif %} ms-2"></i>
-                        </button>
-                        {% endif %}
+{% if ads %}
+    {% if ads|length > 0 %}
+    <div class="paid-ad-featured-box-swiper mb-4">
+        <div class="swiper featured-swiper-{{ ads.0.id }}">
+            <div class="swiper-wrapper">
+                {% for ad in ads %}
+                {% if ad.is_currently_active %}
+                <div class="swiper-slide">
+                    <div class="paid-ad-featured-box" data-ad-id="{{ ad.id }}" data-ad-type="featured_box">
+                        <a href="{{ ad.target_url }}"
+                           {% if ad.open_in_new_tab %}target="_blank" rel="noopener noreferrer"{% endif %}
+                           class="paid-ad-link d-block text-decoration-none"
+                           onclick="trackPaidAdClick('{{ ad.id }}')">
+
+                            <div class="billboard-wrap position-relative">
+                                <img src="{{ ad.image.url }}"
+                                     alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
+                                     class="billboard-img">
+
+                                {# Overlay Content #}
+                                <div class="billboard-overlay position-absolute top-0 start-0 end-0 bottom-0 d-flex align-items-center">
+                                    <div class="p-4 text-white">
+                                        <span class="badge bg-white text-primary mb-2">
+                                            <i class="fas fa-star me-1"></i>{% trans "إعلان مميز" %}
+                                        </span>
+                                        {% if ad.company_name %}
+                                        <small class="d-block text-white-50 mb-1">{{ ad.company_name }}</small>
+                                        {% endif %}
+                                        <h4 class="fw-bold mb-2">
+                                            {% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}
+                                        </h4>
+                                        {% if ad.description or ad.description_ar %}
+                                        <p class="mb-3 text-white-75 d-none d-md-block" style="max-width:500px;">
+                                            {% if LANGUAGE_CODE == 'ar' and ad.description_ar %}
+                                                {{ ad.description_ar|truncatewords:20 }}
+                                            {% else %}
+                                                {{ ad.description|truncatewords:20 }}
+                                            {% endif %}
+                                        </p>
+                                        {% endif %}
+                                        {% if ad.cta_text or ad.cta_text_ar %}
+                                        <span class="btn btn-light shadow-sm px-4">
+                                            {% if LANGUAGE_CODE == 'ar' and ad.cta_text_ar %}{{ ad.cta_text_ar }}{% else %}{{ ad.cta_text }}{% endif %}
+                                            <i class="fas fa-arrow-{% if LANGUAGE_CODE == 'ar' %}left{% else %}right{% endif %} ms-1"></i>
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
                     </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+
+            {% if ads|length > 1 %}
+            <div class="swiper-button-next"></div>
+            <div class="swiper-button-prev"></div>
+            <div class="swiper-pagination"></div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script type="module">
+        import Swiper from '/static/node_modules/swiper/swiper-bundle.mjs';
+
+        const featuredSwiper{{ ads.0.id }} = new Swiper('.featured-swiper-{{ ads.0.id }}', {
+            slidesPerView: 1,
+            spaceBetween: 0,
+            loop: {% if ads|length > 1 %}true{% else %}false{% endif %},
+            autoplay: {
+                delay: 7000,
+                disableOnInteraction: false,
+            },
+            pagination: {
+                el: '.swiper-pagination',
+                clickable: true,
+            },
+            navigation: {
+                nextEl: '.swiper-button-next',
+                prevEl: '.swiper-button-prev',
+            },
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            {% for ad in ads %}
+            {% if ad.is_currently_active %}
+            fetch(`/api/paid-ads/{{ ad.id }}/view/`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'}
+            }).catch(err => console.error('Failed to track ad view:', err));
+            {% endif %}
+            {% endfor %}
+        });
+    </script>
+    {% endif %}
+{% elif ad and ad.is_currently_active %}
+<div class="paid-ad-featured-box mb-4" data-ad-id="{{ ad.id }}" data-ad-type="featured_box">
+    <a href="{{ ad.target_url }}"
+       {% if ad.open_in_new_tab %}target="_blank" rel="noopener noreferrer"{% endif %}
+       class="paid-ad-link d-block text-decoration-none"
+       onclick="trackPaidAdClick('{{ ad.id }}')">
+
+        <div class="billboard-wrap position-relative">
+            <img src="{{ ad.image.url }}"
+                 alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
+                 class="billboard-img">
+
+            {# Overlay Content #}
+            <div class="billboard-overlay position-absolute top-0 start-0 end-0 bottom-0 d-flex align-items-center">
+                <div class="p-4 text-white">
+                    <span class="badge bg-white text-primary mb-2">
+                        <i class="fas fa-star me-1"></i>{% trans "إعلان مميز" %}
+                    </span>
+                    {% if ad.company_name %}
+                    <small class="d-block text-white-50 mb-1">{{ ad.company_name }}</small>
+                    {% endif %}
+                    <h4 class="fw-bold mb-2">
+                        {% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}
+                    </h4>
+                    {% if ad.description or ad.description_ar %}
+                    <p class="mb-3 text-white-75 d-none d-md-block" style="max-width:500px;">
+                        {% if LANGUAGE_CODE == 'ar' and ad.description_ar %}
+                            {{ ad.description_ar|truncatewords:20 }}
+                        {% else %}
+                            {{ ad.description|truncatewords:20 }}
+                        {% endif %}
+                    </p>
+                    {% endif %}
+                    {% if ad.cta_text or ad.cta_text_ar %}
+                    <span class="btn btn-light shadow-sm px-4">
+                        {% if LANGUAGE_CODE == 'ar' and ad.cta_text_ar %}{{ ad.cta_text_ar }}{% else %}{{ ad.cta_text }}{% endif %}
+                        <i class="fas fa-arrow-{% if LANGUAGE_CODE == 'ar' %}left{% else %}right{% endif %} ms-1"></i>
+                    </span>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </a>
 </div>
 
-<style>
-.paid-ad-featured-box {
-    transition: transform 0.3s ease;
-}
-
-.paid-ad-featured-box:hover {
-    transform: translateY(-5px);
-}
-
-.featured-box-image {
-    transition: transform 0.3s ease;
-}
-
-.paid-ad-featured-box:hover .featured-box-image {
-    transform: scale(1.1);
-}
-
-.text-white-75 {
-    color: rgba(255, 255, 255, 0.75);
-}
-
-[data-theme='dark'] .paid-ad-featured-box .card {
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5) !important;
-}
-
-@media (max-width: 767px) {
-    .paid-ad-featured-box .row {
-        flex-direction: column-reverse;
-    }
-}
-</style>
-
 <script>
 function trackPaidAdClick(adId) {
     fetch(`/api/paid-ads/${adId}/click/`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}'
-        }
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'}
     }).catch(err => console.error('Failed to track ad click:', err));
 }
 
-// Track ad view on page load
 document.addEventListener('DOMContentLoaded', function() {
     const adElement = document.querySelector('[data-ad-id="{{ ad.id }}"]');
     if (adElement) {
         fetch(`/api/paid-ads/{{ ad.id }}/view/`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
-            }
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'}
         }).catch(err => console.error('Failed to track ad view:', err));
     }
 });
 </script>
+{% else %}
+{# AdSense fallback: shown when no paid featured banner is available #}
+{% if adsense_slots %}
+    {% with adsense_slot=adsense_slots|get_item:"home_featured" %}
+        {% if adsense_slot and adsense_slot.is_active %}
+            {% include 'components/paid_ads/adsense.html' with slot=adsense_slot %}
+        {% else %}
+            {% with adsense_slot=adsense_slots|get_item:"category_featured" %}
+                {% if adsense_slot and adsense_slot.is_active %}
+                    {% include 'components/paid_ads/adsense.html' with slot=adsense_slot %}
+                {% endif %}
+            {% endwith %}
+        {% endif %}
+    {% endwith %}
 {% endif %}
+{% endif %}
+
+<style>
+/* Billboard 970×250 */
+.billboard-wrap {
+    width: 100%;
+    max-width: 970px;
+    height: 250px;
+    margin: 0 auto;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #1a1a2e;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+.billboard-img {
+    width: 100%;
+    height: 250px;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.4s ease;
+}
+.billboard-overlay {
+    background: linear-gradient(to right, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 60%, transparent 100%);
+    border-radius: 8px;
+}
+
+.paid-ad-featured-box:hover .billboard-img {
+    transform: scale(1.04);
+}
+.paid-ad-featured-box:hover .billboard-wrap {
+    box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+}
+
+.text-white-75 {
+    color: rgba(255,255,255,0.75);
+}
+
+/* RTL: flip overlay gradient */
+[dir='rtl'] .billboard-overlay {
+    background: linear-gradient(to left, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 60%, transparent 100%);
+}
+
+@media (max-width: 767px) {
+    .billboard-wrap,
+    .billboard-img {
+        height: 160px;
+    }
+}
+
+[data-theme='dark'] .billboard-wrap {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+</style>

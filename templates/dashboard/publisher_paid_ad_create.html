@@ -32,6 +32,26 @@
 [data-theme='dark'] .form-section {
     background: var(--card-bg, #2d3748);
 }
+.dimension-badge {
+    display: inline-block;
+    font-size: .72rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 20px;
+    background: rgba(107,76,122,.12);
+    color: var(--primary-color, #6b4c7a);
+    letter-spacing: .3px;
+}
+.image-hint-box {
+    border-radius: 8px;
+    padding: 12px 16px;
+    background: rgba(13,110,253,.07);
+    border: 1px solid rgba(13,110,253,.2);
+    font-size: .875rem;
+}
+.img-dim-error  { border-color: #dc3545 !important; }
+.img-dim-ok     { border-color: #198754 !important; }
+.dim-feedback   { font-size: .8rem; margin-top: 4px; }
 </style>
 {% endblock %}
 
@@ -63,14 +83,14 @@
 <div class="alert alert-info mb-4">
     <h6 class="mb-2"><i class="fas fa-info-circle"></i> {% trans "كيف يعمل النظام؟" %}</h6>
     <ol class="mb-0 ps-3">
-        <li>{% trans "أملأ بيانات الإعلان واختر نوعه." %}</li>
+        <li>{% trans "اختر نوع الإعلان وارفع الصورة بالمقاس المطلوب بالضبط." %}</li>
         <li>{% trans "سيتم توجيهك لصفحة الدفع لسداد تكلفة الإعلان." %}</li>
         <li>{% trans "بعد الدفع، تصلك رسالة تأكيد ويرسل الإعلان للإدارة للمراجعة." %}</li>
         <li>{% trans "عند الموافقة يبدأ الإعلان في الظهور في الفترة المحددة." %}</li>
     </ol>
 </div>
 
-<form method="post" enctype="multipart/form-data" id="paidAdForm">
+<form method="post" enctype="multipart/form-data" id="paidAdForm" novalidate>
     {% csrf_token %}
 
     <!-- === Ad Type & Pricing === -->
@@ -82,7 +102,7 @@
                     <input type="radio" name="ad_type" value="banner" class="d-none" checked>
                     <i class="fas fa-desktop fa-2x mb-2 text-primary"></i>
                     <div class="fw-semibold">{% trans "بانر" %}</div>
-                    <div class="text-muted small mb-1">{% trans "1200×600 بكسل" %}</div>
+                    <div class="dimension-badge mb-1">728×90 px</div>
                     <div class="price-tag">{{ pricing.banner }} {% trans "ج.م" %}</div>
                 </label>
             </div>
@@ -91,7 +111,7 @@
                     <input type="radio" name="ad_type" value="sidebar" class="d-none">
                     <i class="fas fa-columns fa-2x mb-2 text-purple"></i>
                     <div class="fw-semibold">{% trans "إعلان جانبي" %}</div>
-                    <div class="text-muted small mb-1">{% trans "300×600 بكسل" %}</div>
+                    <div class="dimension-badge mb-1">300×250 px</div>
                     <div class="price-tag">{{ pricing.sidebar }} {% trans "ج.م" %}</div>
                 </label>
             </div>
@@ -100,7 +120,7 @@
                     <input type="radio" name="ad_type" value="popup" class="d-none">
                     <i class="fas fa-window-restore fa-2x mb-2 text-danger"></i>
                     <div class="fw-semibold">{% trans "نافذة منبثقة" %}</div>
-                    <div class="text-muted small mb-1">{% trans "600×400 بكسل" %}</div>
+                    <div class="dimension-badge mb-1">300×250 px</div>
                     <div class="price-tag">{{ pricing.popup }} {% trans "ج.م" %}</div>
                 </label>
             </div>
@@ -109,7 +129,7 @@
                     <input type="radio" name="ad_type" value="featured_box" class="d-none">
                     <i class="fas fa-star fa-2x mb-2 text-warning"></i>
                     <div class="fw-semibold">{% trans "صندوق مميز" %}</div>
-                    <div class="text-muted small mb-1">{% trans "400×400 بكسل" %}</div>
+                    <div class="dimension-badge mb-1">970×250 px</div>
                     <div class="price-tag">{{ pricing.featured_box }} {% trans "ج.م" %}</div>
                 </label>
             </div>
@@ -154,15 +174,44 @@
 
     <!-- === Image Upload === -->
     <div class="form-section">
-        <h5 class="mb-3"><i class="fas fa-image"></i> {% trans "صورة الإعلان" %}</h5>
-        <div class="mb-3">
-            <label class="form-label fw-semibold">{% trans "اختر صورة الإعلان" %} <span class="text-danger">*</span></label>
+        <h5 class="mb-3"><i class="fas fa-image"></i> {% trans "صور الإعلان" %}</h5>
+
+        <!-- Dynamic dimension hint -->
+        <div class="image-hint-box mb-4" id="imageHintBox">
+            <div class="d-flex align-items-start gap-2">
+                <i class="fas fa-ruler-combined text-primary mt-1"></i>
+                <div id="imageHintText">
+                    {# filled by JS on page load #}
+                </div>
+            </div>
+        </div>
+
+        <!-- Desktop image -->
+        <div class="mb-4">
+            <label class="form-label fw-semibold" id="desktopImageLabel">
+                {% trans "صورة الإعلان (Desktop)" %} <span class="text-danger">*</span>
+            </label>
             <input type="file" name="image" id="adImage" class="form-control"
-                   accept="image/jpeg,image/png,image/webp,image/gif" required>
-            <div class="form-text">{% trans "JPG / PNG / WebP — الحجم الأقصى 5 ميغا" %}</div>
-            <div id="imagePreviewContainer" class="mt-2 d-none">
-                <img id="imagePreview" src="" alt="preview"
-                     style="max-height:200px;border-radius:8px;border:2px solid var(--border-color);">
+                   accept="image/jpeg,image/png,image/webp" required>
+            <div class="dim-feedback text-muted" id="desktopDimFeedback"></div>
+            <div id="desktopPreviewContainer" class="mt-2 d-none">
+                <img id="desktopPreview" src="" alt="preview"
+                     style="max-height:150px;border-radius:8px;border:2px solid var(--border-color);">
+            </div>
+        </div>
+
+        <!-- Mobile image (conditionally required / visible) -->
+        <div id="mobileImageWrapper">
+            <label class="form-label fw-semibold" id="mobileImageLabel">
+                {% trans "صورة الموبايل" %}
+                <span class="text-danger" id="mobileRequiredStar">*</span>
+            </label>
+            <input type="file" name="mobile_image" id="adMobileImage" class="form-control"
+                   accept="image/jpeg,image/png,image/webp">
+            <div class="dim-feedback text-muted" id="mobileDimFeedback"></div>
+            <div id="mobilePreviewContainer" class="mt-2 d-none">
+                <img id="mobilePreview" src="" alt="preview"
+                     style="max-height:80px;border-radius:8px;border:2px solid var(--border-color);">
             </div>
         </div>
     </div>
@@ -244,7 +293,7 @@
                 <span class="fw-semibold">{% trans "تكلفة الإعلان:" %}</span>
                 <span id="summaryPrice" class="fs-5 fw-bold ms-2">{{ pricing.banner }} {% trans "ج.م" %}</span>
             </div>
-            <button type="submit" class="btn btn-light text-primary fw-bold px-4">
+            <button type="submit" id="submitBtn" class="btn btn-light text-primary fw-bold px-4">
                 <i class="fas fa-credit-card me-1"></i>
                 {% trans "متابعة للدفع" %}
             </button>
@@ -257,25 +306,154 @@
 {% block publisher_extra_js %}
 <script>
 (function () {
-    // ---- Ad type card selection ----
-    const pricing = {
-        banner: '{{ pricing.banner }}',
-        sidebar: '{{ pricing.sidebar }}',
-        popup: '{{ pricing.popup }}',
-        featured_box: '{{ pricing.featured_box }}'
+    // ── Specs per ad type (must match IMAGE_SPECS in models.py) ──────────────
+    const SPECS = {
+        banner:       { desktop: [728, 90],  mobile: [320, 50],  mobileRequired: true  },
+        sidebar:      { desktop: [300, 250], mobile: null,        mobileRequired: false },
+        popup:        { desktop: [300, 250], mobile: null,        mobileRequired: false },
+        featured_box: { desktop: [970, 250], mobile: null,        mobileRequired: false },
     };
 
+    const LABELS = {
+        banner:       '{% trans "بانر (Leaderboard)" %}',
+        sidebar:      '{% trans "إعلان جانبي (Medium Rectangle)" %}',
+        popup:        '{% trans "نافذة منبثقة (Medium Rectangle)" %}',
+        featured_box: '{% trans "صندوق مميز (Billboard)" %}',
+    };
+
+    // ── DOM refs ──────────────────────────────────────────────────────────────
+    const hintText        = document.getElementById('imageHintText');
+    const mobileWrapper   = document.getElementById('mobileImageWrapper');
+    const mobileRequiredStar = document.getElementById('mobileRequiredStar');
+    const mobileInput     = document.getElementById('adMobileImage');
+    const desktopInput    = document.getElementById('adImage');
+    const submitBtn       = document.getElementById('submitBtn');
+
+    let currentType = 'banner';
+    let desktopOk   = false;
+    let mobileOk    = false;
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function checkDimensions(file, expected, inputEl, feedbackEl, previewEl, previewContainerEl, onResult) {
+        if (!file) { onResult(false); return; }
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = function () {
+            URL.revokeObjectURL(url);
+            const w = img.naturalWidth, h = img.naturalHeight;
+            const ok = (w === expected[0] && h === expected[1]);
+            inputEl.classList.toggle('img-dim-error', !ok);
+            inputEl.classList.toggle('img-dim-ok',    ok);
+            if (ok) {
+                feedbackEl.innerHTML = `<span class="text-success"><i class="fas fa-check-circle me-1"></i>${w}×${h} px ✓</span>`;
+            } else {
+                feedbackEl.innerHTML =
+                    `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>`+
+                    `{% trans "المقاس المرفوع:" %} ${w}×${h} px &nbsp;|&nbsp; `+
+                    `{% trans "المطلوب:" %} ${expected[0]}×${expected[1]} px</span>`;
+            }
+            // preview
+            previewEl.src = img.src.startsWith('blob:') ? URL.createObjectURL(file) : img.src;
+            previewContainerEl.classList.remove('d-none');
+            onResult(ok);
+        };
+        img.src = url;
+    }
+
+    function updateHint(type) {
+        const spec = SPECS[type];
+        const label = LABELS[type];
+        let html = `<strong>${label}</strong><br>`;
+        html += `<span class="text-primary fw-semibold">Desktop:</span> ${spec.desktop[0]}×${spec.desktop[1]} px`;
+        if (spec.mobile) {
+            html += `&emsp;<span class="text-success fw-semibold">Mobile:</span> ${spec.mobile[0]}×${spec.mobile[1]} px`;
+            if (spec.mobileRequired) {
+                html += ` <span class="badge bg-danger ms-1">{% trans "إجباري" %}</span>`;
+            }
+        }
+        html += `<br><small class="text-muted">{% trans "سيتم رفض الصورة إذا كانت الأبعاد مختلفة" %}</small>`;
+        hintText.innerHTML = html;
+    }
+
+    function updateMobileField(type) {
+        const spec = SPECS[type];
+        const hasMobile = spec.mobile !== null;
+        mobileWrapper.style.display = hasMobile ? '' : 'none';
+        mobileInput.required = hasMobile && spec.mobileRequired;
+        mobileRequiredStar.style.display = (hasMobile && spec.mobileRequired) ? '' : 'none';
+        if (hasMobile) {
+            document.getElementById('mobileImageLabel').firstChild.textContent =
+                `{% trans "صورة الموبايل" %} (${spec.mobile[0]}×${spec.mobile[1]} px) `;
+        }
+    }
+
+    function validateAndUpdateSubmit() {
+        const spec = SPECS[currentType];
+        const mobileNeeded = spec.mobileRequired;
+        const canSubmit = desktopOk && (!mobileNeeded || mobileOk);
+        submitBtn.disabled = !canSubmit;
+        submitBtn.title = canSubmit ? '' : '{% trans "يرجى رفع الصور بالمقاسات الصحيحة أولاً" %}';
+    }
+
+    // ── Ad type change ────────────────────────────────────────────────────────
     document.querySelectorAll('#adTypeCards .pricing-card').forEach(card => {
         card.addEventListener('click', () => {
             document.querySelectorAll('#adTypeCards .pricing-card').forEach(c => c.classList.remove('selected'));
             card.classList.add('selected');
             card.querySelector('input[type=radio]').checked = true;
+            currentType = card.dataset.type;
+
+            // reset image state
+            desktopOk = false; mobileOk = false;
+            desktopInput.classList.remove('img-dim-ok','img-dim-error');
+            mobileInput.classList.remove('img-dim-ok','img-dim-error');
+            document.getElementById('desktopDimFeedback').innerHTML = '';
+            document.getElementById('mobileDimFeedback').innerHTML = '';
+
+            updateHint(currentType);
+            updateMobileField(currentType);
+            validateAndUpdateSubmit();
+
             const t = card.dataset.type;
-            document.getElementById('summaryPrice').textContent = pricing[t] + ' ج.م';
+            document.getElementById('summaryPrice').textContent =
+                '{{ pricing.banner }}' === '{{ pricing.banner }}'
+                    ? ({banner:'{{ pricing.banner }}',sidebar:'{{ pricing.sidebar }}',popup:'{{ pricing.popup }}',featured_box:'{{ pricing.featured_box }}'}[t] || '') + ' {% trans "ج.م" %}'
+                    : '';
         });
     });
 
-    // ---- Placement type toggle ----
+    // ── Desktop image validation ──────────────────────────────────────────────
+    desktopInput.addEventListener('change', function () {
+        const file = this.files[0];
+        if (!file) return;
+        const spec = SPECS[currentType];
+        checkDimensions(
+            file, spec.desktop,
+            desktopInput,
+            document.getElementById('desktopDimFeedback'),
+            document.getElementById('desktopPreview'),
+            document.getElementById('desktopPreviewContainer'),
+            ok => { desktopOk = ok; validateAndUpdateSubmit(); }
+        );
+    });
+
+    // ── Mobile image validation ───────────────────────────────────────────────
+    mobileInput.addEventListener('change', function () {
+        const file = this.files[0];
+        if (!file) return;
+        const spec = SPECS[currentType];
+        if (!spec.mobile) return;
+        checkDimensions(
+            file, spec.mobile,
+            mobileInput,
+            document.getElementById('mobileDimFeedback'),
+            document.getElementById('mobilePreview'),
+            document.getElementById('mobilePreviewContainer'),
+            ok => { mobileOk = ok; validateAndUpdateSubmit(); }
+        );
+    });
+
+    // ── Placement type toggle ─────────────────────────────────────────────────
     const placementSel = document.getElementById('placementType');
     const catWrapper = document.getElementById('categoryWrapper');
     function toggleCategory() {
@@ -285,27 +463,32 @@
     placementSel.addEventListener('change', toggleCategory);
     toggleCategory();
 
-    // ---- Image preview ----
-    document.getElementById('adImage').addEventListener('change', function () {
-        const file = this.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = e => {
-            const container = document.getElementById('imagePreviewContainer');
-            const img = document.getElementById('imagePreview');
-            img.src = e.target.result;
-            container.classList.remove('d-none');
-        };
-        reader.readAsDataURL(file);
-    });
-
-    // ---- Set minimum date ----
+    // ── Minimum dates ─────────────────────────────────────────────────────────
     const today = new Date().toISOString().split('T')[0];
     document.querySelector('[name=start_date]').min = today;
     document.querySelector('[name=end_date]').min = today;
     document.querySelector('[name=start_date]').addEventListener('change', function () {
         document.querySelector('[name=end_date]').min = this.value;
     });
+
+    // ── Pricing map (keep in sync with server) ────────────────────────────────
+    const pricingMap = {
+        banner:       '{{ pricing.banner }}',
+        sidebar:      '{{ pricing.sidebar }}',
+        popup:        '{{ pricing.popup }}',
+        featured_box: '{{ pricing.featured_box }}'
+    };
+    document.querySelectorAll('#adTypeCards .pricing-card').forEach(card => {
+        card.addEventListener('click', () => {
+            document.getElementById('summaryPrice').textContent =
+                pricingMap[card.dataset.type] + ' {% trans "ج.م" %}';
+        });
+    });
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    updateHint(currentType);
+    updateMobileField(currentType);
+    submitBtn.disabled = true; // enabled only after valid images
 })();
 </script>
 {% endblock %}

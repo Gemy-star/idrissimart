@@ -66,6 +66,10 @@ class HomeView(TemplateView):
         home_page = HomePage.get_solo()
         context["home_page"] = home_page
 
+        # Get home sliders
+        from content.models import HomeSlider
+        context["home_sliders"] = HomeSlider.objects.filter(is_active=True).order_by('order')
+
         # Get selected country from middleware/utility function
         selected_country = get_selected_country_from_request(self.request)
 
@@ -118,6 +122,31 @@ class HomeView(TemplateView):
             .order_by("-published_date")
             .select_related("author")
         )
+
+        # Get paid banners for homepage
+        from main.models import PaidBanner, AdSenseSlot
+
+        # Get ads grouped by advertising space for carousel display
+        homepage_paid_ads_grouped = PaidBanner.get_ads_grouped_by_space(
+            country_code=selected_country,
+            placement_type=PaidBanner.PlacementType.GENERAL
+        )
+
+        # Organize ads by type for easy template access
+        homepage_paid_ads = {
+            'banner': [],
+            'sidebar': [],
+            'featured_box': [],
+            'popup': []
+        }
+
+        for ad_type, spaces in homepage_paid_ads_grouped.items():
+            for space_key, ads_list in spaces.items():
+                if ads_list:
+                    homepage_paid_ads[ad_type].extend(ads_list)
+
+        context["homepage_paid_ads"] = homepage_paid_ads
+        context["adsense_slots"] = AdSenseSlot.get_active_slots(selected_country)
         context["page_title"] = _("الرئيسية - إدريسي مارت")
 
         return context
@@ -859,12 +888,38 @@ class CategoryDetailView(FilterView):
             "verified_only": bool(self.request.GET.get("verified_only")),
         }
 
-        # Get paid advertisements for this category
-        from main.models import PaidAdvertisement
-        category_paid_ads = PaidAdvertisement.get_category_ads(
+        # Get paid banners for this category
+        from main.models import PaidBanner, AdSenseSlot
+
+        # Get ads grouped by advertising space
+        category_paid_ads_grouped = PaidBanner.get_category_ads_grouped(
             category=self.category,
             country_code=selected_country
         )
+
+        # Organize ads by type for easy template access
+        # Convert grouped structure to flat lists for each ad type
+        category_paid_ads = {
+            'banner': [],
+            'sidebar': [],
+            'featured_box': [],
+            'popup': []
+        }
+
+        for ad_type, spaces in category_paid_ads_grouped.items():
+            for space_key, ads_list in spaces.items():
+                # Each space can have multiple ads, pass them as a list for carousel
+                if ads_list:
+                    category_paid_ads[ad_type].extend(ads_list)
+
+        # For backward compatibility, also provide single ad objects
+        # (takes first ad from each type if available)
+        category_paid_ads_single = {
+            'banner': category_paid_ads['banner'][0] if category_paid_ads['banner'] else None,
+            'sidebar': category_paid_ads['sidebar'][0] if category_paid_ads['sidebar'] else None,
+            'featured_box': category_paid_ads['featured_box'][0] if category_paid_ads['featured_box'] else None,
+            'popup': category_paid_ads['popup'][0] if category_paid_ads['popup'] else None,
+        }
 
         # Get custom fields for filters from this category and descendants
         # Deduplicate by custom_field_id so each field appears only once
@@ -918,6 +973,7 @@ class CategoryDetailView(FilterView):
                 "custom_fields_for_filters": custom_fields_for_filters,
                 "category_filter_fields": custom_fields_for_filters,  # Alias for consistency
                 "category_paid_ads": category_paid_ads,  # Paid advertisements for this category
+                "adsense_slots": AdSenseSlot.get_active_slots(selected_country),
                 "page_title": (
                     self.category.name_ar
                     if self.category.name_ar
@@ -1105,12 +1161,27 @@ class SubcategoryDetailView(FilterView):
         )
         total_subcategories = subcategories.count()
 
-        # Get paid advertisements for this subcategory
-        from main.models import PaidAdvertisement
-        category_paid_ads = PaidAdvertisement.get_category_ads(
+        # Get paid banners for this subcategory
+        from main.models import PaidBanner
+
+        # Get ads grouped by advertising space
+        category_paid_ads_grouped = PaidBanner.get_category_ads_grouped(
             category=self.category,
             country_code=selected_country
         )
+
+        # Organize ads by type for easy template access
+        category_paid_ads = {
+            'banner': [],
+            'sidebar': [],
+            'featured_box': [],
+            'popup': []
+        }
+
+        for ad_type, spaces in category_paid_ads_grouped.items():
+            for space_key, ads_list in spaces.items():
+                if ads_list:
+                    category_paid_ads[ad_type].extend(ads_list)
 
         # Current filters for display
         current_filters = {

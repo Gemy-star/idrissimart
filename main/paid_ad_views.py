@@ -1,12 +1,12 @@
 """
-Views for Paid Advertisement tracking and management
+Views for Paid Banners tracking and management
 """
 from django.http import JsonResponse
 from django.views import View
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from main.models import PaidAdvertisement
+from main.models import PaidBanner
 import logging
 
 logger = logging.getLogger(__name__)
@@ -14,17 +14,17 @@ logger = logging.getLogger(__name__)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class PaidAdViewTrackingView(View):
-    """Track paid advertisement views"""
+    """Track paid banner views"""
 
     def post(self, request, ad_id):
         try:
-            ad = PaidAdvertisement.objects.get(id=ad_id)
+            ad = PaidBanner.objects.get(id=ad_id)
             ad.increment_views()
             return JsonResponse({
                 'success': True,
                 'views_count': ad.views_count
             })
-        except PaidAdvertisement.DoesNotExist:
+        except PaidBanner.DoesNotExist:
             return JsonResponse({
                 'success': False,
                 'error': 'Advertisement not found'
@@ -39,18 +39,18 @@ class PaidAdViewTrackingView(View):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class PaidAdClickTrackingView(View):
-    """Track paid advertisement clicks"""
+    """Track paid banner clicks"""
 
     def post(self, request, ad_id):
         try:
-            ad = PaidAdvertisement.objects.get(id=ad_id)
+            ad = PaidBanner.objects.get(id=ad_id)
             ad.increment_clicks()
             return JsonResponse({
                 'success': True,
                 'clicks_count': ad.clicks_count,
                 'ctr': ad.ctr
             })
-        except PaidAdvertisement.DoesNotExist:
+        except PaidBanner.DoesNotExist:
             return JsonResponse({
                 'success': False,
                 'error': 'Advertisement not found'
@@ -79,7 +79,7 @@ def get_category_paid_ads(request, category_id):
         category = Category.objects.get(id=category_id)
         selected_country = request.session.get("selected_country", "EG")
 
-        ads = PaidAdvertisement.get_category_ads(category, selected_country)
+        ads = PaidBanner.get_category_ads(category, selected_country)
 
         ads_data = []
         for ad in ads:

@@ -1,10 +1,10 @@
 """
-Publisher Paid Advertisement Views
+Publisher Paid Banner Views
 Allows publishers to create paid banner ads, pay for them, then await admin approval.
 
 Flow:
   1. Publisher fills the creation form.
-  2. Form POST → creates PaidAdvertisement (status=DRAFT, payment_status=unpaid) so the
+  2. Form POST → creates PaidBanner (status=DRAFT, payment_status=unpaid) so the
      uploaded image is persisted correctly.  The pk is stored in the session.
   3. Publisher is redirected to the payment page (no pk in URL – read from session).
   4. After successful payment, process_paid_banner_payment() updates the ad to
@@ -22,13 +22,32 @@ from django.utils.translation import gettext_lazy as _
 from django.views.generic import ListView
 
 from main.decorators import PublisherRequiredMixin, publisher_required
-from main.models import Notification, PaidAdvertisement, Payment
+from main.models import Notification, PaidBanner, Payment
 from main.payment_services import PaymentService
 from main.payment_utils import PaymentContext, get_allowed_payment_methods
 
 logger = logging.getLogger(__name__)
 
 SESSION_KEY_PENDING_AD = "pending_paid_banner_id"
+
+
+def _validate_image_file(image_file, expected_dims, label):
+    """Return a list of error strings if image_file doesn't match expected_dims (w, h)."""
+    try:
+        from PIL import Image as PilImage
+        image_file.seek(0)
+        img = PilImage.open(image_file)
+        w, h = img.size
+        image_file.seek(0)
+        if (w, h) != tuple(expected_dims):
+            return [
+                _(
+                    "%(label)s: المقاس المرفوع %(w)s×%(h)s بكسل. المطلوب %(rw)s×%(rh)s بكسل."
+                ) % {"label": label, "w": w, "h": h, "rw": expected_dims[0], "rh": expected_dims[1]}
+            ]
+    except Exception:
+        pass  # إذا فشل فتح الصورة، سيُكتشف لاحقاً عند الحفظ
+    return []
 
 
 # ---------------------------------------------------------------------------
@@ -39,7 +58,7 @@ def _notify_staff_new_paid_ad(paid_ad):
     """Create in-app notifications for all staff about a newly submitted paid ad."""
     from django.contrib.auth import get_user_model
     User = get_user_model()
-    admin_url = f"/admin/main/paidadvertisement/{paid_ad.pk}/change/"
+    admin_url = f"/admin/main/paidbanner/{paid_ad.pk}/change/"
     for staff_user in User.objects.filter(is_staff=True, is_active=True):
         Notification.objects.create(
             user=staff_user,
@@ -63,14 +82,14 @@ def _notify_staff_new_paid_ad(paid_ad):
 class PublisherPaidAdListView(PublisherRequiredMixin, ListView):
     """Show the logged-in publisher's paid banner advertisements."""
 
-    model = PaidAdvertisement
+    model = PaidBanner
     template_name = "dashboard/publisher_paid_ads.html"
     context_object_name = "paid_ads"
     paginate_by = 20
 
     def get_queryset(self):
         return (
-            PaidAdvertisement.objects.filter(advertiser=self.request.user)
+            PaidBanner.objects.filter(advertiser=self.request.user)
             .select_related("country", "category")
             .order_by("-created_at")
         )
@@ -82,8 +101,8 @@ class PublisherPaidAdListView(PublisherRequiredMixin, ListView):
         qs = self.get_queryset()
         context["stats"] = {
             "total": qs.count(),
-            "pending": qs.filter(status=PaidAdvertisement.Status.PENDING_APPROVAL).count(),
-            "active": qs.filter(status=PaidAdvertisement.Status.ACTIVE).count(),
+            "pending": qs.filter(status=PaidBanner.Status.PENDING_APPROVAL).count(),
+            "active": qs.filter(status=PaidBanner.Status.ACTIVE).count(),
             "unpaid": qs.filter(payment_status="unpaid").count(),
         }
         return context
@@ -97,7 +116,7 @@ class PublisherPaidAdListView(PublisherRequiredMixin, ListView):
 def publisher_paid_ad_create(request):
     """
     Let a publisher fill in the details for a paid banner ad.
-    On POST, create the PaidAdvertisement (DRAFT / unpaid) so the uploaded image
+    On POST, create the PaidBanner (DRAFT / unpaid) so the uploaded image
     is persisted, then store only the pk in the session and redirect to the
     payment page.  The ad remains DRAFT until payment is confirmed.
     """
@@ -109,32 +128,24 @@ def publisher_paid_ad_create(request):
     # Build category choices (top-level only)
     categories = Category.objects.filter(parent__isnull=True, is_active=True).order_by("name")
 
-    # Pricing from constance; fall back to sensible defaults
-    try:
-        from constance import config as cc
-        price_banner = Decimal(str(getattr(cc, "PAID_AD_BANNER_PRICE", "200")))
-        price_sidebar = Decimal(str(getattr(cc, "PAID_AD_SIDEBAR_PRICE", "150")))
-        price_popup = Decimal(str(getattr(cc, "PAID_AD_POPUP_PRICE", "250")))
-        price_featured = Decimal(str(getattr(cc, "PAID_AD_FEATURED_PRICE", "180")))
-    except Exception:
-        price_banner = Decimal("200")
-        price_sidebar = Decimal("150")
-        price_popup = Decimal("250")
-        price_featured = Decimal("180")
+    # Get pricing from BannerPricing model
+    from main.models import BannerPricing
 
-    pricing = {
-        "banner": price_banner,
-        "sidebar": price_sidebar,
-        "popup": price_popup,
-        "featured_box": price_featured,
-    }
+    # Build pricing dictionary for all combinations
+    pricing = {}
+    for ad_type_choice in PaidBanner.AdType.choices:
+        ad_type = ad_type_choice[0]
+        # For now, use GENERAL placement as base pricing for display
+        # Actual price will be calculated based on selected placement_type
+        price = BannerPricing.get_price(ad_type, PaidBanner.PlacementType.GENERAL)
+        pricing[ad_type] = price
 
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
         title_ar = request.POST.get("title_ar", "").strip()
         description = request.POST.get("description", "").strip()
-        ad_type = request.POST.get("ad_type", PaidAdvertisement.AdType.BANNER)
-        placement_type = request.POST.get("placement_type", PaidAdvertisement.PlacementType.GENERAL)
+        ad_type = request.POST.get("ad_type", PaidBanner.AdType.BANNER)
+        placement_type = request.POST.get("placement_type", PaidBanner.PlacementType.GENERAL)
         target_url = request.POST.get("target_url", "").strip()
         cta_text = request.POST.get("cta_text", "").strip() or str(_("المزيد"))
         country_id = request.POST.get("country_id")
@@ -144,7 +155,8 @@ def publisher_paid_ad_create(request):
         company_name = request.POST.get("company_name", "").strip()
         contact_email = request.POST.get("contact_email", request.user.email).strip()
         contact_phone = request.POST.get("contact_phone", "").strip()
-        image = request.FILES.get("image")
+        image        = request.FILES.get("image")
+        mobile_image = request.FILES.get("mobile_image")
 
         errors = []
         if not title:
@@ -155,6 +167,19 @@ def publisher_paid_ad_create(request):
             errors.append(_("صورة الإعلان مطلوبة."))
         if not start_date_str or not end_date_str:
             errors.append(_("تاريخ البدء وتاريخ الانتهاء مطلوبان."))
+
+        # Validate image dimensions against IMAGE_SPECS
+        specs = PaidBanner.IMAGE_SPECS.get(ad_type)
+        if specs and image:
+            errors.extend(_validate_image_file(image, specs["desktop"], _("صورة الإعلان")))
+        if specs:
+            if specs["mobile_required"] and not mobile_image:
+                errors.append(
+                    _("صورة الموبايل إجبارية للبانر الإعلاني. المقاس المطلوب: %(w)s×%(h)s بكسل.")
+                    % {"w": specs["mobile"][0], "h": specs["mobile"][1]}
+                )
+            elif specs["mobile"] and mobile_image:
+                errors.extend(_validate_image_file(mobile_image, specs["mobile"], _("صورة الموبايل")))
 
         # Resolve country
         from content.models import Country
@@ -172,7 +197,7 @@ def publisher_paid_ad_create(request):
         category = None
         if category_id:
             category = Category.objects.filter(pk=category_id).first()
-        if placement_type == PaidAdvertisement.PlacementType.CATEGORY and not category:
+        if placement_type == PaidBanner.PlacementType.CATEGORY and not category:
             errors.append(_("يجب تحديد القسم عند اختيار موضع 'قسم محدد'."))
 
         # Parse dates
@@ -211,19 +236,19 @@ def publisher_paid_ad_create(request):
                 "active_nav": "publisher_paid_ads",
                 "categories": categories,
                 "pricing": pricing,
-                "ad_types": PaidAdvertisement.AdType.choices,
-                "placement_types": PaidAdvertisement.PlacementType.choices,
+                "ad_types": PaidBanner.AdType.choices,
+                "placement_types": PaidBanner.PlacementType.choices,
                 "current_country": current_country_code,
                 "post_data": request.POST,
             })
 
-        # Determine price and currency
-        price = pricing.get(ad_type, price_banner)
+        # Determine price based on ad_type and placement_type using BannerPricing model
+        price = BannerPricing.get_price(ad_type, placement_type)
         currency = getattr(country, "currency", None) or "EGP"
 
-        # Create the PaidAdvertisement in DRAFT/unpaid state so the image is persisted.
+        # Create the PaidBanner in DRAFT/unpaid state so the image is persisted.
         # It stays invisible to admins (DRAFT) until payment is confirmed.
-        paid_ad = PaidAdvertisement.objects.create(
+        paid_ad = PaidBanner.objects.create(
             title=title,
             title_ar=title_ar,
             description=description,
@@ -232,6 +257,7 @@ def publisher_paid_ad_create(request):
             contact_email=contact_email,
             contact_phone=contact_phone,
             image=image,
+            mobile_image=mobile_image,
             target_url=target_url,
             cta_text=cta_text,
             ad_type=ad_type,
@@ -240,7 +266,7 @@ def publisher_paid_ad_create(request):
             category=category,
             start_date=start_date,
             end_date=end_date,
-            status=PaidAdvertisement.Status.DRAFT,
+            status=PaidBanner.Status.DRAFT,
             payment_status="unpaid",
             price=price,
             currency=currency,
@@ -260,8 +286,8 @@ def publisher_paid_ad_create(request):
         "active_nav": "publisher_paid_ads",
         "categories": categories,
         "pricing": pricing,
-        "ad_types": PaidAdvertisement.AdType.choices,
-        "placement_types": PaidAdvertisement.PlacementType.choices,
+        "ad_types": PaidBanner.AdType.choices,
+        "placement_types": PaidBanner.PlacementType.choices,
         "current_country": current_country_code,
         "post_data": {},
     }
@@ -279,7 +305,7 @@ def publisher_paid_ad_retry_payment(request, pk):
     their list.  Sets the session key and redirects to the payment page.
     """
     paid_ad = get_object_or_404(
-        PaidAdvertisement,
+        PaidBanner,
         pk=pk,
         advertiser=request.user,
         payment_status="unpaid",
@@ -295,7 +321,7 @@ def publisher_paid_ad_retry_payment(request, pk):
 @login_required
 def publisher_paid_ad_payment(request):
     """
-    Payment page for a publisher's pending paid advertisement.
+    Payment page for a publisher's pending paid banner.
     The ad pk comes from the session (set by publisher_paid_ad_create), not the URL,
     so the payment step cannot be bypassed by guessing a URL.
     """
@@ -309,7 +335,7 @@ def publisher_paid_ad_payment(request):
         return redirect("main:publisher_paid_ad_create")
 
     paid_ad = get_object_or_404(
-        PaidAdvertisement,
+        PaidBanner,
         pk=paid_ad_pk,
         advertiser=request.user,
     )
@@ -389,7 +415,7 @@ def publisher_paid_ad_payment(request):
                 metadata=common_metadata,
             )
             # Mark as PENDING_APPROVAL – admin confirms payment separately
-            paid_ad.status = PaidAdvertisement.Status.PENDING_APPROVAL
+            paid_ad.status = PaidBanner.Status.PENDING_APPROVAL
             paid_ad.save(update_fields=["status"])
 
             # Clear session key

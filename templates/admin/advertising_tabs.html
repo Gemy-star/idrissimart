@@ -1,0 +1,369 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "إدارة الإعلانات" %} | {{ site_title }}{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+/* ── Tab bar ─────────────────────────────────────────────────────────────── */
+.adv-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid #dee2e6;
+    margin-bottom: 20px;
+}
+.adv-tab-btn {
+    padding: 10px 22px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: .95rem;
+    font-weight: 600;
+    color: #6c757d;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: color .2s, border-color .2s;
+}
+.adv-tab-btn.active {
+    color: #417690;
+    border-bottom-color: #417690;
+}
+.adv-tab-btn:hover { color: #264b5d; }
+.adv-tab-pane { display: none; }
+.adv-tab-pane.active { display: block; }
+
+/* ── Stat cards ──────────────────────────────────────────────────────────── */
+.adv-stat-card {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 16px 20px;
+    text-align: center;
+}
+.adv-stat-card .num {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+}
+.adv-stat-card .lbl { font-size: .8rem; color: #6c757d; margin-top: 4px; }
+
+/* ── Table helpers ───────────────────────────────────────────────────────── */
+.adv-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+.adv-table th {
+    background: #f8f9fa;
+    padding: 8px 12px;
+    text-align: right;
+    border-bottom: 2px solid #dee2e6;
+    white-space: nowrap;
+}
+.adv-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: middle;
+}
+.adv-table tr:hover td { background: #f8f9fa; }
+
+.badge-type {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 12px;
+    font-size: .75rem;
+    font-weight: 600;
+    color: #fff;
+}
+.bt-banner   { background: #3498db; }
+.bt-sidebar  { background: #9b59b6; }
+.bt-popup    { background: #e74c3c; }
+.bt-featured { background: #f39c12; }
+.bt-active   { background: #27ae60; }
+.bt-pending  { background: #3498db; }
+.bt-draft    { background: #95a5a6; }
+.bt-paused   { background: #f39c12; }
+.bt-expired  { background: #e74c3c; }
+
+.adv-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.adv-actions a {
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: .78rem;
+    text-decoration: none;
+    font-weight: 600;
+}
+.btn-edit    { background: #417690; color: #fff; }
+.btn-add     { background: #28a745; color: #fff; }
+.btn-section { background: #417690; color: #fff; padding: 7px 18px; border-radius: 4px; font-size: .875rem; font-weight: 600; text-decoration: none; }
+.btn-section:hover { background: #264b5d; color: #fff; }
+
+/* ── AdSense active indicator ────────────────────────────────────────────── */
+.adsense-active  { color: #27ae60; font-weight: 700; }
+.adsense-inactive{ color: #95a5a6; }
+
+pre.code-preview {
+    background: #1e1e2e;
+    color: #cdd6f4;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: .72rem;
+    white-space: pre-wrap;
+    overflow-x: auto;
+    max-height: 120px;
+    margin: 0;
+}
+</style>
+{% endblock %}
+
+{% block content_title %}
+<h1>{% trans "إدارة الإعلانات المدفوعة" %}</h1>
+{% endblock %}
+
+{% block content %}
+
+{# ── Stats row ──────────────────────────────────────────────────────────── #}
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;">
+    <div class="adv-stat-card">
+        <div class="num" style="color:#417690">{{ stats.total }}</div>
+        <div class="lbl">{% trans "إجمالي الإعلانات" %}</div>
+    </div>
+    <div class="adv-stat-card">
+        <div class="num" style="color:#27ae60">{{ stats.active }}</div>
+        <div class="lbl">{% trans "نشطة" %}</div>
+    </div>
+    <div class="adv-stat-card">
+        <div class="num" style="color:#3498db">{{ stats.pending }}</div>
+        <div class="lbl">{% trans "قيد المراجعة" %}</div>
+    </div>
+    <div class="adv-stat-card">
+        <div class="num" style="color:#e74c3c">{{ stats.unpaid }}</div>
+        <div class="lbl">{% trans "غير مدفوعة" %}</div>
+    </div>
+</div>
+
+{# ── Tab bar ────────────────────────────────────────────────────────────── #}
+<div class="adv-tabs">
+    <button class="adv-tab-btn {% if active_tab == 'banners' %}active{% endif %}"
+            onclick="switchTab('banners')">
+        📢 {% trans "الإعلانات المدفوعة" %} ({{ stats.total }})
+    </button>
+    <button class="adv-tab-btn {% if active_tab == 'pricing' %}active{% endif %}"
+            onclick="switchTab('pricing')">
+        💰 {% trans "التسعير" %}
+    </button>
+    <button class="adv-tab-btn {% if active_tab == 'adsense' %}active{% endif %}"
+            onclick="switchTab('adsense')">
+        🔵 {% trans "إعدادات AdSense" %} ({{ adsense_slots|length }})
+    </button>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════
+   TAB 1 — Paid Banners
+══════════════════════════════════════════════════════════════════════════ #}
+<div id="tab-banners" class="adv-tab-pane {% if active_tab == 'banners' %}active{% endif %}">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <h2 style="margin:0;font-size:1.1rem;">{% trans "الإعلانات المدفوعة" %}</h2>
+        <a href="{% url 'admin:main_paidbanner_add' %}" class="btn-section">+ {% trans "إضافة إعلان" %}</a>
+    </div>
+
+    {% if paid_banners %}
+    <div style="overflow-x:auto;">
+    <table class="adv-table">
+        <thead>
+            <tr>
+                <th>{% trans "العنوان" %}</th>
+                <th>{% trans "النوع" %}</th>
+                <th>{% trans "المساحة" %}</th>
+                <th>{% trans "الدولة" %}</th>
+                <th>{% trans "الحالة" %}</th>
+                <th>{% trans "الدفع" %}</th>
+                <th>{% trans "البداية" %}</th>
+                <th>{% trans "النهاية" %}</th>
+                <th>{% trans "مشاهدات" %}</th>
+                <th>{% trans "نقرات" %}</th>
+                <th>{% trans "إجراء" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for ad in paid_banners %}
+        {% with type_cls=ad.ad_type|default:"banner" %}
+        <tr>
+            <td>
+                <strong>{{ ad.title|truncatechars:30 }}</strong>
+                {% if ad.company_name %}<br><small style="color:#999">{{ ad.company_name }}</small>{% endif %}
+            </td>
+            <td>
+                <span class="badge-type bt-{{ ad.ad_type }}">{{ ad.get_ad_type_display }}</span>
+            </td>
+            <td>
+                <small style="color:#666;font-family:monospace">{{ ad.advertising_space|default:"—" }}</small>
+            </td>
+            <td>{{ ad.country.code }}</td>
+            <td>
+                <span class="badge-type bt-{{ ad.status }}">{{ ad.get_status_display }}</span>
+            </td>
+            <td>
+                {% if ad.payment_status == "paid" %}
+                    <span style="color:#27ae60;font-weight:600">✓</span>
+                {% else %}
+                    <span style="color:#e74c3c;font-weight:600">✗</span>
+                {% endif %}
+            </td>
+            <td><small>{{ ad.start_date|date:"Y-m-d" }}</small></td>
+            <td><small>{{ ad.end_date|date:"Y-m-d" }}</small></td>
+            <td style="text-align:center">{{ ad.views_count }}</td>
+            <td style="text-align:center">{{ ad.clicks_count }}</td>
+            <td>
+                <div class="adv-actions">
+                    <a href="{% url 'admin:main_paidbanner_change' ad.pk %}" class="btn-edit">{% trans "تعديل" %}</a>
+                    <a href="{% url 'admin:main_paidbanner_delete' ad.pk %}" class="btn-edit" style="background:#c0392b">{% trans "حذف" %}</a>
+                </div>
+            </td>
+        </tr>
+        {% endwith %}
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p style="color:#999;padding:20px 0;text-align:center;">{% trans "لا توجد إعلانات مدفوعة حتى الآن." %}</p>
+    {% endif %}
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════
+   TAB 2 — Banner Pricing
+══════════════════════════════════════════════════════════════════════════ #}
+<div id="tab-pricing" class="adv-tab-pane {% if active_tab == 'pricing' %}active{% endif %}">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <h2 style="margin:0;font-size:1.1rem;">{% trans "تسعير البنرات" %}</h2>
+        <a href="{% url 'admin:main_bannerpricing_add' %}" class="btn-section">+ {% trans "إضافة سعر" %}</a>
+    </div>
+
+    {% if pricing_rows %}
+    <table class="adv-table">
+        <thead>
+            <tr>
+                <th>{% trans "نوع الإعلان" %}</th>
+                <th>{% trans "مقاس الصورة" %}</th>
+                <th>{% trans "موضع العرض" %}</th>
+                <th>{% trans "السعر" %}</th>
+                <th>{% trans "العملة" %}</th>
+                <th>{% trans "نشط" %}</th>
+                <th>{% trans "إجراء" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for p in pricing_rows %}
+        <tr>
+            <td><span class="badge-type bt-{{ p.ad_type }}">{{ p.get_ad_type_display }}</span></td>
+            <td>
+                <small style="font-family:monospace;color:#555">
+                    {% if p.ad_type == "banner" %}728×90{% elif p.ad_type == "sidebar" %}300×250{% elif p.ad_type == "popup" %}300×250{% elif p.ad_type == "featured_box" %}970×250{% endif %}
+                </small>
+            </td>
+            <td>{{ p.get_placement_type_display }}</td>
+            <td><strong>{{ p.price }}</strong></td>
+            <td>{{ p.currency }}</td>
+            <td>
+                {% if p.is_active %}
+                    <span class="adsense-active">✓</span>
+                {% else %}
+                    <span class="adsense-inactive">✗</span>
+                {% endif %}
+            </td>
+            <td>
+                <div class="adv-actions">
+                    <a href="{% url 'admin:main_bannerpricing_change' p.pk %}" class="btn-edit">{% trans "تعديل" %}</a>
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:#999;padding:20px 0;text-align:center;">{% trans "لا توجد أسعار محددة." %}</p>
+    {% endif %}
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════
+   TAB 3 — AdSense Slots
+══════════════════════════════════════════════════════════════════════════ #}
+<div id="tab-adsense" class="adv-tab-pane {% if active_tab == 'adsense' %}active{% endif %}">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <h2 style="margin:0;font-size:1.1rem;">{% trans "إعدادات Google AdSense" %}</h2>
+        <a href="{% url 'admin:main_adsenseslot_add' %}" class="btn-section">+ {% trans "إضافة Slot" %}</a>
+    </div>
+    <p style="color:#6c757d;font-size:.85rem;margin-bottom:14px;">
+        {% trans "عند تفعيل Slot، يحل محل البانر المدفوع في نفس الموضع والدولة." %}
+    </p>
+
+    {% if adsense_slots %}
+    <table class="adv-table">
+        <thead>
+            <tr>
+                <th>{% trans "الموضع" %}</th>
+                <th>{% trans "الدولة" %}</th>
+                <th>{% trans "Ad Client" %}</th>
+                <th>{% trans "Ad Slot" %}</th>
+                <th>{% trans "التنسيق" %}</th>
+                <th>{% trans "Responsive" %}</th>
+                <th>{% trans "الحالة" %}</th>
+                <th>{% trans "معاينة الكود" %}</th>
+                <th>{% trans "إجراء" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for s in adsense_slots %}
+        <tr>
+            <td><span class="badge-type bt-banner" style="background:#417690">{{ s.get_slot_key_display }}</span></td>
+            <td>{{ s.country.code }} — {{ s.country.name }}</td>
+            <td><code style="font-size:.75rem">{{ s.ad_client|truncatechars:24 }}</code></td>
+            <td><code style="font-size:.75rem">{{ s.ad_slot }}</code></td>
+            <td>{{ s.ad_format }}</td>
+            <td style="text-align:center">
+                {% if s.is_responsive %}<span style="color:#27ae60">✓</span>{% else %}<span style="color:#ccc">—</span>{% endif %}
+            </td>
+            <td>
+                {% if s.is_active %}
+                    <span class="adsense-active">● نشط</span>
+                {% else %}
+                    <span class="adsense-inactive">● متوقف</span>
+                {% endif %}
+            </td>
+            <td>
+                <details>
+                    <summary style="cursor:pointer;font-size:.75rem;color:#417690">{% trans "عرض" %}</summary>
+                    <pre class="code-preview">&lt;ins class="adsbygoogle"
+     data-ad-client="{{ s.ad_client }}"
+     data-ad-slot="{{ s.ad_slot }}"
+     data-ad-format="{{ s.ad_format }}"{% if s.is_responsive %}
+     data-full-width-responsive="true"{% endif %}&gt;&lt;/ins&gt;</pre>
+                </details>
+            </td>
+            <td>
+                <div class="adv-actions">
+                    <a href="{% url 'admin:main_adsenseslot_change' s.pk %}" class="btn-edit">{% trans "تعديل" %}</a>
+                    <a href="{% url 'admin:main_adsenseslot_delete' s.pk %}" class="btn-edit" style="background:#c0392b">{% trans "حذف" %}</a>
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:#999;padding:20px 0;text-align:center;">{% trans "لم يتم إعداد أي Slot لـ AdSense بعد." %}</p>
+    {% endif %}
+</div>
+
+{# ── Tab switching script ─────────────────────────────────────────────── #}
+<script>
+function switchTab(tab) {
+    document.querySelectorAll('.adv-tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.adv-tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    event.currentTarget.classList.add('active');
+    history.replaceState(null, '', '?tab=' + tab);
+}
+</script>
+{% endblock %}

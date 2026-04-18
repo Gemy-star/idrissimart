@@ -797,7 +797,7 @@ def process_ad_payment(payment):
 
 def process_paid_banner_payment(payment):
     """
-    Mark a PaidAdvertisement as paid after successful online payment,
+    Mark a PaidBanner as paid after successful online payment,
     change its status to PENDING_APPROVAL, send email alerts to admin and
     publisher, and create in-app notifications for staff.
     """
@@ -806,7 +806,7 @@ def process_paid_banner_payment(payment):
 
     from main.email_service import send_email
 
-    from .models import Notification, PaidAdvertisement
+    from .models import Notification, PaidBanner
 
     User = get_user_model()
 
@@ -816,15 +816,15 @@ def process_paid_banner_payment(payment):
         return False
 
     try:
-        paid_ad = PaidAdvertisement.objects.select_related("advertiser").get(pk=paid_ad_id)
+        paid_ad = PaidBanner.objects.select_related("advertiser").get(pk=paid_ad_id)
         paid_ad.payment_status = "paid"
         paid_ad.payment_reference = str(payment.id)
-        paid_ad.status = PaidAdvertisement.Status.PENDING_APPROVAL
+        paid_ad.status = PaidBanner.Status.PENDING_APPROVAL
         paid_ad.save(update_fields=["payment_status", "payment_reference", "status"])
 
         advertiser = paid_ad.advertiser
         advertiser_name = advertiser.get_full_name() or advertiser.username
-        admin_url = f"/admin/main/paidadvertisement/{paid_ad.pk}/change/"
+        admin_url = f"/admin/main/paidbanner/{paid_ad.pk}/change/"
 
         # ------------------------------------------------------------------
         # Email alert to admin
@@ -896,11 +896,11 @@ def process_paid_banner_payment(payment):
                 link=admin_url,
             )
 
-        logger.info("PaidAdvertisement %s marked paid after payment %s", paid_ad.pk, payment.id)
+        logger.info("PaidBanner %s marked paid after payment %s", paid_ad.pk, payment.id)
         return True
 
-    except PaidAdvertisement.DoesNotExist:
-        logger.error("process_paid_banner_payment: PaidAdvertisement %s not found", paid_ad_id)
+    except PaidBanner.DoesNotExist:
+        logger.error("process_paid_banner_payment: PaidBanner %s not found", paid_ad_id)
         return False
     except Exception as exc:
         logger.error("process_paid_banner_payment error for payment %s: %s", payment.id, exc)

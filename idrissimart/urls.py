@@ -41,8 +41,9 @@ urlpatterns = [
 ]
 
 urlpatterns += [
-    path("super-admin/", admin.site.urls),
+    # Rosetta MUST come before admin.site.urls to avoid catch_all_view intercepting it
     path("super-admin/translations/", include("rosetta.urls")),
+    path("super-admin/", admin.site.urls),
 ]
 
 urlpatterns += i18n_patterns(

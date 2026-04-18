@@ -9,7 +9,7 @@ from main.models import (
     CustomFieldOption, CategoryCustomField, Wishlist, WishlistItem,
     ChatRoom, ChatMessage, FAQ, FAQCategory, SafetyTip, ContactMessage,
     AdTransaction, UserSubscription, AdUpgradeHistory, AdFeaturePrice,
-    CartSettings, PaidAdvertisement
+    CartSettings, PaidBanner
 )
 from content.models import (
     Country, Blog, BlogCategory, Comment, HomeSlider,
@@ -582,7 +582,7 @@ class PaymentInitiateSerializer(serializers.Serializer):
 
     # Paid banner-specific fields
     paid_ad_id = serializers.IntegerField(required=False,
-        help_text="Required for paid_banner context: the PaidAdvertisement ID to pay for")
+        help_text="Required for paid_banner context: the PaidBanner ID to pay for")
 
 
 class PaymentMethodSerializer(serializers.Serializer):
@@ -788,20 +788,20 @@ class HomePageSerializer(serializers.ModelSerializer):
         ]
 
 
-# ==================== Paid Advertisement Serializers ====================
+# ==================== Paid Banner Serializers ====================
 
-class PaidAdvertisementSerializer(serializers.ModelSerializer):
-    """Paid advertisement serializer (read)"""
+class PaidBannerSerializer(serializers.ModelSerializer):
+    """Paid banner serializer (read)"""
     advertiser = UserListSerializer(read_only=True)
     category_detail = CategoryListSerializer(source='category', read_only=True)
 
     class Meta:
-        model = PaidAdvertisement
+        model = PaidBanner
         fields = [
             'id', 'title', 'title_ar', 'description', 'description_ar',
             'advertiser', 'company_name', 'contact_email', 'contact_phone',
             'image', 'mobile_image', 'target_url', 'cta_text', 'cta_text_ar',
-            'open_in_new_tab', 'ad_type', 'placement_type',
+            'open_in_new_tab', 'ad_type', 'placement_type', 'advertising_space',
             'country', 'category', 'category_detail',
             'start_date', 'end_date',
             'status', 'is_active', 'priority', 'order',
@@ -811,23 +811,23 @@ class PaidAdvertisementSerializer(serializers.ModelSerializer):
         ]
 
 
-class PaidAdvertisementCreateSerializer(serializers.ModelSerializer):
-    """Create a paid advertisement (publisher)"""
+class PaidBannerCreateSerializer(serializers.ModelSerializer):
+    """Create a paid banner (publisher)"""
 
     class Meta:
-        model = PaidAdvertisement
+        model = PaidBanner
         fields = [
             'title', 'title_ar', 'description', 'description_ar',
             'company_name', 'contact_email', 'contact_phone',
             'image', 'mobile_image', 'target_url', 'cta_text', 'cta_text_ar',
-            'open_in_new_tab', 'ad_type', 'placement_type',
+            'open_in_new_tab', 'ad_type', 'placement_type', 'advertising_space',
             'country', 'category',
             'start_date', 'end_date',
         ]
 
     def validate(self, data):
-        placement = data.get('placement_type', PaidAdvertisement.PlacementType.GENERAL)
-        if placement == PaidAdvertisement.PlacementType.CATEGORY and not data.get('category'):
+        placement = data.get('placement_type', PaidBanner.PlacementType.GENERAL)
+        if placement == PaidBanner.PlacementType.CATEGORY and not data.get('category'):
             raise serializers.ValidationError(
                 {'category': 'Category is required for category placement type.'}
             )
@@ -840,33 +840,21 @@ class PaidAdvertisementCreateSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        from constance import config as cc
-        from decimal import Decimal
+        from main.models import BannerPricing
 
-        ad_type = validated_data.get('ad_type', PaidAdvertisement.AdType.BANNER)
-        try:
-            pricing = {
-                PaidAdvertisement.AdType.BANNER: Decimal(str(getattr(cc, 'PAID_AD_BANNER_PRICE', '200'))),
-                PaidAdvertisement.AdType.SIDEBAR: Decimal(str(getattr(cc, 'PAID_AD_SIDEBAR_PRICE', '150'))),
-                PaidAdvertisement.AdType.POPUP: Decimal(str(getattr(cc, 'PAID_AD_POPUP_PRICE', '250'))),
-                PaidAdvertisement.AdType.FEATURED_BOX: Decimal(str(getattr(cc, 'PAID_AD_FEATURED_PRICE', '180'))),
-            }
-        except Exception:
-            pricing = {
-                PaidAdvertisement.AdType.BANNER: Decimal('200'),
-                PaidAdvertisement.AdType.SIDEBAR: Decimal('150'),
-                PaidAdvertisement.AdType.POPUP: Decimal('250'),
-                PaidAdvertisement.AdType.FEATURED_BOX: Decimal('180'),
-            }
+        ad_type = validated_data.get('ad_type', PaidBanner.AdType.BANNER)
+        placement_type = validated_data.get('placement_type', PaidBanner.PlacementType.GENERAL)
 
-        price = pricing.get(ad_type, Decimal('200'))
+        # Get price from BannerPricing model based on both ad_type and placement_type
+        price = BannerPricing.get_price(ad_type, placement_type)
+
         country = validated_data.get('country')
         currency = getattr(country, 'currency', None) or 'EGP'
         user = self.context['request'].user
 
-        return PaidAdvertisement.objects.create(
+        return PaidBanner.objects.create(
             advertiser=user,
-            status=PaidAdvertisement.Status.DRAFT,
+            status=PaidBanner.Status.DRAFT,
             payment_status='unpaid',
             price=price,
             currency=currency,

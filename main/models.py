@@ -4658,7 +4658,96 @@ class EmailTemplate(models.Model):
             return None
 
 
-class PaidAdvertisement(models.Model):
+class AdSenseSlot(models.Model):
+    """
+    Google AdSense slot configuration. Admin-only — not exposed to advertisers or users.
+    When a slot is active, it replaces the corresponding paid banner slot with AdSense code.
+    """
+
+    class SlotKey(models.TextChoices):
+        HOME_BANNER   = "home_banner",   _("الصفحة الرئيسية — بانر (728×90)")
+        HOME_SIDEBAR  = "home_sidebar",  _("الصفحة الرئيسية — جانبي (300×250)")
+        HOME_FEATURED = "home_featured", _("الصفحة الرئيسية — مميز (970×250)")
+        CAT_BANNER    = "category_banner",   _("صفحة القسم — بانر (728×90)")
+        CAT_SIDEBAR   = "category_sidebar",  _("صفحة القسم — جانبي (300×250)")
+        CAT_FEATURED  = "category_featured", _("صفحة القسم — مميز (970×250)")
+
+    class AdFormat(models.TextChoices):
+        AUTO       = "auto",       _("Auto (تلقائي)")
+        RECTANGLE  = "rectangle",  _("Rectangle (مستطيل)")
+        HORIZONTAL = "horizontal", _("Horizontal (أفقي)")
+        VERTICAL   = "vertical",   _("Vertical (رأسي)")
+
+    slot_key = models.CharField(
+        max_length=30,
+        choices=SlotKey.choices,
+        verbose_name=_("موضع الإعلان"),
+        help_text=_("الموضع الذي سيستبدله AdSense — كل دولة يمكن أن يكون لها إعداد مختلف"),
+    )
+    country = models.ForeignKey(
+        "content.Country",
+        on_delete=models.CASCADE,
+        verbose_name=_("الدولة"),
+        help_text=_("اعرض هذا الإعلان لزوار هذه الدولة فقط"),
+    )
+    ad_client = models.CharField(
+        max_length=60,
+        verbose_name=_("Ad Client"),
+        help_text=_("مثال: ca-pub-1234567890123456"),
+    )
+    ad_slot = models.CharField(
+        max_length=20,
+        verbose_name=_("Ad Slot ID"),
+        help_text=_("رقم الـ slot من لوحة Google AdSense"),
+    )
+    ad_format = models.CharField(
+        max_length=15,
+        choices=AdFormat.choices,
+        default=AdFormat.AUTO,
+        verbose_name=_("تنسيق الإعلان"),
+    )
+    is_responsive = models.BooleanField(
+        default=True,
+        verbose_name=_("responsive"),
+        help_text=_("data-full-width-responsive — يجعل الإعلان يتكيف مع عرض الشاشة"),
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_("نشط"),
+        help_text=_("إذا كان غير نشط، سيظهر البانر المدفوع بدلاً منه"),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("إعداد AdSense")
+        verbose_name_plural = _("إعدادات AdSense")
+        unique_together = [("slot_key", "country")]
+        ordering = ["slot_key", "country"]
+
+    def __str__(self):
+        return f"AdSense | {self.get_slot_key_display()} | {self.country}"
+
+    @property
+    def script_tag(self):
+        """Return the full AdSense <ins> HTML snippet for use in templates."""
+        responsive_attr = 'data-full-width-responsive="true"' if self.is_responsive else ''
+        return (
+            f'<ins class="adsbygoogle" style="display:block" '
+            f'data-ad-client="{self.ad_client}" '
+            f'data-ad-slot="{self.ad_slot}" '
+            f'data-ad-format="{self.ad_format}" '
+            f'{responsive_attr}></ins>'
+        )
+
+    @classmethod
+    def get_active_slots(cls, country_code):
+        """Return dict keyed by slot_key for a given country."""
+        slots = cls.objects.filter(country__code=country_code, is_active=True).select_related("country")
+        return {s.slot_key: s for s in slots}
+
+
+class PaidBanner(models.Model):
     """
     Model for paid banner advertisements that can appear on the homepage or specific category pages.
     These are separate from ClassifiedAd and are for promotional banners, sponsored content, etc.
@@ -4669,6 +4758,14 @@ class PaidAdvertisement(models.Model):
         SIDEBAR = "sidebar", _("إعلان جانبي - Sidebar")
         POPUP = "popup", _("نافذة منبثقة - Popup")
         FEATURED_BOX = "featured_box", _("صندوق مميز - Featured Box")
+
+    # Required image dimensions per ad type: (width, height)
+    IMAGE_SPECS = {
+        "banner":       {"desktop": (728, 90),  "mobile": (320, 50),  "mobile_required": True},
+        "sidebar":      {"desktop": (300, 250), "mobile": None,       "mobile_required": False},
+        "popup":        {"desktop": (300, 250), "mobile": None,       "mobile_required": False},
+        "featured_box": {"desktop": (970, 250), "mobile": None,       "mobile_required": False},
+    }
 
     class PlacementType(models.TextChoices):
         GENERAL = "general", _("عام (الصفحة الرئيسية) - General (Homepage)")
@@ -4708,7 +4805,7 @@ class PaidAdvertisement(models.Model):
     advertiser = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name="paid_advertisements",
+        related_name="paid_banners",
         verbose_name=_("المعلن - Advertiser"),
     )
     company_name = models.CharField(
@@ -4730,14 +4827,14 @@ class PaidAdvertisement(models.Model):
     image = models.ImageField(
         upload_to="paid_ads/%Y/%m/",
         verbose_name=_("صورة الإعلان - Ad Image"),
-        help_text=_("الحجم الموصى به: 1200x600 بكسل للبانر، 300x600 للجانبي")
+        help_text=_("المقاس حسب النوع: بانر 728×90 | جانبي/نافذة 300×250 | مميز 970×250 — سيتم رفض الصورة إذا كانت الأبعاد مختلفة")
     )
     mobile_image = models.ImageField(
         upload_to="paid_ads/%Y/%m/mobile/",
         blank=True,
         null=True,
         verbose_name=_("صورة الموبايل - Mobile Image"),
-        help_text=_("صورة مخصصة للأجهزة المحمولة (اختياري)")
+        help_text=_("إجبارية لنوع 'بانر إعلاني' — المقاس المطلوب: Mobile Banner 320×50 بكسل")
     )
 
     # Link & CTA
@@ -4775,11 +4872,21 @@ class PaidAdvertisement(models.Model):
         help_text=_("حدد أين سيظهر الإعلان: الصفحة الرئيسية، قسم محدد، أو قسم فرعي")
     )
 
+    # Advertising Space - Allows multiple ads to share the same slot
+    advertising_space = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name=_("المساحة الإعلانية - Advertising Space"),
+        help_text=_("معرف المساحة الإعلانية - يمكن لعدة معلنين شراء نفس المساحة وسيتم عرضهم بالتناوب"),
+        db_index=True,
+    )
+
     # Location Targeting
     country = models.ForeignKey(
         "content.Country",
         on_delete=models.CASCADE,
-        related_name="paid_advertisements",
+        related_name="paid_banners",
         verbose_name=_("الدولة - Country"),
         help_text=_("الدولة التي سيظهر فيها الإعلان")
     )
@@ -4790,7 +4897,7 @@ class PaidAdvertisement(models.Model):
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name="paid_advertisements",
+        related_name="paid_banners",
         verbose_name=_("القسم - Category"),
         help_text=_("القسم الذي سيظهر فيه الإعلان (اختياري - للإعلانات المرتبطة بقسم)")
     )
@@ -4799,7 +4906,7 @@ class PaidAdvertisement(models.Model):
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name="paid_advertisements_subcategory",
+        related_name="paid_banners_subcategory",
         verbose_name=_("القسم الفرعي - Subcategory"),
         help_text=_("القسم الفرعي المحدد (اختياري)")
     )
@@ -4808,7 +4915,7 @@ class PaidAdvertisement(models.Model):
     categories = models.ManyToManyField(
         Category,
         blank=True,
-        related_name="multi_paid_advertisements",
+        related_name="multi_paid_banners",
         verbose_name=_("أقسام متعددة - Multiple Categories"),
         help_text=_("اختر عدة أقسام لعرض هذا الإعلان فيها")
     )
@@ -4910,9 +5017,9 @@ class PaidAdvertisement(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_("تاريخ التحديث"))
 
     class Meta:
-        db_table = "paid_advertisements"
-        verbose_name = _("إعلان مدفوع - Paid Advertisement")
-        verbose_name_plural = _("الإعلانات المدفوعة - Paid Advertisements")
+        db_table = "paid_banners"
+        verbose_name = _("بنر مدفوع - Paid Banner")
+        verbose_name_plural = _("البنرات المدفوعة - Paid Banners")
         ordering = ["-priority", "order", "-created_at"]
         indexes = [
             models.Index(fields=["status", "is_active", "start_date", "end_date"]),
@@ -4923,6 +5030,22 @@ class PaidAdvertisement(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.get_placement_type_display()} ({self.country.code})"
+
+    @staticmethod
+    def _get_image_dimensions(image_field):
+        """Return (width, height) of an ImageField, or None if unreadable."""
+        try:
+            from PIL import Image as PilImage
+            image_field.open()
+            img = PilImage.open(image_field)
+            return img.size  # (width, height)
+        except Exception:
+            return None
+        finally:
+            try:
+                image_field.close()
+            except Exception:
+                pass
 
     def clean(self):
         """Validate model data"""
@@ -4944,6 +5067,39 @@ class PaidAdvertisement(models.Model):
             raise ValidationError({
                 'end_date': _("تاريخ الانتهاء يجب أن يكون بعد تاريخ البدء")
             })
+
+        # Validate image dimensions based on ad_type
+        specs = self.IMAGE_SPECS.get(self.ad_type)
+        if specs and self.image and hasattr(self.image, 'file'):
+            errors = {}
+
+            # Check desktop image dimensions
+            required_w, required_h = specs["desktop"]
+            dims = self._get_image_dimensions(self.image)
+            if dims and dims != (required_w, required_h):
+                errors['image'] = _(
+                    "مقاس الصورة %(w)s×%(h)s غير صحيح. "
+                    "المطلوب %(rw)s×%(rh)s بكسل."
+                ) % {"w": dims[0], "h": dims[1], "rw": required_w, "rh": required_h}
+
+            # Check mobile image requirement and dimensions
+            if specs["mobile_required"] and not self.mobile_image:
+                errors['mobile_image'] = _(
+                    "صورة الموبايل إجبارية لنوع 'بانر إعلاني'. "
+                    "المقاس المطلوب %(w)s×%(h)s بكسل."
+                ) % {"w": specs["mobile"][0], "h": specs["mobile"][1]}
+
+            elif specs["mobile"] and self.mobile_image and hasattr(self.mobile_image, 'file'):
+                mob_w, mob_h = specs["mobile"]
+                mob_dims = self._get_image_dimensions(self.mobile_image)
+                if mob_dims and mob_dims != (mob_w, mob_h):
+                    errors['mobile_image'] = _(
+                        "مقاس صورة الموبايل %(w)s×%(h)s غير صحيح. "
+                        "المطلوب %(rw)s×%(rh)s بكسل."
+                    ) % {"w": mob_dims[0], "h": mob_dims[1], "rw": mob_w, "rh": mob_h}
+
+            if errors:
+                raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
         # Auto-update status based on dates
@@ -4988,13 +5144,13 @@ class PaidAdvertisement(models.Model):
     def increment_views(self):
         """Increment views count atomically"""
         from django.db.models import F
-        PaidAdvertisement.objects.filter(pk=self.pk).update(views_count=F("views_count") + 1)
+        PaidBanner.objects.filter(pk=self.pk).update(views_count=F("views_count") + 1)
         self.refresh_from_db(fields=["views_count"])
 
     def increment_clicks(self):
         """Increment clicks count atomically"""
         from django.db.models import F
-        PaidAdvertisement.objects.filter(pk=self.pk).update(clicks_count=F("clicks_count") + 1)
+        PaidBanner.objects.filter(pk=self.pk).update(clicks_count=F("clicks_count") + 1)
         self.refresh_from_db(fields=["clicks_count"])
 
     def approve(self, admin_user):
@@ -5059,3 +5215,145 @@ class PaidAdvertisement(models.Model):
             placement_type=cls.PlacementType.CATEGORY,
             category=category
         )
+
+    @classmethod
+    def get_ads_grouped_by_space(cls, country_code=None, placement_type=None, category=None, ad_type=None):
+        """
+        Get ads grouped by advertising_space.
+        Returns a dictionary where keys are ad types and values are lists of ads for each space.
+        Ads sharing the same advertising_space will be returned together to enable carousel display.
+        """
+        ads = cls.get_active_ads(
+            country_code=country_code,
+            placement_type=placement_type,
+            category=category
+        )
+
+        if ad_type:
+            ads = ads.filter(ad_type=ad_type)
+
+        # Group ads by advertising_space and ad_type
+        from collections import defaultdict
+        grouped = defaultdict(lambda: defaultdict(list))
+
+        for ad in ads:
+            # If ad has a specific advertising_space, group by that
+            # Otherwise, treat each ad as its own space
+            space_key = ad.advertising_space if ad.advertising_space else f"single_{ad.id}"
+            grouped[ad.ad_type][space_key].append(ad)
+
+        return dict(grouped)
+
+    @classmethod
+    def get_category_ads_grouped(cls, category, country_code):
+        """
+        Get category ads grouped by space for carousel display.
+        Returns dict with ad_type keys containing lists of ad groups.
+        """
+        return cls.get_ads_grouped_by_space(
+            country_code=country_code,
+            placement_type=cls.PlacementType.CATEGORY,
+            category=category
+        )
+
+
+class BannerPricing(models.Model):
+    """
+    Pricing configuration for paid banners.
+    Allows different prices based on banner type and placement type.
+    """
+
+    ad_type = models.CharField(
+        max_length=20,
+        choices=PaidBanner.AdType.choices,
+        verbose_name=_("نوع الإعلان - Ad Type"),
+    )
+    placement_type = models.CharField(
+        max_length=20,
+        choices=PaidBanner.PlacementType.choices,
+        verbose_name=_("نوع الموضع - Placement Type"),
+    )
+    price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name=_("السعر - Price"),
+        help_text=_("السعر لهذا النوع من الإعلان في هذا الموضع")
+    )
+    currency = models.CharField(
+        max_length=3,
+        default="EGP",
+        verbose_name=_("العملة - Currency"),
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_("نشط - Active"),
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإنشاء"))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("تاريخ التحديث"))
+
+    class Meta:
+        db_table = "banner_pricing"
+        verbose_name = _("تسعير البنر - Banner Pricing")
+        verbose_name_plural = _("تسعيرات البنرات - Banner Pricing")
+        unique_together = [['ad_type', 'placement_type']]
+        ordering = ['ad_type', 'placement_type']
+        indexes = [
+            models.Index(fields=['ad_type', 'placement_type', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.get_ad_type_display()} - {self.get_placement_type_display()}: {self.price} {self.currency}"
+
+    @classmethod
+    def get_price(cls, ad_type, placement_type, currency='EGP'):
+        """
+        Get the price for a specific ad type and placement type.
+        Falls back to defaults if no pricing is configured.
+        """
+        try:
+            pricing = cls.objects.get(
+                ad_type=ad_type,
+                placement_type=placement_type,
+                is_active=True
+            )
+            return pricing.price
+        except cls.DoesNotExist:
+            # Fallback defaults
+            defaults = {
+                (PaidBanner.AdType.BANNER, PaidBanner.PlacementType.GENERAL): Decimal('200.00'),
+                (PaidBanner.AdType.BANNER, PaidBanner.PlacementType.CATEGORY): Decimal('150.00'),
+                (PaidBanner.AdType.BANNER, PaidBanner.PlacementType.SUBCATEGORY): Decimal('120.00'),
+                (PaidBanner.AdType.SIDEBAR, PaidBanner.PlacementType.GENERAL): Decimal('150.00'),
+                (PaidBanner.AdType.SIDEBAR, PaidBanner.PlacementType.CATEGORY): Decimal('120.00'),
+                (PaidBanner.AdType.SIDEBAR, PaidBanner.PlacementType.SUBCATEGORY): Decimal('100.00'),
+                (PaidBanner.AdType.POPUP, PaidBanner.PlacementType.GENERAL): Decimal('250.00'),
+                (PaidBanner.AdType.POPUP, PaidBanner.PlacementType.CATEGORY): Decimal('200.00'),
+                (PaidBanner.AdType.POPUP, PaidBanner.PlacementType.SUBCATEGORY): Decimal('180.00'),
+                (PaidBanner.AdType.FEATURED_BOX, PaidBanner.PlacementType.GENERAL): Decimal('180.00'),
+                (PaidBanner.AdType.FEATURED_BOX, PaidBanner.PlacementType.CATEGORY): Decimal('140.00'),
+                (PaidBanner.AdType.FEATURED_BOX, PaidBanner.PlacementType.SUBCATEGORY): Decimal('110.00'),
+            }
+            return defaults.get((ad_type, placement_type), Decimal('200.00'))
+
+    @classmethod
+    def get_all_prices(cls):
+        """
+        Get all active pricing configurations as a dictionary.
+        """
+        pricing_dict = {}
+        for pricing in cls.objects.filter(is_active=True):
+            key = (pricing.ad_type, pricing.placement_type)
+            pricing_dict[key] = pricing.price
+        return pricing_dict
+
+
+class AdvertisingConfig(models.Model):
+    """
+    Proxy model used solely as a Django admin entry point for the
+    unified Advertising Management dashboard (PaidBanner + BannerPricing + AdSenseSlot).
+    No database table — managed = False.
+    """
+    class Meta:
+        managed = False
+        verbose_name = _("إدارة الإعلانات")
+        verbose_name_plural = _("إدارة الإعلانات")

@@ -21,7 +21,7 @@ from main.models import (
     Payment, UserPackage, SavedSearch, Notification, CustomField,
     CustomFieldOption, CategoryCustomField, Wishlist, WishlistItem,
     ChatRoom, ChatMessage, FAQ, FAQCategory, SafetyTip, ContactMessage,
-    AdTransaction, UserSubscription, PaidAdvertisement
+    AdTransaction, UserSubscription, PaidBanner
 )
 from content.models import (
     Country, Blog, BlogCategory, Comment, HomeSlider,
@@ -66,8 +66,8 @@ from .serializers import (
     CustomFieldSerializer,
     # Home content serializer
     HomePageSerializer,
-    # Paid Advertisement serializers
-    PaidAdvertisementSerializer, PaidAdvertisementCreateSerializer,
+    # Paid Banner serializers
+    PaidBannerSerializer, PaidBannerCreateSerializer,
 )
 from .permissions import IsOwnerOrReadOnly, IsAdOwnerOrReadOnly, IsPublisherOrClient
 from django.contrib.auth import get_user_model
@@ -607,7 +607,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
         metadata = data.get('metadata', {})
         context = data.get('context', 'ad_posting')
 
-        # For paid_banner context, validate and enrich metadata from the PaidAdvertisement
+        # For paid_banner context, validate and enrich metadata from the PaidBanner
         paid_ad = None
         if context == 'paid_banner':
             paid_ad_id = data.get('paid_ad_id')
@@ -617,14 +617,14 @@ class PaymentViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             try:
-                paid_ad = PaidAdvertisement.objects.get(
+                paid_ad = PaidBanner.objects.get(
                     pk=paid_ad_id,
                     advertiser=request.user,
                     payment_status='unpaid',
                 )
-            except PaidAdvertisement.DoesNotExist:
+            except PaidBanner.DoesNotExist:
                 return Response(
-                    {'error': 'Paid advertisement not found or already paid.'},
+                    {'error': 'Paid banner not found or already paid.'},
                     status=status.HTTP_404_NOT_FOUND,
                 )
             # Override amount/currency from the ad's stored price
@@ -1156,9 +1156,9 @@ class HomeAPIView(APIView):
         })
 
 
-# ==================== Paid Advertisement ViewSets ====================
+# ==================== Paid Banner ViewSets ====================
 
-class PaidAdvertisementViewSet(viewsets.ModelViewSet):
+class PaidBannerViewSet(viewsets.ModelViewSet):
     """
     Paid banner advertisement endpoints.
 
@@ -1181,8 +1181,8 @@ class PaidAdvertisementViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
-            return PaidAdvertisementCreateSerializer
-        return PaidAdvertisementSerializer
+            return PaidBannerCreateSerializer
+        return PaidBannerSerializer
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve', 'active', 'pricing', 'track_click']:
@@ -1191,11 +1191,11 @@ class PaidAdvertisementViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         if getattr(self, 'swagger_fake_view', False):
-            return PaidAdvertisement.objects.none()
+            return PaidBanner.objects.none()
 
         now = timezone.now()
-        active_qs = PaidAdvertisement.objects.filter(
-            status=PaidAdvertisement.Status.ACTIVE,
+        active_qs = PaidBanner.objects.filter(
+            status=PaidBanner.Status.ACTIVE,
             is_active=True,
             start_date__lte=now,
             end_date__gte=now,
@@ -1203,19 +1203,19 @@ class PaidAdvertisementViewSet(viewsets.ModelViewSet):
 
         # Authenticated users can see their own ads with ?my_ads=1
         if self.request.user.is_authenticated and self.request.query_params.get('my_ads'):
-            return PaidAdvertisement.objects.filter(advertiser=self.request.user)
+            return PaidBanner.objects.filter(advertiser=self.request.user)
 
         return active_qs
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def my_ads(self, request):
         """List the authenticated user's own paid ads."""
-        ads = PaidAdvertisement.objects.filter(advertiser=request.user).order_by('-created_at')
+        ads = PaidBanner.objects.filter(advertiser=request.user).order_by('-created_at')
         page = self.paginate_queryset(ads)
         if page is not None:
-            serializer = PaidAdvertisementSerializer(page, many=True, context={'request': request})
+            serializer = PaidBannerSerializer(page, many=True, context={'request': request})
             return self.get_paginated_response(serializer.data)
-        serializer = PaidAdvertisementSerializer(ads, many=True, context={'request': request})
+        serializer = PaidBannerSerializer(ads, many=True, context={'request': request})
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'], permission_classes=[AllowAny])
@@ -1230,8 +1230,8 @@ class PaidAdvertisementViewSet(viewsets.ModelViewSet):
           - category: category ID
         """
         now = timezone.now()
-        ads = PaidAdvertisement.objects.filter(
-            status=PaidAdvertisement.Status.ACTIVE,
+        ads = PaidBanner.objects.filter(
+            status=PaidBanner.Status.ACTIVE,
             is_active=True,
             start_date__lte=now,
             end_date__gte=now,
@@ -1248,51 +1248,67 @@ class PaidAdvertisementViewSet(viewsets.ModelViewSet):
         country_id = request.query_params.get('country')
         if country_id:
             ads = ads.filter(
-                Q(country_id=country_id) | Q(placement_type=PaidAdvertisement.PlacementType.GENERAL)
+                Q(country_id=country_id) | Q(placement_type=PaidBanner.PlacementType.GENERAL)
             )
 
         category_id = request.query_params.get('category')
         if category_id:
             ads = ads.filter(
-                Q(category_id=category_id) | Q(placement_type=PaidAdvertisement.PlacementType.GENERAL)
+                Q(category_id=category_id) | Q(placement_type=PaidBanner.PlacementType.GENERAL)
             )
 
         page = self.paginate_queryset(ads)
         if page is not None:
-            serializer = PaidAdvertisementSerializer(page, many=True, context={'request': request})
+            serializer = PaidBannerSerializer(page, many=True, context={'request': request})
             return self.get_paginated_response(serializer.data)
-        serializer = PaidAdvertisementSerializer(ads, many=True, context={'request': request})
+        serializer = PaidBannerSerializer(ads, many=True, context={'request': request})
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def pricing(self, request):
-        """Return current pricing for each paid ad type."""
-        from constance import config as cc
-        from decimal import Decimal
+        """
+        Return current pricing for each paid ad type and placement combination.
+        Returns a nested structure: {ad_type: {placement_type: price}}
+        """
+        from main.models import BannerPricing, PaidBanner
 
-        try:
-            return Response({
-                'banner': str(Decimal(str(getattr(cc, 'PAID_AD_BANNER_PRICE', '200')))),
-                'sidebar': str(Decimal(str(getattr(cc, 'PAID_AD_SIDEBAR_PRICE', '150')))),
-                'popup': str(Decimal(str(getattr(cc, 'PAID_AD_POPUP_PRICE', '250')))),
-                'featured_box': str(Decimal(str(getattr(cc, 'PAID_AD_FEATURED_PRICE', '180')))),
-            })
-        except Exception:
-            return Response({
-                'banner': '200.00',
-                'sidebar': '150.00',
-                'popup': '250.00',
-                'featured_box': '180.00',
-            })
+        pricing_structure = {}
+
+        # Build comprehensive pricing structure
+        for ad_type_choice in PaidBanner.AdType.choices:
+            ad_type = ad_type_choice[0]
+            pricing_structure[ad_type] = {}
+
+            for placement_choice in PaidBanner.PlacementType.choices:
+                placement_type = placement_choice[0]
+                price = BannerPricing.get_price(ad_type, placement_type)
+                pricing_structure[ad_type][placement_type] = str(price)
+
+        return Response(pricing_structure)
+
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
+    def pricing_simple(self, request):
+        """
+        Return simple pricing for general/homepage placement.
+        Legacy endpoint for backward compatibility.
+        """
+        from main.models import BannerPricing, PaidBanner
+
+        return Response({
+            'banner': str(BannerPricing.get_price(PaidBanner.AdType.BANNER, PaidBanner.PlacementType.GENERAL)),
+            'sidebar': str(BannerPricing.get_price(PaidBanner.AdType.SIDEBAR, PaidBanner.PlacementType.GENERAL)),
+            'popup': str(BannerPricing.get_price(PaidBanner.AdType.POPUP, PaidBanner.PlacementType.GENERAL)),
+            'featured_box': str(BannerPricing.get_price(PaidBanner.AdType.FEATURED_BOX, PaidBanner.PlacementType.GENERAL)),
+        })
 
     @action(detail=True, methods=['post'], permission_classes=[AllowAny])
     def track_click(self, request, pk=None):
         """Increment the click counter for an active paid ad."""
         from django.db.models import F
         ad = get_object_or_404(
-            PaidAdvertisement,
+            PaidBanner,
             pk=pk,
-            status=PaidAdvertisement.Status.ACTIVE,
+            status=PaidBanner.Status.ACTIVE,
             is_active=True,
         )
         PaidAdvertisement.objects.filter(pk=ad.pk).update(clicks_count=F('clicks_count') + 1)

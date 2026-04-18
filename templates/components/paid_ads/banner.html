@@ -1,132 +1,199 @@
-{% load static i18n %}
-{# Banner Paid Advertisement Component #}
-{# Usage: {% include 'components/paid_ads/banner.html' with ad=ad_object %} #}
+{% load static i18n idrissimart_tags %}
+{# Banner Paid Banner Component - Leaderboard 728×90 (desktop) / 320×50 (mobile) #}
+{# Usage: {% include 'components/paid_ads/banner.html' with ad=ad_object or ads=ad_list %} #}
 
-{% if ad and ad.is_currently_active %}
-<div class="paid-ad-banner mb-4" data-ad-id="{{ ad.id }}" data-ad-type="banner">
-    <a href="{{ ad.target_url }}" 
-       {% if ad.open_in_new_tab %}target="_blank" rel="noopener noreferrer"{% endif %}
-       class="paid-ad-link"
-       onclick="trackPaidAdClick('{{ ad.id }}')">
-        
-        <div class="banner-container position-relative overflow-hidden rounded shadow-sm" 
-             style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-            
-            {# Desktop/Tablet Image #}
-            <div class="d-none d-md-block">
-                <img src="{{ ad.image.url }}" 
-                     alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
-                     class="w-100 banner-image"
-                     style="max-height: 250px; object-fit: cover;">
-            </div>
-            
-            {# Mobile Image (if available) #}
-            {% if ad.mobile_image %}
-            <div class="d-block d-md-none">
-                <img src="{{ ad.mobile_image.url }}" 
-                     alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
-                     class="w-100 banner-image"
-                     style="max-height: 200px; object-fit: cover;">
-            </div>
-            {% else %}
-            <div class="d-block d-md-none">
-                <img src="{{ ad.image.url }}" 
-                     alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
-                     class="w-100 banner-image"
-                     style="max-height: 200px; object-fit: cover;">
-            </div>
-            {% endif %}
-            
-            {# Overlay Content #}
-            <div class="banner-overlay position-absolute bottom-0 start-0 end-0 p-3 text-white" 
-                 style="background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);">
-                <div class="d-flex justify-content-between align-items-end">
-                    <div>
-                        {% if ad.company_name %}
-                        <small class="d-block text-white-50 mb-1">{{ ad.company_name }}</small>
-                        {% endif %}
-                        <h5 class="mb-0 fw-bold">
-                            {% if LANGUAGE_CODE == 'ar' and ad.title_ar %}
-                                {{ ad.title_ar }}
-                            {% else %}
-                                {{ ad.title }}
-                            {% endif %}
-                        </h5>
+{# Support both single ad and multiple ads (for carousel) #}
+{% if ads %}
+    {% if ads|length > 0 %}
+    <div class="paid-ad-banner-swiper mb-4">
+        <div class="swiper banner-swiper-{{ ads.0.id }}">
+            <div class="swiper-wrapper">
+                {% for ad in ads %}
+                {% if ad.is_currently_active %}
+                <div class="swiper-slide">
+                    <div class="paid-ad-banner" data-ad-id="{{ ad.id }}" data-ad-type="banner">
+                        <a href="{{ ad.target_url }}"
+                           {% if ad.open_in_new_tab %}target="_blank" rel="noopener noreferrer"{% endif %}
+                           class="paid-ad-link d-block position-relative"
+                           onclick="trackPaidAdClick('{{ ad.id }}')">
+
+                            {# Desktop: Leaderboard 728×90 #}
+                            <div class="d-none d-md-block leaderboard-wrap">
+                                <img src="{{ ad.image.url }}"
+                                     alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
+                                     class="leaderboard-img">
+                            </div>
+
+                            {# Mobile: Banner 320×50 #}
+                            <div class="d-block d-md-none mobile-banner-wrap">
+                                <img src="{% if ad.mobile_image %}{{ ad.mobile_image.url }}{% else %}{{ ad.image.url }}{% endif %}"
+                                     alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
+                                     class="mobile-banner-img">
+                            </div>
+
+                            {# Sponsored Badge #}
+                            <div class="position-absolute top-0 start-0 m-1">
+                                <span class="badge bg-dark bg-opacity-75 text-white-50 px-2 py-1" style="font-size:0.65rem;">
+                                    <i class="fas fa-ad me-1"></i>{% trans "إعلان" %}
+                                </span>
+                            </div>
+                        </a>
                     </div>
-                    
-                    {% if ad.cta_text or ad.cta_text_ar %}
-                    <button class="btn btn-light btn-sm shadow-sm px-3">
-                        {% if LANGUAGE_CODE == 'ar' and ad.cta_text_ar %}
-                            {{ ad.cta_text_ar }}
-                        {% else %}
-                            {{ ad.cta_text }}
-                        {% endif %}
-                        <i class="fas fa-arrow-{% if LANGUAGE_CODE == 'ar' %}left{% else %}right{% endif %} ms-1"></i>
-                    </button>
-                    {% endif %}
                 </div>
+                {% endif %}
+                {% endfor %}
             </div>
-            
-            {# Sponsored Badge #}
-            <div class="position-absolute top-0 start-0 m-2">
-                <span class="badge bg-dark bg-opacity-75 text-white-50 px-2 py-1">
-                    <i class="fas fa-ad me-1"></i>
-                    {% trans "إعلان مدفوع" %}
-                </span>
-            </div>
+
+            {% if ads|length > 1 %}
+            <div class="swiper-button-next"></div>
+            <div class="swiper-button-prev"></div>
+            <div class="swiper-pagination"></div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script type="module">
+        import Swiper from '/static/node_modules/swiper/swiper-bundle.mjs';
+
+        const bannerSwiper{{ ads.0.id }} = new Swiper('.banner-swiper-{{ ads.0.id }}', {
+            slidesPerView: 1,
+            spaceBetween: 0,
+            loop: {% if ads|length > 1 %}true{% else %}false{% endif %},
+            autoplay: {
+                delay: 5000,
+                disableOnInteraction: false,
+            },
+            pagination: {
+                el: '.swiper-pagination',
+                clickable: true,
+            },
+            navigation: {
+                nextEl: '.swiper-button-next',
+                prevEl: '.swiper-button-prev',
+            },
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            {% for ad in ads %}
+            {% if ad.is_currently_active %}
+            fetch(`/api/paid-ads/{{ ad.id }}/view/`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'}
+            }).catch(err => console.error('Failed to track ad view:', err));
+            {% endif %}
+            {% endfor %}
+        });
+    </script>
+    {% endif %}
+{% elif ad and ad.is_currently_active %}
+<div class="paid-ad-banner mb-4" data-ad-id="{{ ad.id }}" data-ad-type="banner">
+    <a href="{{ ad.target_url }}"
+       {% if ad.open_in_new_tab %}target="_blank" rel="noopener noreferrer"{% endif %}
+       class="paid-ad-link d-block position-relative"
+       onclick="trackPaidAdClick('{{ ad.id }}')">
+
+        {# Desktop: Leaderboard 728×90 #}
+        <div class="d-none d-md-block leaderboard-wrap">
+            <img src="{{ ad.image.url }}"
+                 alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
+                 class="leaderboard-img">
+        </div>
+
+        {# Mobile: Banner 320×50 #}
+        <div class="d-block d-md-none mobile-banner-wrap">
+            <img src="{% if ad.mobile_image %}{{ ad.mobile_image.url }}{% else %}{{ ad.image.url }}{% endif %}"
+                 alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
+                 class="mobile-banner-img">
+        </div>
+
+        {# Sponsored Badge #}
+        <div class="position-absolute top-0 start-0 m-1">
+            <span class="badge bg-dark bg-opacity-75 text-white-50 px-2 py-1" style="font-size:0.65rem;">
+                <i class="fas fa-ad me-1"></i>{% trans "إعلان" %}
+            </span>
         </div>
     </a>
 </div>
-
-<style>
-.paid-ad-banner {
-    transition: transform 0.3s ease;
-}
-
-.paid-ad-banner:hover {
-    transform: translateY(-2px);
-}
-
-.banner-image {
-    transition: transform 0.3s ease;
-}
-
-.paid-ad-link:hover .banner-image {
-    transform: scale(1.05);
-}
-
-.banner-overlay h5 {
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-[data-theme='dark'] .banner-container {
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
-}
-</style>
 
 <script>
 function trackPaidAdClick(adId) {
     fetch(`/api/paid-ads/${adId}/click/`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}'
-        }
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'}
     }).catch(err => console.error('Failed to track ad click:', err));
 }
 
-// Track ad view on page load
 document.addEventListener('DOMContentLoaded', function() {
     const adElement = document.querySelector('[data-ad-id="{{ ad.id }}"]');
     if (adElement) {
         fetch(`/api/paid-ads/{{ ad.id }}/view/`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
-            }
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'}
         }).catch(err => console.error('Failed to track ad view:', err));
     }
 });
 </script>
+{% else %}
+{# AdSense fallback: shown when no paid banner is available for this slot #}
+{% if adsense_slots %}
+    {% with adsense_slot=adsense_slots|get_item:"home_banner" %}
+        {% if adsense_slot and adsense_slot.is_active %}
+            {% include 'components/paid_ads/adsense.html' with slot=adsense_slot %}
+        {% else %}
+            {% with adsense_slot=adsense_slots|get_item:"category_banner" %}
+                {% if adsense_slot and adsense_slot.is_active %}
+                    {% include 'components/paid_ads/adsense.html' with slot=adsense_slot %}
+                {% endif %}
+            {% endwith %}
+        {% endif %}
+    {% endwith %}
 {% endif %}
+{% endif %}
+
+<style>
+/* Leaderboard 728×90 */
+.leaderboard-wrap {
+    width: 100%;
+    max-width: 728px;
+    height: 90px;
+    margin: 0 auto;
+    overflow: hidden;
+    background: #f0f0f0;
+    border-radius: 4px;
+}
+.leaderboard-img {
+    width: 100%;
+    height: 90px;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.3s ease;
+}
+
+/* Mobile Banner 320×50 */
+.mobile-banner-wrap {
+    width: 100%;
+    max-width: 320px;
+    height: 50px;
+    margin: 0 auto;
+    overflow: hidden;
+    background: #f0f0f0;
+    border-radius: 4px;
+}
+.mobile-banner-img {
+    width: 100%;
+    height: 50px;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.3s ease;
+}
+
+.paid-ad-link:hover .leaderboard-img,
+.paid-ad-link:hover .mobile-banner-img {
+    transform: scale(1.03);
+}
+
+[data-theme='dark'] .leaderboard-wrap,
+[data-theme='dark'] .mobile-banner-wrap {
+    background: #2a2a3e;
+}
+</style>
