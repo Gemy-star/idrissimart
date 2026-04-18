@@ -35,6 +35,7 @@ ALLOWED_HOSTS = [
     # allow all subdomains like mail.idrissimart.com, ftp.idrissimart.com, etc.
     ".idrissimart.com",
     "72.61.88.27",
+    "srv1103414.hstgr.cloud",
 ]
 
 # Respect proxy headers (for HTTPS behind Nginx)

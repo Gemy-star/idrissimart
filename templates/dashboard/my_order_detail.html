@@ -1,0 +1,453 @@
+{% extends 'dashboard/base.html' %}
+{% load static i18n %}
+
+{% block publisher_title %}{{ page_title }}{% endblock %}
+
+{% block publisher_extra_css %}
+<style>
+    /* ==========================================
+       MY ORDER DETAIL PAGE
+    ========================================== */
+
+    .order-detail-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1.75rem;
+    }
+
+    .order-detail-header h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0;
+        color: var(--primary-color, #4b315e);
+    }
+
+    .order-detail-header .subtitle {
+        font-size: 0.85rem;
+        color: var(--text-muted, #6c757d);
+        margin: 0.2rem 0 0;
+    }
+
+    /* ---------- Cards ---------- */
+    .detail-card {
+        background: var(--bg-primary, #fff);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 12px rgba(0,0,0,.06);
+        border: 1px solid rgba(0,0,0,.05);
+    }
+
+    .detail-card .card-section-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--primary-color, #4b315e);
+        margin-bottom: 1.25rem;
+        padding-bottom: .75rem;
+        border-bottom: 2px solid rgba(75,49,94,.1);
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+    }
+
+    /* ---------- Info Grid ---------- */
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+
+    .info-item label {
+        font-size: .78rem;
+        font-weight: 600;
+        color: var(--text-muted, #6c757d);
+        display: block;
+        margin-bottom: .25rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    .info-item .info-value {
+        font-size: .92rem;
+        color: var(--text-primary, #212529);
+        font-weight: 500;
+    }
+
+    /* ---------- Status badges ---------- */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        padding: .3rem .75rem;
+        border-radius: 20px;
+        font-size: .8rem;
+        font-weight: 600;
+    }
+    .status-badge.delivered  { background: rgba(34,197,94,.12);  color: #16a34a; }
+    .status-badge.shipped    { background: rgba(59,130,246,.12); color: #2563eb; }
+    .status-badge.processing { background: rgba(234,107,0,.12);  color: #ea6b00; }
+    .status-badge.pending    { background: rgba(149,156,0,.1);   color: #737c00; }
+    .status-badge.cancelled  { background: rgba(220,38,38,.1);   color: #dc2626; }
+    .status-badge.refunded   { background: rgba(107,33,168,.1);  color: #7c3aed; }
+    .status-badge.paid       { background: rgba(34,197,94,.12);  color: #16a34a; }
+    .status-badge.partial    { background: rgba(234,107,0,.12);  color: #ea6b00; }
+    .status-badge.unpaid     { background: rgba(220,38,38,.1);   color: #dc2626; }
+
+    /* ---------- Order Items ---------- */
+    .item-row {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: .9rem 0;
+        border-bottom: 1px solid rgba(0,0,0,.06);
+    }
+    .item-row:last-child { border-bottom: none; }
+
+    .item-img {
+        width: 64px;
+        height: 64px;
+        border-radius: 10px;
+        object-fit: cover;
+        flex-shrink: 0;
+        background: rgba(75,49,94,.08);
+    }
+
+    .item-img-placeholder {
+        width: 64px;
+        height: 64px;
+        border-radius: 10px;
+        background: rgba(75,49,94,.08);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        color: var(--primary-color, #4b315e);
+        font-size: 1.2rem;
+    }
+
+    .item-details { flex: 1; min-width: 0; }
+
+    .item-details h6 {
+        font-size: .92rem;
+        font-weight: 600;
+        margin: 0 0 .2rem;
+        color: var(--text-primary, #212529);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .item-details .item-meta {
+        font-size: .8rem;
+        color: var(--text-muted, #6c757d);
+    }
+
+    .item-price {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--primary-color, #4b315e);
+        white-space: nowrap;
+    }
+
+    /* ---------- Totals ---------- */
+    .totals-table {
+        width: 100%;
+        max-width: 380px;
+        margin-left: auto;
+    }
+
+    .totals-row {
+        display: flex;
+        justify-content: space-between;
+        padding: .45rem 0;
+        font-size: .9rem;
+        color: var(--text-muted, #6c757d);
+        border-bottom: 1px dashed rgba(0,0,0,.07);
+    }
+
+    .totals-row:last-child { border-bottom: none; }
+
+    .totals-row.grand-total {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--text-primary, #212529);
+        padding-top: .75rem;
+        border-top: 2px solid rgba(0,0,0,.1);
+        border-bottom: none;
+        margin-top: .4rem;
+    }
+
+    .totals-row.paid-row { color: #16a34a; }
+    .totals-row.remaining-row { color: #dc2626; }
+
+    /* ---------- Pay Progress ---------- */
+    .pay-progress-wrap {
+        margin-top: 1.25rem;
+    }
+
+    .progress-header {
+        display: flex;
+        justify-content: space-between;
+        font-size: .8rem;
+        color: var(--text-muted, #6c757d);
+        margin-bottom: .4rem;
+    }
+
+    /* ---------- Transaction Photo ---------- */
+    .transaction-photo {
+        max-width: 320px;
+        border-radius: 12px;
+        border: 2px solid rgba(0,0,0,.08);
+    }
+
+    /* ---------- Back button ---------- */
+    .btn-back {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        padding: .5rem 1.1rem;
+        background: var(--bg-primary, #fff);
+        border: 1px solid rgba(0,0,0,.12);
+        border-radius: 10px;
+        font-size: .85rem;
+        font-weight: 600;
+        color: var(--text-primary, #212529);
+        text-decoration: none;
+        transition: background .2s, box-shadow .2s;
+    }
+    .btn-back:hover {
+        background: rgba(75,49,94,.06);
+        box-shadow: 0 3px 10px rgba(0,0,0,.08);
+        color: var(--primary-color, #4b315e);
+    }
+</style>
+{% endblock %}
+
+{% block publisher_content %}
+
+<!-- Page Header -->
+<div class="order-detail-header">
+    <div>
+        <h1><i class="fas fa-receipt me-2" style="color:var(--primary-color,#4b315e);"></i>{% trans "تفاصيل الطلب" %}</h1>
+        <p class="subtitle">#{{ order.order_number }} &bull; {{ order.created_at|date:"Y/m/d g:i A" }}</p>
+    </div>
+    <a href="{% url 'main:my_orders_list' %}" class="btn-back">
+        <i class="fas fa-arrow-{% if LANGUAGE_CODE == 'ar' %}right{% else %}left{% endif %}"></i>
+        {% trans "العودة للطلبات" %}
+    </a>
+</div>
+
+<!-- Status Row -->
+<div class="detail-card">
+    <div style="display:flex;flex-wrap:wrap;gap:1rem;align-items:center;">
+        <div>
+            <span style="font-size:.8rem;color:var(--text-muted,#6c757d);font-weight:600;text-transform:uppercase;">{% trans "حالة الطلب" %}</span><br>
+            {% if order.status == 'delivered' %}
+                <span class="status-badge delivered"><i class="fas fa-check-circle"></i>{{ order.get_status_display }}</span>
+            {% elif order.status == 'shipped' %}
+                <span class="status-badge shipped"><i class="fas fa-truck"></i>{{ order.get_status_display }}</span>
+            {% elif order.status == 'processing' %}
+                <span class="status-badge processing"><i class="fas fa-cog"></i>{{ order.get_status_display }}</span>
+            {% elif order.status == 'pending' %}
+                <span class="status-badge pending"><i class="fas fa-clock"></i>{{ order.get_status_display }}</span>
+            {% elif order.status == 'cancelled' %}
+                <span class="status-badge cancelled"><i class="fas fa-ban"></i>{{ order.get_status_display }}</span>
+            {% elif order.status == 'refunded' %}
+                <span class="status-badge refunded"><i class="fas fa-undo"></i>{{ order.get_status_display }}</span>
+            {% else %}
+                <span class="status-badge pending">{{ order.get_status_display }}</span>
+            {% endif %}
+        </div>
+
+        <div>
+            <span style="font-size:.8rem;color:var(--text-muted,#6c757d);font-weight:600;text-transform:uppercase;">{% trans "حالة الدفع" %}</span><br>
+            {% if order.payment_status == 'paid' %}
+                <span class="status-badge paid"><i class="fas fa-check"></i>{{ order.get_payment_status_display }}</span>
+            {% elif order.payment_status == 'partial' %}
+                <span class="status-badge partial"><i class="fas fa-adjust"></i>{{ order.get_payment_status_display }}</span>
+            {% elif order.payment_status == 'refunded' %}
+                <span class="status-badge refunded"><i class="fas fa-undo"></i>{{ order.get_payment_status_display }}</span>
+            {% else %}
+                <span class="status-badge unpaid"><i class="fas fa-exclamation-circle"></i>{{ order.get_payment_status_display }}</span>
+            {% endif %}
+        </div>
+
+        {% if order.payment_method %}
+        <div>
+            <span style="font-size:.8rem;color:var(--text-muted,#6c757d);font-weight:600;text-transform:uppercase;">{% trans "طريقة الدفع" %}</span><br>
+            <span class="info-value"><i class="fas fa-credit-card me-1"></i>{{ order.get_payment_method_display }}</span>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delivery Information -->
+<div class="detail-card">
+    <div class="card-section-title">
+        <i class="fas fa-map-marker-alt"></i> {% trans "معلومات التوصيل" %}
+    </div>
+    <div class="info-grid">
+        <div class="info-item">
+            <label>{% trans "الاسم الكامل" %}</label>
+            <div class="info-value">{{ order.full_name }}</div>
+        </div>
+        <div class="info-item">
+            <label>{% trans "رقم الهاتف" %}</label>
+            <div class="info-value" dir="ltr">{{ order.phone }}</div>
+        </div>
+        <div class="info-item">
+            <label>{% trans "المدينة" %}</label>
+            <div class="info-value">{{ order.city }}{% if order.country %}, {{ order.country }}{% endif %}</div>
+        </div>
+        {% if order.postal_code %}
+        <div class="info-item">
+            <label>{% trans "الرمز البريدي" %}</label>
+            <div class="info-value">{{ order.postal_code }}</div>
+        </div>
+        {% endif %}
+        <div class="info-item" style="grid-column: 1 / -1;">
+            <label>{% trans "العنوان" %}</label>
+            <div class="info-value">{{ order.address }}</div>
+        </div>
+        {% if order.notes %}
+        <div class="info-item" style="grid-column: 1 / -1;">
+            <label>{% trans "ملاحظات" %}</label>
+            <div class="info-value">{{ order.notes }}</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Order Items -->
+<div class="detail-card">
+    <div class="card-section-title">
+        <i class="fas fa-box-open"></i> {% trans "المنتجات" %}
+        <span style="font-size:.8rem;font-weight:500;color:var(--text-muted,#6c757d);margin-right:auto;">{{ order.get_items_count }} {% trans "منتج" %}</span>
+    </div>
+
+    {% for item in order.items.all %}
+    <div class="item-row">
+        {% if item.ad.images.first %}
+        <img src="{{ item.ad.images.first.image.url }}"
+             alt="{{ item.ad.title }}"
+             class="item-img"
+             onerror="this.src='{% static 'images/placeholder-ad.jpg' %}'">
+        {% else %}
+        <div class="item-img-placeholder">
+            <i class="fas fa-image"></i>
+        </div>
+        {% endif %}
+
+        <div class="item-details">
+            <h6>
+                <a href="{% url 'main:ad_detail' item.ad.slug %}" target="_blank" rel="noopener noreferrer"
+                   style="color:inherit;text-decoration:none;">
+                    {{ item.ad.title }}
+                    <i class="fas fa-external-link-alt ms-1" style="font-size:.7rem;opacity:.5;"></i>
+                </a>
+            </h6>
+            <div class="item-meta">
+                {% if item.ad.user %}
+                <span><i class="fas fa-store me-1"></i>{{ item.ad.user.get_full_name|default:item.ad.user.username }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="item-price">{{ item.price }} {{ order.currency }}</div>
+    </div>
+    {% endfor %}
+
+    <!-- Totals -->
+    <div class="totals-table mt-3">
+        <div class="totals-row">
+            <span>{% trans "المجموع الفرعي" %}</span>
+            <span>{{ order.total_amount|add:"-"|add:order.delivery_fee }} {{ order.currency }}</span>
+        </div>
+        {% if order.delivery_fee > 0 %}
+        <div class="totals-row">
+            <span>{% trans "رسوم التوصيل" %}</span>
+            <span>{{ order.delivery_fee }} {{ order.currency }}</span>
+        </div>
+        {% endif %}
+        <div class="totals-row grand-total">
+            <span>{% trans "الإجمالي" %}</span>
+            <span>{{ order.total_amount }} {{ order.currency }}</span>
+        </div>
+        {% if order.paid_amount > 0 %}
+        <div class="totals-row paid-row">
+            <span><i class="fas fa-check-circle me-1"></i>{% trans "المدفوع" %}</span>
+            <span>{{ order.paid_amount }} {{ order.currency }}</span>
+        </div>
+        {% endif %}
+        {% if order.remaining_amount > 0 %}
+        <div class="totals-row remaining-row">
+            <span><i class="fas fa-exclamation-circle me-1"></i>{% trans "المتبقي" %}</span>
+            <span>{{ order.remaining_amount }} {{ order.currency }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Payment Progress -->
+    {% with pct=order.get_payment_percentage %}
+    {% if order.total_amount > 0 %}
+    <div class="pay-progress-wrap">
+        <div class="progress-header">
+            <span>{% trans "نسبة الدفع" %}</span>
+            <span>{{ pct|floatformat:0 }}%</span>
+        </div>
+        <div class="progress" style="height:8px;border-radius:4px;">
+            <div class="progress-bar {% if pct >= 100 %}bg-success{% elif pct > 0 %}bg-warning{% else %}bg-danger{% endif %}"
+                 role="progressbar" style="width:{{ pct|floatformat:0 }}%"
+                 aria-valuenow="{{ pct|floatformat:0 }}" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+    </div>
+    {% endif %}
+    {% endwith %}
+</div>
+
+<!-- Transaction Photo (if exists) -->
+{% if order.transaction_photo %}
+<div class="detail-card">
+    <div class="card-section-title">
+        <i class="fas fa-image"></i> {% trans "إيصال الدفع" %}
+    </div>
+    <a href="{{ order.transaction_photo.url }}" target="_blank" rel="noopener noreferrer">
+        <img src="{{ order.transaction_photo.url }}" alt="{% trans 'إيصال التحويل' %}" class="transaction-photo">
+    </a>
+</div>
+{% endif %}
+
+<!-- Additional Info -->
+<div class="detail-card">
+    <div class="card-section-title">
+        <i class="fas fa-info-circle"></i> {% trans "معلومات إضافية" %}
+    </div>
+    <div class="info-grid">
+        <div class="info-item">
+            <label>{% trans "رقم الطلب" %}</label>
+            <div class="info-value" dir="ltr">#{{ order.order_number }}</div>
+        </div>
+        <div class="info-item">
+            <label>{% trans "تاريخ الطلب" %}</label>
+            <div class="info-value">{{ order.created_at|date:"Y/m/d" }} — {{ order.created_at|time:"g:i A" }}</div>
+        </div>
+        <div class="info-item">
+            <label>{% trans "آخر تحديث" %}</label>
+            <div class="info-value">{{ order.updated_at|date:"Y/m/d" }} — {{ order.updated_at|time:"g:i A" }}</div>
+        </div>
+        {% if order.expires_at %}
+        <div class="info-item">
+            <label>{% trans "ينتهي في" %}</label>
+            <div class="info-value {% if order.is_expired %}text-danger{% endif %}">
+                {{ order.expires_at|date:"Y/m/d g:i A" }}
+                {% if order.is_expired %}<i class="fas fa-exclamation-triangle ms-1"></i>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
