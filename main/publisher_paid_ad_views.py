@@ -128,17 +128,13 @@ def publisher_paid_ad_create(request):
     # Build category choices (top-level only)
     categories = Category.objects.filter(parent__isnull=True, is_active=True).order_by("name")
 
-    # Get pricing from BannerPricing model
+    # Get per-day rates from BannerPricing model (keyed by ad_type, using GENERAL placement as display base)
     from main.models import BannerPricing
 
-    # Build pricing dictionary for all combinations
-    pricing = {}
+    pricing = {}  # per-day rate per ad_type (for display)
     for ad_type_choice in PaidBanner.AdType.choices:
         ad_type = ad_type_choice[0]
-        # For now, use GENERAL placement as base pricing for display
-        # Actual price will be calculated based on selected placement_type
-        price = BannerPricing.get_price(ad_type, PaidBanner.PlacementType.GENERAL)
-        pricing[ad_type] = price
+        pricing[ad_type] = BannerPricing.get_price(ad_type, PaidBanner.PlacementType.GENERAL)
 
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
@@ -242,8 +238,10 @@ def publisher_paid_ad_create(request):
                 "post_data": request.POST,
             })
 
-        # Determine price based on ad_type and placement_type using BannerPricing model
-        price = BannerPricing.get_price(ad_type, placement_type)
+        # Determine total price: per-day rate × number of days
+        per_day_rate = BannerPricing.get_price(ad_type, placement_type)
+        duration_days = max(1, (end_date - start_date).days) if start_date and end_date else 1
+        price = per_day_rate * duration_days
         currency = getattr(country, "currency", None) or "EGP"
 
         # Create the PaidBanner in DRAFT/unpaid state so the image is persisted.

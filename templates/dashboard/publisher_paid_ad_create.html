@@ -103,7 +103,7 @@
                     <i class="fas fa-desktop fa-2x mb-2 text-primary"></i>
                     <div class="fw-semibold">{% trans "بانر" %}</div>
                     <div class="dimension-badge mb-1">728×90 px</div>
-                    <div class="price-tag">{{ pricing.banner }} {% trans "ج.م" %}</div>
+                    <div class="price-tag">{{ pricing.banner }} <small class="fw-normal fs-6">{% trans "ج.م/يوم" %}</small></div>
                 </label>
             </div>
             <div class="col-sm-6 col-lg-3">
@@ -112,7 +112,7 @@
                     <i class="fas fa-columns fa-2x mb-2 text-purple"></i>
                     <div class="fw-semibold">{% trans "إعلان جانبي" %}</div>
                     <div class="dimension-badge mb-1">300×250 px</div>
-                    <div class="price-tag">{{ pricing.sidebar }} {% trans "ج.م" %}</div>
+                    <div class="price-tag">{{ pricing.sidebar }} <small class="fw-normal fs-6">{% trans "ج.م/يوم" %}</small></div>
                 </label>
             </div>
             <div class="col-sm-6 col-lg-3">
@@ -121,7 +121,7 @@
                     <i class="fas fa-window-restore fa-2x mb-2 text-danger"></i>
                     <div class="fw-semibold">{% trans "نافذة منبثقة" %}</div>
                     <div class="dimension-badge mb-1">300×250 px</div>
-                    <div class="price-tag">{{ pricing.popup }} {% trans "ج.م" %}</div>
+                    <div class="price-tag">{{ pricing.popup }} <small class="fw-normal fs-6">{% trans "ج.م/يوم" %}</small></div>
                 </label>
             </div>
             <div class="col-sm-6 col-lg-3">
@@ -130,7 +130,7 @@
                     <i class="fas fa-star fa-2x mb-2 text-warning"></i>
                     <div class="fw-semibold">{% trans "صندوق مميز" %}</div>
                     <div class="dimension-badge mb-1">970×250 px</div>
-                    <div class="price-tag">{{ pricing.featured_box }} {% trans "ج.م" %}</div>
+                    <div class="price-tag">{{ pricing.featured_box }} <small class="fw-normal fs-6">{% trans "ج.م/يوم" %}</small></div>
                 </label>
             </div>
         </div>
@@ -291,7 +291,8 @@
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
                 <span class="fw-semibold">{% trans "تكلفة الإعلان:" %}</span>
-                <span id="summaryPrice" class="fs-5 fw-bold ms-2">{{ pricing.banner }} {% trans "ج.م" %}</span>
+                <span id="summaryBreakdown" class="ms-2 opacity-75 small"></span>
+                <span id="summaryPrice" class="fs-5 fw-bold ms-2">—</span>
             </div>
             <button type="submit" id="submitBtn" class="btn btn-light text-primary fw-bold px-4">
                 <i class="fas fa-credit-card me-1"></i>
@@ -414,11 +415,6 @@
             updateMobileField(currentType);
             validateAndUpdateSubmit();
 
-            const t = card.dataset.type;
-            document.getElementById('summaryPrice').textContent =
-                '{{ pricing.banner }}' === '{{ pricing.banner }}'
-                    ? ({banner:'{{ pricing.banner }}',sidebar:'{{ pricing.sidebar }}',popup:'{{ pricing.popup }}',featured_box:'{{ pricing.featured_box }}'}[t] || '') + ' {% trans "ج.م" %}'
-                    : '';
         });
     });
 
@@ -471,23 +467,43 @@
         document.querySelector('[name=end_date]').min = this.value;
     });
 
-    // ── Pricing map (keep in sync with server) ────────────────────────────────
-    const pricingMap = {
-        banner:       '{{ pricing.banner }}',
-        sidebar:      '{{ pricing.sidebar }}',
-        popup:        '{{ pricing.popup }}',
-        featured_box: '{{ pricing.featured_box }}'
+    // ── Per-day rates (synced with server BannerPricing) ─────────────────────
+    const perDayRates = {
+        banner:       parseFloat('{{ pricing.banner }}') || 0,
+        sidebar:      parseFloat('{{ pricing.sidebar }}') || 0,
+        popup:        parseFloat('{{ pricing.popup }}') || 0,
+        featured_box: parseFloat('{{ pricing.featured_box }}') || 0,
     };
+
+    function recalcPrice() {
+        const startVal = document.querySelector('[name=start_date]').value;
+        const endVal   = document.querySelector('[name=end_date]').value;
+        const rate     = perDayRates[currentType] || 0;
+        const summaryPrice     = document.getElementById('summaryPrice');
+        const summaryBreakdown = document.getElementById('summaryBreakdown');
+
+        if (!startVal || !endVal) {
+            summaryPrice.textContent     = '—';
+            summaryBreakdown.textContent = '';
+            return;
+        }
+
+        const days = Math.max(1, Math.round((new Date(endVal) - new Date(startVal)) / 86400000));
+        const total = (rate * days).toFixed(2);
+        summaryBreakdown.textContent = `${rate} × ${days} {% trans "يوم" %} =`;
+        summaryPrice.textContent     = `${total} {% trans "ج.م" %}`;
+    }
+
     document.querySelectorAll('#adTypeCards .pricing-card').forEach(card => {
-        card.addEventListener('click', () => {
-            document.getElementById('summaryPrice').textContent =
-                pricingMap[card.dataset.type] + ' {% trans "ج.م" %}';
-        });
+        card.addEventListener('click', recalcPrice);
     });
+    document.querySelector('[name=start_date]').addEventListener('change', recalcPrice);
+    document.querySelector('[name=end_date]').addEventListener('change', recalcPrice);
 
     // ── Init ──────────────────────────────────────────────────────────────────
     updateHint(currentType);
     updateMobileField(currentType);
+    recalcPrice();
     submitBtn.disabled = true; // enabled only after valid images
 })();
 </script>

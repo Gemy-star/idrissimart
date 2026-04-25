@@ -5135,6 +5135,13 @@ class PaidBanner(models.Model):
         return delta.days
 
     @property
+    def duration_days(self):
+        """Total number of days between start_date and end_date."""
+        if not self.start_date or not self.end_date:
+            return 0
+        return max(1, (self.end_date - self.start_date).days)
+
+    @property
     def ctr(self):
         """Calculate Click-Through Rate (CTR)"""
         if self.views_count == 0:
@@ -5276,8 +5283,8 @@ class BannerPricing(models.Model):
     price = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        verbose_name=_("السعر - Price"),
-        help_text=_("السعر لهذا النوع من الإعلان في هذا الموضع")
+        verbose_name=_("السعر اليومي - Daily Price"),
+        help_text=_("سعر اليوم الواحد لهذا النوع من الإعلان في هذا الموضع")
     )
     currency = models.CharField(
         max_length=3,
@@ -5302,7 +5309,7 @@ class BannerPricing(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.get_ad_type_display()} - {self.get_placement_type_display()}: {self.price} {self.currency}"
+        return f"{self.get_ad_type_display()} - {self.get_placement_type_display()}: {self.price} {self.currency}/يوم"
 
     @classmethod
     def get_price(cls, ad_type, placement_type, currency='EGP'):

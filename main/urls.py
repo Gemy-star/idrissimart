@@ -1524,23 +1524,6 @@ urlpatterns = [
         name="publisher_paid_ad_retry_payment",
     ),
 
-    # Paid Advertisement Tracking URLs
-    path(
-        "api/paid-ads/<int:ad_id>/view/",
-        paid_ad_views.PaidAdViewTrackingView.as_view(),
-        name="paid_ad_view_tracking",
-    ),
-    path(
-        "api/paid-ads/<int:ad_id>/click/",
-        paid_ad_views.PaidAdClickTrackingView.as_view(),
-        name="paid_ad_click_tracking",
-    ),
-    path(
-        "api/paid-ads/category/<int:category_id>/",
-        paid_ad_views.get_category_paid_ads,
-        name="get_category_paid_ads",
-    ),
-
     # Chat URLs - User to User Messaging
     path("chat/", chat_views.chat_list, name="chat_list"),
     path("chat/room/<int:room_id>/", chat_views.chat_room, name="chat_room"),

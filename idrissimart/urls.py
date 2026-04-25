@@ -6,6 +6,7 @@ from django.contrib.admin import AdminSite
 from django.urls import include, path
 from main import cart_wishlist_views
 from main import views as main_views
+from main import paid_ad_views
 
 # Sort models alphabetically within each app in the admin sidebar
 _original_get_app_list = AdminSite.get_app_list
@@ -36,6 +37,12 @@ urlpatterns = [
     path("api/wishlist/count/", cart_wishlist_views.get_wishlist_count),
     path("api/wishlist/status/", cart_wishlist_views.check_wishlist_status),
     path("api/wishlist/clear/", cart_wishlist_views.clear_wishlist),
+    # Country selection (no language prefix — JS fetches /api/set-country/ directly)
+    path("api/set-country/", main_views.set_country, name="set_country"),
+    # Paid ad tracking (no language prefix — templates fetch /api/paid-ads/{id}/view|click/)
+    path("api/paid-ads/<int:ad_id>/view/", paid_ad_views.PaidAdViewTrackingView.as_view(), name="paid_ad_view_tracking"),
+    path("api/paid-ads/<int:ad_id>/click/", paid_ad_views.PaidAdClickTrackingView.as_view(), name="paid_ad_click_tracking"),
+    path("api/paid-ads/category/<int:category_id>/", paid_ad_views.get_category_paid_ads, name="get_category_paid_ads"),
     path("api/", include("api.urls", namespace="api")),  # Mobile API
     path("ckeditor5/", include("django_ckeditor_5.urls")),  # CKEditor 5 URLs
 ]
