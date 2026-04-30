@@ -36,6 +36,7 @@ ALLOWED_HOSTS = [
     ".idrissimart.com",
     "72.61.88.27",
     "srv1103414.hstgr.cloud",
+    "2a02:4780:41:7624::1",
 ]
 
 # Respect proxy headers (for HTTPS behind Nginx)
