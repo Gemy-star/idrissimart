@@ -28,6 +28,7 @@ def ad_features_upgrade(request, ad_id):
         UserPackage.objects.filter(
             user=request.user,
             expiry_date__gte=timezone.now(),
+            ads_remaining__gt=0,
         )
         .order_by("expiry_date")
         .first()
@@ -46,17 +47,29 @@ def ad_features_upgrade(request, ad_id):
         }
         pricing_source = "package"
         active_package_info = active_package
-    else:
-        # Use site default prices
+    elif active_package and not active_package.package:
+        # Gift / free single-ad package — all features are free
         feature_prices = {
-            "highlighted": Decimal(str(site_config.featured_ad_price)),
-            "pinned": Decimal(str(site_config.pinned_ad_price)),
-            "auto_refresh": Decimal(str(site_config.auto_refresh_price)),
-            "contact_for_price": Decimal("0.00"),  # Free without package
-            "facebook_share": Decimal("100.00"),
-            "video": Decimal(str(site_config.add_video_price)),
+            "highlighted": Decimal("0.00"),
+            "pinned": Decimal("0.00"),
+            "auto_refresh": Decimal("0.00"),
+            "contact_for_price": Decimal("0.00"),
+            "facebook_share": Decimal("0.00"),
+            "video": Decimal("0.00"),
         }
-        pricing_source = "site_default"
+        pricing_source = "package"
+        active_package_info = active_package
+    else:
+        # Use constance prices (managed from admin)
+        feature_prices = {
+            "highlighted": Decimal(str(getattr(config, "FEATURE_HIGHLIGHTED_PRICE", 50.0))),
+            "pinned": Decimal(str(getattr(config, "FEATURE_PINNED_PRICE", 75.0))),
+            "auto_refresh": Decimal(str(getattr(config, "FEATURE_AUTO_REFRESH_PRICE", 35.0))),
+            "contact_for_price": Decimal(str(getattr(config, "FEATURE_CONTACT_FOR_PRICE", 0.0))),
+            "facebook_share": Decimal(str(getattr(config, "FACEBOOK_SHARE_AD_PRICE", 35.0))),
+            "video": Decimal(str(getattr(config, "FEATURE_ADD_VIDEO_PRICE", 25.0))),
+        }
+        pricing_source = "constance"
         active_package_info = None
 
     if request.method == "POST":
@@ -113,7 +126,9 @@ def ad_features_upgrade(request, ad_id):
 
         if total_cost > 0:
             # Redirect to payment
-            currency = ad.country.currency_symbol if ad.country else "ج.م"
+            from main.templatetags.idrissimart_tags import CURRENCY_SYMBOLS
+            _currency_code = ad.country.currency if ad.country else "EGP"
+            currency = CURRENCY_SYMBOLS.get(_currency_code, _currency_code)
             messages.info(
                 request,
                 _("يرجى إتمام الدفع لتفعيل المميزات. المبلغ المطلوب: {} {}").format(
@@ -169,7 +184,7 @@ def ad_features_upgrade(request, ad_id):
             ad.save()
             messages.success(
                 request,
-                _("تم تحديث مميزات الإعلان: ") + ", ".join(updated_features),
+                _("تم تحديث مميزات الإعلان: ") + ", ".join(str(f) for f in updated_features),
             )
             return redirect("main:ad_detail", slug=ad.slug)
 

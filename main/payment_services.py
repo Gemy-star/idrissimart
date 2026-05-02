@@ -64,6 +64,7 @@ class PaymentService:
                 order_id=order_ref,
                 billing_data=user_data or {},
                 integration_id=integration_id,
+                currency=currency or None,
             )
             if not success:
                 return False, error or _("فشل إنشاء طلب Paymob")
@@ -76,6 +77,7 @@ class PaymentService:
                 order_id=order_ref,
                 billing_data=user_data or {},
                 integration_id=wallet_integration_id,
+                currency=currency or None,
             )
             if not success:
                 return False, error or _("فشل إنشاء طلب المحفظة الإلكترونية")

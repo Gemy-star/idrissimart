@@ -4888,7 +4888,14 @@ class PaidBanner(models.Model):
         on_delete=models.CASCADE,
         related_name="paid_banners",
         verbose_name=_("الدولة - Country"),
-        help_text=_("الدولة التي سيظهر فيها الإعلان")
+        help_text=_("الدولة الأساسية التي سيظهر فيها الإعلان")
+    )
+    extra_countries = models.ManyToManyField(
+        "content.Country",
+        blank=True,
+        related_name="extra_paid_banners",
+        verbose_name=_("دول إضافية - Extra Countries"),
+        help_text=_("دول إضافية لعرض الإعلان فيها مقابل رسوم إضافية لكل دولة")
     )
 
     # Category Targeting (nullable for general placement)

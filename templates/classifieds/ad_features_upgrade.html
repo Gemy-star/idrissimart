@@ -1,638 +1,451 @@
-{% extends 'base.html' %}
-{% load static i18n %}
+{% extends "base.html" %}
+{% load static i18n idrissimart_tags %}
 
-{% block title %}
-    {% trans "ترقية الإعلان - Upgrade Ad Features" %}
-{% endblock %}
+{% block title %}{% trans "مميزات الإعلان" %} — {{ ad.title }}{% endblock %}
 
 {% block extra_css %}
-<link href="{% static 'css/mobile-fixes.css' %}?v=1.0" rel="stylesheet">
 <style>
-    /* Feature Cards - Matching ad_form.html style */
-    .feature-card {
-        border: 2px solid var(--border-color, #dee2e6);
-        transition: all 0.3s ease;
-        cursor: pointer;
-    }
+/* ── Feature cards ── */
+.feature-card {
+    border: 2px solid var(--border-color, #dee2e6);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+}
+[data-theme='dark'] .feature-card {
+    background: rgba(255,255,255,.03);
+    border-color: rgba(255,255,255,.1);
+}
+.feature-card:hover:not(.is-active) {
+    border-color: var(--primary-color, #6b4c7a);
+    box-shadow: 0 4px 15px rgba(107,76,122,.2);
+    transform: translateY(-2px);
+}
+[data-theme='dark'] .feature-card:hover:not(.is-active) {
+    box-shadow: 0 4px 15px rgba(107,76,122,.3);
+}
+.feature-card.selected {
+    border-color: var(--primary-color, #6b4c7a);
+    background: rgba(107,76,122,.05);
+}
+[data-theme='dark'] .feature-card.selected {
+    background: rgba(107,76,122,.15);
+    border-color: var(--accent-purple, #a78bbd);
+}
+.feature-price { font-size:.9rem; font-weight:600; }
 
-    [data-theme='dark'] .feature-card {
-        background: rgba(255, 255, 255, 0.03);
-        border-color: rgba(255, 255, 255, 0.1);
-    }
+/* ── Active (already enabled) state ── */
+.feature-card.is-active {
+    border-color: #10b981 !important;
+    background: rgba(16,185,129,.04);
+    cursor: not-allowed;
+    opacity: .85;
+}
+[data-theme='dark'] .feature-card.is-active {
+    background: rgba(16,185,129,.08);
+    border-color: #34d399 !important;
+}
+.feature-card.is-active:hover { transform: none; box-shadow: none; }
+.active-overlay {
+    position: absolute; inset: 0;
+    border-radius: inherit;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(16,185,129,.07);
+    pointer-events: none;
+    z-index: 2;
+}
+.active-stamp {
+    background: #10b981; color: #fff;
+    font-weight: 800; font-size: .75rem; letter-spacing: .06em;
+    padding: .3rem .8rem; border-radius: 999px;
+    display: flex; align-items: center; gap: .35rem;
+}
 
-    .feature-card:hover {
-        border-color: var(--primary-color, #6b4c7a);
-        box-shadow: 0 4px 15px rgba(107, 76, 122, 0.2);
-        transform: translateY(-2px);
-    }
+/* ── Video section ── */
+.video-section { margin-top:1rem; border-top:1px dashed var(--border-color,#dee2e6); padding-top:.9rem; display:none; }
+.video-tabs { display:flex; gap:.5rem; margin-bottom:.75rem; }
+.video-tab {
+    flex:1; padding:.4rem; text-align:center; border:2px solid var(--border-color,#dee2e6);
+    border-radius:8px; cursor:pointer; font-size:.8rem; font-weight:600; color:#6b7280;
+    transition:all .15s;
+}
+.video-tab.active { border-color:var(--primary-color,#6b4c7a); color:var(--primary-color,#6b4c7a); background:rgba(107,76,122,.05); }
 
-    [data-theme='dark'] .feature-card:hover {
-        box-shadow: 0 4px 15px rgba(107, 76, 122, 0.3);
-    }
+/* ── Summary sidebar ── */
+.summary-card {
+    background: var(--bg-primary,#fff);
+    border-radius:16px;
+    border:1px solid var(--border-color,#dee2e6);
+    box-shadow:0 4px 20px rgba(0,0,0,.08);
+    position:sticky; top:80px; overflow:hidden;
+}
+[data-theme='dark'] .summary-card { background:var(--card-bg,#2d3748); }
+.summary-head {
+    padding:1rem 1.4rem;
+    background:linear-gradient(135deg,#6b4c7a,#4b315e);
+    color:#fff;
+}
+.summary-head h3 { margin:0; font-size:1rem; font-weight:700; }
+.summary-body { padding:1.1rem 1.4rem; }
+.summary-empty { text-align:center; padding:1.5rem 0; color:#9ca3af; font-size:.85rem; }
+.summary-line { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:.6rem; gap:.5rem; font-size:.85rem; }
+.summary-line .n { flex:1; color:var(--text-primary,#1f2937); }
+.summary-line .p { font-weight:700; color:var(--primary-color,#6b4c7a); white-space:nowrap; }
+.summary-divider { border:none; border-top:2px dashed var(--border-color,#dee2e6); margin:.7rem 0; }
+.summary-total { display:flex; justify-content:space-between; font-weight:800; font-size:1rem; }
+.pay-btn {
+    display:block; width:100%; margin-top:1rem; padding:.82rem;
+    background:linear-gradient(135deg,#6b4c7a,#4b315e);
+    color:#fff; border:none; border-radius:12px;
+    font-size:.95rem; font-weight:700; cursor:pointer;
+    transition:opacity .15s, transform .15s;
+    box-shadow:0 4px 16px rgba(107,76,122,.3);
+}
+.pay-btn:disabled { opacity:.4; cursor:not-allowed; }
+.pay-btn:not(:disabled):hover { opacity:.92; transform:translateY(-1px); }
+.secure-note { text-align:center; font-size:.73rem; color:#9ca3af; margin-top:.5rem; }
 
-    .feature-card.selected {
-        border-color: var(--primary-color, #6b4c7a);
-        background: rgba(107, 76, 122, 0.05);
-    }
-
-    [data-theme='dark'] .feature-card.selected {
-        background: rgba(107, 76, 122, 0.15);
-        border-color: var(--accent-purple, #a78bbd);
-    }
-
-    .feature-price {
-        font-size: 0.9rem;
-        font-weight: 600;
-    }
-
-    /* Page specific styles */
-    .upgrade-hero {
-        background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-purple, #6B4C7A) 100%);
-        padding: 4rem 0 3rem;
-        margin-bottom: 3rem;
-        position: relative;
-        overflow: hidden;
-        color: white;
-    }
-
-    .upgrade-hero-content {
-        text-align: center;
-    }
-
-    .upgrade-title {
-        font-size: 2.5rem;
-        font-weight: 800;
-        margin-bottom: 1rem;
-    }
-
-    .upgrade-subtitle {
-        font-size: 1.1rem;
-        opacity: 0.95;
-        max-width: 600px;
-        margin: 0 auto;
-    }
-
-    .upgrade-container {
-        max-width: 1200px;
-        margin: 0 auto 3rem;
-        padding: 0 1rem;
-    }
-
-    .ad-preview-card {
-        background: var(--bg-primary);
-        border-radius: 16px;
-        padding: 1.5rem;
-        margin-bottom: 2.5rem;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        border: 1px solid var(--border-color);
-    }
-
-    [data-theme='dark'] .ad-preview-card {
-        background: rgba(255, 255, 255, 0.03);
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-
-    .ad-preview-header h2 {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin: 0 0 0.5rem 0;
-    }
-
-    .ad-preview-meta {
-        display: flex;
-        gap: 1.5rem;
-        color: var(--text-muted);
-        font-size: 0.9rem;
-        flex-wrap: wrap;
-    }
-
-    .ad-preview-meta span {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .summary-card {
-        background: var(--bg-primary);
-        border-radius: 16px;
-        padding: 2rem;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        border: 2px solid var(--primary-color);
-        position: sticky;
-        top: 100px;
-    }
-
-    [data-theme='dark'] .summary-card {
-        background: rgba(255, 255, 255, 0.03);
-        border-color: var(--accent-purple, #a78bbd);
-    }
-
-    .summary-header h4 {
-        font-size: 1.2rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin-bottom: 0.5rem;
-        text-align: center;
-    }
-
-    .summary-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.75rem 0;
-        font-size: 1rem;
-        color: var(--text-primary);
-        border-bottom: 1px solid var(--border-color);
-    }
-
-    .summary-total {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 1.5rem;
-        font-weight: 800;
-        color: var(--primary-color);
-        margin: 1.5rem 0;
-        padding-top: 1rem;
-        border-top: 2px solid var(--border-color);
-    }
-
-    .btn-proceed {
-        width: 100%;
-        padding: 1.25rem;
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        color: white;
-        border: none;
-        border-radius: 12px;
-        font-size: 1.2rem;
-        font-weight: 700;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
-    }
-
-    .btn-proceed:hover:not(:disabled) {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
-    }
-
-    .btn-proceed:disabled {
-        background: #9ca3af;
-        cursor: not-allowed;
-        box-shadow: none;
-        transform: none;
-    }
-
-    @media (max-width: 768px) {
-        .upgrade-title {
-            font-size: 1.75rem;
-        }
-
-        .ad-preview-meta {
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .summary-card {
-            position: static;
-            margin-top: 2rem;
-        }
-
-        .summary-sticky {
-            position: static;
-        }
-
-        .summary-header h4 {
-            font-size: 1rem;
-        }
-
-        .summary-row {
-            font-size: 0.85rem;
-            padding: 0.5rem 0;
-        }
-
-        .summary-total {
-            font-size: 1.2rem;
-            margin: 1rem 0;
-        }
-
-        .btn-proceed {
-            font-size: 1rem;
-            padding: 1rem;
-        }
-
-        .empty-selection-message {
-            font-size: 0.85rem;
-            padding: 1.5rem;
-        }
-
-        .feature-card {
-            margin-bottom: 1rem;
-        }
-
-        .feature-card .card-body {
-            padding: 1rem;
-        }
-
-        h5 {
-            font-size: 1rem;
-        }
-
-        .badge.feature-price {
-            font-size: 0.8rem;
-        }
-    }
+/* ── Ad strip ── */
+.ad-strip {
+    display:flex; align-items:center; gap:.85rem;
+    padding:.9rem 1.25rem;
+    background:rgba(107,76,122,.06);
+    border-radius:14px; margin-bottom:1.25rem;
+    border:1px solid rgba(107,76,122,.15);
+}
+.ad-thumb { width:48px; height:48px; border-radius:9px; object-fit:cover; flex-shrink:0; background:#e5e7eb; display:flex; align-items:center; justify-content:center; }
+.ad-strip-info { flex:1; min-width:0; }
+.ad-strip-title { font-weight:700; font-size:.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ad-strip-meta { font-size:.78rem; color:#9ca3af; margin-top:1px; }
 </style>
-{% endblock %}
-
+{% endblock extra_css %}
 
 {% block content %}
-<section class="page-hero" style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-purple, #6B4C7A) 100%); padding: 3rem 0; color: white;">
-    <div class="container text-center">
-        <h1 class="display-4 fw-bold mb-3">
-            <i class="fas fa-rocket me-3"></i>{% trans "ترقية الإعلان" %}
-        </h1>
-        <p class="lead">{% trans "اختر المميزات التي تريد إضافتها لإعلانك لزيادة فرص البيع" %}</p>
-    </div>
-</section>
+<section class="py-4" style="background:var(--bg-secondary,#f8f9fa); min-height:80vh">
+<div class="container">
 
-<section class="py-5">
-    <div class="container">
-        <!-- Ad Info Card -->
-        <div class="card mb-4 shadow-sm">
-            <div class="card-body">
-                <h3 class="card-title mb-3">
-                    <i class="fas fa-bullhorn me-2 text-primary"></i>{{ ad.title }}
-                </h3>
-                <div class="d-flex flex-wrap gap-3 text-muted">
-                    <span><i class="fas fa-folder me-2"></i>{{ ad.category.name }}</span>
-                    <span><i class="fas fa-calendar-alt me-2"></i>{{ ad.created_at|date:"d/m/Y" }}</span>
-                    <span><i class="fas fa-eye me-2"></i>{{ ad.views_count|default:0 }} {% trans "مشاهدة" %}</span>
-                </div>
-            </div>
+  <!-- Breadcrumb -->
+  <nav class="small text-muted mb-3">
+    <a href="{% url 'main:my_ads' %}" class="text-decoration-none" style="color:var(--primary-color,#6b4c7a)">{% trans "إعلاناتي" %}</a>
+    <span class="mx-1">›</span>
+    <a href="{{ ad.get_absolute_url }}" class="text-decoration-none" style="color:var(--primary-color,#6b4c7a)">{{ ad.title|truncatechars:35 }}</a>
+    <span class="mx-1">›</span>
+    {% trans "المميزات" %}
+  </nav>
+
+  <div class="row g-4 align-items-start">
+
+    <!-- ══ OPTIONS COLUMN ══ -->
+    <div class="col-lg-8">
+
+      <!-- Ad strip -->
+      <div class="ad-strip">
+        {% with ad.images.first as thumb %}
+        {% if thumb %}
+        <img src="{{ thumb.image.url }}" class="ad-thumb" alt="">
+        {% else %}
+        <div class="ad-thumb"><i class="fas fa-image text-muted"></i></div>
+        {% endif %}
+        {% endwith %}
+        <div class="ad-strip-info">
+          <div class="ad-strip-title">{{ ad.title }}</div>
+          <div class="ad-strip-meta">{{ ad.price }} {% get_currency_symbol ad %}{% if ad.city %} · {{ ad.city }}{% endif %}</div>
         </div>
+        <a href="{{ ad.get_absolute_url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+          <i class="fas fa-external-link-alt me-1"></i>{% trans "عرض" %}
+        </a>
+      </div>
 
-        <form method="post" id="upgradeForm" enctype="multipart/form-data">
-            {% csrf_token %}
+      <!-- Section title -->
+      <h5 class="mb-3 fw-bold">
+        <i class="fas fa-sliders-h me-2" style="color:var(--primary-color,#6b4c7a)"></i>
+        {% trans "اختر مميزات إعلانك" %}
+      </h5>
 
-            <div class="row">
-                <!-- Features Column -->
-                <div class="col-lg-8 mb-4">
-                    <h4 class="mb-4">
-                        <i class="fas fa-star me-2 text-primary"></i>{% trans "ميزات الإعلان الإضافية" %}
-                    </h4>
+      <form id="featuresForm" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="selected_features" id="selectedFeatures" value="{}">
 
-                    <div class="row g-3" id="ad-features-container">
-                        <!-- Featured (Highlighted) -->
-                        <div class="col-md-6">
-                            <div class="card h-100 feature-card {% if ad.highlighted %}selected{% endif %}" data-feature="highlighted" data-price="{{ feature_prices.highlighted|floatformat:False|default:'50' }}">
-                                <div class="card-body">
-                                    <div class="form-check">
-                                        <input class="form-check-input feature-checkbox" type="checkbox"
-                                               id="feature_highlighted" name="feature_highlighted"
-                                               {% if ad.highlighted %}checked disabled{% endif %}
-                                               onchange="toggleFeature('highlighted', this.checked)">
-                                        <label class="form-check-label w-100" for="feature_highlighted">
-                                            <div class="d-flex justify-content-between align-items-start">
-                                                <div>
-                                                    <h5 class="mb-1">
-                                                        <i class="fas fa-certificate text-warning me-1"></i>
-                                                        {% trans "إعلان مميز" %}
-                                                    </h5>
-                                                    <p class="small text-muted mb-2">{% trans "يظهر بشكل بارز في القوائم مع خلفية ملونة" %}</p>
-                                                    <ul class="small mb-0">
-                                                        <li>{% trans "خلفية ملونة مميزة" %}</li>
-                                                        <li>{% trans "علامة 'مميز' ذهبية" %}</li>
-                                                        <li>{% trans "زيادة المشاهدات بنسبة 300%" %}</li>
-                                                    </ul>
-                                                    {% if ad.highlighted %}
-                                                    <span class="badge bg-success mt-2">
-                                                        <i class="fas fa-check-circle"></i> {% trans "مفعّل حالياً" %}
-                                                    </span>
-                                                    {% endif %}
-                                                </div>
-                                                <span class="badge bg-warning text-dark feature-price">{{ feature_prices.highlighted|floatformat:False|default:'50' }} ج.م</span>
-                                            </div>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+        <div class="row g-3 mb-4">
 
-                        <!-- Pinned -->
-                        <div class="col-md-6">
-                            <div class="card h-100 feature-card {% if ad.pinned %}selected{% endif %}" data-feature="pinned" data-price="{{ feature_prices.pinned|floatformat:False|default:'100' }}">
-                                <div class="card-body">
-                                    <div class="form-check">
-                                        <input class="form-check-input feature-checkbox" type="checkbox"
-                                               id="feature_pinned" name="feature_pinned"
-                                               {% if ad.pinned %}checked disabled{% endif %}
-                                               onchange="toggleFeature('pinned', this.checked)">
-                                        <label class="form-check-label w-100" for="feature_pinned">
-                                            <div class="d-flex justify-content-between align-items-start">
-                                                <div>
-                                                    <h5 class="mb-1">
-                                                        <i class="fas fa-thumbtack text-success me-1"></i>
-                                                        {% trans "إعلان مثبت" %}
-                                                    </h5>
-                                                    <p class="small text-muted mb-2">{% trans "يظهر دائماً في أعلى القائمة" %}</p>
-                                                    <ul class="small mb-0">
-                                                        <li>{% trans "أعلى نتائج البحث" %}</li>
-                                                        <li>{% trans "لمدة 7 أيام" %}</li>
-                                                        <li>{% trans "زيادة المشاهدات بنسبة 500%" %}</li>
-                                                    </ul>
-                                                    {% if ad.pinned %}
-                                                    <span class="badge bg-success mt-2">
-                                                        <i class="fas fa-check-circle"></i> {% trans "مفعّل حالياً" %}
-                                                    </span>
-                                                    {% endif %}
-                                                </div>
-                                                <span class="badge bg-success feature-price">{{ feature_prices.pinned|floatformat:False|default:'100' }} ج.م</span>
-                                            </div>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Auto Refresh -->
-                        <div class="col-md-6">
-                            <div class="card h-100 feature-card {% if ad.auto_refresh %}selected{% endif %}" data-feature="auto_refresh" data-price="35">
-                                <div class="card-body">
-                                    <div class="form-check">
-                                        <input class="form-check-input feature-checkbox" type="checkbox"
-                                               id="feature_auto_refresh" name="feature_auto_refresh"
-                                               {% if ad.auto_refresh %}checked disabled{% endif %}
-                                               onchange="toggleFeature('auto_refresh', this.checked)">
-                                        <label class="form-check-label w-100" for="feature_auto_refresh">
-                                            <div class="d-flex justify-content-between align-items-start">
-                                                <div>
-                                                    <h5 class="mb-1">
-                                                        <i class="fas fa-sync-alt text-info me-1"></i>
-                                                        {% trans "تحديث تلقائي يومي" %}
-                                                    </h5>
-                                                    <p class="small text-muted mb-2">{% trans "تحديث تاريخ الإعلان تلقائياً كل يوم" %}</p>
-                                                    <ul class="small mb-0">
-                                                        <li>{% trans "يظهر كإعلان جديد" %}</li>
-                                                        <li>{% trans "لمدة 7 أيام" %}</li>
-                                                        <li>{% trans "مشاهدات متجددة يومياً" %}</li>
-                                                    </ul>
-                                                    {% if ad.auto_refresh %}
-                                                    <span class="badge bg-success mt-2">
-                                                        <i class="fas fa-check-circle"></i> {% trans "مفعّل حالياً" %}
-                                                    </span>
-                                                    {% endif %}
-                                                </div>
-                                                <span class="badge bg-info feature-price">35 ج.م</span>
-                                            </div>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Add Video -->
-                        <div class="col-md-6">
-                            <div class="card h-100 feature-card {% if ad.video_url %}selected{% endif %}" data-feature="video" data-price="{{ feature_prices.video|floatformat:False|default:'75' }}">
-                                <div class="card-body">
-                                    <div class="form-check">
-                                        <input class="form-check-input feature-checkbox" type="checkbox"
-                                               id="feature_video" name="feature_video"
-                                               {% if ad.video_url %}checked disabled{% endif %}
-                                               onchange="toggleFeature('video', this.checked)">
-                                        <label class="form-check-label w-100" for="feature_video">
-                                            <div class="d-flex justify-content-between align-items-start">
-                                                <div>
-                                                    <h5 class="mb-1">
-                                                        <i class="fas fa-video text-danger me-1"></i>
-                                                        {% trans "إضافة فيديو" %}
-                                                    </h5>
-                                                    <p class="small text-muted mb-2">{% trans "أضف فيديو توضيحي للمنتج من YouTube/Vimeo أو رفع ملف" %}</p>
-                                                    <ul class="small mb-0">
-                                                        <li>{% trans "جذب انتباه أكبر" %}</li>
-                                                        <li>{% trans "زيادة ثقة المشترين" %}</li>
-                                                        <li>{% trans "عرض توضيحي كامل" %}</li>
-                                                    </ul>
-                                                    {% if ad.video_url %}
-                                                    <span class="badge bg-success mt-2">
-                                                        <i class="fas fa-check-circle"></i> {% trans "مفعّل حالياً" %}
-                                                    </span>
-                                                    {% endif %}
-                                                </div>
-                                                <span class="badge bg-danger feature-price">{{ feature_prices.video|floatformat:False|default:'75' }} ج.م</span>
-                                            </div>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+          <!-- ① Featured / Highlighted -->
+          <div class="col-md-6">
+            <div class="card h-100 feature-card{% if ad.is_highlighted %} is-active{% endif %}" data-option="highlighted" data-price="{{ feature_prices.highlighted }}">
+              {% if ad.is_highlighted %}
+              <div class="active-overlay">
+                <div class="active-stamp"><i class="fas fa-check-circle"></i> {% trans "مفعّل" %}</div>
+              </div>
+              {% endif %}
+              <div class="card-body">
+                <div class="form-check">
+                  <input class="form-check-input feature-checkbox" type="checkbox"
+                         id="f_highlighted" name="feature_highlighted" value="1"
+                         {% if ad.is_highlighted %}disabled{% endif %}>
+                  <label class="form-check-label w-100" for="f_highlighted">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <h5 class="mb-1">
+                          <i class="fas fa-certificate text-warning me-1"></i>
+                          {% trans "إعلان مميز" %}
+                        </h5>
+                        <p class="small text-muted mb-2">{% trans "يظهر بشكل بارز مع خلفية ملونة" %}</p>
+                        <ul class="small mb-0">
+                          <li>{% trans "خلفية ذهبية مميزة" %}</li>
+                          <li>{% trans "علامة 'مميز' ذهبية" %}</li>
+                          <li>{% trans "زيادة المشاهدات 300%" %}</li>
+                        </ul>
+                      </div>
+                      <span class="badge bg-warning text-dark feature-price">{{ feature_prices.highlighted }} {% get_currency_symbol ad %}</span>
                     </div>
-
-                    <!-- Video Upload Section (Conditional) -->
-                    <div class="mb-4 mt-4" id="video-upload-section" style="display: none;">
-                        <div class="card border-primary">
-                            <div class="card-body">
-                                <h5 class="mb-3">
-                                    <i class="fas fa-video me-2 text-primary"></i>
-                                    {% trans "إضافة فيديو" %}
-                                </h5>
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    {% trans "يمكنك إضافة فيديو من YouTube/Vimeo أو رفع ملف فيديو مباشرة" %}
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label for="video_url" class="form-label">
-                                            <i class="fas fa-link me-2 text-primary"></i>
-                                            {% trans "رابط الفيديو" %}
-                                        </label>
-                                        <input type="url" class="form-control" id="video_url" name="video_url"
-                                               placeholder="https://www.youtube.com/watch?v=..."
-                                               value="{{ ad.video_url|default:'' }}">
-                                        <div class="form-text">{% trans "رابط فيديو من YouTube أو Vimeo" %}</div>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label for="video_file" class="form-label">
-                                            <i class="fas fa-file-video me-2 text-primary"></i>
-                                            {% trans "أو رفع ملف فيديو" %}
-                                        </label>
-                                        <input type="file" class="form-control" id="video_file" name="video_file" accept="video/*">
-                                        <div class="form-text">{% trans "حجم الملف الأقصى: 50 ميجا" %}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                  </label>
                 </div>
+              </div>
             </div>
+          </div>
 
-            <!-- Summary Column -->
-            <div class="col-lg-4">
-                <div class="summary-sticky" data-aos="fade-up" data-aos-delay="400">
-                    <div class="summary-card">
-                        <div class="summary-header">
-                            <h4>
-                                <i class="fas fa-receipt me-2"></i>{% trans "ملخص الطلب" %}
-                            </h4>
-                        </div>
-
-                        <div id="summaryContent">
-                            <div class="empty-selection-message">
-                                <i class="fas fa-hand-pointer fa-3x mb-3" style="color: var(--text-muted); opacity: 0.5;"></i>
-                                <p>{% trans "اختر المميزات من القائمة لعرض الملخص" %}</p>
-                            </div>
-                        </div>
-
-                        <div id="summaryDetails" style="display: none;">
-                            <div class="summary-row">
-                                <span>{% trans "المجموع الفرعي:" %}</span>
-                                <strong id="subtotal">0.00 {{ ad.country.currency_symbol|default:"ج.م" }}</strong>
-                            </div>
-                            <div class="summary-row">
-                                <span>{% trans "الضريبة" %} ({{ tax_rate_percentage|floatformat:"0" }}%):</span>
-                                <strong id="tax">0.00 {{ ad.country.currency_symbol|default:"ج.م" }}</strong>
-                            </div>
-                            <div class="summary-total">
-                                <span>{% trans "المجموع الكلي:" %}</span>
-                                <strong id="total">0.00 {{ ad.country.currency_symbol|default:"ج.م" }}</strong>
-                            </div>
-
-                            <button type="submit" class="btn-proceed" id="checkoutBtn" disabled>
-                                <i class="fas fa-lock"></i>
-                                <span>{% trans "متابعة للدفع" %}</span>
-                            </button>
-                        </div>
-
-                        <input type="hidden" name="selected_features" id="selectedFeatures" value="">
+          <!-- ② Pinned -->
+          <div class="col-md-6">
+            <div class="card h-100 feature-card{% if ad.is_pinned %} is-active{% endif %}" data-option="pinned" data-price="{{ feature_prices.pinned }}">
+              {% if ad.is_pinned %}
+              <div class="active-overlay">
+                <div class="active-stamp"><i class="fas fa-check-circle"></i> {% trans "مفعّل" %}</div>
+              </div>
+              {% endif %}
+              <div class="card-body">
+                <div class="form-check">
+                  <input class="form-check-input feature-checkbox" type="checkbox"
+                         id="f_pinned" name="feature_pinned" value="1"
+                         {% if ad.is_pinned %}disabled{% endif %}>
+                  <label class="form-check-label w-100" for="f_pinned">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <h5 class="mb-1">
+                          <i class="fas fa-thumbtack text-success me-1"></i>
+                          {% trans "تثبيت في الأعلى" %}
+                        </h5>
+                        <p class="small text-muted mb-2">{% trans "يظهر دائمًا في أعلى القائمة" %}</p>
+                        <ul class="small mb-0">
+                          <li>{% trans "أعلى نتائج البحث" %}</li>
+                          <li>{% trans "10x مشاهدات أكثر" %}</li>
+                          <li>{% trans "زيادة المبيعات 500%" %}</li>
+                        </ul>
+                      </div>
+                      <span class="badge bg-success feature-price">{{ feature_prices.pinned }} {% get_currency_symbol ad %}</span>
                     </div>
+                  </label>
                 </div>
+              </div>
             </div>
+          </div>
+
+          <!-- ③ Auto Refresh -->
+          <div class="col-md-6">
+            <div class="card h-100 feature-card{% if ad.auto_refresh %} is-active{% endif %}" data-option="auto_refresh" data-price="{{ feature_prices.auto_refresh }}">
+              {% if ad.auto_refresh %}
+              <div class="active-overlay">
+                <div class="active-stamp"><i class="fas fa-check-circle"></i> {% trans "مفعّل" %}</div>
+              </div>
+              {% endif %}
+              <div class="card-body">
+                <div class="form-check">
+                  <input class="form-check-input feature-checkbox" type="checkbox"
+                         id="f_auto_refresh" name="feature_auto_refresh" value="1"
+                         {% if ad.auto_refresh %}disabled{% endif %}>
+                  <label class="form-check-label w-100" for="f_auto_refresh">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <h5 class="mb-1">
+                          <i class="fas fa-sync-alt text-info me-1"></i>
+                          {% trans "تحديث تلقائي يومي" %}
+                        </h5>
+                        <p class="small text-muted mb-2">{% trans "يظهر كإعلان جديد كل يوم" %}</p>
+                        <ul class="small mb-0">
+                          <li>{% trans "تجديد تاريخ الإعلان" %}</li>
+                          <li>{% trans "مشاهدات متجددة يومياً" %}</li>
+                          <li>{% trans "أولوية في النتائج" %}</li>
+                        </ul>
+                      </div>
+                      <span class="badge bg-info feature-price">{{ feature_prices.auto_refresh }} {% get_currency_symbol ad %}</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ④ Video -->
+          <div class="col-md-6">
+            <div class="card h-100 feature-card{% if ad.video_url or ad.video_file %} is-active{% endif %}" data-option="video" data-price="{{ feature_prices.video }}">
+              {% if ad.video_url or ad.video_file %}
+              <div class="active-overlay">
+                <div class="active-stamp"><i class="fas fa-check-circle"></i> {% trans "مفعّل" %}</div>
+              </div>
+              {% endif %}
+              <div class="card-body">
+                <div class="form-check">
+                  <input class="form-check-input feature-checkbox" type="checkbox"
+                         id="f_video" name="feature_video" value="1"
+                         {% if ad.video_url or ad.video_file %}disabled{% endif %}>
+                  <label class="form-check-label w-100" for="f_video">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <h5 class="mb-1">
+                          <i class="fas fa-video text-danger me-1"></i>
+                          {% trans "إضافة فيديو" %}
+                          <span class="badge bg-success ms-1" style="font-size:.6rem">{% trans "جديد" %}</span>
+                        </h5>
+                        <p class="small text-muted mb-2">{% trans "يزيد التحويلات بنسبة 80%" %}</p>
+                        <ul class="small mb-0">
+                          <li>{% trans "رابط يوتيوب/فيميو" %}</li>
+                          <li>{% trans "أو رفع ملف (100 MB)" %}</li>
+                          <li>{% trans "عرض توضيحي كامل" %}</li>
+                        </ul>
+                      </div>
+                      <span class="badge bg-danger feature-price">{{ feature_prices.video }} {% get_currency_symbol ad %}</span>
+                    </div>
+                  </label>
+                </div>
+                <div class="video-section" id="video-upload-section">
+                  <div class="video-tabs">
+                    <div class="video-tab active" id="tab-url"><i class="fab fa-youtube me-1"></i>{% trans "رابط يوتيوب" %}</div>
+                    <div class="video-tab" id="tab-file"><i class="fas fa-upload me-1"></i>{% trans "رفع ملف" %}</div>
+                  </div>
+                  <div id="video-url-section">
+                    <input type="url" name="video_url" id="video_url_field" class="form-control form-control-sm"
+                           placeholder="https://www.youtube.com/watch?v=..."
+                           value="{{ ad.video_url|default:'' }}">
+                  </div>
+                  <div id="video-file-section" style="display:none">
+                    <input type="file" name="video_file" id="video_file_field" class="form-control form-control-sm"
+                           accept="video/mp4,video/webm,video/ogg,video/quicktime">
+                    <small class="text-muted">MP4 / WebM / MOV · {% trans "حد أقصى 100 MB" %}</small>
+                  </div>
+                  <input type="hidden" name="video_type" id="video_type" value="url">
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /row -->
+      </form>
+    </div><!-- /col -->
+
+    <!-- ══ SUMMARY COLUMN ══ -->
+    <div class="col-lg-4">
+      <div class="summary-card">
+        <div class="summary-head">
+          <h3><i class="fas fa-receipt me-2"></i>{% trans "ملخص الطلب" %}</h3>
         </div>
-    </form>
+        <div class="summary-body">
+          <div id="summary-content">
+            <div class="summary-empty">
+              <i class="fas fa-hand-pointer fa-lg mb-2 d-block"></i>
+              {% trans "اختر ميزة لعرض الملخص" %}
+            </div>
+          </div>
+          <button type="submit" form="featuresForm" class="pay-btn" id="pay-btn" disabled>
+            <i class="fas fa-lock me-2"></i>{% trans "متابعة للدفع" %}
+          </button>
+          <div class="secure-note">
+            <i class="fas fa-shield-alt text-success"></i> {% trans "دفع آمن ومشفر" %}
+          </div>
+        </div>
+      </div>
     </div>
-</section>
-{% endblock %}
 
+  </div><!-- /row -->
+</div>
+</section>
+{% endblock content %}
 
 {% block extra_js %}
-<link href="https://unpkg.com/aos@2.3.4/dist/aos.css" rel="stylesheet">
-<script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize AOS
-    AOS.init({
-        duration: 800,
-        once: true,
-        offset: 100
+(function () {
+    const sym = '{% get_currency_symbol ad %}';
+    const sel = {};
+
+    // Click on card body toggles checkbox
+    document.querySelectorAll('.feature-card:not(.is-active)').forEach(card => {
+        card.addEventListener('click', function (e) {
+            if (e.target.closest('.video-section')) return;
+            const cb = card.querySelector('input[type="checkbox"]');
+            if (!cb || cb.disabled) return;
+            if (e.target === cb || e.target.htmlFor === cb.id) return;
+            cb.checked = !cb.checked;
+            cb.dispatchEvent(new Event('change'));
+        });
     });
 
-    const prices = {
-        highlighted: parseFloat("{{ feature_prices.highlighted|default:'50' }}"),
-        pinned: parseFloat("{{ feature_prices.pinned|default:'100' }}"),
-        auto_refresh: parseFloat("{{ feature_prices.auto_refresh|default:'35' }}"),
-        video: parseFloat("{{ feature_prices.video|default:'75' }}")
-    };
+    // Checkbox change
+    document.querySelectorAll('.feature-checkbox').forEach(cb => {
+        cb.addEventListener('change', function () {
+            if (this.disabled) return;
+            const card = this.closest('.feature-card');
+            const opt = card.dataset.option;
+            const vidSec = document.getElementById('video-upload-section');
 
-    let selectedFeatures = {};
-
-    // Video upload section toggle
-    const videoCheckbox = document.getElementById('feature_video');
-    const videoUploadSection = document.getElementById('video-upload-section');
-
-    if (videoCheckbox) {
-        videoCheckbox.addEventListener('change', function() {
-            if (this.checked && !this.disabled) {
-                videoUploadSection.style.display = 'block';
-            } else if (!this.disabled) {
-                videoUploadSection.style.display = 'none';
-            }
-        });
-
-        // Show if already has video
-        {% if ad.video_url %}
-        videoUploadSection.style.display = 'block';
-        {% endif %}
-    }
-
-    window.toggleFeature = function(feature, enable) {
-        selectedFeatures[feature] = enable;
-
-        // Show/hide video upload section
-        if (feature === 'video') {
-            if (enable && videoUploadSection) {
-                videoUploadSection.style.display = 'block';
-            } else if (videoUploadSection && !document.getElementById('feature_video').disabled) {
-                videoUploadSection.style.display = 'none';
-            }
-        }
-
-        // Update card visual state
-        const card = document.querySelector(`.feature-card[data-feature="${feature}"]`);
-        if (card) {
-            if (enable) {
+            if (this.checked) {
                 card.classList.add('selected');
+                if (opt === 'video' && vidSec) vidSec.style.display = 'block';
+                sel[opt] = {
+                    price: parseFloat(card.dataset.price) || 0,
+                    label: card.querySelector('label h5').textContent.trim()
+                };
             } else {
                 card.classList.remove('selected');
+                if (opt === 'video' && vidSec) vidSec.style.display = 'none';
+                delete sel[opt];
             }
+
+            // Sync hidden input for the view
+            const hidden = document.getElementById('selectedFeatures');
+            const map = {};
+            Object.keys(sel).forEach(k => { map[k] = true; });
+            hidden.value = JSON.stringify(map);
+
+            render();
+        });
+    });
+
+    // Video tabs
+    const tabUrl = document.getElementById('tab-url');
+    const tabFile = document.getElementById('tab-file');
+    if (tabUrl) tabUrl.addEventListener('click', () => {
+        tabUrl.classList.add('active'); tabFile.classList.remove('active');
+        document.getElementById('video-url-section').style.display = 'block';
+        document.getElementById('video-file-section').style.display = 'none';
+        document.getElementById('video_type').value = 'url';
+    });
+    if (tabFile) tabFile.addEventListener('click', () => {
+        tabFile.classList.add('active'); tabUrl.classList.remove('active');
+        document.getElementById('video-file-section').style.display = 'block';
+        document.getElementById('video-url-section').style.display = 'none';
+        document.getElementById('video_type').value = 'file';
+    });
+
+    function render() {
+        const el = document.getElementById('summary-content');
+        const btn = document.getElementById('pay-btn');
+        const keys = Object.keys(sel);
+        if (!keys.length) {
+            el.innerHTML = '<div class="summary-empty"><i class="fas fa-hand-pointer fa-lg mb-2 d-block"></i>{% trans "اختر ميزة لعرض الملخص" %}</div>';
+            btn.disabled = true;
+            return;
         }
-
-        updateSummary();
-    };
-
-    function updateSummary() {
-        let subtotal = 0;
-        let hasSelection = false;
-
-        for (const [feature, enabled] of Object.entries(selectedFeatures)) {
-            if (enabled && prices[feature]) {
-                subtotal += prices[feature];
-                hasSelection = true;
-            }
-        }
-
-        const summaryContent = document.getElementById('summaryContent');
-        const summaryDetails = document.getElementById('summaryDetails');
-
-        if (hasSelection) {
-            summaryContent.style.display = 'none';
-            summaryDetails.style.display = 'block';
-
-            const tax = subtotal * parseFloat("{{ tax_rate|default:'0.15' }}");
-            const total = subtotal + tax;
-
-            const currency = '{{ ad.country.currency_symbol|default:"ج.م" }}';
-            document.getElementById('subtotal').textContent = subtotal.toFixed(2) + ' ' + currency;
-            document.getElementById('tax').textContent = tax.toFixed(2) + ' ' + currency;
-            document.getElementById('total').textContent = total.toFixed(2) + ' ' + currency;
-
-            // Enable checkout button
-            const checkoutBtn = document.getElementById('checkoutBtn');
-            checkoutBtn.disabled = false;
-        } else {
-            summaryContent.style.display = 'block';
-            summaryDetails.style.display = 'none';
-        }
-
-        // Update hidden input
-        document.getElementById('selectedFeatures').value = JSON.stringify(selectedFeatures);
+        let total = 0, html = '';
+        keys.forEach(k => {
+            const o = sel[k];
+            total += o.price;
+            html += `<div class="summary-line">
+                <span class="n">${o.label}</span>
+                <span class="p">${o.price.toFixed(2)} ${sym}</span>
+            </div>`;
+        });
+        html += '<hr class="summary-divider">';
+        html += `<div class="summary-total"><span>{% trans "الإجمالي" %}</span><span class="p">${total.toFixed(2)} ${sym}</span></div>`;
+        el.innerHTML = html;
+        btn.disabled = false;
     }
-
-    // Initialize with current active features (these are already enabled, don't include in payment)
-    {% if ad.highlighted %}
-        document.querySelector('.feature-card[data-feature="highlighted"]')?.classList.add('selected');
-    {% endif %}
-    {% if ad.pinned %}
-        document.querySelector('.feature-card[data-feature="pinned"]')?.classList.add('selected');
-    {% endif %}
-    {% if ad.auto_refresh %}
-        document.querySelector('.feature-card[data-feature="auto_refresh"]')?.classList.add('selected');
-    {% endif %}
-    {% if ad.video_url %}
-        document.querySelector('.feature-card[data-feature="video"]')?.classList.add('selected');
-    {% endif %}
-
-    updateSummary();
-});
+})();
 </script>
-{% endblock %}
+{% endblock extra_js %}

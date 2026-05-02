@@ -115,7 +115,7 @@ def create_payment(request):
         success, result = payment_service.create_payment(
             provider="paymob",
             amount=amount,
-            currency="EGP",  # Paymob primarily uses EGP
+            currency=currency,
             description=description,
             user_data=user_data,
         )
@@ -342,13 +342,13 @@ def payment_page_upgrade(request, payment_id):
     from constance import config as constance_config
     from content.site_config import SiteConfiguration
     from django.contrib import messages
+    from .payment_utils import get_allowed_payment_methods, PaymentContext, is_payment_method_allowed
 
     # Check phone verification requirement
     constance_enabled = getattr(constance_config, "ENABLE_MOBILE_VERIFICATION", True)
     site_config = SiteConfiguration.get_solo()
     site_config_enabled = site_config.require_phone_verification
 
-    # If either is enabled and user's phone is not verified, redirect
     is_mobile_verified = getattr(request.user, "is_mobile_verified", True)
     if (constance_enabled or site_config_enabled) and not is_mobile_verified:
         messages.warning(
@@ -359,11 +359,14 @@ def payment_page_upgrade(request, payment_id):
 
     payment = get_object_or_404(Payment, id=payment_id, user=request.user)
 
-    # Get upgrade data from payment metadata
+    # Only allow pending payments to proceed
+    if payment.status != Payment.PaymentStatus.PENDING:
+        messages.info(request, _("هذه العملية تمت معالجتها بالفعل."))
+        return redirect("main:payment_history")
+
     upgrade_data = payment.metadata
     ad_id = payment.metadata.get("ad_id")
 
-    # Get the ad to extract currency info
     ad = None
     if ad_id:
         from .models import ClassifiedAd
@@ -372,26 +375,103 @@ def payment_page_upgrade(request, payment_id):
         except ClassifiedAd.DoesNotExist:
             pass
 
-    payment_service = PaymentService()
-    supported_providers = payment_service.get_supported_providers()
-
-    # Get currency from payment or ad's country
     currency = payment.currency
     if ad and ad.country:
         currency = ad.country.currency or payment.currency
+
+    allowed_payment_methods = get_allowed_payment_methods(PaymentContext.AD_UPGRADE)
+    paymob_wallet_enabled = bool(getattr(config, "PAYMOB_WALLET_INTEGRATION_ID", ""))
+
+    if request.method == "POST":
+        payment_method = request.POST.get("payment_method")
+
+        if not is_payment_method_allowed(payment_method, PaymentContext.AD_UPGRADE):
+            messages.error(request, _("طريقة الدفع المختارة غير متاحة."))
+            return redirect("main:payment_page_upgrade", payment_id=payment.id)
+
+        if payment_method in ("instapay", "wallet") and not (payment_method == "wallet" and paymob_wallet_enabled):
+            receipt = request.FILES.get("payment_receipt")
+            if not receipt:
+                messages.error(request, _("يرجى رفع إيصال الدفع"))
+                return redirect("main:payment_page_upgrade", payment_id=payment.id)
+
+            payment.provider = Payment.PaymentProvider.BANK_TRANSFER
+            payment.status = Payment.PaymentStatus.PENDING
+            payment.offline_payment_receipt = receipt
+            payment.save()
+
+            messages.success(
+                request,
+                _("تم استلام طلب الدفع. سيتم مراجعته خلال 24 ساعة وتفعيل مميزات إعلانك.")
+            )
+            if ad:
+                return redirect("main:ad_detail", slug=ad.slug)
+            return redirect("main:payment_history")
+
+        elif payment_method in ("paymob", "paypal", "visa", "wallet"):
+            payment.provider = (
+                Payment.PaymentProvider.PAYMOB
+                if payment_method in ("paymob", "visa", "wallet")
+                else Payment.PaymentProvider.PAYPAL
+            )
+            payment.save()
+
+            user_data = {
+                "email": request.user.email,
+                "first_name": request.user.first_name or request.user.username,
+                "last_name": request.user.last_name or "",
+                "phone": getattr(request.user, "mobile", "") or getattr(request.user, "phone", ""),
+            }
+
+            extra_kwargs = {}
+            if payment_method == "paypal":
+                extra_kwargs["return_url"] = request.build_absolute_uri(
+                    reverse("main:paypal_success")
+                )
+                extra_kwargs["cancel_url"] = request.build_absolute_uri(
+                    reverse("main:paypal_cancel") + f"?payment_id={payment.id}"
+                )
+
+            provider_key = "paypal" if payment_method == "paypal" else ("wallet" if payment_method == "wallet" else "paymob")
+            success, result = PaymentService().create_payment(
+                provider_key,
+                float(payment.amount),
+                currency,
+                f"ترقية إعلان: {ad.title if ad else payment_id}",
+                user_data,
+                **extra_kwargs,
+            )
+
+            if success:
+                payment_url = result.get("approval_url") or result.get("iframe_url")
+                if result.get("paypal_order_id"):
+                    payment.metadata["paypal_order_id"] = result["paypal_order_id"]
+                if result.get("paymob_order_id"):
+                    payment.metadata["paymob_order_id"] = result["paymob_order_id"]
+                if payment_url:
+                    payment.save()
+                    return redirect(payment_url)
+
+            payment.status = Payment.PaymentStatus.FAILED
+            payment.save()
+            logger.error("Upgrade payment creation failed: %s", result)
+            messages.error(request, _("فشل إنشاء الدفع. يرجى المحاولة مرة أخرى أو اختيار طريقة دفع أخرى."))
+            return redirect("main:payment_page_upgrade", payment_id=payment.id)
 
     context = {
         "payment": payment,
         "ad": ad,
         "upgrade_data": upgrade_data,
-        "supported_providers": supported_providers,
+        "site_config": site_config,
         "site_url": config.SITE_URL,
         "is_upgrade": True,
         "currency": currency,
         "total_amount": payment.amount,
+        "allowed_payment_methods": allowed_payment_methods,
+        "paymob_wallet_enabled": paymob_wallet_enabled,
     }
 
-    return render(request, "payments/payment_page.html", context)
+    return render(request, "payments/ad_upgrade_payment.html", context)
 
 
 @login_required
@@ -471,7 +551,7 @@ def ad_payment(request, ad_id):
                     if package_with_ads:
                         package_with_ads.use_ad()
 
-                from .models import Notification
+                from .models import Notification, User
                 staff_users = User.objects.filter(is_staff=True, is_active=True)
                 for staff_user in staff_users:
                     Notification.objects.create(
@@ -1369,12 +1449,14 @@ def process_ad_upgrade_payment(payment):
     """
     Process ad upgrade payment after successful payment confirmation.
     Applies additional features to existing ad.
+
+    Supports two metadata formats:
+    - {"upgrade_features": {"highlighted": True, "duration_days": 7, ...}}  (ad_upgrade_payment path)
+    - {"upgrades": [{"type": "featured", "duration": 7, ...}, ...]}          (AdUpgradeProcessView path)
     """
-    from .models import ClassifiedAd, FacebookShareRequest, Notification
+    from .models import ClassifiedAd, FacebookShareRequest, Notification, AdUpgradeHistory
 
     ad_id = payment.metadata.get("ad_id")
-    upgrade_features = payment.metadata.get("upgrade_features", {})
-
     if not ad_id:
         logger.error(f"No ad_id in payment metadata for payment {payment.id}")
         return False
@@ -1383,48 +1465,97 @@ def process_ad_upgrade_payment(payment):
         ad = ClassifiedAd.objects.get(id=ad_id)
         applied_features = []
 
-        # Apply upgrade features
-        if upgrade_features.get("contact_for_price"):
-            ad.contact_for_price = True
-            applied_features.append(_("تواصل ليصلك عرض سعر"))
+        # --- Normalise both metadata formats into a unified upgrades list ---
+        raw_features = payment.metadata.get("upgrade_features", {})
+        raw_upgrades = payment.metadata.get("upgrades", [])
 
-        if upgrade_features.get("facebook_share"):
-            ad.share_on_facebook = True
-            ad.facebook_share_requested = True
-            applied_features.append(_("نشر على فيسبوك"))
+        # Convert old dict format to list format for uniform processing
+        if raw_features and not raw_upgrades:
+            duration = raw_features.get("duration_days", 7)
+            for key in ("highlighted", "pinned", "urgent"):
+                if raw_features.get(key):
+                    raw_upgrades.append({"type": key, "duration": duration})
+            if raw_features.get("contact_for_price"):
+                raw_upgrades.append({"type": "contact_for_price", "duration": duration})
+            if raw_features.get("facebook_share"):
+                raw_upgrades.append({"type": "facebook_share", "duration": 0})
+            if raw_features.get("auto_refresh"):
+                raw_upgrades.append({"type": "auto_refresh", "duration": 0})
+            if raw_features.get("video") or raw_features.get("add_video"):
+                raw_upgrades.append({"type": "video", "duration": 0})
 
-            # Create FacebookShareRequest
-            FacebookShareRequest.objects.create(
-                ad=ad,
-                user=ad.user,
-                payment_confirmed=True,
-                payment_amount=payment.amount,
-            )
+        # --- Apply each upgrade ---
+        UPGRADE_TYPE_MAP = {
+            "featured": AdUpgradeHistory.UpgradeType.HIGHLIGHTED,
+            "highlighted": AdUpgradeHistory.UpgradeType.HIGHLIGHTED,
+            "pinned": AdUpgradeHistory.UpgradeType.PINNED,
+            "urgent": AdUpgradeHistory.UpgradeType.URGENT,
+        }
 
-        if upgrade_features.get("video") or upgrade_features.get("add_video"):
-            # video_url/video_file already saved on the ad; just acknowledge the feature
-            applied_features.append(_("فيديو"))
+        for upgrade in raw_upgrades:
+            utype = upgrade.get("type")
+            duration = int(upgrade.get("duration") or 0)
+            price = Decimal(str(upgrade.get("price", "0")))
 
-        if upgrade_features.get("auto_refresh"):
-            ad.auto_refresh = True
-            applied_features.append(_("تحديث تلقائي يومي"))
+            if utype in UPGRADE_TYPE_MAP:
+                history_type = UPGRADE_TYPE_MAP[utype]
+                end_date = timezone.now() + timedelta(days=duration) if duration else timezone.now() + timedelta(days=7)
+                AdUpgradeHistory.objects.create(
+                    ad=ad,
+                    upgrade_type=history_type,
+                    price_paid=price,
+                    duration_days=duration or 7,
+                    end_date=end_date,
+                    is_active=True,
+                )
+                # AdUpgradeHistory.save() sets the boolean flag on the ad automatically
+                label_map = {
+                    AdUpgradeHistory.UpgradeType.HIGHLIGHTED: _("إعلان مميز"),
+                    AdUpgradeHistory.UpgradeType.PINNED: _("تثبيت في الأعلى"),
+                    AdUpgradeHistory.UpgradeType.URGENT: _("إعلان عاجل"),
+                }
+                applied_features.append(label_map[history_type])
+
+            elif utype == "contact_for_price":
+                ad.contact_for_price = True
+                applied_features.append(_("تواصل ليصلك عرض سعر"))
+
+            elif utype == "facebook_share":
+                ad.share_on_facebook = True
+                ad.facebook_share_requested = True
+                applied_features.append(_("نشر على فيسبوك"))
+                FacebookShareRequest.objects.create(
+                    ad=ad,
+                    user=ad.user,
+                    payment_confirmed=True,
+                    payment_amount=payment.amount,
+                )
+
+            elif utype in ("video", "add_video"):
+                applied_features.append(_("فيديو"))
+
+            elif utype == "auto_refresh":
+                ad.auto_refresh = True
+                applied_features.append(_("تحديث تلقائي يومي"))
+
+            elif utype == "top_search":
+                ad.is_highlighted = True
+                applied_features.append(_("أعلى نتائج البحث"))
 
         ad.save()
 
-        # Send notification to user
-        Notification.objects.create(
-            user=ad.user,
-            notification_type=Notification.NotificationType.GENERAL,
-            title=_("تم تأكيد الدفع"),
-            message=_("تم تأكيد دفع ترقية الإعلان {} وتفعيل المميزات: {}.").format(
-                ad.title, ", ".join(applied_features)
-            ),
-            link=ad.get_absolute_url(),
-        )
+        if applied_features:
+            Notification.objects.create(
+                user=ad.user,
+                notification_type=Notification.NotificationType.GENERAL,
+                title=_("تم تأكيد الدفع"),
+                message=_("تم تأكيد دفع ترقية الإعلان {} وتفعيل المميزات: {}.").format(
+                    ad.title, ", ".join(str(f) for f in applied_features)
+                ),
+                link=ad.get_absolute_url(),
+            )
 
-        logger.info(
-            f"Ad {ad.id} upgraded with features {upgrade_features} after payment {payment.id}"
-        )
+        logger.info(f"Ad {ad.id} upgraded with {len(applied_features)} features after payment {payment.id}")
         return True
 
     except ClassifiedAd.DoesNotExist:

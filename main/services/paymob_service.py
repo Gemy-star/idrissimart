@@ -140,6 +140,7 @@ class PaymobService:
         billing_data: Dict,
         items: list = None,
         integration_id: str = None,
+        currency: str = None,
         notification_url: str = None,
         redirection_url: str = None,
     ) -> Tuple[bool, Optional[str], Optional[str], Optional[str]]:
@@ -161,6 +162,7 @@ class PaymobService:
             billing_data=billing_data,
             items=items,
             integration_id=integration_id,
+            currency=currency,
             notification_url=notification_url,
             redirection_url=redirection_url,
         )

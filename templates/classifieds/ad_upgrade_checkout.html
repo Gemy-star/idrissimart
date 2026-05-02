@@ -1,955 +1,684 @@
 {% extends "base.html" %}
+{% load static i18n idrissimart_tags %}
 
-{% load static i18n %}
-
-{% block title %}
-    {% trans "ترقية الإعلان" %} - {{ ad.title }}
-{% endblock title %}
+{% block title %}{% trans "ترقية الإعلان" %} — {{ ad.title }}{% endblock %}
 
 {% block extra_css %}
 <style>
-    :root {
-        --primary-color: #6b4c7a;
-        --success-color: #28a745;
-        --warning-color: #ffc107;
-        --info-color: #17a2b8;
-    }
+/* ── Feature cards — identical to ad_form.html ── */
+.feature-card {
+    border: 2px solid var(--border-color, #dee2e6);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+}
+[data-theme='dark'] .feature-card {
+    background: rgba(255,255,255,.03);
+    border-color: rgba(255,255,255,.1);
+}
+.feature-card:hover:not(.is-active) {
+    border-color: var(--primary-color, #6b4c7a);
+    box-shadow: 0 4px 15px rgba(107,76,122,.2);
+    transform: translateY(-2px);
+}
+[data-theme='dark'] .feature-card:hover:not(.is-active) {
+    box-shadow: 0 4px 15px rgba(107,76,122,.3);
+}
+.feature-card.selected {
+    border-color: var(--primary-color, #6b4c7a);
+    background: rgba(107,76,122,.05);
+}
+[data-theme='dark'] .feature-card.selected {
+    background: rgba(107,76,122,.15);
+    border-color: var(--accent-purple, #a78bbd);
+}
+.feature-price { font-size:.9rem; font-weight:600; }
 
-    [data-theme='dark'] {
-        --primary-color: #a78bbd;
-        --success-color: #48bb78;
-    }
+/* ── Active (already purchased) state ── */
+.feature-card.is-active {
+    border-color: #10b981 !important;
+    background: rgba(16,185,129,.04);
+    cursor: not-allowed;
+    opacity: .85;
+}
+[data-theme='dark'] .feature-card.is-active {
+    background: rgba(16,185,129,.08);
+    border-color: #34d399 !important;
+}
+.feature-card.is-active:hover { transform: none; box-shadow: none; }
+.active-overlay {
+    position: absolute; inset: 0;
+    border-radius: inherit;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(16,185,129,.07);
+    pointer-events: none;
+    z-index: 2;
+}
+.active-stamp {
+    background: #10b981; color: #fff;
+    font-weight: 800; font-size: .75rem; letter-spacing: .06em;
+    padding: .3rem .8rem; border-radius: 999px;
+    display: flex; align-items: center; gap: .35rem;
+}
+.active-until { font-size:.68rem; font-weight:500; opacity:.9; }
 
-    .checkout-section {
-        background: var(--bg-secondary, #f8f9fa);
-        min-height: 80vh;
-        padding: 3rem 0;
-    }
+/* ── Duration picker ── */
+.duration-picker { margin-top:1rem; border-top:1px dashed var(--border-color,#dee2e6); padding-top:.9rem; display:none; }
+.duration-picker label { font-size:.78rem; font-weight:600; color:#6b7280; margin-bottom:.5rem; display:block; }
+.dur-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.45rem; }
+.dur-btn {
+    border:2px solid var(--border-color,#dee2e6);
+    border-radius:10px; padding:.5rem .3rem;
+    text-align:center; cursor:pointer; transition:all .15s;
+    background: var(--bg-primary,#fff);
+}
+.dur-btn:hover { border-color:var(--primary-color,#6b4c7a); }
+.dur-btn.active { border-color:var(--primary-color,#6b4c7a); background:rgba(107,76,122,.06); }
+[data-theme='dark'] .dur-btn { background:rgba(255,255,255,.04); }
+[data-theme='dark'] .dur-btn.active { background:rgba(107,76,122,.18); }
+.dur-days { font-weight:800; font-size:.88rem; color:var(--text-primary,#1f2937); }
+.dur-price { font-size:.72rem; color:var(--primary-color,#6b4c7a); font-weight:600; margin-top:1px; }
+.dur-badge { font-size:.6rem; font-weight:700; background:#f59e0b; color:#fff; border-radius:999px; padding:.1rem .45rem; display:inline-block; margin-top:2px; }
 
-    [data-theme='dark'] .checkout-section {
-        background: var(--bg-primary, #1a202c);
-    }
+/* ── Video section ── */
+.video-section { margin-top:1rem; border-top:1px dashed var(--border-color,#dee2e6); padding-top:.9rem; display:none; }
+.video-tabs { display:flex; gap:.5rem; margin-bottom:.75rem; }
+.video-tab {
+    flex:1; padding:.4rem; text-align:center; border:2px solid var(--border-color,#dee2e6);
+    border-radius:8px; cursor:pointer; font-size:.8rem; font-weight:600; color:#6b7280;
+    transition:all .15s;
+}
+.video-tab.active { border-color:var(--primary-color,#6b4c7a); color:var(--primary-color,#6b4c7a); background:rgba(107,76,122,.05); }
 
-    .checkout-card {
-        background: var(--bg-primary, #ffffff);
-        border-radius: 20px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-    }
+/* ── Summary sidebar ── */
+.summary-card {
+    background: var(--bg-primary,#fff);
+    border-radius:16px;
+    border:1px solid var(--border-color,#dee2e6);
+    box-shadow:0 4px 20px rgba(0,0,0,.08);
+    position:sticky; top:80px; overflow:hidden;
+}
+[data-theme='dark'] .summary-card { background:var(--card-bg,#2d3748); }
+.summary-head {
+    padding:1rem 1.4rem;
+    background:linear-gradient(135deg,#6b4c7a,#4b315e);
+    color:#fff;
+}
+.summary-head h3 { margin:0; font-size:1rem; font-weight:700; }
+.summary-body { padding:1.1rem 1.4rem; }
+.summary-empty { text-align:center; padding:1.5rem 0; color:#9ca3af; font-size:.85rem; }
+.summary-line { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:.6rem; gap:.5rem; font-size:.85rem; }
+.summary-line .n { flex:1; color:var(--text-primary,#1f2937); }
+.summary-line .p { font-weight:700; color:var(--primary-color,#6b4c7a); white-space:nowrap; }
+.summary-divider { border:none; border-top:2px dashed var(--border-color,#dee2e6); margin:.7rem 0; }
+.summary-total { display:flex; justify-content:space-between; font-weight:800; font-size:1rem; }
+.pay-btn {
+    display:block; width:100%; margin-top:1rem; padding:.82rem;
+    background:linear-gradient(135deg,#6b4c7a,#4b315e);
+    color:#fff; border:none; border-radius:12px;
+    font-size:.95rem; font-weight:700; cursor:pointer;
+    transition:opacity .15s, transform .15s;
+    box-shadow:0 4px 16px rgba(107,76,122,.3);
+}
+.pay-btn:disabled { opacity:.4; cursor:not-allowed; }
+.pay-btn:not(:disabled):hover { opacity:.92; transform:translateY(-1px); }
+.secure-note { text-align:center; font-size:.73rem; color:#9ca3af; margin-top:.5rem; }
 
-    [data-theme='dark'] .checkout-card {
-        background: var(--card-bg, #2d3748);
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    }
-
-    .checkout-header {
-        background: var(--primary-gradient, linear-gradient(135deg, #6b4c7a 0%, #4b315e 100%));
-        color: #ffffff;
-        padding: 2rem;
-        text-align: center;
-    }
-
-    .checkout-header h1 {
-        margin: 0;
-        font-size: 1.75rem;
-        font-weight: 700;
-    }
-
-    .checkout-body {
-        padding: 2rem;
-    }
-
-    .ad-preview {
-        background: var(--bg-secondary, #f8f9fa);
-        border-radius: 15px;
-        padding: 1.5rem;
-        margin-bottom: 2rem;
-        border: 2px solid var(--border-color, #dee2e6);
-    }
-
-    [data-theme='dark'] .ad-preview {
-        background: rgba(255, 255, 255, 0.03);
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-
-    .ad-preview-title {
-        color: var(--text-primary, #2d3748);
-        font-size: 1.25rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-    }
-
-    [data-theme='dark'] .ad-preview-title {
-        color: var(--text-primary, #f7fafc);
-    }
-
-    .ad-preview-info {
-        color: var(--text-muted, #6c757d);
-        font-size: 0.95rem;
-    }
-
-    [data-theme='dark'] .ad-preview-info {
-        color: var(--text-muted, #cbd5e0);
-    }
-
-    .upgrade-options {
-        margin: 2rem 0;
-    }
-
-    .upgrade-option {
-        background: var(--bg-primary, #ffffff);
-        border: 2px solid var(--border-color, #dee2e6);
-        border-radius: 15px;
-        padding: 1.5rem;
-        margin-bottom: 1rem;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-
-    [data-theme='dark'] .upgrade-option {
-        background: rgba(255, 255, 255, 0.03);
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-
-    .upgrade-option:hover {
-        border-color: var(--primary-color);
-        box-shadow: 0 5px 20px rgba(107, 76, 122, 0.15);
-    }
-
-    .upgrade-option.selected {
-        border-color: var(--primary-color);
-        background: rgba(107, 76, 122, 0.05);
-        box-shadow: 0 5px 20px rgba(107, 76, 122, 0.2);
-    }
-
-    [data-theme='dark'] .upgrade-option.selected {
-        background: rgba(167, 139, 189, 0.1);
-    }
-
-    .upgrade-option-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 1rem;
-    }
-
-    .upgrade-option-title {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        color: var(--text-primary, #2d3748);
-        font-weight: 700;
-        font-size: 1.1rem;
-    }
-
-    [data-theme='dark'] .upgrade-option-title {
-        color: var(--text-primary, #f7fafc);
-    }
-
-    .upgrade-option-price {
-        color: var(--primary-color);
-        font-weight: 800;
-        font-size: 1.5rem;
-    }
-
-    .upgrade-option-description {
-        color: var(--text-muted, #6c757d);
-        margin-bottom: 1rem;
-    }
-
-    [data-theme='dark'] .upgrade-option-description {
-        color: var(--text-muted, #cbd5e0);
-    }
-
-    .upgrade-option-features {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-
-    .upgrade-option-features li {
-        padding: 0.5rem 0;
-        color: var(--text-secondary, #495057);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    [data-theme='dark'] .upgrade-option-features li {
-        color: var(--text-secondary, #e2e8f0);
-    }
-
-    .upgrade-option-features li i {
-        color: var(--success-color);
-    }
-
-    .duration-selector {
-        margin-top: 1rem;
-    }
-
-    .duration-options {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-    }
-
-    .duration-option {
-        flex: 1;
-        min-width: 120px;
-        padding: 0.75rem 1rem;
-        border: 2px solid var(--border-color, #dee2e6);
-        border-radius: 10px;
-        text-align: center;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        background: var(--bg-primary, #ffffff);
-    }
-
-    [data-theme='dark'] .duration-option {
-        background: rgba(255, 255, 255, 0.03);
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-
-    .duration-option:hover {
-        border-color: var(--primary-color);
-    }
-
-    .duration-option.selected {
-        border-color: var(--primary-color);
-        background: var(--primary-color);
-        color: #ffffff;
-    }
-
-    .duration-option-label {
-        font-weight: 600;
-        display: block;
-    }
-
-    .duration-option-price {
-        font-size: 0.9rem;
-        margin-top: 0.25rem;
-    }
-
-    .order-summary {
-        background: var(--bg-secondary, #f8f9fa);
-        border-radius: 15px;
-        padding: 1.5rem;
-        position: sticky;
-        top: 100px;
-    }
-
-    [data-theme='dark'] .order-summary {
-        background: rgba(255, 255, 255, 0.03);
-    }
-
-    .order-summary-title {
-        color: var(--text-primary, #2d3748);
-        font-weight: 700;
-        font-size: 1.25rem;
-        margin-bottom: 1.5rem;
-        padding-bottom: 1rem;
-        border-bottom: 2px solid var(--border-color, #dee2e6);
-    }
-
-    [data-theme='dark'] .order-summary-title {
-        color: var(--text-primary, #f7fafc);
-        border-bottom-color: rgba(255, 255, 255, 0.1);
-    }
-
-    .summary-item {
-        display: flex;
-        justify-content: space-between;
-        padding: 0.75rem 0;
-        color: var(--text-secondary, #495057);
-    }
-
-    [data-theme='dark'] .summary-item {
-        color: var(--text-secondary, #e2e8f0);
-    }
-
-    .summary-item.total {
-        border-top: 2px solid var(--border-color, #dee2e6);
-        margin-top: 1rem;
-        padding-top: 1rem;
-        font-weight: 700;
-        font-size: 1.25rem;
-        color: var(--text-primary, #2d3748);
-    }
-
-    [data-theme='dark'] .summary-item.total {
-        border-top-color: rgba(255, 255, 255, 0.1);
-        color: var(--text-primary, #f7fafc);
-    }
-
-    .summary-item .price {
-        color: var(--primary-color);
-        font-weight: 600;
-    }
-
-    .checkout-btn {
-        width: 100%;
-        padding: 1rem;
-        background: var(--primary-gradient, linear-gradient(135deg, #6b4c7a 0%, #4b315e 100%));
-        color: #ffffff;
-        border: none;
-        border-radius: 12px;
-        font-weight: 700;
-        font-size: 1.1rem;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        margin-top: 1.5rem;
-    }
-
-    .checkout-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(107, 76, 122, 0.4);
-    }
-
-    .checkout-btn:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-    }
-
-    .badge-highlight {
-        background: var(--warning-color);
-        color: #000;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        margin-left: 0.5rem;
-    }
-
-    .security-note {
-        text-align: center;
-        color: var(--text-muted, #6c757d);
-        font-size: 0.85rem;
-        margin-top: 1rem;
-    }
-
-    [data-theme='dark'] .security-note {
-        color: var(--text-muted, #cbd5e0);
-    }
-
-    @media (max-width: 768px) {
-        .checkout-body {
-            padding: 1rem;
-        }
-
-        .order-summary {
-            position: static;
-            margin-top: 2rem;
-        }
-
-        .duration-option {
-            flex: 1 1 calc(50% - 5px);
-        }
-    }
+/* ── Ad strip ── */
+.ad-strip {
+    display:flex; align-items:center; gap:.85rem;
+    padding:.9rem 1.25rem;
+    background:rgba(107,76,122,.06);
+    border-radius:14px; margin-bottom:1.25rem;
+    border:1px solid rgba(107,76,122,.15);
+}
+.ad-thumb { width:48px; height:48px; border-radius:9px; object-fit:cover; flex-shrink:0; background:#e5e7eb; display:flex; align-items:center; justify-content:center; }
+.ad-strip-info { flex:1; min-width:0; }
+.ad-strip-title { font-weight:700; font-size:.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ad-strip-meta { font-size:.78rem; color:#9ca3af; margin-top:1px; }
 </style>
 {% endblock extra_css %}
 
 {% block content %}
-<section class="checkout-section">
-    <div class="container">
-        <div class="row">
-            <div class="col-lg-8">
-                <div class="checkout-card">
-                    <div class="checkout-header">
-                        <h1>
-                            <i class="fas fa-rocket me-2"></i>
-                            {% trans "ترقية الإعلان" %}
-                        </h1>
-                    </div>
+<section class="py-4" style="background:var(--bg-secondary,#f8f9fa); min-height:80vh">
+<div class="container">
 
-                    <div class="checkout-body">
-                        <!-- Ad Preview -->
-                        <div class="ad-preview">
-                            {% load idrissimart_tags %}
-                            <div class="ad-preview-title">{{ ad.title }}</div>
-                            <div class="ad-preview-info">
-                                <i class="fas fa-tag me-2"></i>{{ ad.price }} {% get_currency_symbol ad %}
-                                <span class="mx-2">|</span>
-                                <i class="fas fa-map-marker-alt me-2"></i>{{ ad.city }}
-                                <span class="mx-2">|</span>
-                                <i class="fas fa-folder me-2"></i>{{ ad.category.name }}
-                            </div>
-                        </div>
+  <!-- Breadcrumb -->
+  <nav class="small text-muted mb-3">
+    <a href="{% url 'main:my_ads' %}" class="text-decoration-none" style="color:var(--primary-color,#6b4c7a)">{% trans "إعلاناتي" %}</a>
+    <span class="mx-1">›</span>
+    <a href="{{ ad.get_absolute_url }}" class="text-decoration-none" style="color:var(--primary-color,#6b4c7a)">{{ ad.title|truncatechars:35 }}</a>
+    <span class="mx-1">›</span>
+    {% trans "ترقية" %}
+  </nav>
 
-                        <form id="upgradeForm" method="post" action="{% url 'main:ad_upgrade_process' ad.pk %}" enctype="multipart/form-data">
-                            {% csrf_token %}
+  <div class="row g-4 align-items-start">
 
-                            <!-- Upgrade Options -->
-                            <div class="upgrade-options">
-                                <h3 class="mb-4">
-                                    <i class="fas fa-star me-2"></i>
-                                    {% trans "اختر خيارات الترقية" %}
-                                </h3>
+    <!-- ══ OPTIONS COLUMN ══ -->
+    <div class="col-lg-8">
 
-                                <!-- Featured Ad Option -->
-                                <div class="upgrade-option" data-option="featured" data-price="{{ featured_price }}">
-                                    <div class="upgrade-option-header">
-                                        <div class="upgrade-option-title">
-                                            <input type="checkbox" name="upgrade_featured" id="upgrade_featured" value="1" class="form-check-input">
-                                            <label for="upgrade_featured">
-                                                <i class="fas fa-star text-warning"></i>
-                                                {% trans "إعلان مميز" %}
-                                            </label>
-                                        </div>
-                                        <div class="upgrade-option-price">
-                                            <span class="price-value">{{ featured_price }}</span> {{ selected_currency|currency_symbol }}
-                                        </div>
-                                    </div>
-                                    <div class="upgrade-option-description">
-                                        {% trans "اجعل إعلانك يبرز بلون مميز وأيقونة خاصة" %}
-                                    </div>
-                                    <ul class="upgrade-option-features">
-                                        <li><i class="fas fa-check-circle"></i> {% trans "ظهور مميز بلون مختلف" %}</li>
-                                        <li><i class="fas fa-check-circle"></i> {% trans "أيقونة نجمة ذهبية" %}</li>
-                                        <li><i class="fas fa-check-circle"></i> {% trans "أولوية في نتائج البحث" %}</li>
-                                    </ul>
-
-                                    <div class="duration-selector" id="featured-duration" style="display: none;">
-                                        <label class="form-label">{% trans "المدة" %}:</label>
-                                        <div class="duration-options">
-                                            <div class="duration-option" data-days="7" data-price="{{ featured_price }}">
-                                                <span class="duration-option-label">{% trans "7 أيام" %}</span>
-                                                <span class="duration-option-price">{{ featured_price }} {{ selected_currency|currency_symbol }}</span>
-                                            </div>
-                                            <div class="duration-option" data-days="14" data-price="{{ featured_price_14 }}">
-                                                <span class="duration-option-label">{% trans "14 يوم" %}</span>
-                                                <span class="duration-option-price">{{ featured_price_14 }} {{ selected_currency|currency_symbol }}</span>
-                                            </div>
-                                            <div class="duration-option" data-days="30" data-price="{{ featured_price_30 }}">
-                                                <span class="duration-option-label">{% trans "30 يوم" %}</span>
-                                                <span class="duration-option-price">{{ featured_price_30 }} {{ selected_currency|currency_symbol }}</span>
-                                                <span class="badge-highlight">{% trans "الأكثر شعبية" %}</span>
-                                            </div>
-                                        </div>
-                                        <input type="hidden" name="featured_duration" id="featured_duration_input">
-                                    </div>
-                                </div>
-
-                                <!-- Pinned Ad Option -->
-                                <div class="upgrade-option" data-option="pinned" data-price="{{ pinned_price }}">
-                                    <div class="upgrade-option-header">
-                                        <div class="upgrade-option-title">
-                                            <input type="checkbox" name="upgrade_pinned" id="upgrade_pinned" value="1" class="form-check-input">
-                                            <label for="upgrade_pinned">
-                                                <i class="fas fa-thumbtack text-info"></i>
-                                                {% trans "تثبيت في الأعلى" %}
-                                            </label>
-                                        </div>
-                                        <div class="upgrade-option-price">
-                                            <span class="price-value">{{ pinned_price }}</span> {{ selected_currency|currency_symbol }}
-                                        </div>
-                                    </div>
-                                    <div class="upgrade-option-description">
-                                        {% trans "ثبّت إعلانك في أعلى القائمة لأقصى ظهور" %}
-                                    </div>
-                                    <ul class="upgrade-option-features">
-                                        <li><i class="fas fa-check-circle"></i> {% trans "ظهور في أعلى القائمة" %}</li>
-                                        <li><i class="fas fa-check-circle"></i> {% trans "أيقونة دبوس مميزة" %}</li>
-                                        <li><i class="fas fa-check-circle"></i> {% trans "مشاهدات أكثر بـ 10 أضعاف" %}</li>
-                                    </ul>
-
-                                    <div class="duration-selector" id="pinned-duration" style="display: none;">
-                                        <label class="form-label">{% trans "المدة" %}:</label>
-                                        <div class="duration-options">
-                                            <div class="duration-option" data-days="7" data-price="{{ pinned_price }}">
-                                                <span class="duration-option-label">{% trans "7 أيام" %}</span>
-                                                <span class="duration-option-price">{{ pinned_price }} {{ selected_currency|currency_symbol }}</span>
-                                            </div>
-                                            <div class="duration-option" data-days="14" data-price="{{ pinned_price_14 }}">
-                                                <span class="duration-option-label">{% trans "14 يوم" %}</span>
-                                                <span class="duration-option-price">{{ pinned_price_14 }} {{ selected_currency|currency_symbol }}</span>
-                                            </div>
-                                            <div class="duration-option" data-days="30" data-price="{{ pinned_price_30 }}">
-                                                <span class="duration-option-label">{% trans "30 يوم" %}</span>
-                                                <span class="duration-option-price">{{ pinned_price_30 }} {{ selected_currency|currency_symbol }}</span>
-                                                <span class="badge-highlight">{% trans "الأكثر شعبية" %}</span>
-                                            </div>
-                                        </div>
-                                        <input type="hidden" name="pinned_duration" id="pinned_duration_input">
-                                    </div>
-                                </div>
-
-                                <!-- Urgent Ad Option -->
-                                <div class="upgrade-option" data-option="urgent" data-price="{{ urgent_price }}">
-                                    <div class="upgrade-option-header">
-                                        <div class="upgrade-option-title">
-                                            <input type="checkbox" name="upgrade_urgent" id="upgrade_urgent" value="1" class="form-check-input">
-                                            <label for="upgrade_urgent">
-                                                <i class="fas fa-bolt text-danger"></i>
-                                                {% trans "إعلان عاجل" %}
-                                            </label>
-                                        </div>
-                                        <div class="upgrade-option-price">
-                                            <span class="price-value">{{ urgent_price }}</span> {{ selected_currency|currency_symbol }}
-                                        </div>
-                                    </div>
-                                    <div class="upgrade-option-description">
-                                        {% trans "أضف شارة 'عاجل' لجذب الانتباه السريع" %}
-                                    </div>
-                                    <ul class="upgrade-option-features">
-                                        <li><i class="fas fa-check-circle"></i> {% trans "شارة 'عاجل' حمراء بارزة" %}</li>
-                                        <li><i class="fas fa-check-circle"></i> {% trans "أولوية في الترشيحات" %}</li>
-                                        <li><i class="fas fa-check-circle"></i> {% trans "جذب انتباه فوري" %}</li>
-                                    </ul>
-
-                                    <div class="duration-selector" id="urgent-duration" style="display: none;">
-                                        <label class="form-label">{% trans "المدة" %}:</label>
-                                        <div class="duration-options">
-                                            <div class="duration-option" data-days="7" data-price="{{ urgent_price }}">
-                                                <span class="duration-option-label">{% trans "7 أيام" %}</span>
-                                                <span class="duration-option-price">{{ urgent_price }} {{ selected_currency|currency_symbol }}</span>
-                                            </div>
-                                            <div class="duration-option" data-days="14" data-price="{{ urgent_price_14 }}">
-                                                <span class="duration-option-label">{% trans "14 يوم" %}</span>
-                                                <span class="duration-option-price">{{ urgent_price_14 }} {{ selected_currency|currency_symbol }}</span>
-                                            </div>
-                                            <div class="duration-option" data-days="30" data-price="{{ urgent_price_30 }}">
-                                                <span class="duration-option-label">{% trans "30 يوم" %}</span>
-                                                <span class="duration-option-price">{{ urgent_price_30 }} {{ selected_currency|currency_symbol }}</span>
-                                                <span class="badge-highlight">{% trans "الأكثر شعبية" %}</span>
-                                            </div>
-                                        </div>
-                                        <input type="hidden" name="urgent_duration" id="urgent_duration_input">
-                                    </div>
-                                </div>
-
-                                <!-- Top Search Option -->
-                                <div class="upgrade-option" data-option="top_search" data-price="{{ top_search_price }}">
-                                    <div class="upgrade-option-header">
-                                        <div class="upgrade-option-title">
-                                            <input type="checkbox" name="upgrade_top_search" id="upgrade_top_search" value="1" class="form-check-input">
-                                            <label for="upgrade_top_search">
-                                                <i class="fas fa-search-plus text-success"></i>
-                                                {% trans "أعلى نتائج البحث" %}
-                                            </label>
-                                        </div>
-                                        <div class="upgrade-option-price">
-                                            <span class="price-value">{{ top_search_price }}</span> {{ selected_currency|currency_symbol }}
-                                        </div>
-                                    </div>
-                                    <div class="upgrade-option-description">
-                                        {% trans "اجعل إعلانك يظهر في أعلى نتائج البحث" %}
-                                    </div>
-                                    <ul class="upgrade-option-features">
-                                        <li><i class="fas fa-check-circle"></i> {% trans "ظهور في أعلى نتائج البحث" %}</li>
-                                        <li><i class="fas fa-check-circle"></i> {% trans "زيادة فرص الوصول للمشترين" %}</li>
-                                        <li><i class="fas fa-check-circle"></i> {% trans "أولوية على الإعلانات العادية" %}</li>
-                                    </ul>
-
-                                    <div class="duration-selector" id="top_search-duration" style="display: none;">
-                                        <label class="form-label">{% trans "المدة" %}:</label>
-                                        <div class="duration-options">
-                                            <div class="duration-option" data-days="7" data-price="{{ top_search_price }}">
-                                                <span class="duration-option-label">{% trans "7 أيام" %}</span>
-                                                <span class="duration-option-price">{{ top_search_price }} {{ selected_currency|currency_symbol }}</span>
-                                            </div>
-                                            <div class="duration-option" data-days="14" data-price="{{ top_search_price_14 }}">
-                                                <span class="duration-option-label">{% trans "14 يوم" %}</span>
-                                                <span class="duration-option-price">{{ top_search_price_14 }} {{ selected_currency|currency_symbol }}</span>
-                                            </div>
-                                            <div class="duration-option" data-days="30" data-price="{{ top_search_price_30 }}">
-                                                <span class="duration-option-label">{% trans "30 يوم" %}</span>
-                                                <span class="duration-option-price">{{ top_search_price_30 }} {{ selected_currency|currency_symbol }}</span>
-                                                <span class="badge-highlight">{% trans "الأكثر شعبية" %}</span>
-                                            </div>
-                                        </div>
-                                        <input type="hidden" name="top_search_duration" id="top_search_duration_input">
-                                    </div>
-                                </div>
-
-                                <!-- Contact for Price Option -->
-                                <div class="upgrade-option" data-option="contact_price" data-price="{{ contact_price_price }}">
-                                    <div class="upgrade-option-header">
-                                        <div class="upgrade-option-title">
-                                            <input type="checkbox" name="upgrade_contact_price" id="upgrade_contact_price" value="1" class="form-check-input">
-                                            <label for="upgrade_contact_price">
-                                                <i class="fas fa-phone-alt text-primary"></i>
-                                                {% trans "تواصل ليصلك عرض سعر" %}
-                                            </label>
-                                        </div>
-                                        <div class="upgrade-option-price">
-                                            <span class="price-value">{{ contact_price_price }}</span> {{ selected_currency|currency_symbol }}
-                                        </div>
-                                    </div>
-                                    <div class="upgrade-option-description">
-                                        {% trans "دع المشترين يتواصلون معك للحصول على أفضل سعر" %}
-                                    </div>
-                                    <ul class="upgrade-option-features">
-                                        <li><i class="fas fa-check-circle"></i> {% trans "إخفاء السعر وإظهار 'تواصل للسعر'" %}</li>
-                                        <li><i class="fas fa-check-circle"></i> {% trans "زيادة التفاعل والمحادثات" %}</li>
-                                        <li><i class="fas fa-check-circle"></i> {% trans "مرونة في التفاوض" %}</li>
-                                    </ul>
-
-                                    <div class="duration-selector" id="contact_price-duration" style="display: none;">
-                                        <label class="form-label">{% trans "المدة" %}:</label>
-                                        <div class="duration-options">
-                                            <div class="duration-option" data-days="7" data-price="{{ contact_price_price }}">
-                                                <span class="duration-option-label">{% trans "7 أيام" %}</span>
-                                                <span class="duration-option-price">{{ contact_price_price }} {{ selected_currency|currency_symbol }}</span>
-                                            </div>
-                                            <div class="duration-option" data-days="14" data-price="{{ contact_price_price_14 }}">
-                                                <span class="duration-option-label">{% trans "14 يوم" %}</span>
-                                                <span class="duration-option-price">{{ contact_price_price_14 }} {{ selected_currency|currency_symbol }}</span>
-                                            </div>
-                                            <div class="duration-option" data-days="30" data-price="{{ contact_price_price_30 }}">
-                                                <span class="duration-option-label">{% trans "30 يوم" %}</span>
-                                                <span class="duration-option-price">{{ contact_price_price_30 }} {{ selected_currency|currency_symbol }}</span>
-                                                <span class="badge-highlight">{% trans "الأكثر شعبية" %}</span>
-                                            </div>
-                                        </div>
-                                        <input type="hidden" name="contact_price_duration" id="contact_price_duration_input">
-                                    </div>
-                                </div>
-
-                                <!-- Facebook Share Option (One-time) -->
-                                <div class="upgrade-option" data-option="facebook_share" data-price="{{ facebook_share_price }}">
-                                    <div class="upgrade-option-header">
-                                        <div class="upgrade-option-title">
-                                            <input type="checkbox" name="upgrade_facebook_share" id="upgrade_facebook_share" value="1" class="form-check-input">
-                                            <label for="upgrade_facebook_share">
-                                                <i class="fab fa-facebook text-primary"></i>
-                                                {% trans "نشر على فيسبوك" %}
-                                            </label>
-                                            <span class="badge bg-info ms-2">{% trans "مرة واحدة" %}</span>
-                                        </div>
-                                        <div class="upgrade-option-price">
-                                            <span class="price-value">{{ facebook_share_price }}</span> {{ selected_currency|currency_symbol }}
-                                        </div>
-                                    </div>
-                                    <div class="upgrade-option-description">
-                                        {% trans "انشر إعلانك على صفحتنا الرسمية على فيسبوك" %}
-                                    </div>
-                                    <ul class="upgrade-option-features">
-                                        <li><i class="fas fa-check-circle"></i> {% trans "نشر على صفحة فيسبوك الرسمية" %}</li>
-                                        <li><i class="fas fa-check-circle"></i> {% trans "وصول لآلاف المتابعين" %}</li>
-                                        <li><i class="fas fa-check-circle"></i> {% trans "زيادة الانتشار والمشاهدات" %}</li>
-                                    </ul>
-                                </div>
-
-                                <!-- Video Option -->
-                                <div class="upgrade-option" data-option="video" data-price="{{ video_price }}">
-                                    <div class="upgrade-option-header">
-                                        <div class="upgrade-option-title">
-                                            <input type="checkbox" name="upgrade_video" id="upgrade_video" value="1" class="form-check-input">
-                                            <label for="upgrade_video">
-                                                <i class="fas fa-video text-danger"></i>
-                                                {% trans "إضافة فيديو" %}
-                                            </label>
-                                            <span class="badge bg-success ms-2">{% trans "جديد" %}</span>
-                                        </div>
-                                        <div class="upgrade-option-price">
-                                            <span class="price-value">{{ video_price }}</span> {{ selected_currency|currency_symbol }}
-                                        </div>
-                                    </div>
-                                    <div class="upgrade-option-description">
-                                        {% trans "أضف فيديو لإعلانك لعرض منتجك بشكل أفضل وزيادة المبيعات" %}
-                                    </div>
-                                    <ul class="upgrade-option-features">
-                                        <li><i class="fas fa-check-circle"></i> {% trans "رفع فيديو للمنتج (حتى 100 ميجابايت)" %}</li>
-                                        <li><i class="fas fa-check-circle"></i> {% trans "أو إضافة رابط يوتيوب/فيميو" %}</li>
-                                        <li><i class="fas fa-check-circle"></i> {% trans "عرض تفاصيل أكثر للمنتج" %}</li>
-                                        <li><i class="fas fa-check-circle"></i> {% trans "زيادة ثقة المشترين بنسبة 80%" %}</li>
-                                    </ul>
-
-                                    <!-- Video Upload Section (shown when checked) -->
-                                    <div class="video-upload-section" id="video-upload-section" style="display: none;">
-                                        <label class="form-label">{% trans "اختر طريقة إضافة الفيديو" %}:</label>
-
-                                        <!-- Video Type Selection -->
-                                        <div class="video-type-options mb-3">
-                                            <div class="form-check form-check-inline">
-                                                <input class="form-check-input" type="radio" name="video_type" id="video_type_url" value="url" checked>
-                                                <label class="form-check-label" for="video_type_url">
-                                                    <i class="fab fa-youtube me-1"></i> {% trans "رابط يوتيوب/فيميو" %}
-                                                </label>
-                                            </div>
-                                            <div class="form-check form-check-inline">
-                                                <input class="form-check-input" type="radio" name="video_type" id="video_type_file" value="file">
-                                                <label class="form-check-label" for="video_type_file">
-                                                    <i class="fas fa-upload me-1"></i> {% trans "رفع ملف فيديو" %}
-                                                </label>
-                                            </div>
-                                        </div>
-
-                                        <!-- Video URL Input -->
-                                        <div class="video-url-input" id="video-url-input">
-                                            <input type="url" name="video_url" id="video_url_field" class="form-control"
-                                                   placeholder="{% trans 'مثال: https://www.youtube.com/watch?v=...' %}">
-                                            <small class="text-muted">{% trans "أدخل رابط فيديو من يوتيوب أو فيميو" %}</small>
-                                        </div>
-
-                                        <!-- Video File Upload -->
-                                        <div class="video-file-input" id="video-file-input" style="display: none;">
-                                            <input type="file" name="video_file" id="video_file_field" class="form-control"
-                                                   accept="video/mp4,video/webm,video/ogg,video/quicktime">
-                                            <small class="text-muted">{% trans "الحد الأقصى: 100 ميجابايت - الصيغ المدعومة: MP4, WebM, MOV" %}</small>
-                                            <div class="upload-progress mt-2" id="upload-progress" style="display: none;">
-                                                <div class="progress">
-                                                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
-                                                </div>
-                                                <small class="upload-status">{% trans "جاري الرفع..." %}</small>
-                                            </div>
-                                        </div>
-
-                                        <!-- Video Preview -->
-                                        <div class="video-preview mt-3" id="video-preview" style="display: none;">
-                                            <label class="form-label">{% trans "معاينة الفيديو" %}:</label>
-                                            <div class="video-preview-container" style="max-width: 400px; border-radius: 12px; overflow: hidden;">
-                                                <video id="video-preview-player" controls style="width: 100%; max-height: 250px;" preload="metadata">
-                                                    {% trans "متصفحك لا يدعم عرض الفيديو" %}
-                                                </video>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-lg-4">
-                <div class="order-summary">
-                    <h3 class="order-summary-title">
-                        <i class="fas fa-shopping-cart me-2"></i>
-                        {% trans "ملخص الطلب" %}
-                    </h3>
-
-                    <div id="summary-items">
-                        <div class="text-muted text-center py-4">
-                            <i class="fas fa-info-circle me-2"></i>
-                            {% trans "اختر خيارات الترقية لعرض الملخص" %}
-                        </div>
-                    </div>
-
-                    <div class="summary-item total" id="total-row" style="display: none;">
-                        <span>{% trans "الإجمالي" %}:</span>
-                        <span class="price" id="total-price">0 {{ selected_currency|currency_symbol }}</span>
-                    </div>
-
-                    <button type="submit" form="upgradeForm" class="checkout-btn" id="checkout-btn" disabled>
-                        <i class="fas fa-lock me-2"></i>
-                        {% trans "متابعة للدفع" %}
-                    </button>
-
-                    <div class="security-note">
-                        <i class="fas fa-shield-alt me-1"></i>
-                        {% trans "معاملات آمنة ومشفرة" %}
-                    </div>
-                </div>
-            </div>
+      <!-- Ad strip -->
+      <div class="ad-strip">
+        {% with ad.images.first as thumb %}
+        {% if thumb %}
+        <img src="{{ thumb.image.url }}" class="ad-thumb" alt="">
+        {% else %}
+        <div class="ad-thumb"><i class="fas fa-image text-muted"></i></div>
+        {% endif %}
+        {% endwith %}
+        <div class="ad-strip-info">
+          <div class="ad-strip-title">{{ ad.title }}</div>
+          <div class="ad-strip-meta">{{ ad.price }} {% get_currency_symbol ad %}{% if ad.city %} · {{ ad.city }}{% endif %}</div>
         </div>
+        <a href="{{ ad.get_absolute_url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+          <i class="fas fa-external-link-alt me-1"></i>{% trans "عرض" %}
+        </a>
+      </div>
+
+      <!-- Section title -->
+      <h5 class="mb-3 fw-bold">
+        <i class="fas fa-rocket me-2" style="color:var(--primary-color,#6b4c7a)"></i>
+        {% trans "اختر ترقياتك" %}
+      </h5>
+
+      <form id="upgradeForm" method="post" action="{% url 'main:ad_upgrade_process' ad.pk %}" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="row g-3 mb-4">
+
+          <!-- ① Featured -->
+          <div class="col-md-6">
+            <div class="card h-100 feature-card{% if active_highlighted %} is-active{% endif %}" data-option="featured" data-price="{{ featured_price }}">
+              {% if active_highlighted %}
+              <div class="active-overlay">
+                <div class="active-stamp">
+                  <i class="fas fa-check-circle"></i>
+                  {% trans "نشط" %}{% if active_highlighted.end_date %}<span class="active-until"> · {{ active_highlighted.end_date|date:"d/m" }}</span>{% endif %}
+                </div>
+              </div>
+              {% endif %}
+              <div class="card-body">
+                <div class="form-check">
+                  <input class="form-check-input feature-checkbox" type="checkbox"
+                         id="f_featured" name="upgrade_featured" value="1"
+                         {% if active_highlighted %}disabled{% endif %}>
+                  <label class="form-check-label w-100" for="f_featured">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <h5 class="mb-1">
+                          <i class="fas fa-certificate text-warning me-1"></i>
+                          {% trans "إعلان مميز" %}
+                        </h5>
+                        <p class="small text-muted mb-2">{% trans "يظهر بشكل بارز مع خلفية ملونة" %}</p>
+                        <ul class="small mb-0">
+                          <li>{% trans "خلفية ملونة ذهبية" %}</li>
+                          <li>{% trans "علامة 'مميز' ذهبية" %}</li>
+                          <li>{% trans "زيادة المشاهدات 300%" %}</li>
+                        </ul>
+                      </div>
+                      <span class="badge bg-warning text-dark feature-price">{{ featured_price }} {% get_currency_symbol ad %}</span>
+                    </div>
+                  </label>
+                </div>
+                {% if not active_highlighted %}
+                <div class="duration-picker" id="featured-duration">
+                  <label><i class="fas fa-calendar-alt me-1"></i>{% trans "المدة" %}</label>
+                  <div class="dur-grid">
+                    <div class="dur-btn" data-days="7" data-price="{{ featured_price }}">
+                      <div class="dur-days">7 {% trans "أيام" %}</div>
+                      <div class="dur-price">{{ featured_price }}</div>
+                    </div>
+                    <div class="dur-btn" data-days="14" data-price="{{ featured_price_14 }}">
+                      <div class="dur-days">14 {% trans "يوم" %}</div>
+                      <div class="dur-price">{{ featured_price_14 }}</div>
+                    </div>
+                    <div class="dur-btn" data-days="30" data-price="{{ featured_price_30 }}">
+                      <div class="dur-days">30 {% trans "يوم" %}</div>
+                      <div class="dur-price">{{ featured_price_30 }}</div>
+                      <div class="dur-badge">{% trans "الأوفر" %}</div>
+                    </div>
+                  </div>
+                  <input type="hidden" name="featured_duration" id="featured_duration_input">
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- ② Pinned -->
+          <div class="col-md-6">
+            <div class="card h-100 feature-card{% if active_pinned %} is-active{% endif %}" data-option="pinned" data-price="{{ pinned_price }}">
+              {% if active_pinned %}
+              <div class="active-overlay">
+                <div class="active-stamp">
+                  <i class="fas fa-check-circle"></i>
+                  {% trans "نشط" %}{% if active_pinned.end_date %}<span class="active-until"> · {{ active_pinned.end_date|date:"d/m" }}</span>{% endif %}
+                </div>
+              </div>
+              {% endif %}
+              <div class="card-body">
+                <div class="form-check">
+                  <input class="form-check-input feature-checkbox" type="checkbox"
+                         id="f_pinned" name="upgrade_pinned" value="1"
+                         {% if active_pinned %}disabled{% endif %}>
+                  <label class="form-check-label w-100" for="f_pinned">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <h5 class="mb-1">
+                          <i class="fas fa-thumbtack text-success me-1"></i>
+                          {% trans "تثبيت في الأعلى" %}
+                        </h5>
+                        <p class="small text-muted mb-2">{% trans "يظهر دائمًا في أعلى القائمة" %}</p>
+                        <ul class="small mb-0">
+                          <li>{% trans "أعلى نتائج البحث" %}</li>
+                          <li>{% trans "10x مشاهدات أكثر" %}</li>
+                          <li>{% trans "زيادة المبيعات 500%" %}</li>
+                        </ul>
+                      </div>
+                      <span class="badge bg-success feature-price">{{ pinned_price }} {% get_currency_symbol ad %}</span>
+                    </div>
+                  </label>
+                </div>
+                {% if not active_pinned %}
+                <div class="duration-picker" id="pinned-duration">
+                  <label><i class="fas fa-calendar-alt me-1"></i>{% trans "المدة" %}</label>
+                  <div class="dur-grid">
+                    <div class="dur-btn" data-days="7" data-price="{{ pinned_price }}">
+                      <div class="dur-days">7 {% trans "أيام" %}</div>
+                      <div class="dur-price">{{ pinned_price }}</div>
+                    </div>
+                    <div class="dur-btn" data-days="14" data-price="{{ pinned_price_14 }}">
+                      <div class="dur-days">14 {% trans "يوم" %}</div>
+                      <div class="dur-price">{{ pinned_price_14 }}</div>
+                    </div>
+                    <div class="dur-btn" data-days="30" data-price="{{ pinned_price_30 }}">
+                      <div class="dur-days">30 {% trans "يوم" %}</div>
+                      <div class="dur-price">{{ pinned_price_30 }}</div>
+                      <div class="dur-badge">{% trans "الأوفر" %}</div>
+                    </div>
+                  </div>
+                  <input type="hidden" name="pinned_duration" id="pinned_duration_input">
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- ③ Urgent -->
+          <div class="col-md-6">
+            <div class="card h-100 feature-card{% if active_urgent %} is-active{% endif %}" data-option="urgent" data-price="{{ urgent_price }}">
+              {% if active_urgent %}
+              <div class="active-overlay">
+                <div class="active-stamp">
+                  <i class="fas fa-check-circle"></i>
+                  {% trans "نشط" %}{% if active_urgent.end_date %}<span class="active-until"> · {{ active_urgent.end_date|date:"d/m" }}</span>{% endif %}
+                </div>
+              </div>
+              {% endif %}
+              <div class="card-body">
+                <div class="form-check">
+                  <input class="form-check-input feature-checkbox" type="checkbox"
+                         id="f_urgent" name="upgrade_urgent" value="1"
+                         {% if active_urgent %}disabled{% endif %}>
+                  <label class="form-check-label w-100" for="f_urgent">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <h5 class="mb-1">
+                          <i class="fas fa-bolt text-danger me-1"></i>
+                          {% trans "إعلان عاجل" %}
+                        </h5>
+                        <p class="small text-muted mb-2">{% trans "شارة 'عاجل' حمراء بارزة" %}</p>
+                        <ul class="small mb-0">
+                          <li>{% trans "أيقونة عاجل بارزة" %}</li>
+                          <li>{% trans "أولوية في الترشيحات" %}</li>
+                          <li>{% trans "جذب انتباه فوري" %}</li>
+                        </ul>
+                      </div>
+                      <span class="badge bg-danger feature-price">{{ urgent_price }} {% get_currency_symbol ad %}</span>
+                    </div>
+                  </label>
+                </div>
+                {% if not active_urgent %}
+                <div class="duration-picker" id="urgent-duration">
+                  <label><i class="fas fa-calendar-alt me-1"></i>{% trans "المدة" %}</label>
+                  <div class="dur-grid">
+                    <div class="dur-btn" data-days="7" data-price="{{ urgent_price }}">
+                      <div class="dur-days">7 {% trans "أيام" %}</div>
+                      <div class="dur-price">{{ urgent_price }}</div>
+                    </div>
+                    <div class="dur-btn" data-days="14" data-price="{{ urgent_price_14 }}">
+                      <div class="dur-days">14 {% trans "يوم" %}</div>
+                      <div class="dur-price">{{ urgent_price_14 }}</div>
+                    </div>
+                    <div class="dur-btn" data-days="30" data-price="{{ urgent_price_30 }}">
+                      <div class="dur-days">30 {% trans "يوم" %}</div>
+                      <div class="dur-price">{{ urgent_price_30 }}</div>
+                      <div class="dur-badge">{% trans "الأوفر" %}</div>
+                    </div>
+                  </div>
+                  <input type="hidden" name="urgent_duration" id="urgent_duration_input">
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- ④ Top Search -->
+          <div class="col-md-6">
+            <div class="card h-100 feature-card" data-option="top_search" data-price="{{ top_search_price }}">
+              <div class="card-body">
+                <div class="form-check">
+                  <input class="form-check-input feature-checkbox" type="checkbox"
+                         id="f_top_search" name="upgrade_top_search" value="1">
+                  <label class="form-check-label w-100" for="f_top_search">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <h5 class="mb-1">
+                          <i class="fas fa-search text-info me-1"></i>
+                          {% trans "أعلى نتائج البحث" %}
+                        </h5>
+                        <p class="small text-muted mb-2">{% trans "يظهر في المراكز الأولى عند البحث" %}</p>
+                        <ul class="small mb-0">
+                          <li>{% trans "أعلى نتائج البحث" %}</li>
+                          <li>{% trans "وصول أوسع للمشترين" %}</li>
+                          <li>{% trans "أولوية على الإعلانات العادية" %}</li>
+                        </ul>
+                      </div>
+                      <span class="badge bg-info feature-price">{{ top_search_price }} {% get_currency_symbol ad %}</span>
+                    </div>
+                  </label>
+                </div>
+                <div class="duration-picker" id="top_search-duration">
+                  <label><i class="fas fa-calendar-alt me-1"></i>{% trans "المدة" %}</label>
+                  <div class="dur-grid">
+                    <div class="dur-btn" data-days="7" data-price="{{ top_search_price }}">
+                      <div class="dur-days">7 {% trans "أيام" %}</div>
+                      <div class="dur-price">{{ top_search_price }}</div>
+                    </div>
+                    <div class="dur-btn" data-days="14" data-price="{{ top_search_price_14 }}">
+                      <div class="dur-days">14 {% trans "يوم" %}</div>
+                      <div class="dur-price">{{ top_search_price_14 }}</div>
+                    </div>
+                    <div class="dur-btn" data-days="30" data-price="{{ top_search_price_30 }}">
+                      <div class="dur-days">30 {% trans "يوم" %}</div>
+                      <div class="dur-price">{{ top_search_price_30 }}</div>
+                      <div class="dur-badge">{% trans "الأوفر" %}</div>
+                    </div>
+                  </div>
+                  <input type="hidden" name="top_search_duration" id="top_search_duration_input">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ⑤ Contact for Price -->
+          <div class="col-md-6">
+            <div class="card h-100 feature-card" data-option="contact_price" data-price="{{ contact_price_price }}">
+              <div class="card-body">
+                <div class="form-check">
+                  <input class="form-check-input feature-checkbox" type="checkbox"
+                         id="f_contact_price" name="upgrade_contact_price" value="1">
+                  <label class="form-check-label w-100" for="f_contact_price">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <h5 class="mb-1">
+                          <i class="fas fa-tag me-1" style="color:#6f42c1"></i>
+                          {% trans "تواصل ليصلك عرض سعر" %}
+                        </h5>
+                        <p class="small text-muted mb-2">{% trans "أخفِ السعر وافتح باب التفاوض" %}</p>
+                        <ul class="small mb-0">
+                          <li>{% trans "إخفاء السعر" %}</li>
+                          <li>{% trans "زر تواصل مباشر" %}</li>
+                          <li>{% trans "مرونة في التفاوض" %}</li>
+                        </ul>
+                      </div>
+                      <span class="badge feature-price" style="background:#6f42c1">{{ contact_price_price }} {% get_currency_symbol ad %}</span>
+                    </div>
+                  </label>
+                </div>
+                <div class="duration-picker" id="contact_price-duration">
+                  <label><i class="fas fa-calendar-alt me-1"></i>{% trans "المدة" %}</label>
+                  <div class="dur-grid">
+                    <div class="dur-btn" data-days="7" data-price="{{ contact_price_price }}">
+                      <div class="dur-days">7 {% trans "أيام" %}</div>
+                      <div class="dur-price">{{ contact_price_price }}</div>
+                    </div>
+                    <div class="dur-btn" data-days="14" data-price="{{ contact_price_price_14 }}">
+                      <div class="dur-days">14 {% trans "يوم" %}</div>
+                      <div class="dur-price">{{ contact_price_price_14 }}</div>
+                    </div>
+                    <div class="dur-btn" data-days="30" data-price="{{ contact_price_price_30 }}">
+                      <div class="dur-days">30 {% trans "يوم" %}</div>
+                      <div class="dur-price">{{ contact_price_price_30 }}</div>
+                      <div class="dur-badge">{% trans "الأوفر" %}</div>
+                    </div>
+                  </div>
+                  <input type="hidden" name="contact_price_duration" id="contact_price_duration_input">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ⑥ Facebook Share -->
+          <div class="col-md-6">
+            <div class="card h-100 feature-card" data-option="facebook_share" data-price="{{ facebook_share_price }}">
+              <div class="card-body">
+                <div class="form-check">
+                  <input class="form-check-input feature-checkbox" type="checkbox"
+                         id="f_facebook_share" name="upgrade_facebook_share" value="1">
+                  <label class="form-check-label w-100" for="f_facebook_share">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <h5 class="mb-1">
+                          <i class="fab fa-facebook-f me-1" style="color:#1877f2"></i>
+                          {% trans "نشر على فيسبوك" %}
+                          <span class="badge bg-secondary ms-1" style="font-size:.6rem">{% trans "مرة واحدة" %}</span>
+                        </h5>
+                        <p class="small text-muted mb-2">{% trans "نشر على صفحتنا الرسمية" %}</p>
+                        <ul class="small mb-0">
+                          <li>{% trans "وصول لآلاف المتابعين" %}</li>
+                          <li>{% trans "انتشار واسع" %}</li>
+                          <li>{% trans "مرة واحدة فقط" %}</li>
+                        </ul>
+                      </div>
+                      <span class="badge feature-price" style="background:#1877f2">{{ facebook_share_price }} {% get_currency_symbol ad %}</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ⑦ Video -->
+          <div class="col-md-6">
+            <div class="card h-100 feature-card" data-option="video" data-price="{{ video_price }}">
+              <div class="card-body">
+                <div class="form-check">
+                  <input class="form-check-input feature-checkbox" type="checkbox"
+                         id="f_video" name="upgrade_video" value="1">
+                  <label class="form-check-label w-100" for="f_video">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <h5 class="mb-1">
+                          <i class="fas fa-video text-danger me-1"></i>
+                          {% trans "إضافة فيديو" %}
+                          <span class="badge bg-success ms-1" style="font-size:.6rem">{% trans "جديد" %}</span>
+                        </h5>
+                        <p class="small text-muted mb-2">{% trans "يزيد التحويلات بنسبة 80%" %}</p>
+                        <ul class="small mb-0">
+                          <li>{% trans "رابط يوتيوب/فيميو" %}</li>
+                          <li>{% trans "أو رفع ملف (100 MB)" %}</li>
+                          <li>{% trans "مرة واحدة فقط" %}</li>
+                        </ul>
+                      </div>
+                      <span class="badge bg-danger feature-price">{{ video_price }} {% get_currency_symbol ad %}</span>
+                    </div>
+                  </label>
+                </div>
+                <div class="video-section" id="video-upload-section">
+                  <div class="video-tabs">
+                    <div class="video-tab active" id="tab-url"><i class="fab fa-youtube me-1"></i>{% trans "رابط يوتيوب" %}</div>
+                    <div class="video-tab" id="tab-file"><i class="fas fa-upload me-1"></i>{% trans "رفع ملف" %}</div>
+                  </div>
+                  <div id="video-url-section">
+                    <input type="url" name="video_url" id="video_url_field" class="form-control form-control-sm"
+                           placeholder="https://www.youtube.com/watch?v=...">
+                  </div>
+                  <div id="video-file-section" style="display:none">
+                    <input type="file" name="video_file" id="video_file_field" class="form-control form-control-sm"
+                           accept="video/mp4,video/webm,video/ogg,video/quicktime">
+                    <small class="text-muted">MP4 / WebM / MOV · {% trans "حد أقصى 100 MB" %}</small>
+                  </div>
+                  <input type="hidden" name="video_type" id="video_type" value="url">
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /row -->
+      </form>
+    </div><!-- /col -->
+
+    <!-- ══ SUMMARY COLUMN ══ -->
+    <div class="col-lg-4">
+      <div class="summary-card">
+        <div class="summary-head">
+          <h3><i class="fas fa-receipt me-2"></i>{% trans "ملخص الطلب" %}</h3>
+        </div>
+        <div class="summary-body">
+          <div id="summary-content">
+            <div class="summary-empty">
+              <i class="fas fa-hand-pointer fa-lg mb-2 d-block"></i>
+              {% trans "اختر ترقية لعرض الملخص" %}
+            </div>
+          </div>
+          <button type="submit" form="upgradeForm" class="pay-btn" id="pay-btn" disabled>
+            <i class="fas fa-lock me-2"></i>{% trans "متابعة للدفع" %}
+          </button>
+          <div class="secure-note">
+            <i class="fas fa-shield-alt text-success"></i> {% trans "دفع آمن ومشفر" %}
+          </div>
+        </div>
+      </div>
     </div>
+
+  </div><!-- /row -->
+</div>
 </section>
 {% endblock content %}
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const upgradeOptions = document.querySelectorAll('.upgrade-option');
-    const checkboxes = document.querySelectorAll('.upgrade-option input[type="checkbox"]');
-    const summaryItems = document.getElementById('summary-items');
-    const totalRow = document.getElementById('total-row');
-    const totalPrice = document.getElementById('total-price');
-    const checkoutBtn = document.getElementById('checkout-btn');
+(function () {
+    const sym = '{% get_currency_symbol ad %}';
+    const sel = {};
 
-    let selectedOptions = {};
-
-    // Video-specific elements
-    const videoCheckbox = document.getElementById('upgrade_video');
-    const videoUploadSection = document.getElementById('video-upload-section');
-    const videoTypeUrl = document.getElementById('video_type_url');
-    const videoTypeFile = document.getElementById('video_type_file');
-    const videoUrlInput = document.getElementById('video-url-input');
-    const videoFileInput = document.getElementById('video-file-input');
-    const videoUrlField = document.getElementById('video_url_field');
-    const videoFileField = document.getElementById('video_file_field');
-    const videoPreview = document.getElementById('video-preview');
-    const videoPreviewPlayer = document.getElementById('video-preview-player');
-
-    // Handle video checkbox
-    if (videoCheckbox) {
-        videoCheckbox.addEventListener('change', function() {
-            if (this.checked) {
-                videoUploadSection.style.display = 'block';
-            } else {
-                videoUploadSection.style.display = 'none';
-                // Clear video inputs
-                if (videoUrlField) videoUrlField.value = '';
-                if (videoFileField) videoFileField.value = '';
-                videoPreview.style.display = 'none';
-            }
+    // Click on card body toggles its checkbox
+    document.querySelectorAll('.feature-card:not(.is-active)').forEach(card => {
+        card.addEventListener('click', function (e) {
+            if (e.target.closest('.duration-picker') || e.target.closest('.video-section')) return;
+            const cb = card.querySelector('input[type="checkbox"]');
+            if (!cb || cb.disabled) return;
+            if (e.target === cb || e.target.htmlFor === cb.id) return;
+            cb.checked = !cb.checked;
+            cb.dispatchEvent(new Event('change'));
         });
-    }
+    });
 
-    // Handle video type toggle
-    if (videoTypeUrl) {
-        videoTypeUrl.addEventListener('change', function() {
-            if (this.checked) {
-                videoUrlInput.style.display = 'block';
-                videoFileInput.style.display = 'none';
-                if (videoFileField) videoFileField.value = '';
-                videoPreview.style.display = 'none';
-            }
-        });
-    }
-
-    if (videoTypeFile) {
-        videoTypeFile.addEventListener('change', function() {
-            if (this.checked) {
-                videoUrlInput.style.display = 'none';
-                videoFileInput.style.display = 'block';
-                if (videoUrlField) videoUrlField.value = '';
-                videoPreview.style.display = 'none';
-            }
-        });
-    }
-
-    // Handle video URL preview (YouTube/Vimeo)
-    if (videoUrlField) {
-        videoUrlField.addEventListener('input', function() {
-            const url = this.value.trim();
-            if (url) {
-                // Extract YouTube video ID
-                const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
-                if (youtubeMatch) {
-                    videoPreview.style.display = 'block';
-                    videoPreviewPlayer.outerHTML = `<iframe id="video-preview-player" src="https://www.youtube.com/embed/${youtubeMatch[1]}" style="width: 100%; height: 250px; border: none; border-radius: 8px;" allowfullscreen loading="lazy"></iframe>`;
-                    return;
-                }
-
-                // Extract Vimeo video ID
-                const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
-                if (vimeoMatch) {
-                    videoPreview.style.display = 'block';
-                    videoPreviewPlayer.outerHTML = `<iframe id="video-preview-player" src="https://player.vimeo.com/video/${vimeoMatch[1]}" style="width: 100%; height: 250px; border: none; border-radius: 8px;" allowfullscreen loading="lazy"></iframe>`;
-                    return;
-                }
-            }
-            videoPreview.style.display = 'none';
-        });
-    }
-
-    // Handle video file preview
-    if (videoFileField) {
-        videoFileField.addEventListener('change', function() {
-            const file = this.files[0];
-            if (file) {
-                // Validate file size (100MB max)
-                if (file.size > 100 * 1024 * 1024) {
-                    alert('{% trans "حجم الفيديو يجب ألا يتجاوز 100 ميجابايت" %}');
-                    this.value = '';
-                    return;
-                }
-
-                // Show preview
-                const videoURL = URL.createObjectURL(file);
-                videoPreview.style.display = 'block';
-                const previewContainer = videoPreview.querySelector('.video-preview-container');
-                previewContainer.innerHTML = `<video id="video-preview-player" controls style="width: 100%; max-height: 250px;" preload="metadata"><source src="${videoURL}" type="${file.type}">{% trans "متصفحك لا يدعم عرض الفيديو" %}</video>`;
-            } else {
-                videoPreview.style.display = 'none';
-            }
-        });
-    }
-
-    // Handle checkbox changes
-    checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            const option = this.closest('.upgrade-option');
-            const optionType = option.dataset.option;
-            const durationSelector = document.getElementById(`${optionType}-duration`);
+    // Checkbox change
+    document.querySelectorAll('.feature-checkbox').forEach(cb => {
+        cb.addEventListener('change', function () {
+            if (this.disabled) return;
+            const card = this.closest('.feature-card');
+            const opt = card.dataset.option;
+            const durPicker = document.getElementById(opt + '-duration');
+            const vidSec = document.getElementById('video-upload-section');
 
             if (this.checked) {
-                option.classList.add('selected');
-
-                // Check if this option has a duration selector (some are one-time like facebook_share, video)
-                if (durationSelector) {
-                    durationSelector.style.display = 'block';
-                    // Select first duration by default
-                    const firstDuration = durationSelector.querySelector('.duration-option');
-                    if (firstDuration) {
-                        firstDuration.click();
-                    }
+                card.classList.add('selected');
+                if (durPicker) {
+                    durPicker.style.display = 'block';
+                    const first = durPicker.querySelector('.dur-btn');
+                    if (first && !durPicker.querySelector('.dur-btn.active')) first.click();
                 } else {
-                    // One-time option (no duration), add directly to selected options
-                    const price = parseFloat(option.dataset.price);
-                    selectedOptions[optionType] = {
+                    if (opt === 'video' && vidSec) vidSec.style.display = 'block';
+                    sel[opt] = {
+                        price: parseFloat(card.dataset.price),
                         days: 0,
-                        price: price,
-                        name: option.querySelector('label').textContent.trim()
+                        label: card.querySelector('label h5').textContent.trim()
                     };
-                    updateSummary();
+                    render();
                 }
             } else {
-                option.classList.remove('selected');
-                if (durationSelector) {
-                    durationSelector.style.display = 'none';
-                }
-                delete selectedOptions[optionType];
-                updateSummary();
+                card.classList.remove('selected');
+                if (durPicker) durPicker.style.display = 'none';
+                if (opt === 'video' && vidSec) vidSec.style.display = 'none';
+                delete sel[opt];
+                render();
             }
         });
     });
 
-    // Handle duration selection
-    document.querySelectorAll('.duration-option').forEach(option => {
-        option.addEventListener('click', function() {
-            const parent = this.closest('.duration-selector');
-            parent.querySelectorAll('.duration-option').forEach(opt => opt.classList.remove('selected'));
-            this.classList.add('selected');
-
-            const optionType = parent.id.replace('-duration', '');
-            const days = this.dataset.days;
-            const price = parseFloat(this.dataset.price);
-            const hiddenInput = parent.querySelector('input[type="hidden"]');
-            hiddenInput.value = days;
-
-            selectedOptions[optionType] = {
-                days: days,
-                price: price,
-                name: document.querySelector(`#upgrade_${optionType}`).nextElementSibling.textContent.trim()
-            };
-
-            updateSummary();
+    // Duration buttons
+    document.querySelectorAll('.duration-picker').forEach(picker => {
+        picker.querySelectorAll('.dur-btn').forEach(btn => {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                picker.querySelectorAll('.dur-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                const opt = picker.id.replace('-duration', '');
+                const days = parseInt(this.dataset.days);
+                const price = parseFloat(this.dataset.price);
+                picker.querySelector('input[type="hidden"]').value = days;
+                const cb = document.getElementById('f_' + opt) || document.getElementById('upgrade_' + opt);
+                const label = cb ? cb.closest('.feature-card').querySelector('label h5').textContent.trim() : opt;
+                sel[opt] = { price, days, label };
+                render();
+            });
         });
     });
 
-    function updateSummary() {
-        summaryItems.innerHTML = '';
-        let total = 0;
+    // Video tabs
+    const tabUrl = document.getElementById('tab-url');
+    const tabFile = document.getElementById('tab-file');
+    if (tabUrl) tabUrl.addEventListener('click', () => {
+        tabUrl.classList.add('active'); tabFile.classList.remove('active');
+        document.getElementById('video-url-section').style.display = 'block';
+        document.getElementById('video-file-section').style.display = 'none';
+        document.getElementById('video_type').value = 'url';
+    });
+    if (tabFile) tabFile.addEventListener('click', () => {
+        tabFile.classList.add('active'); tabUrl.classList.remove('active');
+        document.getElementById('video-file-section').style.display = 'block';
+        document.getElementById('video-url-section').style.display = 'none';
+        document.getElementById('video_type').value = 'file';
+    });
 
-        if (Object.keys(selectedOptions).length === 0) {
-            summaryItems.innerHTML = `
-                <div class="text-muted text-center py-4">
-                    <i class="fas fa-info-circle me-2"></i>
-                    {% trans "اختر خيارات الترقية لعرض الملخص" %}
-                </div>
-            `;
-            totalRow.style.display = 'none';
-            checkoutBtn.disabled = true;
+    // Render summary
+    function render() {
+        const el = document.getElementById('summary-content');
+        const btn = document.getElementById('pay-btn');
+        const keys = Object.keys(sel);
+        if (!keys.length) {
+            el.innerHTML = '<div class="summary-empty"><i class="fas fa-hand-pointer fa-lg mb-2 d-block"></i>{% trans "اختر ترقية لعرض الملخص" %}</div>';
+            btn.disabled = true;
             return;
         }
-
-        for (const [key, value] of Object.entries(selectedOptions)) {
-            total += value.price;
-            const durationText = value.days > 0 ? ` (${value.days} {% trans "يوم" %})` : ' ({% trans "مرة واحدة" %})';
-            summaryItems.innerHTML += `
-                <div class="summary-item">
-                    <span>${value.name}${durationText}</span>
-                    <span class="price">${value.price.toFixed(2)} {{ selected_currency|currency_symbol }}</span>
-                </div>
-            `;
-        }
-
-        totalPrice.textContent = `${total.toFixed(2)} {{ selected_currency|currency_symbol }}`;
-        totalRow.style.display = 'flex';
-        checkoutBtn.disabled = false;
+        let total = 0, html = '';
+        keys.forEach(k => {
+            const o = sel[k];
+            total += o.price;
+            const dur = o.days ? `${o.days} {% trans "يوم" %}` : '{% trans "مرة واحدة" %}';
+            html += `<div class="summary-line">
+                <span class="n">${o.label}<small class="d-block text-muted" style="font-size:.7rem">${dur}</small></span>
+                <span class="p">${o.price.toFixed(2)} ${sym}</span>
+            </div>`;
+        });
+        html += '<hr class="summary-divider">';
+        html += `<div class="summary-total"><span>{% trans "الإجمالي" %}</span><span class="p">${total.toFixed(2)} ${sym}</span></div>`;
+        el.innerHTML = html;
+        btn.disabled = false;
     }
-});
+})();
 </script>
 {% endblock extra_js %}

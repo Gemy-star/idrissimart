@@ -122,32 +122,37 @@ CONSTANCE_CONFIG = {
         os.getenv("PAYPAL_MODE", "sandbox"),
         _("PayPal Mode (sandbox or live)"),
     ),
+    "PAYPAL_EGP_TO_USD_RATE": (
+        50.0,
+        _("سعر تحويل الجنيه المصري إلى الدولار لـ PayPal (EGP per 1 USD)"),
+        float,
+    ),
     # Payment Settings - Paymob
-    # Note: Sensitive keys (API_KEY, SECRET_KEY, PUBLIC_KEY, HMAC_SECRET) are loaded from environment variables
-    # and should not be stored in the database. Other settings can be configured via admin.
+    # All Paymob settings are managed exclusively via Django Admin → Constance.
+    # Set real values there; the .env file is no longer used for these keys.
     "PAYMOB_API_KEY": (
-        os.getenv("PAYMOB_API_KEY", ""),
-        _("Paymob API Key (loaded from environment)"),
+        "",
+        _("Paymob API Key"),
     ),
     "PAYMOB_SECRET_KEY": (
-        os.getenv("PAYMOB_SECRET_KEY", ""),
-        _("Paymob Secret Key (loaded from environment)"),
+        "",
+        _("Paymob Secret Key (egy_sk_...)"),
     ),
     "PAYMOB_PUBLIC_KEY": (
-        os.getenv("PAYMOB_PUBLIC_KEY", ""),
-        _("Paymob Public Key (loaded from environment)"),
+        "",
+        _("Paymob Public Key (egy_pk_...)"),
     ),
     "PAYMOB_INTEGRATION_ID": (
-        os.getenv("PAYMOB_INTEGRATION_ID", ""),
-        _("Paymob Integration ID"),
+        "",
+        _("Paymob Integration ID (card / default)"),
     ),
     "PAYMOB_IFRAME_ID": (
-        os.getenv("PAYMOB_IFRAME_ID", ""),
+        "",
         _("Paymob iFrame ID"),
     ),
     "PAYMOB_HMAC_SECRET": (
-        os.getenv("PAYMOB_HMAC_SECRET", ""),
-        _("Paymob HMAC Secret (loaded from environment)"),
+        "",
+        _("Paymob HMAC Secret"),
     ),
     "PAYMOB_MASTERCARD_INTEGRATION_ID": (
         "",
@@ -158,7 +163,7 @@ CONSTANCE_CONFIG = {
         _("Paymob Visa Integration ID"),
     ),
     "PAYMOB_WALLET_INTEGRATION_ID": (
-        os.getenv("PAYMOB_WALLET_INTEGRATION_ID", ""),
+        "",
         _("Paymob Wallet Integration ID (Vodafone Cash / Orange Money)"),
     ),
     "PAYMOB_ENABLED": (
@@ -408,6 +413,55 @@ CONSTANCE_CONFIG = {
         _("Urgent ad price for 30 days (EGP)"),
         float,
     ),
+    # Ad Upgrade Pricing — Top Search
+    "TOP_SEARCH_AD_PRICE_7DAYS": (
+        60.00,
+        _("Top search placement price for 7 days (EGP)"),
+        float,
+    ),
+    "TOP_SEARCH_AD_PRICE_14DAYS": (
+        96.00,
+        _("Top search placement price for 14 days (EGP)"),
+        float,
+    ),
+    "TOP_SEARCH_AD_PRICE_30DAYS": (
+        120.00,
+        _("Top search placement price for 30 days (EGP)"),
+        float,
+    ),
+    # Ad Upgrade Pricing — Contact for Price
+    "CONTACT_PRICE_AD_PRICE_7DAYS": (
+        25.00,
+        _("Contact-for-price upgrade price for 7 days (EGP)"),
+        float,
+    ),
+    "CONTACT_PRICE_AD_PRICE_14DAYS": (
+        40.00,
+        _("Contact-for-price upgrade price for 14 days (EGP)"),
+        float,
+    ),
+    "CONTACT_PRICE_AD_PRICE_30DAYS": (
+        50.00,
+        _("Contact-for-price upgrade price for 30 days (EGP)"),
+        float,
+    ),
+    # Paid Banner — Multi-country extra fees
+    "PAID_BANNER_EXTRA_COUNTRY_FEE_PER_DAY": (
+        20.00,
+        _("Extra fee per day for each additional country on a paid banner (EGP)"),
+        float,
+    ),
+    # Ad Upgrade Pricing — One-time features
+    "FACEBOOK_SHARE_AD_PRICE": (
+        35.00,
+        _("Facebook share upgrade price — one-time (EGP)"),
+        float,
+    ),
+    "VIDEO_AD_PRICE": (
+        45.00,
+        _("Video feature upgrade price — one-time (EGP)"),
+        float,
+    ),
     # Ad Feature Prices at Creation Time (used when user has no free ads remaining)
     "FEATURE_HIGHLIGHTED_PRICE": (
         50.00,
@@ -560,6 +614,7 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "PAYPAL_CLIENT_ID",
         "PAYPAL_CLIENT_SECRET",
         "PAYPAL_MODE",
+        "PAYPAL_EGP_TO_USD_RATE",
     ),
     "Payment Settings - Paymob": (
         "PAYMOB_ENABLED",
@@ -624,15 +679,28 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "DEFAULT_RESERVATION_PERCENTAGE",
         "MIN_RESERVATION_AMOUNT",
         "MAX_RESERVATION_AMOUNT",
+    ),
+    "Paid Banner Ads": (
+        "PAID_BANNER_EXTRA_COUNTRY_FEE_PER_DAY",
+    ),
+    "Ad Upgrade Pricing": (
         "FEATURED_AD_PRICE_7DAYS",
-        "PINNED_AD_PRICE_7DAYS",
-        "URGENT_AD_PRICE_7DAYS",
         "FEATURED_AD_PRICE_14DAYS",
-        "PINNED_AD_PRICE_14DAYS",
-        "URGENT_AD_PRICE_14DAYS",
         "FEATURED_AD_PRICE_30DAYS",
+        "PINNED_AD_PRICE_7DAYS",
+        "PINNED_AD_PRICE_14DAYS",
         "PINNED_AD_PRICE_30DAYS",
+        "URGENT_AD_PRICE_7DAYS",
+        "URGENT_AD_PRICE_14DAYS",
         "URGENT_AD_PRICE_30DAYS",
+        "TOP_SEARCH_AD_PRICE_7DAYS",
+        "TOP_SEARCH_AD_PRICE_14DAYS",
+        "TOP_SEARCH_AD_PRICE_30DAYS",
+        "CONTACT_PRICE_AD_PRICE_7DAYS",
+        "CONTACT_PRICE_AD_PRICE_14DAYS",
+        "CONTACT_PRICE_AD_PRICE_30DAYS",
+        "FACEBOOK_SHARE_AD_PRICE",
+        "VIDEO_AD_PRICE",
     ),
     "Ad Feature Prices (Creation — no free ads)": (
         "FEATURE_HIGHLIGHTED_PRICE",

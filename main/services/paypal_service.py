@@ -114,11 +114,13 @@ class PayPalService:
                 return False, None, "Failed to get PayPal access token"
 
             # PayPal does not support all currencies (e.g. EGP is unsupported).
-            # Fall back to USD so the request is never rejected for that reason.
+            # Convert to USD using the configured exchange rate.
             if currency.upper() not in PayPalService.SUPPORTED_CURRENCIES:
+                rate = float(getattr(config, "PAYPAL_EGP_TO_USD_RATE", 50.0)) or 50.0
                 logger.warning(
-                    f"Currency '{currency}' is not supported by PayPal — falling back to USD"
+                    f"Currency '{currency}' is not supported by PayPal — converting to USD at rate {rate}"
                 )
+                amount = Decimal(str(float(amount) / rate))
                 currency = "USD"
 
             url = f"{PayPalService.get_base_url()}/v2/checkout/orders"

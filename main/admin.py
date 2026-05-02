@@ -3386,6 +3386,7 @@ class PaidBannerAdmin(admin.ModelAdmin):
                     "placement_type",
                     "advertising_space",
                     "country",
+                    "extra_countries",
                     "category",
                     "subcategory",
                     "categories",
@@ -3448,7 +3449,7 @@ class PaidBannerAdmin(admin.ModelAdmin):
         ),
     )
 
-    filter_horizontal = ("categories",)
+    filter_horizontal = ("categories", "extra_countries")
 
     actions = [
         "approve_ads",

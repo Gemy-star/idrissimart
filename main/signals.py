@@ -301,7 +301,12 @@ def assign_default_package_to_new_user(sender, instance, created, **kwargs):
                 if _email_enabled(instance):
                     try:
                         user_name = instance.get_full_name() or instance.username
-                        EmailService.send_welcome_email(email=instance.email, user_name=user_name)
+                        EmailService.send_welcome_email(
+                            email=instance.email,
+                            user_name=user_name,
+                            username=instance.username,
+                            join_date=timezone.now().strftime("%Y-%m-%d"),
+                        )
                     except Exception as e:
                         logger.error(f"Failed to send welcome email to user {instance.username}: {e}")
 
@@ -342,7 +347,12 @@ def assign_default_package_to_new_user(sender, instance, created, **kwargs):
                 if _email_enabled(instance):
                     try:
                         user_name = instance.get_full_name() or instance.username
-                        EmailService.send_welcome_email(email=instance.email, user_name=user_name)
+                        EmailService.send_welcome_email(
+                            email=instance.email,
+                            user_name=user_name,
+                            username=instance.username,
+                            join_date=timezone.now().strftime("%Y-%m-%d"),
+                        )
                     except Exception as e:
                         logger.error(f"Failed to send welcome email to user {instance.username}: {e}")
 

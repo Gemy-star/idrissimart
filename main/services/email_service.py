@@ -137,12 +137,15 @@ class EmailService:
         )
 
     @staticmethod
-    def send_welcome_email(email: str, user_name: str) -> bool:
+    def send_welcome_email(email: str, user_name: str, username: str = "", join_date: str = "") -> bool:
         from constance import config
 
         context = {
             "site_name": config.SITE_NAME,
             "user_name": user_name,
+            "username": username,
+            "email": email,
+            "join_date": join_date,
             "site_url": config.SITE_URL,
         }
         db = EmailService._render_db_template("welcome", context)

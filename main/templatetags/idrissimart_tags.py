@@ -12,6 +12,25 @@ register = template.Library()
 
 
 # ======================
+# PAYPAL CURRENCY CONVERSION
+# ======================
+
+
+@register.filter(name="to_usd")
+def to_usd(egp_amount):
+    """Convert an EGP amount to USD using the configured exchange rate."""
+    from constance import config as constance_config
+    try:
+        rate = float(getattr(constance_config, "PAYPAL_EGP_TO_USD_RATE", 50.0))
+        if not rate:
+            rate = 50.0
+        usd = float(egp_amount) / rate
+        return f"{usd:.2f}"
+    except (TypeError, ValueError, ZeroDivisionError):
+        return egp_amount
+
+
+# ======================
 # JSON TAGS
 # ======================
 

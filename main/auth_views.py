@@ -517,19 +517,9 @@ class RegisterView(CreateView):
                 if f"email_verified_{email}" in request.session:
                     del request.session[f"email_verified_{email}"]
 
-            # NOTE: Free package assignment is handled by the post_save signal
+            # NOTE: Free package assignment and welcome email are handled by the post_save signal
             # in main/signals.py (assign_default_package_to_new_user)
-            # Don't create duplicate packages here
-
-            # Send welcome email to the new user
-            from main.services.email_service import EmailService
-            try:
-                EmailService.send_welcome_email(
-                    email=user.email,
-                    user_name=user.get_full_name() or user.username
-                )
-            except Exception as e:
-                logger.warning(f"Failed to send welcome email to {user.email}: {str(e)}")
+            # Don't create duplicate packages or emails here
 
             # Auto login after registration
             login(request, user, backend="django.contrib.auth.backends.ModelBackend")

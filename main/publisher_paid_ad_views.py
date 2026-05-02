@@ -120,21 +120,41 @@ def publisher_paid_ad_create(request):
     is persisted, then store only the pk in the session and redirect to the
     payment page.  The ad remains DRAFT until payment is confirmed.
     """
-    from main.models import Category
+    from main.models import Category, BannerPricing
+    from content.models import Country
+    from constance import config as constance_config
 
-    # Country from session
     current_country_code = request.session.get("selected_country", "EG")
 
-    # Build category choices (top-level only)
     categories = Category.objects.filter(parent__isnull=True, is_active=True).order_by("name")
+    all_countries = Country.objects.filter(is_active=True).order_by("order", "name")
 
-    # Get per-day rates from BannerPricing model (keyed by ad_type, using GENERAL placement as display base)
-    from main.models import BannerPricing
-
-    pricing = {}  # per-day rate per ad_type (for display)
+    # Per-day rates per ad_type (GENERAL placement as display base)
+    pricing = {}
     for ad_type_choice in PaidBanner.AdType.choices:
         ad_type = ad_type_choice[0]
         pricing[ad_type] = BannerPricing.get_price(ad_type, PaidBanner.PlacementType.GENERAL)
+
+    # Extra fee per additional country per day (from constance)
+    extra_country_fee_per_day = float(getattr(constance_config, "PAID_BANNER_EXTRA_COUNTRY_FEE_PER_DAY", 20.0))
+
+    # Phone & email verification
+    from content.site_config import SiteConfiguration
+    site_config = SiteConfiguration.get_solo()
+
+    constance_verif_enabled = getattr(constance_config, "ENABLE_MOBILE_VERIFICATION", True)
+    mobile_verification_enabled = constance_verif_enabled or site_config.require_phone_verification
+    phone_verification_needed = (
+        mobile_verification_enabled
+        and not getattr(request.user, "is_mobile_verified", True)
+    )
+
+    constance_email_verif_enabled = getattr(constance_config, "ENABLE_EMAIL_VERIFICATION", True)
+    email_verification_enabled = constance_email_verif_enabled or site_config.require_email_verification
+    email_verification_needed = (
+        email_verification_enabled
+        and not getattr(request.user, "is_email_verified", True)
+    )
 
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
@@ -144,7 +164,8 @@ def publisher_paid_ad_create(request):
         placement_type = request.POST.get("placement_type", PaidBanner.PlacementType.GENERAL)
         target_url = request.POST.get("target_url", "").strip()
         cta_text = request.POST.get("cta_text", "").strip() or str(_("المزيد"))
-        country_id = request.POST.get("country_id")
+        # Multi-country: first id is primary, rest are extra
+        country_ids = request.POST.getlist("country_ids")
         category_id = request.POST.get("category_id") or None
         start_date_str = request.POST.get("start_date", "")
         end_date_str = request.POST.get("end_date", "")
@@ -163,8 +184,9 @@ def publisher_paid_ad_create(request):
             errors.append(_("صورة الإعلان مطلوبة."))
         if not start_date_str or not end_date_str:
             errors.append(_("تاريخ البدء وتاريخ الانتهاء مطلوبان."))
+        if not country_ids:
+            errors.append(_("يجب اختيار دولة واحدة على الأقل."))
 
-        # Validate image dimensions against IMAGE_SPECS
         specs = PaidBanner.IMAGE_SPECS.get(ad_type)
         if specs and image:
             errors.extend(_validate_image_file(image, specs["desktop"], _("صورة الإعلان")))
@@ -177,31 +199,30 @@ def publisher_paid_ad_create(request):
             elif specs["mobile"] and mobile_image:
                 errors.extend(_validate_image_file(mobile_image, specs["mobile"], _("صورة الموبايل")))
 
-        # Resolve country
-        from content.models import Country
-        country = None
-        if country_id:
-            country = Country.objects.filter(pk=country_id).first()
-        if not country:
-            country = Country.objects.filter(code=current_country_code, is_active=True).first()
-        if not country:
-            country = Country.objects.filter(is_active=True).first()
-        if not country:
+        # Resolve primary and extra countries
+        primary_country = None
+        extra_country_objs = []
+        if country_ids:
+            primary_country = Country.objects.filter(pk=country_ids[0], is_active=True).first()
+            if len(country_ids) > 1:
+                extra_country_objs = list(Country.objects.filter(pk__in=country_ids[1:], is_active=True))
+        if not primary_country:
+            primary_country = Country.objects.filter(code=current_country_code, is_active=True).first()
+        if not primary_country:
+            primary_country = Country.objects.filter(is_active=True).first()
+        if not primary_country:
             errors.append(_("لا توجد دولة متاحة. تواصل مع الإدارة."))
 
-        # Resolve category
         category = None
         if category_id:
             category = Category.objects.filter(pk=category_id).first()
         if placement_type == PaidBanner.PlacementType.CATEGORY and not category:
             errors.append(_("يجب تحديد القسم عند اختيار موضع 'قسم محدد'."))
 
-        # Parse dates
         start_date = end_date = None
         if start_date_str and end_date_str:
             try:
                 from datetime import datetime, time
-
                 from django.utils.dateparse import parse_date, parse_datetime
 
                 def _parse(s):
@@ -231,21 +252,26 @@ def publisher_paid_ad_create(request):
             return render(request, "dashboard/publisher_paid_ad_create.html", {
                 "active_nav": "publisher_paid_ads",
                 "categories": categories,
+                "all_countries": all_countries,
                 "pricing": pricing,
+                "extra_country_fee_per_day": extra_country_fee_per_day,
                 "ad_types": PaidBanner.AdType.choices,
                 "placement_types": PaidBanner.PlacementType.choices,
                 "current_country": current_country_code,
                 "post_data": request.POST,
+                "mobile_verification_enabled": mobile_verification_enabled,
+                "phone_verification_needed": phone_verification_needed,
+                "email_verification_enabled": email_verification_enabled,
+                "email_verification_needed": email_verification_needed,
             })
 
-        # Determine total price: per-day rate × number of days
+        # Total price: base per-day rate + extra_country_fee per extra country, × days
         per_day_rate = BannerPricing.get_price(ad_type, placement_type)
         duration_days = max(1, (end_date - start_date).days) if start_date and end_date else 1
-        price = per_day_rate * duration_days
-        currency = getattr(country, "currency", None) or "EGP"
+        extra_per_day = Decimal(str(extra_country_fee_per_day)) * len(extra_country_objs)
+        price = (per_day_rate + extra_per_day) * duration_days
+        currency = getattr(primary_country, "currency", None) or "EGP"
 
-        # Create the PaidBanner in DRAFT/unpaid state so the image is persisted.
-        # It stays invisible to admins (DRAFT) until payment is confirmed.
         paid_ad = PaidBanner.objects.create(
             title=title,
             title_ar=title_ar,
@@ -260,7 +286,7 @@ def publisher_paid_ad_create(request):
             cta_text=cta_text,
             ad_type=ad_type,
             placement_type=placement_type,
-            country=country,
+            country=primary_country,
             category=category,
             start_date=start_date,
             end_date=end_date,
@@ -269,25 +295,28 @@ def publisher_paid_ad_create(request):
             price=price,
             currency=currency,
         )
+        if extra_country_objs:
+            paid_ad.extra_countries.set(extra_country_objs)
 
-        # Store only the pk in the session — not the pk in the URL.
-        # This prevents direct access to the payment URL without going through the form.
         request.session[SESSION_KEY_PENDING_AD] = paid_ad.pk
 
-        messages.info(
-            request,
-            _("يرجى إتمام عملية الدفع لإرسال الإعلان للمراجعة.")
-        )
+        messages.info(request, _("يرجى إتمام عملية الدفع لإرسال الإعلان للمراجعة."))
         return redirect("main:publisher_paid_ad_payment")
 
     context = {
         "active_nav": "publisher_paid_ads",
         "categories": categories,
+        "all_countries": all_countries,
         "pricing": pricing,
+        "extra_country_fee_per_day": extra_country_fee_per_day,
         "ad_types": PaidBanner.AdType.choices,
         "placement_types": PaidBanner.PlacementType.choices,
         "current_country": current_country_code,
         "post_data": {},
+        "mobile_verification_enabled": mobile_verification_enabled,
+        "phone_verification_needed": phone_verification_needed,
+        "email_verification_enabled": email_verification_enabled,
+        "email_verification_needed": email_verification_needed,
     }
     return render(request, "dashboard/publisher_paid_ad_create.html", context)
 

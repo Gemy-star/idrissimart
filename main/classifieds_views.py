@@ -19,6 +19,7 @@ from .models import (
     AdImage,
     AdPackage,
     AdReview,
+    AdUpgradeHistory,
     Category,
     ClassifiedAd,
     Notification,
@@ -2210,34 +2211,39 @@ class AdUpgradeCheckoutView(LoginRequiredMixin, DetailView):
         )
 
         # Top Search pricing
-        context["top_search_price"] = getattr(
-            config, "TOP_SEARCH_AD_PRICE_7DAYS", Decimal("60.00")
-        )
-        context["top_search_price_14"] = getattr(
-            config, "TOP_SEARCH_AD_PRICE_14DAYS", Decimal("96.00")
-        )
-        context["top_search_price_30"] = getattr(
-            config, "TOP_SEARCH_AD_PRICE_30DAYS", Decimal("120.00")
-        )
+        context["top_search_price"] = config.TOP_SEARCH_AD_PRICE_7DAYS
+        context["top_search_price_14"] = config.TOP_SEARCH_AD_PRICE_14DAYS
+        context["top_search_price_30"] = config.TOP_SEARCH_AD_PRICE_30DAYS
 
         # Contact for Price pricing
-        context["contact_price_price"] = getattr(
-            config, "CONTACT_PRICE_AD_PRICE_7DAYS", Decimal("25.00")
-        )
-        context["contact_price_price_14"] = getattr(
-            config, "CONTACT_PRICE_AD_PRICE_14DAYS", Decimal("40.00")
-        )
-        context["contact_price_price_30"] = getattr(
-            config, "CONTACT_PRICE_AD_PRICE_30DAYS", Decimal("50.00")
-        )
+        context["contact_price_price"] = config.CONTACT_PRICE_AD_PRICE_7DAYS
+        context["contact_price_price_14"] = config.CONTACT_PRICE_AD_PRICE_14DAYS
+        context["contact_price_price_30"] = config.CONTACT_PRICE_AD_PRICE_30DAYS
 
         # Facebook Share pricing (one-time)
-        context["facebook_share_price"] = getattr(
-            config, "FACEBOOK_SHARE_AD_PRICE", Decimal("35.00")
-        )
+        context["facebook_share_price"] = config.FACEBOOK_SHARE_AD_PRICE
 
         # Video feature pricing (one-time)
-        context["video_price"] = getattr(config, "VIDEO_AD_PRICE", Decimal("45.00"))
+        context["video_price"] = config.VIDEO_AD_PRICE
+
+        # Active upgrades for this ad — prefer history record (has expiry), fall back to boolean flag
+        from django.utils import timezone as tz
+        ad = context["ad"]
+        active_upgrades = AdUpgradeHistory.objects.filter(
+            ad=ad, is_active=True, end_date__gt=tz.now()
+        )
+        context["active_highlighted"] = (
+            active_upgrades.filter(upgrade_type=AdUpgradeHistory.UpgradeType.HIGHLIGHTED).order_by("end_date").last()
+            or (ad.is_highlighted or None)
+        )
+        context["active_pinned"] = (
+            active_upgrades.filter(upgrade_type=AdUpgradeHistory.UpgradeType.PINNED).order_by("end_date").last()
+            or (ad.is_pinned or None)
+        )
+        context["active_urgent"] = (
+            active_upgrades.filter(upgrade_type=AdUpgradeHistory.UpgradeType.URGENT).order_by("end_date").last()
+            or (ad.is_urgent or None)
+        )
 
         return context
 
@@ -2913,7 +2919,9 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
 
         if total_amount > 0:
             # Redirect to payment
-            currency = ad.country.currency_symbol if ad.country else "ج.م"
+            from main.templatetags.idrissimart_tags import CURRENCY_SYMBOLS
+            _currency_code = ad.country.currency if ad.country else "EGP"
+            currency = CURRENCY_SYMBOLS.get(_currency_code, _currency_code)
             messages.info(
                 request,
                 _(

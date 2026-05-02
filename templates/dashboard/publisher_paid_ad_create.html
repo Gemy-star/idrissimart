@@ -32,6 +32,56 @@
 [data-theme='dark'] .form-section {
     background: var(--card-bg, #2d3748);
 }
+/* Country selection */
+.country-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: .6rem;
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 4px 2px;
+}
+.country-card {
+    border: 2px solid var(--border-color, #dee2e6);
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .85rem;
+    user-select: none;
+}
+.country-card:hover { border-color: var(--primary-color, #6b4c7a); }
+.country-card.selected {
+    border-color: var(--primary-color, #6b4c7a);
+    background: rgba(107,76,122,.07);
+}
+.country-card.primary-selected {
+    border-color: #10b981;
+    background: rgba(16,185,129,.06);
+}
+[data-theme='dark'] .country-card { background: rgba(255,255,255,.03); border-color: rgba(255,255,255,.1); }
+[data-theme='dark'] .country-card.selected { background: rgba(107,76,122,.18); }
+[data-theme='dark'] .country-card.primary-selected { background: rgba(16,185,129,.12); }
+.country-flag { font-size: 1.2rem; flex-shrink: 0; }
+.country-name { flex: 1; font-weight: 600; line-height: 1.2; }
+.country-extra-badge {
+    font-size: .65rem; font-weight: 700; padding: 2px 6px;
+    border-radius: 999px; background: var(--primary-color,#6b4c7a); color: #fff;
+    white-space: nowrap;
+}
+.country-primary-badge {
+    font-size: .65rem; font-weight: 700; padding: 2px 6px;
+    border-radius: 999px; background: #10b981; color: #fff;
+}
+.country-check { font-size: .8rem; color: var(--primary-color,#6b4c7a); }
+.extra-fee-note {
+    font-size: .8rem; color: var(--primary-color,#6b4c7a);
+    background: rgba(107,76,122,.07); border-radius: 8px;
+    padding: 8px 12px; margin-top: .75rem; display: none;
+}
 .dimension-badge {
     display: inline-block;
     font-size: .72rem;
@@ -216,6 +266,40 @@
         </div>
     </div>
 
+    <!-- === Country Targeting === -->
+    <div class="form-section">
+        <h5 class="mb-3"><i class="fas fa-globe"></i> {% trans "استهداف الدول" %}</h5>
+        <p class="text-muted small mb-3">
+            {% trans "اختر دولة واحدة أو أكثر. الدولة الأولى المختارة هي الأساسية. كل دولة إضافية تضيف" %}
+            <strong class="text-primary">{{ extra_country_fee_per_day }} {% trans "ج.م / يوم" %}</strong>.
+        </p>
+
+        <div class="country-grid" id="countryGrid">
+            {% for country in all_countries %}
+            <div class="country-card {% if country.code == current_country %}primary-selected{% endif %}"
+                 data-country-id="{{ country.pk }}"
+                 data-country-name="{{ country.name }}"
+                 data-flag="{{ country.flag_emoji }}"
+                 onclick="toggleCountry(this)">
+                <span class="country-flag">{{ country.flag_emoji }}</span>
+                <span class="country-name">{{ country.name }}</span>
+                <span class="country-check"
+                      style="{% if country.code == current_country %}{% else %}display:none{% endif %}">
+                    <i class="fas fa-check-circle"></i>
+                </span>
+                <input type="checkbox" name="country_ids" value="{{ country.pk }}"
+                       class="d-none country-checkbox"
+                       {% if country.code == current_country %}checked{% endif %}>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="extra-fee-note" id="extraFeeNote">
+            <i class="fas fa-info-circle me-1"></i>
+            <span id="extraFeeText"></span>
+        </div>
+    </div>
+
     <!-- === Placement === -->
     <div class="form-section">
         <h5 class="mb-3"><i class="fas fa-map-marker-alt"></i> {% trans "موضع الإعلان" %}</h5>
@@ -274,14 +358,119 @@
                        placeholder="{% trans 'اختياري' %}">
             </div>
             <div class="col-md-6">
-                <label class="form-label">{% trans "بريد التواصل" %}</label>
-                <input type="email" name="contact_email" class="form-control"
-                       value="{{ post_data.contact_email|default:request.user.email }}">
+                <label class="form-label fw-semibold">
+                    <i class="fas fa-envelope me-1 text-primary"></i>
+                    {% trans "بريد التواصل" %}
+                    {% if request.user.is_authenticated and request.user.is_email_verified %}
+                        <span class="badge bg-success ms-1"><i class="fas fa-check-circle"></i> {% trans "محقق" %}</span>
+                    {% endif %}
+                </label>
+                <div class="input-group">
+                    <input type="email" name="contact_email" id="contact_email" class="form-control"
+                           value="{{ post_data.contact_email|default:request.user.email }}">
+                    {% if email_verification_enabled %}
+                    <button type="button" id="banner-send-email-otp-btn" class="btn btn-primary"
+                            style="{% if request.user.is_authenticated and request.user.is_email_verified %}display:none;{% endif %}">
+                        <i class="fas fa-paper-plane me-1"></i> {% trans "إرسال رمز التحقق" %}
+                    </button>
+                    {% endif %}
+                </div>
+                {% if request.user.is_authenticated and request.user.is_email_verified %}
+                    <small class="form-text text-success mt-1 d-block">
+                        <i class="fas fa-check-circle me-1"></i>
+                        {% trans "بريدك الإلكتروني محقق." %}
+                    </small>
+                {% elif email_verification_enabled %}
+                    <small class="form-text text-muted mt-1 d-block">
+                        <i class="fas fa-info-circle me-1"></i>
+                        {% trans "سيُرسل رمز التحقق إلى:" %} <strong>{{ request.user.email }}</strong>
+                    </small>
+                {% endif %}
+
+                {% if email_verification_enabled %}
+                <div id="banner-email-otp-section" class="mt-3" style="display:none;">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-5">
+                            <label class="form-label fw-semibold">{% trans "رمز التحقق" %}</label>
+                            <input type="text" id="banner_email_otp_code" class="form-control"
+                                   placeholder="{% trans '6 أرقام' %}" maxlength="6" inputmode="numeric">
+                        </div>
+                        <div class="col-auto d-flex align-items-end gap-2">
+                            <button type="button" id="banner-verify-email-otp-btn" class="btn btn-success">
+                                <i class="fas fa-check me-1"></i> {% trans "تحقق" %}
+                            </button>
+                            <button type="button" id="banner-resend-email-otp-btn" class="btn btn-link btn-sm" style="display:none;">
+                                {% trans "إعادة إرسال" %}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="banner-email-verified-alert" class="alert alert-success mt-2 py-2" style="display:none;">
+                    <i class="fas fa-check-circle me-2"></i>
+                    {% trans "تم التحقق من بريدك الإلكتروني بنجاح!" %}
+                </div>
+                <div id="banner-email-alert" class="mt-2" style="display:none;"></div>
+                {% endif %}
             </div>
             <div class="col-md-6">
-                <label class="form-label">{% trans "رقم الهاتف" %}</label>
-                <input type="text" name="contact_phone" class="form-control"
-                       value="{{ post_data.contact_phone }}">
+                <label class="form-label fw-semibold">
+                    <i class="fas fa-phone me-1 text-primary"></i>
+                    {% trans "رقم الهاتف" %}
+                    {% if request.user.is_authenticated and request.user.is_mobile_verified %}
+                        <span class="badge bg-success ms-1"><i class="fas fa-check-circle"></i> {% trans "محقق" %}</span>
+                    {% endif %}
+                </label>
+                <div class="input-group">
+                    <input type="text" name="contact_phone" id="contact_phone" class="form-control"
+                           value="{{ post_data.contact_phone|default:request.user.mobile|default:request.user.phone }}"
+                           placeholder="{% trans 'رقم الهاتف بدون كود الدولة' %}">
+                    <button type="button" id="banner-change-phone-btn" class="btn btn-outline-secondary"
+                            style="{% if not request.user.is_authenticated or not request.user.is_mobile_verified %}display:none;{% endif %}">
+                        <i class="fas fa-edit"></i> {% trans "تغيير" %}
+                    </button>
+                    {% if mobile_verification_enabled %}
+                    <button type="button" id="banner-send-otp-btn" class="btn btn-primary"
+                            style="{% if request.user.is_authenticated and request.user.is_mobile_verified %}display:none;{% endif %}">
+                        <i class="fas fa-sms me-1"></i> {% trans "إرسال رمز التحقق" %}
+                    </button>
+                    {% endif %}
+                </div>
+                {% if request.user.is_authenticated and request.user.is_mobile_verified %}
+                    <small class="form-text text-success mt-1 d-block">
+                        <i class="fas fa-check-circle me-1"></i>
+                        {% trans "رقم هاتفك محقق. للتغيير انقر 'تغيير' وأعد التحقق." %}
+                    </small>
+                {% elif mobile_verification_enabled %}
+                    <small class="form-text text-muted mt-1 d-block">
+                        <i class="fas fa-info-circle me-1"></i>
+                        {% trans "أدخل الرقم بدون كود الدولة أو الصفر الأول" %}
+                    </small>
+                {% endif %}
+
+                {% if mobile_verification_enabled %}
+                <div id="banner-otp-section" class="mt-3" style="display:none;">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-5">
+                            <label class="form-label fw-semibold">{% trans "رمز التحقق" %}</label>
+                            <input type="text" id="banner_verification_code" class="form-control"
+                                   placeholder="{% trans '6 أرقام' %}" maxlength="6" inputmode="numeric">
+                        </div>
+                        <div class="col-auto d-flex align-items-end gap-2">
+                            <button type="button" id="banner-verify-otp-btn" class="btn btn-success">
+                                <i class="fas fa-check me-1"></i> {% trans "تحقق" %}
+                            </button>
+                            <button type="button" id="banner-resend-otp-btn" class="btn btn-link btn-sm" style="display:none;">
+                                {% trans "إعادة إرسال" %}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="banner-phone-verified-alert" class="alert alert-success mt-2 py-2" style="display:none;">
+                    <i class="fas fa-check-circle me-2"></i>
+                    {% trans "تم التحقق من رقم هاتفك بنجاح!" %}
+                </div>
+                <div id="banner-phone-alert" class="mt-2" style="display:none;"></div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -474,11 +663,83 @@
         popup:        parseFloat('{{ pricing.popup }}') || 0,
         featured_box: parseFloat('{{ pricing.featured_box }}') || 0,
     };
+    const extraCountryFeePerDay = parseFloat('{{ extra_country_fee_per_day }}') || 0;
+
+    // ── Country selection ─────────────────────────────────────────────────────
+    let primaryCountryId = null;
+
+    // Init: mark the pre-selected current country as primary
+    (function initCountries() {
+        const preSelected = document.querySelector('.country-card.primary-selected');
+        if (preSelected) {
+            preSelected.querySelector('.country-check').style.display = '';
+            primaryCountryId = preSelected.dataset.countryId;
+        }
+    })();
+
+    window.toggleCountry = function(card) {
+        const cb = card.querySelector('.country-checkbox');
+        const check = card.querySelector('.country-check');
+        const isChecked = cb.checked;
+
+        if (isChecked) {
+            // Deselect
+            cb.checked = false;
+            card.classList.remove('primary-selected', 'selected');
+            check.style.display = 'none';
+
+            // If this was the primary, promote next selected to primary
+            if (card.dataset.countryId === primaryCountryId) {
+                primaryCountryId = null;
+                const others = document.querySelectorAll('.country-checkbox:checked');
+                if (others.length) {
+                    const nextCard = others[0].closest('.country-card');
+                    nextCard.classList.remove('selected');
+                    nextCard.classList.add('primary-selected');
+                    primaryCountryId = nextCard.dataset.countryId;
+                }
+            }
+        } else {
+            // Select
+            cb.checked = true;
+            check.style.display = '';
+
+            if (!primaryCountryId) {
+                // First selection → becomes primary
+                card.classList.add('primary-selected');
+                primaryCountryId = card.dataset.countryId;
+            } else {
+                card.classList.add('selected');
+            }
+        }
+
+        updateExtraFeeNote();
+        recalcPrice();
+    };
+
+    function countExtraCountries() {
+        const all = document.querySelectorAll('.country-checkbox:checked');
+        return Math.max(0, all.length - 1);
+    }
+
+    function updateExtraFeeNote() {
+        const extra = countExtraCountries();
+        const note  = document.getElementById('extraFeeNote');
+        const text  = document.getElementById('extraFeeText');
+        if (extra > 0) {
+            note.style.display = 'block';
+            text.textContent = `${extra} {% trans "دول إضافية" %} × ${extraCountryFeePerDay} {% trans "ج.م/يوم" %} = ${(extra * extraCountryFeePerDay).toFixed(2)} {% trans "ج.م/يوم إضافي" %}`;
+        } else {
+            note.style.display = 'none';
+        }
+    }
 
     function recalcPrice() {
         const startVal = document.querySelector('[name=start_date]').value;
         const endVal   = document.querySelector('[name=end_date]').value;
-        const rate     = perDayRates[currentType] || 0;
+        const baseRate = perDayRates[currentType] || 0;
+        const extra    = countExtraCountries();
+        const rate     = baseRate + (extra * extraCountryFeePerDay);
         const summaryPrice     = document.getElementById('summaryPrice');
         const summaryBreakdown = document.getElementById('summaryBreakdown');
 
@@ -488,9 +749,12 @@
             return;
         }
 
-        const days = Math.max(1, Math.round((new Date(endVal) - new Date(startVal)) / 86400000));
+        const days  = Math.max(1, Math.round((new Date(endVal) - new Date(startVal)) / 86400000));
         const total = (rate * days).toFixed(2);
-        summaryBreakdown.textContent = `${rate} × ${days} {% trans "يوم" %} =`;
+        let breakdown = `${baseRate}`;
+        if (extra > 0) breakdown += ` + ${(extra * extraCountryFeePerDay).toFixed(0)}`;
+        breakdown += ` × ${days} {% trans "يوم" %} =`;
+        summaryBreakdown.textContent = breakdown;
         summaryPrice.textContent     = `${total} {% trans "ج.م" %}`;
     }
 
@@ -505,6 +769,318 @@
     updateMobileField(currentType);
     recalcPrice();
     submitBtn.disabled = true; // enabled only after valid images
+})();
+
+// ── Phone OTP verification ─────────────────────────────────────────────────
+(function () {
+    const verificationEnabled = {% if mobile_verification_enabled %}true{% else %}false{% endif %};
+    if (!verificationEnabled) return;
+
+    const phoneInput      = document.getElementById('contact_phone');
+    const sendOtpBtn      = document.getElementById('banner-send-otp-btn');
+    const changePhoneBtn  = document.getElementById('banner-change-phone-btn');
+    const otpSection      = document.getElementById('banner-otp-section');
+    const verifyOtpBtn    = document.getElementById('banner-verify-otp-btn');
+    const resendOtpBtn    = document.getElementById('banner-resend-otp-btn');
+    const otpCodeInput    = document.getElementById('banner_verification_code');
+    const successAlert    = document.getElementById('banner-phone-verified-alert');
+    const inlineAlert     = document.getElementById('banner-phone-alert');
+
+    const isMobileVerified = {% if request.user.is_authenticated and request.user.is_mobile_verified %}true{% else %}false{% endif %};
+    const userMobile = {% if request.user.mobile %}'{{ request.user.mobile }}'{% elif request.user.phone %}'{{ request.user.phone }}'{% else %}''{% endif %};
+
+    let isVerified = isMobileVerified;
+    let verifiedPhoneValue = '';
+    let allowPhoneEdit = false;
+
+    function showAlert(msg, type) {
+        if (!inlineAlert) return;
+        inlineAlert.innerHTML = `<div class="alert alert-${type} py-2 px-3">${msg}</div>`;
+        inlineAlert.style.display = 'block';
+        setTimeout(() => { inlineAlert.style.display = 'none'; }, 5000);
+    }
+
+    function normalizePhone(phone) {
+        if (!phone) return '';
+        let c = phone.replace(/\D/g, '');
+        if (c.startsWith('966')) c = c.substring(3);
+        else if (c.startsWith('20'))  c = c.substring(2);
+        else if (c.startsWith('971')) c = c.substring(3);
+        else if (c.startsWith('965')) c = c.substring(3);
+        if (c.startsWith('0')) c = c.substring(1);
+        return c;
+    }
+
+    function setReadonly(on) {
+        if (!phoneInput) return;
+        if (on) {
+            phoneInput.setAttribute('readonly', 'readonly');
+            phoneInput.style.backgroundColor = '#e9ecef';
+            phoneInput.style.cursor = 'not-allowed';
+        } else {
+            phoneInput.removeAttribute('readonly');
+            phoneInput.style.backgroundColor = '';
+            phoneInput.style.cursor = '';
+        }
+    }
+
+    function updateState() {
+        if (!phoneInput) return;
+        const cur = normalizePhone(phoneInput.value);
+        const locked = verifiedPhoneValue && cur === verifiedPhoneValue && !allowPhoneEdit;
+
+        if (locked) {
+            isVerified = true;
+            setReadonly(true);
+            if (sendOtpBtn)     sendOtpBtn.style.display    = 'none';
+            if (changePhoneBtn) changePhoneBtn.style.display = 'inline-flex';
+            if (otpSection)     otpSection.style.display     = 'none';
+            if (successAlert)   successAlert.style.display   = 'block';
+        } else {
+            isVerified = Boolean(verifiedPhoneValue) && cur === verifiedPhoneValue;
+            setReadonly(false);
+            if (sendOtpBtn)     sendOtpBtn.style.display    = cur ? 'inline-flex' : 'none';
+            if (changePhoneBtn) changePhoneBtn.style.display = 'none';
+            if (!isVerified && successAlert) successAlert.style.display = 'none';
+        }
+    }
+
+    // Init verified state
+    if (isMobileVerified) {
+        verifiedPhoneValue = normalizePhone(userMobile) || normalizePhone(phoneInput ? phoneInput.value : '');
+        updateState();
+    }
+
+    if (phoneInput) {
+        phoneInput.addEventListener('input', function () {
+            const cur = normalizePhone(this.value);
+            if (!cur || cur !== verifiedPhoneValue) {
+                isVerified = false;
+                if (successAlert) successAlert.style.display = 'none';
+                if (otpSection)   otpSection.style.display   = 'none';
+                if (resendOtpBtn) resendOtpBtn.style.display  = 'none';
+            }
+            updateState();
+        });
+    }
+
+    if (changePhoneBtn) {
+        changePhoneBtn.addEventListener('click', function () {
+            allowPhoneEdit = true;
+            isVerified = false;
+            setReadonly(false);
+            changePhoneBtn.style.display = 'none';
+            if (sendOtpBtn)   sendOtpBtn.style.display   = 'inline-flex';
+            if (otpSection)   otpSection.style.display   = 'none';
+            if (successAlert) successAlert.style.display = 'none';
+            if (otpCodeInput) otpCodeInput.value = '';
+            if (resendOtpBtn) resendOtpBtn.style.display = 'none';
+            phoneInput.focus();
+        });
+    }
+
+    if (sendOtpBtn) {
+        sendOtpBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            const phone = phoneInput.value.trim();
+            if (!phone) { showAlert('{% trans "يرجى إدخال رقم الجوال أولاً" %}', 'warning'); return; }
+
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>{% trans "جاري الإرسال..." %}';
+
+            fetch('{% url "main:send_mobile_verification" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: 'mobile_number=' + encodeURIComponent(phone)
+            })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sms me-1"></i>{% trans "إرسال رمز التحقق" %}';
+                if (!data.success) {
+                    showAlert(data.message || '{% trans "حدث خطأ في إرسال رمز التحقق" %}', 'danger');
+                    return;
+                }
+                if (data.verified) {
+                    verifiedPhoneValue = normalizePhone(phone);
+                    allowPhoneEdit = false;
+                    isVerified = true;
+                    updateState();
+                    showAlert('{% trans "الرقم مُحقق مسبقاً" %}', 'success');
+                    return;
+                }
+                if (otpSection) otpSection.style.display = 'block';
+                if (successAlert) successAlert.style.display = 'none';
+                if (otpCodeInput) otpCodeInput.focus();
+                showAlert('{% trans "تم إرسال رمز التحقق" %}', 'success');
+                setTimeout(() => { if (resendOtpBtn) resendOtpBtn.style.display = 'inline-block'; }, 60000);
+            })
+            .catch(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sms me-1"></i>{% trans "إرسال رمز التحقق" %}';
+                showAlert('{% trans "حدث خطأ في الاتصال" %}', 'danger');
+            });
+        });
+    }
+
+    if (resendOtpBtn) {
+        resendOtpBtn.addEventListener('click', function () {
+            this.style.display = 'none';
+            if (sendOtpBtn) sendOtpBtn.click();
+        });
+    }
+
+    if (verifyOtpBtn) {
+        verifyOtpBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            const code = otpCodeInput.value.trim();
+            if (!code) { showAlert('{% trans "يرجى إدخال رمز التحقق" %}', 'warning'); return; }
+
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>{% trans "جاري التحقق..." %}';
+
+            fetch('{% url "main:verify_mobile_otp" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: 'verification_code=' + encodeURIComponent(code)
+            })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check me-1"></i>{% trans "تحقق" %}';
+                if (!data.success) {
+                    showAlert(data.message || '{% trans "رمز التحقق غير صحيح" %}', 'danger');
+                    return;
+                }
+                verifiedPhoneValue = normalizePhone(phoneInput.value);
+                allowPhoneEdit = false;
+                isVerified = true;
+                if (otpCodeInput) otpCodeInput.value = '';
+                if (resendOtpBtn) resendOtpBtn.style.display = 'none';
+                updateState();
+                showAlert('{% trans "تم التحقق بنجاح!" %}', 'success');
+            })
+            .catch(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check me-1"></i>{% trans "تحقق" %}';
+                showAlert('{% trans "حدث خطأ في التحقق" %}', 'danger');
+            });
+        });
+    }
+})();
+
+// ── Email OTP verification ─────────────────────────────────────────────────
+(function () {
+    const emailVerifEnabled = {% if email_verification_enabled %}true{% else %}false{% endif %};
+    if (!emailVerifEnabled) return;
+
+    const sendEmailOtpBtn    = document.getElementById('banner-send-email-otp-btn');
+    const emailOtpSection    = document.getElementById('banner-email-otp-section');
+    const verifyEmailOtpBtn  = document.getElementById('banner-verify-email-otp-btn');
+    const resendEmailOtpBtn  = document.getElementById('banner-resend-email-otp-btn');
+    const emailOtpCodeInput  = document.getElementById('banner_email_otp_code');
+    const emailSuccessAlert  = document.getElementById('banner-email-verified-alert');
+    const emailInlineAlert   = document.getElementById('banner-email-alert');
+
+    function showEmailAlert(msg, type) {
+        if (!emailInlineAlert) return;
+        emailInlineAlert.innerHTML = `<div class="alert alert-${type} py-2 px-3">${msg}</div>`;
+        emailInlineAlert.style.display = 'block';
+        setTimeout(() => { emailInlineAlert.style.display = 'none'; }, 5000);
+    }
+
+    if (sendEmailOtpBtn) {
+        sendEmailOtpBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>{% trans "جاري الإرسال..." %}';
+
+            fetch('{% url "main:resend_email_otp" %}', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>{% trans "إرسال رمز التحقق" %}';
+                if (!data.success) {
+                    showEmailAlert(data.message || '{% trans "حدث خطأ في إرسال رمز التحقق" %}', 'danger');
+                    return;
+                }
+                if (emailOtpSection)   emailOtpSection.style.display   = 'block';
+                if (emailSuccessAlert) emailSuccessAlert.style.display  = 'none';
+                if (emailOtpCodeInput) emailOtpCodeInput.focus();
+                showEmailAlert('{% trans "تم إرسال رمز التحقق إلى بريدك الإلكتروني" %}', 'success');
+                setTimeout(() => { if (resendEmailOtpBtn) resendEmailOtpBtn.style.display = 'inline-block'; }, 60000);
+            })
+            .catch(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>{% trans "إرسال رمز التحقق" %}';
+                showEmailAlert('{% trans "حدث خطأ في الاتصال" %}', 'danger');
+            });
+        });
+    }
+
+    if (resendEmailOtpBtn) {
+        resendEmailOtpBtn.addEventListener('click', function () {
+            this.style.display = 'none';
+            if (sendEmailOtpBtn) sendEmailOtpBtn.click();
+        });
+    }
+
+    if (verifyEmailOtpBtn) {
+        verifyEmailOtpBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            const code = emailOtpCodeInput.value.trim();
+            if (!code) { showEmailAlert('{% trans "يرجى إدخال رمز التحقق" %}', 'warning'); return; }
+
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>{% trans "جاري التحقق..." %}';
+
+            fetch('{% url "main:verify_email_otp" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: 'otp_code=' + encodeURIComponent(code)
+            })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check me-1"></i>{% trans "تحقق" %}';
+                if (!data.success) {
+                    showEmailAlert(data.message || '{% trans "رمز التحقق غير صحيح" %}', 'danger');
+                    return;
+                }
+                if (emailOtpSection)   emailOtpSection.style.display   = 'none';
+                if (emailOtpCodeInput) emailOtpCodeInput.value         = '';
+                if (resendEmailOtpBtn) resendEmailOtpBtn.style.display  = 'none';
+                if (sendEmailOtpBtn)   sendEmailOtpBtn.style.display    = 'none';
+                if (emailSuccessAlert) emailSuccessAlert.style.display  = 'block';
+                showEmailAlert('{% trans "تم التحقق من البريد الإلكتروني بنجاح!" %}', 'success');
+            })
+            .catch(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check me-1"></i>{% trans "تحقق" %}';
+                showEmailAlert('{% trans "حدث خطأ في التحقق" %}', 'danger');
+            });
+        });
+    }
 })();
 </script>
 {% endblock %}
