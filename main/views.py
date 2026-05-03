@@ -1629,6 +1629,8 @@ class AdDetailView(DetailView):
                 .distinct()
             )
 
+            is_arabic = getattr(self.request, "LANGUAGE_CODE", "ar") == "ar"
+
             for cf in category_fields:
                 field = cf.custom_field
                 # Try both with and without custom_ prefix for backward compatibility
@@ -1641,24 +1643,25 @@ class AdDetailView(DetailView):
                 # Only show fields that have a value
                 if value is not None and value != "":
                     # For select/radio fields, get the option labels
-                    display_value = value
+                    display_value_ar = value
                     display_value_en = value
                     if field.field_type in ["select", "radio"]:
                         try:
                             option = CustomFieldOption.objects.get(
                                 custom_field=field, value=value
                             )
-                            display_value = option.label_ar
+                            display_value_ar = option.label_ar
                             display_value_en = option.label_en or option.label_ar
                         except CustomFieldOption.DoesNotExist:
                             pass
 
+                    label = (field.label_ar or field.name) if is_arabic else (field.label_en or field.label_ar or field.name)
+                    display_value = display_value_ar if is_arabic else (display_value_en or display_value_ar)
+
                     custom_fields_with_labels.append(
                         {
-                            "label": field.label_ar or field.name,
-                            "label_en": field.label_en or field.label_ar or field.name,
+                            "label": label,
                             "value": display_value,
-                            "value_en": display_value_en,
                             "type": field.field_type,
                             "name": field.name,
                         }
