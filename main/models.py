@@ -3162,6 +3162,8 @@ class Notification(models.Model):  # This model is correct, no changes needed he
         AD_EXPIRED = "ad_expired", _("الإعلان منتهي")
         PACKAGE_EXPIRED = "package_expired", _("الباقة منتهية")
         SAVED_SEARCH = "saved_search", _("نتائج البحث المحفوظ")
+        FACEBOOK_SHARE_REJECTED = "facebook_share_rejected", _("طلب مشاركة فيسبوك مرفوض")
+        ADMIN_FACEBOOK_PENDING = "admin_facebook_pending", _("طلب مشاركة فيسبوك معلق للمراجعة")
 
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="notifications"
@@ -3169,7 +3171,7 @@ class Notification(models.Model):  # This model is correct, no changes needed he
     title = models.CharField(max_length=200, verbose_name=_("العنوان"))
     message = models.TextField(verbose_name=_("الرسالة"))
     notification_type = models.CharField(
-        max_length=20, choices=NotificationType.choices
+        max_length=30, choices=NotificationType.choices
     )
     link = models.URLField(
         max_length=500, blank=True, null=True, verbose_name=_("الرابط")
