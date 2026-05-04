@@ -96,6 +96,57 @@ def notify_admin_new_ad(sender, instance, created, **kwargs):
                 link=f"/admin/classifieds/ads/{instance.pk}/",
                 notification_type=Notification.NotificationType.AD_APPROVED,
             )
+    else:
+        # Ad was updated — notify admins if enabled
+        notify_enabled = getattr(config, "NOTIFY_ADMIN_NEW_ADS", False)
+        if not notify_enabled:
+            return
+
+        ad_url = f"{getattr(config, 'SITE_URL', '')}/classifieds/{instance.pk}/"
+        admin_url = f"/admin/classifieds/ads/{instance.pk}/"
+        username = instance.user.username
+        ad_title = instance.title
+
+        # In-app notification for all superusers
+        superusers = User.objects.filter(is_superuser=True)
+        for admin in superusers:
+            Notification.objects.create(
+                user=admin,
+                title=_("تم تعديل إعلان"),
+                message=_('قام {username} بتعديل الإعلان "{ad_title}"').format(
+                    ad_title=ad_title, username=username
+                ),
+                link=admin_url,
+                notification_type=Notification.NotificationType.GENERAL,
+            )
+
+        # Email notification to admin address
+        admin_email = getattr(config, "ADMIN_NOTIFICATION_EMAIL", None)
+        if admin_email and getattr(config, "ENABLE_EMAIL_NOTIFICATIONS", True):
+            try:
+                from django.utils import timezone as tz
+                site_name = getattr(config, "SITE_NAME", "IdrissiMart")
+                site_url = getattr(config, "SITE_URL", "")
+                subject = f"{site_name} - تم تعديل إعلان: {ad_title}"
+                context = {
+                    "site_name": site_name,
+                    "site_url": site_url,
+                    "username": username,
+                    "ad_title": ad_title,
+                    "ad_id": instance.pk,
+                    "ad_category": instance.category.name if instance.category else "",
+                    "ad_url": ad_url,
+                    "admin_url": f"{site_url}/super-admin/main/classifiedad/{instance.pk}/change/",
+                    "edit_time": tz.localtime(tz.now()).strftime("%Y-%m-%d %H:%M"),
+                }
+                EmailService.send_template_email(
+                    to_emails=[admin_email],
+                    subject=subject,
+                    template_name="emails/ad_edited_admin.html",
+                    context=context,
+                )
+            except Exception as e:
+                logger.error(f"Failed to send ad edit email for ad #{instance.pk}: {e}")
 
 
 @receiver(pre_save, sender=ClassifiedAd)

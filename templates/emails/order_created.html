@@ -3,164 +3,228 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تأكيد الطلب</title>
+    <title>تأكيد الطلب - {{ order.order_number }}</title>
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: #333333;
+            line-height: 1.6;
             direction: rtl;
-            text-align: right;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 0;
         }
-        .container {
+        .email-wrapper { background-color: #f5f7fa; padding: 40px 20px; min-height: 100vh; }
+        .email-container {
             max-width: 600px;
-            margin: 20px auto;
+            margin: 0 auto;
             background-color: #ffffff;
-            border-radius: 8px;
+            border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
         }
-        .header {
-            background: linear-gradient(135deg, #4b315e 0%, #ff6001 100%);
-            color: white;
-            padding: 30px;
+        .email-header {
+            background: linear-gradient(135deg, #4b315e 0%, #6b3f7e 50%, #ff6001 100%);
+            color: #ffffff;
+            padding: 45px 30px;
             text-align: center;
+            position: relative;
         }
-        .header h1 {
-            margin: 0;
-            font-size: 28px;
+        .email-header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at top left, rgba(255,255,255,0.12), transparent 60%);
         }
-        .content {
-            padding: 30px;
+        .email-header-content { position: relative; z-index: 1; }
+        .site-badge {
+            display: inline-block;
+            background-color: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.5);
+            color: #ffffff;
+            padding: 4px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
         }
-        .order-info {
-            background-color: #f8f9fa;
-            border-radius: 6px;
-            padding: 20px;
-            margin: 20px 0;
+        .header-icon {
+            width: 80px;
+            height: 80px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            font-size: 38px;
+            line-height: 1;
         }
-        .order-info h2 {
-            margin-top: 0;
-            color: #333;
-            font-size: 20px;
+        .email-header h1 { margin: 10px 0 8px; font-size: 26px; font-weight: 700; }
+        .email-header p { font-size: 15px; opacity: 0.9; }
+        .email-body { padding: 40px 30px; }
+        .greeting { font-size: 20px; color: #4b315e; margin-bottom: 16px; font-weight: 600; }
+        .message { font-size: 15px; color: #444444; margin-bottom: 20px; line-height: 1.8; }
+        .card {
+            background: linear-gradient(135deg, #fdf8ff 0%, #fff5f0 100%);
+            border: 2px solid #e8d5f5;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 28px 0;
+            position: relative;
         }
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; right: 0;
+            width: 100%; height: 4px;
+            background: linear-gradient(135deg, #4b315e, #ff6001);
+            border-radius: 12px 12px 0 0;
+        }
+        .card-title { font-size: 16px; color: #4b315e; font-weight: 700; margin-bottom: 16px; }
         .info-row {
             display: flex;
             justify-content: space-between;
+            align-items: center;
             padding: 10px 0;
-            border-bottom: 1px solid #e0e0e0;
+            border-bottom: 1px solid #f0e8f8;
+            font-size: 14px;
         }
-        .info-row:last-child {
-            border-bottom: none;
-        }
-        .info-label {
-            font-weight: 600;
-            color: #666;
-        }
-        .info-value {
-            color: #333;
-        }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { color: #888888; }
+        .info-value { color: #4b315e; font-weight: 600; }
         .items-table {
             width: 100%;
             border-collapse: collapse;
             margin: 20px 0;
         }
         .items-table th {
-            background-color: #4b315e;
+            background: linear-gradient(135deg, #4b315e 0%, #6b3f7e 100%);
             color: white;
-            padding: 12px;
+            padding: 12px 16px;
             text-align: right;
+            font-size: 13px;
         }
         .items-table td {
-            padding: 12px;
-            border-bottom: 1px solid #e0e0e0;
+            padding: 12px 16px;
+            border-bottom: 1px solid #f0e8f8;
+            font-size: 14px;
+            color: #444444;
         }
+        .items-table tr:last-child td { border-bottom: none; }
         .total-section {
-            background-color: #fff3cd;
-            border-radius: 6px;
-            padding: 20px;
+            background: linear-gradient(135deg, #fdf8ff 0%, #fff5f0 100%);
+            border: 2px solid #e8d5f5;
+            border-radius: 12px;
+            padding: 20px 25px;
             margin: 20px 0;
         }
         .total-row {
             display: flex;
             justify-content: space-between;
             padding: 8px 0;
-            font-size: 18px;
+            font-size: 14px;
+            color: #555555;
+            border-bottom: 1px solid #f0e8f8;
         }
+        .total-row:last-child { border-bottom: none; }
         .total-row.grand-total {
-            font-weight: bold;
-            font-size: 22px;
+            font-weight: 700;
+            font-size: 16px;
             color: #4b315e;
-            border-top: 2px solid #4b315e;
-            padding-top: 15px;
-            margin-top: 10px;
+            border-top: 2px solid #e8d5f5;
+            border-bottom: none;
+            padding-top: 14px;
+            margin-top: 6px;
         }
         .payment-status {
             display: inline-block;
-            padding: 8px 16px;
+            padding: 4px 12px;
             border-radius: 20px;
             font-weight: 600;
-            font-size: 14px;
+            font-size: 13px;
         }
-        .status-unpaid {
-            background-color: #f8d7da;
-            color: #721c24;
+        .status-unpaid { background-color: #fee2e2; color: #991b1b; }
+        .status-partial { background-color: #fef9c3; color: #854d0e; }
+        .status-paid { background-color: #dcfce7; color: #166534; }
+        .note-box {
+            background-color: #f8f5fa;
+            border-right: 4px solid #4b315e;
+            border-radius: 12px;
+            padding: 20px 25px;
+            margin: 24px 0;
         }
-        .status-partial {
-            background-color: #fff3cd;
-            color: #856404;
-        }
-        .status-paid {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        .footer {
-            background-color: #f8f9fa;
-            padding: 20px;
+        .note-box p { font-size: 14px; color: #4b315e; margin: 6px 0; }
+        .button-wrapper {
             text-align: center;
-            color: #666;
-            font-size: 14px;
+            margin: 32px 0;
         }
-        .button {
+        .btn-primary {
             display: inline-block;
-            background: linear-gradient(135deg, #4b315e 0%, #ff6001 100%);
-            color: white;
-            padding: 12px 30px;
+            background: linear-gradient(135deg, #4b315e 0%, #6b3f7e 100%);
+            color: #ffffff;
+            padding: 15px 40px;
             text-decoration: none;
-            border-radius: 25px;
-            margin: 20px 0;
+            border-radius: 50px;
+            font-size: 15px;
             font-weight: 600;
+            box-shadow: 0 6px 20px rgba(75, 49, 94, 0.3);
+        }
+        .divider { height: 1px; background: linear-gradient(to left, transparent, #e0e0e0, transparent); margin: 28px 0; }
+        .email-footer {
+            background-color: #fafafa;
+            padding: 28px 30px;
+            text-align: center;
+            border-top: 1px solid #e0e0e0;
+        }
+        .footer-text { font-size: 13px; color: #666666; margin: 8px 0; }
+        .footer-links { margin: 16px 0; }
+        .footer-link { color: #4b315e; text-decoration: none; margin: 0 10px; font-size: 13px; font-weight: 500; }
+        @media only screen and (max-width: 600px) {
+            .email-wrapper { padding: 20px 10px; }
+            .email-header { padding: 35px 20px; }
+            .email-body { padding: 28px 18px; }
+            .btn-primary { padding: 13px 28px; font-size: 14px; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>✓ تم إنشاء طلبك بنجاح</h1>
-            <p style="margin: 10px 0 0 0; font-size: 16px;">شكراً لك على طلبك من إدريسي مارت</p>
+<div class="email-wrapper">
+    <div class="email-container">
+
+        <!-- Header -->
+        <div class="email-header">
+            <div class="email-header-content">
+                <div class="site-badge">إدريسي مارت</div>
+                <div class="header-icon">💜</div>
+                <h1>تم إنشاء طلبك بنجاح</h1>
+                <p>شكراً لك على طلبك من إدريسي مارت</p>
+            </div>
         </div>
 
-        <div class="content">
-            <p>مرحباً <strong>{{ user.get_full_name|default:user.username }}</strong>،</p>
-            <p>تم استلام طلبك بنجاح وسنبدأ في معالجته قريباً.</p>
+        <!-- Body -->
+        <div class="email-body">
+            <div class="greeting">مرحباً <strong>{{ user.get_full_name|default:user.username }}</strong> 👋</div>
+            <div class="message">تم استلام طلبك بنجاح وسنبدأ في معالجته قريباً.</div>
 
-            <div class="order-info">
-                <h2>تفاصيل الطلب</h2>
+            <!-- Order Details Card -->
+            <div class="card">
+                <div class="card-title">📋 تفاصيل الطلب</div>
                 <div class="info-row">
-                    <span class="info-label">رقم الطلب:</span>
+                    <span class="info-label">رقم الطلب</span>
                     <span class="info-value"><strong>{{ order.order_number }}</strong></span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">تاريخ الطلب:</span>
+                    <span class="info-label">تاريخ الطلب</span>
                     <span class="info-value">{{ order.created_at|date:"Y-m-d H:i" }}</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">حالة الطلب:</span>
+                    <span class="info-label">حالة الطلب</span>
                     <span class="info-value">{{ order.get_status_display }}</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">حالة الدفع:</span>
+                    <span class="info-label">حالة الدفع</span>
                     <span class="info-value">
                         {% if order.payment_status == 'paid' %}
                             <span class="payment-status status-paid">مدفوع كاملاً</span>
@@ -173,18 +237,18 @@
                 </div>
                 {% if order.payment_method %}
                 <div class="info-row">
-                    <span class="info-label">طريقة الدفع:</span>
+                    <span class="info-label">طريقة الدفع</span>
                     <span class="info-value">{{ order.get_payment_method_display }}</span>
                 </div>
                 {% endif %}
             </div>
 
-            <h3>العناصر المطلوبة:</h3>
+            <!-- Items Table -->
             <table class="items-table">
                 <thead>
                     <tr>
                         <th>المنتج</th>
-                        <th>السعر</th>
+                        <th style="text-align: left;">السعر</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -192,56 +256,67 @@
                     {% for item in items %}
                     <tr>
                         <td>{{ item.ad.title }}</td>
-                        <td>{{ item.price }} {{ selected_currency|currency_symbol }}</td>
+                        <td style="text-align: left;">{{ item.price }} {{ selected_currency|currency_symbol }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
 
+            <!-- Total Section -->
             <div class="total-section">
                 <div class="total-row">
-                    <span>المجموع الفرعي:</span>
+                    <span>المجموع الفرعي</span>
                     <span>{{ order.total_amount }} جنيه مصري</span>
                 </div>
                 {% if order.delivery_fee %}
                 <div class="total-row">
-                    <span>رسوم التوصيل:</span>
+                    <span>رسوم التوصيل</span>
                     <span>{{ order.delivery_fee }} جنيه مصري</span>
                 </div>
                 {% endif %}
                 <div class="total-row grand-total">
-                    <span>المجموع الكلي:</span>
+                    <span>المجموع الكلي</span>
                     <span>{{ order.total_amount }} جنيه مصري</span>
                 </div>
                 {% if order.payment_status == 'partial' %}
-                <div class="total-row" style="color: #856404; margin-top: 10px;">
-                    <span>المبلغ المدفوع:</span>
+                <div class="total-row" style="color: #854d0e;">
+                    <span>المبلغ المدفوع</span>
                     <span>{{ order.paid_amount }} جنيه مصري</span>
                 </div>
-                <div class="total-row" style="color: #721c24;">
-                    <span>المبلغ المتبقي:</span>
+                <div class="total-row" style="color: #991b1b;">
+                    <span>المبلغ المتبقي</span>
                     <span>{{ order.remaining_amount }} جنيه مصري</span>
                 </div>
                 {% endif %}
             </div>
 
-            <div style="text-align: center;">
-                <a href="{{ site_url }}/orders/{{ order.id }}/" class="button">
-                    عرض تفاصيل الطلب
-                </a>
+            <div class="note-box">
+                <p>💡 <strong>ملاحظة:</strong> سيتم التواصل معك قريباً لتأكيد الطلب وترتيب التوصيل.</p>
             </div>
 
-            <div style="background-color: #e3f2fd; padding: 15px; border-radius: 6px; margin-top: 20px;">
-                <p style="margin: 0; color: #1565c0;">
-                    <strong>ملاحظة:</strong> سيتم التواصل معك قريباً لتأكيد الطلب وترتيب التوصيل.
-                </p>
+            <div class="divider"></div>
+
+            <div class="button-wrapper">
+                <a href="{{ site_url }}/orders/{{ order.id }}/" class="btn-primary">عرض تفاصيل الطلب</a>
             </div>
         </div>
 
-        <div class="footer">
-            <p style="margin: 0;">شكراً لاستخدامك إدريسي مارت</p>
-            <p style="margin: 10px 0 0 0;">إذا كان لديك أي استفسار، يرجى التواصل معنا</p>
+        <!-- Footer -->
+        <div class="email-footer">
+            <div class="footer-text"><strong>إدريسي مارت</strong></div>
+            <div class="footer-text">منصتك المفضلة للبيع والشراء</div>
+            <div class="footer-links">
+                <a href="{{ site_url }}" class="footer-link">الرئيسية</a>
+                <a href="{{ site_url }}/orders/" class="footer-link">طلباتي</a>
+                <a href="{{ site_url }}/contact/" class="footer-link">اتصل بنا</a>
+            </div>
+            <div class="footer-text" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #999;">
+                © 2026 إدريسي مارت. جميع الحقوق محفوظة.
+            </div>
+            <div class="footer-text" style="font-size: 12px; color: #aaa;">هذه رسالة تلقائية، يرجى عدم الرد عليها.</div>
         </div>
+
     </div>
+</div>
 </body>
 </html>
