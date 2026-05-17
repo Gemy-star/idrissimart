@@ -2285,6 +2285,50 @@ def get_category_price_api(request, category_id):
         return JsonResponse({"error": str(e)}, status=500)
 
 
+def admin_category_api(request):
+    """
+    Staff-only JSON API for admin cascading category selects.
+
+    GET params:
+      parent_id=<int>      → children of that parent
+      (no param)           → root categories (parent__isnull=True)
+      category_id=<int>    → info about one category (id, name, parent_id)
+      section_type=<str>   → optional filter by Category.section_type
+    """
+    if not request.user.is_staff:
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden()
+
+    section_type = request.GET.get("section_type", "").strip()
+    qs = Category.objects.filter(is_active=True)
+    if section_type:
+        qs = qs.filter(section_type=section_type)
+
+    category_id = request.GET.get("category_id", "").strip()
+    if category_id:
+        try:
+            cat = qs.get(id=int(category_id))
+            return JsonResponse({
+                "id": cat.id,
+                "name": cat.name_ar or cat.name,
+                "parent_id": cat.parent_id,
+            })
+        except (ValueError, Category.DoesNotExist):
+            return JsonResponse({"error": "not found"}, status=404)
+
+    parent_id = request.GET.get("parent_id", "").strip()
+    if parent_id:
+        try:
+            cats = qs.filter(parent_id=int(parent_id)).order_by("name_ar", "name")
+        except ValueError:
+            return JsonResponse({"categories": []})
+    else:
+        cats = qs.filter(parent__isnull=True).order_by("name_ar", "name")
+
+    data = [{"id": c.id, "name": c.name_ar or c.name} for c in cats]
+    return JsonResponse({"categories": data})
+
+
 def get_category_custom_fields_ajax(request, category_id):
     """Get custom fields for a category via AJAX for filter display"""
     from django.template.loader import render_to_string

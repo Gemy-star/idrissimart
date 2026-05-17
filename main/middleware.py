@@ -334,6 +334,9 @@ class VisitorTrackingMiddleware:
 
             # Get visitor information
             ip_address = self._get_client_ip(request)
+            if not ip_address:
+                return
+
             session_key = request.session.session_key
 
             # Create session key if it doesn't exist

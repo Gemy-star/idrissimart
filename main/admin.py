@@ -255,6 +255,9 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
         models.TextField: {"widget": CKEditor5Widget(config_name="admin")},
     }
 
+    class Media:
+        js = ("admin/js/category_cascade.js",)
+
     def approve_ads(self, request, queryset):
         """Approve selected ads and notify owners"""
         from django.utils import timezone
@@ -628,6 +631,9 @@ class AdPackageAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+    class Media:
+        js = ("admin/js/category_cascade.js",)
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -1297,6 +1303,9 @@ class AdFeaturePriceAdmin(admin.ModelAdmin):
         (_("التسعير"), {"fields": ("price", "duration_days", "is_active")}),
     )
 
+    class Media:
+        js = ("admin/js/category_cascade.js",)
+
 
 @admin.register(CartSettings)
 class CartSettingsAdmin(admin.ModelAdmin):
@@ -1317,6 +1326,9 @@ class CartSettingsAdmin(admin.ModelAdmin):
             {"fields": ("reservation_percentage", "minimum_reservation")},
         ),
     )
+
+    class Media:
+        js = ("admin/js/category_cascade.js",)
 
 
 @admin.register(AdTransaction)
@@ -3450,6 +3462,9 @@ class PaidBannerAdmin(admin.ModelAdmin):
     )
 
     filter_horizontal = ("categories", "extra_countries")
+
+    class Media:
+        js = ("admin/js/category_cascade.js",)
 
     actions = [
         "approve_ads",

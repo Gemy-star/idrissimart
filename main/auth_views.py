@@ -5,6 +5,7 @@ from django.contrib.auth import login, logout, authenticate, get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.auth.tokens import default_token_generator
+from django.contrib.auth import views as dj_auth_views
 from django.contrib.auth.views import LoginView
 from django.contrib.sites.shortcuts import get_current_site
 from django.core.validators import validate_email
@@ -1276,3 +1277,11 @@ def mark_phone_verified(request):
     return JsonResponse(
         {"success": False, "message": _("لم يتم التحقق من الهاتف")}, status=400
     )
+
+
+
+class CustomPasswordResetConfirmView(dj_auth_views.PasswordResetConfirmView):
+    """Custom view to ensure redirect uses the correct namespaced URL."""
+
+    def get_success_url(self):
+        return reverse("main:password_reset_complete")
