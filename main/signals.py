@@ -640,9 +640,8 @@ def send_order_notifications(sender, instance, created, **kwargs):
                 )
 
             # 5. Notify publishers whose items are in the order
-            publishers = User.objects.filter(
-                classifieds__order_items__order=instance
-            ).distinct()
+            publisher_ids = instance.items.values_list("ad__user_id", flat=True).distinct()
+            publishers = User.objects.filter(id__in=publisher_ids)
 
             for publisher in publishers:
                 publisher_items = instance.items.filter(ad__user=publisher)
