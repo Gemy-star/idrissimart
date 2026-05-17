@@ -127,6 +127,43 @@ class CategoryAdmin(MPTTModelAdmin):
         ("Settings", {"fields": ("order", "is_active")}),
     )
     ordering = ("country", "name")
+    actions = ["activate_categories", "deactivate_categories", "export_categories_csv"]
+
+    def activate_categories(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, _("{} قسم تم تفعيله").format(updated))
+
+    activate_categories.short_description = _("✓ تفعيل الأقسام المحددة")
+
+    def deactivate_categories(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, _("{} قسم تم إلغاء تفعيله").format(updated))
+
+    deactivate_categories.short_description = _("✗ إلغاء تفعيل الأقسام المحددة")
+
+    def export_categories_csv(self, request, queryset):
+        import csv
+        from django.http import HttpResponse
+        from django.utils import timezone
+
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = (
+            f'attachment; filename="categories_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+        )
+        response.write("﻿")
+        writer = csv.writer(response)
+        writer.writerow([_("الاسم"), _("الاسم بالعربي"), _("الرابط"), _("القسم الأب"), _("الدولة"), _("نشط")])
+        for cat in queryset:
+            writer.writerow([
+                cat.name, cat.name_ar, cat.slug,
+                cat.parent.name if cat.parent else "",
+                str(cat.country) if cat.country else "",
+                "نعم" if cat.is_active else "لا",
+            ])
+        self.message_user(request, _("تم تصدير {} قسم").format(queryset.count()))
+        return response
+
+    export_categories_csv.short_description = _("📥 تصدير إلى CSV")
 
     def custom_fields_count(self, obj):
         """Display count of custom fields linked to this category"""
@@ -668,6 +705,72 @@ class UserPackageAdmin(admin.ModelAdmin):
 
     usage_percentage.short_description = _("نسبة الاستخدام")
 
+    actions = ["extend_30_days", "extend_60_days", "extend_90_days", "export_packages_csv"]
+
+    def extend_30_days(self, request, queryset):
+        from datetime import timedelta
+        from django.utils import timezone
+        count = 0
+        for pkg in queryset:
+            base = pkg.expiry_date if pkg.expiry_date and pkg.expiry_date > timezone.now() else timezone.now()
+            pkg.expiry_date = base + timedelta(days=30)
+            pkg.save(update_fields=["expiry_date"])
+            count += 1
+        self.message_user(request, _("تم تمديد {} باقة 30 يوماً").format(count))
+
+    extend_30_days.short_description = _("📅 تمديد 30 يوم")
+
+    def extend_60_days(self, request, queryset):
+        from datetime import timedelta
+        from django.utils import timezone
+        count = 0
+        for pkg in queryset:
+            base = pkg.expiry_date if pkg.expiry_date and pkg.expiry_date > timezone.now() else timezone.now()
+            pkg.expiry_date = base + timedelta(days=60)
+            pkg.save(update_fields=["expiry_date"])
+            count += 1
+        self.message_user(request, _("تم تمديد {} باقة 60 يوماً").format(count))
+
+    extend_60_days.short_description = _("📅 تمديد 60 يوم")
+
+    def extend_90_days(self, request, queryset):
+        from datetime import timedelta
+        from django.utils import timezone
+        count = 0
+        for pkg in queryset:
+            base = pkg.expiry_date if pkg.expiry_date and pkg.expiry_date > timezone.now() else timezone.now()
+            pkg.expiry_date = base + timedelta(days=90)
+            pkg.save(update_fields=["expiry_date"])
+            count += 1
+        self.message_user(request, _("تم تمديد {} باقة 90 يوماً").format(count))
+
+    extend_90_days.short_description = _("📅 تمديد 90 يوم")
+
+    def export_packages_csv(self, request, queryset):
+        import csv
+        from django.http import HttpResponse
+        from django.utils import timezone
+
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = (
+            f'attachment; filename="user_packages_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+        )
+        response.write("﻿")
+        writer = csv.writer(response)
+        writer.writerow([_("المستخدم"), _("الباقة"), _("إعلانات متبقية"), _("إعلانات مستخدمة"), _("تاريخ الشراء"), _("تاريخ الانتهاء"), _("نشطة")])
+        for pkg in queryset.select_related("user", "package"):
+            writer.writerow([
+                pkg.user.username, pkg.package.name,
+                pkg.ads_remaining, pkg.ads_used,
+                pkg.purchase_date.strftime("%Y-%m-%d") if pkg.purchase_date else "",
+                pkg.expiry_date.strftime("%Y-%m-%d") if pkg.expiry_date else "",
+                "نعم" if pkg.is_active() else "لا",
+            ])
+        self.message_user(request, _("تم تصدير {} باقة").format(queryset.count()))
+        return response
+
+    export_packages_csv.short_description = _("📥 تصدير إلى CSV")
+
     fieldsets = (
         (
             _("معلومات الباقة"),
@@ -1012,10 +1115,21 @@ class PaymentAdmin(admin.ModelAdmin):
 
     def resend_payment_notification(self, request, queryset):
         """Resend payment notification to users"""
+        from .services.email_service import EmailService
+        from .models import Notification
+
         count = 0
         for payment in queryset.filter(status="completed"):
-            # TODO: Implement email notification
-            count += 1
+            try:
+                Notification.objects.create(
+                    user=payment.user,
+                    notification_type=Notification.NotificationType.GENERAL,
+                    title=_("تأكيد استلام الدفع"),
+                    message=_("تم استلام دفعتك بمبلغ {} {} بنجاح.").format(payment.amount, payment.currency),
+                )
+                count += 1
+            except Exception:
+                pass
 
         self.message_user(request, _(f"تم إرسال إشعارات لـ {count} دفعة"))
 
@@ -1063,6 +1177,20 @@ class SavedSearchAdmin(admin.ModelAdmin):
     readonly_fields = ("last_notified_at", "unsubscribe_token", "created_at")
     date_hierarchy = "created_at"
     ordering = ("-created_at",)
+
+    actions = ["enable_email_notifications", "disable_email_notifications"]
+
+    def enable_email_notifications(self, request, queryset):
+        updated = queryset.update(email_notifications=True)
+        self.message_user(request, _("تم تفعيل إشعارات البريد لـ {} بحث").format(updated))
+
+    enable_email_notifications.short_description = _("✓ تفعيل إشعارات البريد")
+
+    def disable_email_notifications(self, request, queryset):
+        updated = queryset.update(email_notifications=False)
+        self.message_user(request, _("تم إلغاء إشعارات البريد لـ {} بحث").format(updated))
+
+    disable_email_notifications.short_description = _("✗ إلغاء إشعارات البريد")
 
     fieldsets = (
         (_("معلومات البحث"), {"fields": ("user", "name", "query_params")}),
@@ -1134,10 +1262,58 @@ class ContactMessageAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at")
     list_editable = ("status",)
     ordering = ("-created_at",)
+    actions = ["mark_as_read", "mark_as_replied", "mark_as_resolved", "export_messages_csv"]
 
     formfield_overrides = {
         models.TextField: {"widget": CKEditor5Widget(config_name="admin")},
     }
+
+    def mark_as_read(self, request, queryset):
+        updated = queryset.filter(status=ContactMessage.Status.PENDING).update(status=ContactMessage.Status.READ)
+        self.message_user(request, _("{} رسالة تم تحديدها كمقروءة").format(updated))
+
+    mark_as_read.short_description = _("✓ تحديد كمقروءة")
+
+    def mark_as_replied(self, request, queryset):
+        from django.utils import timezone
+        count = 0
+        for msg in queryset.exclude(status=ContactMessage.Status.REPLIED):
+            msg.status = ContactMessage.Status.REPLIED
+            msg.replied_at = timezone.now()
+            msg.save(update_fields=["status", "replied_at"])
+            count += 1
+        self.message_user(request, _("{} رسالة تم تحديدها كـ 'تم الرد'").format(count))
+
+    mark_as_replied.short_description = _("↩ تحديد كـ تم الرد")
+
+    def mark_as_resolved(self, request, queryset):
+        updated = queryset.update(status=ContactMessage.Status.RESOLVED)
+        self.message_user(request, _("{} رسالة تم تحديدها كمحلولة").format(updated))
+
+    mark_as_resolved.short_description = _("✔ تحديد كمحلولة")
+
+    def export_messages_csv(self, request, queryset):
+        import csv
+        from django.http import HttpResponse
+        from django.utils import timezone
+
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = (
+            f'attachment; filename="contact_messages_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+        )
+        response.write("﻿")
+        writer = csv.writer(response)
+        writer.writerow([_("الاسم"), _("البريد الإلكتروني"), _("الهاتف"), _("الموضوع"), _("الحالة"), _("تاريخ الإرسال")])
+        for msg in queryset:
+            writer.writerow([
+                msg.name, msg.email, msg.phone, msg.subject,
+                msg.get_status_display(),
+                msg.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            ])
+        self.message_user(request, _("تم تصدير {} رسالة").format(queryset.count()))
+        return response
+
+    export_messages_csv.short_description = _("📥 تصدير إلى CSV")
 
 
 # --- Enhanced Models Admin ---
@@ -1201,6 +1377,75 @@ class CustomUserAdmin(UserAdmin):
     )
 
     readonly_fields = ("chat_link",)
+    actions = [
+        "activate_users",
+        "deactivate_users",
+        "verify_users",
+        "unverify_users",
+        "export_users_csv",
+    ]
+
+    def activate_users(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, _("{} مستخدم تم تفعيله").format(updated))
+
+    activate_users.short_description = _("✓ تفعيل المستخدمين المحددين")
+
+    def deactivate_users(self, request, queryset):
+        updated = queryset.filter(is_superuser=False).update(is_active=False)
+        self.message_user(request, _("{} مستخدم تم إلغاء تفعيله").format(updated))
+
+    deactivate_users.short_description = _("✗ إلغاء تفعيل المستخدمين المحددين")
+
+    def verify_users(self, request, queryset):
+        from django.utils import timezone
+        count = 0
+        for user in queryset:
+            user.verification_status = User.VerificationStatus.VERIFIED
+            user.verified_at = timezone.now()
+            user.save(update_fields=["verification_status", "verified_at"])
+            count += 1
+        self.message_user(request, _("{} مستخدم تم توثيقه").format(count))
+
+    verify_users.short_description = _("✔ توثيق المستخدمين المحددين")
+
+    def unverify_users(self, request, queryset):
+        updated = queryset.filter(is_superuser=False).update(
+            verification_status=User.VerificationStatus.UNVERIFIED
+        )
+        self.message_user(request, _("{} مستخدم تم إلغاء توثيقه").format(updated))
+
+    unverify_users.short_description = _("✗ إلغاء توثيق المستخدمين المحددين")
+
+    def export_users_csv(self, request, queryset):
+        import csv
+        from django.http import HttpResponse
+        from django.utils import timezone
+
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = (
+            f'attachment; filename="users_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+        )
+        response.write("﻿")
+        writer = csv.writer(response)
+        writer.writerow([
+            _("اسم المستخدم"), _("البريد الإلكتروني"), _("الاسم الأول"),
+            _("الاسم الأخير"), _("نوع الحساب"), _("حالة التوثيق"),
+            _("نشط"), _("تاريخ الانضمام"), _("آخر تسجيل دخول"),
+        ])
+        for user in queryset:
+            writer.writerow([
+                user.username, user.email, user.first_name, user.last_name,
+                user.get_profile_type_display() if hasattr(user, "get_profile_type_display") else user.profile_type,
+                user.get_verification_status_display(),
+                "نعم" if user.is_active else "لا",
+                user.date_joined.strftime("%Y-%m-%d") if user.date_joined else "",
+                user.last_login.strftime("%Y-%m-%d %H:%M") if user.last_login else "",
+            ])
+        self.message_user(request, _("تم تصدير {} مستخدم").format(queryset.count()))
+        return response
+
+    export_users_csv.short_description = _("📥 تصدير المستخدمين إلى CSV")
 
     def get_urls(self):
         """Add custom URLs for chat functionality"""
@@ -1339,6 +1584,33 @@ class AdTransactionAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "transaction_id")
     date_hierarchy = "created_at"
     ordering = ("-created_at",)
+    actions = ["export_transactions_csv"]
+
+    def export_transactions_csv(self, request, queryset):
+        import csv
+        from django.http import HttpResponse
+        from django.utils import timezone
+
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = (
+            f'attachment; filename="transactions_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+        )
+        response.write("﻿")
+        writer = csv.writer(response)
+        writer.writerow([_("الإعلان"), _("المستخدم"), _("نوع المعاملة"), _("المبلغ"), _("رقم المعاملة"), _("التاريخ")])
+        for tx in queryset.select_related("ad", "user"):
+            writer.writerow([
+                tx.ad.title if tx.ad else "",
+                tx.user.username if tx.user else "",
+                tx.get_transaction_type_display() if hasattr(tx, "get_transaction_type_display") else tx.transaction_type,
+                tx.amount,
+                tx.transaction_id,
+                tx.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            ])
+        self.message_user(request, _("تم تصدير {} معاملة").format(queryset.count()))
+        return response
+
+    export_transactions_csv.short_description = _("📥 تصدير إلى CSV")
 
     fieldsets = (
         (_("معلومات المعاملة"), {"fields": ("ad", "user", "transaction_type")}),
@@ -1820,6 +2092,33 @@ class UserSubscriptionAdmin(admin.ModelAdmin):
     date_hierarchy = "start_date"
     readonly_fields = ("start_date",)
 
+    actions = ["activate_subscriptions", "deactivate_subscriptions", "extend_subscription_30_days"]
+
+    def activate_subscriptions(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, _("{} اشتراك تم تفعيله").format(updated))
+
+    activate_subscriptions.short_description = _("✓ تفعيل الاشتراكات المحددة")
+
+    def deactivate_subscriptions(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, _("{} اشتراك تم إلغاء تفعيله").format(updated))
+
+    deactivate_subscriptions.short_description = _("✗ إلغاء تفعيل الاشتراكات المحددة")
+
+    def extend_subscription_30_days(self, request, queryset):
+        from datetime import timedelta
+        from django.utils import timezone
+        count = 0
+        for sub in queryset:
+            base = sub.end_date if sub.end_date and sub.end_date > timezone.now().date() else timezone.now().date()
+            sub.end_date = base + timedelta(days=30)
+            sub.save(update_fields=["end_date"])
+            count += 1
+        self.message_user(request, _("تم تمديد {} اشتراك 30 يوماً").format(count))
+
+    extend_subscription_30_days.short_description = _("📅 تمديد 30 يوم")
+
     fieldsets = (
         (_("المستخدم والاشتراك"), {"fields": ("user", "is_active", "auto_renew")}),
         (_("التواريخ"), {"fields": ("start_date", "end_date")}),
@@ -1842,11 +2141,49 @@ class VisitorAdmin(admin.ModelAdmin):
     readonly_fields = ("first_visit", "last_activity", "session_key", "user_agent")
     date_hierarchy = "first_visit"
 
+    actions = ["clear_old_visitors", "export_visitors_csv"]
+
     def is_online(self, obj):
         return obj.is_online
 
     is_online.boolean = True
     is_online.short_description = _("متصل الآن")
+
+    def clear_old_visitors(self, request, queryset):
+        from django.utils import timezone
+        from datetime import timedelta
+        cutoff = timezone.now() - timedelta(days=30)
+        deleted, _ = queryset.filter(last_activity__lt=cutoff).delete()
+        self.message_user(request, _("تم حذف {} سجل زيارة قديم (أكثر من 30 يوم)").format(deleted))
+
+    clear_old_visitors.short_description = _("🗑 حذف السجلات الأقدم من 30 يوم")
+
+    def export_visitors_csv(self, request, queryset):
+        import csv
+        from django.http import HttpResponse
+        from django.utils import timezone
+
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = (
+            f'attachment; filename="visitors_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+        )
+        response.write("﻿")
+        writer = csv.writer(response)
+        writer.writerow([_("IP"), _("المستخدم"), _("الجهاز"), _("الدولة"), _("عدد المشاهدات"), _("أول زيارة"), _("آخر نشاط")])
+        for v in queryset:
+            writer.writerow([
+                v.ip_address,
+                v.user.username if v.user else "",
+                v.device_type,
+                v.country,
+                v.page_views,
+                v.first_visit.strftime("%Y-%m-%d %H:%M") if v.first_visit else "",
+                v.last_activity.strftime("%Y-%m-%d %H:%M") if v.last_activity else "",
+            ])
+        self.message_user(request, _("تم تصدير {} سجل زيارة").format(queryset.count()))
+        return response
+
+    export_visitors_csv.short_description = _("📥 تصدير إلى CSV")
 
 
 @admin.register(NewsletterSubscriber)
@@ -1946,6 +2283,41 @@ class AdReportAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at", "resolved_at")
     list_per_page = 20
     date_hierarchy = "created_at"
+    actions = ["mark_as_reviewing", "mark_as_resolved", "mark_as_rejected_bulk"]
+
+    def mark_as_reviewing(self, request, queryset):
+        updated = queryset.filter(status="pending").update(status="reviewing")
+        self.message_user(request, _("{} بلاغ تم تحديده كـ 'قيد المراجعة'").format(updated))
+
+    mark_as_reviewing.short_description = _("👁 تحديد كـ قيد المراجعة")
+
+    def mark_as_resolved(self, request, queryset):
+        from django.utils import timezone
+        count = 0
+        for report in queryset.exclude(status="resolved"):
+            report.status = "resolved"
+            report.resolved_at = timezone.now()
+            if not report.reviewed_by:
+                report.reviewed_by = request.user
+            report.save(update_fields=["status", "resolved_at", "reviewed_by"])
+            count += 1
+        self.message_user(request, _("{} بلاغ تم تحديده كمحلول").format(count))
+
+    mark_as_resolved.short_description = _("✅ تحديد كمحلول")
+
+    def mark_as_rejected_bulk(self, request, queryset):
+        from django.utils import timezone
+        count = 0
+        for report in queryset.exclude(status="rejected"):
+            report.status = "rejected"
+            report.resolved_at = timezone.now()
+            if not report.reviewed_by:
+                report.reviewed_by = request.user
+            report.save(update_fields=["status", "resolved_at", "reviewed_by"])
+            count += 1
+        self.message_user(request, _("{} بلاغ تم رفضه").format(count))
+
+    mark_as_rejected_bulk.short_description = _("❌ رفض البلاغات المحددة")
 
     fieldsets = (
         (
@@ -2539,11 +2911,20 @@ class OrderAdmin(admin.ModelAdmin):
     export_orders_to_csv.short_description = _("📥 تصدير إلى CSV")
 
     def send_order_notification(self, request, queryset):
-        """Send order notification to customers"""
+        """Send order status notification to customers"""
+        from .services.email_service import EmailService
+
         count = 0
-        for order in queryset:
-            # TODO: Implement email notification
-            count += 1
+        for order in queryset.select_related("user"):
+            try:
+                EmailService.send_order_status_update_email(
+                    email=order.user.email,
+                    order=order,
+                    user_name=order.user.get_full_name() or order.user.username,
+                )
+                count += 1
+            except Exception:
+                pass
         self.message_user(request, _(f"تم إرسال إشعارات لـ {count} طلب"))
 
     send_order_notification.short_description = _("📧 إرسال إشعار للعملاء")
@@ -2783,6 +3164,20 @@ class FAQCategoryAdmin(admin.ModelAdmin):
             {"fields": ("name", "name_ar", "icon", "order", "is_active")},
         ),
     )
+
+    actions = ["activate_faq_categories", "deactivate_faq_categories"]
+
+    def activate_faq_categories(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, _("{} فئة تم تفعيلها").format(updated))
+
+    activate_faq_categories.short_description = _("✓ تفعيل الفئات المحددة")
+
+    def deactivate_faq_categories(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, _("{} فئة تم إلغاء تفعيلها").format(updated))
+
+    deactivate_faq_categories.short_description = _("✗ إلغاء تفعيل الفئات المحددة")
 
     def faq_count(self, obj):
         """Get count of FAQs in this category"""
