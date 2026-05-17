@@ -2602,6 +2602,8 @@ class OrderAdmin(admin.ModelAdmin):
 
     def get_order_summary(self, obj):
         """Display order summary"""
+        if not obj or not obj.pk:
+            return "-"
         from main.templatetags.idrissimart_tags import CURRENCY_SYMBOLS
         currency_symbol = CURRENCY_SYMBOLS.get(obj.currency, obj.currency)
 
@@ -2630,9 +2632,11 @@ class OrderAdmin(admin.ModelAdmin):
 
     def get_payment_info(self, obj):
         """Display payment information"""
+        if not obj or not obj.pk:
+            return "-"
         from main.templatetags.idrissimart_tags import CURRENCY_SYMBOLS
         currency_symbol = CURRENCY_SYMBOLS.get(obj.currency, obj.currency)
-        percentage = obj.get_payment_percentage()
+        percentage = obj.get_payment_percentage() or 0
         return format_html(
             '<div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">'
             '<h4 style="margin-top: 0;">معلومات الدفع</h4>'
