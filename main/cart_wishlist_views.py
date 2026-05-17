@@ -383,8 +383,23 @@ def checkout_view(request):
             phone = request.POST.get("phone")
             address = request.POST.get("address")
             city = request.POST.get("city")
-            country_id = request.POST.get("country")
+            _country_raw = request.POST.get("country", "")
             postal_code = request.POST.get("postal_code", "")
+
+            # Resolve country: the select sends the country code (e.g. "EG"),
+            # but Order.country is a FK that needs an integer PK.
+            country_id = None
+            if _country_raw:
+                from content.models import Country as _Country
+                try:
+                    # Try numeric PK first (future-proofing), then code lookup
+                    if _country_raw.isdigit():
+                        country_id = int(_country_raw)
+                    else:
+                        _cobj = _Country.objects.get(code=_country_raw.upper())
+                        country_id = _cobj.pk
+                except _Country.DoesNotExist:
+                    country_id = None
             notes = request.POST.get("notes", "")
             payment_method = request.POST.get("payment_method", "cod")
 
