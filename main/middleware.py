@@ -252,7 +252,7 @@ class VisitorTrackingMiddleware:
                 if self._is_valid_ip(ip):
                     return ip
 
-        return request.META.get("REMOTE_ADDR", "127.0.0.1")
+        return request.META.get("REMOTE_ADDR") or "127.0.0.1"
 
     def _is_valid_ip(self, ip):
         """Validate IP address format"""

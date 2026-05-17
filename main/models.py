@@ -1916,9 +1916,12 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
                 self.reviewed_at = timezone.now()
                 self.require_review = False
             elif self.user.profile_type == User.ProfileType.DEFAULT:
-                # Default users require admin approval
-                self.status = self.AdStatus.PENDING
-                self.require_review = True
+                # Default users require admin approval UNLESS the pre_save signal
+                # (auto_approve_verified_users) already set the status to ACTIVE
+                # (verified user + category.require_admin_approval == False)
+                if self.status != self.AdStatus.ACTIVE:
+                    self.status = self.AdStatus.PENDING
+                    self.require_review = True
 
             # Staff/Superusers bypass approval
             # Staff/Superusers bypass approval — but NOT if status was explicitly set to DRAFT

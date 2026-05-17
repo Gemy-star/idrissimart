@@ -4,6 +4,7 @@ Integrates with django-constance for dynamic configuration
 """
 
 import logging
+import re
 from typing import Optional
 
 from constance import config
@@ -12,6 +13,30 @@ from twilio.rest import Client
 from twilio.base.exceptions import TwilioRestException
 
 logger = logging.getLogger(__name__)
+
+# Expected total digit count (after +) for known country codes
+_COUNTRY_CODE_DIGIT_LENGTHS = {
+    "+966": 12,  # Saudi Arabia: 966 + 9 digits
+    "+971": 12,  # UAE:          971 + 9 digits
+    "+965": 11,  # Kuwait:       965 + 8 digits
+    "+974": 11,  # Qatar:        974 + 8 digits
+    "+973": 11,  # Bahrain:      973 + 8 digits
+    "+968": 11,  # Oman:         968 + 8 digits
+    "+962": 12,  # Jordan:       962 + 9 digits
+    "+20":  12,  # Egypt:         20 + 10 digits
+}
+
+
+def _validate_e164(number: str) -> bool:
+    """Return True if number is a plausible E.164 phone number."""
+    if not re.match(r'^\+[1-9]\d{6,14}$', number):
+        return False
+    digits = number[1:]  # strip leading +
+    for prefix, expected_len in _COUNTRY_CODE_DIGIT_LENGTHS.items():
+        if number.startswith(prefix):
+            return len(digits) == expected_len
+    # Unknown country code — accept if digit count is within E.164 range (7-15)
+    return 7 <= len(digits) <= 15
 
 
 class SMSService:
@@ -81,14 +106,19 @@ class SMSService:
                 # Assume Saudi Arabia if no country code
                 to_number = f"+966{to_number.lstrip('0')}"
 
+            # Validate before calling Twilio — avoids wasted API calls
+            if not _validate_e164(to_number):
+                logger.error(f"SMS skipped: invalid phone number format: {to_number}")
+                return False
+
             # Send SMS
-            message = client.messages.create(
+            msg = client.messages.create(
                 body=message,
                 from_=config.TWILIO_PHONE_NUMBER,
                 to=to_number,
             )
 
-            logger.info(f"SMS sent successfully to {to_number}. SID: {message.sid}")
+            logger.info(f"SMS sent successfully to {to_number}. SID: {msg.sid}")
             return True
 
         except TwilioRestException as e:

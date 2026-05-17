@@ -1829,17 +1829,24 @@ class AdCreateView(LoginRequiredMixin, CreateView):
 
             # Free ad or staff user
             # Determine if ad needs approval
+            # Note: ClassifiedAd.save() enforces PENDING for DEFAULT users regardless,
+            # so only deduct the package credit for users whose ads go ACTIVE immediately.
             needs_approval = True
 
             if self.request.user.is_staff:
                 needs_approval = False
+            elif self.request.user.profile_type == "publisher":
+                # Publishers get auto-activated ads — deduct from package
+                if active_package:
+                    needs_approval = False
+                    active_package.use_ad()
             elif active_package:
-                # User has free credit
-                needs_approval = False
-                # Deduct one ad from the package
+                # DEFAULT user with a package: admin approval still required.
+                # Deduct the ad credit now (user is consuming a slot by submitting).
                 active_package.use_ad()
+                # needs_approval stays True — model will set status to PENDING
 
-            # Set status based on approval requirement
+            # Set status hint (ClassifiedAd.save() may override for DEFAULT users)
             if needs_approval:
                 form.instance.status = ClassifiedAd.AdStatus.PENDING
             else:
