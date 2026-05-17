@@ -19,7 +19,12 @@ except Exception:
     pass
 
 DEBUG = True
-ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    "10.0.2.2",      # Android emulator → host machine
+    "10.0.3.2",      # Genymotion emulator → host machine
+]
 
 # Dynamic compression for dev
 COMPRESS_ENABLED = True
@@ -99,6 +104,10 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:6522",
     "http://127.0.0.1:8000",
     "http://localhost:8000",
+    "http://10.0.2.2:5454",   # Android emulator
+    "http://10.0.2.2:8000",
+    "http://10.0.3.2:5454",   # Genymotion emulator
+    "http://10.0.3.2:8000",
 ]
 
 # =======================
@@ -115,6 +124,10 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8082",
     "http://localhost:8081",  # React Native dev server
     "http://127.0.0.1:8081",
+    "http://10.0.2.2:5454",  # Android emulator
+    "http://10.0.2.2:8000",
+    "http://10.0.3.2:5454",  # Genymotion emulator
+    "http://10.0.3.2:8000",
 ]
 
 # =======================

@@ -959,6 +959,7 @@ class RegistrationForm(forms.Form):
         return password2
 
     def clean_phone(self):
+        import re as _re
         from .utils import validate_phone_number, normalize_phone_number
         from content.verification_utils import is_phone_verification_required
 
@@ -980,6 +981,10 @@ class RegistrationForm(forms.Form):
         # If phone is not provided and not required, return None
         if not phone:
             return None
+
+        # Pre-normalize: strip whitespace/separators and convert 00xx → +xx
+        phone = _re.sub(r"[\s\-\(\)]", "", phone)
+        phone = _re.sub(r"^00", "+", phone)
 
         # Validate format for the selected country
         if not validate_phone_number(phone, country_code):

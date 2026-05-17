@@ -290,8 +290,11 @@ class RegisterView(CreateView):
     template_name = "pages/register.html"
 
     def get_success_url(self):
-        """Redirect to dashboard after registration (publisher dashboard for default users)"""
-        return reverse("main:dashboard")
+        """Redirect admins to dashboard, regular users to home page after registration"""
+        request = self.request
+        if request.user.is_staff or request.user.is_superuser:
+            return reverse("main:dashboard")
+        return reverse("main:home")
 
     def get(self, request, *args, **kwargs):
         if request.user.is_authenticated:
