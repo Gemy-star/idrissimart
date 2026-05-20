@@ -978,9 +978,10 @@ class RegistrationForm(forms.Form):
         if phone_verification_required and not phone:
             raise ValidationError(_("رقم الجوال مطلوب من شروط اكمال التسجيل"))
 
-        # If phone is not provided and not required, return None
+        # If phone is not provided and not required, return empty string
+        # (phone field is blank=True but not null=True, so DB expects "" not NULL)
         if not phone:
-            return None
+            return ""
 
         # Pre-normalize: strip whitespace/separators and convert 00xx → +xx
         phone = _re.sub(r"[\s\-\(\)]", "", phone)

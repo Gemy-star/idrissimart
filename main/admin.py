@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext_lazy as _
+from allauth.account.models import EmailAddress
+admin.site.unregister(EmailAddress)
 from django.utils.html import format_html
 from django.db import models
 from mptt.admin import MPTTModelAdmin
