@@ -40,6 +40,7 @@ from .models import (
     ContactMessage,
     CustomField,
     CustomFieldOption,
+    CustomPage,
     EmailTemplate,
     FAQ,
     FAQCategory,
@@ -2222,6 +2223,138 @@ class NewsletterSubscriberAdmin(admin.ModelAdmin):
         ),
     )
 
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        custom = [
+            path(
+                "send/",
+                self.admin_site.admin_view(self.send_newsletter_view),
+                name="newslettersubscriber_send",
+            ),
+            path(
+                "template-preview/<int:pk>/",
+                self.admin_site.admin_view(self.template_preview_view),
+                name="newslettersubscriber_template_preview",
+            ),
+        ]
+        return custom + urls
+
+    def changelist_view(self, request, extra_context=None):
+        from django.urls import reverse
+        extra_context = extra_context or {}
+        extra_context["send_newsletter_url"] = reverse("admin:newslettersubscriber_send")
+        extra_context["active_count"] = NewsletterSubscriber.objects.filter(is_active=True).count()
+        return super().changelist_view(request, extra_context=extra_context)
+
+    def template_preview_view(self, request, pk):
+        """Return template subject+body as JSON for AJAX preview."""
+        import json
+        from django.http import JsonResponse
+        try:
+            tmpl = EmailTemplate.objects.get(pk=pk, is_active=True)
+            return JsonResponse({"subject": tmpl.subject_ar or tmpl.subject, "body": tmpl.body_ar or tmpl.body})
+        except EmailTemplate.DoesNotExist:
+            return JsonResponse({"subject": "", "body": ""})
+
+    def send_newsletter_view(self, request):
+        from django.template.response import TemplateResponse
+        from django.contrib import messages as dj_messages
+        from django.http import HttpResponseRedirect
+        from django.urls import reverse
+        from django.utils.html import strip_tags
+
+        templates = EmailTemplate.objects.filter(is_active=True).order_by("key")
+
+        if request.method == "POST":
+            subject = request.POST.get("subject", "").strip()
+            body_html = request.POST.get("body_html", "").strip()
+            test_mode = request.POST.get("test_mode") == "1"
+
+            if not subject:
+                dj_messages.error(request, "الموضوع مطلوب.")
+            elif not body_html:
+                dj_messages.error(request, "محتوى الرسالة مطلوب.")
+            else:
+                # Collect recipients
+                if test_mode:
+                    from django.conf import settings as dj_settings
+                    recipients = [dj_settings.DEFAULT_FROM_EMAIL]
+                else:
+                    main_emails = set(
+                        NewsletterSubscriber.objects.filter(is_active=True)
+                        .values_list("email", flat=True)
+                    )
+                    try:
+                        from content.models import Newsletter as ContentNewsletter
+                        content_emails = set(
+                            ContentNewsletter.objects.filter(is_active=True, receive_email=True)
+                            .values_list("email", flat=True)
+                        )
+                    except Exception:
+                        content_emails = set()
+                    recipients = list(main_emails | content_emails)
+
+                if not recipients:
+                    dj_messages.warning(request, "لا يوجد مشتركون نشطون.")
+                else:
+                    from main.services.email_service import EmailService
+                    from django.conf import settings as dj_settings
+                    from django.core.mail import send_mail
+
+                    plain = strip_tags(body_html)
+                    success_count = 0
+                    fail_count = 0
+
+                    if test_mode:
+                        ok = EmailService.send_email(
+                            to_emails=recipients,
+                            subject=f"[TEST] {subject}",
+                            html_content=body_html,
+                            text_content=plain,
+                        )
+                        if ok:
+                            success_count = 1
+                        else:
+                            fail_count = 1
+                    else:
+                        # Send via BCC in batches of 100
+                        batch_size = 100
+                        for i in range(0, len(recipients), batch_size):
+                            batch = recipients[i:i + batch_size]
+                            try:
+                                send_mail(
+                                    subject=subject,
+                                    message=plain,
+                                    from_email=dj_settings.DEFAULT_FROM_EMAIL,
+                                    recipient_list=[dj_settings.DEFAULT_FROM_EMAIL],
+                                    bcc=batch,
+                                    html_message=body_html,
+                                    fail_silently=False,
+                                )
+                                success_count += len(batch)
+                            except Exception as exc:
+                                fail_count += len(batch)
+                                import logging
+                                logging.getLogger(__name__).error("Newsletter batch send failed: %s", exc)
+
+                    if success_count:
+                        msg = f"تم إرسال النشرة بنجاح إلى {success_count} مشترك." if not test_mode else "تم إرسال رسالة اختبار بنجاح."
+                        dj_messages.success(request, msg)
+                    if fail_count:
+                        dj_messages.error(request, f"فشل الإرسال لـ {fail_count} مشترك.")
+
+                    return HttpResponseRedirect(reverse("admin:newslettersubscriber_send"))
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "إرسال النشرة البريدية",
+            "email_templates": templates,
+            "active_count": NewsletterSubscriber.objects.filter(is_active=True).count(),
+            "opts": self.model._meta,
+        }
+        return TemplateResponse(request, "admin/main/newslettersubscriber/send_newsletter.html", context)
+
     def activate_subscribers(self, request, queryset):
         updated = queryset.update(is_active=True, unsubscribed_at=None)
         self.message_user(request, _(f"تم تفعيل {updated} مشترك بنجاح"))
@@ -3632,11 +3765,11 @@ class SafetyTipAdmin(admin.ModelAdmin):
 
 @admin.register(EmailTemplate)
 class EmailTemplateAdmin(admin.ModelAdmin):
-    list_display = ("key", "display_name_ar", "display_subject_ar", "is_active", "updated_at")
+    list_display = ("key", "display_name_ar", "display_subject_ar", "is_active", "updated_at", "send_newsletter_list_link")
     list_filter = ("is_active", "key")
     search_fields = ("key", "name", "name_ar", "subject", "subject_ar")
     list_editable = ("is_active",)
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = ("created_at", "updated_at", "send_newsletter_button")
     ordering = ("key",)
 
     formfield_overrides = {
@@ -3681,6 +3814,13 @@ class EmailTemplateAdmin(admin.ModelAdmin):
                 "classes": ("collapse",),
             },
         ),
+        (
+            _("إرسال كنشرة بريدية - Send as Newsletter"),
+            {
+                "fields": ("send_newsletter_button",),
+                "description": _("أرسل هذا القالب كنشرة بريدية إلى جميع المشتركين النشطين."),
+            },
+        ),
     )
 
     def display_name_ar(self, obj):
@@ -3690,6 +3830,226 @@ class EmailTemplateAdmin(admin.ModelAdmin):
     def display_subject_ar(self, obj):
         return obj.subject_ar or obj.subject
     display_subject_ar.short_description = "الموضوع"
+
+    def send_newsletter_button(self, obj):
+        if not obj.pk:
+            return _("احفظ القالب أولاً لتتمكن من إرساله.")
+        from django.urls import reverse
+        url = reverse("admin:emailtemplate_send_newsletter", args=[obj.pk])
+        return format_html(
+            '<a href="{}" class="button" style="background:#e8845c; color:#fff; padding:8px 18px; '
+            'border-radius:4px; font-weight:600; text-decoration:none; display:inline-block;">'
+            '✉️ إرسال كنشرة بريدية'
+            '</a>',
+            url,
+        )
+    send_newsletter_button.short_description = _("إرسال النشرة")
+
+    def send_newsletter_list_link(self, obj):
+        if not obj.pk:
+            return "-"
+        from django.urls import reverse
+        url = reverse("admin:emailtemplate_send_newsletter", args=[obj.pk])
+        return format_html('<a href="{}">✉️ إرسال</a>', url)
+    send_newsletter_list_link.short_description = _("نشرة")
+
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        custom = [
+            path(
+                "<int:pk>/send-newsletter/",
+                self.admin_site.admin_view(self.send_newsletter_view),
+                name="emailtemplate_send_newsletter",
+            ),
+        ]
+        return custom + urls
+
+    def send_newsletter_view(self, request, pk):
+        from django.template.response import TemplateResponse
+        from django.contrib import messages as dj_messages
+        from django.http import HttpResponseRedirect
+        from django.shortcuts import get_object_or_404
+        from django.utils.html import strip_tags
+        from django.core.mail import send_mail
+        from django.conf import settings as dj_settings
+
+        template = get_object_or_404(EmailTemplate, pk=pk)
+
+        if request.method == "POST":
+            subject = request.POST.get("subject", "").strip()
+            body_html = request.POST.get("body_html", "").strip()
+            test_mode = request.POST.get("test_mode") == "1"
+
+            if not subject:
+                dj_messages.error(request, _("الموضوع مطلوب."))
+            elif not body_html:
+                dj_messages.error(request, _("محتوى الرسالة مطلوب."))
+            else:
+                if test_mode:
+                    recipients = [dj_settings.DEFAULT_FROM_EMAIL]
+                else:
+                    main_emails = set(
+                        NewsletterSubscriber.objects.filter(is_active=True)
+                        .values_list("email", flat=True)
+                    )
+                    try:
+                        from content.models import Newsletter as ContentNewsletter
+                        content_emails = set(
+                            ContentNewsletter.objects.filter(is_active=True, receive_email=True)
+                            .values_list("email", flat=True)
+                        )
+                    except Exception:
+                        content_emails = set()
+                    recipients = list(main_emails | content_emails)
+
+                if not recipients:
+                    dj_messages.warning(request, _("لا يوجد مشتركون نشطون."))
+                else:
+                    plain = strip_tags(body_html)
+                    success_count = 0
+                    fail_count = 0
+
+                    if test_mode:
+                        from main.services.email_service import EmailService
+                        ok = EmailService.send_email(
+                            to_emails=recipients,
+                            subject=f"[TEST] {subject}",
+                            html_content=body_html,
+                            text_content=plain,
+                        )
+                        success_count = 1 if ok else 0
+                        fail_count = 0 if ok else 1
+                    else:
+                        batch_size = 100
+                        for i in range(0, len(recipients), batch_size):
+                            batch = recipients[i:i + batch_size]
+                            try:
+                                send_mail(
+                                    subject=subject,
+                                    message=plain,
+                                    from_email=dj_settings.DEFAULT_FROM_EMAIL,
+                                    recipient_list=[dj_settings.DEFAULT_FROM_EMAIL],
+                                    bcc=batch,
+                                    html_message=body_html,
+                                    fail_silently=False,
+                                )
+                                success_count += len(batch)
+                            except Exception as exc:
+                                fail_count += len(batch)
+                                import logging
+                                logging.getLogger(__name__).error("Newsletter batch send failed: %s", exc)
+
+                    if success_count:
+                        msg = (
+                            _("تم إرسال رسالة اختبار بنجاح.") if test_mode
+                            else _("تم إرسال النشرة بنجاح إلى {} مشترك.").format(success_count)
+                        )
+                        dj_messages.success(request, msg)
+                    if fail_count:
+                        dj_messages.error(request, _("فشل الإرسال لـ {} مشترك.").format(fail_count))
+
+            return HttpResponseRedirect(request.path)
+
+        active_count = NewsletterSubscriber.objects.filter(is_active=True).count()
+        try:
+            from content.models import Newsletter as ContentNewsletter
+            content_count = ContentNewsletter.objects.filter(is_active=True, receive_email=True).count()
+        except Exception:
+            content_count = 0
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": _("إرسال '{}' كنشرة بريدية").format(str(template)),
+            "email_template": template,
+            "active_count": active_count,
+            "content_count": content_count,
+            "total_count": active_count + content_count,
+            "opts": self.model._meta,
+        }
+        return TemplateResponse(request, "admin/main/emailtemplate/send_newsletter.html", context)
+
+
+@admin.register(CustomPage)
+class CustomPageAdmin(admin.ModelAdmin):
+    list_display = (
+        "display_title_col",
+        "slug",
+        "is_active",
+        "show_in_navbar",
+        "navbar_order",
+        "show_in_footer",
+        "footer_order",
+        "view_link",
+        "updated_at",
+    )
+    list_filter = ("is_active", "show_in_navbar", "show_in_footer")
+    search_fields = ("title", "title_ar", "slug")
+    prepopulated_fields = {"slug": ("title",)}
+    list_editable = ("is_active", "show_in_navbar", "navbar_order", "show_in_footer", "footer_order")
+    readonly_fields = ("created_at", "updated_at", "view_link")
+    ordering = ("navbar_order", "title")
+
+    formfield_overrides = {
+        __import__("django.db.models", fromlist=["TextField"]).TextField: {
+            "widget": __import__("django_ckeditor_5.widgets", fromlist=["CKEditor5Widget"]).CKEditor5Widget(
+                attrs={"class": "django_ckeditor_5"}, config_name="extends"
+            )
+        },
+    }
+
+    fieldsets = (
+        (
+            _("المعلومات الأساسية"),
+            {"fields": ("title", "title_ar", "slug", "is_active")},
+        ),
+        (
+            _("المحتوى"),
+            {"fields": ("body_ar", "body")},
+        ),
+        (
+            _("SEO"),
+            {
+                "fields": ("meta_description_ar", "meta_description"),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            _("ظهور في الشريط والتذييل"),
+            {
+                "fields": (
+                    "show_in_navbar",
+                    "navbar_order",
+                    "show_in_footer",
+                    "footer_order",
+                ),
+                "description": _(
+                    "حدد أين تظهر الصفحة. الترتيب: رقم أصغر = يظهر أولاً."
+                ),
+            },
+        ),
+        (
+            _("معلومات النظام"),
+            {"fields": ("view_link", "created_at", "updated_at"), "classes": ("collapse",)},
+        ),
+    )
+
+    def display_title_col(self, obj):
+        return obj.title_ar or obj.title
+    display_title_col.short_description = _("العنوان")
+
+    def view_link(self, obj):
+        if not obj.pk or not obj.slug:
+            return "-"
+        from django.urls import reverse
+        url = reverse("main:custom_page", kwargs={"slug": obj.slug})
+        return format_html(
+            '<a href="{}" target="_blank" class="button">'
+            '<i class="fas fa-external-link-alt"></i> عرض الصفحة'
+            "</a>",
+            url,
+        )
+    view_link.short_description = _("رابط الصفحة")
 
 
 @admin.register(PaidBanner)

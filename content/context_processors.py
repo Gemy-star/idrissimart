@@ -1,5 +1,5 @@
 from content.models import Country, HomeSlider
-from main.models import Notification
+from main.models import Notification, CustomPage
 from constance import config
 from django.db import models
 from content.verification_utils import get_verification_requirements
@@ -209,5 +209,10 @@ def paid_advertisements(request):
     context["banner_paid_ads"] = PaidBanner.get_active_ads(
         country_code=selected_country
     ).filter(ad_type=PaidBanner.AdType.BANNER)[:2]
+
+    # Custom pages for navbar and footer
+    active_pages = CustomPage.objects.filter(is_active=True)
+    context["custom_pages_navbar"] = active_pages.filter(show_in_navbar=True).order_by("navbar_order", "title")
+    context["custom_pages_footer"] = active_pages.filter(show_in_footer=True).order_by("footer_order", "title")
 
     return context

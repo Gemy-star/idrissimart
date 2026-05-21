@@ -1,0 +1,216 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}إرسال النشرة البريدية{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:main_newslettersubscriber_changelist' %}">مشتركو النشرة</a>
+    &rsaquo; إرسال النشرة البريدية
+</div>
+{% endblock %}
+
+{% block content %}
+<style>
+.nl-tabs { display:flex; gap:0; border-bottom:2px solid #79aec8; margin-bottom:24px; }
+.nl-tab  { padding:10px 22px; cursor:pointer; font-weight:600; color:#555; background:#f8f9fa; border:1px solid #ddd; border-bottom:none; border-radius:4px 4px 0 0; margin-right:4px; }
+.nl-tab.active { background:#fff; color:#447e9b; border-bottom:2px solid #fff; margin-bottom:-2px; }
+.nl-panel { display:none; } .nl-panel.active { display:block; }
+.stat-box { display:inline-flex; flex-direction:column; align-items:center; padding:14px 28px; background:#e8f4f8; border:1px solid #b8d4e0; border-radius:8px; margin-bottom:20px; }
+.stat-box .num { font-size:2rem; font-weight:700; color:#447e9b; line-height:1; }
+.stat-box .lbl { font-size:.8rem; color:#666; margin-top:4px; }
+#preview-frame { width:100%; min-height:340px; border:1px solid #ddd; border-radius:4px; background:#fff; }
+.tpl-row { display:flex; gap:8px; align-items:center; margin-bottom:12px; }
+.tpl-row select { flex:1; }
+.char-count { font-size:.78rem; color:#888; margin-top:4px; }
+</style>
+
+{% if messages %}
+<ul class="messagelist">
+    {% for msg in messages %}
+    <li class="{{ msg.tags }}">{{ msg }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+<!-- Tabs nav -->
+<div class="nl-tabs">
+    <div class="nl-tab active" data-tab="compose">✉️ إنشاء وإرسال</div>
+    <div class="nl-tab" data-tab="preview">👁️ معاينة</div>
+    <div class="nl-tab" data-tab="stats">📊 إحصائيات</div>
+</div>
+
+<!-- ══ TAB 1: Compose ══════════════════════════════════════════════ -->
+<div class="nl-panel active" id="tab-compose">
+
+    <div class="stat-box">
+        <span class="num">{{ active_count }}</span>
+        <span class="lbl">مشترك نشط</span>
+    </div>
+
+    <form method="post" id="nl-form">
+        {% csrf_token %}
+
+        <!-- Template selector -->
+        <div class="form-row">
+            <div>
+                <label for="tmpl-select"><strong>قالب بريد إلكتروني (اختياري):</strong></label>
+                <p class="help">اختر قالباً جاهزاً لتعبئة الحقول تلقائياً، أو اتركه فارغاً وأدخل المحتوى يدوياً.</p>
+                <div class="tpl-row">
+                    <select id="tmpl-select">
+                        <option value="">— اختر قالباً —</option>
+                        {% for tmpl in email_templates %}
+                        <option value="{{ tmpl.pk }}" data-preview-url="{% url 'admin:newslettersubscriber_template_preview' tmpl.pk %}">
+                            {{ tmpl.name_ar|default:tmpl.name }} ({{ tmpl.key }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <button type="button" id="load-tmpl-btn" class="button">تحميل القالب</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Subject -->
+        <div class="form-row">
+            <div>
+                <label for="id_subject"><strong>موضوع الرسالة:</strong> <span style="color:red">*</span></label>
+                <input type="text" name="subject" id="id_subject" class="vTextField"
+                       placeholder="أدخل موضوع النشرة البريدية..." required
+                       value="{{ request.POST.subject|default:'' }}"
+                       style="width:100%; max-width:700px;">
+                <div class="char-count"><span id="subj-len">0</span> حرف</div>
+            </div>
+        </div>
+
+        <!-- Body -->
+        <div class="form-row">
+            <div>
+                <label for="id_body_html"><strong>محتوى الرسالة (HTML):</strong> <span style="color:red">*</span></label>
+                <p class="help">يمكن استخدام HTML كامل. المتغيرات المتاحة: <code>{{site_name}}</code>, <code>{{site_url}}</code></p>
+                <textarea name="body_html" id="id_body_html" rows="16"
+                          style="width:100%; font-family:monospace; font-size:13px;"
+                          placeholder="أدخل محتوى HTML للنشرة...">{{ request.POST.body_html|default:'' }}</textarea>
+                <div class="char-count"><span id="body-len">0</span> حرف</div>
+            </div>
+        </div>
+
+        <!-- Options row -->
+        <div class="form-row" style="display:flex; gap:32px; align-items:flex-start; flex-wrap:wrap;">
+            <div>
+                <label style="font-weight:600;">
+                    <input type="checkbox" name="test_mode" value="1"
+                           id="id_test_mode" {% if request.POST.test_mode %}checked{% endif %}>
+                    وضع الاختبار — إرسال إلى بريدي فقط
+                </label>
+                <p class="help">عند التفعيل، تُرسل رسالة واحدة إلى البريد الافتراضي للموقع للتحقق من المظهر قبل الإرسال الفعلي.</p>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="submit-row" style="margin-top:16px;">
+            <button type="button" id="preview-btn" class="button" style="margin-left:8px;">
+                👁️ معاينة
+            </button>
+            <input type="submit" value="📤 إرسال النشرة" class="default"
+                   onclick="return confirmSend(this);">
+        </div>
+    </form>
+</div>
+
+<!-- ══ TAB 2: Preview ═════════════════════════════════════════════ -->
+<div class="nl-panel" id="tab-preview">
+    <p style="color:#666; margin-bottom:12px;">اضغط <strong>معاينة</strong> في تبويب الإنشاء لتحديث العرض.</p>
+    <div style="border:1px solid #ddd; border-radius:6px; overflow:hidden;">
+        <div style="background:#f0f0f0; padding:8px 14px; font-size:.85rem; color:#444;">
+            <strong>الموضوع:</strong> <span id="preview-subject">—</span>
+        </div>
+        <iframe id="preview-frame" srcdoc="" title="معاينة النشرة"></iframe>
+    </div>
+</div>
+
+<!-- ══ TAB 3: Stats ═══════════════════════════════════════════════ -->
+<div class="nl-panel" id="tab-stats">
+    <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:24px;">
+        <div class="stat-box">
+            <span class="num">{{ active_count }}</span>
+            <span class="lbl">مشترك نشط (main)</span>
+        </div>
+    </div>
+    <p>
+        <a href="{% url 'admin:main_newslettersubscriber_changelist' %}?is_active__exact=1" class="button">
+            عرض المشتركين النشطين
+        </a>
+        &nbsp;
+        <a href="{% url 'admin:main_newslettersubscriber_changelist' %}" class="button">
+            إدارة جميع المشتركين
+        </a>
+    </p>
+    <p style="color:#888; font-size:.85rem; margin-top:16px;">
+        ملاحظة: يشمل الإرسال الفعلي أيضاً المشتركين من نموذج المحتوى (Newsletter).
+    </p>
+</div>
+
+<script>
+// ── Tabs ──────────────────────────────────────────────────────────
+document.querySelectorAll('.nl-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+        var id = this.dataset.tab;
+        document.querySelectorAll('.nl-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.nl-panel').forEach(p => p.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('tab-' + id).classList.add('active');
+    });
+});
+
+// ── Char counters ─────────────────────────────────────────────────
+var subjEl = document.getElementById('id_subject');
+var bodyEl = document.getElementById('id_body_html');
+function updateCounts() {
+    document.getElementById('subj-len').textContent = subjEl.value.length;
+    document.getElementById('body-len').textContent = bodyEl.value.length;
+}
+subjEl.addEventListener('input', updateCounts);
+bodyEl.addEventListener('input', updateCounts);
+updateCounts();
+
+// ── Load template via AJAX ────────────────────────────────────────
+document.getElementById('load-tmpl-btn').addEventListener('click', function() {
+    var sel = document.getElementById('tmpl-select');
+    var opt = sel.options[sel.selectedIndex];
+    if (!opt || !opt.value) { alert('اختر قالباً أولاً'); return; }
+    var url = opt.dataset.previewUrl;
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.subject) subjEl.value = data.subject;
+            if (data.body)    bodyEl.value = data.body;
+            updateCounts();
+        })
+        .catch(function() { alert('تعذّر تحميل القالب'); });
+});
+
+// ── Preview ───────────────────────────────────────────────────────
+document.getElementById('preview-btn').addEventListener('click', function() {
+    var subj = subjEl.value || '(بدون موضوع)';
+    var html = bodyEl.value || '<p style="color:#aaa">لا يوجد محتوى</p>';
+    document.getElementById('preview-subject').textContent = subj;
+    document.getElementById('preview-frame').srcdoc = html;
+    // Switch to preview tab
+    document.querySelector('[data-tab="preview"]').click();
+});
+
+// ── Confirm send ──────────────────────────────────────────────────
+function confirmSend(btn) {
+    var isTest = document.getElementById('id_test_mode').checked;
+    var count  = {{ active_count }};
+    var msg = isTest
+        ? 'إرسال رسالة اختبار إلى بريدك فقط؟'
+        : 'إرسال النشرة إلى ' + count + ' مشترك نشط؟\nهذه العملية لا يمكن التراجع عنها.';
+    if (!confirm(msg)) return false;
+    btn.value = '⏳ جاري الإرسال...';
+    btn.disabled = true;
+    return true;
+}
+</script>
+{% endblock %}

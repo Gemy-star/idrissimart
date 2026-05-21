@@ -194,11 +194,14 @@ CSRF_TRUSTED_ORIGINS = [
 # =======================
 # Email / SMTP
 # =======================
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost")
-EMAIL_PORT = int(os.getenv("EMAIL_PORT", 25))
-EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "False").lower() in ("true", "1")
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "").strip()
+_sendgrid_configured = bool(SENDGRID_API_KEY) and SENDGRID_API_KEY != "your_sendgrid_api_key"
+
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.sendgrid.net" if _sendgrid_configured else "localhost")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587 if _sendgrid_configured else 25))
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True" if _sendgrid_configured else "False").lower() in ("true", "1")
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "apikey" if _sendgrid_configured else "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", SENDGRID_API_KEY if _sendgrid_configured else "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "admin@idrissimart.com")
-SERVER_EMAIL = os.getenv("SERVER_EMAIL", "admin@idrissimart.com")
+SERVER_EMAIL = os.getenv("SERVER_EMAIL", DEFAULT_FROM_EMAIL)

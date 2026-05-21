@@ -327,6 +327,14 @@ class RegisterView(CreateView):
         # Check if email verification is required
         email_verification_required = is_email_verification_required()
 
+        register_flags = {
+            "show_username": getattr(config, "REGISTER_SHOW_USERNAME", True),
+            "show_country": getattr(config, "REGISTER_SHOW_COUNTRY", True),
+            "show_phone": getattr(config, "REGISTER_SHOW_PHONE", True),
+            "recaptcha_enabled": getattr(config, "RECAPTCHA_ENABLED", True),
+            "require_confirm_password": getattr(config, "REGISTER_REQUIRE_CONFIRM_PASSWORD", True),
+        }
+
         return render(
             request,
             self.template_name,
@@ -336,6 +344,7 @@ class RegisterView(CreateView):
                 "profile_type_settings": profile_type_settings,
                 "phone_verification_required": phone_verification_required,
                 "email_verification_required": email_verification_required,
+                **register_flags,
             },
         )
 
@@ -359,6 +368,14 @@ class RegisterView(CreateView):
             "enable_educational": getattr(
                 config, "ENABLE_EDUCATIONAL_REGISTRATION", False
             ),
+        }
+
+        register_flags = {
+            "show_username": getattr(config, "REGISTER_SHOW_USERNAME", True),
+            "show_country": getattr(config, "REGISTER_SHOW_COUNTRY", True),
+            "show_phone": getattr(config, "REGISTER_SHOW_PHONE", True),
+            "recaptcha_enabled": getattr(config, "RECAPTCHA_ENABLED", True),
+            "require_confirm_password": getattr(config, "REGISTER_REQUIRE_CONFIRM_PASSWORD", True),
         }
 
         form = self.form_class(request.POST)
@@ -411,6 +428,7 @@ class RegisterView(CreateView):
                             "countries": countries,
                             "profile_type_settings": profile_type_settings,
                             "phone_verification_required": phone_verification_required,
+                            **register_flags,
                         },
                     )
 
@@ -440,6 +458,7 @@ class RegisterView(CreateView):
                             "countries": countries,
                             "profile_type_settings": profile_type_settings,
                             "phone_verification_required": phone_verification_required,
+                            **register_flags,
                         },
                     )
 
@@ -564,6 +583,7 @@ class RegisterView(CreateView):
                     "profile_type_settings": profile_type_settings,
                     "phone_verification_required": phone_verification_required,
                     "email_verification_required": email_verification_required_err,
+                    **register_flags,
                 },
             )
 

@@ -175,6 +175,16 @@
 
                             <div class="info-row">
                                 <div class="label">
+                                    <i class="fas fa-sync-alt me-1"></i>
+                                    {% trans "آخر تحديث" %}
+                                </div>
+                                <div class="value" dir="ltr">
+                                    {{ order.updated_at|date:"Y-m-d H:i" }}
+                                </div>
+                            </div>
+
+                            <div class="info-row">
+                                <div class="label">
                                     <i class="fas fa-user me-1"></i>
                                     {% trans "العميل" %}
                                 </div>
@@ -182,6 +192,10 @@
                                     {{ order.user.get_full_name|default:order.user.username }}
                                     <br>
                                     <small class="text-muted">{{ order.user.email }}</small>
+                                    {% if order.user.phone %}
+                                    <br>
+                                    <small class="text-muted" dir="ltr"><i class="fas fa-phone me-1"></i>{{ order.user.phone }}</small>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -284,6 +298,14 @@
                                 </div>
                             </div>
                             {% endif %}
+
+                            <div class="info-row">
+                                <div class="label">
+                                    <i class="fas fa-coins me-1"></i>
+                                    {% trans "العملة" %}
+                                </div>
+                                <div class="value">{{ order.currency }} ({{ currency_symbol }})</div>
+                            </div>
                         </div>
                     </div>
 
@@ -411,6 +433,53 @@
                                                 </a>
                                                 <br>
                                                 <small class="text-muted">#{{ item.ad.id }}</small>
+                                                {% if item.ad.category %}<br><small class="text-muted">{{ item.ad.category.display_name }}</small>{% endif %}
+
+                                                <!-- Ad Feature Flags -->
+                                                <div class="mt-1 d-flex flex-wrap gap-1">
+                                                    {% if item.ad.is_pinned %}
+                                                    <span class="badge bg-dark"><i class="fas fa-thumbtack me-1"></i>{% trans "مثبت" %}</span>
+                                                    {% endif %}
+                                                    {% if item.ad.is_urgent %}
+                                                    <span class="badge bg-danger"><i class="fas fa-bolt me-1"></i>{% trans "عاجل" %}</span>
+                                                    {% endif %}
+                                                    {% if item.ad.is_highlighted %}
+                                                    <span class="badge bg-warning text-dark"><i class="fas fa-star me-1"></i>{% trans "مميز" %}</span>
+                                                    {% endif %}
+                                                </div>
+
+                                                <!-- Active AdFeatures -->
+                                                {% with now=request.now %}
+                                                {% for feat in item.ad.features.all %}
+                                                {% if feat.is_active %}
+                                                <div class="mt-1">
+                                                    <span class="badge bg-info text-dark" style="font-size:.72rem;">
+                                                        <i class="fas fa-check-circle me-1"></i>{{ feat.get_feature_type_display }}
+                                                        <span class="opacity-75 ms-1">{% trans "حتى" %} {{ feat.end_date|date:"Y/m/d" }}</span>
+                                                    </span>
+                                                </div>
+                                                {% endif %}
+                                                {% endfor %}
+                                                {% endwith %}
+
+                                                <!-- Active Upgrade History -->
+                                                {% for upg in item.ad.upgrade_history.all %}
+                                                {% if upg.is_active %}
+                                                <div class="mt-1">
+                                                    <span class="badge bg-purple" style="background:#7c3aed;font-size:.72rem;">
+                                                        <i class="fas fa-arrow-up me-1"></i>{{ upg.get_upgrade_type_display }}
+                                                        <span class="opacity-75 ms-1">{% trans "حتى" %} {{ upg.end_date|date:"Y/m/d" }}</span>
+                                                        <span class="opacity-75">· {{ upg.price_paid }} {{ order.currency }}</span>
+                                                    </span>
+                                                </div>
+                                                {% endif %}
+                                                {% endfor %}
+
+                                                {% if item.ad.features_price > 0 %}
+                                                <div class="mt-1">
+                                                    <small class="text-muted"><i class="fas fa-tags me-1"></i>{% trans "تكلفة الميزات:" %} <strong>{{ item.ad.features_price }} {{ order.currency }}</strong></small>
+                                                </div>
+                                                {% endif %}
                                             </div>
                                         </div>
                                     </td>
@@ -479,6 +548,16 @@
                         <div class="value">{{ order.city }}</div>
                     </div>
 
+                    {% if order.country %}
+                    <div class="info-row">
+                        <div class="label">
+                            <i class="fas fa-flag text-primary me-1"></i>
+                            {% trans "الدولة" %}
+                        </div>
+                        <div class="value">{{ order.country.name }}</div>
+                    </div>
+                    {% endif %}
+
                     {% if order.postal_code %}
                     <div class="info-row">
                         <div class="label">
@@ -486,6 +565,16 @@
                             {% trans "الرمز البريدي" %}
                         </div>
                         <div class="value">{{ order.postal_code }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if order.notes %}
+                    <div class="info-row">
+                        <div class="label">
+                            <i class="fas fa-sticky-note text-secondary me-1"></i>
+                            {% trans "ملاحظات" %}
+                        </div>
+                        <div class="value">{{ order.notes }}</div>
                     </div>
                     {% endif %}
                 </div>

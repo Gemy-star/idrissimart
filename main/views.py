@@ -1456,6 +1456,25 @@ class TermsConditionsView(TemplateView):
         return context
 
 
+class CustomPageView(TemplateView):
+    """Displays any admin-created CustomPage by slug."""
+
+    template_name = "pages/custom_page.html"
+
+    def get(self, request, slug, **kwargs):
+        from django.shortcuts import get_object_or_404
+        from .models import CustomPage
+        page = get_object_or_404(CustomPage, slug=slug, is_active=True)
+        return self.render_to_response(self.get_context_data(page=page))
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        page = kwargs.get("page")
+        context["page"] = page
+        context["page_title"] = page.display_title if page else ""
+        return context
+
+
 @login_required
 @require_POST
 def add_to_cart(request):
@@ -2269,6 +2288,36 @@ def get_category_price_api(request, category_id):
         if effective_price == 0:
             effective_price = site_base_fee
 
+        # Build per-category feature prices (walk up to parent, then constance defaults)
+        from .models import AdFeaturePrice
+        from constance import config as _cfg
+
+        _FP_KEY = {
+            "featured_section": "highlighted",
+            "pinned": "pinned",
+            "video": "add_video",
+            "contact_for_price": "contact_for_price",
+            "facebook_share": "facebook_share",
+        }
+        _DEFAULTS = {
+            "highlighted": float(getattr(_cfg, "FEATURE_HIGHLIGHTED_PRICE", 50.0)),
+            "pinned": float(getattr(_cfg, "FEATURE_PINNED_PRICE", 75.0)),
+            "auto_refresh": float(getattr(_cfg, "FEATURE_AUTO_REFRESH_PRICE", 35.0)),
+            "add_video": float(getattr(_cfg, "FEATURE_ADD_VIDEO_PRICE", 25.0)),
+            "contact_for_price": float(getattr(_cfg, "FEATURE_CONTACT_FOR_PRICE", 0.0)),
+            "facebook_share": float(getattr(_cfg, "FACEBOOK_SHARE_AD_PRICE", 100.0)),
+        }
+        feature_prices = dict(_DEFAULTS)
+        cat = category
+        while cat is not None:
+            for fp in AdFeaturePrice.objects.filter(
+                category=cat, is_active=True
+            ).values("feature_type", "price"):
+                key = _FP_KEY.get(fp["feature_type"])
+                if key:
+                    feature_prices[key] = float(fp["price"])
+            cat = getattr(cat, "parent", None)
+
         return JsonResponse(
             {
                 "category_id": category.id,
@@ -2277,6 +2326,7 @@ def get_category_price_api(request, category_id):
                 "has_own_price": has_own_price,
                 "site_base_fee": site_base_fee,
                 "currency": "ج.م",
+                "feature_prices": feature_prices,
             }
         )
     except Category.DoesNotExist:

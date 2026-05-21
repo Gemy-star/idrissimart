@@ -23,7 +23,32 @@ def ad_features_upgrade(request, ad_id):
     ad = get_object_or_404(ClassifiedAd, id=ad_id, user=request.user)
     site_config = SiteConfiguration.get_solo()
 
-    # Get user's active package to determine feature prices
+    category = ad.category
+
+    from .classifieds_views import _get_category_feature_price
+
+    # Build feature prices: check AdFeaturePrice per category first, then constance
+    feature_prices = {
+        "highlighted": _get_category_feature_price(
+            category, "featured_section", "FEATURE_HIGHLIGHTED_PRICE", 50.0
+        ),
+        "pinned": _get_category_feature_price(
+            category, "pinned", "FEATURE_PINNED_PRICE", 75.0
+        ),
+        "urgent": Decimal(str(getattr(config, "FEATURE_URGENT_PRICE", 30.0))),
+        "auto_refresh": Decimal(str(getattr(config, "FEATURE_AUTO_REFRESH_PRICE", 35.0))),
+        "contact_for_price": _get_category_feature_price(
+            category, "contact_for_price", "FEATURE_CONTACT_FOR_PRICE", 0.0
+        ),
+        "facebook_share": _get_category_feature_price(
+            category, "facebook_share", "FACEBOOK_SHARE_AD_PRICE", 100.0
+        ),
+        "video": _get_category_feature_price(
+            category, "video", "FEATURE_ADD_VIDEO_PRICE", 25.0
+        ),
+    }
+
+    # Gift / free single-ad package — all features are free
     active_package = (
         UserPackage.objects.filter(
             user=request.user,
@@ -33,44 +58,11 @@ def ad_features_upgrade(request, ad_id):
         .order_by("expiry_date")
         .first()
     )
+    if active_package and not active_package.package:
+        feature_prices = {k: Decimal("0.00") for k in feature_prices}
 
-    # Determine feature prices based on package or site defaults
-    if active_package and active_package.package:
-        package = active_package.package
-        feature_prices = {
-            "highlighted": Decimal(str(package.feature_highlighted_price)),
-            "pinned": Decimal(str(package.feature_pinned_price)),
-            "auto_refresh": Decimal(str(package.feature_auto_refresh_price)),
-            "contact_for_price": Decimal(str(package.feature_contact_for_price)),
-            "facebook_share": Decimal("100.00"),  # Fixed price for FB share
-            "video": Decimal(str(package.feature_add_video_price)),
-        }
-        pricing_source = "package"
-        active_package_info = active_package
-    elif active_package and not active_package.package:
-        # Gift / free single-ad package — all features are free
-        feature_prices = {
-            "highlighted": Decimal("0.00"),
-            "pinned": Decimal("0.00"),
-            "auto_refresh": Decimal("0.00"),
-            "contact_for_price": Decimal("0.00"),
-            "facebook_share": Decimal("0.00"),
-            "video": Decimal("0.00"),
-        }
-        pricing_source = "package"
-        active_package_info = active_package
-    else:
-        # Use constance prices (managed from admin)
-        feature_prices = {
-            "highlighted": Decimal(str(getattr(config, "FEATURE_HIGHLIGHTED_PRICE", 50.0))),
-            "pinned": Decimal(str(getattr(config, "FEATURE_PINNED_PRICE", 75.0))),
-            "auto_refresh": Decimal(str(getattr(config, "FEATURE_AUTO_REFRESH_PRICE", 35.0))),
-            "contact_for_price": Decimal(str(getattr(config, "FEATURE_CONTACT_FOR_PRICE", 0.0))),
-            "facebook_share": Decimal(str(getattr(config, "FACEBOOK_SHARE_AD_PRICE", 35.0))),
-            "video": Decimal(str(getattr(config, "FEATURE_ADD_VIDEO_PRICE", 25.0))),
-        }
-        pricing_source = "constance"
-        active_package_info = None
+    pricing_source = "category"
+    active_package_info = active_package
 
     if request.method == "POST":
         selected_features_json = request.POST.get("selected_features", "{}")
@@ -93,6 +85,11 @@ def ad_features_upgrade(request, ad_id):
         if selected_features.get("pinned") and not ad.is_pinned:
             total_cost += feature_prices["pinned"]
             features_to_enable["pinned"] = True
+
+        # Urgent
+        if selected_features.get("urgent") and not ad.is_urgent:
+            total_cost += feature_prices["urgent"]
+            features_to_enable["urgent"] = True
 
         # Auto Refresh
         if selected_features.get("auto_refresh") and not ad.auto_refresh:
@@ -147,6 +144,10 @@ def ad_features_upgrade(request, ad_id):
             if features_to_enable.get("pinned"):
                 ad.is_pinned = True
                 updated_features.append(_("إعلان مثبت"))
+
+            if features_to_enable.get("urgent"):
+                ad.is_urgent = True
+                updated_features.append(_("إعلان عاجل"))
 
             if features_to_enable.get("auto_refresh"):
                 ad.auto_refresh = True

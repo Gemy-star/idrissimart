@@ -72,6 +72,7 @@
                 <input type="hidden" name="first_name" value="-" />
                 <input type="hidden" name="last_name" value="-" />
                 <!-- Username -->
+                {% if show_username %}
                 <div class="form-group">
                     <label class="form-label">
                         {% trans "اسم المستخدم" %}
@@ -89,6 +90,7 @@
                     </div>
                     <span class="form-helper">{% trans "يجب أن يكون 3 أحرف على الأقل" %}</span>
                 </div>
+                {% endif %}
                 <!-- Email -->
                 <div class="form-group">
                     <label class="form-label">
@@ -143,6 +145,7 @@
                     {% endif %}
                 </div>
                 <!-- Country Selection -->
+                {% if show_country %}
                 <div class="form-group">
                     <label class="form-label">
                         {% trans "الدولة" %}
@@ -166,7 +169,9 @@
                         <i class="fas fa-globe"></i>
                     </div>
                 </div>
+                {% endif %}
                 <!-- Phone -->
+                {% if show_phone %}
                 <div class="form-group">
                     <label class="form-label">
                         {% trans "رقم الجوال" %}
@@ -235,6 +240,7 @@
                     </div>
                 </div>
                 {% endif %}
+                {% endif %}{# end show_phone #}
                 <!-- Extra fields for selected profile types -->
                 <div id="extra_fields_container">
                     <!-- Merchant fields -->
@@ -348,6 +354,7 @@
                     <span class="form-helper">{% trans "يجب أن تكون 8 أحرف على الأقل" %}</span>
                 </div>
                 <!-- Confirm Password -->
+                {% if require_confirm_password %}
                 <div class="form-group">
                     <label class="form-label">
                         {% trans "تأكيد كلمة المرور" %}
@@ -370,18 +377,18 @@
                         <i class="fas fa-lock"></i>
                     </div>
                 </div>
-                <!-- Terms & Conditions -->
-                <div class="checkbox-group">
-                    <input type="checkbox" name="terms_accepted" id="terms_accepted" required />
-                    <label for="terms_accepted">
-                        {% trans "أوافق على" %}
-                        <a href="{% url 'main:terms' %}" target="_blank">{% trans "الشروط والأحكام" %}</a>
-                        {% trans "و" %}
-                        <a href="{% url 'main:privacy' %}" target="_blank">{% trans "سياسة الخصوصية" %}</a>
-                    </label>
-                </div>
+                {% endif %}
+                <!-- Terms & Conditions — auto-accepted on submit -->
+                <input type="hidden" name="terms_accepted" value="on" />
+                <p class="small text-muted mb-3">
+                    {% trans "بإنشاء حساب فإنك توافق على" %}
+                    <a href="{% url 'main:terms' %}" target="_blank">{% trans "الشروط والأحكام" %}</a>
+                    {% trans "و" %}
+                    <a href="{% url 'main:privacy' %}" target="_blank">{% trans "سياسة الخصوصية" %}</a>
+                </p>
 
                 <!-- Google reCAPTCHA -->
+                {% if recaptcha_enabled and form.captcha %}
                 <div class="form-group">
                     <div class="d-flex align-items-center gap-2 mb-2">
                         <i class="fas fa-shield-alt text-success"></i>
@@ -396,11 +403,8 @@
                             {{ form.captcha.errors.0 }}
                         </div>
                     {% endif %}
-                    <small class="text-muted d-block mt-2">
-                        <i class="fas fa-info-circle me-1"></i>
-                        {% trans "يرجى تحديد المربع أعلاه للتحقق من أنك إنسان وليس روبوت" %}
-                    </small>
                 </div>
+                {% endif %}
 
                 <button type="submit" class="btn-auth btn-auth-primary">
                     <i class="fas fa-user-plus"></i>
@@ -534,6 +538,16 @@
             }
         }
 
+        function getCsrfToken() {
+            const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (tokenInput && tokenInput.value) return tokenInput.value;
+
+            const tokenCookie = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('csrftoken='));
+            return tokenCookie ? decodeURIComponent(tokenCookie.split('=')[1]) : '';
+        }
+
         // Form validation and loading state
         document.getElementById('registerForm').addEventListener('submit', function(e) {
             const password = document.getElementById('password').value
@@ -646,9 +660,10 @@
             fetch('{% url "main:send_phone_code" %}', {
                 method: 'POST',
                 credentials: 'same-origin',
+                referrerPolicy: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
+                    'X-CSRFToken': getCsrfToken()
                 },
                 body: JSON.stringify({
                     phone: phone,
@@ -708,9 +723,10 @@
             fetch('{% url "main:verify_phone_code" %}', {
                 method: 'POST',
                 credentials: 'same-origin',
+                referrerPolicy: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
+                    'X-CSRFToken': getCsrfToken()
                 },
                 body: JSON.stringify({
                     phone: phone,
@@ -921,9 +937,10 @@
             fetch('{% url "main:send_phone_code" %}', {
                 method: 'POST',
                 credentials: 'same-origin',
+                referrerPolicy: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
+                    'X-CSRFToken': getCsrfToken()
                 },
                 body: JSON.stringify({
                     email: email,
@@ -981,9 +998,10 @@
             fetch('{% url "main:verify_phone_code" %}', {
                 method: 'POST',
                 credentials: 'same-origin',
+                referrerPolicy: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
+                    'X-CSRFToken': getCsrfToken()
                 },
                 body: JSON.stringify({
                     email: email,
@@ -1067,4 +1085,3 @@
     </script>
 
 {% endblock %}
-

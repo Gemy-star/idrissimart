@@ -242,15 +242,15 @@
 
 <!-- Status Row -->
 <div class="detail-card">
-    <div style="display:flex;flex-wrap:wrap;gap:1rem;align-items:center;">
+    <div style="display:flex;flex-wrap:wrap;gap:1.5rem;align-items:flex-start;">
         <div>
-            <span style="font-size:.8rem;color:var(--text-muted,#6c757d);font-weight:600;text-transform:uppercase;">{% trans "حالة الطلب" %}</span><br>
+            <span style="font-size:.78rem;color:var(--text-muted,#6c757d);font-weight:600;text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.3rem;">{% trans "حالة الطلب" %}</span>
             {% if order.status == 'delivered' %}
                 <span class="status-badge delivered"><i class="fas fa-check-circle"></i>{{ order.get_status_display }}</span>
             {% elif order.status == 'shipped' %}
                 <span class="status-badge shipped"><i class="fas fa-truck"></i>{{ order.get_status_display }}</span>
             {% elif order.status == 'processing' %}
-                <span class="status-badge processing"><i class="fas fa-cog"></i>{{ order.get_status_display }}</span>
+                <span class="status-badge processing"><i class="fas fa-cog fa-spin"></i>{{ order.get_status_display }}</span>
             {% elif order.status == 'pending' %}
                 <span class="status-badge pending"><i class="fas fa-clock"></i>{{ order.get_status_display }}</span>
             {% elif order.status == 'cancelled' %}
@@ -263,7 +263,7 @@
         </div>
 
         <div>
-            <span style="font-size:.8rem;color:var(--text-muted,#6c757d);font-weight:600;text-transform:uppercase;">{% trans "حالة الدفع" %}</span><br>
+            <span style="font-size:.78rem;color:var(--text-muted,#6c757d);font-weight:600;text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.3rem;">{% trans "حالة الدفع" %}</span>
             {% if order.payment_status == 'paid' %}
                 <span class="status-badge paid"><i class="fas fa-check"></i>{{ order.get_payment_status_display }}</span>
             {% elif order.payment_status == 'partial' %}
@@ -277,8 +277,24 @@
 
         {% if order.payment_method %}
         <div>
-            <span style="font-size:.8rem;color:var(--text-muted,#6c757d);font-weight:600;text-transform:uppercase;">{% trans "طريقة الدفع" %}</span><br>
-            <span class="info-value"><i class="fas fa-credit-card me-1"></i>{{ order.get_payment_method_display }}</span>
+            <span style="font-size:.78rem;color:var(--text-muted,#6c757d);font-weight:600;text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.3rem;">{% trans "طريقة الدفع" %}</span>
+            <span style="font-size:.92rem;font-weight:600;color:var(--text-primary,#212529);"><i class="fas fa-credit-card me-1" style="color:var(--primary-color,#4b315e);"></i>{{ order.get_payment_method_display }}</span>
+        </div>
+        {% endif %}
+
+        <div>
+            <span style="font-size:.78rem;color:var(--text-muted,#6c757d);font-weight:600;text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.3rem;">{% trans "العملة" %}</span>
+            <span style="font-size:.92rem;font-weight:600;color:var(--text-primary,#212529);"><i class="fas fa-coins me-1" style="color:var(--primary-color,#4b315e);"></i>{{ order.currency }}</span>
+        </div>
+
+        {% if order.expires_at %}
+        <div>
+            <span style="font-size:.78rem;color:var(--text-muted,#6c757d);font-weight:600;text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.3rem;">{% trans "ينتهي في" %}</span>
+            <span style="font-size:.92rem;font-weight:600;{% if order.is_expired %}color:#dc2626;{% else %}color:var(--text-primary,#212529);{% endif %}">
+                <i class="fas fa-{% if order.is_expired %}exclamation-triangle{% else %}calendar-alt{% endif %} me-1"></i>
+                {{ order.expires_at|date:"Y/m/d g:i A" }}
+                {% if order.is_expired %}<span style="font-size:.75rem;background:rgba(220,38,38,.1);color:#dc2626;padding:.1rem .4rem;border-radius:6px;margin-right:.3rem;">{% trans "منتهي" %}</span>{% endif %}
+            </span>
         </div>
         {% endif %}
     </div>
@@ -349,9 +365,15 @@
                     <i class="fas fa-external-link-alt ms-1" style="font-size:.7rem;opacity:.5;"></i>
                 </a>
             </h6>
-            <div class="item-meta">
+            <div class="item-meta" style="display:flex;flex-wrap:wrap;gap:.5rem .9rem;margin-top:.3rem;">
+                {% if item.ad.category %}
+                <span><i class="fas fa-tag me-1" style="color:var(--primary-color,#4b315e);"></i>{{ item.ad.category.display_name }}</span>
+                {% endif %}
                 {% if item.ad.user %}
                 <span><i class="fas fa-store me-1"></i>{{ item.ad.user.get_full_name|default:item.ad.user.username }}</span>
+                {% if item.ad.user.phone %}
+                <span dir="ltr"><i class="fas fa-phone me-1"></i>{{ item.ad.user.phone }}</span>
+                {% endif %}
                 {% endif %}
             </div>
         </div>
@@ -364,11 +386,11 @@
     <div class="totals-table mt-3">
         <div class="totals-row">
             <span>{% trans "المجموع الفرعي" %}</span>
-            <span>{{ order.total_amount|add:"-"|add:order.delivery_fee }} {{ order.currency }}</span>
+            <span>{{ subtotal }} {{ order.currency }}</span>
         </div>
         {% if order.delivery_fee > 0 %}
         <div class="totals-row">
-            <span>{% trans "رسوم التوصيل" %}</span>
+            <span><i class="fas fa-truck me-1" style="opacity:.6;"></i>{% trans "رسوم التوصيل" %}</span>
             <span>{{ order.delivery_fee }} {{ order.currency }}</span>
         </div>
         {% endif %}
@@ -428,7 +450,21 @@
     <div class="info-grid">
         <div class="info-item">
             <label>{% trans "رقم الطلب" %}</label>
-            <div class="info-value" dir="ltr">#{{ order.order_number }}</div>
+            <div class="info-value" dir="ltr" style="font-family:monospace;font-size:.9rem;">#{{ order.order_number }}</div>
+        </div>
+        <div class="info-item">
+            <label>{% trans "عدد المنتجات" %}</label>
+            <div class="info-value"><i class="fas fa-box me-1" style="opacity:.6;"></i>{{ order.get_items_count }} {% trans "منتج" %}</div>
+        </div>
+        <div class="info-item">
+            <label>{% trans "العملة" %}</label>
+            <div class="info-value">{{ order.currency }}</div>
+        </div>
+        <div class="info-item">
+            <label>{% trans "رسوم التوصيل" %}</label>
+            <div class="info-value">
+                {% if order.delivery_fee > 0 %}{{ order.delivery_fee }} {{ order.currency }}{% else %}<span style="color:#16a34a;">{% trans "مجاناً" %}</span>{% endif %}
+            </div>
         </div>
         <div class="info-item">
             <label>{% trans "تاريخ الطلب" %}</label>
@@ -443,8 +479,24 @@
             <label>{% trans "ينتهي في" %}</label>
             <div class="info-value {% if order.is_expired %}text-danger{% endif %}">
                 {{ order.expires_at|date:"Y/m/d g:i A" }}
-                {% if order.is_expired %}<i class="fas fa-exclamation-triangle ms-1"></i>{% endif %}
+                {% if order.is_expired %}&nbsp;<span style="font-size:.75rem;background:rgba(220,38,38,.1);color:#dc2626;padding:.1rem .4rem;border-radius:6px;">{% trans "منتهي" %}</span>{% endif %}
             </div>
+        </div>
+        {% endif %}
+        <div class="info-item">
+            <label>{% trans "العميل" %}</label>
+            <div class="info-value">{{ order.user.get_full_name|default:order.user.username }}</div>
+        </div>
+        {% if order.user.phone %}
+        <div class="info-item">
+            <label>{% trans "هاتف العميل" %}</label>
+            <div class="info-value" dir="ltr">{{ order.user.phone }}</div>
+        </div>
+        {% endif %}
+        {% if order.user.email %}
+        <div class="info-item">
+            <label>{% trans "بريد العميل" %}</label>
+            <div class="info-value" dir="ltr">{{ order.user.email }}</div>
         </div>
         {% endif %}
     </div>

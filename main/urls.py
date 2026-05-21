@@ -49,6 +49,7 @@ urlpatterns = [
     ),
     path("privacy/", views.PrivacyPolicyView.as_view(), name="privacy"),
     path("terms/", views.TermsConditionsView.as_view(), name="terms"),
+    path("pages/<slug:slug>/", views.CustomPageView.as_view(), name="custom_page"),
     path(
         "login/",
         auth_views.CustomLoginView.as_view(),

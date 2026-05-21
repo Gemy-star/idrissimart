@@ -2200,16 +2200,19 @@
                     });
             }
 
+            // Category selector event listeners only exist in create mode
+            if (mainCategorySelect) {
+
             // Remove invalid class on change
             mainCategorySelect.addEventListener('change', function() {
                 this.classList.remove('is-invalid');
             });
 
-            subcategorySelect.addEventListener('change', function() {
+            if (subcategorySelect) subcategorySelect.addEventListener('change', function() {
                 this.classList.remove('is-invalid');
             });
 
-            subSubcategorySelect.addEventListener('change', function() {
+            if (subSubcategorySelect) subSubcategorySelect.addEventListener('change', function() {
                 this.classList.remove('is-invalid');
             });
 
@@ -2352,7 +2355,7 @@
             });
 
             // Handle sub-subcategory change (Level 3)
-            subSubcategorySelect.addEventListener('change', function() {
+            if (subSubcategorySelect) subSubcategorySelect.addEventListener('change', function() {
                 // Remove invalid class
                 this.classList.remove('is-invalid');
 
@@ -2369,45 +2372,47 @@
                 }
             });
 
-            // Initialize on page load (for edit mode)
+            // Initialize on page load (create mode — set pre-selected category from form data)
             {% if form.category.value %}
                 const initialCategoryId = {{ form.category.value|default:"null" }};
 
-                // Fetch fresh pricing for initial category (edit mode)
+                // Always fetch fresh pricing for the initial category
                 fetchAndCachePrice(initialCategoryId);
 
-                // Check if it's a subcategory
-                let isSubcategory = false;
-                let parentCategoryId = null;
+                // DOM manipulation only needed in create mode (selects exist)
+                // In edit mode mainCategorySelect is null — category is read-only
+                if (mainCategorySelect) {
+                    // Check if it's a subcategory
+                    let isSubcategory = false;
+                    let parentCategoryId = null;
 
-                for (const [catId, subcats] of Object.entries(subcategoriesData)) {
-                    const foundSubcat = subcats.find(s => s.id === initialCategoryId);
-                    if (foundSubcat) {
-                        isSubcategory = true;
-                        parentCategoryId = catId;
-                        break;
+                    for (const [catId, subcats] of Object.entries(subcategoriesData)) {
+                        const foundSubcat = subcats.find(s => s.id === initialCategoryId);
+                        if (foundSubcat) {
+                            isSubcategory = true;
+                            parentCategoryId = catId;
+                            break;
+                        }
+                    }
+
+                    if (isSubcategory && parentCategoryId) {
+                        mainCategorySelect.value = parentCategoryId;
+                        mainCategorySelect.dispatchEvent(new Event('change'));
+                        setTimeout(() => {
+                            if (subcategorySelect) {
+                                subcategorySelect.value = initialCategoryId;
+                                hiddenCategoryInput.value = initialCategoryId;
+                            }
+                        }, 100);
+                    } else {
+                        mainCategorySelect.value = initialCategoryId;
+                        hiddenCategoryInput.value = initialCategoryId;
+                        mainCategorySelect.dispatchEvent(new Event('change'));
                     }
                 }
-
-                if (isSubcategory && parentCategoryId) {
-                    // Set main category
-                    mainCategorySelect.value = parentCategoryId;
-
-                    // Trigger change to populate subcategories
-                    mainCategorySelect.dispatchEvent(new Event('change'));
-
-                    // Set subcategory after a brief delay
-                    setTimeout(() => {
-                        subcategorySelect.value = initialCategoryId;
-                        hiddenCategoryInput.value = initialCategoryId;
-                    }, 100);
-                } else {
-                    // It's a main category
-                    mainCategorySelect.value = initialCategoryId;
-                    hiddenCategoryInput.value = initialCategoryId;
-                    mainCategorySelect.dispatchEvent(new Event('change'));
-                }
             {% endif %}
+
+            } // end if (mainCategorySelect)
 
             // ========== Custom Fields Logic ==========
             // Custom fields are rendered server-side by Django
@@ -2442,9 +2447,9 @@
                 }
             };
 
-            // Listen for category selection changes (removed mainCategorySelect as it has its own handler above)
-            subcategorySelect.addEventListener('change', checkCategoryChange);
-            subSubcategorySelect.addEventListener('change', checkCategoryChange);
+            // Listen for category selection changes (only in create mode)
+            if (subcategorySelect) subcategorySelect.addEventListener('change', checkCategoryChange);
+            if (subSubcategorySelect) subSubcategorySelect.addEventListener('change', checkCategoryChange);
 
             // ========== Mobile Verification Logic ==========
             const mobileInput = document.getElementById('{{ form.mobile_number.id_for_label }}');
@@ -2755,6 +2760,60 @@
             // Get user's free ads count (sum of all active packages)
             const freeAdsCount = {{ free_ads_remaining|default:0 }};
 
+            // ---- Feature price defaults (server-rendered, package/constance) ----
+            const defaultFeaturePrices = {
+                highlighted:      parseFloat('{{ feature_prices.highlighted|floatformat:False|default:"50" }}'),
+                pinned:           parseFloat('{{ feature_prices.pinned|floatformat:False|default:"75" }}'),
+                auto_refresh:     parseFloat('{{ feature_prices.auto_refresh|floatformat:False|default:"35" }}'),
+                add_video:        parseFloat('{{ feature_prices.add_video|floatformat:False|default:"25" }}'),
+                contact_for_price:parseFloat('{{ feature_prices.contact_for_price|floatformat:False|default:"0" }}'),
+                facebook_share:   parseFloat('{{ feature_prices.urgent|floatformat:False|default:"100" }}'),
+            };
+
+            /**
+             * Resolve effective feature prices for a category.
+             * Walks up categoriesPricing tree (parent_id links) to find per-category
+             * AdFeaturePrice values, then falls back to defaultFeaturePrices.
+             */
+            function getFeaturePricesForCategory(categoryId) {
+                const prices = Object.assign({}, defaultFeaturePrices);
+                if (!categoryId || typeof categoriesPricing === 'undefined') return prices;
+                const needed = Object.keys(prices);
+                let catId = String(categoryId);
+                const visited = new Set();
+                while (catId && !visited.has(catId)) {
+                    visited.add(catId);
+                    const data = categoriesPricing[catId];
+                    if (data && data.feature_prices) {
+                        needed.forEach(key => {
+                            if (data.feature_prices[key] !== undefined) {
+                                prices[key] = data.feature_prices[key];
+                            }
+                        });
+                    }
+                    catId = data ? String(data.parent_id || '') : '';
+                }
+                return prices;
+            }
+
+            /**
+             * Update each feature card's data-price attribute and displayed badge
+             * to reflect the prices for the currently selected category.
+             */
+            function updateFeaturePrices(categoryId) {
+                const prices = getFeaturePricesForCategory(categoryId);
+                featureCards.forEach(card => {
+                    const key = card.dataset.feature;
+                    if (key && prices[key] !== undefined) {
+                        card.dataset.price = prices[key];
+                        const badge = card.querySelector('.feature-price');
+                        if (badge) badge.textContent = prices[key] + ' ج.م';
+                    }
+                });
+                // Recalculate total with updated prices
+                calculateTotalCost();
+            }
+
             console.log('💵 Site Default Base Fee:', siteDefaultBaseFee, '| 🎁 Free Ads Count:', freeAdsCount);
 
             // ---- Price cache: seeded from server-rendered DOM prices ----
@@ -2827,32 +2886,34 @@
              */
             function fetchAndCachePrice(categoryId) {
                 if (!categoryId) {
-                    calculateTotalCost();
+                    updateFeaturePrices(null);
                     return;
                 }
 
-                // Render immediately with DOM-seeded price (always accurate at page load)
-                calculateTotalCost();
+                // Render immediately with DOM-seeded price + categoriesPricing feature prices
+                updateFeaturePrices(categoryId);
 
-                // Then confirm/refresh price from API (picks up admin changes without reload)
+                // Then confirm/refresh from API (picks up admin changes without reload)
                 fetch(`/api/category-price/${categoryId}/`)
                     .then(r => r.json())
                     .then(data => {
                         if (data.ad_creation_price !== undefined && data.ad_creation_price > 0) {
-                            // Only update cache if API returns a concrete price
                             categoryPriceCache[String(categoryId)] = data.ad_creation_price;
                             console.log('✅ API price for', categoryId, '→', data.ad_creation_price);
-                            calculateTotalCost(); // re-render with confirmed price
                         } else if (!categoryPriceCache[String(categoryId)]) {
-                            // API returned 0 AND we have no DOM-seeded price → use site base fee
                             categoryPriceCache[String(categoryId)] = siteDefaultBaseFee;
-                            calculateTotalCost();
                         }
-                        // If API returns 0 but DOM already seeded a non-zero price, keep DOM price
+                        // If API returned feature prices, inject them into categoriesPricing cache
+                        if (data.feature_prices && typeof categoriesPricing !== 'undefined') {
+                            if (!categoriesPricing[String(categoryId)]) {
+                                categoriesPricing[String(categoryId)] = {};
+                            }
+                            categoriesPricing[String(categoryId)].feature_prices = data.feature_prices;
+                        }
+                        updateFeaturePrices(categoryId);
                     })
                     .catch(err => {
                         console.warn('Price API error, keeping DOM-seeded price:', err);
-                        // calculateTotalCost already called above with DOM price
                     });
             }
 

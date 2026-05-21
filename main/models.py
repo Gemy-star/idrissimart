@@ -5376,3 +5376,81 @@ class AdvertisingConfig(models.Model):
         managed = False
         verbose_name = _("إدارة الإعلانات")
         verbose_name_plural = _("إدارة الإعلانات")
+
+
+class CustomPage(models.Model):
+    """Admin-managed custom pages (e.g. About Us, Contact, Terms, …).
+    Each page gets a public URL at /pages/<slug>/ and can optionally
+    appear in the navbar and/or footer.
+    """
+
+    title = models.CharField(max_length=200, verbose_name=_("العنوان بالإنجليزية"))
+    title_ar = models.CharField(max_length=200, blank=True, verbose_name=_("العنوان بالعربية"))
+    slug = models.SlugField(
+        max_length=120,
+        unique=True,
+        allow_unicode=True,
+        verbose_name=_("الرابط (slug)"),
+        help_text=_("مثال: about-us → سيظهر على /pages/about-us/"),
+    )
+    body = CKEditor5Field(
+        config_name="extends",
+        blank=True,
+        verbose_name=_("المحتوى بالإنجليزية"),
+    )
+    body_ar = CKEditor5Field(
+        config_name="extends",
+        blank=True,
+        verbose_name=_("المحتوى بالعربية"),
+    )
+    meta_description = models.CharField(max_length=300, blank=True, verbose_name=_("وصف SEO بالإنجليزية"))
+    meta_description_ar = models.CharField(max_length=300, blank=True, verbose_name=_("وصف SEO بالعربية"))
+    is_active = models.BooleanField(default=True, verbose_name=_("نشطة"))
+
+    # Navbar placement
+    show_in_navbar = models.BooleanField(default=False, verbose_name=_("إظهار في شريط التنقل"))
+    navbar_order = models.PositiveSmallIntegerField(default=10, verbose_name=_("ترتيب في الشريط"))
+
+    # Footer placement
+    show_in_footer = models.BooleanField(default=False, verbose_name=_("إظهار في التذييل"))
+    footer_order = models.PositiveSmallIntegerField(default=10, verbose_name=_("ترتيب في التذييل"))
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإنشاء"))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("تاريخ التعديل"))
+
+    class Meta:
+        db_table = "custom_pages"
+        verbose_name = _("صفحة مخصصة")
+        verbose_name_plural = _("الصفحات المخصصة")
+        ordering = ["navbar_order", "title"]
+
+    def __str__(self):
+        return self.title_ar or self.title
+
+    @property
+    def display_title(self):
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith("ar"):
+            return self.title_ar or self.title
+        return self.title or self.title_ar
+
+    @property
+    def display_body(self):
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith("ar"):
+            return self.body_ar or self.body
+        return self.body or self.body_ar
+
+    @property
+    def display_meta_description(self):
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith("ar"):
+            return self.meta_description_ar or self.meta_description
+        return self.meta_description or self.meta_description_ar
+
+    def get_absolute_url(self):
+        from django.urls import reverse
+        return reverse("main:custom_page", kwargs={"slug": self.slug})

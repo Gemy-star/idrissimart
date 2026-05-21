@@ -84,13 +84,16 @@ def my_order_detail(request, order_id):
     """
     order = get_object_or_404(
         Order.objects.filter(user=request.user)
-        .prefetch_related("items__ad__images", "items__ad__user")
-        .select_related("country"),
+        .prefetch_related("items__ad__images", "items__ad__user", "items__ad__category")
+        .select_related("country", "user"),
         id=order_id,
     )
 
+    subtotal = order.total_amount - order.delivery_fee
+
     context = {
         "order": order,
+        "subtotal": subtotal,
         "active_nav": "my_orders",
         "page_title": _("تفاصيل الطلب") + f" #{order.order_number}",
     }

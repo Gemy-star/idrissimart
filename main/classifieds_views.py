@@ -480,7 +480,30 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
                 "parent_id": c['parent_id'],
                 "has_own_price": own_p > 0,
                 "is_price_inherited": own_p == 0 and c['parent_id'] is not None,
+                "feature_prices": {},
             }
+
+        # Embed per-category AdFeaturePrice data so JS can update feature
+        # card prices dynamically when the user picks a category.
+        from .models import AdFeaturePrice as _AFP
+
+        # Map AdFeaturePrice.feature_type → ad_form card data-feature key
+        _FP_KEY = {
+            "featured_section": "highlighted",
+            "pinned": "pinned",
+            "video": "add_video",
+            "contact_for_price": "contact_for_price",
+            "facebook_share": "facebook_share",
+        }
+        for fp in _AFP.objects.filter(is_active=True).values(
+            "category_id", "feature_type", "price"
+        ):
+            cat_entry = categories_data.get(fp["category_id"])
+            if cat_entry and fp["feature_type"] in _FP_KEY:
+                cat_entry["feature_prices"][_FP_KEY[fp["feature_type"]]] = float(
+                    fp["price"]
+                )
+
         # Convert to JSON to ensure proper null handling
         context["categories_pricing"] = json.dumps(
             categories_data, cls=DjangoJSONEncoder
@@ -909,7 +932,27 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
                 "parent_id": c['parent_id'],
                 "has_own_price": own_p > 0,
                 "is_price_inherited": own_p == 0 and c['parent_id'] is not None,
+                "feature_prices": {},
             }
+
+        from .models import AdFeaturePrice as _AFP2
+
+        _FP_KEY2 = {
+            "featured_section": "highlighted",
+            "pinned": "pinned",
+            "video": "add_video",
+            "contact_for_price": "contact_for_price",
+            "facebook_share": "facebook_share",
+        }
+        for fp in _AFP2.objects.filter(is_active=True).values(
+            "category_id", "feature_type", "price"
+        ):
+            cat_entry = categories_data.get(fp["category_id"])
+            if cat_entry and fp["feature_type"] in _FP_KEY2:
+                cat_entry["feature_prices"][_FP_KEY2[fp["feature_type"]]] = float(
+                    fp["price"]
+                )
+
         context["categories_pricing"] = json.dumps(
             categories_data, cls=DjangoJSONEncoder
         )
@@ -924,7 +967,22 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
             float(site_config.ad_base_fee) if site_config.ad_base_fee else 0.0
         )
 
-        # Add feature prices (for consistency with create view)
+        # Feature prices and package info — identical logic to create view
+        from constance import config as constance_config
+
+        context["cart_service_instructions"] = (
+            site_config.cart_service_instructions
+            or "عند تفعيل السلة، سيتم خصم رسوم خدمة من ثمن المنتج عند البيع. يجب أن يكون السعر شاملاً لهذه الرسوم ورسوم التوصيل."
+        )
+
+        constance_phone_enabled = getattr(constance_config, "ENABLE_MOBILE_VERIFICATION", True)
+        phone_verification_needed = (
+            (constance_phone_enabled or site_config.require_phone_verification)
+            and self.request.user.is_authenticated
+            and not self.request.user.is_mobile_verified
+        )
+        context["phone_verification_needed"] = phone_verification_needed
+
         if self.request.user.is_authenticated:
             active_packages = UserPackage.objects.filter(
                 user=self.request.user,
@@ -944,33 +1002,62 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
                 .first()
             )
 
+            is_free_package = active_package and (
+                active_package.package is None
+                or active_package.package.price == 0
+            )
+
             if active_package and active_package.package:
                 package = active_package.package
                 context["feature_prices"] = {
-                    "highlighted": (
-                        float(package.feature_highlighted_price)
-                        if package.feature_highlighted_price
-                        else 0.0
-                    ),
-                    "pinned": (
-                        float(package.feature_pinned_price)
-                        if package.feature_pinned_price
-                        else 0.0
-                    ),
+                    "highlighted": float(package.feature_highlighted_price),
+                    "urgent": float(package.feature_urgent_price),
+                    "pinned": float(package.feature_pinned_price),
+                    "contact_for_price": float(package.feature_contact_for_price),
+                    "auto_refresh": float(package.feature_auto_refresh_price),
+                    "add_video": float(package.feature_add_video_price),
                 }
+                context["pricing_source"] = "package"
+                context["active_package_id"] = active_package.pk
+                context["active_package_name"] = active_package.package.name
+            elif is_free_package:
+                context["feature_prices"] = {
+                    "highlighted": 0.0,
+                    "urgent": 0.0,
+                    "pinned": 0.0,
+                    "contact_for_price": 0.0,
+                    "auto_refresh": 0.0,
+                    "add_video": 0.0,
+                }
+                context["pricing_source"] = "free"
+                context["active_package_id"] = active_package.pk
+                context["active_package_name"] = None
             else:
                 context["feature_prices"] = {
-                    "highlighted": (
-                        float(site_config.featured_ad_price)
-                        if site_config.featured_ad_price
-                        else 50.0
-                    ),
-                    "pinned": (
-                        float(site_config.pinned_ad_price)
-                        if site_config.pinned_ad_price
-                        else 100.0
-                    ),
+                    "highlighted": float(getattr(constance_config, "FEATURE_HIGHLIGHTED_PRICE", 50.0)),
+                    "urgent": float(getattr(constance_config, "FEATURE_URGENT_PRICE", 30.0)),
+                    "pinned": float(getattr(constance_config, "FEATURE_PINNED_PRICE", 75.0)),
+                    "contact_for_price": float(getattr(constance_config, "FEATURE_CONTACT_FOR_PRICE", 0.0)),
+                    "auto_refresh": float(getattr(constance_config, "FEATURE_AUTO_REFRESH_PRICE", 35.0)),
+                    "add_video": float(getattr(constance_config, "FEATURE_ADD_VIDEO_PRICE", 25.0)),
                 }
+                context["pricing_source"] = "constance"
+                context["active_package_id"] = None
+                context["active_package_name"] = None
+        else:
+            context["has_free_ads"] = False
+            context["free_ads_remaining"] = 0
+            context["feature_prices"] = {
+                "highlighted": float(getattr(constance_config, "FEATURE_HIGHLIGHTED_PRICE", 50.0)),
+                "urgent": float(getattr(constance_config, "FEATURE_URGENT_PRICE", 30.0)),
+                "pinned": float(getattr(constance_config, "FEATURE_PINNED_PRICE", 75.0)),
+                "contact_for_price": float(getattr(constance_config, "FEATURE_CONTACT_FOR_PRICE", 0.0)),
+                "auto_refresh": float(getattr(constance_config, "FEATURE_AUTO_REFRESH_PRICE", 35.0)),
+                "add_video": float(getattr(constance_config, "FEATURE_ADD_VIDEO_PRICE", 25.0)),
+            }
+            context["pricing_source"] = "constance"
+            context["active_package_id"] = None
+            context["active_package_name"] = None
 
         return context
 
@@ -2681,6 +2768,25 @@ def publisher_renew_ad(request, ad_id):
     return redirect("main:my_ads")
 
 
+def _get_category_feature_price(category, feature_type, config_key, config_default):
+    """Return the price for a feature: checks AdFeaturePrice for the category (and parent),
+    then falls back to the constance config key."""
+    from .models import AdFeaturePrice
+    from constance import config as cfg
+
+    cat = category
+    while cat is not None:
+        try:
+            fp = AdFeaturePrice.objects.get(
+                category=cat, feature_type=feature_type, is_active=True
+            )
+            return fp.price
+        except AdFeaturePrice.DoesNotExist:
+            cat = getattr(cat, "parent", None)
+
+    return Decimal(str(getattr(cfg, config_key, config_default)))
+
+
 class AdUnifiedUpgradeView(LoginRequiredMixin, DetailView):
     """
     Unified upgrade page combining all upgrades and features in one place
@@ -2697,72 +2803,74 @@ class AdUnifiedUpgradeView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         from constance import config
-        from .models import UserPackage
         from content.models import SiteConfiguration
 
-        # Get upgrade pricing from constance
-        # 7 days pricing
-        context["highlighted_price"] = getattr(
-            config, "FEATURED_AD_PRICE_7DAYS", Decimal("50.00")
+        ad = self.object
+        category = ad.category
+
+        # Duration-based constance defaults (used for ratio scaling)
+        cfg_h7 = Decimal(str(getattr(config, "FEATURED_AD_PRICE_7DAYS", 50.00)))
+        cfg_h14 = Decimal(str(getattr(config, "FEATURED_AD_PRICE_14DAYS", 80.00)))
+        cfg_h30 = Decimal(str(getattr(config, "FEATURED_AD_PRICE_30DAYS", 100.00)))
+        cfg_p7 = Decimal(str(getattr(config, "PINNED_AD_PRICE_7DAYS", 75.00)))
+        cfg_p14 = Decimal(str(getattr(config, "PINNED_AD_PRICE_14DAYS", 120.00)))
+        cfg_p30 = Decimal(str(getattr(config, "PINNED_AD_PRICE_30DAYS", 150.00)))
+        cfg_u7 = Decimal(str(getattr(config, "URGENT_AD_PRICE_7DAYS", 30.00)))
+        cfg_u14 = Decimal(str(getattr(config, "URGENT_AD_PRICE_14DAYS", 48.00)))
+        cfg_u30 = Decimal(str(getattr(config, "URGENT_AD_PRICE_30DAYS", 60.00)))
+
+        def scale(base, cfg_base, cfg_target):
+            """Scale a category base price using the constance ratio for a longer duration."""
+            if cfg_base > 0:
+                return (base * cfg_target / cfg_base).quantize(Decimal("0.01"))
+            return cfg_target
+
+        # Highlighted / Featured — uses AdFeaturePrice "featured_section" if set
+        h7 = _get_category_feature_price(
+            category, "featured_section", "FEATURED_AD_PRICE_7DAYS", 50.00
         )
-        context["pinned_price"] = getattr(
-            config, "PINNED_AD_PRICE_7DAYS", Decimal("75.00")
+        context["highlighted_price"] = h7
+        context["highlighted_price_14"] = scale(h7, cfg_h7, cfg_h14)
+        context["highlighted_price_30"] = scale(h7, cfg_h7, cfg_h30)
+
+        # Pinned — uses AdFeaturePrice "pinned" if set
+        p7 = _get_category_feature_price(
+            category, "pinned", "PINNED_AD_PRICE_7DAYS", 75.00
         )
-        context["urgent_price"] = getattr(
-            config, "URGENT_AD_PRICE_7DAYS", Decimal("30.00")
+        context["pinned_price"] = p7
+        context["pinned_price_14"] = scale(p7, cfg_p7, cfg_p14)
+        context["pinned_price_30"] = scale(p7, cfg_p7, cfg_p30)
+
+        # Urgent — not in AdFeaturePrice, use constance only
+        context["urgent_price"] = cfg_u7
+        context["urgent_price_14"] = cfg_u14
+        context["urgent_price_30"] = cfg_u30
+
+        # Auto-refresh — not in AdFeaturePrice, use constance
+        context["auto_refresh_price"] = Decimal(
+            str(getattr(config, "FEATURE_AUTO_REFRESH_PRICE", 35.00))
         )
 
-        # 14 days pricing
-        context["highlighted_price_14"] = getattr(
-            config, "FEATURED_AD_PRICE_14DAYS", Decimal("80.00")
-        )
-        context["pinned_price_14"] = getattr(
-            config, "PINNED_AD_PRICE_14DAYS", Decimal("120.00")
-        )
-        context["urgent_price_14"] = getattr(
-            config, "URGENT_AD_PRICE_14DAYS", Decimal("48.00")
-        )
+        # One-time features — use AdFeaturePrice per category where available
+        context["feature_prices"] = {
+            "contact_for_price": _get_category_feature_price(
+                category, "contact_for_price", "FEATURE_CONTACT_FOR_PRICE", 0.00
+            ),
+            "facebook_share": _get_category_feature_price(
+                category, "facebook_share", "FACEBOOK_SHARE_AD_PRICE", 100.00
+            ),
+            "video": _get_category_feature_price(
+                category, "video", "FEATURE_ADD_VIDEO_PRICE", 25.00
+            ),
+            "auto_refresh": Decimal(
+                str(getattr(config, "FEATURE_AUTO_REFRESH_PRICE", 35.00))
+            ),
+        }
 
-        # 30 days pricing
-        context["highlighted_price_30"] = getattr(
-            config, "FEATURED_AD_PRICE_30DAYS", Decimal("100.00")
-        )
-        context["pinned_price_30"] = getattr(
-            config, "PINNED_AD_PRICE_30DAYS", Decimal("150.00")
-        )
-        context["urgent_price_30"] = getattr(
-            config, "URGENT_AD_PRICE_30DAYS", Decimal("60.00")
-        )
-
-        # Get user's active package for feature pricing
-        active_package = (
-            UserPackage.objects.filter(
-                user=self.request.user,
-                expiry_date__gte=timezone.now(),
-            )
-            .order_by("expiry_date")
-            .first()
-        )
-
-        # Determine feature prices based on package or site defaults
-        if active_package and active_package.package:
-            package = active_package.package
-            feature_prices = {
-                "contact_for_price": package.feature_contact_for_price,
-                "facebook_share": Decimal("100.00"),  # Fixed price for FB share
-                "video": Decimal("75.00"),  # Fixed price for video (coming soon)
-            }
-        else:
-            # Use site default prices or make features free/unavailable
-            feature_prices = {
-                "contact_for_price": Decimal("0.00"),  # Free without package
-                "facebook_share": Decimal("100.00"),
-                "video": Decimal("75.00"),
-            }
-
-        context["feature_prices"] = feature_prices
         context["site_config"] = SiteConfiguration.get_solo()
-
+        context["selected_currency"] = (
+            ad.country.currency if ad.country else "EGP"
+        )
         return context
 
 
@@ -2782,6 +2890,7 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
         # Get selected features
         feature_contact = request.POST.get("feature_contact_for_price") == "1"
         feature_facebook = request.POST.get("feature_facebook_share") == "1"
+        feature_auto_refresh = request.POST.get("feature_auto_refresh") == "1"
 
         # Get durations for upgrades
         highlighted_duration = int(request.POST.get("highlighted_duration") or 0)
@@ -2794,18 +2903,40 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
         features_to_enable = {}
 
         from constance import config
-        from .models import UserPackage
+
+        category = ad.category
+
+        # ── Duration-scaled pricing helpers ──────────────────────────────────
+        cfg_h7 = Decimal(str(getattr(config, "FEATURED_AD_PRICE_7DAYS", 50.00)))
+        cfg_h14 = Decimal(str(getattr(config, "FEATURED_AD_PRICE_14DAYS", 80.00)))
+        cfg_h30 = Decimal(str(getattr(config, "FEATURED_AD_PRICE_30DAYS", 100.00)))
+        cfg_p7 = Decimal(str(getattr(config, "PINNED_AD_PRICE_7DAYS", 75.00)))
+        cfg_p14 = Decimal(str(getattr(config, "PINNED_AD_PRICE_14DAYS", 120.00)))
+        cfg_p30 = Decimal(str(getattr(config, "PINNED_AD_PRICE_30DAYS", 150.00)))
+        cfg_u7 = Decimal(str(getattr(config, "URGENT_AD_PRICE_7DAYS", 30.00)))
+        cfg_u14 = Decimal(str(getattr(config, "URGENT_AD_PRICE_14DAYS", 48.00)))
+        cfg_u30 = Decimal(str(getattr(config, "URGENT_AD_PRICE_30DAYS", 60.00)))
+
+        def _scale(base, cfg_base, cfg_target):
+            if cfg_base > 0:
+                return (base * cfg_target / cfg_base).quantize(Decimal("0.01"))
+            return cfg_target
+
+        h7 = _get_category_feature_price(
+            category, "featured_section", "FEATURED_AD_PRICE_7DAYS", 50.00
+        )
+        p7 = _get_category_feature_price(
+            category, "pinned", "PINNED_AD_PRICE_7DAYS", 75.00
+        )
 
         # Process upgrades
         if upgrade_highlighted and highlighted_duration > 0:
             if highlighted_duration == 7:
-                price = Decimal(str(getattr(config, "FEATURED_AD_PRICE_7DAYS", 50.00)))
+                price = h7
             elif highlighted_duration == 14:
-                price = Decimal(str(getattr(config, "FEATURED_AD_PRICE_14DAYS", 80.00)))
-            else:  # 30
-                price = Decimal(
-                    str(getattr(config, "FEATURED_AD_PRICE_30DAYS", 100.00))
-                )
+                price = _scale(h7, cfg_h7, cfg_h14)
+            else:
+                price = _scale(h7, cfg_h7, cfg_h30)
 
             total_amount += price
             upgrades.append(
@@ -2819,11 +2950,11 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
 
         if upgrade_pinned and pinned_duration > 0:
             if pinned_duration == 7:
-                price = Decimal(str(getattr(config, "PINNED_AD_PRICE_7DAYS", 75.00)))
+                price = p7
             elif pinned_duration == 14:
-                price = Decimal(str(getattr(config, "PINNED_AD_PRICE_14DAYS", 120.00)))
-            else:  # 30
-                price = Decimal(str(getattr(config, "PINNED_AD_PRICE_30DAYS", 150.00)))
+                price = _scale(p7, cfg_p7, cfg_p14)
+            else:
+                price = _scale(p7, cfg_p7, cfg_p30)
 
             total_amount += price
             upgrades.append(
@@ -2837,11 +2968,11 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
 
         if upgrade_urgent and urgent_duration > 0:
             if urgent_duration == 7:
-                price = Decimal(str(getattr(config, "URGENT_AD_PRICE_7DAYS", 30.00)))
+                price = cfg_u7
             elif urgent_duration == 14:
-                price = Decimal(str(getattr(config, "URGENT_AD_PRICE_14DAYS", 48.00)))
-            else:  # 30
-                price = Decimal(str(getattr(config, "URGENT_AD_PRICE_30DAYS", 60.00)))
+                price = cfg_u14
+            else:
+                price = cfg_u30
 
             total_amount += price
             upgrades.append(
@@ -2853,26 +2984,25 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
                 }
             )
 
-        # Get feature prices
-        active_package = (
-            UserPackage.objects.filter(
-                user=request.user,
-                expiry_date__gte=timezone.now(),
-            )
-            .order_by("expiry_date")
-            .first()
+        # ── One-time feature prices (category-aware) ─────────────────────────
+        contact_price = _get_category_feature_price(
+            category, "contact_for_price", "FEATURE_CONTACT_FOR_PRICE", 0.00
+        )
+        facebook_price = _get_category_feature_price(
+            category, "facebook_share", "FACEBOOK_SHARE_AD_PRICE", 100.00
+        )
+        video_price = _get_category_feature_price(
+            category, "video", "FEATURE_ADD_VIDEO_PRICE", 25.00
+        )
+        auto_refresh_price = Decimal(
+            str(getattr(config, "FEATURE_AUTO_REFRESH_PRICE", 35.00))
         )
 
-        if active_package and active_package.package:
-            package = active_package.package
-            contact_price = package.feature_contact_for_price
-        else:
-            contact_price = Decimal("0.00")
-
-        facebook_price = Decimal("100.00")
-        video_price = Decimal("75.00")
-
         # Process features
+        if feature_auto_refresh and not ad.auto_refresh:
+            total_amount += auto_refresh_price
+            features_to_enable["auto_refresh"] = True
+
         if feature_contact and not ad.contact_for_price:
             total_amount += contact_price
             features_to_enable["contact_for_price"] = True
@@ -2934,6 +3064,10 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
             from .models import FacebookShareRequest
 
             updated_items = []
+
+            if features_to_enable.get("auto_refresh"):
+                ad.auto_refresh = True
+                updated_items.append(_("تحديث تلقائي"))
 
             if features_to_enable.get("contact_for_price"):
                 ad.contact_for_price = True

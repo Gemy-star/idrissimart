@@ -1,411 +1,127 @@
 {% extends "base.html" %}
 {% load static i18n %}
 
-{% block title %}{% trans "سلة التسوق" %} - {% trans "إدريسي مارت" %}{% endblock %}
+{% block title %}{% trans "سلة التسوق" %} | {% trans "إدريسي مارت" %}{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* ── Base ─────────────────────────────── */
-    :root {
-        --brand:        #ff6001;
-        --brand-dark:   #d94e00;
-        --brand-light:  #fff3ed;
-        --brand-glow:   rgba(255, 96, 1, 0.18);
-        --surface:      #ffffff;
-        --bg:           #f6f7fb;
-        --border:       #e8eaed;
-        --text:         #1a1d23;
-        --muted:        #6b7280;
-        --danger:       #ef4444;
-        --danger-light: #fef2f2;
-        --success:      #10b981;
-        --radius-sm:    10px;
-        --radius:       16px;
-        --radius-lg:    22px;
-        --shadow-sm:    0 1px 4px rgba(0,0,0,.06);
-        --shadow:       0 4px 20px rgba(0,0,0,.07);
-        --shadow-lg:    0 12px 40px rgba(0,0,0,.10);
-    }
+:root {
+    --c-brand:      #ff6001;
+    --c-brand-dk:   #d94e00;
+    --c-brand-lt:   #fff4ee;
+    --c-brand-glow: rgba(255,96,1,.22);
+    --c-bg:         #f2f4f8;
+    --c-surface:    #ffffff;
+    --c-border:     #e4e7ed;
+    --c-text:       #1c2027;
+    --c-muted:      #6b7280;
+    --c-danger:     #e53e3e;
+    --c-danger-lt:  #fff5f5;
+    --c-success:    #10b981;
+    --r-sm:10px; --r:16px; --r-lg:22px;
+    --sh-sm:0 2px 8px rgba(0,0,0,.06);
+    --sh:0 4px 20px rgba(0,0,0,.08);
+}
+.cart-page{background:var(--c-bg);min-height:100vh;padding:1.75rem 0 5rem}
 
-    .cart-page {
-        background: var(--bg);
-        min-height: 100vh;
-        padding: 2rem 0 4rem;
-    }
+/* Stepper */
+.c-stepper{display:flex;align-items:center;justify-content:center;gap:0;max-width:500px;margin:0 auto 2.5rem}
+.c-step{flex:1;display:flex;flex-direction:column;align-items:center;gap:.3rem;position:relative}
+.c-step:not(:last-child)::after{content:'';position:absolute;top:18px;right:50%;width:100%;height:2px;background:var(--c-border);z-index:0}
+.c-step.done:not(:last-child)::after{background:var(--c-success)}
+.c-step-dot{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid var(--c-border);background:var(--c-surface);color:var(--c-muted);font-size:.85rem;font-weight:700;position:relative;z-index:1;transition:all .3s}
+.c-step.active .c-step-dot{background:var(--c-brand);border-color:var(--c-brand);color:#fff;box-shadow:0 0 0 5px var(--c-brand-glow)}
+.c-step.done .c-step-dot{background:var(--c-success);border-color:var(--c-success);color:#fff}
+.c-step-lbl{font-size:.72rem;color:var(--c-muted);font-weight:600;white-space:nowrap}
+.c-step.active .c-step-lbl{color:var(--c-brand)}
+.c-step.done .c-step-lbl{color:var(--c-success)}
 
-    /* ── Breadcrumb ──────────────────────── */
-    .cart-breadcrumb {
-        display: flex;
-        align-items: center;
-        gap: .5rem;
-        font-size: .85rem;
-        color: var(--muted);
-        margin-bottom: 1.75rem;
-    }
-    .cart-breadcrumb a { color: var(--muted); text-decoration: none; }
-    .cart-breadcrumb a:hover { color: var(--brand); }
-    .cart-breadcrumb .sep { color: #cbd5e1; font-size: .75rem; }
-    .cart-breadcrumb .current { color: var(--brand); font-weight: 600; }
+/* Heading */
+.cart-heading{margin-bottom:1.5rem}
+.cart-heading h1{font-size:1.65rem;font-weight:800;color:var(--c-text);margin-bottom:.2rem}
+.cart-heading p{color:var(--c-muted);font-size:.95rem}
 
-    /* ── Steps progress bar ──────────────── */
-    .cart-steps {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0;
-        margin-bottom: 2.5rem;
-    }
-    .step {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: .35rem;
-        flex: 1;
-        position: relative;
-    }
-    .step-circle {
-        width: 40px; height: 40px;
-        border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        font-weight: 700; font-size: .9rem;
-        border: 2px solid var(--border);
-        background: var(--surface);
-        color: var(--muted);
-        position: relative; z-index: 1;
-        transition: all .3s;
-    }
-    .step.active .step-circle {
-        background: var(--brand);
-        border-color: var(--brand);
-        color: #fff;
-        box-shadow: 0 4px 14px var(--brand-glow);
-    }
-    .step.done .step-circle {
-        background: var(--success);
-        border-color: var(--success);
-        color: #fff;
-    }
-    .step-label { font-size: .78rem; color: var(--muted); font-weight: 500; white-space: nowrap; }
-    .step.active .step-label { color: var(--brand); font-weight: 700; }
-    .step-line {
-        flex: 1; height: 2px;
-        background: var(--border);
-        margin: 0 -1px;
-        align-self: flex-start;
-        margin-top: 19px;
-    }
-    .step-line.done { background: var(--success); }
+/* Layout */
+.cart-grid{display:grid;grid-template-columns:1fr 360px;gap:1.75rem;align-items:start}
+@media(max-width:1024px){.cart-grid{grid-template-columns:1fr}}
 
-    /* ── Page title ──────────────────────── */
-    .cart-page-title {
-        font-size: 1.65rem;
-        font-weight: 800;
-        color: var(--text);
-        margin-bottom: .25rem;
-    }
-    .cart-page-subtitle { color: var(--muted); font-size: .95rem; }
+/* Items col */
+.items-col{display:flex;flex-direction:column;gap:1rem}
+.items-toolbar{display:flex;align-items:center;justify-content:space-between;background:var(--c-surface);border-radius:var(--r);padding:.85rem 1.2rem;box-shadow:var(--sh-sm)}
+.items-count{display:flex;align-items:center;gap:.5rem;font-size:.9rem;font-weight:600;color:var(--c-text)}
+.items-badge{background:var(--c-brand-lt);color:var(--c-brand);border-radius:50px;padding:.18rem .65rem;font-size:.78rem;font-weight:700}
+.btn-clear-all{background:none;border:none;cursor:pointer;color:var(--c-danger);font-size:.84rem;font-weight:600;display:flex;align-items:center;gap:.35rem;padding:.4rem .75rem;border-radius:8px;transition:background .2s}
+.btn-clear-all:hover{background:var(--c-danger-lt)}
 
-    /* ── Layout ──────────────────────────── */
-    .cart-layout {
-        display: grid;
-        grid-template-columns: 1fr 360px;
-        gap: 1.75rem;
-        align-items: start;
-    }
-    @media (max-width: 1024px) {
-        .cart-layout { grid-template-columns: 1fr; }
-    }
+/* Cart card */
+.cart-card{background:var(--c-surface);border-radius:var(--r);padding:1.1rem 1.25rem;box-shadow:var(--sh-sm);display:grid;grid-template-columns:90px 1fr auto;gap:1.1rem;align-items:center;border:1.5px solid transparent;transition:box-shadow .25s,border-color .25s,transform .25s,opacity .3s;animation:fadeUp .25s ease both}
+.cart-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.08);border-color:#ffd3b6;transform:translateY(-1px)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.cart-card:nth-child(1){animation-delay:.03s}.cart-card:nth-child(2){animation-delay:.07s}
+.cart-card:nth-child(3){animation-delay:.11s}.cart-card:nth-child(4){animation-delay:.15s}
+.cart-card:nth-child(n+5){animation-delay:.18s}
+@media(max-width:600px){.cart-card{grid-template-columns:72px 1fr;grid-template-rows:auto auto}.cart-card-actions{grid-column:1/-1;display:flex;justify-content:flex-end}}
 
-    /* ── Items column ─────────────────────── */
-    .items-col { display: flex; flex-direction: column; gap: 1rem; }
+/* Image */
+.cart-img{width:90px;height:90px;object-fit:cover;border-radius:var(--r-sm);display:block;background:var(--c-bg);flex-shrink:0}
+.cart-img-placeholder{width:90px;height:90px;border-radius:var(--r-sm);background:linear-gradient(135deg,#f0f0f0,#e0e0e0);display:flex;align-items:center;justify-content:center;color:#ccc;font-size:1.9rem;flex-shrink:0}
+@media(max-width:600px){.cart-img,.cart-img-placeholder{width:72px;height:72px}}
 
-    /* toolbar */
-    .items-toolbar {
-        display: flex; align-items: center; justify-content: space-between;
-        background: var(--surface);
-        border-radius: var(--radius);
-        padding: .9rem 1.25rem;
-        box-shadow: var(--shadow-sm);
-    }
-    .items-count {
-        font-size: .9rem; font-weight: 600; color: var(--text);
-        display: flex; align-items: center; gap: .5rem;
-    }
-    .items-count-badge {
-        background: var(--brand-light);
-        color: var(--brand);
-        border-radius: 50px;
-        padding: .2rem .7rem;
-        font-size: .8rem;
-        font-weight: 700;
-    }
-    .clear-btn {
-        background: none; border: none; cursor: pointer;
-        color: var(--danger); font-size: .85rem; font-weight: 600;
-        display: flex; align-items: center; gap: .4rem;
-        padding: .4rem .75rem; border-radius: 8px;
-        transition: background .2s;
-    }
-    .clear-btn:hover { background: var(--danger-light); }
+/* Body */
+.cart-body{min-width:0}
+.cart-cat{font-size:.72rem;font-weight:700;color:var(--c-brand);text-transform:uppercase;letter-spacing:.03em;margin-bottom:.2rem}
+.cart-title{font-size:.97rem;font-weight:700;color:var(--c-text);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;margin-bottom:.35rem;text-decoration:none;transition:color .2s}
+a.cart-title:hover{color:var(--c-brand)}
+.cart-seller{display:flex;align-items:center;gap:.35rem;font-size:.78rem;color:var(--c-muted);margin-bottom:.65rem}
+.seller-av{width:20px;height:20px;border-radius:50%;background:var(--c-brand-lt);color:var(--c-brand);display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:700;flex-shrink:0}
 
-    /* cart item card */
-    .cart-card {
-        background: var(--surface);
-        border-radius: var(--radius);
-        padding: 1.25rem;
-        box-shadow: var(--shadow-sm);
-        display: grid;
-        grid-template-columns: 100px 1fr auto;
-        gap: 1.25rem;
-        align-items: center;
-        border: 1.5px solid transparent;
-        transition: box-shadow .25s, border-color .25s, transform .25s;
-    }
-    .cart-card:hover {
-        box-shadow: var(--shadow);
-        border-color: var(--brand-light);
-        transform: translateY(-1px);
-    }
-    @media (max-width: 600px) {
-        .cart-card {
-            grid-template-columns: 80px 1fr;
-            grid-template-rows: auto auto;
-        }
-        .cart-card-actions { grid-column: 1 / -1; }
-    }
+/* Qty */
+.qty-wrap{display:flex;align-items:center;gap:.85rem;flex-wrap:wrap}
+.qty-ctrl{display:inline-flex;align-items:center;border:1.5px solid var(--c-border);border-radius:50px;overflow:hidden}
+.qty-btn{width:30px;height:30px;background:none;border:none;cursor:pointer;color:var(--c-text);font-size:.95rem;font-weight:700;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s;flex-shrink:0}
+.qty-btn:hover{background:var(--c-brand-lt);color:var(--c-brand)}
+.qty-btn:disabled{opacity:.35;cursor:not-allowed}
+.qty-num{min-width:34px;text-align:center;font-size:.92rem;font-weight:700;color:var(--c-text);user-select:none}
+.unit-price{font-size:.78rem;color:var(--c-muted)}
+.line-price{font-size:1.1rem;font-weight:800;color:var(--c-brand)}
 
-    /* image */
-    .cart-card-img {
-        width: 100px; height: 100px;
-        object-fit: cover;
-        border-radius: var(--radius-sm);
-        display: block;
-        background: var(--bg);
-    }
-    .cart-card-img-placeholder {
-        width: 100px; height: 100px;
-        border-radius: var(--radius-sm);
-        background: linear-gradient(135deg, #f0f0f0, #e0e0e0);
-        display: flex; align-items: center; justify-content: center;
-        color: #bbb; font-size: 2rem;
-        flex-shrink: 0;
-    }
-    @media (max-width: 600px) {
-        .cart-card-img, .cart-card-img-placeholder { width: 80px; height: 80px; }
-    }
+/* Actions */
+.cart-card-actions{display:flex;flex-direction:column;align-items:flex-end;gap:.6rem;flex-shrink:0}
+.btn-remove{width:34px;height:34px;border-radius:50%;background:var(--c-danger-lt);border:none;cursor:pointer;color:var(--c-danger);display:flex;align-items:center;justify-content:center;font-size:.85rem;transition:background .2s,transform .2s}
+.btn-remove:hover{background:var(--c-danger);color:#fff;transform:scale(1.1)}
 
-    /* body */
-    .cart-card-body { min-width: 0; }
-    .cart-card-category {
-        font-size: .75rem; font-weight: 600; color: var(--brand);
-        text-transform: uppercase; letter-spacing: .04em;
-        margin-bottom: .3rem;
-    }
-    .cart-card-title {
-        font-size: 1rem; font-weight: 700; color: var(--text);
-        margin-bottom: .4rem;
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        max-width: 100%;
-        display: block;
-    }
-    .cart-card-title:hover { color: var(--brand); }
-    .cart-card-seller {
-        display: flex; align-items: center; gap: .4rem;
-        font-size: .8rem; color: var(--muted); margin-bottom: .75rem;
-    }
-    .cart-card-seller-avatar {
-        width: 20px; height: 20px; border-radius: 50%;
-        background: var(--brand-light); color: var(--brand);
-        display: flex; align-items: center; justify-content: center;
-        font-size: .65rem; font-weight: 700; flex-shrink: 0;
-    }
-    .unit-price {
-        font-size: .8rem; color: var(--muted);
-    }
-    .line-price {
-        font-size: 1.15rem; font-weight: 800; color: var(--brand);
-    }
+/* Summary */
+.summary-col{position:sticky;top:90px}
+.summary-card{background:var(--c-surface);border-radius:var(--r-lg);box-shadow:0 4px 20px rgba(0,0,0,.08);overflow:hidden}
+.summary-head{background:linear-gradient(135deg,var(--c-brand) 0%,var(--c-brand-dk) 100%);padding:1.3rem 1.5rem;color:#fff}
+.summary-head h2{font-size:1.1rem;font-weight:800;margin:0}
+.summary-body{padding:1.4rem 1.5rem}
+.s-row{display:flex;justify-content:space-between;align-items:center;padding:.6rem 0;font-size:.9rem;color:var(--c-muted);border-bottom:1px solid var(--c-border)}
+.s-row:last-of-type{border-bottom:none}
+.s-row .lbl{display:flex;align-items:center;gap:.45rem}
+.s-row .val{font-weight:600;color:var(--c-text)}
+.s-total{display:flex;justify-content:space-between;align-items:center;padding:1rem 0 .4rem;margin-top:.4rem;border-top:2px solid var(--c-border)}
+.s-total .lbl{font-size:1rem;font-weight:700;color:var(--c-text)}
+.s-total .val{font-size:1.45rem;font-weight:800;color:var(--c-brand)}
+.btn-checkout{width:100%;display:flex;align-items:center;justify-content:center;gap:.55rem;background:linear-gradient(135deg,var(--c-brand) 0%,var(--c-brand-dk) 100%);color:#fff;border:none;border-radius:var(--r);padding:.95rem 1.5rem;font-size:1.05rem;font-weight:700;cursor:pointer;text-decoration:none;box-shadow:0 6px 20px var(--c-brand-glow);transition:transform .2s,box-shadow .2s;margin-top:.7rem}
+.btn-checkout:hover{transform:translateY(-2px);box-shadow:0 10px 28px var(--c-brand-glow);color:#fff}
+.btn-checkout:active{transform:translateY(0)}
+.btn-continue{display:flex;align-items:center;justify-content:center;gap:.45rem;color:var(--c-muted);font-size:.87rem;font-weight:600;text-decoration:none;margin-top:.8rem;transition:color .2s}
+.btn-continue:hover{color:var(--c-brand)}
+.trust-strip{display:flex;justify-content:center;gap:1.2rem;padding:1rem 1.5rem;border-top:1px solid var(--c-border)}
+.trust-item{display:flex;flex-direction:column;align-items:center;gap:.2rem;font-size:.7rem;color:var(--c-muted);font-weight:600;text-align:center}
+.trust-item i{font-size:1rem;color:var(--c-brand)}
 
-    /* qty stepper */
-    .qty-stepper {
-        display: inline-flex; align-items: center;
-        border: 1.5px solid var(--border);
-        border-radius: 50px;
-        overflow: hidden;
-    }
-    .qty-btn {
-        width: 32px; height: 32px;
-        background: none; border: none; cursor: pointer;
-        color: var(--text); font-size: 1rem; font-weight: 700;
-        display: flex; align-items: center; justify-content: center;
-        transition: background .15s, color .15s;
-        flex-shrink: 0;
-    }
-    .qty-btn:hover { background: var(--brand-light); color: var(--brand); }
-    .qty-btn:disabled { opacity: .4; cursor: not-allowed; }
-    .qty-val {
-        min-width: 36px; text-align: center;
-        font-size: .95rem; font-weight: 700; color: var(--text);
-        user-select: none;
-    }
-
-    /* actions col */
-    .cart-card-actions {
-        display: flex; flex-direction: column; align-items: flex-end; gap: .75rem;
-        flex-shrink: 0;
-    }
-    .remove-btn {
-        width: 36px; height: 36px; border-radius: 50%;
-        background: var(--danger-light); border: none; cursor: pointer;
-        color: var(--danger);
-        display: flex; align-items: center; justify-content: center;
-        font-size: .9rem; transition: background .2s, transform .2s;
-    }
-    .remove-btn:hover { background: var(--danger); color: #fff; transform: scale(1.1); }
-
-    /* ── Summary column ───────────────────── */
-    .summary-col {
-        position: sticky;
-        top: 100px;
-    }
-    .summary-card {
-        background: var(--surface);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow);
-        overflow: hidden;
-    }
-    .summary-header {
-        background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
-        padding: 1.4rem 1.6rem;
-        color: #fff;
-    }
-    .summary-header h2 {
-        font-size: 1.15rem; font-weight: 800; margin: 0;
-    }
-    .summary-body { padding: 1.5rem 1.6rem; }
-
-    .summary-row {
-        display: flex; justify-content: space-between; align-items: center;
-        padding: .65rem 0;
-        font-size: .92rem; color: var(--muted);
-        border-bottom: 1px solid var(--border);
-    }
-    .summary-row:last-of-type { border-bottom: none; }
-    .summary-row .label { display: flex; align-items: center; gap: .5rem; }
-    .summary-row .val { font-weight: 600; color: var(--text); }
-
-    .summary-total {
-        display: flex; justify-content: space-between; align-items: center;
-        padding: 1.1rem 0 .5rem;
-        margin-top: .5rem;
-        border-top: 2px solid var(--border);
-    }
-    .summary-total .label { font-size: 1rem; font-weight: 700; color: var(--text); }
-    .summary-total .val {
-        font-size: 1.45rem; font-weight: 800; color: var(--brand);
-    }
-
-    /* checkout button */
-    .checkout-btn {
-        width: 100%;
-        background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
-        color: #fff;
-        border: none; border-radius: var(--radius);
-        padding: 1rem 1.5rem;
-        font-size: 1.05rem; font-weight: 700;
-        cursor: pointer;
-        display: flex; align-items: center; justify-content: center; gap: .6rem;
-        transition: transform .2s, box-shadow .2s;
-        box-shadow: 0 6px 20px var(--brand-glow);
-        margin-top: .75rem;
-    }
-    .checkout-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 28px var(--brand-glow);
-    }
-    .checkout-btn:active { transform: translateY(0); }
-    .checkout-btn:disabled { opacity: .65; cursor: not-allowed; transform: none; }
-
-    .continue-link {
-        display: flex; align-items: center; justify-content: center; gap: .5rem;
-        color: var(--muted); font-size: .88rem; font-weight: 600;
-        text-decoration: none; margin-top: .85rem;
-        transition: color .2s;
-    }
-    .continue-link:hover { color: var(--brand); }
-
-    /* trust badges */
-    .trust-badges {
-        display: flex; justify-content: center; gap: 1.25rem;
-        padding: 1rem 1.6rem;
-        border-top: 1px solid var(--border);
-    }
-    .trust-badge {
-        display: flex; flex-direction: column; align-items: center; gap: .25rem;
-        font-size: .72rem; color: var(--muted); font-weight: 600;
-        text-align: center;
-    }
-    .trust-badge i { font-size: 1.1rem; color: var(--brand); }
-
-    /* ── Empty state ──────────────────────── */
-    .empty-wrap {
-        background: var(--surface);
-        border-radius: var(--radius-lg);
-        padding: 5rem 2rem;
-        text-align: center;
-        box-shadow: var(--shadow);
-    }
-    .empty-icon-ring {
-        width: 110px; height: 110px; margin: 0 auto 1.75rem;
-        border-radius: 50%;
-        background: var(--brand-light);
-        display: flex; align-items: center; justify-content: center;
-        position: relative;
-    }
-    .empty-icon-ring::before {
-        content: '';
-        position: absolute; inset: -8px;
-        border-radius: 50%;
-        border: 2px dashed #ffc49e;
-        animation: spin-slow 12s linear infinite;
-    }
-    @keyframes spin-slow { to { transform: rotate(360deg); } }
-    .empty-icon-ring i { font-size: 3rem; color: var(--brand); }
-    .empty-title { font-size: 1.6rem; font-weight: 800; color: var(--text); margin-bottom: .6rem; }
-    .empty-text { color: var(--muted); font-size: 1rem; margin-bottom: 2rem; max-width: 380px; margin-left: auto; margin-right: auto; }
-    .empty-cta {
-        background: linear-gradient(135deg, var(--brand), var(--brand-dark));
-        color: #fff;
-        padding: .9rem 2.25rem; border-radius: 50px;
-        text-decoration: none; font-weight: 700; font-size: 1rem;
-        display: inline-flex; align-items: center; gap: .6rem;
-        box-shadow: 0 6px 20px var(--brand-glow);
-        transition: transform .2s, box-shadow .2s;
-    }
-    .empty-cta:hover { transform: translateY(-2px); box-shadow: 0 10px 28px var(--brand-glow); color: #fff; }
-    .empty-suggestions {
-        display: flex; justify-content: center; gap: .75rem; margin-top: 2rem; flex-wrap: wrap;
-    }
-    .empty-suggestion-link {
-        background: var(--bg); color: var(--muted);
-        padding: .45rem 1rem; border-radius: 50px;
-        font-size: .82rem; font-weight: 600; text-decoration: none;
-        border: 1px solid var(--border);
-        transition: all .2s;
-    }
-    .empty-suggestion-link:hover { background: var(--brand-light); color: var(--brand); border-color: #ffc49e; }
-
-    /* ── Animation ───────────────────────── */
-    .cart-card { animation: slide-up .25s ease both; }
-    @keyframes slide-up {
-        from { opacity: 0; transform: translateY(14px); }
-        to   { opacity: 1; transform: translateY(0); }
-    }
-    .cart-card:nth-child(1) { animation-delay: .03s; }
-    .cart-card:nth-child(2) { animation-delay: .07s; }
-    .cart-card:nth-child(3) { animation-delay: .11s; }
-    .cart-card:nth-child(4) { animation-delay: .15s; }
-    .cart-card:nth-child(n+5) { animation-delay: .18s; }
+/* Empty */
+.empty-box{background:var(--c-surface);border-radius:var(--r-lg);padding:5rem 2rem;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.08)}
+.empty-ring{width:110px;height:110px;margin:0 auto 1.75rem;border-radius:50%;background:var(--c-brand-lt);display:flex;align-items:center;justify-content:center;position:relative}
+.empty-ring::before{content:'';position:absolute;inset:-8px;border-radius:50%;border:2px dashed #ffb380;animation:spin 12s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty-ring i{font-size:3rem;color:var(--c-brand)}
+.empty-box h2{font-size:1.55rem;font-weight:800;color:var(--c-text);margin-bottom:.5rem}
+.empty-box p{color:var(--c-muted);font-size:.95rem;max-width:360px;margin:0 auto 2rem}
+.btn-browse{background:linear-gradient(135deg,var(--c-brand),var(--c-brand-dk));color:#fff;padding:.9rem 2.25rem;border-radius:50px;text-decoration:none;font-weight:700;font-size:1rem;display:inline-flex;align-items:center;gap:.6rem;box-shadow:0 6px 20px var(--c-brand-glow);transition:transform .2s,box-shadow .2s}
+.btn-browse:hover{transform:translateY(-2px);box-shadow:0 10px 28px var(--c-brand-glow);color:#fff}
 </style>
 {% endblock %}
 
@@ -413,40 +129,30 @@
 <div class="cart-page">
 <div class="container">
 
-    <!-- Breadcrumb -->
-    <nav class="cart-breadcrumb">
-        <a href="{% url 'main:home' %}"><i class="fas fa-home"></i></a>
-        <span class="sep"><i class="fas fa-chevron-left"></i></span>
-        <span class="current">{% trans "سلة التسوق" %}</span>
-    </nav>
-
-    <!-- Step progress -->
-    <div class="cart-steps mb-4">
-        <div class="step active">
-            <div class="step-circle"><i class="fas fa-shopping-cart" style="font-size:.85rem"></i></div>
-            <span class="step-label">{% trans "السلة" %}</span>
+    <!-- Stepper -->
+    <div class="c-stepper">
+        <div class="c-step active">
+            <div class="c-step-dot"><i class="fas fa-shopping-cart" style="font-size:.8rem"></i></div>
+            <span class="c-step-lbl">{% trans "السلة" %}</span>
         </div>
-        <div class="step-line"></div>
-        <div class="step">
-            <div class="step-circle">2</div>
-            <span class="step-label">{% trans "البيانات" %}</span>
+        <div class="c-step">
+            <div class="c-step-dot">2</div>
+            <span class="c-step-lbl">{% trans "البيانات" %}</span>
         </div>
-        <div class="step-line"></div>
-        <div class="step">
-            <div class="step-circle">3</div>
-            <span class="step-label">{% trans "الدفع" %}</span>
+        <div class="c-step">
+            <div class="c-step-dot">3</div>
+            <span class="c-step-lbl">{% trans "الدفع" %}</span>
         </div>
-        <div class="step-line"></div>
-        <div class="step">
-            <div class="step-circle"><i class="fas fa-check" style="font-size:.8rem"></i></div>
-            <span class="step-label">{% trans "تأكيد" %}</span>
+        <div class="c-step">
+            <div class="c-step-dot"><i class="fas fa-check" style="font-size:.75rem"></i></div>
+            <span class="c-step-lbl">{% trans "تأكيد" %}</span>
         </div>
     </div>
 
-    <!-- Page heading -->
-    <div class="mb-3">
-        <h1 class="cart-page-title">{% trans "سلة التسوق" %}</h1>
-        <p class="cart-page-subtitle">
+    <!-- Heading -->
+    <div class="cart-heading">
+        <h1>{% trans "سلة التسوق" %}</h1>
+        <p>
             {% if cart_items %}
                 {% blocktrans count n=cart_items|length %}منتج واحد في سلتك{% plural %}{{ n }} منتجات في سلتك{% endblocktrans %}
             {% else %}
@@ -456,76 +162,56 @@
     </div>
 
     {% if cart_items %}
-    <div class="cart-layout">
+    <div class="cart-grid">
 
-        <!-- ── Items column ── -->
+        <!-- Items -->
         <div class="items-col">
-
-            <!-- Toolbar -->
             <div class="items-toolbar">
                 <span class="items-count">
-                    <i class="fas fa-box-open" style="color:var(--brand)"></i>
+                    <i class="fas fa-box-open" style="color:var(--c-brand)"></i>
                     {% trans "المنتجات" %}
-                    <span class="items-count-badge">{{ cart_items|length }}</span>
+                    <span class="items-badge" id="items-count-badge">{{ cart_items|length }}</span>
                 </span>
-                <button class="clear-btn" onclick="clearAllCart()">
-                    <i class="fas fa-trash-alt"></i>
-                    {% trans "مسح الكل" %}
+                <button class="btn-clear-all" onclick="clearAllCart()">
+                    <i class="fas fa-trash-alt"></i>{% trans "مسح الكل" %}
                 </button>
             </div>
 
-            <!-- Items -->
             {% for item in cart_items %}
             <div class="cart-card" data-item-id="{{ item.ad.id }}" id="cart-card-{{ item.ad.id }}">
 
-                <!-- Image -->
                 {% if item.ad.images.first %}
-                    <img src="{{ item.ad.images.first.image.url }}"
-                         alt="{{ item.ad.title }}"
-                         class="cart-card-img">
+                    <img src="{{ item.ad.images.first.image.url }}" alt="{{ item.ad.title }}" class="cart-img">
                 {% else %}
-                    <div class="cart-card-img-placeholder">
-                        <i class="fas fa-image"></i>
-                    </div>
+                    <div class="cart-img-placeholder"><i class="fas fa-image"></i></div>
                 {% endif %}
 
-                <!-- Info -->
-                <div class="cart-card-body">
-                    <div class="cart-card-category">{{ item.ad.category.name }}</div>
+                <div class="cart-body">
+                    <div class="cart-cat">{{ item.ad.category.name }}</div>
                     {% if item.ad.slug %}
-                    <a href="{% url 'main:ad_detail' slug=item.ad.slug %}"
-                       class="cart-card-title">{{ item.ad.title }}</a>
+                    <a href="{% url 'main:ad_detail' slug=item.ad.slug %}" class="cart-title">{{ item.ad.title }}</a>
                     {% else %}
-                    <span class="cart-card-title">{{ item.ad.title }}</span>
+                    <span class="cart-title">{{ item.ad.title }}</span>
                     {% endif %}
-                    <div class="cart-card-seller">
-                        <span class="cart-card-seller-avatar">
-                            {{ item.ad.user.get_full_name|first|upper|default:item.ad.user.username|first|upper }}
-                        </span>
+                    <div class="cart-seller">
+                        <span class="seller-av">{{ item.ad.user.get_full_name|first|upper|default:item.ad.user.username|first|upper }}</span>
                         {{ item.ad.user.get_full_name|default:item.ad.user.username }}
                     </div>
-                    <div class="d-flex align-items-center gap-3 flex-wrap">
-                        <!-- Qty stepper -->
-                        <div class="qty-stepper" id="stepper-{{ item.ad.id }}">
-                            <button class="qty-btn"
-                                    onclick="updateQty({{ item.ad.id }}, -1)"
-                                    {% if item.quantity <= 1 %}disabled{% endif %}>−</button>
-                            <span class="qty-val" id="qty-{{ item.ad.id }}">{{ item.quantity }}</span>
-                            <button class="qty-btn"
-                                    onclick="updateQty({{ item.ad.id }}, 1)">+</button>
+                    <div class="qty-wrap">
+                        <div class="qty-ctrl" id="qty-ctrl-{{ item.ad.id }}">
+                            <button class="qty-btn" onclick="updateQty({{ item.ad.id }}, -1)" {% if item.quantity <= 1 %}disabled{% endif %}>−</button>
+                            <span class="qty-num" id="qty-{{ item.ad.id }}">{{ item.quantity }}</span>
+                            <button class="qty-btn" onclick="updateQty({{ item.ad.id }}, 1)">+</button>
                         </div>
                         <div>
                             <div class="unit-price">{{ item.ad.price|floatformat:"-2" }} {{ selected_currency }} {% trans "/ وحدة" %}</div>
-                            <div class="line-price" id="line-price-{{ item.ad.id }}">
-                                {{ item.get_total_price|floatformat:"-2" }} {{ selected_currency }}
-                            </div>
+                            <div class="line-price" id="line-price-{{ item.ad.id }}">{{ item.get_total_price|floatformat:"-2" }} {{ selected_currency }}</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Remove -->
                 <div class="cart-card-actions">
-                    <button class="remove-btn" onclick="removeItem({{ item.ad.id }})" title="{% trans 'إزالة' %}">
+                    <button class="btn-remove" onclick="removeItem({{ item.ad.id }})" title="{% trans 'إزالة' %}">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -535,99 +221,64 @@
 
         </div><!-- /items-col -->
 
-        <!-- ── Summary column ── -->
+        <!-- Summary -->
         <div class="summary-col">
             <div class="summary-card">
-
-                <div class="summary-header">
+                <div class="summary-head">
                     <h2><i class="fas fa-receipt me-2" style="opacity:.85"></i>{% trans "ملخص الطلب" %}</h2>
                 </div>
-
                 <div class="summary-body">
-
-                    <!-- Rows -->
-                    <div class="summary-row">
-                        <span class="label"><i class="fas fa-layer-group"></i>{% trans "المجموع الفرعي" %}</span>
+                    <div class="s-row">
+                        <span class="lbl"><i class="fas fa-layer-group"></i>{% trans "المجموع الفرعي" %}</span>
                         <span class="val" id="summary-subtotal">{{ total_amount|floatformat:"-2" }} {{ selected_currency }}</span>
                     </div>
-                    <div class="summary-row">
-                        <span class="label"><i class="fas fa-truck"></i>{% trans "التوصيل" %}
+                    <div class="s-row">
+                        <span class="lbl">
+                            <i class="fas fa-truck"></i>{% trans "التوصيل" %}
                             {% if delivery_fee_percentage %}<small class="text-muted">({{ delivery_fee_percentage }}%)</small>{% endif %}
                         </span>
                         {% if delivery_fee and delivery_fee > 0 %}
                             <span class="val" id="summary-delivery">{{ delivery_fee|floatformat:"-2" }} {{ selected_currency }}</span>
                         {% else %}
-                            <span class="val" id="summary-delivery" style="color:var(--success)">{% trans "مجاني" %}</span>
+                            <span class="val" id="summary-delivery" style="color:var(--c-success)">{% trans "مجاني" %}</span>
                         {% endif %}
                     </div>
                     {% if tax_rate and tax_rate > 0 %}
-                    <div class="summary-row">
-                        <span class="label"><i class="fas fa-percent"></i>{% trans "الضريبة" %}
-                            <small class="text-muted">({{ tax_rate }}%)</small>
-                        </span>
+                    <div class="s-row">
+                        <span class="lbl"><i class="fas fa-percent"></i>{% trans "الضريبة" %} <small class="text-muted">({{ tax_rate }}%)</small></span>
                         <span class="val" id="summary-tax">{{ tax_amount|floatformat:"-2" }} {{ selected_currency }}</span>
                     </div>
                     {% endif %}
-
-                    <!-- Total -->
-                    <div class="summary-total">
-                        <span class="label">{% trans "الإجمالي" %}</span>
+                    <div class="s-total">
+                        <span class="lbl">{% trans "الإجمالي" %}</span>
                         <span class="val" id="summary-total">{{ final_total|floatformat:"-2" }} {{ selected_currency }}</span>
                     </div>
-
-                    <!-- CTA -->
-                    <a href="{% url 'main:checkout' %}" class="checkout-btn" id="checkoutBtn">
-                        <i class="fas fa-lock"></i>
-                        {% trans "إتمام الشراء" %}
-                        <i class="fas fa-arrow-left"></i>
+                    <a href="{% url 'main:checkout' %}" class="btn-checkout">
+                        <i class="fas fa-lock"></i>{% trans "إتمام الشراء" %}<i class="fas fa-arrow-left"></i>
                     </a>
-
-                    <a href="{% url 'main:home' %}" class="continue-link">
-                        <i class="fas fa-arrow-right"></i>
-                        {% trans "متابعة التسوق" %}
+                    <a href="{% url 'main:home' %}" class="btn-continue">
+                        <i class="fas fa-arrow-right"></i>{% trans "متابعة التسوق" %}
                     </a>
-
-                </div><!-- /summary-body -->
-
-                <!-- Trust badges -->
-                <div class="trust-badges">
-                    <div class="trust-badge">
-                        <i class="fas fa-shield-alt"></i>
-                        <span>{% trans "دفع آمن" %}</span>
-                    </div>
-                    <div class="trust-badge">
-                        <i class="fas fa-undo-alt"></i>
-                        <span>{% trans "سياسة الإرجاع" %}</span>
-                    </div>
-                    <div class="trust-badge">
-                        <i class="fas fa-headset"></i>
-                        <span>{% trans "دعم 24/7" %}</span>
-                    </div>
                 </div>
-
+                <div class="trust-strip">
+                    <div class="trust-item"><i class="fas fa-shield-alt"></i><span>{% trans "دفع آمن" %}</span></div>
+                    <div class="trust-item"><i class="fas fa-undo-alt"></i><span>{% trans "سياسة الإرجاع" %}</span></div>
+                    <div class="trust-item"><i class="fas fa-headset"></i><span>{% trans "دعم 24/7" %}</span></div>
+                </div>
             </div>
-        </div><!-- /summary-col -->
+        </div>
 
-    </div><!-- /cart-layout -->
+    </div><!-- /cart-grid -->
 
     {% else %}
 
-    <!-- ── Empty State ── -->
-    <div class="empty-wrap">
-        <div class="empty-icon-ring">
-            <i class="fas fa-shopping-cart"></i>
-        </div>
-        <h2 class="empty-title">{% trans "سلتك فارغة!" %}</h2>
-        <p class="empty-text">{% trans "لم تقم بإضافة أي منتجات بعد. تصفح الإعلانات واكتشف ما يناسبك." %}</p>
-        <a href="{% url 'main:home' %}" class="empty-cta">
-            <i class="fas fa-search"></i>
-            {% trans "تصفح المنتجات" %}
+    <div class="empty-box">
+        <div class="empty-ring"><i class="fas fa-shopping-cart"></i></div>
+        <h2>{% trans "سلتك فارغة!" %}</h2>
+        <p>{% trans "لم تقم بإضافة أي منتجات بعد. تصفح الإعلانات واكتشف ما يناسبك." %}</p>
+        <a href="{% url 'main:home' %}" class="btn-browse">
+            <i class="fas fa-search"></i>{% trans "تصفح المنتجات" %}
         </a>
-        <div class="empty-suggestions">
-            <a href="{% url 'main:home' %}" class="empty-suggestion-link"><i class="fas fa-tag me-1"></i>{% trans "أجهزة مساحة" %}</a>
-            <a href="{% url 'main:home' %}" class="empty-suggestion-link"><i class="fas fa-tag me-1"></i>{% trans "معدات" %}</a>
-            <a href="{% url 'main:home' %}" class="empty-suggestion-link"><i class="fas fa-tag me-1"></i>{% trans "خدمات" %}</a>
-        </div>
     </div>
 
     {% endif %}
@@ -638,174 +289,120 @@
 
 {% block extra_js %}
 {{ cart_js_data|json_script:"cart-js-data" }}
-
 <script>
-/* ── Cart JavaScript ── */
-const cartData = JSON.parse(document.getElementById('cart-js-data').textContent);
-const CSRF = cartData.csrf;
-const CURRENCY = cartData.currency;
-const DELIVERY_FEE_PCT = cartData.delivery_pct;
-const DELIVERY_FEE_MIN = cartData.delivery_min;
-const TAX_RATE = cartData.tax_rate;
+const _cd     = JSON.parse(document.getElementById('cart-js-data').textContent);
+const CSRF    = _cd.csrf;
+const CURRENCY= _cd.currency;
+const DEL_PCT = _cd.delivery_pct;
+const DEL_MIN = _cd.delivery_min;
+const TAX     = _cd.tax_rate;
 
-// Track current quantities and prices
-const itemQtys = {};
+const itemQtys   = {};
 const itemPrices = {};
 
-// Initialize from page
 document.querySelectorAll('.cart-card').forEach(card => {
-    const id = card.dataset.itemId;
-    const qtyEl = document.getElementById(`qty-${id}`);
-    const priceText = card.querySelector('.unit-price').textContent;
-    const price = parseFloat(priceText.match(/[\d.]+/)?.[0] || 0);
-    if (qtyEl && id) {
-        itemQtys[id] = parseInt(qtyEl.textContent) || 1;
-        itemPrices[id] = price;
-    }
+    const id    = card.dataset.itemId;
+    const qEl   = document.getElementById(`qty-${id}`);
+    const uEl   = card.querySelector('.unit-price');
+    const price = parseFloat((uEl?.textContent||'').match(/[\d.]+/)?.[0]||0);
+    if (id && qEl) { itemQtys[id] = parseInt(qEl.textContent,10)||1; itemPrices[id] = price; }
 });
 
-/* ── helpers ── */
-function fmt(n) {
-    return parseFloat(n).toLocaleString('ar-EG', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' ' + CURRENCY;
+function fmt(n){
+    return parseFloat(n).toLocaleString('ar-EG',{minimumFractionDigits:0,maximumFractionDigits:2})+' '+CURRENCY;
 }
 
-function recalcSummary() {
-    let sub = 0;
-    for (const [id, qty] of Object.entries(itemQtys)) {
-        sub += (itemPrices[id] || 0) * qty;
-    }
-    const delivery = sub > 0 ? Math.max(sub * DELIVERY_FEE_PCT, DELIVERY_FEE_MIN) : 0;
-    const tax      = sub * TAX_RATE;
-    const total    = sub + delivery + tax;
-
-    const elSub = document.getElementById('summary-subtotal');
-    const elDel = document.getElementById('summary-delivery');
-    const elTax = document.getElementById('summary-tax');
-    const elTot = document.getElementById('summary-total');
-
-    if (elSub) elSub.textContent = fmt(sub);
-    if (elDel) {
-        if (delivery > 0) {
-            elDel.textContent = fmt(delivery);
-            elDel.style.color = '';
-        } else {
-            elDel.textContent = '{% trans "مجاني" %}';
-            elDel.style.color = 'var(--success)';
-        }
-    }
-    if (elTax) elTax.textContent = fmt(tax);
-    if (elTot) elTot.textContent = fmt(total);
+function recalcSummary(){
+    let sub=0;
+    Object.keys(itemQtys).forEach(id=>{ sub+=(itemPrices[id]||0)*itemQtys[id]; });
+    const delivery = sub>0 ? Math.max(sub*DEL_PCT,DEL_MIN) : 0;
+    const tax      = sub*TAX;
+    const total    = sub+delivery+tax;
+    const elSub=document.getElementById('summary-subtotal');
+    const elDel=document.getElementById('summary-delivery');
+    const elTax=document.getElementById('summary-tax');
+    const elTot=document.getElementById('summary-total');
+    if(elSub) elSub.textContent=fmt(sub);
+    if(elDel){ if(delivery>0){elDel.textContent=fmt(delivery);elDel.style.color='';}
+               else{elDel.textContent='{% trans "مجاني" %}';elDel.style.color='var(--c-success)';} }
+    if(elTax) elTax.textContent=fmt(tax);
+    if(elTot) elTot.textContent=fmt(total);
 }
 
-/* ── qty update ── */
-async function updateQty(adId, delta) {
-    const newQty = (itemQtys[adId] || 1) + delta;
-    if (newQty < 1) return;
-
-    try {
-        const resp = await fetch('{% url "main:cart_update_quantity" %}', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-            body: JSON.stringify({ ad_id: adId, quantity: newQty })
-        });
-        const data = await resp.json();
-        if (data.success) {
-            itemQtys[adId] = newQty;
-            const qEl = document.getElementById(`qty-${adId}`);
-            if (qEl) qEl.textContent = newQty;
-            const lpEl = document.getElementById(`line-price-${adId}`);
-            if (lpEl) lpEl.textContent = fmt(itemPrices[adId] * newQty);
-            // toggle minus-button disabled
-            const stepper = document.getElementById(`stepper-${adId}`);
-            if (stepper) stepper.querySelector('.qty-btn').disabled = (newQty <= 1);
+/* Update qty — FIX: use FormData with correct key 'item_id' */
+async function updateQty(adId, delta){
+    const id  = String(adId);
+    const nq  = (itemQtys[id]||1)+delta;
+    if(nq<1) return;
+    try{
+        const fd=new FormData();
+        fd.append('item_id',adId);
+        fd.append('quantity',nq);
+        const resp=await fetch('{% url "main:cart_update_quantity" %}',{method:'POST',headers:{'X-CSRFToken':CSRF},body:fd});
+        const data=await resp.json();
+        if(data.success){
+            itemQtys[id]=nq;
+            const qEl=document.getElementById(`qty-${adId}`); if(qEl) qEl.textContent=nq;
+            const lpEl=document.getElementById(`line-price-${adId}`); if(lpEl) lpEl.textContent=fmt((itemPrices[id]||0)*nq);
+            const ctrl=document.getElementById(`qty-ctrl-${adId}`); if(ctrl) ctrl.querySelector('.qty-btn').disabled=(nq<=1);
             recalcSummary();
+        } else { showToast(data.message||'{% trans "حدث خطأ" %}','danger'); }
+    } catch{ showToast('{% trans "خطأ في الاتصال" %}','danger'); }
+}
+
+/* Remove item — FIX: no confirm modal dependency; animate immediately and reverse on error */
+async function removeItem(adId){
+    const card=document.getElementById(`cart-card-${adId}`);
+    if(!card) return;
+    // Optimistic animate-out
+    card.style.transition='opacity .28s,transform .28s';
+    card.style.opacity='0';
+    card.style.transform='translateX(50px)';
+    try{
+        const fd=new FormData();
+        fd.append('item_id',adId);
+        fd.append('csrfmiddlewaretoken',CSRF);
+        const resp=await fetch('{% url "main:cart_remove" %}',{method:'POST',headers:{'X-CSRFToken':CSRF},body:fd});
+        const data=await resp.json();
+        if(data.success){
+            setTimeout(()=>{
+                const id=String(adId);
+                delete itemQtys[id]; delete itemPrices[id];
+                card.remove(); recalcSummary();
+                const rem=document.querySelectorAll('.cart-card');
+                if(rem.length===0){ location.reload(); }
+                else{ const b=document.getElementById('items-count-badge'); if(b) b.textContent=rem.length; }
+            },300);
+            showToast(data.message||'{% trans "تمت الإزالة" %}','success');
         } else {
-            showToast(data.message || '{% trans "حدث خطأ" %}', 'danger');
+            card.style.opacity='1'; card.style.transform='translateX(0)';
+            showToast(data.message||'{% trans "حدث خطأ" %}','danger');
         }
-    } catch (e) {
-        showToast('{% trans "خطأ في الاتصال" %}', 'danger');
+    } catch{
+        card.style.opacity='1'; card.style.transform='translateX(0)';
+        showToast('{% trans "خطأ في الاتصال" %}','danger');
     }
 }
 
-/* ── remove single item ── */
-async function removeItem(adId) {
-    const ok = await showConfirmModal({
-        title: '{% trans "إزالة المنتج" %}',
-        message: '{% trans "هل أنت متأكد من إزالة هذا المنتج من السلة؟" %}',
-        confirmText: '{% trans "نعم، احذف" %}',
-        cancelText: '{% trans "إلغاء" %}',
-        confirmClass: 'btn-danger',
-        icon: 'fas fa-trash-alt'
+/* Clear all */
+async function clearAllCart(){
+    const ok=await showConfirmModal({
+        title:'{% trans "مسح السلة" %}',
+        message:'{% trans "هل أنت متأكد من مسح جميع العناصر؟ لا يمكن التراجع." %}',
+        confirmText:'{% trans "نعم، امسح الكل" %}',
+        cancelText:'{% trans "إلغاء" %}',
+        confirmClass:'btn-danger',
+        icon:'fas fa-trash-alt'
     });
-    if (!ok) return;
-
-    try {
-        const formData = new FormData();
-        formData.append('item_id', adId);
-        formData.append('csrfmiddlewaretoken', CSRF);
-        const resp = await fetch('{% url "main:cart_remove" %}', {
-            method: 'POST',
-            headers: { 'X-CSRFToken': CSRF },
-            body: formData
-        });
-        const data = await resp.json();
-        if (data.success) {
-            const card = document.getElementById(`cart-card-${adId}`);
-            if (card) {
-                card.style.transition = 'opacity .3s, transform .3s';
-                card.style.opacity = '0';
-                card.style.transform = 'translateX(40px)';
-                setTimeout(() => {
-                    delete itemQtys[adId];
-                    delete itemPrices[adId];
-                    card.remove();
-                    recalcSummary();
-                    const remaining = document.querySelectorAll('.cart-card');
-                    if (remaining.length === 0) location.reload();
-                    else {
-                        const badge = document.querySelector('.items-count-badge');
-                        if (badge) badge.textContent = remaining.length;
-                    }
-                }, 300);
-            }
-        } else {
-            showToast(data.message || '{% trans "حدث خطأ" %}', 'danger');
-        }
-    } catch (e) {
-        showToast('{% trans "خطأ في الاتصال" %}', 'danger');
-    }
+    if(!ok) return;
+    try{
+        const fd=new FormData();
+        fd.append('csrfmiddlewaretoken',CSRF);
+        const resp=await fetch('/api/cart/clear/',{method:'POST',headers:{'X-CSRFToken':CSRF,'X-Requested-With':'XMLHttpRequest'},body:fd});
+        const data=await resp.json();
+        if(data.success){ showToast('{% trans "تم مسح السلة" %}','success'); setTimeout(()=>location.reload(),600); }
+        else { showToast(data.message||'{% trans "حدث خطأ" %}','danger'); }
+    } catch{ showToast('{% trans "خطأ في الاتصال" %}','danger'); }
 }
-
-/* ── clear all ── */
-async function clearAllCart() {
-    const ok = await showConfirmModal({
-        title: '{% trans "مسح السلة" %}',
-        message: '{% trans "هل أنت متأكد من مسح جميع العناصر؟ لا يمكن التراجع." %}',
-        confirmText: '{% trans "نعم، امسح" %}',
-        cancelText: '{% trans "إلغاء" %}',
-        confirmClass: 'btn-danger',
-        icon: 'fas fa-trash-alt'
-    });
-    if (!ok) return;
-
-    try {
-        const resp = await fetch('/api/cart/clear/', {
-            method: 'POST',
-            headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
-        });
-        const data = await resp.json();
-        if (data.success) {
-            showToast('{% trans "تم مسح السلة" %}', 'success');
-            setTimeout(() => location.reload(), 500);
-        } else {
-            showToast(data.message || '{% trans "حدث خطأ" %}', 'danger');
-        }
-    } catch (e) {
-        showToast('{% trans "خطأ في الاتصال" %}', 'danger');
-    }
-}
-
-
 </script>
 {% endblock %}
-

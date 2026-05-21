@@ -546,6 +546,26 @@ CONSTANCE_CONFIG = {
         _("Enable Educational registration type"),
         bool,
     ),
+    "REGISTER_SHOW_USERNAME": (
+        True,
+        _("Show username field in registration form (if disabled, username is auto-generated from email)"),
+        bool,
+    ),
+    "REGISTER_SHOW_COUNTRY": (
+        True,
+        _("Show country field in registration form"),
+        bool,
+    ),
+    "REGISTER_SHOW_PHONE": (
+        True,
+        _("Show phone field in registration form"),
+        bool,
+    ),
+    "REGISTER_REQUIRE_CONFIRM_PASSWORD": (
+        True,
+        _("Show confirm-password field in registration form (disable for a shorter form)"),
+        bool,
+    ),
     # User Verification Payment Settings
     "VERIFICATION_FEE_ENABLED": (
         False,
@@ -724,6 +744,10 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "ENABLE_SERVICE_PROVIDER_REGISTRATION",
         "ENABLE_MERCHANT_REGISTRATION",
         "ENABLE_EDUCATIONAL_REGISTRATION",
+        "REGISTER_SHOW_USERNAME",
+        "REGISTER_SHOW_COUNTRY",
+        "REGISTER_SHOW_PHONE",
+        "REGISTER_REQUIRE_CONFIRM_PASSWORD",
     ),
     "Verification Payment Settings": (
         "VERIFICATION_FEE_ENABLED",

@@ -386,6 +386,12 @@ class ClassifiedAdForm(forms.ModelForm):
                     **field_kwargs, widget=forms.Textarea(attrs=widget_attrs)
                 )
 
+            elif field_type == "file":
+                self.fields[field_name] = forms.FileField(
+                    **field_kwargs,
+                    widget=forms.FileInput(attrs=widget_attrs),
+                )
+
             else:  # Default to text
                 if field.min_length:
                     field_kwargs["min_length"] = field.min_length
@@ -399,6 +405,8 @@ class ClassifiedAdForm(forms.ModelForm):
                 )
 
     def save(self, commit=True):
+        import os
+        import uuid
         from decimal import Decimal
         instance = super().save(commit=False)
         from main.models import CategoryCustomField
@@ -438,12 +446,20 @@ class ClassifiedAdForm(forms.ModelForm):
                 if not value and value != False and value != 0:
                     continue
 
+                # Save uploaded file to disk and store its URL path
+                if hasattr(value, "read") or hasattr(value, "chunks"):
+                    from django.core.files.storage import default_storage
+                    ext = os.path.splitext(value.name)[1].lower()
+                    file_path = f"ads/custom_fields/{uuid.uuid4().hex}{ext}"
+                    saved_path = default_storage.save(file_path, value)
+                    value = default_storage.url(saved_path)
+
                 # Convert date objects to strings for JSON serialization
-                if hasattr(value, "isoformat"):
+                elif hasattr(value, "isoformat"):
                     value = value.isoformat()
 
                 # Convert Decimal to float for JSON serialization
-                if isinstance(value, Decimal):
+                elif isinstance(value, Decimal):
                     value = float(value)
 
                 instance.custom_fields[field_name] = value
@@ -778,8 +794,7 @@ class RegistrationForm(forms.Form):
     )
     terms_accepted = forms.BooleanField(
         label=_("أوافق على الشروط والأحكام"),
-        required=True,
-        error_messages={"required": _("يجب الموافقة على الشروط والأحكام")},
+        required=False,  # Always submitted as True via hidden input in template
     )
 
     # Google reCAPTCHA
@@ -869,34 +884,66 @@ class RegistrationForm(forms.Form):
         # Hide the profile type field since there's only one option
         self.fields["profile_type"].widget = forms.HiddenInput()
 
-        # Make captcha optional if keys are not properly configured
         from django.conf import settings
         from constance import config
 
-        # Check if reCAPTCHA is enabled and keys are configured
+        # reCAPTCHA: remove field if disabled via constance or keys not configured
         recaptcha_enabled = getattr(config, "RECAPTCHA_ENABLED", True)
-
         if (
-            not settings.RECAPTCHA_PUBLIC_KEY
+            not recaptcha_enabled
+            or not settings.RECAPTCHA_PUBLIC_KEY
             or not settings.RECAPTCHA_PRIVATE_KEY
-            or not recaptcha_enabled
         ):
             self.fields.pop("captcha", None)
         else:
-            # Make captcha not strictly required to avoid domain issues in dev
-            self.fields["captcha"].required = False
+            # Enforce validation when reCAPTCHA is enabled
+            self.fields["captcha"].required = True
+
+        # Registration field visibility flags
+        show_username = getattr(config, "REGISTER_SHOW_USERNAME", True)
+        show_country = getattr(config, "REGISTER_SHOW_COUNTRY", True)
+        show_phone = getattr(config, "REGISTER_SHOW_PHONE", True)
+        require_confirm_password = getattr(config, "REGISTER_REQUIRE_CONFIRM_PASSWORD", True)
+
+        if not show_username:
+            self.fields["username"].widget = forms.HiddenInput()
+            self.fields["username"].required = False
+
+        if not show_country:
+            self.fields["country"].required = False
+            self.fields["country"].widget = forms.HiddenInput()
+
+        if not show_phone:
+            self.fields.pop("phone", None)
+            self.fields.pop("phone_verification_code", None)
+
+        if not require_confirm_password:
+            self.fields.pop("password2", None)
 
     def clean_username(self):
+        import random
+        import string
         from main.blocked_words import is_username_allowed
 
-        username = self.cleaned_data.get("username").lower()
+        username = (self.cleaned_data.get("username") or "").strip().lower()
+
+        if not username:
+            # Auto-generate from email prefix when username field is hidden
+            email = (self.data.get("email") or "").split("@")[0].lower()
+            base = "".join(c for c in email if c.isalnum()) or "user"
+            base = base[:16]
+            for _ in range(10):
+                candidate = base + "".join(random.choices(string.digits, k=4))
+                if not User.objects.filter(username=candidate).exists():
+                    return candidate
+            # Fallback: full random
+            return "user" + "".join(random.choices(string.digits, k=8))
 
         # Check for blocked words
         is_allowed, error_message = is_username_allowed(username)
         if not is_allowed:
             raise ValidationError(error_message)
 
-        # Check if username already exists
         if User.objects.filter(username=username).exists():
             raise ValidationError(_("اسم المستخدم مستخدم من قبل. يرجى اختيار اسم آخر."))
         return username
@@ -950,6 +997,9 @@ class RegistrationForm(forms.Form):
         return password
 
     def clean_password2(self):
+        # Field may have been removed if REGISTER_REQUIRE_CONFIRM_PASSWORD is False
+        if "password2" not in self.fields:
+            return None
         password = self.cleaned_data.get("password")
         password2 = self.cleaned_data.get("password2")
         if password and password2 and password != password2:
@@ -1378,6 +1428,12 @@ class AdminClassifiedAdForm(forms.ModelForm):
                     **field_kwargs, widget=forms.Textarea(attrs=widget_attrs)
                 )
 
+            elif field_type == "file":
+                self.fields[field_name] = forms.FileField(
+                    **field_kwargs,
+                    widget=forms.FileInput(attrs=widget_attrs),
+                )
+
             else:  # Default to text
                 if field.min_length:
                     field_kwargs["min_length"] = field.min_length
@@ -1391,6 +1447,8 @@ class AdminClassifiedAdForm(forms.ModelForm):
                 )
 
     def save(self, commit=True):
+        import os
+        import uuid
         from decimal import Decimal
         import re as _re
         instance = super().save(commit=False)
@@ -1428,8 +1486,16 @@ class AdminClassifiedAdForm(forms.ModelForm):
                 if not value and value != False and value != 0:
                     continue
 
+                # Save uploaded file to disk and store its URL path
+                if hasattr(value, "read") or hasattr(value, "chunks"):
+                    from django.core.files.storage import default_storage
+                    ext = os.path.splitext(value.name)[1].lower()
+                    file_path = f"ads/custom_fields/{uuid.uuid4().hex}{ext}"
+                    saved_path = default_storage.save(file_path, value)
+                    value = default_storage.url(saved_path)
+
                 # Convert date objects to strings for JSON serialization
-                if hasattr(value, "isoformat"):
+                elif hasattr(value, "isoformat"):
                     value = value.isoformat()
 
                 instance.custom_fields[field_name] = value

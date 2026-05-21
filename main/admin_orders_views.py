@@ -137,7 +137,14 @@ def admin_orders_list(request):
 def admin_order_detail(request, order_id):
     """View order details"""
     order = get_object_or_404(
-        Order.objects.select_related("user").prefetch_related("items__ad__images"),
+        Order.objects.select_related("user", "country")
+        .prefetch_related(
+            "items__ad__images",
+            "items__ad__category",
+            "items__ad__user",
+            "items__ad__features",
+            "items__ad__upgrade_history",
+        ),
         id=order_id,
     )
 
@@ -385,8 +392,13 @@ def publisher_order_detail(request, order_id):
     order = get_object_or_404(
         Order.objects.filter(items__ad__user=request.user)
         .distinct()
-        .select_related("user")
-        .prefetch_related("items__ad__images"),
+        .select_related("user", "country")
+        .prefetch_related(
+            "items__ad__images",
+            "items__ad__category",
+            "items__ad__features",
+            "items__ad__upgrade_history",
+        ),
         id=order_id,
     )
 
