@@ -22,7 +22,10 @@
                 <h1 class="auth-title">{% trans "إنشاء حساب جديد" %}</h1>
                 <p class="auth-subtitle">{% trans "انضم إلى مجتمع إدريسي مارت اليوم" %}</p>
             </div>
-            <form method="post" action="{% url 'main:register' %}" id="registerForm">
+            <form method="post"
+                  action="{% url 'main:register' %}"
+                  id="registerForm"
+                  referrerpolicy="same-origin">
                 {% csrf_token %}
                 <!-- Hidden profile type field - all new users are DEFAULT/Standard -->
                 {{ form.profile_type }}
@@ -132,7 +135,7 @@
                                    pattern="[0-9]{6}" />
                             <button type="button"
                                     class="btn btn-success"
-                                    onclick="verifyEmailOtp()">
+                                    onclick="verifyEmailOtp(this)">
                                 <i class="fas fa-check me-1"></i>
                                 {% trans "تحقق" %}
                             </button>
@@ -181,7 +184,7 @@
                     </label>
                     <div class="form-control-wrapper">
                         <div class="input-group">
-                            <span class="input-group-text" id="phone-code-display">+966</span>
+                            <span class="input-group-text" id="phone-code-display">+20</span>
                             <input type="tel"
                                    id="phone"
                                    name="phone"
@@ -551,7 +554,8 @@
         // Form validation and loading state
         document.getElementById('registerForm').addEventListener('submit', function(e) {
             const password = document.getElementById('password').value
-            const password2 = document.getElementById('password2').value
+            const password2Input = document.getElementById('password2')
+            const password2 = password2Input ? password2Input.value : password
 
             if (password !== password2) {
                 e.preventDefault()
@@ -813,19 +817,26 @@
             if (phoneVerificationRequired && !phoneVerified) {
                 e.preventDefault();
                 showToast('{% trans "يجب التحقق من رقم الجوال قبل إنشاء الحساب" %}', 'warning');
-                document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const phoneInput = document.getElementById('phone');
+                if (phoneInput) {
+                    phoneInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
                 return false;
             }
         });
 
         // Update phone code when country changes
-        document.getElementById('country').addEventListener('change', function() {
+        const countrySelectForPhone = document.getElementById('country');
+        if (countrySelectForPhone) {
+        countrySelectForPhone.addEventListener('change', function() {
             const selectedOption = this.options[this.selectedIndex];
             const phoneCode = selectedOption.getAttribute('data-phone-code');
             const countryCode = selectedOption.getAttribute('data-code');
 
-            document.getElementById('phone-code-display').textContent = phoneCode;
-            document.getElementById('country_code').value = countryCode || '';
+            const phoneCodeDisplay = document.getElementById('phone-code-display');
+            const countryCodeInput = document.getElementById('country_code');
+            if (phoneCodeDisplay) phoneCodeDisplay.textContent = phoneCode;
+            if (countryCodeInput) countryCodeInput.value = countryCode || '';
 
             // Update phone placeholder based on country
             const phoneInput = document.getElementById('phone');
@@ -838,7 +849,7 @@
                 'BH': '36123456',
                 'OM': '91123456'
             };
-            phoneInput.placeholder = placeholders[countryCode] || '501234567';
+            if (phoneInput) phoneInput.placeholder = placeholders[countryCode] || '501234567';
 
             // Update phone format help text
             const formatHelp = document.getElementById('phone-format-example');
@@ -856,20 +867,24 @@
                 formatHelp.textContent = phoneFormats[countryCode] || phoneCode + ' XXXXXXXXX';
             }
         });
+        }
 
         // Initialize phone code on page load
         window.addEventListener('DOMContentLoaded', function() {
             const countrySelect = document.getElementById('country');
+            if (!countrySelect) return;
             const selectedOption = countrySelect.options[countrySelect.selectedIndex];
             const phoneCode = selectedOption.getAttribute('data-phone-code');
             const countryCode = selectedOption.getAttribute('data-code');
 
             // Update phone code display
-            document.getElementById('phone-code-display').textContent = phoneCode || '+966';
+            const phoneCodeDisplay = document.getElementById('phone-code-display');
+            if (phoneCodeDisplay) phoneCodeDisplay.textContent = phoneCode || '+20';
 
             // Update hidden country code input
-            if (countryCode) {
-                document.getElementById('country_code').value = countryCode;
+            const countryCodeInput = document.getElementById('country_code');
+            if (countryCode && countryCodeInput) {
+                countryCodeInput.value = countryCode;
             }
 
             // Update phone placeholder based on country
@@ -885,7 +900,7 @@
                 'JO': '791234567'
             };
             if (countryCode) {
-                phoneInput.placeholder = placeholders[countryCode] || '501234567';
+                if (phoneInput) phoneInput.placeholder = placeholders[countryCode] || '501234567';
             }
 
             // Initialize phone format help text
@@ -973,7 +988,7 @@
             });
         }
 
-        function verifyEmailOtp() {
+        function verifyEmailOtp(verifyBtn) {
             const emailInput = document.getElementById('email');
             const codeInput = document.getElementById('emailOtpCode');
             const email = emailInput.value.trim();
@@ -991,7 +1006,6 @@
             }
 
             // Show loading on verify button
-            const verifyBtn = event.target;
             verifyBtn.disabled = true;
             verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> {% trans "جاري التحقق..." %}';
 

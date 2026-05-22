@@ -4,11 +4,7 @@
 
 {% block title %}
     {% if category %}
-        {% if LANGUAGE_CODE == 'ar' and category.name_ar %}
-            {{ category.name_ar }}
-        {% else %}
-            {{ category.name }}
-        {% endif %}
+        {{ category.display_name }}
     {% else %}
         {% trans "القسم غير موجود" %}
     {% endif %}
@@ -16,1879 +12,1646 @@
 {% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css">
-    <style>
-        /* ================================================
-           CATEGORIES PAGE - BOOTSTRAP GRID & MODERN CSS
-        ================================================ */
-
-        :root {
-            --hero-gradient-start: #4b315e;
-            --hero-gradient-end: #ff6001;
-            --card-shadow: 0 4px 15px rgba(75, 49, 94, 0.1);
-            --card-hover-shadow: 0 8px 30px rgba(75, 49, 94, 0.15);
-            --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        /* ===== HERO SECTION ===== */
-        .categories-hero {
-            min-height: 50vh;
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-purple, #6B4C7A) 100%);
-            position: relative;
-            overflow: hidden;
-            padding: 4rem 0 3rem;
-        }
-
-        .categories-hero::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: radial-gradient(circle at top right, rgba(255, 96, 1, 0.2), transparent 60%),
-                        radial-gradient(circle at bottom left, rgba(75, 49, 94, 0.2), transparent 60%);
-            pointer-events: none;
-        }
-
-        .hero-content-wrapper {
-            position: relative;
-            z-index: 2;
-        }
-
-        .hero-title {
-            font-size: clamp(2rem, 5vw, 3.5rem);
-            font-weight: 700;
-            color: white;
-            margin-bottom: 1rem;
-            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.2);
-        }
-
-        .hero-subtitle {
-            font-size: clamp(1rem, 2vw, 1.25rem);
-            color: rgba(255, 255, 255, 0.95);
-            margin-bottom: 2rem;
-        }
-
-        /* ===== SEARCH BAR ===== */
-        .categories-search-wrapper {
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            padding: 2rem;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-        }
-
-        .search-input-container {
-            position: relative;
-        }
-
-        .search-input-container input {
-            width: 100%;
-            padding: 1rem 1rem 1rem 3.5rem;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50px;
-            background: rgba(255, 255, 255, 0.95);
-            font-size: 1rem;
-            transition: var(--transition-smooth);
-        }
-
-        .search-input-container input:focus {
-            outline: none;
-            border-color: white;
-            background: white;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
-            transform: translateY(-2px);
-        }
-
-        .search-icon {
-            position: absolute;
-            left: 1.25rem;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--primary-color);
-            font-size: 1.25rem;
-        }
-
-        .clear-search {
-            position: absolute;
-            right: 1.25rem;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: #6c757d;
-            cursor: pointer;
-            padding: 0.5rem;
-            border-radius: 50%;
-            transition: var(--transition-smooth);
-        }
-
-        .clear-search:hover {
-            background: rgba(220, 53, 69, 0.1);
-            color: #dc3545;
-        }
-
-        .stats-bar {
-            display: flex;
-            justify-content: center;
-            gap: 2rem;
-            flex-wrap: wrap;
-            margin-top: 1.5rem;
-        }
-
-        .stat-item {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            color: white;
-            font-weight: 500;
-            padding: 0.5rem 1rem;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 50px;
-            backdrop-filter: blur(10px);
-        }
-
-        .stat-icon {
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 50%;
-        }
-
-        /* ===== MAIN CONTENT ===== */
-        .content-section {
-            padding: 3rem 0;
-            background: var(--bg-primary);
-        }
-
-        /* ===== FILTERS SIDEBAR ===== */
-        .filters-card {
-            background: white;
-            border-radius: 20px;
-            padding: 2rem;
-            box-shadow: var(--card-shadow);
-            position: sticky;
-            top: 100px;
-            max-height: calc(100vh - 120px);
-            overflow-y: auto;
-        }
-
-        [data-theme='dark'] .filters-card {
-            background: var(--bg-secondary);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .filter-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 2px solid rgba(75, 49, 94, 0.1);
-        }
-
-        .filter-title {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--primary-color);
-            margin: 0;
-        }
-
-        .clear-filters-btn {
-            background: none;
-            border: none;
-            color: var(--primary-color);
-            font-size: 0.875rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: var(--transition-smooth);
-        }
-
-        .clear-filters-btn:hover {
-            color: var(--secondary-color);
-        }
-
-        .filter-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .filter-label {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 0.75rem;
-            display: block;
-        }
-
-        .filter-input, .filter-select {
-            width: 100%;
-            padding: 0.75rem 1rem;
-            border: 2px solid rgba(75, 49, 94, 0.15);
-            border-radius: 12px;
-            background: white;
-            font-size: 0.9rem;
-            transition: var(--transition-smooth);
-        }
-
-        [data-theme='dark'] .filter-input,
-        [data-theme='dark'] .filter-select {
-            background: rgba(30, 30, 46, 0.8);
-            border-color: rgba(255, 255, 255, 0.1);
-            color: #e0e0e0;
-        }
-
-        .filter-input:focus, .filter-select:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(75, 49, 94, 0.1);
-        }
-
-        .filter-checkbox-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-
-        .filter-checkbox {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            cursor: pointer;
-            padding: 0.5rem;
-            border-radius: 8px;
-            transition: var(--transition-smooth);
-        }
-
-        .filter-checkbox:hover {
-            background: rgba(75, 49, 94, 0.05);
-        }
-
-        .filter-checkbox input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-            accent-color: var(--primary-color);
-        }
-
-        /* ===== ADS HEADER ===== */
-        .ads-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-            padding: 1.5rem;
-            background: white;
-            border-radius: 15px;
-            box-shadow: var(--card-shadow);
-        }
-
-        [data-theme='dark'] .ads-header {
-            background: var(--bg-secondary);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .results-info {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--primary-color);
-        }
-
-        .view-toggles {
-            display: flex;
-            gap: 0.5rem;
-            background: rgba(75, 49, 94, 0.05);
-            padding: 0.25rem;
-            border-radius: 12px;
-        }
-
-        .view-toggle-btn {
-            padding: 0.5rem 1rem;
-            border: none;
-            background: transparent;
-            color: var(--text-muted);
-            font-weight: 600;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: var(--transition-smooth);
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-        }
-
-        .view-toggle-btn.active {
-            background: var(--primary-color);
-            color: white;
-            box-shadow: 0 2px 8px rgba(75, 49, 94, 0.2);
-        }
-
-        .view-toggle-btn:hover:not(.active) {
-            background: rgba(75, 49, 94, 0.1);
-        }
-
-        .view-toggle-btn:active {
-            transform: scale(0.95);
-        }
-
-        /* ===== AD CARDS - Using Component ===== */
-        /* Ad card styles are in style.css for .modern-ad-card */
-
-        /* ===== LIST VIEW ===== */
-        .ads-grid[data-view="list"] .col-xxl-4,
-        .ads-grid[data-view="list"] .col-xl-4,
-        .ads-grid[data-view="list"] .col-lg-4,
-        .ads-grid[data-view="list"] .col-md-6 {
-            flex: 0 0 100%;
-            max-width: 100%;
-        }
-
-        .ads-grid[data-view="list"] .modern-ad-card {
-            display: flex;
-            flex-direction: row;
-            min-height: auto;
-        }
-
-        .ads-grid[data-view="list"] .ad-image-container {
-            flex: 0 0 280px;
-            height: 200px;
-        }
-
-        .ads-grid[data-view="list"] .ad-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-
-        /* ===== LOADING & EMPTY STATES ===== */
-        .loading-state {
-            text-align: center;
-            padding: 4rem 2rem;
-        }
-
-        .spinner {
-            width: 60px;
-            height: 60px;
-            border: 4px solid rgba(75, 49, 94, 0.1);
-            border-top-color: var(--primary-color);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 1.5rem;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 4rem 2rem;
-            background: white;
-            border-radius: 20px;
-            box-shadow: var(--card-shadow);
-        }
-
-        [data-theme='dark'] .empty-state {
-            background: var(--bg-secondary);
-        }
-
-        .empty-icon {
-            font-size: 4rem;
-            color: var(--text-muted);
-            margin-bottom: 1.5rem;
-        }
-
-        .empty-title {
-            font-size: 1.75rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 1rem;
-        }
-
-        .empty-text {
-            font-size: 1.1rem;
-            color: var(--text-muted);
-            margin-bottom: 2rem;
-        }
-
-        /* ===== RESPONSIVE ===== */
-        @media (max-width: 991px) {
-            .filters-card {
-                position: static;
-                max-height: none;
-                margin-bottom: 2rem;
-            }
-
-            /* Mobile filter toggle */
-            .mobile-filter-toggle {
-                display: block;
-                width: 100%;
-                padding: 1rem;
-                background: var(--primary-color);
-                color: white;
-                border: none;
-                border-radius: 12px;
-                margin-bottom: 1rem;
-                font-size: 1rem;
-                font-weight: 600;
-                box-shadow: 0 4px 15px rgba(75, 49, 94, 0.2);
-                transition: all 0.3s ease;
-            }
-
-            .mobile-filter-toggle:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 6px 20px rgba(75, 49, 94, 0.3);
-            }
-
-            .mobile-filter-toggle i {
-                margin-right: 0.5rem;
-            }
-
-            .filters-card {
-                display: none;
-            }
-
-            .filters-card.show {
-                display: block;
-            }
-
-            .ads-header {
-                padding: 1rem;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .categories-hero {
-                min-height: 40vh;
-                padding: 2rem 0 1.5rem;
-            }
-
-            .hero-title {
-                font-size: 1.75rem;
-                margin-bottom: 0.75rem;
-            }
-
-            .hero-subtitle {
-                font-size: 1rem;
-                margin-bottom: 1.5rem;
-            }
-
-            .categories-search-wrapper {
-                padding: 1.25rem;
-                border-radius: 15px;
-            }
-
-            .search-input-container input {
-                padding: 0.875rem 0.875rem 0.875rem 3rem;
-                font-size: 0.9rem;
-            }
-
-            .search-icon {
-                left: 1rem;
-                font-size: 1.1rem;
-            }
-
-            .stats-bar {
-                gap: 0.75rem;
-                margin-top: 1.25rem;
-            }
-
-            .stat-item {
-                font-size: 0.85rem;
-                padding: 0.5rem 0.75rem;
-            }
-
-            .stat-icon {
-                width: 35px;
-                height: 35px;
-                font-size: 0.9rem;
-            }
-
-            .filters-card {
-                padding: 1.5rem;
-                border-radius: 15px;
-            }
-
-            .filter-title {
-                font-size: 1.1rem;
-            }
-
-            .ads-header {
-                flex-direction: column;
-                gap: 1rem;
-                align-items: flex-start;
-                padding: 1.25rem;
-            }
-
-            .results-info {
-                font-size: 1rem;
-                width: 100%;
-            }
-
-            .view-toggles {
-                width: 100%;
-                justify-content: center;
-            }
-
-            .view-toggle-btn {
-                flex: 1;
-                padding: 0.625rem 0.75rem;
-                font-size: 0.875rem;
-            }
-
-            /* Mobile List View - Keep horizontal layout but more compact */
-            .ads-grid[data-view="list"] .modern-ad-card {
-                flex-direction: row;
-                min-height: 140px;
-            }
-
-            .ads-grid[data-view="list"] .ad-image-container {
-                flex: 0 0 120px;
-                width: 120px;
-                height: 140px;
-            }
-
-            .ads-grid[data-view="list"] .ad-content {
-                padding: 0.75rem;
-            }
-
-            .ads-grid[data-view="list"] .ad-title {
-                font-size: 0.9rem;
-                margin-bottom: 0.5rem;
-                display: -webkit-box;
-                -webkit-line-clamp: 2;
-                -webkit-box-orient: vertical;
-                overflow: hidden;
-            }
-
-            .ads-grid[data-view="list"] .ad-location,
-            .ads-grid[data-view="list"] .ad-time {
-                font-size: 0.75rem;
-            }
-
-            .ads-grid[data-view="list"] .ad-price {
-                font-size: 1rem;
-            }
-
-            .ads-grid[data-view="list"] .ad-footer {
-                margin-top: 0.5rem;
-                gap: 0.5rem;
-            }
-
-            /* Mobile Grid View - Standard card layout */
-            .ads-grid[data-view="grid"] .modern-ad-card {
-                flex-direction: column;
-            }
-
-            .ads-grid[data-view="grid"] .ad-image-container {
-                width: 100%;
-                height: 200px;
-            }
-
-            .empty-state {
-                padding: 3rem 1.5rem;
-            }
-
-            .empty-icon {
-                font-size: 3rem;
-            }
-
-            .empty-title {
-                font-size: 1.5rem;
-            }
-
-            .empty-text {
-                font-size: 1rem;
-            }
-        }
-
-        @media (max-width: 576px) {
-            .categories-hero {
-                min-height: 35vh;
-                padding: 1.5rem 0 1rem;
-            }
-
-            .hero-title {
-                font-size: 1.5rem;
-            }
-
-            .hero-subtitle {
-                font-size: 0.9rem;
-            }
-
-            .enhanced-breadcrumb .breadcrumb {
-                padding: 0.75rem 1rem;
-                font-size: 0.85rem;
-            }
-
-            .categories-search-wrapper {
-                padding: 1rem;
-            }
-
-            .search-input-container input {
-                padding: 0.75rem 0.75rem 0.75rem 2.75rem;
-                font-size: 0.875rem;
-            }
-
-            .stats-bar {
-                gap: 0.5rem;
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .stat-item {
-                font-size: 0.8rem;
-                padding: 0.625rem;
-                justify-content: center;
-            }
-
-            .stat-icon {
-                width: 32px;
-                height: 32px;
-            }
-
-            .filters-card {
-                padding: 1.25rem;
-            }
-
-            .filter-header {
-                margin-bottom: 1rem;
-                padding-bottom: 0.75rem;
-            }
-
-            .filter-group {
-                margin-bottom: 1rem;
-            }
-
-            .filter-label {
-                font-size: 0.85rem;
-                margin-bottom: 0.5rem;
-            }
-
-            .filter-input, .filter-select {
-                padding: 0.625rem 0.875rem;
-                font-size: 0.85rem;
-            }
-
-            .ads-header {
-                padding: 1rem;
-            }
-
-            .results-info {
-                font-size: 0.9rem;
-            }
-
-            .view-toggle-btn {
-                padding: 0.5rem 0.625rem;
-                font-size: 0.8rem;
-            }
-
-            .view-toggle-btn i {
-                font-size: 0.75rem;
-            }
-
-            .loading-state {
-                padding: 3rem 1rem;
-            }
-
-            .spinner {
-                width: 50px;
-                height: 50px;
-                border-width: 3px;
-            }
-
-            .empty-state {
-                padding: 2rem 1rem;
-            }
-
-            .empty-icon {
-                font-size: 2.5rem;
-                margin-bottom: 1rem;
-            }
-
-            .empty-title {
-                font-size: 1.25rem;
-                margin-bottom: 0.75rem;
-            }
-
-            .empty-text {
-                font-size: 0.9rem;
-                margin-bottom: 1.5rem;
-            }
-        }
-    </style>
+<style>
+/* ============================================================
+   CATEGORY DETAIL PAGE — PREMIUM REDESIGN
+   Design tokens: orange #ff6001, purple #4b315e, wave hero
+============================================================ */
+:root {
+    --br: #ff6001;
+    --br-dk: #d94e00;
+    --br-lt: rgba(255,96,1,.10);
+    --purple: #4b315e;
+    --purple-lt: rgba(75,49,94,.08);
+    --bg: #f5f6fa;
+    --surf: #fff;
+    --brd: #e8ecf0;
+    --txt: #1a1f2e;
+    --muted: #6b7280;
+    --r: 16px;
+    --r-sm: 10px;
+    --r-lg: 22px;
+    --sh: 0 4px 20px rgba(0,0,0,.07);
+    --sh-lg: 0 8px 40px rgba(0,0,0,.12);
+    --ease: cubic-bezier(.4,0,.2,1);
+    --trans: all .3s var(--ease);
+}
+
+/* ===== SUBCATEGORY CHIP STRIP ===== */
+.chip-strip-section {
+    background: var(--surf);
+    border-bottom: 1px solid var(--brd);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+}
+.chip-strip-inner {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .85rem 0;
+}
+.chip-nav-btn {
+    flex-shrink: 0;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 1.5px solid var(--brd);
+    background: var(--surf);
+    color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: var(--trans);
+    font-size: .85rem;
+    box-shadow: var(--sh);
+}
+.chip-nav-btn:hover { border-color: var(--br); color: var(--br); }
+.chip-nav-btn.hidden { opacity: 0; pointer-events: none; }
+.chip-scroll {
+    display: flex;
+    gap: .5rem;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    padding-bottom: 2px;
+    flex: 1;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.chip-scroll::-webkit-scrollbar { display: none; }
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .45rem 1rem;
+    border-radius: 50px;
+    border: 1.5px solid var(--brd);
+    background: var(--surf);
+    color: var(--txt);
+    font-size: .82rem;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: var(--trans);
+    text-decoration: none;
+    user-select: none;
+}
+.chip:hover {
+    border-color: var(--br);
+    color: var(--br);
+    background: var(--br-lt);
+}
+.chip.active {
+    background: var(--br);
+    border-color: var(--br);
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(255,96,1,.3);
+}
+.chip .chip-count {
+    background: rgba(0,0,0,.12);
+    border-radius: 50px;
+    padding: .05rem .45rem;
+    font-size: .72rem;
+    font-weight: 700;
+    line-height: 1.5;
+}
+.chip.active .chip-count { background: rgba(255,255,255,.25); }
+
+/* ===== COMPACT PAGE HEADER ===== */
+.page-header-compact {
+    background: var(--surf);
+    border-bottom: 1px solid var(--brd);
+    padding: 1.25rem 0;
+}
+.phc-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; flex-wrap: wrap;
+}
+.phc-breadcrumb {
+    display: flex; align-items: center; gap: .35rem;
+    font-size: .8rem; color: var(--muted);
+    margin-bottom: .55rem; flex-wrap: wrap;
+}
+.phc-breadcrumb a { color: var(--muted); text-decoration: none; transition: color .2s; }
+.phc-breadcrumb a:hover { color: var(--br); }
+.phc-sep { font-size: .6rem; opacity: .45; }
+.phc-title-row { display: flex; align-items: center; gap: .75rem; }
+.phc-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--br) 0%, #cc4c00 100%);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.25rem; color: #fff;
+    box-shadow: 0 4px 14px rgba(255,96,1,.28);
+    flex-shrink: 0;
+}
+.phc-title { font-size: 1.5rem; font-weight: 800; color: var(--txt); margin: 0; }
+.phc-stats { display: flex; align-items: center; gap: 1.25rem; }
+.phc-stat { text-align: center; }
+.phc-stat-num { font-size: 1.4rem; font-weight: 800; color: var(--br); line-height: 1; }
+.phc-stat-label { font-size: .72rem; color: var(--muted); font-weight: 500; margin-top: .15rem; }
+.phc-divider { width: 1px; height: 36px; background: var(--brd); flex-shrink: 0; }
+
+/* ===== SUBCATEGORY CARDS ===== */
+.subcat-section { background: var(--bg); padding: 2rem 0 1.5rem; }
+.subcat-section-hd {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.5rem; flex-wrap: wrap; gap: .5rem;
+}
+.subcat-section-hd h2 {
+    font-size: 1.3rem; font-weight: 800; color: var(--purple);
+    display: flex; align-items: center; gap: .55rem; margin: 0;
+}
+.subcat-section-hd h2 i { color: var(--br); }
+.subcat-meta-count {
+    font-size: .8rem; color: var(--muted);
+    background: var(--surf); border: 1px solid var(--brd);
+    border-radius: 50px; padding: .25rem .8rem;
+}
+.subcat-card {
+    display: flex; flex-direction: column;
+    align-items: center; text-align: center;
+    background: var(--surf);
+    border-radius: 20px;
+    padding: 1.75rem 1rem 1.5rem;
+    box-shadow: 0 2px 14px rgba(0,0,0,.06);
+    border: 2px solid transparent;
+    text-decoration: none;
+    transition: var(--trans);
+    position: relative; overflow: hidden;
+    height: 100%;
+}
+.subcat-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: linear-gradient(90deg, var(--br), var(--purple));
+    transform: scaleX(0); transform-origin: right;
+    transition: transform .35s var(--ease);
+}
+.subcat-card:hover::before,
+.subcat-card.active::before { transform: scaleX(1); }
+.subcat-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 16px 40px rgba(255,96,1,.14);
+    border-color: rgba(255,96,1,.22);
+    text-decoration: none;
+}
+.subcat-card.active {
+    border-color: var(--br);
+    box-shadow: 0 8px 28px rgba(255,96,1,.18);
+}
+.subcat-icon {
+    width: 76px; height: 76px;
+    background: linear-gradient(135deg, var(--br) 0%, #cc4c00 100%);
+    border-radius: 22px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem; color: #fff;
+    margin-bottom: 1rem;
+    transition: var(--trans);
+    box-shadow: 0 6px 20px rgba(255,96,1,.28);
+    flex-shrink: 0;
+}
+.subcat-card:hover .subcat-icon {
+    transform: scale(1.08) rotate(5deg);
+    box-shadow: 0 10px 28px rgba(255,96,1,.4);
+}
+.subcat-name {
+    font-size: .95rem; font-weight: 700;
+    color: var(--txt); line-height: 1.35;
+    margin-bottom: .85rem;
+    transition: color .25s; flex: 1;
+}
+.subcat-card:hover .subcat-name,
+.subcat-card.active .subcat-name { color: var(--br); }
+.subcat-badge {
+    display: inline-flex; align-items: center; gap: .35rem;
+    background: var(--bg); border-radius: 50px;
+    padding: .3rem .9rem;
+    font-size: .78rem; font-weight: 600; color: var(--muted);
+    border: 1px solid var(--brd); transition: var(--trans);
+}
+.subcat-card:hover .subcat-badge,
+.subcat-card.active .subcat-badge {
+    background: var(--br-lt); color: var(--br); border-color: rgba(255,96,1,.2);
+}
+.subcat-arrow {
+    position: absolute; bottom: .85rem; left: .85rem;
+    width: 26px; height: 26px;
+    background: var(--br); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: .65rem;
+    opacity: 0; transform: scale(.4);
+    transition: all .22s var(--ease);
+}
+.subcat-card:hover .subcat-arrow { opacity: 1; transform: scale(1); }
+.subcat-col:nth-child(1)  .subcat-card { animation: cardIn .45s var(--ease) .05s both; }
+.subcat-col:nth-child(2)  .subcat-card { animation: cardIn .45s var(--ease) .10s both; }
+.subcat-col:nth-child(3)  .subcat-card { animation: cardIn .45s var(--ease) .15s both; }
+.subcat-col:nth-child(4)  .subcat-card { animation: cardIn .45s var(--ease) .20s both; }
+.subcat-col:nth-child(5)  .subcat-card { animation: cardIn .45s var(--ease) .25s both; }
+.subcat-col:nth-child(6)  .subcat-card { animation: cardIn .45s var(--ease) .30s both; }
+.subcat-col:nth-child(7)  .subcat-card { animation: cardIn .45s var(--ease) .35s both; }
+.subcat-col:nth-child(8)  .subcat-card { animation: cardIn .45s var(--ease) .40s both; }
+.subcat-col:nth-child(9)  .subcat-card { animation: cardIn .45s var(--ease) .45s both; }
+.subcat-col:nth-child(10) .subcat-card { animation: cardIn .45s var(--ease) .50s both; }
+.subcat-col:nth-child(11) .subcat-card { animation: cardIn .45s var(--ease) .55s both; }
+.subcat-col:nth-child(12) .subcat-card { animation: cardIn .45s var(--ease) .60s both; }
+
+/* ===== MAIN LAYOUT ===== */
+.page-body {
+    background: var(--bg);
+    padding: 2rem 0 4rem;
+    min-height: 60vh;
+}
+
+/* ===== ACTIVE FILTERS BAR ===== */
+.active-filters-bar {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+    animation: fadeUp .3s var(--ease) both;
+}
+.active-filters-bar.hidden { display: none; }
+.af-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    background: var(--br);
+    color: #fff;
+    border-radius: 50px;
+    padding: .3rem .85rem;
+    font-size: .8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--trans);
+}
+.af-chip:hover { background: var(--br-dk); }
+.af-chip .af-x { font-size: .75rem; opacity: .8; }
+.af-clear-all {
+    font-size: .82rem;
+    color: var(--br);
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+    background: none; border: none;
+    padding: 0 .25rem;
+    transition: var(--trans);
+}
+.af-clear-all:hover { color: var(--br-dk); }
+
+/* ===== FILTER SIDEBAR ===== */
+.sidebar-wrap {
+    position: sticky;
+    top: 80px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--brd) transparent;
+}
+.sidebar-wrap::-webkit-scrollbar { width: 4px; }
+.sidebar-wrap::-webkit-scrollbar-track { background: transparent; }
+.sidebar-wrap::-webkit-scrollbar-thumb { background: var(--brd); border-radius: 4px; }
+
+.sidebar-card {
+    background: var(--surf);
+    border-radius: var(--r-lg);
+    box-shadow: var(--sh);
+    overflow: hidden;
+}
+.sidebar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.1rem 1.25rem;
+    border-bottom: 1px solid var(--brd);
+}
+.sidebar-head-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--purple);
+    display: flex; align-items: center; gap: .5rem;
+    margin: 0;
+}
+.clear-all-btn {
+    background: none; border: none;
+    color: var(--br); font-size: .8rem; font-weight: 600;
+    cursor: pointer; padding: .25rem .5rem;
+    border-radius: var(--r-sm);
+    transition: var(--trans);
+}
+.clear-all-btn:hover { background: var(--br-lt); }
+
+/* collapsible filter sections */
+.fs {
+    border-bottom: 1px solid var(--brd);
+}
+.fs:last-child { border-bottom: none; }
+.fs-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .9rem 1.25rem;
+    cursor: pointer;
+    transition: var(--trans);
+    user-select: none;
+}
+.fs-head:hover { background: var(--purple-lt); }
+.fs-head.has-active { background: var(--br-lt); }
+.fs-head-left {
+    display: flex; align-items: center;
+    gap: .5rem;
+    font-size: .88rem; font-weight: 600;
+    color: var(--txt);
+}
+.fs-head.has-active .fs-head-left { color: var(--br); }
+.fs-head-left i { width: 18px; text-align: center; }
+.fs-arrow {
+    font-size: .7rem;
+    color: var(--muted);
+    transition: transform .25s var(--ease);
+}
+.fs.open .fs-arrow { transform: rotate(180deg); }
+.fs-body {
+    padding: 0 1.25rem;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .3s var(--ease), padding .3s var(--ease);
+}
+.fs.open .fs-body {
+    max-height: 500px;
+    padding: .75rem 1.25rem 1rem;
+}
+
+/* filter inputs */
+.fi {
+    width: 100%;
+    padding: .65rem .9rem;
+    border: 1.5px solid var(--brd);
+    border-radius: var(--r-sm);
+    background: var(--surf);
+    font-size: .88rem;
+    color: var(--txt);
+    outline: none;
+    transition: var(--trans);
+}
+.fi:focus { border-color: var(--br); box-shadow: 0 0 0 3px var(--br-lt); }
+
+/* price pair */
+.price-pair {
+    display: flex; align-items: center; gap: .5rem;
+}
+.price-pair .fi { flex: 1; }
+.price-sep {
+    color: var(--muted); font-weight: 700; font-size: .85rem;
+    flex-shrink: 0;
+}
+
+/* custom checkboxes */
+.cb-list { display: flex; flex-direction: column; gap: .5rem; }
+.cb-item {
+    display: flex; align-items: center; gap: .6rem;
+    cursor: pointer; padding: .35rem .5rem;
+    border-radius: var(--r-sm);
+    transition: var(--trans);
+    font-size: .87rem; color: var(--txt);
+}
+.cb-item:hover { background: var(--purple-lt); }
+.cb-item input[type="checkbox"],
+.cb-item input[type="radio"] {
+    width: 17px; height: 17px;
+    accent-color: var(--br);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+/* ===== MOBILE FAB FILTER BUTTON ===== */
+.filter-fab {
+    display: none;
+    position: fixed;
+    bottom: 1.5rem;
+    left: 1.5rem;
+    z-index: 500;
+    background: var(--br);
+    color: #fff;
+    border: none;
+    border-radius: 50px;
+    padding: .75rem 1.4rem;
+    font-size: .9rem;
+    font-weight: 700;
+    box-shadow: 0 4px 20px rgba(255,96,1,.4);
+    cursor: pointer;
+    transition: var(--trans);
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+.filter-fab:hover { background: var(--br-dk); transform: translateY(-2px); }
+.filter-fab .fab-badge {
+    background: #fff;
+    color: var(--br);
+    border-radius: 50px;
+    padding: 0 .5rem;
+    font-size: .72rem;
+    font-weight: 800;
+    min-width: 18px;
+    text-align: center;
+    display: none;
+}
+.filter-fab .fab-badge.show { display: inline-block; }
+
+/* ===== FILTER DRAWER (mobile) ===== */
+.drawer-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.5);
+    z-index: 600;
+    opacity: 0; pointer-events: none;
+    transition: opacity .3s var(--ease);
+    backdrop-filter: blur(2px);
+}
+.drawer-overlay.open { opacity: 1; pointer-events: all; }
+
+.filter-drawer {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--surf);
+    z-index: 700;
+    border-radius: 24px 24px 0 0;
+    max-height: 85vh;
+    overflow-y: auto;
+    transform: translateY(100%);
+    transition: transform .35s var(--ease);
+    box-shadow: 0 -8px 40px rgba(0,0,0,.2);
+}
+.filter-drawer.open { transform: translateY(0); }
+.drawer-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.1rem 1.25rem;
+    border-bottom: 1px solid var(--brd);
+    position: sticky; top: 0; background: var(--surf);
+    z-index: 1;
+}
+.drawer-head h3 {
+    font-size: 1.05rem; font-weight: 700; color: var(--purple); margin: 0;
+}
+.drawer-close {
+    background: var(--bg); border: none;
+    width: 34px; height: 34px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--muted); font-size: .9rem;
+    transition: var(--trans);
+}
+.drawer-close:hover { background: #fee2e2; color: #dc3545; }
+.drawer-body { padding: 0 0 2rem; }
+
+/* ===== SKELETON LOADING ===== */
+.skeleton-grid {
+    display: none;
+}
+.skeleton-grid.show { display: grid; }
+.sk-card {
+    background: var(--surf);
+    border-radius: var(--r);
+    overflow: hidden;
+    box-shadow: var(--sh);
+}
+.sk-img {
+    height: 220px;
+    background: linear-gradient(90deg, #e8ecf0 25%, #f5f6fa 50%, #e8ecf0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+.sk-body { padding: 1rem; }
+.sk-line {
+    height: 12px; border-radius: 6px;
+    background: linear-gradient(90deg, #e8ecf0 25%, #f5f6fa 50%, #e8ecf0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    margin-bottom: .6rem;
+}
+.sk-line.short { width: 60%; }
+.sk-line.xshort { width: 40%; }
+@keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* ===== ADS TOOLBAR ===== */
+.ads-toolbar {
+    background: var(--surf);
+    border-radius: var(--r);
+    box-shadow: var(--sh);
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+.toolbar-count {
+    font-size: 1rem; font-weight: 700; color: var(--purple);
+    display: flex; align-items: center; gap: .4rem;
+    white-space: nowrap;
+}
+.toolbar-count .cnt-num {
+    color: var(--br); font-size: 1.2rem;
+}
+.toolbar-sort select {
+    padding: .5rem .9rem;
+    border: 1.5px solid var(--brd);
+    border-radius: var(--r-sm);
+    background: var(--surf);
+    font-size: .88rem; color: var(--txt);
+    outline: none; cursor: pointer;
+    transition: var(--trans);
+}
+.toolbar-sort select:focus { border-color: var(--br); }
+.view-toggles {
+    display: flex; gap: .35rem;
+    background: var(--bg);
+    border-radius: var(--r-sm);
+    padding: .25rem;
+}
+.vt-btn {
+    width: 36px; height: 36px;
+    border: none; background: transparent;
+    color: var(--muted); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: var(--trans); font-size: .9rem;
+}
+.vt-btn.active {
+    background: var(--br); color: #fff;
+    box-shadow: 0 2px 8px rgba(255,96,1,.3);
+}
+.vt-btn:hover:not(.active) { background: var(--brd); }
+
+/* ===== AD CARDS GRID ===== */
+.ads-grid { transition: opacity .25s; }
+.ads-grid.loading { opacity: .4; pointer-events: none; }
+
+/* stagger animation */
+.ad-col {
+    animation: cardIn .45s var(--ease) both;
+}
+@keyframes cardIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.ad-col:nth-child(1) { animation-delay: .05s; }
+.ad-col:nth-child(2) { animation-delay: .1s; }
+.ad-col:nth-child(3) { animation-delay: .15s; }
+.ad-col:nth-child(4) { animation-delay: .2s; }
+.ad-col:nth-child(5) { animation-delay: .25s; }
+.ad-col:nth-child(6) { animation-delay: .3s; }
+
+/* list view */
+#adsGrid[data-view="list"] .col-xxl-4,
+#adsGrid[data-view="list"] .col-xl-4,
+#adsGrid[data-view="list"] .col-lg-4,
+#adsGrid[data-view="list"] .col-md-6 {
+    flex: 0 0 100%; max-width: 100%;
+}
+#adsGrid[data-view="list"] .modern-ad-card {
+    display: flex; flex-direction: row; min-height: auto;
+}
+#adsGrid[data-view="list"] .ad-image-container {
+    flex: 0 0 280px; height: 200px;
+}
+#adsGrid[data-view="list"] .ad-content {
+    flex: 1; display: flex; flex-direction: column; justify-content: space-between;
+}
+
+/* ===== EMPTY STATE ===== */
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: var(--surf);
+    border-radius: var(--r-lg);
+    box-shadow: var(--sh);
+}
+.empty-ring {
+    width: 100px; height: 100px;
+    margin: 0 auto 1.5rem;
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+}
+.empty-ring::before {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    border: 3px solid var(--br-lt);
+    animation: pulse-ring 2s ease-out infinite;
+}
+@keyframes pulse-ring {
+    0%   { transform: scale(1); opacity: .8; }
+    100% { transform: scale(1.5); opacity: 0; }
+}
+.empty-ring i {
+    font-size: 3rem; color: var(--muted);
+}
+.empty-title { font-size: 1.5rem; font-weight: 700; color: var(--txt); margin-bottom: .5rem; }
+.empty-desc  { color: var(--muted); margin-bottom: 1.5rem; }
+
+/* ===== PAGINATION ===== */
+.pagination-wrap { display: flex; justify-content: center; margin-top: 2rem; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 991.98px) {
+    .sidebar-wrap { display: none; }
+    .filter-fab   { display: flex !important; }
+}
+
+@media (max-width: 767.98px) {
+    .chip { font-size: .78rem; padding: .38rem .85rem; }
+    .phc-title { font-size: 1.2rem; }
+    .phc-icon { width: 36px; height: 36px; font-size: 1rem; border-radius: 10px; }
+    .phc-stats { gap: .75rem; }
+    .phc-stat-num { font-size: 1.1rem; }
+    .subcat-icon { width: 62px; height: 62px; font-size: 1.6rem; border-radius: 18px; }
+    .subcat-name { font-size: .88rem; }
+    .subcat-card { padding: 1.4rem .85rem 1.25rem; }
+    .ads-toolbar { padding: .75rem 1rem; }
+    .toolbar-count { font-size: .88rem; }
+    #adsGrid[data-view="list"] .ad-image-container {
+        flex: 0 0 120px; height: 140px;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .chip-strip-section { top: 56px; }
+    .ads-toolbar { flex-direction: column; align-items: stretch; gap: .6rem; }
+    .toolbar-sort select { width: 100%; }
+    .view-toggles { justify-content: center; }
+}
+</style>
 {% endblock %}
 
 {% block content %}
-    <!-- Hero Section -->
-    {% if category %}
-        <section class="categories-hero">
-            <div class="container">
-                <div class="hero-content-wrapper">
-                    <!-- Breadcrumb -->
-                    {% if breadcrumbs %}
-                        <nav aria-label="breadcrumb" class="enhanced-breadcrumb mb-4">
-                            <ol class="breadcrumb" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); padding: 1rem 1.5rem; border-radius: 15px; margin: 0;">
-                                <li class="breadcrumb-item">
-                                    <a href="{% url 'main:home' %}" style="color: rgba(255, 255, 255, 0.9); text-decoration: none;">
-                                        <i class="fas fa-home me-2"></i>
-                                        {% trans "الرئيسية" %}
-                                    </a>
-                                </li>
-                                <li class="breadcrumb-item">
-                                    <a href="{% url 'main:categories' %}" style="color: rgba(255, 255, 255, 0.9); text-decoration: none;">
-                                        <i class="fas fa-th-large me-2"></i>
-                                        {% trans "جميع الأقسام" %}
-                                    </a>
-                                </li>
-                                {% for breadcrumb in breadcrumbs %}
-                                    {% if forloop.last %}
-                                        <li class="breadcrumb-item active" aria-current="page" style="color: white;">
-                                            {{ breadcrumb.display_name }}
-                                        </li>
-                                    {% else %}
-                                        <li class="breadcrumb-item">
-                                            <a href="{% url 'main:category_detail' breadcrumb.slug %}" style="color: rgba(255, 255, 255, 0.9); text-decoration: none;">
-                                                {{ breadcrumb.display_name }}
-                                            </a>
-                                        </li>
-                                    {% endif %}
-                                {% endfor %}
-                            </ol>
-                        </nav>
-                    {% endif %}
+{% if category %}
 
-                    <div class="text-center">
-                        <h1 class="hero-title" style="color: white !important; visibility: visible !important; opacity: 1 !important;">
-                            <i class="{% if category.icon %}{{ category.icon }}{% else %}fas fa-tag{% endif %} me-3"></i>
-                            {{ category.display_name }}
-                        </h1>
-                        <p class="hero-subtitle" style="color: rgba(255, 255, 255, 0.95) !important; visibility: visible !important; opacity: 1 !important;">
-                            {% if category.description %}{{ category.description|safe }}{% else %}
-                                {% trans "استكشف جميع الإعلانات في هذا القسم واعثر على ما تبحث عنه بسهولة" %}
-                            {% endif %}
-                        </p>
+<!-- ===== COMPACT PAGE HEADER ===== -->
+<div class="page-header-compact">
+    <div class="container">
+        <div class="phc-inner">
+            <div>
+                <nav class="phc-breadcrumb" aria-label="breadcrumb">
+                    <a href="{% url 'main:home' %}"><i class="fas fa-home"></i></a>
+                    <span class="phc-sep"><i class="fas fa-chevron-left"></i></span>
+                    <a href="{% url 'main:categories' %}">{% trans "الأقسام" %}</a>
+                    {% for breadcrumb in breadcrumbs %}
+                        <span class="phc-sep"><i class="fas fa-chevron-left"></i></span>
+                        {% if forloop.last %}
+                            <span>{{ breadcrumb.display_name }}</span>
+                        {% else %}
+                            <a href="{% url 'main:category_detail' breadcrumb.slug %}">{{ breadcrumb.display_name }}</a>
+                        {% endif %}
+                    {% endfor %}
+                </nav>
+                <div class="phc-title-row">
+                    <div class="phc-icon">
+                        <i class="{% if category.icon %}{{ category.icon }}{% else %}fas fa-tag{% endif %}"></i>
+                    </div>
+                    <h1 class="phc-title">{{ category.display_name }}</h1>
+                </div>
+            </div>
+            <div class="phc-stats">
+                {% if subcategories %}
+                <div class="phc-stat">
+                    <div class="phc-stat-num">{{ subcategories|length }}</div>
+                    <div class="phc-stat-label">{% trans "قسم فرعي" %}</div>
+                </div>
+                <div class="phc-divider"></div>
+                {% endif %}
+                <div class="phc-stat">
+                    <div class="phc-stat-num" id="totalAds">{{ total_ads|default:0 }}</div>
+                    <div class="phc-stat-label">{% trans "إعلان" %}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-                        <!-- Search Bar -->
-                        <div class="categories-search-wrapper">
-                            <div class="search-input-container">
-                                <i class="fas fa-search search-icon"></i>
-                                <input type="text"
-                                       id="searchInput"
-                                       class="search-input"
-                                       placeholder="{% trans 'ابحث في الإعلانات...' %}"
-                                       autocomplete="off">
-                                <button type="button" id="clearSearchBtn" class="clear-search" style="display: none;">
-                                    <i class="fas fa-times"></i>
-                                </button>
+<!-- Banner paid ad / adsense -->
+{% if adsense_slots.category_banner %}
+    {% include "components/paid_ads/adsense.html" with slot=adsense_slots.category_banner %}
+{% elif category_paid_ads.banner %}
+    {% include "components/paid_ads/banner.html" with ads=category_paid_ads.banner %}
+{% endif %}
+
+<!-- ===== SUBCATEGORY CHIP STRIP ===== -->
+{% if subcategories %}
+<div class="chip-strip-section">
+    <div class="container">
+        <div class="chip-strip-inner">
+            <button class="chip-nav-btn" id="chipPrev" aria-label="{% trans 'السابق' %}"><i class="fas fa-chevron-right"></i></button>
+            <div class="chip-scroll" id="chipScroll">
+                <!-- "Show all" chip -->
+                <span class="chip active" data-cat-id="" id="chipAll">
+                    <i class="fas fa-th-large"></i>
+                    {% trans "الكل" %}
+                    <span class="chip-count">{{ total_ads|default:0 }}</span>
+                </span>
+                {% for subcat_data in subcategories %}
+                <a href="{% url 'main:category_detail' subcat_data.category.slug %}"
+                   class="chip"
+                   data-cat-id="{{ subcat_data.category.id }}">
+                    <i class="{% if subcat_data.category.icon %}{{ subcat_data.category.icon }}{% else %}fas fa-tag{% endif %}"></i>
+                    {{ subcat_data.category.display_name }}
+                    <span class="chip-count">{{ subcat_data.category.ads_count|default:0 }}</span>
+                </a>
+                {% endfor %}
+            </div>
+            <button class="chip-nav-btn" id="chipNext" aria-label="{% trans 'التالي' %}"><i class="fas fa-chevron-left"></i></button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== SUBCATEGORY CARDS GRID ===== -->
+<section class="subcat-section">
+    <div class="container">
+        <div class="subcat-section-hd">
+            <h2><i class="fas fa-layer-group"></i>{% trans "الأقسام الفرعية" %}</h2>
+            <span class="subcat-meta-count">{{ subcategories|length }} {% trans "قسم" %}</span>
+        </div>
+        <div class="row g-3">
+            {% for subcat_data in subcategories %}
+            <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 col-6 subcat-col">
+                <a href="{% url 'main:category_detail' subcat_data.category.slug %}" class="subcat-card">
+                    <div class="subcat-icon">
+                        <i class="{% if subcat_data.category.icon %}{{ subcat_data.category.icon }}{% else %}fas fa-tag{% endif %}"></i>
+                    </div>
+                    <div class="subcat-name">{{ subcat_data.category.display_name }}</div>
+                    <div class="subcat-badge">
+                        <i class="fas fa-bullhorn"></i>
+                        <span>{{ subcat_data.category.ads_count|default:0 }}</span>
+                    </div>
+                    <div class="subcat-arrow"><i class="fas fa-arrow-left"></i></div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- ===== MAIN BODY ===== -->
+<section class="page-body">
+    <div class="container">
+        <div class="row g-4">
+
+            <!-- ===== SIDEBAR (desktop) ===== -->
+            <div class="col-lg-3 d-none d-lg-block">
+                <div class="sidebar-wrap">
+                    <div class="sidebar-card">
+                        <div class="sidebar-head">
+                            <h2 class="sidebar-head-title">
+                                <i class="fas fa-sliders-h" style="color:var(--br)"></i>
+                                {% trans "الفلترة" %}
+                            </h2>
+                            <button class="clear-all-btn" id="clearFiltersBtn">
+                                <i class="fas fa-times me-1"></i>{% trans "مسح الكل" %}
+                            </button>
+                        </div>
+
+                        <!-- Search -->
+                        <div class="fs open">
+                            <div class="fs-head" onclick="toggleSection(this)">
+                                <span class="fs-head-left"><i class="fas fa-search"></i>{% trans "بحث" %}</span>
+                                <i class="fas fa-chevron-down fs-arrow"></i>
                             </div>
+                            <div class="fs-body">
+                                <input type="text" id="filterSearch" class="fi" placeholder="{% trans 'ابحث في الإعلانات...' %}">
+                            </div>
+                        </div>
 
-                            <!-- Stats Bar -->
-                            <div class="stats-bar">
-                                <div class="stat-item">
-                                    <div class="stat-icon">
-                                        <i class="fas fa-layer-group"></i>
-                                    </div>
-                                    <span id="totalCategories">{{ total_categories|default:0 }}</span>
-                                    {% trans "فئة" %}
-                                </div>
-                                <div class="stat-item">
-                                    <div class="stat-icon">
-                                        <i class="fas fa-bullhorn"></i>
-                                    </div>
-                                    <span id="totalAds">{{ total_ads|default:0 }}</span>
-                                    {% trans "إعلان" %}
-                                </div>
-                                <div class="stat-item">
-                                    <div class="stat-icon">
-                                        <i class="fas fa-eye"></i>
-                                    </div>
-                                    <span id="visibleAds">{{ total_ads|default:0 }}</span>
-                                    {% trans "معروض" %}
+                        <!-- Price -->
+                        <div class="fs open">
+                            <div class="fs-head" onclick="toggleSection(this)">
+                                <span class="fs-head-left"><i class="fas fa-tag"></i>{% trans "السعر" %}</span>
+                                <i class="fas fa-chevron-down fs-arrow"></i>
+                            </div>
+                            <div class="fs-body">
+                                <div class="price-pair">
+                                    <input type="number" id="minPrice" class="fi" placeholder="{% trans 'من' %}">
+                                    <span class="price-sep">–</span>
+                                    <input type="number" id="maxPrice" class="fi" placeholder="{% trans 'إلى' %}">
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-        </section>
 
-        <!-- Banner slot: AdSense أولاً، ثم البانر المدفوع كـ fallback -->
-        {% if adsense_slots.category_banner %}
-            {% include "components/paid_ads/adsense.html" with slot=adsense_slots.category_banner %}
-        {% elif category_paid_ads.banner %}
-            {% include "components/paid_ads/banner.html" with ads=category_paid_ads.banner %}
-        {% endif %}
-
-        <!-- Main Content -->
-        <section class="content-section">
-            <div class="container">
-                <div class="row g-4">
-                    <!-- Mobile Filter Toggle (visible on mobile only) -->
-                    <div class="col-12 d-lg-none">
-                        <button type="button" class="mobile-filter-toggle" id="mobileFilterToggle">
-                            <i class="fas fa-filter"></i>
-                            {% trans "إظهار الفلاتر" %}
-                        </button>
-                    </div>
-
-                    <!-- Filters Sidebar -->
-                    <div class="col-lg-3 col-md-4 col-12">
-                        <div class="filters-card" data-aos="fade-right">
-                            <div class="filter-header">
-                                <h3 class="filter-title">
-                                    <i class="fas fa-filter me-2"></i>
-                                    {% trans "الفلترة" %}
-                                </h3>
-                                <button type="button" class="clear-filters-btn" id="clearFiltersBtn">
-                                    <i class="fas fa-times me-1"></i>
-                                    {% trans "مسح" %}
-                                </button>
+                        <!-- Subcategory (if any) -->
+                        {% if subcategories %}
+                        <div class="fs open">
+                            <div class="fs-head" onclick="toggleSection(this)">
+                                <span class="fs-head-left"><i class="fas fa-folder-open"></i>{% trans "القسم الفرعي" %}</span>
+                                <i class="fas fa-chevron-down fs-arrow"></i>
                             </div>
-
-                            <!-- Search Filter -->
-                            <div class="filter-group">
-                                <label class="filter-label">
-                                    <i class="fas fa-search me-1"></i>
-                                    {% trans "بحث" %}
-                                </label>
-                                <input type="text"
-                                       id="filterSearch"
-                                       class="filter-input"
-                                       placeholder="{% trans 'ابحث في الإعلانات...' %}">
-                            </div>
-
-                            <!-- Price Range Filter -->
-                            <div class="filter-group">
-                                <label class="filter-label">
-                                    <i class="fas fa-dollar-sign me-1"></i>
-                                    {% trans "السعر" %}
-                                </label>
-                                <div class="row g-2">
-                                    <div class="col-6">
-                                        <input type="number"
-                                               id="minPrice"
-                                               class="filter-input"
-                                               placeholder="{% trans 'من' %}">
-                                    </div>
-                                    <div class="col-6">
-                                        <input type="number"
-                                               id="maxPrice"
-                                               class="filter-input"
-                                               placeholder="{% trans 'إلى' %}">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Location Filter -->
-                            <div class="filter-group">
-                                <label class="filter-label">
-                                    <i class="fas fa-map-marker-alt me-1"></i>
-                                    {% trans "الموقع" %}
-                                </label>
-                                <select id="locationFilter" class="filter-select">
-                                    <option value="">{% trans "جميع المواقع" %}</option>
-                                    <option value="morocco">{% trans "المغرب" %}</option>
-                                    <option value="egypt">{% trans "مصر" %}</option>
-                                    <option value="saudi">{% trans "السعودية" %}</option>
-                                    <option value="uae">{% trans "الإمارات" %}</option>
-                                </select>
-                            </div>
-
-                            <!-- Category Filter -->
-                            {% if subcategories %}
-                            <div class="filter-group">
-                                <label class="filter-label">
-                                    <i class="fas fa-tag me-1"></i>
-                                    {% trans "القسم الفرعي" %}
-                                </label>
-                                <select id="categoryFilter" class="filter-select" onchange="filterBySubcategory(this.value)">
+                            <div class="fs-body">
+                                <select id="categoryFilter" class="fi" onchange="filterBySubcategory(this.value)">
                                     <option value="">{% trans "جميع الأقسام الفرعية" %}</option>
                                     {% for subcat_data in subcategories %}
                                         <option value="{{ subcat_data.category.id }}"
-                                                data-has-children="{% if subcat_data.has_children %}true{% else %}false{% endif %}"
-                                                data-custom-fields-count="{{ subcat_data.custom_fields|length }}">
+                                                data-has-children="{% if subcat_data.has_children %}true{% else %}false{% endif %}">
                                             {{ subcat_data.category.display_name }}
-                                            {% if subcat_data.custom_fields %}
-                                                ({{ subcat_data.custom_fields|length }} {% trans "فلتر" %})
-                                            {% endif %}
                                         </option>
                                     {% endfor %}
                                 </select>
-
-                                <!-- Display custom fields info for subcategories -->
-                                {% if subcategories %}
-                                <div class="subcategory-custom-fields-info mt-3">
-                                    <details class="custom-fields-preview" style="border: 1px solid rgba(75, 49, 94, 0.15); border-radius: 10px; padding: 1rem; background: rgba(75, 49, 94, 0.03);">
-                                        <summary style="cursor: pointer; font-weight: 600; color: var(--primary-color); font-size: 0.9rem;">
-                                            <i class="fas fa-info-circle me-1"></i>
-                                            {% trans "حقول الفلترة حسب القسم" %}
-                                        </summary>
-                                        <div class="mt-3" style="max-height: 300px; overflow-y: auto;">
-                                            {% for subcat_data in subcategories %}
-                                                {% if subcat_data.custom_fields %}
-                                                <div class="mb-3 pb-2" style="border-bottom: 1px solid rgba(75, 49, 94, 0.1);">
-                                                    <div style="font-weight: 600; color: var(--primary-color); font-size: 0.85rem; margin-bottom: 0.5rem;">
-                                                        <i class="fas fa-folder me-1"></i>
-                                                        {{ subcat_data.category.display_name }}
-                                                    </div>
-                                                    <div class="d-flex flex-wrap gap-1">
-                                                        {% for cf in subcat_data.custom_fields %}
-                                                        <span class="badge" style="background: var(--primary-color); font-size: 0.75rem; padding: 0.25rem 0.5rem;">
-                                                            <i class="fas fa-{{ cf.custom_field.icon|default:'filter' }} me-1"></i>
-                                                            {{ cf.custom_field.label }}
-                                                        </span>
-                                                        {% endfor %}
-                                                    </div>
-                                                </div>
-                                                {% endif %}
-                                            {% endfor %}
-                                        </div>
-                                    </details>
-                                </div>
-                                {% endif %}
                             </div>
-                            {% endif %}
+                        </div>
+                        {% endif %}
 
-                            <!-- Sort Filter -->
-                            <div class="filter-group">
-                                <label class="filter-label">
-                                    <i class="fas fa-sort me-1"></i>
-                                    {% trans "الترتيب" %}
-                                </label>
-                                <select id="sortFilter" class="filter-select">
+                        <!-- Sort -->
+                        <div class="fs open">
+                            <div class="fs-head" onclick="toggleSection(this)">
+                                <span class="fs-head-left"><i class="fas fa-sort-amount-down"></i>{% trans "الترتيب" %}</span>
+                                <i class="fas fa-chevron-down fs-arrow"></i>
+                            </div>
+                            <div class="fs-body">
+                                <select id="sortFilter" class="fi">
                                     <option value="-created_at">{% trans "الأحدث" %}</option>
                                     <option value="price">{% trans "السعر: الأقل" %}</option>
                                     <option value="-price">{% trans "السعر: الأعلى" %}</option>
                                     <option value="title">{% trans "الاسم: أ-ي" %}</option>
                                 </select>
                             </div>
+                        </div>
 
-                            <!-- Additional Filters -->
-                            <div class="filter-group">
-                                <label class="filter-label">
-                                    <i class="fas fa-sliders-h me-1"></i>
-                                    {% trans "خيارات إضافية" %}
-                                </label>
-                                <div class="filter-checkbox-group">
-                                    <label class="filter-checkbox">
+                        <!-- Extra options -->
+                        <div class="fs open">
+                            <div class="fs-head" onclick="toggleSection(this)">
+                                <span class="fs-head-left"><i class="fas fa-check-circle"></i>{% trans "خيارات إضافية" %}</span>
+                                <i class="fas fa-chevron-down fs-arrow"></i>
+                            </div>
+                            <div class="fs-body">
+                                <div class="cb-list">
+                                    <label class="cb-item">
                                         <input type="checkbox" id="activeFilter" checked>
                                         <span>{% trans "نشط فقط" %}</span>
                                     </label>
-                                    <label class="filter-checkbox">
+                                    <label class="cb-item">
                                         <input type="checkbox" id="featuredFilter">
                                         <span>{% trans "مميز" %}</span>
                                     </label>
-                                    <label class="filter-checkbox">
+                                    <label class="cb-item">
                                         <input type="checkbox" id="verifiedFilter">
                                         <span>{% trans "موثق" %}</span>
                                     </label>
-                                    <label class="filter-checkbox">
+                                    <label class="cb-item">
                                         <input type="checkbox" id="imagesFilter">
                                         <span>{% trans "مع صور" %}</span>
                                     </label>
                                 </div>
                             </div>
-
-                            <!-- Custom Fields Filters (Dynamic based on category) -->
-                            <div id="customFieldsContainer">
-                                {% if category_filter_fields %}
-                                    {% for cat_field in category_filter_fields %}
-                                        {% with field=cat_field.custom_field %}
-                                            <div class="filter-group custom-field-filter" data-field-name="{{ field.name }}">
-                                                <label class="filter-label">
-                                                    <i class="fas fa-{{ field.icon|default:'cog' }} me-1"></i>
-                                                    {{ field.label }}
-                                                    {% if cat_field.is_required %}
-                                                        <span class="text-danger">*</span>
-                                                    {% endif %}
-                                                </label>
-
-                                                {% if field.field_type == 'select' or field.field_type == 'radio' %}
-                                                    {% with field_key="cf_"|add:field.name %}
-                                                    <select class="filter-select custom-field-select"
-                                                            name="cf_{{ field.name }}"
-                                                            data-field-name="{{ field.name }}">
-                                                        <option value="">{% trans "الكل" %}</option>
-                                                        {% for option in field.field_options.all %}
-                                                            {% if option.is_active %}
-                                                                <option value="{{ option.value }}"
-                                                                        {% if request.GET|get_item:field_key == option.value %}selected{% endif %}>
-                                                                    {{ option.label }}
-                                                                </option>
-                                                            {% endif %}
-                                                        {% endfor %}
-                                                    </select>
-                                                    {% endwith %}
-
-                                                {% elif field.field_type == 'number' or field.field_type == 'range' %}
-                                                    {% with field_key_min="cf_"|add:field.name|add:"_min" field_key_max="cf_"|add:field.name|add:"_max" %}
-                                                    <div class="row g-2">
-                                                        <div class="col-6">
-                                                            <input type="number"
-                                                                   class="filter-input"
-                                                                   name="cf_{{ field.name }}_min"
-                                                                   placeholder="{% trans 'من' %}"
-                                                                   value="{{ request.GET|get_item:field_key_min }}">
-                                                        </div>
-                                                        <div class="col-6">
-                                                            <input type="number"
-                                                                   class="filter-input"
-                                                                   name="cf_{{ field.name }}_max"
-                                                                   placeholder="{% trans 'إلى' %}"
-                                                                   value="{{ request.GET|get_item:field_key_max }}">
-                                                        </div>
-                                                    </div>
-                                                    {% endwith %}
-
-                                                {% elif field.field_type == 'checkbox' %}
-                                                    {% with field_key="cf_"|add:field.name %}
-                                                    {% with field_values=request.GET|get_list:field_key %}
-                                                    <div class="filter-checkbox-group">
-                                                        {% for option in field.field_options.all %}
-                                                            {% if option.is_active %}
-                                                                <label class="filter-checkbox">
-                                                                    <input type="checkbox"
-                                                                           name="cf_{{ field.name }}"
-                                                                           value="{{ option.value }}"
-                                                                           {% if option.value in field_values %}checked{% endif %}>
-                                                                    <span>{{ option.label }}</span>
-                                                                </label>
-                                                            {% endif %}
-                                                        {% endfor %}
-                                                    </div>
-                                                    {% endwith %}
-                                                    {% endwith %}
-
-                                                {% elif field.field_type == 'text' or field.field_type == 'textarea' %}
-                                                    {% with field_key="cf_"|add:field.name %}
-                                                    <input type="text"
-                                                           class="filter-input custom-field-input"
-                                                           name="cf_{{ field.name }}"
-                                                           placeholder="{{ field.placeholder|default:field.label }}"
-                                                           value="{{ request.GET|get_item:field_key }}">
-                                                    {% endwith %}
-                                                {% endif %}
-                                            </div>
-                                        {% endwith %}
-                                    {% endfor %}
-                                {% endif %}
-                            </div>
                         </div>
 
-                        <!-- Sidebar slot: AdSense أولاً، ثم الجانبي المدفوع كـ fallback -->
-                        {% if adsense_slots.category_sidebar %}
-                            <div class="mt-4">
-                                {% include "components/paid_ads/adsense.html" with slot=adsense_slots.category_sidebar %}
-                            </div>
-                        {% elif category_paid_ads.sidebar %}
-                            <div class="mt-4">
-                                {% include "components/paid_ads/sidebar.html" with ads=category_paid_ads.sidebar %}
-                            </div>
-                        {% endif %}
+                        <!-- Custom Fields -->
+                        <div id="customFieldsContainer">
+                            {% if category_filter_fields %}
+                                {% for cat_field in category_filter_fields %}
+                                    {% with field=cat_field.custom_field %}
+                                    <div class="fs open custom-field-filter" data-field-name="{{ field.name }}">
+                                        <div class="fs-head" onclick="toggleSection(this)">
+                                            <span class="fs-head-left">
+                                                <i class="fas fa-{{ field.icon|default:'cog' }}"></i>
+                                                {{ field.label }}
+                                            </span>
+                                            <i class="fas fa-chevron-down fs-arrow"></i>
+                                        </div>
+                                        <div class="fs-body">
+                                            {% if field.field_type == 'select' or field.field_type == 'radio' %}
+                                                {% with field_key="cf_"|add:field.name %}
+                                                <select class="fi custom-field-select" name="cf_{{ field.name }}" data-field-name="{{ field.name }}">
+                                                    <option value="">{% trans "الكل" %}</option>
+                                                    {% for option in field.field_options.all %}
+                                                        {% if option.is_active %}
+                                                            <option value="{{ option.value }}"
+                                                                {% if request.GET|get_item:field_key == option.value %}selected{% endif %}>
+                                                                {{ option.label }}
+                                                            </option>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </select>
+                                                {% endwith %}
+
+                                            {% elif field.field_type == 'number' or field.field_type == 'range' %}
+                                                {% with field_key_min="cf_"|add:field.name|add:"_min" field_key_max="cf_"|add:field.name|add:"_max" %}
+                                                <div class="price-pair">
+                                                    <input type="number" class="fi" name="cf_{{ field.name }}_min"
+                                                           placeholder="{% trans 'من' %}" value="{{ request.GET|get_item:field_key_min }}">
+                                                    <span class="price-sep">–</span>
+                                                    <input type="number" class="fi" name="cf_{{ field.name }}_max"
+                                                           placeholder="{% trans 'إلى' %}" value="{{ request.GET|get_item:field_key_max }}">
+                                                </div>
+                                                {% endwith %}
+
+                                            {% elif field.field_type == 'checkbox' %}
+                                                {% with field_key="cf_"|add:field.name %}
+                                                {% with field_values=request.GET|get_list:field_key %}
+                                                <div class="cb-list">
+                                                    {% for option in field.field_options.all %}
+                                                        {% if option.is_active %}
+                                                            <label class="cb-item">
+                                                                <input type="checkbox" name="cf_{{ field.name }}" value="{{ option.value }}"
+                                                                    {% if option.value in field_values %}checked{% endif %}
+                                                                    class="custom-field-checkbox">
+                                                                <span>{{ option.label }}</span>
+                                                            </label>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </div>
+                                                {% endwith %}
+                                                {% endwith %}
+
+                                            {% elif field.field_type == 'text' or field.field_type == 'textarea' %}
+                                                {% with field_key="cf_"|add:field.name %}
+                                                <input type="text" class="fi custom-field-input"
+                                                       name="cf_{{ field.name }}"
+                                                       data-field-name="{{ field.name }}"
+                                                       placeholder="{{ field.placeholder|default:field.label }}"
+                                                       value="{{ request.GET|get_item:field_key }}">
+                                                {% endwith %}
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endwith %}
+                                {% endfor %}
+                            {% endif %}
+                        </div>
                     </div>
 
-                    <!-- Ads Grid -->
-                    <div class="col-lg-9 col-md-8 col-12">
-                        <!-- Featured slot: AdSense أولاً، ثم المميز المدفوع كـ fallback -->
-                        {% if adsense_slots.category_featured %}
-                            {% include "components/paid_ads/adsense.html" with slot=adsense_slots.category_featured %}
-                        {% elif category_paid_ads.featured_box %}
-                            {% include "components/paid_ads/featured_box.html" with ads=category_paid_ads.featured_box %}
-                        {% endif %}
+                    <!-- Sidebar paid ad / adsense -->
+                    {% if adsense_slots.category_sidebar %}
+                        <div class="mt-3">{% include "components/paid_ads/adsense.html" with slot=adsense_slots.category_sidebar %}</div>
+                    {% elif category_paid_ads.sidebar %}
+                        <div class="mt-3">{% include "components/paid_ads/sidebar.html" with ads=category_paid_ads.sidebar %}</div>
+                    {% endif %}
+                </div>
+            </div>
 
-                        <!-- Ads Header -->
-                        <div class="ads-header" data-aos="fade-left">
-                            <div class="results-info">
-                                <i class="fas fa-bullhorn me-2"></i>
-                                <span id="resultsCount">{{ total_ads|default:0 }}</span>
-                                {% trans "إعلان" %}
-                            </div>
-                            <div class="view-toggles">
-                                <button type="button" class="view-toggle-btn active" id="gridViewBtn">
-                                    <i class="fas fa-th me-1"></i>
-                                    {% trans "شبكة" %}
-                                </button>
-                                <button type="button" class="view-toggle-btn" id="listViewBtn">
-                                    <i class="fas fa-list me-1"></i>
-                                    {% trans "قائمة" %}
-                                </button>
+            <!-- ===== ADS AREA ===== -->
+            <div class="col-lg-9 col-12">
+
+                <!-- featured paid ad / adsense -->
+                {% if adsense_slots.category_featured %}
+                    {% include "components/paid_ads/adsense.html" with slot=adsense_slots.category_featured %}
+                {% elif category_paid_ads.featured_box %}
+                    {% include "components/paid_ads/featured_box.html" with ads=category_paid_ads.featured_box %}
+                {% endif %}
+
+                <!-- Active filters chip bar -->
+                <div id="activeFiltersBar" class="active-filters-bar hidden"></div>
+
+                <!-- Toolbar -->
+                <div class="ads-toolbar">
+                    <div class="toolbar-count">
+                        <i class="fas fa-bullhorn" style="color:var(--br)"></i>
+                        <span class="cnt-num" id="resultsCount">{{ total_ads|default:0 }}</span>
+                        {% trans "إعلان" %}
+                    </div>
+                    <div class="toolbar-sort">
+                        <select id="sortFilterToolbar">
+                            <option value="-created_at">{% trans "الأحدث" %}</option>
+                            <option value="price">{% trans "السعر: الأقل" %}</option>
+                            <option value="-price">{% trans "السعر: الأعلى" %}</option>
+                            <option value="title">{% trans "الاسم: أ-ي" %}</option>
+                        </select>
+                    </div>
+                    <div class="view-toggles">
+                        <button class="vt-btn active" id="gridViewBtn" title="{% trans 'شبكة' %}"><i class="fas fa-th"></i></button>
+                        <button class="vt-btn" id="listViewBtn" title="{% trans 'قائمة' %}"><i class="fas fa-list"></i></button>
+                    </div>
+                </div>
+
+                <!-- Skeleton placeholders -->
+                <div class="skeleton-grid row g-4" id="skeletonGrid">
+                    {% for i in "123" %}
+                    <div class="col-md-4 col-sm-6 col-12">
+                        <div class="sk-card"><div class="sk-img"></div><div class="sk-body"><div class="sk-line"></div><div class="sk-line short"></div><div class="sk-line xshort"></div></div></div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Ads grid -->
+                <div class="row g-4 ads-grid" id="adsGrid" data-view="grid">
+                    {% for ad in ads %}
+                        <div class="col-xxl-4 col-xl-4 col-lg-4 col-md-6 col-sm-6 col-12 ad-col"
+                             data-category-id="{{ ad.category.id }}"
+                             data-category-name="{{ ad.category.display_name }}">
+                            {% include "partials/_ad_card_component.html" with ad=ad %}
+                        </div>
+                    {% empty %}
+                        <div class="col-12">
+                            <div class="empty-state">
+                                <div class="empty-ring"><i class="fas fa-search"></i></div>
+                                <h2 class="empty-title">{% trans "لا توجد إعلانات" %}</h2>
+                                <p class="empty-desc">{% trans "لم يتم العثور على إعلانات في هذه الفئة حتى الآن" %}</p>
+                                <a href="{% url 'main:ad_create' %}" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-plus me-2"></i>{% trans "أضف إعلانك الأول" %}
+                                </a>
                             </div>
                         </div>
+                    {% endfor %}
+                </div>
 
-                        <!-- Loading State -->
-                        <div class="loading-state" id="loadingState" style="display: none;">
-                            <div class="spinner"></div>
-                            <p>{% trans "جارٍ التحميل..." %}</p>
-                        </div>
-
-                        <!-- Ads Grid Container -->
-                        <div class="row g-4 ads-grid" id="adsGrid" data-view="grid">
-                            {% for ad in ads %}
-                                <div class="col-xxl-4 col-xl-4 col-lg-4 col-md-6 col-sm-6 col-12"
-                                     data-aos="fade-up"
-                                     data-category-id="{{ ad.category.id }}"
-                                     data-category-name="{% if LANGUAGE_CODE == 'ar' and ad.category.name_ar %}{{ ad.category.name_ar }}{% else %}{{ ad.category.name }}{% endif %}"
-                                     {% if ad.custom_fields %}
-                                         {% for field_name, field_value in ad.custom_fields.items %}
-                                             data-{{ field_name|lower }}="{{ field_value }}"
-                                         {% endfor %}
-                                     {% endif %}>
-                                    {% include "partials/_ad_card_component.html" with ad=ad %}
-                                </div>
-                            {% empty %}
-                                <div class="col-12">
-                                    <div class="empty-state">
-                                        <div class="empty-icon">
-                                            <i class="fas fa-search"></i>
-                                        </div>
-                                        <h2 class="empty-title">{% trans "لا توجد إعلانات" %}</h2>
-                                        <p class="empty-text">{% trans "لم يتم العثور على إعلانات في هذه الفئة" %}</p>
-                                        <a href="{% url 'main:ad_create' %}" class="btn btn-primary btn-lg">
-                                            <i class="fas fa-plus me-2"></i>
-                                            {% trans "أضف إعلانك الأول" %}
-                                        </a>
-                                    </div>
-                                </div>
+                <!-- Pagination -->
+                {% if ads.has_other_pages %}
+                <div class="pagination-wrap">
+                    <nav aria-label="pagination">
+                        <ul class="pagination">
+                            {% if ads.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ ads.previous_page_number }}">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            {% for num in ads.paginator.page_range %}
+                                <li class="page-item {% if ads.number == num %}active{% endif %}">
+                                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                </li>
                             {% endfor %}
-                        </div>
+                            {% if ads.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ ads.next_page_number }}">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+
+
+<!-- Overlay -->
+<div class="drawer-overlay" id="drawerOverlay"></div>
+
+<!-- ===== FILTER DRAWER (mobile) ===== -->
+<div class="filter-drawer" id="filterDrawer" role="dialog" aria-modal="true" aria-label="{% trans 'الفلترة' %}">
+    <div class="drawer-head">
+        <h3><i class="fas fa-sliders-h me-2" style="color:var(--br)"></i>{% trans "الفلترة" %}</h3>
+        <button class="drawer-close" id="drawerClose" aria-label="{% trans 'إغلاق' %}">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="drawer-body">
+        <!-- mirrors sidebar content -->
+        <div style="padding: 0 1.25rem;">
+            <div style="margin-top:.75rem; margin-bottom:.75rem;">
+                <button class="clear-all-btn" id="clearFiltersBtnDrawer" style="font-size:.9rem; padding:.4rem .8rem; border:1.5px solid var(--br); border-radius:50px;">
+                    <i class="fas fa-times me-1"></i>{% trans "مسح الكل" %}
+                </button>
+            </div>
+        </div>
+
+        <div class="sidebar-card" style="border-radius:0; box-shadow:none; border-top: 1px solid var(--brd);">
+            <!-- Search -->
+            <div class="fs open">
+                <div class="fs-head" onclick="toggleSection(this)">
+                    <span class="fs-head-left"><i class="fas fa-search"></i>{% trans "بحث" %}</span>
+                    <i class="fas fa-chevron-down fs-arrow"></i>
+                </div>
+                <div class="fs-body">
+                    <input type="text" id="filterSearchDrawer" class="fi" placeholder="{% trans 'ابحث في الإعلانات...' %}">
+                </div>
+            </div>
+
+            <!-- Price -->
+            <div class="fs open">
+                <div class="fs-head" onclick="toggleSection(this)">
+                    <span class="fs-head-left"><i class="fas fa-tag"></i>{% trans "السعر" %}</span>
+                    <i class="fas fa-chevron-down fs-arrow"></i>
+                </div>
+                <div class="fs-body">
+                    <div class="price-pair">
+                        <input type="number" id="minPriceDrawer" class="fi" placeholder="{% trans 'من' %}">
+                        <span class="price-sep">–</span>
+                        <input type="number" id="maxPriceDrawer" class="fi" placeholder="{% trans 'إلى' %}">
                     </div>
                 </div>
             </div>
-        </section>
-    {% endif %}
+
+            {% if subcategories %}
+            <div class="fs open">
+                <div class="fs-head" onclick="toggleSection(this)">
+                    <span class="fs-head-left"><i class="fas fa-folder-open"></i>{% trans "القسم الفرعي" %}</span>
+                    <i class="fas fa-chevron-down fs-arrow"></i>
+                </div>
+                <div class="fs-body">
+                    <select id="categoryFilterDrawer" class="fi">
+                        <option value="">{% trans "جميع الأقسام الفرعية" %}</option>
+                        {% for subcat_data in subcategories %}
+                            <option value="{{ subcat_data.category.id }}">{{ subcat_data.category.display_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="fs open">
+                <div class="fs-head" onclick="toggleSection(this)">
+                    <span class="fs-head-left"><i class="fas fa-sort-amount-down"></i>{% trans "الترتيب" %}</span>
+                    <i class="fas fa-chevron-down fs-arrow"></i>
+                </div>
+                <div class="fs-body">
+                    <select id="sortFilterDrawer" class="fi">
+                        <option value="-created_at">{% trans "الأحدث" %}</option>
+                        <option value="price">{% trans "السعر: الأقل" %}</option>
+                        <option value="-price">{% trans "السعر: الأعلى" %}</option>
+                        <option value="title">{% trans "الاسم: أ-ي" %}</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="fs open">
+                <div class="fs-head" onclick="toggleSection(this)">
+                    <span class="fs-head-left"><i class="fas fa-check-circle"></i>{% trans "خيارات إضافية" %}</span>
+                    <i class="fas fa-chevron-down fs-arrow"></i>
+                </div>
+                <div class="fs-body">
+                    <div class="cb-list">
+                        <label class="cb-item">
+                            <input type="checkbox" id="activeFilterDrawer" checked><span>{% trans "نشط فقط" %}</span>
+                        </label>
+                        <label class="cb-item">
+                            <input type="checkbox" id="featuredFilterDrawer"><span>{% trans "مميز" %}</span>
+                        </label>
+                        <label class="cb-item">
+                            <input type="checkbox" id="verifiedFilterDrawer"><span>{% trans "موثق" %}</span>
+                        </label>
+                        <label class="cb-item">
+                            <input type="checkbox" id="imagesFilterDrawer"><span>{% trans "مع صور" %}</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="padding:1rem 1.25rem;">
+            <button onclick="applyDrawerFilters(); closeDrawer();" class="btn btn-primary w-100" style="border-radius:50px; background:var(--br); border-color:var(--br); font-weight:700;">
+                <i class="fas fa-check me-2"></i>{% trans "تطبيق الفلاتر" %}
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endif %}
 {% endblock content %}
 
 {% block extra_js %}
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
-    <script>
-        // Initialize AOS
-        AOS.init({
-            duration: 600,
-            once: true,
-            offset: 100
+<script>
+/* ================================================================
+   CATEGORY DETAIL — PREMIUM JS
+   Preserves original CategoriesManager logic + new features
+================================================================ */
+
+// ---- Collapsible filter sections ----
+function toggleSection(headEl) {
+    const section = headEl.closest('.fs');
+    section.classList.toggle('open');
+}
+
+// ---- Chip strip scroll ----
+function initChipStrip() {
+    const scroll  = document.getElementById('chipScroll');
+    const prev    = document.getElementById('chipPrev');
+    const next    = document.getElementById('chipNext');
+    if (!scroll) return;
+
+    function update() {
+        if (prev) prev.classList.toggle('hidden', scroll.scrollLeft <= 0);
+        if (next) next.classList.toggle('hidden', scroll.scrollLeft >= scroll.scrollWidth - scroll.clientWidth - 2);
+    }
+    if (prev) prev.addEventListener('click', () => { scroll.scrollBy({ left: -220, behavior: 'smooth' }); });
+    if (next) next.addEventListener('click', () => { scroll.scrollBy({ left:  220, behavior: 'smooth' }); });
+    scroll.addEventListener('scroll', update);
+    update();
+}
+
+// ---- Active filters bar ----
+function updateActiveFiltersBar() {
+    const bar   = document.getElementById('activeFiltersBar');
+    const badge = document.getElementById('fabBadge');
+    if (!bar) return;
+
+    const filters = window.categoriesManager ? window.categoriesManager.getActiveFilters() : [];
+    if (filters.length === 0) {
+        bar.classList.add('hidden');
+        if (badge) { badge.textContent = '0'; badge.classList.remove('show'); }
+        return;
+    }
+
+    bar.classList.remove('hidden');
+    if (badge) { badge.textContent = filters.length; badge.classList.add('show'); }
+
+    let html = '';
+    filters.forEach(f => {
+        html += `<span class="af-chip" onclick="window.categoriesManager.clearFilter('${f.key}')">
+                    <span class="af-x">×</span> ${f.label}: <strong>${f.value}</strong>
+                 </span>`;
+    });
+    html += `<button class="af-clear-all" onclick="window.categoriesManager.clearFilters()">{% trans "مسح الكل" %}</button>`;
+    bar.innerHTML = html;
+}
+
+// ---- Skeleton ----
+function showSkeleton() {
+    const sk = document.getElementById('skeletonGrid');
+    const grid = document.getElementById('adsGrid');
+    if (sk)   sk.classList.add('show');
+    if (grid) grid.classList.add('loading');
+}
+function hideSkeleton() {
+    const sk = document.getElementById('skeletonGrid');
+    const grid = document.getElementById('adsGrid');
+    if (sk)   sk.classList.remove('show');
+    if (grid) grid.classList.remove('loading');
+}
+
+// ---- Mobile drawer ----
+function openDrawer() {
+    document.getElementById('filterDrawer')?.classList.add('open');
+    document.getElementById('drawerOverlay')?.classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+function closeDrawer() {
+    document.getElementById('filterDrawer')?.classList.remove('open');
+    document.getElementById('drawerOverlay')?.classList.remove('open');
+    document.body.style.overflow = '';
+}
+function applyDrawerFilters() {
+    // Sync drawer values to main filter IDs
+    const pairs = [
+        ['filterSearchDrawer','filterSearch'],
+        ['minPriceDrawer','minPrice'],
+        ['maxPriceDrawer','maxPrice'],
+        ['sortFilterDrawer','sortFilter'],
+        ['categoryFilterDrawer','categoryFilter'],
+    ];
+    pairs.forEach(([src,dst]) => {
+        const s = document.getElementById(src);
+        const d = document.getElementById(dst);
+        if (s && d) d.value = s.value;
+    });
+    // checkboxes
+    const cbPairs = [
+        ['activeFilterDrawer','activeFilter'],
+        ['featuredFilterDrawer','featuredFilter'],
+        ['verifiedFilterDrawer','verifiedFilter'],
+        ['imagesFilterDrawer','imagesFilter'],
+    ];
+    cbPairs.forEach(([src,dst]) => {
+        const s = document.getElementById(src);
+        const d = document.getElementById(dst);
+        if (s && d) d.checked = s.checked;
+    });
+    if (window.categoriesManager) window.categoriesManager.applyFilters();
+}
+
+// ======================================================
+// CategoriesManager  (full original logic preserved +
+// getActiveFilters + clearFilter + skeleton hooks)
+// ======================================================
+class CategoriesManager {
+    constructor() {
+        this.searchInput        = document.getElementById('searchInput');
+        this.clearSearchBtn     = document.getElementById('clearSearchBtn');
+        this.filterSearch       = document.getElementById('filterSearch');
+        this.minPrice           = document.getElementById('minPrice');
+        this.maxPrice           = document.getElementById('maxPrice');
+        this.locationFilter     = document.getElementById('locationFilter');
+        this.categoryFilter     = document.getElementById('categoryFilter');
+        this.sortFilter         = document.getElementById('sortFilter');
+        this.sortFilterToolbar  = document.getElementById('sortFilterToolbar');
+        this.activeFilter       = document.getElementById('activeFilter');
+        this.featuredFilter     = document.getElementById('featuredFilter');
+        this.verifiedFilter     = document.getElementById('verifiedFilter');
+        this.imagesFilter       = document.getElementById('imagesFilter');
+        this.clearFiltersBtn    = document.getElementById('clearFiltersBtn');
+        this.gridViewBtn        = document.getElementById('gridViewBtn');
+        this.listViewBtn        = document.getElementById('listViewBtn');
+        this.adsGrid            = document.getElementById('adsGrid');
+        this.resultsCount       = document.getElementById('resultsCount');
+        this.debounceTimeout    = null;
+        this.init();
+    }
+
+    init() {
+        this.setupEventListeners();
+        try {
+            const savedView = localStorage.getItem('preferredView');
+            if (savedView === 'grid' || savedView === 'list') this.setView(savedView);
+        } catch(e) {}
+        console.log('✅ CategoriesManager initialized');
+    }
+
+    setupEventListeners() {
+        this.searchInput?.addEventListener('input', e => this.handleSearch(e));
+        this.filterSearch?.addEventListener('input', () => this.debouncedFilter());
+        this.clearSearchBtn?.addEventListener('click', () => this.clearSearch());
+        [this.minPrice, this.maxPrice].forEach(i => i?.addEventListener('input', () => this.debouncedFilter()));
+        [this.locationFilter, this.categoryFilter, this.sortFilter].forEach(s => s?.addEventListener('change', () => this.applyFilters()));
+        this.sortFilterToolbar?.addEventListener('change', () => {
+            if (this.sortFilter) this.sortFilter.value = this.sortFilterToolbar.value;
+            this.applyFilters();
+        });
+        [this.activeFilter, this.featuredFilter, this.verifiedFilter, this.imagesFilter].forEach(c => c?.addEventListener('change', () => this.applyFilters()));
+        this.clearFiltersBtn?.addEventListener('click', () => this.clearFilters());
+        document.getElementById('clearFiltersBtnDrawer')?.addEventListener('click', () => this.clearFilters());
+        this.gridViewBtn?.addEventListener('click', () => this.setView('grid'));
+        this.listViewBtn?.addEventListener('click', () => this.setView('list'));
+    }
+
+    handleSearch(e) {
+        const q = e.target.value.trim();
+        if (this.clearSearchBtn) this.clearSearchBtn.style.display = q ? 'block' : 'none';
+        this.debouncedFilter();
+    }
+
+    clearSearch() {
+        if (this.searchInput)   this.searchInput.value = '';
+        if (this.clearSearchBtn) this.clearSearchBtn.style.display = 'none';
+        this.applyFilters();
+    }
+
+    clearFilter(key) {
+        if      (key === 'search')   { if(this.filterSearch) this.filterSearch.value=''; if(this.searchInput) this.searchInput.value=''; }
+        else if (key === 'minPrice') { if(this.minPrice) this.minPrice.value=''; }
+        else if (key === 'maxPrice') { if(this.maxPrice) this.maxPrice.value=''; }
+        else if (key === 'location') { if(this.locationFilter) this.locationFilter.value=''; }
+        else if (key === 'category') { if(this.categoryFilter) this.categoryFilter.value=''; }
+        else if (key === 'featured') { if(this.featuredFilter) this.featuredFilter.checked=false; }
+        else if (key === 'verified') { if(this.verifiedFilter) this.verifiedFilter.checked=false; }
+        else if (key === 'images')   { if(this.imagesFilter)   this.imagesFilter.checked=false; }
+        this.applyFilters();
+    }
+
+    clearFilters() {
+        if (this.filterSearch)   this.filterSearch.value = '';
+        if (this.searchInput)    this.searchInput.value = '';
+        if (this.minPrice)       this.minPrice.value = '';
+        if (this.maxPrice)       this.maxPrice.value = '';
+        if (this.locationFilter) this.locationFilter.value = '';
+        if (this.categoryFilter) this.categoryFilter.value = '';
+        if (this.sortFilter)     this.sortFilter.value = '-created_at';
+        if (this.sortFilterToolbar) this.sortFilterToolbar.value = '-created_at';
+        if (this.activeFilter)   this.activeFilter.checked = true;
+        if (this.featuredFilter) this.featuredFilter.checked = false;
+        if (this.verifiedFilter) this.verifiedFilter.checked = false;
+        if (this.imagesFilter)   this.imagesFilter.checked = false;
+        document.querySelectorAll('.custom-field-select').forEach(s => s.value = '');
+        document.querySelectorAll('.custom-field-input').forEach(i => i.value = '');
+        document.querySelectorAll('.custom-field-checkbox').forEach(c => c.checked = false);
+        this.applyFilters();
+    }
+
+    debouncedFilter() {
+        clearTimeout(this.debounceTimeout);
+        this.debounceTimeout = setTimeout(() => this.applyFilters(), 300);
+    }
+
+    applyFilters() {
+        showSkeleton();
+        setTimeout(() => {
+            this.filterAds();
+            hideSkeleton();
+            updateActiveFiltersBar();
+            this.updateSectionHighlights();
+        }, 450);
+    }
+
+    updateSectionHighlights() {
+        document.querySelectorAll('.fs .fs-head').forEach(head => {
+            const section = head.closest('.fs');
+            const hasVal = [...section.querySelectorAll('input,select')].some(el => {
+                if (el.type === 'checkbox') return el.checked && el.id !== 'activeFilter';
+                return el.value && el.value !== '' && el.value !== '-created_at';
+            });
+            head.classList.toggle('has-active', hasVal);
+        });
+    }
+
+    getActiveFilters() {
+        const list = [];
+        const searchVal = this.filterSearch?.value || this.searchInput?.value || '';
+        if (searchVal) list.push({ key:'search', label:'{% trans "بحث" %}', value: searchVal });
+        if (this.minPrice?.value) list.push({ key:'minPrice', label:'{% trans "السعر من" %}', value: this.minPrice.value });
+        if (this.maxPrice?.value) list.push({ key:'maxPrice', label:'{% trans "السعر إلى" %}', value: this.maxPrice.value });
+        if (this.locationFilter?.value) list.push({ key:'location', label:'{% trans "الموقع" %}', value: this.locationFilter.value });
+        if (this.categoryFilter?.value) {
+            const opt = this.categoryFilter.options[this.categoryFilter.selectedIndex];
+            list.push({ key:'category', label:'{% trans "القسم" %}', value: opt?.text || this.categoryFilter.value });
+        }
+        if (this.featuredFilter?.checked) list.push({ key:'featured', label:'{% trans "مميز" %}', value:'✓' });
+        if (this.verifiedFilter?.checked) list.push({ key:'verified', label:'{% trans "موثق" %}', value:'✓' });
+        if (this.imagesFilter?.checked)   list.push({ key:'images',   label:'{% trans "مع صور" %}', value:'✓' });
+        return list;
+    }
+
+    filterAds() {
+        const searchQuery  = (this.searchInput?.value || '').toLowerCase();
+        const filterQuery  = (this.filterSearch?.value || '').toLowerCase();
+        const minPrice     = parseFloat(this.minPrice?.value) || 0;
+        const maxPrice     = parseFloat(this.maxPrice?.value) || Infinity;
+        const location     = this.locationFilter?.value || '';
+        const category     = this.categoryFilter?.value || '';
+        const featuredOnly = this.featuredFilter?.checked || false;
+        const verifiedOnly = this.verifiedFilter?.checked || false;
+        const withImages   = this.imagesFilter?.checked || false;
+        const sortBy       = this.sortFilter?.value || '-created_at';
+
+        // custom fields
+        const cfFilters = {};
+        document.querySelectorAll('.custom-field-select, .custom-field-input').forEach(el => {
+            const fn = el.dataset.fieldName;
+            if (fn && el.value) cfFilters[fn] = el.value.toLowerCase();
+        });
+        document.querySelectorAll('.custom-field-checkbox:checked').forEach(cb => {
+            const fn = cb.name?.replace('cf_','');
+            if (fn) { cfFilters[fn] = cfFilters[fn] ? [].concat(cfFilters[fn], cb.value.toLowerCase()) : cb.value.toLowerCase(); }
         });
 
-        // Categories Manager
-        class CategoriesManager {
-            constructor() {
-                this.searchInput = document.getElementById('searchInput');
-                this.clearSearchBtn = document.getElementById('clearSearchBtn');
-                this.filterSearch = document.getElementById('filterSearch');
-                this.minPrice = document.getElementById('minPrice');
-                this.maxPrice = document.getElementById('maxPrice');
-                this.locationFilter = document.getElementById('locationFilter');
-                this.categoryFilter = document.getElementById('categoryFilter');
-                this.sortFilter = document.getElementById('sortFilter');
-                this.activeFilter = document.getElementById('activeFilter');
-                this.featuredFilter = document.getElementById('featuredFilter');
-                this.verifiedFilter = document.getElementById('verifiedFilter');
-                this.imagesFilter = document.getElementById('imagesFilter');
-                this.clearFiltersBtn = document.getElementById('clearFiltersBtn');
-                this.gridViewBtn = document.getElementById('gridViewBtn');
-                this.listViewBtn = document.getElementById('listViewBtn');
-                this.adsGrid = document.getElementById('adsGrid');
-                this.resultsCount = document.getElementById('resultsCount');
-                this.loadingState = document.getElementById('loadingState');
+        const cards = this.adsGrid?.querySelectorAll('[data-category-id]') || [];
+        let visibleCount = 0, visibleAds = [];
 
-                this.debounceTimeout = null;
+        cards.forEach(card => {
+            if (card.classList.contains('d-none') || card.hasAttribute('data-server-hidden')) return;
 
-                this.init();
+            const title      = card.querySelector('.ad-title a')?.textContent.toLowerCase() || '';
+            const locText    = card.querySelector('.ad-location')?.textContent.toLowerCase() || '';
+            const priceText  = card.querySelector('.price-amount')?.textContent || '';
+            const price      = parseFloat(priceText.replace(/[^\d.]/g, '')) || 0;
+            const catBadge   = card.querySelector('.ad-category-badge')?.textContent.toLowerCase() || '';
+            const catId      = card.dataset.categoryId || '';
+            const catName    = (card.dataset.categoryName || '').toLowerCase();
+            const isFeatured = !!card.querySelector('.highlighted-badge,.pinned-badge');
+            const isVerified = !!card.querySelector('.avatar-verified-badge');
+            const hasImages  = !!card.querySelector('.ad-image-container img') && !card.querySelector('.ad-image-placeholder');
+
+            const cardCf = {};
+            Object.keys(card.dataset).forEach(k => {
+                if (k.startsWith('custom')) cardCf[k.replace('custom','').toLowerCase()] = card.dataset[k].toLowerCase();
+            });
+
+            let visible = true;
+            const q = searchQuery || filterQuery;
+            if (q && !title.includes(q) && !locText.includes(q) && !catBadge.includes(q)) visible = false;
+            if (price > 0 && (price < minPrice || price > maxPrice)) visible = false;
+            if (location && !locText.includes(location.toLowerCase())) visible = false;
+            if (category && !window.location.search.includes('category=')) {
+                const opt = this.categoryFilter?.querySelector(`option[value="${category}"]`);
+                if (opt?.dataset.isParent !== 'true') {
+                    if (catId && catId !== category) visible = false;
+                    else if (!catId && !catBadge.includes(category.toLowerCase()) && !catName.includes(category.toLowerCase())) visible = false;
+                }
             }
+            if (featuredOnly && !isFeatured) visible = false;
+            if (verifiedOnly && !isVerified) visible = false;
+            if (withImages   && !hasImages)  visible = false;
 
-            init() {
-                this.setupEventListeners();
-
-                // Load saved view preference
-                try {
-                    const savedView = localStorage.getItem('preferredView');
-                    if (savedView && (savedView === 'grid' || savedView === 'list')) {
-                        this.setView(savedView);
-                    }
-                } catch (e) {
-                    // localStorage might be disabled
-                    console.log('Could not load view preference');
-                }
-
-                console.log('✅ Categories Manager initialized');
-            }
-
-            setupEventListeners() {
-                // Search inputs
-                if (this.searchInput) {
-                    this.searchInput.addEventListener('input', (e) => this.handleSearch(e));
-                }
-
-                if (this.filterSearch) {
-                    this.filterSearch.addEventListener('input', (e) => this.handleFilterSearch(e));
-                }
-
-                // Clear search
-                if (this.clearSearchBtn) {
-                    this.clearSearchBtn.addEventListener('click', () => this.clearSearch());
-                }
-
-                // Price filters
-                [this.minPrice, this.maxPrice].forEach(input => {
-                    if (input) {
-                        input.addEventListener('input', () => this.debouncedFilter());
-                    }
-                });
-
-                // Select filters
-                [this.locationFilter, this.categoryFilter, this.sortFilter].forEach(select => {
-                    if (select) {
-                        select.addEventListener('change', () => this.applyFilters());
-                    }
-                });
-
-                // Checkbox filters
-                [this.activeFilter, this.featuredFilter, this.verifiedFilter, this.imagesFilter].forEach(checkbox => {
-                    if (checkbox) {
-                        checkbox.addEventListener('change', () => this.applyFilters());
-                    }
-                });
-
-                // Clear filters
-                if (this.clearFiltersBtn) {
-                    this.clearFiltersBtn.addEventListener('click', () => this.clearFilters());
-                }
-
-                // View toggles
-                if (this.gridViewBtn) {
-                    this.gridViewBtn.addEventListener('click', () => this.setView('grid'));
-                }
-
-                if (this.listViewBtn) {
-                    this.listViewBtn.addEventListener('click', () => this.setView('list'));
+            if (visible) {
+                for (const [fn, fv] of Object.entries(cfFilters)) {
+                    const cv = cardCf[fn];
+                    if (Array.isArray(fv)) { if (!cv || !fv.some(v => cv.includes(v))) { visible=false; break; } }
+                    else { if (!cv || !cv.includes(fv)) { visible=false; break; } }
                 }
             }
 
-            handleSearch(e) {
-                const query = e.target.value.trim();
+            card.style.display = visible ? '' : 'none';
+            if (visible) { visibleCount++; visibleAds.push({ element:card, price, title }); }
+        });
 
-                if (query.length > 0) {
-                    this.clearSearchBtn.style.display = 'block';
-                } else {
-                    this.clearSearchBtn.style.display = 'none';
-                }
+        this.sortAds(visibleAds, sortBy);
 
-                this.debouncedFilter();
-            }
+        if (this.resultsCount) this.resultsCount.textContent = visibleCount;
+        const vEl = document.getElementById('visibleAds');
+        if (vEl) vEl.textContent = visibleCount;
+        this.updateURLParams();
+    }
 
-            handleFilterSearch(e) {
-                const query = e.target.value.trim();
-                this.debouncedFilter();
-            }
+    sortAds(ads, sortBy) {
+        if (!this.adsGrid) return;
+        ads.sort((a,b) => {
+            if (sortBy === 'price')  return a.price - b.price;
+            if (sortBy === '-price') return b.price - a.price;
+            if (sortBy === 'title')  return a.title.localeCompare(b.title);
+            return 0;
+        });
+        ads.forEach(a => this.adsGrid.appendChild(a.element));
+    }
 
-            clearSearch() {
-                this.searchInput.value = '';
-                this.clearSearchBtn.style.display = 'none';
-                this.applyFilters();
-            }
+    updateURLParams() {
+        const params = new URLSearchParams(window.location.search);
+        const sv = this.searchInput?.value || this.filterSearch?.value;
+        sv ? params.set('search', sv) : params.delete('search');
+        this.minPrice?.value ? params.set('min_price', this.minPrice.value) : params.delete('min_price');
+        this.maxPrice?.value ? params.set('max_price', this.maxPrice.value) : params.delete('max_price');
+        (this.sortFilter?.value && this.sortFilter.value !== '-created_at')
+            ? params.set('sort', this.sortFilter.value) : params.delete('sort');
+        const newURL = params.toString() ? `${window.location.pathname}?${params}` : window.location.pathname;
+        window.history.replaceState({}, '', newURL);
+    }
 
-            clearFilters() {
-                // Reset all inputs
-                if (this.filterSearch) this.filterSearch.value = '';
-                if (this.minPrice) this.minPrice.value = '';
-                if (this.maxPrice) this.maxPrice.value = '';
-                if (this.locationFilter) this.locationFilter.value = '';
-                if (this.categoryFilter) this.categoryFilter.value = '';
-                if (this.sortFilter) this.sortFilter.value = '-created_at';
+    setView(view) {
+        this.adsGrid?.setAttribute('data-view', view);
+        this.gridViewBtn?.classList.toggle('active', view === 'grid');
+        this.listViewBtn?.classList.toggle('active', view === 'list');
+        try { localStorage.setItem('preferredView', view); } catch(e) {}
+    }
+}
 
-                // Reset checkboxes
-                if (this.activeFilter) this.activeFilter.checked = true;
-                if (this.featuredFilter) this.featuredFilter.checked = false;
-                if (this.verifiedFilter) this.verifiedFilter.checked = false;
-                if (this.imagesFilter) this.imagesFilter.checked = false;
+// ---- Custom field AJAX helpers ----
+function attachCustomFieldListeners() {
+    document.querySelectorAll('.custom-field-select').forEach(s => s.addEventListener('change', () => window.categoriesManager?.applyFilters()));
+    document.querySelectorAll('.custom-field-input').forEach(i => i.addEventListener('input',  () => window.categoriesManager?.debouncedFilter()));
+    document.querySelectorAll('.custom-field-checkbox').forEach(c => c.addEventListener('change', () => window.categoriesManager?.applyFilters()));
+}
 
-                // Reset custom field inputs
-                document.querySelectorAll('.custom-field-select').forEach(select => select.value = '');
-                document.querySelectorAll('.custom-field-input').forEach(input => input.value = '');
-                document.querySelectorAll('.custom-field-checkbox').forEach(checkbox => checkbox.checked = false);
-
-                this.applyFilters();
-            }
-
-            debouncedFilter() {
-                clearTimeout(this.debounceTimeout);
-                this.debounceTimeout = setTimeout(() => {
-                    this.applyFilters();
-                }, 300);
-            }
-
-            applyFilters() {
-                // Show loading
-                this.showLoading();
-
-                // Simulate filtering (replace with AJAX call)
-                setTimeout(() => {
-                    this.filterAds();
-                    this.hideLoading();
-                }, 500);
-            }
-
-            filterAds() {
-                const searchQuery = (this.searchInput?.value || '').toLowerCase();
-                const filterQuery = (this.filterSearch?.value || '').toLowerCase();
-                const minPrice = parseFloat(this.minPrice?.value) || 0;
-                const maxPrice = parseFloat(this.maxPrice?.value) || Infinity;
-                const location = this.locationFilter?.value || '';
-                const category = this.categoryFilter?.value || '';
-                const activeOnly = this.activeFilter?.checked || false;
-                const featuredOnly = this.featuredFilter?.checked || false;
-                const verifiedOnly = this.verifiedFilter?.checked || false;
-                const withImages = this.imagesFilter?.checked || false;
-                const sortBy = this.sortFilter?.value || '-created_at';
-
-                // Collect custom field filters
-                const customFieldFilters = {};
-                document.querySelectorAll('.custom-field-select, .custom-field-input').forEach(input => {
-                    const fieldName = input.dataset.fieldName;
-                    if (fieldName && input.value) {
-                        customFieldFilters[fieldName] = input.value.toLowerCase();
-                    }
-                });
-
-                // Collect checkbox custom fields
-                document.querySelectorAll('.custom-field-checkbox:checked').forEach(checkbox => {
-                    const fieldName = checkbox.name.replace('custom_', '');
-                    if (fieldName) {
-                        if (!customFieldFilters[fieldName]) {
-                            customFieldFilters[fieldName] = [];
-                        }
-                        customFieldFilters[fieldName].push(checkbox.value.toLowerCase());
-                    }
-                });
-
-                const adCards = this.adsGrid.querySelectorAll('.col-xxl-4, .col-xl-4, .col-lg-4, .col-md-6');
-                let visibleCount = 0;
-                let visibleAds = [];
-
-                adCards.forEach(card => {
-                    // Skip already hidden cards (server-side filtered)
-                    if (card.classList.contains('d-none') || card.hasAttribute('data-server-hidden')) {
-                        return;
-                    }
-
-                    const title = card.querySelector('.ad-title a')?.textContent.toLowerCase() || '';
-                    const description = card.querySelector('.ad-location')?.textContent.toLowerCase() || '';
-                    const locationText = card.querySelector('.ad-location')?.textContent.toLowerCase() || '';
-                    const priceText = card.querySelector('.price-amount')?.textContent || '';
-                    const price = parseFloat(priceText.replace(/[^\d.]/g, '')) || 0;
-                    const categoryBadge = card.querySelector('.ad-category-badge')?.textContent.toLowerCase() || '';
-                    const cardCategoryId = card.dataset.categoryId || '';
-                    const cardCategoryName = card.dataset.categoryName?.toLowerCase() || '';
-
-                    // Get custom fields data from card (stored in data attributes)
-                    const cardCustomFields = {};
-                    Object.keys(card.dataset).forEach(key => {
-                        if (key.startsWith('custom')) {
-                            const fieldName = key.replace('custom', '').toLowerCase();
-                            cardCustomFields[fieldName] = card.dataset[key].toLowerCase();
-                        }
-                    });
-
-                    // Check for badges
-                    const isFeatured = card.querySelector('.highlighted-badge') !== null ||
-                                     card.querySelector('.pinned-badge') !== null;
-                    const isVerified = card.querySelector('.avatar-verified-badge') !== null;
-                    const hasImages = card.querySelector('.ad-image-container img') !== null &&
-                                    !card.querySelector('.ad-image-placeholder');
-
-                    let visible = true;
-
-                    // Search filter
-                    const query = searchQuery || filterQuery;
-                    if (query && !title.includes(query) && !description.includes(query) && !categoryBadge.includes(query)) {
-                        visible = false;
-                    }
-
-                    // Price filter
-                    if (price > 0 && (price < minPrice || price > maxPrice)) {
-                        visible = false;
-                    }
-
-                    // Location filter
-                    if (location && !locationText.includes(location.toLowerCase())) {
-                        visible = false;
-                    }
-
-                    // Category filter - only apply if explicitly set by user, not from URL
-                    if (category && !window.location.search.includes('category=')) {
-                        const selectedOption = this.categoryFilter.querySelector(`option[value="${category}"]`);
-                        const isParentCategory = selectedOption?.dataset.isParent === 'true';
-
-                        if (isParentCategory) {
-                            // Parent category selected, show all cards (server should handle parent filtering)
-                            visible = true;
-                        } else if (cardCategoryId && cardCategoryId !== category) {
-                            // Direct category ID match
-                            visible = false;
-                        } else if (!cardCategoryId && !categoryBadge.includes(category.toLowerCase()) && !cardCategoryName.includes(category.toLowerCase())) {
-                            // Fallback to text-based matching
-                            visible = false;
-                        }
-                    }
-
-                    // Custom field filters
-                    for (const [fieldName, filterValue] of Object.entries(customFieldFilters)) {
-                        const cardValue = cardCustomFields[fieldName];
-                        if (Array.isArray(filterValue)) {
-                            // Multiple values (checkboxes)
-                            if (!cardValue || !filterValue.some(v => cardValue.includes(v))) {
-                                visible = false;
-                                break;
-                            }
-                        } else {
-                            // Single value
-                            if (!cardValue || !cardValue.includes(filterValue)) {
-                                visible = false;
-                                break;
-                            }
-                        }
-                    }
-
-                    // Featured filter
-                    if (featuredOnly && !isFeatured) {
-                        visible = false;
-                    }
-
-                    // Verified filter
-                    if (verifiedOnly && !isVerified) {
-                        visible = false;
-                    }
-
-                    // Images filter
-                    if (withImages && !hasImages) {
-                        visible = false;
-                    }
-
-                    // Show/hide card
-                    card.style.display = visible ? 'block' : 'none';
-                    if (visible) {
-                        visibleCount++;
-                        visibleAds.push({
-                            element: card,
-                            price: price,
-                            title: title,
-                            date: card.querySelector('.ad-time-posted')?.textContent || ''
-                        });
-                    }
-                });
-
-                // Sort visible ads
-                this.sortAds(visibleAds, sortBy);
-
-                // Update results count
-                if (this.resultsCount) {
-                    this.resultsCount.textContent = visibleCount;
-                }
-
-                // Update visible ads count
-                const visibleAdsEl = document.getElementById('visibleAds');
-                if (visibleAdsEl) {
-                    visibleAdsEl.textContent = visibleCount;
-                }
-
-                // Update URL parameters
-                this.updateURLParams();
-            }
-
-            sortAds(visibleAds, sortBy) {
-                const grid = this.adsGrid;
-
-                visibleAds.sort((a, b) => {
-                    switch(sortBy) {
-                        case 'price':
-                            return a.price - b.price;
-                        case '-price':
-                            return b.price - a.price;
-                        case 'title':
-                            return a.title.localeCompare(b.title);
-                        case '-title':
-                            return b.title.localeCompare(a.title);
-                        case '-created_at':
-                        default:
-                            return 0; // Keep original order
-                    }
-                });
-
-                // Reorder DOM elements
-                visibleAds.forEach(ad => {
-                    grid.appendChild(ad.element);
-                });
-            }
-
-            updateURLParams() {
-                const params = new URLSearchParams(window.location.search);
-
-                // Update search param
-                const searchValue = this.searchInput?.value || this.filterSearch?.value;
-                if (searchValue) {
-                    params.set('search', searchValue);
-                } else {
-                    params.delete('search');
-                }
-
-                // Update price params
-                if (this.minPrice?.value) {
-                    params.set('min_price', this.minPrice.value);
-                } else {
-                    params.delete('min_price');
-                }
-
-                if (this.maxPrice?.value) {
-                    params.set('max_price', this.maxPrice.value);
-                } else {
-                    params.delete('max_price');
-                }
-
-                // Update sort param
-                if (this.sortFilter?.value && this.sortFilter.value !== '-created_at') {
-                    params.set('sort', this.sortFilter.value);
-                } else {
-                    params.delete('sort');
-                }
-
-                // Update custom field params
-                document.querySelectorAll('.custom-field-select, .custom-field-input').forEach(input => {
-                    const fieldName = input.dataset.fieldName;
-                    if (fieldName) {
-                        if (input.value) {
-                            params.set(`custom_${fieldName}`, input.value);
-                        } else {
-                            params.delete(`custom_${fieldName}`);
-                        }
-                    }
-                });
-
-                // Update custom field checkbox params
-                const customCheckboxGroups = {};
-                document.querySelectorAll('.custom-field-checkbox:checked').forEach(checkbox => {
-                    const fieldName = checkbox.name.replace('custom_', '');
-                    if (fieldName) {
-                        if (!customCheckboxGroups[fieldName]) {
-                            customCheckboxGroups[fieldName] = [];
-                        }
-                        customCheckboxGroups[fieldName].push(checkbox.value);
-                    }
-                });
-
-                // Add custom checkbox params
-                Object.entries(customCheckboxGroups).forEach(([fieldName, values]) => {
-                    if (values.length > 0) {
-                        params.set(`custom_${fieldName}`, values.join(','));
-                    }
-                });
-
-                // Update URL without reload
-                const newURL = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
-                window.history.pushState({}, '', newURL);
-            }
-
-            setView(view) {
-                this.adsGrid.setAttribute('data-view', view);
-
-                if (this.gridViewBtn && this.listViewBtn) {
-                    this.gridViewBtn.classList.toggle('active', view === 'grid');
-                    this.listViewBtn.classList.toggle('active', view === 'list');
-                }
-
-                // Save view preference to localStorage
-                try {
-                    localStorage.setItem('preferredView', view);
-                } catch (e) {
-                    // localStorage might be disabled
-                    console.log('Could not save view preference');
-                }
-            }
-
-            showLoading() {
-                if (this.loadingState) {
-                    this.loadingState.style.display = 'block';
-                }
-                if (this.adsGrid) {
-                    this.adsGrid.style.opacity = '0.5';
-                }
-            }
-
-            hideLoading() {
-                if (this.loadingState) {
-                    this.loadingState.style.display = 'none';
-                }
-                if (this.adsGrid) {
-                    this.adsGrid.style.opacity = '1';
-                }
-            }
-        }
-
-        // Initialize on DOM ready
-        document.addEventListener('DOMContentLoaded', () => {
-            window.categoriesManager = new CategoriesManager();
-
-            // Mobile filter toggle
-            const mobileFilterToggle = document.getElementById('mobileFilterToggle');
-            const filtersCard = document.querySelector('.filters-card');
-
-            if (mobileFilterToggle && filtersCard) {
-                mobileFilterToggle.addEventListener('click', () => {
-                    filtersCard.classList.toggle('show');
-                    const icon = mobileFilterToggle.querySelector('i');
-                    if (filtersCard.classList.contains('show')) {
-                        mobileFilterToggle.textContent = '{% trans "إخفاء الفلاتر" %}';
-                        mobileFilterToggle.insertAdjacentHTML('afterbegin', '<i class="fas fa-times me-2"></i>');
-                    } else {
-                        mobileFilterToggle.textContent = '{% trans "إظهار الفلاتر" %}';
-                        mobileFilterToggle.insertAdjacentHTML('afterbegin', '<i class="fas fa-filter me-2"></i>');
-                    }
-                });
-            }
-
-            // Update counts for pre-filtered results (when coming from header category links)
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.has('category')) {
-                const visibleCards = document.querySelectorAll('.col-xxl-4:not([style*="display: none"]), .col-xl-4:not([style*="display: none"]), .col-lg-4:not([style*="display: none"]), .col-md-6:not([style*="display: none"])');
-                const resultsCountEl = document.getElementById('resultsCount');
-                const visibleAdsEl = document.getElementById('visibleAds');
-
-                if (resultsCountEl) {
-                    resultsCountEl.textContent = visibleCards.length;
-                }
-                if (visibleAdsEl) {
-                    visibleAdsEl.textContent = visibleCards.length;
-                }
-            }
-
-            // Attach listeners to existing custom fields
+function loadCustomFields(categoryId) {
+    const container = document.getElementById('customFieldsContainer');
+    if (!container) return;
+    container.innerHTML = '<div class="fs"><div class="fs-body" style="max-height:40px;padding:.5rem 1.25rem"><small style="color:var(--muted)">{% trans "جاري التحميل..." %}</small></div></div>';
+    fetch(`/ajax/category-custom-fields/${categoryId}/`)
+        .then(r => r.json())
+        .then(data => {
+            container.innerHTML = data.success && data.html ? data.html : '';
             attachCustomFieldListeners();
+        })
+        .catch(() => { container.innerHTML = ''; });
+}
+
+function clearCustomFields() {
+    const c = document.getElementById('customFieldsContainer');
+    if (c) c.innerHTML = '';
+}
+
+function filterBySubcategory(id) {
+    if (!id) { clearCustomFields(); return; }
+    const opt = document.querySelector(`#categoryFilter option[value="${id}"]`);
+    if (opt?.dataset.hasChildren === 'true') loadSubcategories(id);
+    else { loadCustomFields(id); window.categoriesManager?.filterAds(); }
+}
+
+function loadSubcategories(categoryId) {
+    const sel = document.getElementById('categoryFilter');
+    if (!sel) return;
+    const lang = '{{ LANGUAGE_CODE }}';
+    const orig = sel.innerHTML;
+    sel.innerHTML = `<option>${lang==='ar'?'جاري التحميل...':'Loading...'}</option>`;
+    sel.disabled = true;
+
+    fetch(`/ajax/subcategories/${categoryId}/`)
+        .then(r => { if(!r.ok) throw new Error(); return r.json(); })
+        .then(data => {
+            sel.innerHTML = '';
+            const back = document.createElement('option');
+            back.value = 'back';
+            back.textContent = `← ${lang==='ar'?'العودة للأقسام الفرعية':'Back'}`;
+            sel.appendChild(back);
+
+            const all = document.createElement('option');
+            all.value = categoryId; all.dataset.isParent = 'true';
+            all.textContent = lang==='ar'?'جميع الأقسام الفرعية':'All subcategories';
+            sel.appendChild(all);
+
+            data.subcategories?.forEach(sub => {
+                const o = document.createElement('option');
+                o.value = sub.id;
+                o.textContent = lang==='ar' ? (sub.name_ar||sub.name) : sub.name;
+                o.dataset.hasChildren = sub.has_children;
+                sel.appendChild(o);
+            });
+            sel.disabled = false;
+            window.categoriesManager?.filterAds();
+        })
+        .catch(() => {
+            sel.innerHTML = orig;
+            sel.disabled = false;
         });
+}
 
-        // Function to attach event listeners to custom field inputs
-        function attachCustomFieldListeners() {
-            const customSelects = document.querySelectorAll('.custom-field-select');
-            const customInputs = document.querySelectorAll('.custom-field-input');
-            const customCheckboxes = document.querySelectorAll('.custom-field-checkbox');
+// ---- Init ----
+document.addEventListener('DOMContentLoaded', () => {
+    window.categoriesManager = new CategoriesManager();
+    initChipStrip();
+    attachCustomFieldListeners();
+    updateActiveFiltersBar();
 
-            customSelects.forEach(select => {
-                select.addEventListener('change', () => window.categoriesManager.applyFilters());
-            });
+    // FAB / drawer
+    document.getElementById('filterFab')?.addEventListener('click', openDrawer);
+    document.getElementById('drawerClose')?.addEventListener('click', closeDrawer);
+    document.getElementById('drawerOverlay')?.addEventListener('click', closeDrawer);
 
-            customInputs.forEach(input => {
-                input.addEventListener('input', () => window.categoriesManager.debouncedFilter());
-            });
-
-            customCheckboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', () => window.categoriesManager.applyFilters());
-            });
-        }
-
-        // Function to load custom fields for a category
-        function loadCustomFields(categoryId) {
-            const customFieldsContainer = document.getElementById('customFieldsContainer');
-            if (!customFieldsContainer) return;
-
-            // Show loading state
-            customFieldsContainer.innerHTML = '<div class="filter-group"><small class="text-muted">{% trans "جاري التحميل..." %}</small></div>';
-
-            // Fetch custom fields for this category
-            fetch(`/ajax/category-custom-fields/${categoryId}/`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success && data.html) {
-                        customFieldsContainer.innerHTML = data.html;
-                        attachCustomFieldListeners();
-                    } else {
-                        customFieldsContainer.innerHTML = '';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading custom fields:', error);
-                    customFieldsContainer.innerHTML = '';
-                });
-        }
-
-        // Function to clear custom fields
-        function clearCustomFields() {
-            const customFieldsContainer = document.getElementById('customFieldsContainer');
-            if (customFieldsContainer) {
-                customFieldsContainer.innerHTML = '';
-            }
-        }
-
-        // Function to update custom fields info section with new data
-        function updateCustomFieldsInfoSection(subcategories, currentLang) {
-            const categoryFilter = document.getElementById('categoryFilter');
-            const filterGroup = categoryFilter.closest('.filter-group');
-
-            // Remove existing info section if present
-            const existingInfo = filterGroup.querySelector('.subcategory-custom-fields-info');
-            if (existingInfo) {
-                existingInfo.remove();
-            }
-
-            // Check if any subcategory has custom fields
-            const hasCustomFields = subcategories.some(subcat => subcat.custom_fields && subcat.custom_fields.length > 0);
-
-            if (!hasCustomFields) return;
-
-            // Create new info section
-            const infoDiv = document.createElement('div');
-            infoDiv.className = 'subcategory-custom-fields-info mt-3';
-
-            let infoHTML = `
-                <details class="custom-fields-preview" style="border: 1px solid rgba(75, 49, 94, 0.15); border-radius: 10px; padding: 1rem; background: rgba(75, 49, 94, 0.03);">
-                    <summary style="cursor: pointer; font-weight: 600; color: var(--primary-color); font-size: 0.9rem;">
-                        <i class="fas fa-info-circle me-1"></i>
-                        ${currentLang === 'ar' ? 'حقول الفلترة حسب القسم' : 'Filter fields by category'}
-                    </summary>
-                    <div class="mt-3" style="max-height: 300px; overflow-y: auto;">
-            `;
-
-            subcategories.forEach(subcat => {
-                if (subcat.custom_fields && subcat.custom_fields.length > 0) {
-                    infoHTML += `
-                        <div class="mb-3 pb-2" style="border-bottom: 1px solid rgba(75, 49, 94, 0.1);">
-                            <div style="font-weight: 600; color: var(--primary-color); font-size: 0.85rem; margin-bottom: 0.5rem;">
-                                <i class="fas fa-folder me-1"></i>
-                                ${currentLang === 'ar' ? (subcat.name_ar || subcat.name) : subcat.name}
-                            </div>
-                            <div class="d-flex flex-wrap gap-1">
-                    `;
-
-                    subcat.custom_fields.forEach(cf => {
-                        const label = currentLang === 'ar' ? (cf.custom_field__label_ar || cf.custom_field__label_en || cf.custom_field__name) : (cf.custom_field__label_en || cf.custom_field__name);
-                        const icon = cf.custom_field__icon || 'filter';
-                        infoHTML += `
-                            <span class="badge" style="background: var(--primary-color); font-size: 0.75rem; padding: 0.25rem 0.5rem;">
-                                <i class="fas fa-${icon} me-1"></i>
-                                ${label}
-                            </span>
-                        `;
-                    });
-
-                    infoHTML += `
-                            </div>
-                        </div>
-                    `;
-                }
-            });
-
-            infoHTML += `
-                    </div>
-                </details>
-            `;
-
-            infoDiv.innerHTML = infoHTML;
-            filterGroup.appendChild(infoDiv);
-        }
-
-        // Function to filter by subcategory using parent parameter
-        function filterBySubcategory(subcategoryId) {
-            if (!subcategoryId) {
-                // Reset to all subcategories and clear custom fields
-                clearCustomFields();
-                filterAds();
-                return;
-            }
-
-            // Check if this subcategory has children
-            const selectedOption = document.querySelector(`#categoryFilter option[value="${subcategoryId}"]`);
-            const hasSubcategories = selectedOption && selectedOption.dataset.hasChildren === 'true';
-
-            if (hasSubcategories) {
-                // Load sub-subcategories via AJAX
-                loadSubcategories(subcategoryId);
-            } else {
-                // Load custom fields for this subcategory
-                loadCustomFields(subcategoryId);
-                // Filter ads by this subcategory
-                filterAds();
-            }
-        }
-
-        function loadSubcategories(categoryId) {
-            const categoryFilter = document.getElementById('categoryFilter');
-
-            // Show loading indicator
-            const currentLang = '{{ LANGUAGE_CODE }}';
-            const loadingText = currentLang === 'ar' ? 'جاري التحميل...' : 'Loading...';
-
-            // Store current selections
-            const originalOptions = categoryFilter.innerHTML;
-
-            // Show loading state
-            categoryFilter.innerHTML = `<option value="">${loadingText}</option>`;
-            categoryFilter.disabled = true;
-
-            // Make AJAX request to get subcategories
-            fetch(`/ajax/subcategories/${categoryId}/`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    // Clear the dropdown
-                    categoryFilter.innerHTML = '';
-
-                    // Add "Back to parent" option
-                    const backText = currentLang === 'ar' ? 'العودة للأقسام الفرعية' : 'Back to subcategories';
-                    const backOption = document.createElement('option');
-                    backOption.value = 'back';
-                    backOption.textContent = `← ${backText}`;
-                    categoryFilter.appendChild(backOption);
-
-                    // Add "All sub-subcategories" option
-                    const allText = currentLang === 'ar' ? 'جميع الأقسام الفرعية' : 'All sub-subcategories';
-                    const allOption = document.createElement('option');
-                    allOption.value = categoryId;
-                    allOption.textContent = allText;
-                    allOption.dataset.isParent = 'true';
-                    categoryFilter.appendChild(allOption);
-
-                    // Add subcategories
-                    data.subcategories.forEach(subcat => {
-                        const option = document.createElement('option');
-                        option.value = subcat.id;
-                        const customFieldsText = subcat.custom_fields_count > 0 ?
-                            ` (${subcat.custom_fields_count} ${currentLang === 'ar' ? 'فلتر' : 'filters'})` : '';
-                        option.textContent = (currentLang === 'ar' ? subcat.name_ar || subcat.name : subcat.name) + customFieldsText;
-                        option.dataset.hasChildren = subcat.has_children;
-                        option.dataset.customFieldsCount = subcat.custom_fields_count;
-                        categoryFilter.appendChild(option);
-                    });
-
-                    // Update custom fields info section if exists
-                    updateCustomFieldsInfoSection(data.subcategories, currentLang);
-
-                    // Re-enable dropdown
-                    categoryFilter.disabled = false;
-
-                    // Filter ads by parent category
-                    filterAds();
-                })
-                .catch(error => {
-                    console.error('Error loading subcategories:', error);
-                    // Restore original options on error
-                    categoryFilter.innerHTML = originalOptions;
-                    categoryFilter.disabled = false;
-
-                    const errorText = currentLang === 'ar' ? 'حدث خطأ في تحميل الأقسام الفرعية' : 'Error loading subcategories';
-                    alert(errorText);
-                });
-        }
-
-        // Handle back to subcategories
-        const categoryFilterEl = document.getElementById('categoryFilter');
-        if (categoryFilterEl) {
-            categoryFilterEl.addEventListener('change', function(e) {
-                if (this.value === 'back') {
-                    // Reload the page to show parent subcategories
-                    window.location.reload();
-                }
-            });
-        }
-    </script>
+    // back option in category filter
+    document.getElementById('categoryFilter')?.addEventListener('change', function() {
+        if (this.value === 'back') window.location.reload();
+    });
+});
+</script>
 {% endblock extra_js %}

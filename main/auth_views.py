@@ -15,7 +15,8 @@ from django.urls import reverse_lazy, reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.utils.translation import gettext_lazy as _
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
+from django.utils.decorators import method_decorator
 from django.views.decorators.http import require_POST
 from django.views.generic.edit import CreateView
 from django.utils import timezone
@@ -280,6 +281,7 @@ class CustomLoginView(LoginView):
         return super().form_invalid(form)
 
 
+@method_decorator(ensure_csrf_cookie, name="dispatch")
 class RegisterView(CreateView):
     """
     Class-based view for user registration.
@@ -321,12 +323,6 @@ class RegisterView(CreateView):
             ),
         }
 
-        # Check if phone verification is required
-        phone_verification_required = is_phone_verification_required()
-
-        # Check if email verification is required
-        email_verification_required = is_email_verification_required()
-
         register_flags = {
             "show_username": getattr(config, "REGISTER_SHOW_USERNAME", True),
             "show_country": getattr(config, "REGISTER_SHOW_COUNTRY", True),
@@ -334,6 +330,12 @@ class RegisterView(CreateView):
             "recaptcha_enabled": getattr(config, "RECAPTCHA_ENABLED", True),
             "require_confirm_password": getattr(config, "REGISTER_REQUIRE_CONFIRM_PASSWORD", True),
         }
+
+        # Check if verification is required, but do not require hidden fields.
+        phone_verification_required = (
+            is_phone_verification_required() and register_flags["show_phone"]
+        )
+        email_verification_required = is_email_verification_required()
 
         return render(
             request,
@@ -344,6 +346,7 @@ class RegisterView(CreateView):
                 "profile_type_settings": profile_type_settings,
                 "phone_verification_required": phone_verification_required,
                 "email_verification_required": email_verification_required,
+                "form_data": {},
                 **register_flags,
             },
         )
@@ -385,10 +388,10 @@ class RegisterView(CreateView):
             phone = data.get("phone")  # Already normalized by form's clean_phone method
             country_code = request.POST.get("country_code", "EG").upper()
 
-            # Check if phone verification is required
-            phone_verification_required = is_phone_verification_required()
-
-            # Check if email verification is required
+            # Check if verification is required, but do not require hidden fields.
+            phone_verification_required = (
+                is_phone_verification_required() and register_flags["show_phone"]
+            )
             email_verification_required = is_email_verification_required()
             email = data.get("email")
 
@@ -428,6 +431,8 @@ class RegisterView(CreateView):
                             "countries": countries,
                             "profile_type_settings": profile_type_settings,
                             "phone_verification_required": phone_verification_required,
+                            "email_verification_required": email_verification_required,
+                            "form_data": request.POST,
                             **register_flags,
                         },
                     )
@@ -458,6 +463,8 @@ class RegisterView(CreateView):
                             "countries": countries,
                             "profile_type_settings": profile_type_settings,
                             "phone_verification_required": phone_verification_required,
+                            "email_verification_required": email_verification_required,
+                            "form_data": request.POST,
                             **register_flags,
                         },
                     )
@@ -569,7 +576,9 @@ class RegisterView(CreateView):
             messages.error(request, _("يرجى تصحيح الأخطاء أدناه والمحاولة مرة أخرى."))
 
             # Check if phone verification is required for error case
-            phone_verification_required = is_phone_verification_required()
+            phone_verification_required = (
+                is_phone_verification_required() and register_flags["show_phone"]
+            )
 
             # Check if email verification is required for error case
             email_verification_required_err = is_email_verification_required()
@@ -583,6 +592,7 @@ class RegisterView(CreateView):
                     "profile_type_settings": profile_type_settings,
                     "phone_verification_required": phone_verification_required,
                     "email_verification_required": email_verification_required_err,
+                    "form_data": request.POST,
                     **register_flags,
                 },
             )
