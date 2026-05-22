@@ -2778,6 +2778,42 @@ class ComparisonView(TemplateView):
             else:
                 context["wishlist_ad_ids"] = []
 
+            # Build label lookup: raw JSON key → {label_ar, label_en} from CategoryCustomField
+            from main.models import CategoryCustomField as _CCF
+            import re as _re
+
+            def _safe_key(name):
+                return _re.sub(r'[^\w]', '_', name)
+
+            category_ids = set()
+            for ad in ads:
+                if ad.category_id:
+                    category_ids.add(ad.category_id)
+                    for anc in ad.category.get_ancestors():
+                        category_ids.add(anc.pk)
+
+            cf_label_map = {}
+            if category_ids:
+                ccfs = (
+                    _CCF.objects.filter(
+                        category_id__in=category_ids, is_active=True
+                    )
+                    .select_related("custom_field")
+                    .distinct()
+                )
+                for ccf in ccfs:
+                    cf = ccf.custom_field
+                    label_ar = cf.label_ar or cf.name
+                    label_en = cf.label_en or cf.label_ar or cf.name
+                    for key_variant in (
+                        f"custom_{_safe_key(cf.name)}",
+                        f"custom_{cf.name}",
+                        _safe_key(cf.name),
+                        cf.name,
+                    ):
+                        cf_label_map[key_variant] = {"label_ar": label_ar, "label_en": label_en}
+            context["custom_field_labels"] = cf_label_map
+
             # Increment view count for each ad being compared
             # Use F() expression to avoid race conditions
             from django.db.models import F
@@ -2788,6 +2824,7 @@ class ComparisonView(TemplateView):
         else:
             context["ads_to_compare"] = []
             context["wishlist_ad_ids"] = []
+            context["custom_field_labels"] = {}
 
         context["page_title"] = _("مقارنة الإعلانات")
         return context

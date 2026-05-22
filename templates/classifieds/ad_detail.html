@@ -40,9 +40,31 @@
 {% endif %}
 
 <!-- Additional SEO meta tags -->
-<meta name="description" content="{{ ad.description|striptags|truncatewords:40 }}">
-<meta name="keywords" content="{{ ad.title }}, {{ ad.category.name }}, {{ ad.city }}, {% trans "إعلانات مبوبة" %}">
-<link rel="canonical" content="{{ request.build_absolute_uri }}">
+<meta name="description" content="{{ ad.description|striptags|truncatewords:40 }}"/>
+<meta name="keywords" content="{{ ad.title }}, {{ ad.category.name }}, {{ ad.city }}, {% trans 'إعلانات مبوبة' %}"/>
+<!-- JSON-LD Product structured data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "{{ ad.title|escapejs }}",
+  "description": "{{ ad.description|striptags|truncatewords:50|escapejs }}",
+  "url": "{{ request.build_absolute_uri }}"
+  {% if ad.images.first %}
+  ,"image": "{{ request.scheme }}://{{ request.get_host }}{{ ad.images.first.image.url }}"
+  {% endif %}
+  {% if not ad.contact_for_price and not ad.hide_price and not ad.price_on_request %}
+  ,"offers": {
+    "@type": "Offer",
+    "price": "{{ ad.price }}",
+    "priceCurrency": "{{ selected_currency }}",
+    "availability": "{% if ad.status == 'active' %}https://schema.org/InStock{% else %}https://schema.org/OutOfStock{% endif %}",
+    "url": "{{ request.build_absolute_uri }}"
+  }
+  {% endif %}
+}
+</script>
+<link rel="canonical" href="{{ request.build_absolute_uri }}">
 {% endblock extra_meta %}
 
 {% block extra_css %}

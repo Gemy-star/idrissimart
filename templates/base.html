@@ -20,20 +20,75 @@
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
         <meta name="description"
-              content="{% trans 'إدريسي مارت - منصة شاملة تجمع كافة الخدمات والمنتجات في مكان واحد' %}">
+              content="{% block meta_description %}{{ config.SITE_DESCRIPTION }}{% endblock %}"/>
         <meta name="keywords"
-              content="{% trans 'إدريسي مارت، توظيف، دورات تدريبية، خدمات، منتجات' %}">
-        <meta name="author" content="Idrisi Mart">
+              content="{% if site_config.meta_keywords_ar %}{{ site_config.meta_keywords_ar }}{% elif site_config.meta_keywords %}{{ site_config.meta_keywords }}{% else %}{% trans 'إدريسي مارت، إعلانات مبوبة، بيع، شراء، خدمات' %}{% endif %}"/>
+        <meta name="author" content="{{ config.SITE_NAME }}"/>
+        <meta name="robots" content="index, follow"/>
+
+        <!-- Canonical URL -->
+        {% block canonical %}<link rel="canonical" href="{{ request.build_absolute_uri }}"/>{% endblock %}
 
         {% block extra_meta %}
         <!-- Open Graph / Facebook -->
-        <meta property="og:type" content="website">
-        <meta property="og:site_name" content="{% trans 'إدريسي مارت' %}">
-        <meta property="og:locale" content="ar_AR">
+        <meta property="og:type" content="website"/>
+        <meta property="og:site_name" content="{{ config.SITE_NAME }}"/>
+        <meta property="og:locale" content="{% if LANGUAGE_CODE == 'ar' %}ar_AR{% else %}en_US{% endif %}"/>
+        <meta property="og:title" content="{% block og_title %}{{ config.SITE_NAME }}{% endblock %}"/>
+        <meta property="og:description" content="{% block og_description %}{{ config.SITE_DESCRIPTION }}{% endblock %}"/>
+        <meta property="og:url" content="{{ request.build_absolute_uri }}"/>
+        {% if site_config.logo %}
+        <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ site_config.logo.url }}"/>
+        <meta property="og:image:alt" content="{{ config.SITE_NAME }}"/>
+        {% endif %}
 
         <!-- Twitter Card -->
-        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:card" content="summary_large_image"/>
+        <meta name="twitter:site" content="@idrissimart"/>
+        <meta name="twitter:title" content="{% block twitter_title %}{{ config.SITE_NAME }}{% endblock %}"/>
+        <meta name="twitter:description" content="{{ config.SITE_DESCRIPTION }}"/>
+        {% if site_config.logo %}
+        <meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{{ site_config.logo.url }}"/>
+        {% endif %}
         {% endblock extra_meta %}
+
+        <!-- JSON-LD Structured Data -->
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          "name": "{{ config.SITE_NAME }}",
+          "url": "{{ config.SITE_URL }}",
+          "sameAs": [
+            "{{ config.FACEBOOK_URL }}",
+            "{{ config.TWITTER_URL }}",
+            "{{ config.INSTAGRAM_URL }}"
+          ]
+          {% if site_config.logo %}
+          ,"logo": {
+            "@type": "ImageObject",
+            "url": "{{ request.scheme }}://{{ request.get_host }}{{ site_config.logo.url }}"
+          }
+          {% endif %}
+        }
+        </script>
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "name": "{{ config.SITE_NAME }}",
+          "url": "{{ config.SITE_URL }}",
+          "description": "{{ config.SITE_DESCRIPTION }}",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "{{ config.SITE_URL }}{% url 'main:ad_list' %}?q={search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+          }
+        }
+        </script>
 
         <!-- Favicon -->
         <link rel="icon"
@@ -378,6 +433,9 @@
                             return;
                         }
                         compareList.push({ id: adId, title: adTitle, image: adImage });
+                        // Auto-open panel when item is added via card button
+                        isPanelOpen = true;
+                        comparePanel.classList.add('show');
                     }
                     localStorage.setItem('compareList', JSON.stringify(compareList));
                     updateCompareWidget();
