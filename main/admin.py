@@ -4042,7 +4042,9 @@ class CustomPageAdmin(admin.ModelAdmin):
         if not obj.pk or not obj.slug:
             return "-"
         from django.urls import reverse
-        url = reverse("main:custom_page", kwargs={"slug": obj.slug})
+        from django.utils import translation
+        with translation.override("ar"):
+            url = reverse("main:custom_page", kwargs={"slug": obj.slug})
         return format_html(
             '<a href="{}" target="_blank" class="button">'
             '<i class="fas fa-external-link-alt"></i> عرض الصفحة'

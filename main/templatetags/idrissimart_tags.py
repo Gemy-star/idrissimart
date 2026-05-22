@@ -12,6 +12,56 @@ register = template.Library()
 
 
 # ======================
+# HTML SANITIZATION
+# ======================
+
+@register.filter(name="sanitize_page_html")
+def sanitize_page_html(html):
+    """
+    Sanitize HTML from CKEditor custom-page bodies so that rogue tags
+    (extra </div>, <style>, <script>, <html> …) cannot escape the
+    .custom-page-body container and corrupt the global layout.
+    """
+    if not html:
+        return html
+
+    # Strip <style> blocks – they apply globally and can overwrite header/footer CSS.
+    # Strip <script> blocks entirely (content + tag).
+    html = re.sub(r'<style[^>]*>.*?</style>', '', html, flags=re.DOTALL | re.IGNORECASE)
+
+    try:
+        import nh3
+        ALLOWED_TAGS = {
+            'a', 'abbr', 'b', 'blockquote', 'br', 'caption', 'cite', 'code',
+            'col', 'colgroup', 'dd', 'del', 'details', 'dfn', 'div',
+            'dl', 'dt', 'em', 'figcaption', 'figure', 'h1', 'h2', 'h3',
+            'h4', 'h5', 'h6', 'hr', 'i', 'img', 'ins', 'kbd', 'li',
+            'mark', 'ol', 'p', 'pre', 'q', 's', 'samp', 'small', 'span',
+            'strong', 'sub', 'summary', 'sup', 'table', 'tbody', 'td',
+            'th', 'thead', 'tfoot', 'tr', 'u', 'ul', 'var',
+        }
+        html = nh3.clean(
+            html,
+            tags=ALLOWED_TAGS,
+            clean_content_tags={'script', 'style', 'head'},
+            attributes={
+                '*':       {'class', 'id', 'style', 'dir', 'lang', 'title'},
+                'a':       {'href', 'target', 'rel'},
+                'img':     {'src', 'alt', 'width', 'height', 'loading'},
+                'td':      {'colspan', 'rowspan', 'align', 'valign'},
+                'th':      {'colspan', 'rowspan', 'scope', 'align'},
+                'col':     {'span', 'width'},
+                'colgroup':{'span'},
+            },
+            link_rel=None,
+        )
+    except ImportError:
+        pass
+
+    return mark_safe(html)
+
+
+# ======================
 # PAYPAL CURRENCY CONVERSION
 # ======================
 
