@@ -7651,6 +7651,15 @@ def user_notification_counts(request):
     return JsonResponse(context)
 
 
+@login_required
+def notification_mark_all_read(request):
+    """Mark all user notifications as read (AJAX POST)."""
+    if request.method == "POST":
+        Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+        return JsonResponse({"success": True})
+    return JsonResponse({"success": False}, status=405)
+
+
 class ChatWithPublisherView(LoginRequiredMixin, TemplateView):
     """Client chat with publisher view"""
 

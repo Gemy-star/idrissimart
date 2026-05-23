@@ -1618,6 +1618,11 @@ urlpatterns = [
         name="user_notification_counts",
     ),
     path(
+        "api/notifications/mark-all-read/",
+        views.notification_mark_all_read,
+        name="notification_mark_all_read",
+    ),
+    path(
         "chat/publisher/<int:ad_id>/",
         views.ChatWithPublisherView.as_view(),
         name="chat_with_publisher",

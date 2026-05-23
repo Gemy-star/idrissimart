@@ -119,6 +119,68 @@
                             </a>
                         </div>
                         {% endif %}
+                        <!-- Notifications Bell (Desktop) -->
+                        {% if request.user.is_authenticated %}
+                        <div class="header-notif-section dropdown">
+                            <button class="header-action-btn position-relative"
+                                    type="button"
+                                    id="notifBellBtn"
+                                    data-bs-toggle="dropdown"
+                                    aria-expanded="false"
+                                    aria-label="{% trans 'الإشعارات' %}">
+                                <i class="fas fa-bell"></i>
+                                <span class="badge-count notif-count{% if not unread_notifications_count %} d-none{% endif %}"
+                                      id="notifBadge">{{ unread_notifications_count|default:0 }}</span>
+                            </button>
+                            <div class="dropdown-menu dropdown-menu-end notif-dropdown p-0"
+                                 aria-labelledby="notifBellBtn">
+                                <!-- Header row -->
+                                <div class="notif-dropdown-header d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                                    <strong class="fs-6">{% trans "الإشعارات" %}</strong>
+                                    <button class="btn btn-link btn-sm text-muted p-0 notif-mark-all"
+                                            id="notifMarkAllBtn"
+                                            title="{% trans 'تحديد الكل كمقروء' %}">
+                                        <i class="fas fa-check-double me-1"></i>{% trans "تحديد الكل كمقروء" %}
+                                    </button>
+                                </div>
+                                <!-- Notifications list -->
+                                <ul class="notif-list list-unstyled mb-0" id="notifList">
+                                    {% for notif in latest_notifications %}
+                                    <li class="notif-item{% if not notif.is_read %} unread{% endif %}">
+                                        {% if notif.link %}
+                                        <a href="{{ notif.link }}" class="notif-item-link d-flex align-items-start gap-2 px-3 py-2">
+                                        {% else %}
+                                        <div class="notif-item-link d-flex align-items-start gap-2 px-3 py-2">
+                                        {% endif %}
+                                            <div class="notif-icon-wrap flex-shrink-0">
+                                                <i class="fas fa-bell fs-6 text-primary"></i>
+                                            </div>
+                                            <div class="notif-text flex-grow-1 overflow-hidden">
+                                                <div class="notif-title fw-semibold text-truncate">{{ notif.title }}</div>
+                                                <div class="notif-msg text-muted small text-truncate">{{ notif.message }}</div>
+                                                <div class="notif-time text-muted" style="font-size:.7rem;">{{ notif.created_at|timesince }} {% trans "مضت" %}</div>
+                                            </div>
+                                            {% if not notif.is_read %}
+                                            <span class="notif-dot flex-shrink-0 mt-1"></span>
+                                            {% endif %}
+                                        {% if notif.link %}</a>{% else %}</div>{% endif %}
+                                    </li>
+                                    {% empty %}
+                                    <li class="text-center text-muted py-4 px-3">
+                                        <i class="fas fa-bell-slash fs-4 mb-2 d-block"></i>
+                                        {% trans "لا توجد إشعارات جديدة" %}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                <!-- Footer -->
+                                <div class="notif-dropdown-footer border-top text-center py-2">
+                                    <a href="{% url 'main:publisher_notifications' %}" class="text-primary small fw-semibold">
+                                        {% trans "عرض جميع الإشعارات" %} <i class="fas fa-arrow-left ms-1"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
                         <!-- User Account -->
                         <div class="header-user-section dropdown">
                             {% if request.user.is_authenticated %}
@@ -238,9 +300,15 @@
                         </div>
                     </div>
                 </div>
-                <!-- Mobile Cart, Wishlist (beside hamburger) -->
+                <!-- Mobile Cart, Wishlist, Bell (beside hamburger) -->
                 <div class="mobile-header-actions d-lg-none">
                     {% if request.user.is_authenticated %}
+                    <!-- Mobile Notifications Bell -->
+                    <a href="{% url 'main:publisher_notifications' %}" class="mobile-header-btn position-relative" aria-label="{% trans 'الإشعارات' %}">
+                        <i class="fas fa-bell"></i>
+                        <span class="mobile-header-badge notif-count{% if not unread_notifications_count %} d-none{% endif %}"
+                              id="mobileNotifBadge">{{ unread_notifications_count|default:0 }}</span>
+                    </a>
                     <!-- Mobile Cart Button -->
                     <a href="{% url "main:cart_view" %}" class="mobile-header-btn position-relative" aria-label="{% trans "السلة" %}">
                         <i class="fas fa-shopping-cart"></i>
@@ -518,6 +586,15 @@
                         <span class="mobile-badge wishlist-count">{{ wishlist_count|default:0 }}</span>
                     </a>
                 </li>
+                <li>
+                    <a href="{% url 'main:publisher_notifications' %}" class="mobile-nav-link">
+                        <i class="fas fa-bell text-warning"></i>
+                        <span>{% trans "الإشعارات" %}</span>
+                        {% if unread_notifications_count %}
+                        <span class="mobile-badge notif-count">{{ unread_notifications_count }}</span>
+                        {% endif %}
+                    </a>
+                </li>
                 <li class="mobile-nav-divider"></li>
                 <li>
                     <a href="{% url 'main:my_ads' %}" class="mobile-nav-link">
@@ -695,6 +772,62 @@
     </div>
     <div class="mobile-nav-backdrop" id="mobileBackdrop"></div>
 
+<style>
+/* ── Notification Bell Dropdown ───────────────────────────── */
+.notif-dropdown {
+    width: 340px;
+    max-width: 95vw;
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.15);
+    border: 1px solid rgba(0,0,0,.08);
+    overflow: hidden;
+}
+[data-theme="dark"] .notif-dropdown {
+    background: #1e1e2e;
+    border-color: rgba(255,255,255,.1);
+}
+.notif-dropdown-header {
+    background: rgba(75,49,94,.06);
+}
+[data-theme="dark"] .notif-dropdown-header {
+    background: rgba(107,76,122,.15);
+}
+.notif-list { max-height: 320px; overflow-y: auto; }
+.notif-item { border-bottom: 1px solid rgba(0,0,0,.05); transition: background .15s; }
+.notif-item:last-child { border-bottom: none; }
+.notif-item.unread { background: rgba(75,49,94,.05); }
+[data-theme="dark"] .notif-item.unread { background: rgba(107,76,122,.12); }
+.notif-item-link { text-decoration: none; color: inherit; }
+.notif-item-link:hover { background: rgba(75,49,94,.08); }
+.notif-icon-wrap {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: rgba(75,49,94,.12);
+    display: flex; align-items: center; justify-content: center;
+}
+.notif-title { font-size: .85rem; color: var(--text-primary, #222); }
+[data-theme="dark"] .notif-title { color: #e0e0e0; }
+.notif-msg { font-size: .78rem; }
+.notif-time { margin-top: 2px; }
+.notif-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #6b4c7a;
+    flex-shrink: 0;
+}
+.notif-dropdown-footer { background: rgba(0,0,0,.02); }
+[data-theme="dark"] .notif-dropdown-footer { background: rgba(255,255,255,.03); }
+.notif-mark-all { font-size: .78rem; white-space: nowrap; }
+/* Badge pulse animation when count > 0 */
+.badge-count.notif-count:not(.d-none) {
+    animation: notif-pulse 2s ease-in-out infinite;
+}
+@keyframes notif-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+}
+</style>
+
 <script>
     // Simple header functionality
     document.addEventListener('DOMContentLoaded', function() {
@@ -760,5 +893,54 @@
         mobileNav?.addEventListener('touchmove', function(e) {
             e.stopPropagation();
         });
+
+        // ── Notification Bell ──────────────────────────────────
+        {% if request.user.is_authenticated %}
+        const notifBellBtn   = document.getElementById('notifBellBtn');
+        const notifBadge     = document.getElementById('notifBadge');
+        const mobileNotifBadge = document.getElementById('mobileNotifBadge');
+        const notifMarkAllBtn = document.getElementById('notifMarkAllBtn');
+        const MARK_ALL_URL   = '{% url "main:notification_mark_all_read" %}';
+        const CSRF_TOKEN     = '{{ csrf_token }}';
+
+        function hideNotifBadges() {
+            [notifBadge, mobileNotifBadge].forEach(function(el) {
+                if (el) { el.textContent = '0'; el.classList.add('d-none'); }
+            });
+            // also hide mobile-nav badge
+            document.querySelectorAll('.mobile-badge.notif-count').forEach(function(el) {
+                el.classList.add('d-none');
+            });
+        }
+
+        function markAllRead() {
+            fetch(MARK_ALL_URL, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': CSRF_TOKEN, 'X-Requested-With': 'XMLHttpRequest' },
+            }).then(function(r) {
+                if (r.ok) hideNotifBadges();
+            }).catch(function() {});
+        }
+
+        // Mark all as read when dropdown opens
+        if (notifBellBtn) {
+            notifBellBtn.addEventListener('shown.bs.dropdown', markAllRead);
+        }
+
+        // Mark all as read on button click
+        if (notifMarkAllBtn) {
+            notifMarkAllBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                markAllRead();
+                // Visually remove unread styles from listed items
+                document.querySelectorAll('#notifList .notif-item').forEach(function(li) {
+                    li.classList.remove('unread');
+                    const dot = li.querySelector('.notif-dot');
+                    if (dot) dot.remove();
+                });
+            });
+        }
+        {% endif %}
+        // ── End Notification Bell ──────────────────────────────
     });
 </script>
