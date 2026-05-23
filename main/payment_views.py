@@ -230,18 +230,41 @@ def paymob_callback(request):
         # Parse callback data
         callback_data = json.loads(request.body)
 
-        # Extract payment information
-        order_id = callback_data.get("order", {}).get("id")
-        transaction_id = callback_data.get("id")
-        success = callback_data.get("success", False)
+        # Support both Paymob v1 Unified Checkout format {"type": "TRANSACTION", "obj": {...}}
+        # and the legacy flat format {"order": {...}, "id": ..., "success": ...}
+        if callback_data.get("type") == "TRANSACTION":
+            obj = callback_data.get("obj", {})
+        else:
+            obj = callback_data
 
-        if not order_id:
+        # Extract payment information
+        order_id = obj.get("order", {}).get("id")
+        transaction_id = obj.get("id")
+        success = obj.get("success", False)
+        merchant_order_id = obj.get("order", {}).get("merchant_order_id", "")
+
+        if not order_id and not merchant_order_id:
             return HttpResponse("Invalid callback data", status=400)
 
-        # Find payment record
-        payment = Payment.objects.get(
-            metadata__paymob_order_id=order_id, status=Payment.PaymentStatus.PENDING
-        )
+        # Find payment record — prefer merchant_order_id ("pay_<id>") set by us,
+        # fall back to the Paymob-side order ID stored in metadata
+        payment = None
+        if merchant_order_id and merchant_order_id.startswith("pay_"):
+            try:
+                payment_id = int(merchant_order_id[4:])
+                payment = Payment.objects.get(id=payment_id, status=Payment.PaymentStatus.PENDING)
+            except (ValueError, Payment.DoesNotExist):
+                pass
+        if payment is None and order_id:
+            payment = Payment.objects.get(
+                metadata__paymob_order_id=order_id, status=Payment.PaymentStatus.PENDING
+            )
+
+        if payment is None:
+            logger.error(
+                f"Paymob callback: Payment not found (order_id={order_id}, merchant_order_id={merchant_order_id})"
+            )
+            return HttpResponse("Payment not found", status=404)
 
         if success:
             # Mark payment as completed
@@ -538,6 +561,18 @@ def ad_payment(request, ad_id):
                 ad.is_pinned = features.get("pinned", False)
                 ad.contact_for_price = features.get("contact_for_price", False)
                 ad.features_price = Decimal("0.00")
+
+                # Verified users in non-approval categories are auto-activated
+                from .models import User as _User
+                if (
+                    ad.user.verification_status == _User.VerificationStatus.VERIFIED
+                    and hasattr(ad.category, "require_admin_approval")
+                    and not ad.category.require_admin_approval
+                ):
+                    ad.status = ClassifiedAd.AdStatus.ACTIVE
+                    ad.reviewed_at = timezone.now()
+                    ad.require_review = False
+
                 ad.save()
 
                 has_free_ads = request.session.get("has_free_ads", False)
@@ -552,17 +587,18 @@ def ad_payment(request, ad_id):
                         package_with_ads.use_ad()
 
                 from .models import Notification, User
-                staff_users = User.objects.filter(is_staff=True, is_active=True)
-                for staff_user in staff_users:
-                    Notification.objects.create(
-                        user=staff_user,
-                        notification_type=Notification.NotificationType.GENERAL,
-                        title=_("إعلان جديد ينتظر المراجعة"),
-                        message=_("تم تقديم إعلان جديد بعنوان '{}' من المستخدم {}.").format(
-                            ad.title, ad.user.get_full_name() or ad.user.username
-                        ),
-                        link=ad.get_absolute_url(),
-                    )
+                if ad.status == ClassifiedAd.AdStatus.PENDING:
+                    staff_users = User.objects.filter(is_staff=True, is_active=True)
+                    for staff_user in staff_users:
+                        Notification.objects.create(
+                            user=staff_user,
+                            notification_type=Notification.NotificationType.GENERAL,
+                            title=_("إعلان جديد ينتظر المراجعة"),
+                            message=_("تم تقديم إعلان جديد بعنوان '{}' من المستخدم {}.").format(
+                                ad.title, ad.user.get_full_name() or ad.user.username
+                            ),
+                            link=ad.get_absolute_url(),
+                        )
 
                 messages.info(request, _("تم إرسال إعلانك للمراجعة وسيتم نشره بعد موافقة الإدارة."))
             return redirect("main:ad_create_success", pk=ad.pk)
@@ -688,6 +724,15 @@ def ad_payment(request, ad_id):
                 )
                 extra_kwargs["cancel_url"] = request.build_absolute_uri(
                     reverse("main:paypal_cancel") + f"?ad_id={ad.id}"
+                )
+            else:
+                # Use a deterministic order_ref so the Paymob callback can find this payment
+                extra_kwargs["order_ref"] = f"pay_{payment.id}"
+                extra_kwargs["notification_url"] = request.build_absolute_uri(
+                    reverse("main:paymob_callback")
+                )
+                extra_kwargs["redirection_url"] = request.build_absolute_uri(
+                    reverse("main:ad_create_success", kwargs={"pk": ad.pk})
                 )
             success, result = PaymentService().create_payment(
                 provider_key,
@@ -817,17 +862,31 @@ def process_ad_payment(payment):
             ad.status = ClassifiedAd.AdStatus.PENDING
             status_msg = _("قيد المراجعة")
 
-            # Notify all staff users that an ad needs review
-            from .models import User as UserModel
-            staff_users = UserModel.objects.filter(is_staff=True, is_active=True)
-            for staff_user in staff_users:
-                Notification.objects.create(
-                    user=staff_user,
-                    notification_type=Notification.NotificationType.GENERAL,
-                    title=_("إعلان ينتظر المراجعة"),
-                    message=_("تم تقديم إعلان بعنوان '{}' وتم سداد رسومه.").format(ad.title),
-                    link=ad.get_absolute_url(),
-                )
+            # Verified users in categories that don't require admin approval are
+            # auto-activated after payment (they must still pay, just skip review)
+            if (
+                ad.user.verification_status == User.VerificationStatus.VERIFIED
+                and hasattr(ad.category, "require_admin_approval")
+                and not ad.category.require_admin_approval
+            ):
+                from django.utils import timezone as tz
+                ad.status = ClassifiedAd.AdStatus.ACTIVE
+                ad.reviewed_at = tz.now()
+                ad.require_review = False
+                status_msg = _("نشط")
+
+            if ad.status == ClassifiedAd.AdStatus.PENDING:
+                # Notify all staff users that an ad needs review
+                from .models import User as UserModel
+                staff_users = UserModel.objects.filter(is_staff=True, is_active=True)
+                for staff_user in staff_users:
+                    Notification.objects.create(
+                        user=staff_user,
+                        notification_type=Notification.NotificationType.GENERAL,
+                        title=_("إعلان ينتظر المراجعة"),
+                        message=_("تم تقديم إعلان بعنوان '{}' وتم سداد رسومه.").format(ad.title),
+                        link=ad.get_absolute_url(),
+                    )
 
             # If user paid base fee (no package), don't deduct from package
             if base_fee == 0 and not is_renewal:

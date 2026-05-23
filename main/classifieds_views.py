@@ -963,9 +963,7 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
 
         site_config = SiteConfiguration.get_solo()
         context["mobile_verification_enabled"] = site_config.require_phone_verification
-        context["ad_base_fee"] = (
-            float(site_config.ad_base_fee) if site_config.ad_base_fee else 0.0
-        )
+        context["ad_base_fee"] = 0.0  # Editing is always free
 
         # Feature prices and package info — identical logic to create view
         from constance import config as constance_config

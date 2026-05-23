@@ -65,6 +65,8 @@ class PaymentService:
                 billing_data=user_data or {},
                 integration_id=integration_id,
                 currency=currency or None,
+                notification_url=kwargs.get("notification_url"),
+                redirection_url=kwargs.get("redirection_url"),
             )
             if not success:
                 return False, error or _("فشل إنشاء طلب Paymob")
@@ -78,6 +80,8 @@ class PaymentService:
                 billing_data=user_data or {},
                 integration_id=wallet_integration_id,
                 currency=currency or None,
+                notification_url=kwargs.get("notification_url"),
+                redirection_url=kwargs.get("redirection_url"),
             )
             if not success:
                 return False, error or _("فشل إنشاء طلب المحفظة الإلكترونية")

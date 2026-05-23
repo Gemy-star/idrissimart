@@ -416,10 +416,6 @@ class CategoriesView(FilterView):
                 section_type=content_type, country_code=selected_country
             )
 
-        # Get cart and wishlist counts from session
-        cart_count = len(self.request.session.get("cart", []))
-        wishlist_count = len(self.request.session.get("wishlist", []))
-
         # Get current filters for display
         current_filters = {
             "search": self.request.GET.get("search", ""),
@@ -535,8 +531,6 @@ class CategoriesView(FilterView):
                 "categories_by_section": categories_by_section,
                 "active_section": active_section,
                 "content_type": content_type,
-                "cart_count": cart_count,
-                "wishlist_count": wishlist_count,
                 "current_filters": current_filters,
                 content_labels["total_items_label"]: total_items,
                 "total_categories": active_categories,

@@ -156,6 +156,9 @@ def auto_approve_verified_users(sender, instance, **kwargs):
     Auto-approve ads from verified users if category allows
     """
     if not instance.pk:  # New ad
+        # Never auto-approve ads that are in DRAFT (awaiting payment)
+        if instance.status == ClassifiedAd.AdStatus.DRAFT:
+            return
         # Check if user is verified and category doesn't require approval
         if instance.user.verification_status == User.VerificationStatus.VERIFIED:
             if (

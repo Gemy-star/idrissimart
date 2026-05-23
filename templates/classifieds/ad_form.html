@@ -613,7 +613,7 @@
         color: var(--text-muted, #6c757d);
     }
 
-    /* Radio buttons and checkboxes in custom fields */
+    /* Radio buttons and checkboxes in custom fields (AJAX-rendered via custom_field.html) */
     #custom-fields-container .form-check {
         margin-bottom: 8px;
     }
@@ -636,6 +636,39 @@
     [dir="rtl"] #custom-fields-container .form-check-label {
         margin-right: 0;
         margin-left: 8px;
+    }
+
+    /* Fix Django RadioSelect server-rendered structure (edit mode / form errors).
+       Django renders RadioSelect as: <div id="…"><div><label><input> text</label></div>…</div>
+       The inner <div> wrappers have no Bootstrap classes, so we style them here. */
+    #custom-fields-container .col-md-6 > div[id] {
+        display: block;
+    }
+    #custom-fields-container .col-md-6 > div[id] > div {
+        display: block;
+        margin-bottom: 0.375rem;
+        min-height: 1.5rem;
+    }
+    #custom-fields-container .col-md-6 > div[id] > div label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        font-weight: 400;
+        margin-bottom: 0;
+        line-height: 1.5;
+    }
+    #custom-fields-container .col-md-6 > div[id] > div label input[type="radio"],
+    #custom-fields-container .col-md-6 > div[id] > div label input[type="checkbox"] {
+        flex-shrink: 0;
+        width: 1rem;
+        height: 1rem;
+        cursor: pointer;
+        accent-color: var(--primary-color, #6b4c7a);
+    }
+    /* When a radio option is marked invalid by JS, colour its parent label red */
+    #custom-fields-container .col-md-6 > div[id] > div label:has(input.is-invalid) {
+        color: #dc3545;
     }
 
     /* Alerts */
@@ -1865,14 +1898,13 @@
             if (hasFormErrors) {
                 const errorFields = document.querySelectorAll('.is-invalid, .invalid-feedback');
                 if (errorFields.length > 0) {
-                    // Find which step contains the error
-                    formSteps.forEach((step, index) => {
-                        if (step.querySelector('.is-invalid, .invalid-feedback')) {
-                            currentStep = index + 1;
-                            // Stop at first step with error
-                            return false;
+                    // Find FIRST step that contains an error (forEach ignores return false; use a for loop)
+                    for (let i = 0; i < formSteps.length; i++) {
+                        if (formSteps[i].querySelector('.is-invalid, .invalid-feedback')) {
+                            currentStep = i + 1;
+                            break;
                         }
-                    });
+                    }
                 }
 
                 // Scroll to error summary
@@ -3591,9 +3623,9 @@
             updateCustomFields = function() {
                 originalUpdateCustomFields();
 
-                // Get selected category data
-                const selectedOption = subcategorySelect.options[subcategorySelect.selectedIndex] ||
-                                     subSubcategorySelect.options[subSubcategorySelect.selectedIndex];
+                // Get selected category data (subcategorySelect may be null in edit mode)
+                const selectedOption = (subcategorySelect && subcategorySelect.options[subcategorySelect.selectedIndex]) ||
+                                     (subSubcategorySelect && subSubcategorySelect.options[subSubcategorySelect.selectedIndex]);
                 if (selectedOption) {
                     const categoryData = {
                         allow_cart: selectedOption.dataset.allowCart === 'true',

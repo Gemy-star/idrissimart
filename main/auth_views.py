@@ -92,23 +92,13 @@ class CustomLoginView(LoginView):
 
         user = self.request.user
 
-        # Admins
+        # Admins go to admin dashboard
         if user.is_superuser or user.is_staff:
             from django.urls import reverse
 
             return reverse("main:admin_dashboard")
 
-        # Both DEFAULT and PUBLISHER users go to dashboard
-        try:
-            if getattr(user, "profile_type", None) in ["default", "publisher"]:
-                from django.urls import reverse
-
-                return reverse("main:dashboard")
-        except Exception:
-            # If user model doesn't expose profile_type for any reason, ignore
-            pass
-
-        # Fallback
+        # Everyone else goes to home page
         from django.urls import reverse
 
         return reverse("main:home")
