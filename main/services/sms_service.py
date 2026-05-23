@@ -235,6 +235,21 @@ class SMSService:
         return SMSService.send_sms(phone_number, message)
 
     @staticmethod
+    def render_template(key: str, context: dict, fallback: str = "") -> str:
+        """
+        Load an SMSTemplate from DB and render it with context variables.
+        Returns fallback string if template is not found or inactive.
+        """
+        try:
+            from main.models import SMSTemplate
+            tmpl = SMSTemplate.get_template(key)
+            if tmpl:
+                return tmpl.render(context)
+        except Exception as e:
+            logger.warning("SMS template lookup failed for key '%s': %s", key, e)
+        return fallback
+
+    @staticmethod
     def format_phone_number(phone: str, country_code: str = "+966") -> str:
         """
         Format phone number to international format

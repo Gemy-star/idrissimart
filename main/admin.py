@@ -53,6 +53,7 @@ from .models import (
     Payment,
     SafetyTip,
     SavedSearch,
+    SMSTemplate,
     User,
     UserPackage,
     UserPermissionLog,
@@ -3968,6 +3969,49 @@ class EmailTemplateAdmin(admin.ModelAdmin):
             "opts": self.model._meta,
         }
         return TemplateResponse(request, "admin/main/emailtemplate/send_newsletter.html", context)
+
+
+@admin.register(SMSTemplate)
+class SMSTemplateAdmin(admin.ModelAdmin):
+    list_display = ("key", "display_name_col", "is_active", "updated_at")
+    list_filter = ("is_active", "key")
+    search_fields = ("key", "name", "name_ar", "body")
+    list_editable = ("is_active",)
+    readonly_fields = ("created_at", "updated_at")
+    ordering = ("key",)
+
+    fieldsets = (
+        (
+            _("المعرّف - Identifier"),
+            {"fields": ("key", "is_active")},
+        ),
+        (
+            _("الاسم - Name"),
+            {"fields": ("name", "name_ar")},
+        ),
+        (
+            _("نص الرسالة - Message Body"),
+            {
+                "fields": ("body",),
+                "description": _(
+                    "نص رسالة SMS المرسلة للعميل. استخدم {{variable}} للمتغيرات المذكورة أدناه. "
+                    "مثال: مرحباً، طلبك رقم {{order_number}} تم شحنه."
+                ),
+            },
+        ),
+        (
+            _("المتغيرات والتواريخ - Variables & Dates"),
+            {
+                "fields": ("available_variables", "created_at", "updated_at"),
+                "classes": ("collapse",),
+                "description": _("المتغيرات المتاحة لهذا القالب — انسخها كما هي داخل نص الرسالة."),
+            },
+        ),
+    )
+
+    def display_name_col(self, obj):
+        return obj.name_ar or obj.name
+    display_name_col.short_description = _("الاسم")
 
 
 @admin.register(CustomPage)

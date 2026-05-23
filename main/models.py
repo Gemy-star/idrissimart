@@ -2745,6 +2745,8 @@ class AdFeature(models.Model):  # This model is correct, no changes needed here.
             "تواصل ليصلك عرض سعر - Contact for Price"
         )
         FACEBOOK_SHARE = "facebook_share", _("نشر على فيسبوك - Facebook Share")
+        URGENT = "urgent", _("إعلان عاجل - Urgent")
+        AUTO_REFRESH = "auto_refresh", _("تحديث تلقائي - Auto Refresh")
 
     ad = models.ForeignKey(
         ClassifiedAd, on_delete=models.CASCADE, related_name="features"
@@ -4661,6 +4663,74 @@ class EmailTemplate(models.Model):
             return cls.objects.get(key=key, is_active=True)
         except cls.DoesNotExist:
             return None
+
+
+class SMSTemplate(models.Model):
+    """DB-managed SMS templates editable from the admin dashboard."""
+
+    class TemplateKey(models.TextChoices):
+        ORDER_CREATED = "order_created", _("تأكيد الطلب - Order Created")
+        ORDER_SHIPPED = "order_shipped", _("تم الشحن - Order Shipped")
+        ORDER_DELIVERED = "order_delivered", _("تم التسليم - Order Delivered")
+        ORDER_CANCELLED = "order_cancelled", _("إلغاء الطلب - Order Cancelled")
+        ORDER_PAID = "order_paid", _("تأكيد الدفع - Payment Confirmed")
+        ORDER_PARTIAL_PAYMENT = "order_partial_payment", _("دفعة جزئية - Partial Payment")
+
+    key = models.CharField(
+        max_length=60,
+        choices=TemplateKey.choices,
+        unique=True,
+        verbose_name=_("المفتاح - Key"),
+        help_text=_("معرّف فريد يُستخدم في الكود لاستدعاء القالب"),
+    )
+    name = models.CharField(
+        max_length=200,
+        verbose_name=_("الاسم - Name"),
+    )
+    name_ar = models.CharField(
+        max_length=200,
+        verbose_name=_("الاسم بالعربية - Name (Arabic)"),
+        blank=True,
+    )
+    body = models.TextField(
+        verbose_name=_("نص الرسالة - Message Body"),
+        help_text=_("نص رسالة SMS. استخدم {{variable}} للمتغيرات، مثال: {{order_number}}، {{site_name}}"),
+    )
+    available_variables = models.TextField(
+        verbose_name=_("المتغيرات المتاحة - Available Variables"),
+        blank=True,
+        help_text=_("المتغيرات التي يمكن استخدامها في القالب، مثال: {{order_number}}, {{site_name}}"),
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_("نشط - Active"),
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإنشاء"))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("تاريخ التعديل"))
+
+    class Meta:
+        db_table = "sms_templates"
+        verbose_name = _("قالب رسالة SMS - SMS Template")
+        verbose_name_plural = _("قوالب رسائل SMS - SMS Templates")
+        ordering = ["key"]
+
+    def __str__(self):
+        return self.name_ar or self.name or self.key
+
+    @classmethod
+    def get_template(cls, key):
+        """Return active template by key, or None if not found/inactive."""
+        try:
+            return cls.objects.get(key=key, is_active=True)
+        except cls.DoesNotExist:
+            return None
+
+    def render(self, context: dict) -> str:
+        """Substitute {{variable}} placeholders in body with context values."""
+        text = self.body
+        for var_key, value in context.items():
+            text = text.replace(f"{{{{{var_key}}}}}", str(value))
+        return text
 
 
 class AdSenseSlot(models.Model):

@@ -202,6 +202,8 @@ class ClassifiedAdForm(forms.ModelForm):
             self.fields["category"].widget.attrs[
                 "style"
             ] = "pointer-events: none; background-color: #e9ecef;"
+            # Mobile number is not required when editing — the user's phone is already verified
+            self.fields["mobile_number"].required = False
 
         # Remove default empty label for category field
         if "category" in self.fields and not self.is_editing:
@@ -234,11 +236,26 @@ class ClassifiedAdForm(forms.ModelForm):
             elif self.instance and self.instance.pk and self.instance.country:
                 country = self.instance.country
 
+            # When editing, always include the stored city so it passes ChoiceField validation
+            instance_city = (
+                self.instance.city
+                if (self.is_editing and self.instance and self.instance.pk and self.instance.city)
+                else None
+            )
+
             if country and country.cities:
                 city_choices = [("", _("اختر المدينة"))] + [
                     (city, city) for city in country.cities
                 ]
+                if instance_city and instance_city not in country.cities:
+                    city_choices.append((instance_city, instance_city))
                 self.fields["city"].choices = city_choices
+            elif instance_city:
+                # Country has no predefined cities list — keep stored city valid
+                self.fields["city"].choices = [
+                    ("", _("اختر المدينة")),
+                    (instance_city, instance_city),
+                ]
 
         # Initialize mobile number from user's profile (mobile first, then phone)
         if self.user:
@@ -1044,8 +1061,8 @@ class RegistrationForm(forms.Form):
         # Normalize based on country
         normalized = normalize_phone_number(phone, country_code)
 
-        # Check if already registered
-        if User.objects.filter(phone=normalized).exists():
+        # Check if already registered (exclude deactivated users so freed numbers can be reused)
+        if User.objects.filter(phone=normalized, is_active=True).exists():
             raise ValidationError(_("رقم الجوال مسجل مسبقاً"))
 
         return normalized

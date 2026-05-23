@@ -1283,8 +1283,14 @@ def ad_upgrade_payment(request, ad_id):
     site_config = SiteConfiguration.get_solo()
 
     # Get payment details from session
-    total_amount = Decimal(request.session.get("upgrade_total_cost", "0"))
+    base_amount = Decimal(request.session.get("upgrade_total_cost", "0"))
     upgrade_features = request.session.get("upgrade_features", {})
+
+    # Apply tax
+    tax_rate_percentage = getattr(config, "TAX_RATE", 0.0)
+    tax_rate = Decimal(str(tax_rate_percentage)) / Decimal("100")
+    tax_amount = (base_amount * tax_rate).quantize(Decimal("0.01"))
+    total_amount = base_amount + tax_amount
 
     # Get currency from ad's country
     currency = "EGP"  # default
@@ -1435,6 +1441,9 @@ def ad_upgrade_payment(request, ad_id):
 
     context = {
         "ad": ad,
+        "base_amount": base_amount,
+        "tax_amount": tax_amount,
+        "tax_rate_percentage": tax_rate_percentage,
         "total_amount": total_amount,
         "upgrade_features": upgrade_features,
         "site_config": site_config,

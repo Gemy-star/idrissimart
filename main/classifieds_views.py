@@ -2841,14 +2841,17 @@ class AdUnifiedUpgradeView(LoginRequiredMixin, DetailView):
         context["pinned_price_14"] = scale(p7, cfg_p7, cfg_p14)
         context["pinned_price_30"] = scale(p7, cfg_p7, cfg_p30)
 
-        # Urgent — not in AdFeaturePrice, use constance only
-        context["urgent_price"] = cfg_u7
-        context["urgent_price_14"] = cfg_u14
-        context["urgent_price_30"] = cfg_u30
+        # Urgent — now in AdFeaturePrice; falls back to constance
+        u7 = _get_category_feature_price(
+            category, "urgent", "FEATURE_URGENT_PRICE", 30.00
+        )
+        context["urgent_price"] = u7
+        context["urgent_price_14"] = scale(u7, cfg_u7, cfg_u14)
+        context["urgent_price_30"] = scale(u7, cfg_u7, cfg_u30)
 
-        # Auto-refresh — not in AdFeaturePrice, use constance
-        context["auto_refresh_price"] = Decimal(
-            str(getattr(config, "FEATURE_AUTO_REFRESH_PRICE", 35.00))
+        # Auto-refresh — now in AdFeaturePrice; falls back to constance
+        context["auto_refresh_price"] = _get_category_feature_price(
+            category, "auto_refresh", "FEATURE_AUTO_REFRESH_PRICE", 35.00
         )
 
         # One-time features — use AdFeaturePrice per category where available
@@ -2862,8 +2865,8 @@ class AdUnifiedUpgradeView(LoginRequiredMixin, DetailView):
             "video": _get_category_feature_price(
                 category, "video", "FEATURE_ADD_VIDEO_PRICE", 25.00
             ),
-            "auto_refresh": Decimal(
-                str(getattr(config, "FEATURE_AUTO_REFRESH_PRICE", 35.00))
+            "auto_refresh": _get_category_feature_price(
+                category, "auto_refresh", "FEATURE_AUTO_REFRESH_PRICE", 35.00
             ),
         }
 
@@ -2967,12 +2970,15 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
             )
 
         if upgrade_urgent and urgent_duration > 0:
+            u7 = _get_category_feature_price(
+                category, "urgent", "FEATURE_URGENT_PRICE", 30.00
+            )
             if urgent_duration == 7:
-                price = cfg_u7
+                price = u7
             elif urgent_duration == 14:
-                price = cfg_u14
+                price = _scale(u7, cfg_u7, cfg_u14)
             else:
-                price = cfg_u30
+                price = _scale(u7, cfg_u7, cfg_u30)
 
             total_amount += price
             upgrades.append(

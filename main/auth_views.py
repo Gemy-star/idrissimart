@@ -771,7 +771,7 @@ def send_phone_verification_code(request):
                 )
             # Check if phone belongs to another user
             existing_user = (
-                User.objects.filter(phone=normalized_phone)
+                User.objects.filter(phone=normalized_phone, is_active=True)
                 .exclude(id=request.user.id)
                 .first()
             )
@@ -781,8 +781,8 @@ def send_phone_verification_code(request):
                     status=400,
                 )
         else:
-            # For non-authenticated users (registration), check if phone already exists
-            if User.objects.filter(phone=normalized_phone).exists():
+            # For non-authenticated users (registration), check if phone already exists (active users only)
+            if User.objects.filter(phone=normalized_phone, is_active=True).exists():
                 return JsonResponse(
                     {"success": False, "message": _("رقم الجوال مسجل مسبقاً")},
                     status=400,
@@ -1315,6 +1315,19 @@ def mark_phone_verified(request):
 
 class CustomPasswordResetConfirmView(dj_auth_views.PasswordResetConfirmView):
     """Custom view to ensure redirect uses the correct namespaced URL."""
+
+    def form_valid(self, form):
+        from django.contrib.auth.views import INTERNAL_RESET_SESSION_TOKEN
+
+        # Save only the password field to avoid full_clean() failing on users
+        # with legacy/invalid profile_type values in the database.
+        user = form.user
+        user.set_password(form.cleaned_data["new_password1"])
+        user.save(update_fields=["password"])
+        del self.request.session[INTERNAL_RESET_SESSION_TOKEN]
+        if self.post_reset_login:
+            login(self.request, user, self.post_reset_login_backend)
+        return HttpResponseRedirect(self.get_success_url())
 
     def get_success_url(self):
         return reverse("main:password_reset_complete")

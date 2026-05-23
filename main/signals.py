@@ -608,15 +608,17 @@ def send_order_notifications(sender, instance, created, **kwargs):
             # 3. Send customer SMS
             if _sms_enabled(instance.user) and instance.phone:
                 try:
-                    sms_service = SMSService()
-                    message = _(
+                    ctx = {
+                        "order_number": instance.order_number,
+                        "amount": instance.total_amount,
+                        "currency": currency,
+                        "site_name": config.SITE_NAME,
+                    }
+                    fallback = _(
                         "تم إنشاء طلبك {order_number} بنجاح. المبلغ: {amount} {currency}. سنتواصل معك قريباً."
-                    ).format(
-                        order_number=instance.order_number,
-                        amount=instance.total_amount,
-                        currency=currency,
-                    )
-                    sms_service.send_sms(instance.phone, message)
+                    ).format(**ctx)
+                    message = SMSService.render_template("order_created", ctx, fallback=fallback)
+                    SMSService.send_sms(instance.phone, message)
                 except Exception as e:
                     logger.error(f"Failed to send order creation SMS: {str(e)}")
 
@@ -745,11 +747,15 @@ def send_order_status_notifications(sender, instance, created, **kwargs):
                     and instance.status in ["shipped", "delivered"]
                 ):
                     try:
-                        sms_service = SMSService()
-                        message = _("طلبك {order_number}: {status}").format(
-                            order_number=instance.order_number, status=status_msg
-                        )
-                        sms_service.send_sms(instance.phone, message)
+                        template_key = "order_shipped" if instance.status == "shipped" else "order_delivered"
+                        ctx = {
+                            "order_number": instance.order_number,
+                            "status": status_msg,
+                            "site_name": config.SITE_NAME,
+                        }
+                        fallback = _("طلبك {order_number}: {status}").format(**ctx)
+                        message = SMSService.render_template(template_key, ctx, fallback=fallback)
+                        SMSService.send_sms(instance.phone, message)
                     except Exception as e:
                         logger.error(f"Failed to send order status SMS: {str(e)}")
 
@@ -790,11 +796,17 @@ def send_order_status_notifications(sender, instance, created, **kwargs):
                     # Send SMS
                     if _sms_enabled(instance.user) and instance.phone:
                         try:
-                            sms_service = SMSService()
-                            message = _(
+                            ctx = {
+                                "order_number": instance.order_number,
+                                "amount": instance.total_amount,
+                                "currency": currency,
+                                "site_name": config.SITE_NAME,
+                            }
+                            fallback = _(
                                 "تم استلام الدفع الكامل لطلبك {order_number}. شكراً لك!"
-                            ).format(order_number=instance.order_number)
-                            sms_service.send_sms(instance.phone, message)
+                            ).format(**ctx)
+                            message = SMSService.render_template("order_paid", ctx, fallback=fallback)
+                            SMSService.send_sms(instance.phone, message)
                         except Exception as e:
                             logger.error(
                                 f"Failed to send payment confirmation SMS: {str(e)}"
@@ -845,14 +857,17 @@ def send_order_status_notifications(sender, instance, created, **kwargs):
                     # Send SMS for partial payment
                     if _sms_enabled(instance.user) and instance.phone:
                         try:
-                            sms_service = SMSService()
-                            message = _(
+                            ctx = {
+                                "order_number": instance.order_number,
+                                "remaining": instance.remaining_amount,
+                                "paid": instance.paid_amount,
+                                "site_name": config.SITE_NAME,
+                            }
+                            fallback = _(
                                 "تم استلام دفعة جزئية لطلبك {order_number}. المبلغ المتبقي: {remaining}"
-                            ).format(
-                                order_number=instance.order_number,
-                                remaining=instance.remaining_amount,
-                            )
-                            sms_service.send_sms(instance.phone, message)
+                            ).format(**ctx)
+                            message = SMSService.render_template("order_partial_payment", ctx, fallback=fallback)
+                            SMSService.send_sms(instance.phone, message)
                         except Exception as e:
                             logger.error(f"Failed to send partial payment SMS: {str(e)}")
 

@@ -4,6 +4,7 @@ This helps clean up unpaid/pending orders that have exceeded their expiration ti
 This should be run hourly or daily via cron job or django-q2 scheduler.
 """
 
+from constance import config
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from main.models import Order, Notification
@@ -105,7 +106,14 @@ class Command(BaseCommand):
                             # Send SMS if enabled and user has phone
                             if send_sms and SMSService.is_enabled() and order.user.phone:
                                 try:
-                                    sms_message = f"تم إلغاء الطلب #{order.order_number} بسبب انتهاء المهلة. المبلغ: {order.total_amount} {order.currency}"
+                                    ctx = {
+                                        "order_number": order.order_number,
+                                        "amount": order.total_amount,
+                                        "currency": order.currency,
+                                        "site_name": config.SITE_NAME,
+                                    }
+                                    fallback = f"تم إلغاء الطلب #{order.order_number} بسبب انتهاء المهلة. المبلغ: {order.total_amount} {order.currency}"
+                                    sms_message = SMSService.render_template("order_cancelled", ctx, fallback=fallback)
                                     if SMSService.send_sms(order.user.phone, sms_message):
                                         sms_count += 1
                                 except Exception as sms_error:

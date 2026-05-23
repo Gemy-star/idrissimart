@@ -35,8 +35,12 @@ def ad_features_upgrade(request, ad_id):
         "pinned": _get_category_feature_price(
             category, "pinned", "FEATURE_PINNED_PRICE", 75.0
         ),
-        "urgent": Decimal(str(getattr(config, "FEATURE_URGENT_PRICE", 30.0))),
-        "auto_refresh": Decimal(str(getattr(config, "FEATURE_AUTO_REFRESH_PRICE", 35.0))),
+        "urgent": _get_category_feature_price(
+            category, "urgent", "FEATURE_URGENT_PRICE", 30.0
+        ),
+        "auto_refresh": _get_category_feature_price(
+            category, "auto_refresh", "FEATURE_AUTO_REFRESH_PRICE", 35.0
+        ),
         "contact_for_price": _get_category_feature_price(
             category, "contact_for_price", "FEATURE_CONTACT_FOR_PRICE", 0.0
         ),
