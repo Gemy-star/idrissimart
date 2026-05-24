@@ -233,6 +233,33 @@
             </div>
         </div>
 
+        <!-- Compare Modal -->
+        <div class="modal fade" id="compareModal" tabindex="-1" aria-labelledby="compareModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="compareModalLabel">
+                            <i class="fas fa-exchange-alt me-2"></i>{% trans "مقارنة الإعلانات" %}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="compareModalBody">
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer justify-content-between">
+                        <button class="btn btn-outline-danger btn-sm" id="compareModalClearBtn">
+                            <i class="fas fa-trash me-1"></i>{% trans "مسح الكل" %}
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1"></i>{% trans "إغلاق" %}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Back to Top Button -->
         <button class="back-to-top" id="backToTop" aria-label="Back to top">
             <i class="fas fa-arrow-up"></i>
@@ -392,12 +419,38 @@
                     comparePanel.classList.remove('show');
                 });
 
-                // View comparison
+                // View comparison — open modal (no page navigation)
+                const compareModal = new bootstrap.Modal(document.getElementById('compareModal'), {backdrop: true, keyboard: true});
+                const compareModalBody = document.getElementById('compareModalBody');
+                const compareModalClearBtn = document.getElementById('compareModalClearBtn');
+
                 compareViewBtn.addEventListener('click', function() {
-                    if (compareList.length > 1) {
-                        const ids = compareList.map(item => item.id).join(',');
-                        window.location.href = `{% url 'main:compare_ads' %}?ids=${ids}`;
-                    }
+                    if (compareList.length < 2) return;
+                    const ids = compareList.map(item => item.id).join(',');
+                    compareModalBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+                    compareModal.show();
+                    // Close the side panel
+                    isPanelOpen = false;
+                    comparePanel.classList.remove('show');
+                    fetch(`{% url 'main:compare_ads' %}?ids=${ids}&partial=1`, {
+                        headers: {'X-Requested-With': 'XMLHttpRequest'}
+                    })
+                    .then(r => r.text())
+                    .then(html => {
+                        compareModalBody.innerHTML = html;
+                        // Re-init wishlist buttons inside modal
+                        if (typeof initializeWishlistButtons === 'function') initializeWishlistButtons();
+                    })
+                    .catch(() => {
+                        compareModalBody.innerHTML = '<p class="text-danger text-center py-4">{% trans "حدث خطأ في تحميل المقارنة" %}</p>';
+                    });
+                });
+
+                compareModalClearBtn.addEventListener('click', function() {
+                    compareList = [];
+                    localStorage.removeItem('compareList');
+                    updateCompareWidget();
+                    compareModal.hide();
                 });
 
                 // Clear all

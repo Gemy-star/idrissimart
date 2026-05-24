@@ -108,7 +108,7 @@ class SMSService:
 
             # Validate before calling Twilio — avoids wasted API calls
             if not _validate_e164(to_number):
-                logger.error(f"SMS skipped: invalid phone number format: {to_number}")
+                logger.warning(f"SMS skipped: invalid phone number format: {to_number}")
                 return False
 
             # Send SMS

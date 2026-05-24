@@ -729,7 +729,7 @@ def admin_suspend_ad(request, ad_id):
         title="تم تعليق إعلانك",
         message=f'تم تعليق إعلانك "{ad.title}". السبب: {reason}',
         notification_type="ad_suspended",
-        link=f"/classifieds/{ad.id}/",
+        link=ad.get_absolute_url(),
     )
 
     messages.warning(request, f'تم تعليق الإعلان "{ad.title}".')
@@ -751,7 +751,7 @@ def admin_activate_ad(request, ad_id):
         title="تم تفعيل إعلانك",
         message=f'تم إعادة تفعيل إعلانك "{ad.title}". الإعلان الآن نشط.',
         notification_type="ad_activated",
-        link=f"/classifieds/{ad.id}/",
+        link=ad.get_absolute_url(),
     )
 
     messages.success(request, f'تم تفعيل الإعلان "{ad.title}".')
@@ -778,7 +778,7 @@ def admin_extend_ad(request, ad_id):
         title="تم تمديد إعلانك",
         message=f'تم تمديد إعلانك "{ad.title}" لمدة {days} يوم إضافي.',
         notification_type="ad_extended",
-        link=f"/classifieds/{ad.id}/",
+        link=ad.get_absolute_url(),
     )
 
     messages.success(request, f'تم تمديد الإعلان "{ad.title}" لمدة {days} يوم.')
@@ -1006,7 +1006,7 @@ def admin_ban_ad(request, ad_id):
         title="تم حظر إعلانك نهائياً",
         message=f'تم حظر إعلانك "{ad.title}" نهائياً. السبب: {reason}',
         notification_type="ad_banned",
-        link=f"/classifieds/{ad.id}/",
+        link=ad.get_absolute_url(),
     )
 
     messages.error(request, f'تم حظر الإعلان "{ad.title}" نهائياً.')
@@ -1029,7 +1029,7 @@ def admin_unban_ad(request, ad_id):
         title="تم إلغاء حظر إعلانك",
         message=f'تم إلغاء حظر إعلانك "{ad.title}". الإعلان الآن نشط.',
         notification_type="ad_unbanned",
-        link=f"/classifieds/{ad.id}/",
+        link=ad.get_absolute_url(),
     )
 
     messages.success(request, f'تم إلغاء حظر الإعلان "{ad.title}".')
@@ -1068,7 +1068,7 @@ def admin_duplicate_ad(request, ad_id):
         title="تم نسخ إعلانك",
         message=f'تم إنشاء نسخة من إعلانك "{original_ad.title}". الإعلان الجديد بحاجة إلى مراجعة.',
         notification_type="ad_duplicated",
-        link=f"/publisher/ads/{duplicated_ad.id}/",
+        link=reverse("main:publisher_ad_detail", kwargs={"ad_id": duplicated_ad.id}),
     )
 
     messages.success(
@@ -1136,7 +1136,7 @@ def admin_transfer_ownership(request, ad_id):
             title="تم نقل إعلان إليك",
             message=f'تم نقل ملكية الإعلان "{ad.title}" إليك.',
             notification_type="ad_received",
-            link=f"/publisher/ads/{ad.id}/",
+            link=reverse("main:publisher_ad_detail", kwargs={"ad_id": ad.id}),
         )
 
         messages.success(
@@ -1171,7 +1171,7 @@ def admin_ad_full_edit(request, ad_id):
                 title="تم تعديل إعلانك",
                 message=f'تم تعديل إعلانك "{ad.title}" من قبل الإدارة.',
                 notification_type="ad_updated",
-                link=f"/classifieds/{ad.id}/",
+                link=ad.get_absolute_url(),
             )
 
             messages.success(request, f'تم تعديل الإعلان "{ad.title}" بنجاح.')
@@ -1209,7 +1209,7 @@ def admin_republish_ad(request, ad_id):
         title="تم إعادة نشر إعلانك",
         message=f'تم إعادة نشر إعلانك "{ad.title}" بتاريخ انتهاء جديد.',
         notification_type="ad_republished",
-        link=f"/classifieds/{ad.id}/",
+        link=ad.get_absolute_url(),
     )
 
     messages.success(request, f'تم إعادة نشر الإعلان "{ad.title}" بنجاح.')
@@ -1232,7 +1232,7 @@ def admin_approve_ad(request, ad_id):
         title="تمت الموافقة على إعلانك",
         message=f'تمت الموافقة على إعلانك "{ad.title}" وأصبح نشطاً الآن.',
         notification_type="ad_approved",
-        link=f"/classifieds/{ad.id}/",
+        link=ad.get_absolute_url(),
     )
 
     messages.success(request, f'تمت الموافقة على الإعلان "{ad.title}" بنجاح.')
@@ -1260,7 +1260,7 @@ def admin_reject_ad(request, ad_id):
             else f'تم رفض إعلانك "{ad.title}".'
         ),
         notification_type="ad_rejected",
-        link=f"/classifieds/{ad.id}/",
+        link=ad.get_absolute_url(),
     )
 
     messages.warning(request, f'تم رفض الإعلان "{ad.title}".')
@@ -1284,7 +1284,7 @@ def admin_hide_ad(request, ad_id):
             title="تم إخفاء إعلانك",
             message=f'تم إخفاء إعلانك "{ad.title}" من قبل الإدارة.',
             notification_type="ad_hidden",
-            link=f"/classifieds/{ad.id}/",
+            link=ad.get_absolute_url(),
         )
         messages.warning(request, f'تم إخفاء الإعلان "{ad.title}".')
     else:
@@ -1294,7 +1294,7 @@ def admin_hide_ad(request, ad_id):
             title="تم إظهار إعلانك",
             message=f'تم إظهار إعلانك "{ad.title}" مرة أخرى.',
             notification_type="ad_shown",
-            link=f"/classifieds/{ad.id}/",
+            link=ad.get_absolute_url(),
         )
         messages.success(request, f'تم إظهار الإعلان "{ad.title}" مرة أخرى.')
 
@@ -1316,7 +1316,7 @@ def admin_enable_cart_for_ad(request, ad_id):
         title="تم تفعيل السلة لإعلانك",
         message=f'تم تفعيل السلة لإعلانك "{ad.title}". يمكن للمشترين الآن إضافته إلى سلة التسوق.',
         notification_type="cart_enabled",
-        link=f"/classifieds/{ad.id}/",
+        link=ad.get_absolute_url(),
     )
 
     messages.success(request, f'تم تفعيل السلة للإعلان "{ad.title}".')
@@ -1338,7 +1338,7 @@ def admin_disable_cart_for_ad(request, ad_id):
         title="تم تعطيل السلة لإعلانك",
         message=f'تم تعطيل السلة لإعلانك "{ad.title}".',
         notification_type="cart_disabled",
-        link=f"/classifieds/{ad.id}/",
+        link=ad.get_absolute_url(),
     )
 
     messages.warning(request, f'تم تعطيل السلة للإعلان "{ad.title}".')

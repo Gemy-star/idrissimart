@@ -560,8 +560,8 @@ class RegisterView(CreateView):
                     error_details.append(f"{field_label}: {error}")
                     messages.error(request, f"{field_label}: {error}")
 
-            # Log errors for debugging
-            logger.error(f"Registration form validation failed: {error_details}")
+            # Log at INFO — form validation failure is expected user input, not a server error
+            logger.info(f"Registration validation failed: {error_details}")
 
             messages.error(request, _("يرجى تصحيح الأخطاء أدناه والمحاولة مرة أخرى."))
 

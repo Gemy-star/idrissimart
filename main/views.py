@@ -2743,9 +2743,16 @@ class AdCardShowcaseView(TemplateView):
 class ComparisonView(TemplateView):
     """
     View to display a side-by-side comparison of selected ads.
+    Supports ?partial=1 (or XHR header) for modal/AJAX rendering.
     """
 
     template_name = "classifieds/compare_ads.html"
+
+    def get_template_names(self):
+        if (self.request.GET.get("partial") or
+                self.request.headers.get("X-Requested-With") == "XMLHttpRequest"):
+            return ["classifieds/compare_ads_partial.html"]
+        return [self.template_name]
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

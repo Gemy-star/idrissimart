@@ -157,6 +157,12 @@ LOGGING = {
             "propagate": False,
             "filters": ["skip_disallowed_host"],
         },
+        # Django raises DisallowedHost via django.security.DisallowedHost logger,
+        # not django.request — silence it here so probes don't spam ERROR logs.
+        "django.security.DisallowedHost": {
+            "handlers": [],
+            "propagate": False,
+        },
         # Gunicorn's own error logger also emits DisallowedHost — filter it here
         # to avoid duplicate noise in journald alongside django.request's filter.
         "gunicorn.error": {
@@ -172,12 +178,12 @@ LOGGING = {
         },
         "main": {
             "handlers": ["console"],
-            "level": "ERROR",
+            "level": "WARNING",
             "propagate": False,
         },
         "content": {
             "handlers": ["console"],
-            "level": "ERROR",
+            "level": "WARNING",
             "propagate": False,
         },
         # Add more detailed logging for debugging

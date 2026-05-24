@@ -1,0 +1,160 @@
+{% load static i18n idrissimart_tags %}
+<style>
+.cmp-wrapper{overflow-x:auto;border-radius:16px;background:var(--bg-primary);border:1px solid var(--border-color)}
+.cmp-table{width:100%;min-width:700px;border-collapse:collapse;background:transparent}
+.cmp-table th,.cmp-table td{padding:1.1rem 1.25rem;text-align:center;vertical-align:top;border-bottom:1px solid var(--border-color)}
+.cmp-table tbody tr:hover{background:var(--bg-secondary)}
+.cmp-table thead th{background:transparent;color:var(--text-primary);border-bottom:2px solid var(--border-color);font-weight:700}
+.cmp-feat{text-align:right!important;font-weight:700;background:transparent;width:22%;color:var(--text-primary);position:sticky;left:0;z-index:5;border-right:3px solid var(--accent-purple)}
+[dir="rtl"] .cmp-feat{border-right:none;border-left:3px solid var(--accent-purple);text-align:right!important}
+.cmp-img{width:140px;height:140px;object-fit:cover;border-radius:12px;margin-bottom:.75rem;box-shadow:0 4px 15px rgba(0,0,0,.15)}
+.cmp-title{font-weight:600;font-size:1.05rem;color:var(--text-primary);text-decoration:none;display:block;padding:.35rem;border-radius:8px;transition:all .25s}
+.cmp-title:hover{background:linear-gradient(135deg,var(--accent-purple),var(--accent-orange));color:#fff}
+.cmp-price{font-size:1.5rem;font-weight:800;background:linear-gradient(135deg,var(--accent-purple),var(--accent-orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.cmp-stats{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center;padding:1rem;background:var(--bg-secondary);border-radius:12px;border:1px solid var(--border-color)}
+.cmp-stat{flex:1 1 140px;display:flex;justify-content:space-between;align-items:center;padding:.6rem .9rem;background:var(--bg-primary);border-radius:8px;border:1px solid var(--border-color)}
+.cmp-stat-label{font-weight:600;color:var(--text-primary);font-size:.9rem}
+.cmp-stat-val{font-weight:700;color:var(--accent-purple)}
+</style>
+
+{% if ads_to_compare %}
+<div class="cmp-wrapper">
+    <table class="cmp-table">
+        <thead>
+            <tr>
+                <th class="cmp-feat">{% trans "الميزة" %}</th>
+                {% for ad in ads_to_compare %}
+                <th>
+                    <a href="{{ ad.get_absolute_url }}" target="_blank">
+                        {% if ad.images.first %}
+                            <img src="{{ ad.images.first.image.url }}" alt="{{ ad.title }}" class="cmp-img">
+                        {% else %}
+                            <img src="{% static 'images/placeholder-ad.jpg' %}" alt="{{ ad.title }}" class="cmp-img">
+                        {% endif %}
+                        <span class="cmp-title">{{ ad.title|truncatechars:40 }}</span>
+                    </a>
+                    <div class="mt-2">
+                        <button class="btn btn-outline-danger btn-sm wishlist-btn {% if ad.id in wishlist_ad_ids %}active{% endif %}"
+                                data-ad-id="{{ ad.id }}"
+                                data-ad-title="{{ ad.title }}"
+                                data-ad-image="{% if ad.images.first %}{{ ad.images.first.image.url }}{% else %}{% static 'images/placeholder-ad.jpg' %}{% endif %}"
+                                onclick="toggleWishlist({{ ad.id }}, this)"
+                                title="{% if ad.id in wishlist_ad_ids %}{% trans 'في المفضلة' %}{% else %}{% trans 'إضافة للمفضلة' %}{% endif %}">
+                            <i class="{% if ad.id in wishlist_ad_ids %}fas{% else %}far{% endif %} fa-heart"></i>
+                        </button>
+                    </div>
+                </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {# Price #}
+            <tr>
+                <td class="cmp-feat">{% trans "السعر" %}</td>
+                {% for ad in ads_to_compare %}
+                <td>
+                    <div class="cmp-price">{% ad_price_formatted ad %}</div>
+                    {% if min_compare_price and ad.price == min_compare_price %}
+                    <span class="badge bg-warning text-dark"><i class="fas fa-arrow-down me-1"></i>{% trans "أقل سعر" %}</span>
+                    {% endif %}
+                    {% if ad.is_negotiable %}<span class="badge bg-success">{% trans "قابل للتفاوض" %}</span>{% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {# Category #}
+            <tr>
+                <td class="cmp-feat">{% trans "القسم" %}</td>
+                {% for ad in ads_to_compare %}<td>{{ ad.category.display_name }}</td>{% endfor %}
+            </tr>
+            {# Location #}
+            <tr>
+                <td class="cmp-feat">{% trans "الموقع" %}</td>
+                {% for ad in ads_to_compare %}<td>{{ ad.city }}{% if ad.country %}, {{ ad.country.name }}{% endif %}</td>{% endfor %}
+            </tr>
+            {# Description #}
+            <tr>
+                <td class="cmp-feat">{% trans "الوصف" %}</td>
+                {% for ad in ads_to_compare %}<td style="text-align:right;white-space:pre-wrap;font-size:.9rem">{{ ad.description|striptags|truncatewords:30 }}</td>{% endfor %}
+            </tr>
+            {# Date #}
+            <tr>
+                <td class="cmp-feat">{% trans "تاريخ النشر" %}</td>
+                {% for ad in ads_to_compare %}<td>{{ ad.created_at|date:"d/m/Y" }}</td>{% endfor %}
+            </tr>
+            {# Views #}
+            <tr>
+                <td class="cmp-feat">{% trans "المشاهدات" %}</td>
+                {% for ad in ads_to_compare %}<td><i class="fas fa-eye text-muted me-1"></i>{{ ad.views_count|default:0 }}</td>{% endfor %}
+            </tr>
+            {# Delivery #}
+            <tr>
+                <td class="cmp-feat">{% trans "التوصيل" %}</td>
+                {% for ad in ads_to_compare %}
+                <td>
+                    {% if ad.is_delivery_available %}
+                        <span class="badge bg-success"><i class="fas fa-check me-1"></i>{% trans "متاح" %}</span>
+                    {% else %}
+                        <span class="badge bg-secondary"><i class="fas fa-times me-1"></i>{% trans "غير متاح" %}</span>
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {# Condition #}
+            {% with has_condition=False %}{% for ad in ads_to_compare %}{% if ad.custom_fields.condition and not has_condition %}{% with has_condition=True %}
+            <tr>
+                <td class="cmp-feat">{% trans "الحالة" %}</td>
+                {% for ia in ads_to_compare %}<td>{% if ia.custom_fields.condition %}<span class="badge bg-info">{{ ia.custom_fields.condition }}</span>{% else %}<span class="text-muted">{% trans "غير محدد" %}</span>{% endif %}</td>{% endfor %}
+            </tr>
+            {% endwith %}{% endif %}{% endfor %}{% endwith %}
+            {# Brand #}
+            {% with has_brand=False %}{% for ad in ads_to_compare %}{% if ad.custom_fields.brand and not has_brand %}{% with has_brand=True %}
+            <tr>
+                <td class="cmp-feat">{% trans "الماركة" %}</td>
+                {% for ia in ads_to_compare %}<td>{% if ia.custom_fields.brand %}<span class="badge bg-primary">{{ ia.custom_fields.brand }}</span>{% else %}<span class="text-muted">{% trans "غير محدد" %}</span>{% endif %}</td>{% endfor %}
+            </tr>
+            {% endwith %}{% endif %}{% endfor %}{% endwith %}
+            {# Model #}
+            {% with has_model=False %}{% for ad in ads_to_compare %}{% if ad.custom_fields.model and not has_model %}{% with has_model=True %}
+            <tr>
+                <td class="cmp-feat">{% trans "الموديل" %}</td>
+                {% for ia in ads_to_compare %}<td>{% if ia.custom_fields.model %}{{ ia.custom_fields.model }}{% else %}<span class="text-muted">{% trans "غير محدد" %}</span>{% endif %}</td>{% endfor %}
+            </tr>
+            {% endwith %}{% endif %}{% endfor %}{% endwith %}
+            {# Year #}
+            {% with has_year=False %}{% for ad in ads_to_compare %}{% if ad.custom_fields.year and not has_year %}{% with has_year=True %}
+            <tr>
+                <td class="cmp-feat">{% trans "السنة" %}</td>
+                {% for ia in ads_to_compare %}<td>{% if ia.custom_fields.year %}<span class="badge bg-warning text-dark"><i class="fas fa-calendar me-1"></i>{{ ia.custom_fields.year }}</span>{% else %}<span class="text-muted">{% trans "غير محدد" %}</span>{% endif %}</td>{% endfor %}
+            </tr>
+            {% endwith %}{% endif %}{% endfor %}{% endwith %}
+            {# Dynamic custom fields #}
+            {% for ad in ads_to_compare %}{% for field in ad.custom_fields.items %}{% if field.0 not in "condition,brand,model,year" %}
+            <tr>
+                <td class="cmp-feat">
+                    {% with cf_label=custom_field_labels|get_item:field.0 %}{% if cf_label %}{% if LANGUAGE_CODE == 'ar' %}{{ cf_label.label_ar }}{% else %}{{ cf_label.label_en }}{% endif %}{% else %}{{ field.0|capfirst }}{% endif %}{% endwith %}
+                </td>
+                {% for ia in ads_to_compare %}<td>{% with fv=ia.custom_fields|get_item:field.0 %}{% if fv %}{{ fv }}{% else %}<span class="text-muted">{% trans "غير محدد" %}</span>{% endif %}{% endwith %}</td>{% endfor %}
+            </tr>
+            {% endif %}{% endfor %}{% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="cmp-stats mt-3">
+    <div class="cmp-stat">
+        <span class="cmp-stat-label">{% trans "عدد الإعلانات" %}</span>
+        <span class="cmp-stat-val">{{ ads_to_compare|length }}</span>
+    </div>
+    {% if min_compare_price %}
+    <div class="cmp-stat">
+        <span class="cmp-stat-label">{% trans "أقل سعر" %}</span>
+        <span class="cmp-stat-val">{{ min_compare_price }}</span>
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div class="text-center py-5">
+    <i class="fas fa-exchange-alt fa-3x text-muted mb-3 d-block opacity-50"></i>
+    <p class="text-muted">{% trans "لم تختر أي إعلانات للمقارنة" %}</p>
+</div>
+{% endif %}
