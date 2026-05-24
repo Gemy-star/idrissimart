@@ -13,7 +13,8 @@ from django.views.decorators.http import require_POST
 from django.template.loader import render_to_string
 import json
 
-from main.models import Cart, CartItem, ClassifiedAd, Wishlist, WishlistItem
+from django.db import models
+from main.models import Cart, CartItem, ClassifiedAd, Coupon, Wishlist, WishlistItem
 
 
 def get_or_create_cart(user):
@@ -95,11 +96,10 @@ def add_to_cart(request):
             f"[ADD_TO_CART] CartItem: {cart_item.id}, Created: {created}, Quantity: {cart_item.quantity}"
         )
 
+        # Classified ads are single-sale items — quantity is always 1.
         if not created:
-            cart_item.quantity += 1
-            cart_item.save()
-            print(f"[ADD_TO_CART] Updated quantity to: {cart_item.quantity}")
-            message = _("تم زيادة الكمية في السلة")
+            print(f"[ADD_TO_CART] Already in cart")
+            message = _("الإعلان موجود بالفعل في السلة")
         else:
             print(f"[ADD_TO_CART] Created new cart item")
             message = _("تمت إضافة {} إلى السلة").format(ad.title)
@@ -187,17 +187,17 @@ def update_cart_quantity(request):
             )
 
         quantity = int(quantity)
-        if quantity < 1:
+        # Classified ads are single-sale items — reject any attempt to set qty > 1.
+        if quantity != 1:
             return JsonResponse(
-                {"success": False, "message": _("الكمية يجب أن تكون أكبر من صفر")},
+                {"success": False, "message": _("الإعلانات المبوبة تُباع مرة واحدة فقط")},
                 status=400,
             )
 
         # Authenticated user - use database cart
         cart = get_or_create_cart(request.user)
         cart_item = get_object_or_404(CartItem, cart=cart, ad_id=ad_id)
-        cart_item.quantity = quantity
-        cart_item.save()
+        # quantity is already 1 — no change needed, just return current totals
 
         return JsonResponse(
             {
@@ -402,6 +402,7 @@ def checkout_view(request):
                     country_id = None
             notes = request.POST.get("notes", "")
             payment_method = request.POST.get("payment_method", "cod")
+            coupon_code = (request.POST.get("coupon_code") or "").strip().upper()
 
             # Check if phone number needs verification
             needs_verification, verification_msg = phone_needs_verification(
@@ -467,6 +468,22 @@ def checkout_view(request):
             # Calculate total
             total_amount = cart.get_total_amount()
 
+            # Apply coupon if provided
+            coupon_obj = None
+            discount_amount = Decimal("0.00")
+            if coupon_code:
+                try:
+                    coupon_obj = Coupon.objects.get(code=coupon_code)
+                    ok, err = coupon_obj.is_valid(total_amount)
+                    if ok:
+                        discount_amount = coupon_obj.get_discount_amount(total_amount)
+                    else:
+                        return JsonResponse({"success": False, "message": err}, status=400)
+                except Coupon.DoesNotExist:
+                    return JsonResponse({"success": False, "message": _("رمز الخصم غير صحيح")}, status=400)
+
+            final_amount = total_amount - discount_amount
+
             # Create order atomically
             with transaction.atomic():
                 # Get site config to check offline payment settings
@@ -489,9 +506,9 @@ def checkout_view(request):
                             "unpaid"  # Will be updated after payment gateway
                         )
                 elif payment_method == "partial" and paid_amount:
-                    if paid_amount >= total_amount:
+                    if paid_amount >= final_amount:
                         payment_status = "paid"
-                        paid_amount = total_amount
+                        paid_amount = final_amount
                     else:
                         payment_status = "partial"
                 elif payment_method in ["cod", "instapay", "wallet"]:
@@ -510,9 +527,17 @@ def checkout_view(request):
                     payment_method=payment_method,
                     payment_status=payment_status,
                     paid_amount=paid_amount or Decimal("0.00"),
-                    total_amount=total_amount,
+                    total_amount=final_amount,
+                    discount_amount=discount_amount,
+                    coupon=coupon_obj,
                     status="pending",
                 )
+
+                # Increment coupon usage counter
+                if coupon_obj:
+                    Coupon.objects.filter(pk=coupon_obj.pk).update(
+                        used_count=models.F("used_count") + 1
+                    )
 
                 # Handle transaction photo for offline payments
                 if payment_method in [
@@ -555,7 +580,7 @@ def checkout_view(request):
                 cancel_url = request.build_absolute_uri(reverse("main:paypal_cancel"))
 
                 success, order_data, error = PayPalService.create_order(
-                    amount=total_amount,
+                    amount=final_amount,
                     currency="USD",
                     order_id=str(order.order_number),
                     description=str(
@@ -622,7 +647,7 @@ def checkout_view(request):
 
                 # Process payment with specific integration ID
                 success, payment_url, error, _paymob_order_id = PaymobService.process_payment(
-                    amount=total_amount,
+                    amount=final_amount,
                     order_id=str(order.order_number),
                     billing_data=billing_data,
                     integration_id=integration_id,
@@ -691,6 +716,7 @@ def checkout_view(request):
         "config": config,
         "allowed_payment_methods": allowed_payment_methods,
         "phone_verification_required": phone_verification_required_flag,
+        "coupon_validate_url": "main:validate_coupon",
     }
 
     return render(request, "cart/checkout.html", context)
@@ -1062,3 +1088,38 @@ def order_success_view(request, order_id):
         return render(request, "cart/order_success.html", context)
     except Exception as e:
         return redirect("main:home")
+
+
+@login_required
+@require_POST
+def validate_coupon(request):
+    """AJAX endpoint: validate a coupon code and return discount amount."""
+    try:
+        data = json.loads(request.body)
+    except (ValueError, TypeError):
+        data = request.POST
+
+    code = (data.get("code") or "").strip().upper()
+    order_amount = Decimal(str(data.get("order_amount", "0") or "0"))
+
+    if not code:
+        return JsonResponse({"valid": False, "message": _("يرجى إدخال رمز الخصم")})
+
+    try:
+        coupon = Coupon.objects.get(code=code)
+    except Coupon.DoesNotExist:
+        return JsonResponse({"valid": False, "message": _("رمز الخصم غير صحيح")})
+
+    ok, error_msg = coupon.is_valid(order_amount)
+    if not ok:
+        return JsonResponse({"valid": False, "message": error_msg})
+
+    discount = coupon.get_discount_amount(order_amount)
+    return JsonResponse({
+        "valid": True,
+        "code": coupon.code,
+        "discount_type": coupon.discount_type,
+        "discount_value": str(coupon.discount_value),
+        "discount_amount": str(discount),
+        "message": _("تم تطبيق رمز الخصم بنجاح"),
+    })

@@ -280,6 +280,18 @@ class ClassifiedAdForm(forms.ModelForm):
                 if field_name in self.fields:
                     self.fields[field_name].initial = value
 
+        # When editing, required custom fields that have no stored value should be
+        # made optional — otherwise the JS step validator blocks navigation entirely
+        # (this happens when new required fields are added to a category after the ad
+        # was already published, leaving the existing ad without those values).
+        if self.is_editing and self.instance and self.instance.pk:
+            stored_custom = self.instance.custom_fields or {}
+            for field_name in list(self.fields.keys()):
+                if field_name.startswith("custom_") and self.fields[field_name].required:
+                    stored_value = stored_custom.get(field_name)
+                    if stored_value is None or stored_value == "":
+                        self.fields[field_name].required = False
+
     def add_custom_fields(self, category):
         """
         Adds form fields based on the CategoryCustomField database model.
@@ -323,6 +335,14 @@ class ClassifiedAdForm(forms.ModelForm):
                     # Radio buttons must NOT have a blank choice — it would be
                     # pre-selected as a radio and make required validation impossible.
                     choices = [(opt.value, opt.label_ar) for opt in options]
+                    # In edit mode, if the stored value is not among current options
+                    # (option was renamed/removed), the radio would render with nothing
+                    # checked. Make the field non-required so JS doesn't block navigation.
+                    if self.is_editing and self.instance and self.instance.pk:
+                        stored_custom = self.instance.custom_fields or {}
+                        stored_val = stored_custom.get(field_name)
+                        if stored_val and stored_val not in {c[0] for c in choices}:
+                            field_kwargs["required"] = False
                     self.fields[field_name] = forms.ChoiceField(
                         **field_kwargs,
                         choices=choices,
@@ -333,6 +353,14 @@ class ClassifiedAdForm(forms.ModelForm):
                         (opt.value, opt.label_ar) for opt in options
                     ]
                     widget_attrs["class"] = "form-select"
+                    # In edit mode, if the stored value is not among current options,
+                    # make the field non-required so the blank/unmatched state doesn't block.
+                    if self.is_editing and self.instance and self.instance.pk:
+                        stored_custom = self.instance.custom_fields or {}
+                        stored_val = stored_custom.get(field_name)
+                        option_values = {c[0] for c in choices if c[0]}
+                        if stored_val and stored_val not in option_values:
+                            field_kwargs["required"] = False
                     self.fields[field_name] = forms.ChoiceField(
                         **field_kwargs,
                         choices=choices,

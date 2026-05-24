@@ -124,7 +124,7 @@ class HomeView(TemplateView):
         )
 
         # Get paid banners for homepage
-        from main.models import PaidBanner, AdSenseSlot
+        from main.models import PaidBanner, AdSenseSlot, BannerSlot
 
         # Get ads grouped by advertising space for carousel display
         homepage_paid_ads_grouped = PaidBanner.get_ads_grouped_by_space(
@@ -146,6 +146,7 @@ class HomeView(TemplateView):
                     homepage_paid_ads[ad_type].extend(ads_list)
 
         context["homepage_paid_ads"] = homepage_paid_ads
+        context["homepage_banner_rotation"] = BannerSlot.get_rotation_map(homepage_paid_ads_grouped)
         context["adsense_slots"] = AdSenseSlot.get_active_slots(selected_country)
         context["page_title"] = _("الرئيسية - إدريسي مارت")
 
@@ -883,7 +884,7 @@ class CategoryDetailView(FilterView):
         }
 
         # Get paid banners for this category
-        from main.models import PaidBanner, AdSenseSlot
+        from main.models import PaidBanner, AdSenseSlot, BannerSlot
 
         # Get ads grouped by advertising space
         category_paid_ads_grouped = PaidBanner.get_category_ads_grouped(
@@ -905,6 +906,8 @@ class CategoryDetailView(FilterView):
                 # Each space can have multiple ads, pass them as a list for carousel
                 if ads_list:
                     category_paid_ads[ad_type].extend(ads_list)
+
+        category_banner_rotation = BannerSlot.get_rotation_map(category_paid_ads_grouped)
 
         # For backward compatibility, also provide single ad objects
         # (takes first ad from each type if available)
@@ -967,6 +970,7 @@ class CategoryDetailView(FilterView):
                 "custom_fields_for_filters": custom_fields_for_filters,
                 "category_filter_fields": custom_fields_for_filters,  # Alias for consistency
                 "category_paid_ads": category_paid_ads,  # Paid advertisements for this category
+                "category_banner_rotation": category_banner_rotation,
                 "adsense_slots": AdSenseSlot.get_active_slots(selected_country),
                 "page_title": (
                     self.category.name_ar
@@ -1156,7 +1160,7 @@ class SubcategoryDetailView(FilterView):
         total_subcategories = subcategories.count()
 
         # Get paid banners for this subcategory
-        from main.models import PaidBanner
+        from main.models import PaidBanner, BannerSlot
 
         # Get ads grouped by advertising space
         category_paid_ads_grouped = PaidBanner.get_category_ads_grouped(
@@ -1176,6 +1180,8 @@ class SubcategoryDetailView(FilterView):
             for space_key, ads_list in spaces.items():
                 if ads_list:
                     category_paid_ads[ad_type].extend(ads_list)
+
+        category_banner_rotation = BannerSlot.get_rotation_map(category_paid_ads_grouped)
 
         # Current filters for display
         current_filters = {
@@ -1199,6 +1205,7 @@ class SubcategoryDetailView(FilterView):
                 "current_filters": current_filters,
                 "selected_country": selected_country,
                 "category_paid_ads": category_paid_ads,  # Paid advertisements for this subcategory
+                "category_banner_rotation": category_banner_rotation,
                 "page_title": (
                     self.category.name_ar
                     if self.category.name_ar

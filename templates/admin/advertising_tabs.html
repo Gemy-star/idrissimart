@@ -153,6 +153,10 @@ pre.code-preview {
             onclick="switchTab('adsense')">
         🔵 {% trans "إعدادات AdSense" %} ({{ adsense_slots|length }})
     </button>
+    <button class="adv-tab-btn {% if active_tab == 'slots' %}active{% endif %}"
+            onclick="switchTab('slots')">
+        🎯 {% trans "مساحات البانر (سلوتس)" %} ({{ banner_slots|length }})
+    </button>
 </div>
 
 {# ══════════════════════════════════════════════════════════════════════════
@@ -353,6 +357,79 @@ pre.code-preview {
     </table>
     {% else %}
     <p style="color:#999;padding:20px 0;text-align:center;">{% trans "لم يتم إعداد أي Slot لـ AdSense بعد." %}</p>
+    {% endif %}
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════
+   TAB 4 — Banner Slots
+══════════════════════════════════════════════════════════════════════════ #}
+<div id="tab-slots" class="adv-tab-pane {% if active_tab == 'slots' %}active{% endif %}">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <h2 style="margin:0;font-size:1.1rem;">{% trans "مساحات البانر (سلوتس)" %}</h2>
+        <a href="{% url 'admin:main_bannerslot_add' %}" class="btn-section">+ {% trans "إضافة سلوت" %}</a>
+    </div>
+    <p style="color:#6c757d;font-size:.85rem;margin-bottom:14px;">
+        {% trans "كل سلوت يحدد عدد المعلنين الذين يمكنهم احتلاله ومدة تدوير بانر كل واحد منهم." %}
+        {% trans "اربط الإعلان بالسلوت عبر تطابق حقل 'المساحة الإعلانية' مع 'مفتاح المساحة' هنا." %}
+    </p>
+
+    {% if banner_slots %}
+    <div style="overflow-x:auto;">
+    <table class="adv-table">
+        <thead>
+            <tr>
+                <th>{% trans "الاسم" %}</th>
+                <th>{% trans "مفتاح المساحة" %}</th>
+                <th>{% trans "نوع البانر" %}</th>
+                <th>{% trans "الحد الأقصى" %}</th>
+                <th>{% trans "نشطون الآن" %}</th>
+                <th>{% trans "متاح" %}</th>
+                <th>{% trans "مدة التدوير (ث)" %}</th>
+                <th>{% trans "الحالة" %}</th>
+                <th>{% trans "إجراء" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for slot in banner_slots %}
+        <tr>
+            <td><strong>{{ slot.name_ar|default:slot.name }}</strong></td>
+            <td><code style="font-size:.8rem;color:#555">{{ slot.slot_key }}</code></td>
+            <td><span class="badge-type bt-{{ slot.ad_type }}">{{ slot.get_ad_type_display }}</span></td>
+            <td style="text-align:center">{{ slot.max_capacity }}</td>
+            <td style="text-align:center">
+                <span style="color:{% if slot.is_full %}#e74c3c{% else %}#27ae60{% endif %};font-weight:700">
+                    {{ slot.active_count }}
+                </span>
+            </td>
+            <td style="text-align:center">
+                {% if slot.available_spots > 0 %}
+                    <span style="color:#27ae60;font-weight:600">{{ slot.available_spots }}</span>
+                {% else %}
+                    <span style="color:#e74c3c;font-weight:600">ممتلئ</span>
+                {% endif %}
+            </td>
+            <td style="text-align:center">{{ slot.rotation_seconds }}ث</td>
+            <td>
+                {% if slot.is_active %}
+                    <span class="adsense-active">● نشط</span>
+                {% else %}
+                    <span class="adsense-inactive">● متوقف</span>
+                {% endif %}
+            </td>
+            <td>
+                <div class="adv-actions">
+                    <a href="{% url 'admin:main_bannerslot_change' slot.pk %}" class="btn-edit">{% trans "تعديل" %}</a>
+                    <a href="{% url 'admin:main_bannerslot_delete' slot.pk %}" class="btn-edit" style="background:#c0392b">{% trans "حذف" %}</a>
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p style="color:#999;padding:20px 0;text-align:center;">{% trans "لم يتم إنشاء أي سلوت بعد." %}</p>
     {% endif %}
 </div>
 

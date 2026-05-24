@@ -4,70 +4,83 @@
 {#        {% include 'components/paid_ads/banner.html' with ads=ad_list %} #}
 
 {% if ads and ads|length > 0 %}
-{# ── Multi-ad carousel ──────────────────────────────────────────────────── #}
+{# ── Multi-ad auto-rotator (no gallery controls) ─────────────────────────── #}
+{% with rot_s=rotation_seconds|default:5 %}
 <div class="paid-banner-root mb-4">
-    <div class="swiper banner-swiper-{{ ads.0.id }}">
-        <div class="swiper-wrapper">
-            {% for ad in ads %}{% if ad.is_currently_active %}
-            <div class="swiper-slide">
-                <a href="{{ ad.target_url }}"
-                   {% if ad.open_in_new_tab %}target="_blank" rel="noopener noreferrer"{% endif %}
-                   class="paid-banner-anchor"
-                   onclick="trackPaidAdClick('{{ ad.id }}')">
+    <div class="br-stack" id="brot-{{ ads.0.id }}">
+        {% for ad in ads %}{% if ad.is_currently_active %}
+        <div class="br-slide{% if forloop.first %} br-active{% endif %}" data-ad-id="{{ ad.id }}">
+            <a href="{{ ad.target_url }}"
+               {% if ad.open_in_new_tab %}target="_blank" rel="noopener noreferrer"{% endif %}
+               class="paid-banner-anchor"
+               onclick="trackPaidAdClick('{{ ad.id }}')">
 
-                    <div class="d-none d-md-block">
-                        <div class="paid-banner-frame">
-                            <div class="paid-banner-accent"></div>
-                            <img src="{{ ad.image.url }}"
-                                 alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
-                                 class="paid-banner-img paid-banner-img--desktop">
-                            <div class="paid-banner-ui">
-                                <span class="paid-banner-badge"><i class="fas fa-bolt fa-xs"></i> {% trans "ممول" %}</span>
-                                {% if ad.cta_text %}<span class="paid-banner-cta">{{ ad.cta_text_ar|default:ad.cta_text }}&thinsp;<i class="fas fa-arrow-left fa-xs"></i></span>{% endif %}
-                            </div>
+                <div class="d-none d-md-block">
+                    <div class="paid-banner-frame">
+                        <div class="paid-banner-accent"></div>
+                        <img src="{{ ad.image.url }}"
+                             alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
+                             class="paid-banner-img paid-banner-img--desktop"
+                             loading="lazy">
+                        <div class="paid-banner-ui">
+                            <span class="paid-banner-badge"><i class="fas fa-bolt fa-xs"></i> {% trans "ممول" %}</span>
+                            {% if ad.cta_text %}<span class="paid-banner-cta">{{ ad.cta_text_ar|default:ad.cta_text }}&thinsp;<i class="fas fa-arrow-left fa-xs"></i></span>{% endif %}
                         </div>
                     </div>
+                </div>
 
-                    <div class="d-block d-md-none">
-                        <div class="paid-banner-frame paid-banner-frame--mobile">
-                            <div class="paid-banner-accent"></div>
-                            <img src="{% if ad.mobile_image %}{{ ad.mobile_image.url }}{% else %}{{ ad.image.url }}{% endif %}"
-                                 alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
-                                 class="paid-banner-img paid-banner-img--mobile">
-                            <div class="paid-banner-ui paid-banner-ui--sm">
-                                <span class="paid-banner-badge paid-banner-badge--sm"><i class="fas fa-bolt fa-xs"></i> {% trans "ممول" %}</span>
-                            </div>
+                <div class="d-block d-md-none">
+                    <div class="paid-banner-frame paid-banner-frame--mobile">
+                        <div class="paid-banner-accent"></div>
+                        <img src="{% if ad.mobile_image %}{{ ad.mobile_image.url }}{% else %}{{ ad.image.url }}{% endif %}"
+                             alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
+                             class="paid-banner-img paid-banner-img--mobile"
+                             loading="lazy">
+                        <div class="paid-banner-ui paid-banner-ui--sm">
+                            <span class="paid-banner-badge paid-banner-badge--sm"><i class="fas fa-bolt fa-xs"></i> {% trans "ممول" %}</span>
                         </div>
                     </div>
-                </a>
-            </div>
-            {% endif %}{% endfor %}
+                </div>
+            </a>
         </div>
-        {% if ads|length > 1 %}
-        <div class="swiper-button-next paid-swiper-next-{{ ads.0.id }}"></div>
-        <div class="swiper-button-prev paid-swiper-prev-{{ ads.0.id }}"></div>
-        <div class="swiper-pagination paid-swiper-pag-{{ ads.0.id }}"></div>
-        {% endif %}
+        {% endif %}{% endfor %}
     </div>
 </div>
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    new Swiper('.banner-swiper-{{ ads.0.id }}', {
-        slidesPerView: 1,
-        spaceBetween: 0,
-        loop: {% if ads|length > 1 %}true{% else %}false{% endif %},
-        autoplay: { delay: 5500, disableOnInteraction: false },
-        pagination: { el: '.paid-swiper-pag-{{ ads.0.id }}', clickable: true },
-        navigation: { nextEl: '.paid-swiper-next-{{ ads.0.id }}', prevEl: '.paid-swiper-prev-{{ ads.0.id }}' },
-    });
-    {% for ad in ads %}{% if ad.is_currently_active %}
-    fetch('/api/paid-ads/{{ ad.id }}/view/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }
-    }).catch(() => {});
-    {% endif %}{% endfor %}
-});
+(function () {
+    function trackPaidAdClick(id) {
+        fetch('/api/paid-ads/' + id + '/click/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }
+        }).catch(function () {});
+    }
+    window.trackPaidAdClick = window.trackPaidAdClick || trackPaidAdClick;
+
+    var root = document.getElementById('brot-{{ ads.0.id }}');
+    if (!root) return;
+    var slides = root.querySelectorAll('.br-slide');
+    if (!slides.length) return;
+
+    function trackView(adId) {
+        fetch('/api/paid-ads/' + adId + '/view/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }
+        }).catch(function () {});
+    }
+
+    trackView(slides[0].dataset.adId);
+    if (slides.length < 2) return;
+
+    var cur = 0;
+    setInterval(function () {
+        slides[cur].classList.remove('br-active');
+        cur = (cur + 1) % slides.length;
+        slides[cur].classList.add('br-active');
+        trackView(slides[cur].dataset.adId);
+    }, {{ rot_s }} * 1000);
+}());
 </script>
+{% endwith %}
 
 {% elif ad and ad.is_currently_active %}
 {# ── Single ad ──────────────────────────────────────────────────────────── #}
@@ -139,8 +152,20 @@ document.addEventListener('DOMContentLoaded', function () {
 /* ── Paid Banner Component ────────────────────────────────────────────────── */
 .paid-banner-root { position: relative; width: 100%; overflow: hidden; }
 
-/* Swiper container must clip slides */
-.paid-banner-root .swiper { overflow: hidden; }
+/* Stacked auto-rotator */
+.br-stack { display: grid; }
+.br-slide {
+    grid-row: 1;
+    grid-column: 1;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+    pointer-events: none;
+    will-change: opacity;
+}
+.br-slide.br-active {
+    opacity: 1;
+    pointer-events: auto;
+}
 
 .paid-banner-anchor {
     display: block;

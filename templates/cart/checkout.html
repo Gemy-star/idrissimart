@@ -704,14 +704,33 @@ textarea.fl-input { resize:vertical; padding:.7rem .95rem; }
                         {% endfor %}
 
                         <div class="ck-divider"></div>
+
+                        <!-- Coupon Code Input -->
+                        <div class="coupon-row mb-2" id="couponSection">
+                            <div class="d-flex gap-2">
+                                <input type="text" id="couponInput" class="fl-input" style="flex:1;min-width:0"
+                                    placeholder="{% trans 'رمز الخصم' %}" maxlength="50" autocomplete="off">
+                                <button type="button" class="btn btn-sm" id="couponBtn"
+                                    onclick="applyCoupon()"
+                                    style="background:var(--br);color:#fff;border:none;border-radius:10px;padding:.45rem 1rem;font-size:.85rem;white-space:nowrap;">
+                                    {% trans "تطبيق" %}
+                                </button>
+                            </div>
+                            <div id="couponMsg" class="mt-1" style="font-size:.82rem;display:none;"></div>
+                        </div>
+
                         <div class="ck-sum-row"><span>{% trans "المجموع الفرعي" %}</span><span>{{ total_amount|floatformat:"-2" }} {{ selected_currency }}</span></div>
                         <div class="ck-sum-row"><span>{% trans "رسوم التوصيل" %}</span><span>{{ delivery_fee|floatformat:"-2" }} {{ selected_currency }}</span></div>
+                        <div class="ck-sum-row" id="discountRow" style="display:none;color:var(--success);">
+                            <span>{% trans "الخصم" %} (<span id="discountLabel"></span>)</span>
+                            <span id="discountValue">-0.00 {{ selected_currency }}</span>
+                        </div>
                         {% if tax_rate and tax_rate > 0 %}
                         <div class="ck-sum-row"><span>{% trans "الضريبة" %}</span><span>{{ tax_amount|floatformat:"-2" }} {{ selected_currency }}</span></div>
                         {% endif %}
                         <div class="ck-sum-row total">
                             <span>{% trans "المجموع الكلي" %}</span>
-                            <span>{{ final_total|floatformat:"-2" }} {{ selected_currency }}</span>
+                            <span id="grandTotal">{{ final_total|floatformat:"-2" }} {{ selected_currency }}</span>
                         </div>
                     </div>
                 </div>
@@ -891,6 +910,88 @@ function previewFile(input, zoneId, previewId) {
 }
 
 /* ── Place order ── */
+/* ── Coupon ── */
+let appliedCoupon = null;
+const baseFinalTotal = parseFloat('{{ final_total }}');
+
+async function applyCoupon() {
+    const code = document.getElementById('couponInput').value.trim().toUpperCase();
+    const msgEl = document.getElementById('couponMsg');
+    const discountRow = document.getElementById('discountRow');
+    const grandTotalEl = document.getElementById('grandTotal');
+    const currency = '{{ selected_currency }}';
+
+    if (!code) {
+        msgEl.style.display = 'block';
+        msgEl.style.color = 'var(--warn, #f59e0b)';
+        msgEl.textContent = '{% trans "يرجى إدخال رمز الخصم" %}';
+        return;
+    }
+
+    const btn = document.getElementById('couponBtn');
+    btn.disabled = true;
+    btn.textContent = '...';
+
+    try {
+        const resp = await fetch('{% url "main:validate_coupon" %}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+            body: JSON.stringify({code, order_amount: baseFinalTotal})
+        });
+        const data = await resp.json();
+
+        if (data.valid) {
+            appliedCoupon = data.code;
+            const discount = parseFloat(data.discount_amount);
+            const newTotal = Math.max(0, baseFinalTotal - discount);
+
+            discountRow.style.display = 'flex';
+            document.getElementById('discountLabel').textContent = data.code;
+            document.getElementById('discountValue').textContent = `-${discount.toFixed(2)} ${currency}`;
+            grandTotalEl.textContent = `${newTotal.toFixed(2)} ${currency}`;
+
+            msgEl.style.display = 'block';
+            msgEl.style.color = 'var(--success, #10b981)';
+            msgEl.innerHTML = '<i class="fas fa-check-circle me-1"></i>' + data.message;
+
+            // Update partial payment totalForPartial
+            const tpEl = document.getElementById('totalForPartial');
+            if (tpEl) tpEl.textContent = newTotal.toFixed(2);
+
+            btn.textContent = '{% trans "إزالة" %}';
+            btn.onclick = removeCoupon;
+            document.getElementById('couponInput').disabled = true;
+        } else {
+            msgEl.style.display = 'block';
+            msgEl.style.color = '#ef4444';
+            msgEl.textContent = data.message;
+            btn.disabled = false;
+            btn.textContent = '{% trans "تطبيق" %}';
+        }
+    } catch {
+        msgEl.style.display = 'block';
+        msgEl.style.color = '#ef4444';
+        msgEl.textContent = '{% trans "خطأ في الاتصال" %}';
+        btn.disabled = false;
+        btn.textContent = '{% trans "تطبيق" %}';
+    }
+}
+
+function removeCoupon() {
+    appliedCoupon = null;
+    document.getElementById('couponInput').value = '';
+    document.getElementById('couponInput').disabled = false;
+    document.getElementById('discountRow').style.display = 'none';
+    document.getElementById('grandTotal').textContent = `${baseFinalTotal.toFixed(2)} {{ selected_currency }}`;
+    document.getElementById('couponMsg').style.display = 'none';
+    const btn = document.getElementById('couponBtn');
+    btn.disabled = false;
+    btn.textContent = '{% trans "تطبيق" %}';
+    btn.onclick = applyCoupon;
+    const tpEl = document.getElementById('totalForPartial');
+    if (tpEl) tpEl.textContent = baseFinalTotal.toFixed(2);
+}
+
 async function placeOrder() {
     const form = document.getElementById('checkoutForm');
     const paymentMethod = document.querySelector('input[name="payment_method"]:checked')?.value;
@@ -902,6 +1003,7 @@ async function placeOrder() {
 
     const formData = new FormData(form);
     formData.append('payment_method', paymentMethod);
+    if (appliedCoupon) formData.append('coupon_code', appliedCoupon);
     if (paymentMethod === 'instapay') { const p = document.getElementById('instapayTransactionPhoto'); if (p?.files[0]) formData.append('transaction_photo', p.files[0]); }
     else if (paymentMethod === 'wallet') { const p = document.getElementById('walletTransactionPhoto'); if (p?.files[0]) formData.append('transaction_photo', p.files[0]); }
 

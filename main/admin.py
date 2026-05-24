@@ -5,6 +5,7 @@ from allauth.account.models import EmailAddress
 admin.site.unregister(EmailAddress)
 from django.utils.html import format_html
 from django.db import models
+from django import forms
 from mptt.admin import MPTTModelAdmin
 from django_ckeditor_5.widgets import CKEditor5Widget
 
@@ -38,6 +39,7 @@ from .models import (
     CategoryCustomField,
     ClassifiedAd,
     ContactMessage,
+    Coupon,
     CustomField,
     CustomFieldOption,
     CustomPage,
@@ -49,6 +51,7 @@ from .models import (
     Notification,
     Order,
     OrderItem,
+    BannerSlot,
     PaidBanner,
     Payment,
     SafetyTip,
@@ -2621,6 +2624,15 @@ class OrderItemInline(admin.TabularInline):
     can_delete = False
 
 
+@admin.register(Coupon)
+class CouponAdmin(admin.ModelAdmin):
+    list_display = ("code", "discount_type", "discount_value", "used_count", "max_uses", "valid_from", "valid_until", "is_active")
+    list_filter = ("discount_type", "is_active")
+    search_fields = ("code",)
+    readonly_fields = ("used_count",)
+    ordering = ("-created_at",)
+
+
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     list_display = (
@@ -4098,9 +4110,112 @@ class CustomPageAdmin(admin.ModelAdmin):
     view_link.short_description = _("رابط الصفحة")
 
 
+class PaidBannerAdminForm(forms.ModelForm):
+    """Custom admin form that renders target_pages as grouped checkboxes."""
+
+    target_pages = forms.MultipleChoiceField(
+        choices=[],
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label=_("الصفحات المستهدفة"),
+        help_text=_(
+            "اختر الصفحات التي سيظهر عليها الإعلان. "
+            "إذا لم تختر أي صفحة سيظهر الإعلان على جميع الصفحات."
+        ),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Build choices dynamically at render time (new pages appear automatically)
+        self.fields["target_pages"].choices = PaidBanner.get_all_site_pages()
+        # Pre-fill from the stored JSON list
+        if self.instance and self.instance.pk:
+            self.initial["target_pages"] = self.instance.target_pages or []
+
+    def clean_target_pages(self):
+        return self.cleaned_data.get("target_pages") or []
+
+    def clean(self):
+        cleaned_data = super().clean()
+        from django.core.files.uploadedfile import UploadedFile
+
+        ad_type = cleaned_data.get("ad_type") or (
+            self.instance.ad_type if self.instance and self.instance.pk else None
+        )
+        specs = PaidBanner.IMAGE_SPECS.get(ad_type) if ad_type else None
+        if not specs:
+            return cleaned_data
+
+        image        = cleaned_data.get("image")
+        mobile_image = cleaned_data.get("mobile_image")
+
+        # Validate desktop image (only when a new file was just uploaded)
+        if isinstance(image, UploadedFile):
+            try:
+                from PIL import Image as PilImage
+                image.seek(0)
+                w, h = PilImage.open(image).size
+                image.seek(0)
+                rw, rh = specs["desktop"]
+                if (w, h) != (rw, rh):
+                    self.add_error(
+                        "image",
+                        _(
+                            "مقاس الصورة %(w)s×%(h)s بكسل غير صحيح — "
+                            "المقاس المطلوب لنوع '%(type)s' هو %(rw)s×%(rh)s بكسل."
+                        ) % {"w": w, "h": h, "rw": rw, "rh": rh, "type": ad_type},
+                    )
+            except Exception:
+                pass  # PIL unavailable — model.clean() will re-check
+
+        # Validate mobile image (only when a new file was just uploaded)
+        if isinstance(mobile_image, UploadedFile) and specs.get("mobile"):
+            try:
+                from PIL import Image as PilImage
+                mobile_image.seek(0)
+                w, h = PilImage.open(mobile_image).size
+                mobile_image.seek(0)
+                mw, mh = specs["mobile"]
+                if (w, h) != (mw, mh):
+                    self.add_error(
+                        "mobile_image",
+                        _(
+                            "مقاس صورة الموبايل %(w)s×%(h)s بكسل غير صحيح — "
+                            "المطلوب %(rw)s×%(rh)s بكسل."
+                        ) % {"w": w, "h": h, "rw": mw, "rh": mh},
+                    )
+            except Exception:
+                pass
+
+        # Enforce mandatory mobile image for banner type
+        if specs.get("mobile_required"):
+            has_mobile = isinstance(mobile_image, UploadedFile) or (
+                self.instance
+                and self.instance.pk
+                and self.instance.mobile_image
+                and mobile_image is not False  # False = "clear" checkbox ticked
+            )
+            if not has_mobile:
+                self.add_error(
+                    "mobile_image",
+                    _(
+                        "صورة الموبايل إجبارية لنوع 'بانر إعلاني' — "
+                        "المقاس المطلوب %(w)s×%(h)s بكسل."
+                    ) % {"w": specs["mobile"][0], "h": specs["mobile"][1]},
+                )
+
+        return cleaned_data
+
+    class Meta:
+        model = PaidBanner
+        fields = "__all__"
+
+
 @admin.register(PaidBanner)
 class PaidBannerAdmin(admin.ModelAdmin):
     """Admin interface for Paid Banners management — accessed via AdvertisingConfig tabs"""
+
+    form = PaidBannerAdminForm
 
     def has_module_perms(self, request):
         return False  # hide from sidebar; accessible via AdvertisingConfig tab links
@@ -4110,6 +4225,7 @@ class PaidBannerAdmin(admin.ModelAdmin):
         "ad_type_badge",
         "advertising_space",
         "placement_display",
+        "target_pages_summary",
         "country",
         "status_badge",
         "payment_status_badge",
@@ -4202,6 +4318,7 @@ class PaidBannerAdmin(admin.ModelAdmin):
             _("الموضع والاستهداف - Placement & Targeting"),
             {
                 "fields": (
+                    "target_pages",
                     "placement_type",
                     "advertising_space",
                     "country",
@@ -4210,7 +4327,11 @@ class PaidBannerAdmin(admin.ModelAdmin):
                     "subcategory",
                     "categories",
                 ),
-                "description": _("تحديد المساحة الإعلانية يسمح لعدة معلنين بمشاركة نفس الموقع مع عرض إعلاناتهم بالتناوب")
+                "description": _(
+                    "اختر الصفحات المستهدفة من القائمة — تُضاف الصفحات الجديدة تلقائياً. "
+                    "إذا تُركت فارغة يظهر الإعلان في كل الصفحات. "
+                    "تحديد المساحة الإعلانية يسمح لعدة معلنين بمشاركة نفس الموقع مع عرض إعلاناتهم بالتناوب."
+                ),
             },
         ),
         (
@@ -4271,7 +4392,7 @@ class PaidBannerAdmin(admin.ModelAdmin):
     filter_horizontal = ("categories", "extra_countries")
 
     class Media:
-        js = ("admin/js/category_cascade.js",)
+        js = ("admin/js/category_cascade.js", "admin/js/banner_image_hints.js")
 
     actions = [
         "approve_ads",
@@ -4342,6 +4463,26 @@ class PaidBannerAdmin(admin.ModelAdmin):
             return format_html('<span style="color: #9b59b6;"><i class="fas fa-folder-open"></i> {}</span>', obj.subcategory.name)
         return "-"
     placement_display.short_description = _("الموضع")
+
+    def target_pages_summary(self, obj):
+        """Show number of targeted pages or 'all pages' badge."""
+        pages = obj.target_pages or []
+        if not pages:
+            return format_html(
+                '<span style="background:#27ae60;color:#fff;padding:2px 8px;border-radius:3px;font-size:11px;">جميع الصفحات</span>'
+            )
+        count = len(pages)
+        # Build a tooltip listing the keys
+        tip = ", ".join(pages[:10])
+        if count > 10:
+            tip += f" … (+{count - 10})"
+        return format_html(
+            '<span title="{}" style="background:#3498db;color:#fff;padding:2px 8px;border-radius:3px;font-size:11px;">'
+            '{} صفحة</span>',
+            tip,
+            count,
+        )
+    target_pages_summary.short_description = _("الصفحات المستهدفة")
 
     def date_range_display(self, obj):
         """Display date range in a compact format"""
@@ -4598,6 +4739,65 @@ class AdSenseSlotAdmin(admin.ModelAdmin):
 
 
 # ---------------------------------------------------------------------------
+# Banner Slots (rotation config)
+# ---------------------------------------------------------------------------
+
+@admin.register(BannerSlot)
+class BannerSlotAdmin(admin.ModelAdmin):
+    list_display = (
+        "display_name",
+        "slot_key",
+        "ad_type",
+        "max_capacity",
+        "active_count_display",
+        "available_spots_display",
+        "rotation_seconds",
+        "is_active",
+    )
+    list_filter = ("ad_type", "is_active")
+    search_fields = ("name", "name_ar", "slot_key")
+    list_editable = ("rotation_seconds", "max_capacity", "is_active")
+    ordering = ("ad_type", "name")
+    readonly_fields = ("created_at", "updated_at", "active_count_display", "available_spots_display")
+    fieldsets = (
+        (
+            "تعريف السلوت",
+            {
+                "fields": ("name", "name_ar", "slot_key", "ad_type", "is_active"),
+            },
+        ),
+        (
+            "إعدادات التدوير",
+            {
+                "fields": ("max_capacity", "rotation_seconds"),
+                "description": "التحكم في عدد المعلنين ومدة عرض كل بانر.",
+            },
+        ),
+        (
+            "معلومات",
+            {
+                "fields": ("active_count_display", "available_spots_display", "created_at", "updated_at"),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+    def display_name(self, obj):
+        return obj.name_ar or obj.name
+    display_name.short_description = "الاسم"
+
+    def active_count_display(self, obj):
+        return obj.active_count
+    active_count_display.short_description = "معلنون نشطون"
+
+    def available_spots_display(self, obj):
+        spots = obj.available_spots
+        color = "#27ae60" if spots > 0 else "#e74c3c"
+        return format_html('<span style="color:{}">{}</span>', color, spots)
+    available_spots_display.short_description = "أماكن شاغرة"
+
+
+# ---------------------------------------------------------------------------
 # Unified Advertising Dashboard  (single admin entry — three tabs)
 # ---------------------------------------------------------------------------
 
@@ -4627,6 +4827,7 @@ class AdvertisingConfigAdmin(admin.ModelAdmin):
         paid_banners  = PaidBanner.objects.select_related("country", "category", "advertiser").order_by("-created_at")[:200]
         pricing_rows  = BannerPricing.objects.all().order_by("ad_type", "placement_type")
         adsense_slots = AdSenseSlot.objects.select_related("country").order_by("slot_key", "country__code")
+        banner_slots  = BannerSlot.objects.all().order_by("ad_type", "name")
 
         # Quick stats for paid banners
         from django.utils import timezone
@@ -4644,6 +4845,7 @@ class AdvertisingConfigAdmin(admin.ModelAdmin):
             "paid_banners":  paid_banners,
             "pricing_rows":  pricing_rows,
             "adsense_slots": adsense_slots,
+            "banner_slots":  banner_slots,
             "stats":         stats,
             "active_tab":    request.GET.get("tab", "banners"),
             "opts":          self.model._meta,

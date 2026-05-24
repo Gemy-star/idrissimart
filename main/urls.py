@@ -1464,6 +1464,7 @@ urlpatterns = [
     path("api/cart/count/", cart_wishlist_views.get_cart_count_view, name="cart_count"),
     path("cart/", cart_wishlist_views.cart_view, name="cart_view"),
     path("checkout/", cart_wishlist_views.checkout_view, name="checkout"),
+    path("api/coupon/validate/", cart_wishlist_views.validate_coupon, name="validate_coupon"),
     path(
         "order/success/<int:order_id>/",
         cart_wishlist_views.order_success_view,

@@ -3616,6 +3616,77 @@ class CartItem(models.Model):
 
 
 # ===========================
+# COUPON MODEL
+# ===========================
+
+
+class Coupon(models.Model):
+    DISCOUNT_TYPE_CHOICES = [
+        ("percentage", _("نسبة مئوية")),
+        ("fixed", _("مبلغ ثابت")),
+    ]
+
+    code = models.CharField(max_length=50, unique=True, verbose_name=_("رمز الخصم"))
+    discount_type = models.CharField(
+        max_length=20,
+        choices=DISCOUNT_TYPE_CHOICES,
+        default="percentage",
+        verbose_name=_("نوع الخصم"),
+    )
+    discount_value = models.DecimalField(
+        max_digits=10, decimal_places=2, verbose_name=_("قيمة الخصم")
+    )
+    min_order_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name=_("الحد الأدنى للطلب"),
+    )
+    max_uses = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name=_("الحد الأقصى للاستخدام")
+    )
+    used_count = models.PositiveIntegerField(default=0, verbose_name=_("عدد الاستخدامات"))
+    valid_from = models.DateTimeField(verbose_name=_("صالح من"))
+    valid_until = models.DateTimeField(null=True, blank=True, verbose_name=_("صالح حتى"))
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "coupons"
+        verbose_name = _("كوبون خصم")
+        verbose_name_plural = _("كوبونات الخصم")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.code} ({self.discount_value}{'%' if self.discount_type == 'percentage' else ' ج.م'})"
+
+    def is_valid(self, order_amount=Decimal("0.00")):
+        from django.utils import timezone as tz
+
+        now = tz.now()
+        if not self.is_active:
+            return False, _("رمز الخصم غير نشط")
+        if now < self.valid_from:
+            return False, _("رمز الخصم لم يصبح ساريًا بعد")
+        if self.valid_until and now > self.valid_until:
+            return False, _("انتهت صلاحية رمز الخصم")
+        if self.max_uses is not None and self.used_count >= self.max_uses:
+            return False, _("تم استنفاد الحد الأقصى لاستخدام هذا الرمز")
+        if order_amount < self.min_order_amount:
+            return False, _(
+                "الحد الأدنى لمبلغ الطلب هو {amount}"
+            ).format(amount=self.min_order_amount)
+        return True, None
+
+    def get_discount_amount(self, order_amount):
+        if self.discount_type == "percentage":
+            discount = order_amount * self.discount_value / Decimal("100")
+        else:
+            discount = self.discount_value
+        return min(discount, order_amount)
+
+
+# ===========================
 # ORDER MODELS
 # ===========================
 
@@ -3727,6 +3798,17 @@ class Order(models.Model):
     )
     delivery_fee = models.DecimalField(
         max_digits=10, decimal_places=2, default=0.00, verbose_name=_("رسوم التوصيل")
+    )
+    coupon = models.ForeignKey(
+        "Coupon",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="orders",
+        verbose_name=_("كوبون الخصم"),
+    )
+    discount_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal("0.00"), verbose_name=_("مبلغ الخصم")
     )
 
     # Timestamps
@@ -4822,6 +4904,128 @@ class AdSenseSlot(models.Model):
         return {s.slot_key: s for s in slots}
 
 
+class BannerSlot(models.Model):
+    """
+    Configurable advertising slot. Multiple advertisers share one slot via `slot_key`,
+    which matches PaidBanner.advertising_space. Admin controls:
+      - max_capacity: max advertisers simultaneously in this slot.
+      - rotation_seconds: seconds each banner displays before rotating to the next.
+    """
+
+    class AdType(models.TextChoices):
+        BANNER = "banner", _("بانر إعلاني (728×90)")
+        SIDEBAR = "sidebar", _("إعلان جانبي (300×250)")
+        FEATURED_BOX = "featured_box", _("صندوق مميز (970×250)")
+
+    name = models.CharField(max_length=120, verbose_name=_("اسم المساحة"))
+    name_ar = models.CharField(max_length=120, blank=True, verbose_name=_("الاسم بالعربية"))
+    slot_key = models.CharField(
+        max_length=100,
+        unique=True,
+        db_index=True,
+        verbose_name=_("مفتاح المساحة"),
+        help_text=_(
+            "يجب أن يطابق حقل 'المساحة الإعلانية' في الإعلانات المرتبطة بهذا السلوت"
+        ),
+    )
+    ad_type = models.CharField(
+        max_length=20,
+        choices=AdType.choices,
+        default=AdType.BANNER,
+        verbose_name=_("نوع البانر"),
+    )
+    max_capacity = models.PositiveSmallIntegerField(
+        default=3,
+        verbose_name=_("الحد الأقصى للمعلنين"),
+        help_text=_("أقصى عدد من المعلنين يمكن أن يحجزوا هذا السلوت في نفس الوقت"),
+    )
+    rotation_seconds = models.PositiveSmallIntegerField(
+        default=5,
+        verbose_name=_("مدة عرض كل بانر (ثانية)"),
+        help_text=_("عدد الثواني قبل التبديل إلى البانر التالي"),
+    )
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "banner_slots"
+        verbose_name = _("مساحة بانر (سلوت)")
+        verbose_name_plural = _("مساحات البانر (سلوتس)")
+        ordering = ["ad_type", "name"]
+
+    def __str__(self):
+        name = self.name_ar or self.name
+        count = self.active_count
+        return f"{name} [{count}/{self.max_capacity}] — {self.rotation_seconds}ث"
+
+    @property
+    def active_count(self):
+        """Number of currently active banners booked in this slot."""
+        from django.utils import timezone
+
+        now = timezone.now()
+        return PaidBanner.objects.filter(
+            advertising_space=self.slot_key,
+            status=PaidBanner.Status.ACTIVE,
+            start_date__lte=now,
+            end_date__gte=now,
+        ).count()
+
+    @property
+    def available_spots(self):
+        return max(0, self.max_capacity - self.active_count)
+
+    @property
+    def is_full(self):
+        return self.available_spots == 0
+
+    def get_active_banners(self):
+        """Return queryset of currently active banners in this slot."""
+        from django.utils import timezone
+
+        now = timezone.now()
+        return PaidBanner.objects.filter(
+            advertising_space=self.slot_key,
+            status=PaidBanner.Status.ACTIVE,
+            start_date__lte=now,
+            end_date__gte=now,
+        )
+
+    @classmethod
+    def get_for_space(cls, space_key):
+        """Return the active BannerSlot for a given advertising_space key, or None."""
+        if not space_key:
+            return None
+        try:
+            return cls.objects.get(slot_key=space_key, is_active=True)
+        except cls.DoesNotExist:
+            return None
+
+    @classmethod
+    def get_rotation_map(cls, grouped_dict, default=5):
+        """
+        Given the result of PaidBanner.get_ads_grouped_by_space (a dict like
+        {ad_type: {space_key: [ads...]}}), return {ad_type: rotation_seconds}
+        by looking up BannerSlot for each space key. Falls back to `default`.
+        """
+        all_space_keys = {
+            sk for spaces in grouped_dict.values() for sk in spaces.keys()
+        }
+        slot_map = {
+            s.slot_key: s.rotation_seconds
+            for s in cls.objects.filter(slot_key__in=all_space_keys, is_active=True)
+        }
+        result = {}
+        for ad_type, spaces in grouped_dict.items():
+            result[ad_type] = default
+            for space_key in spaces:
+                if space_key in slot_map:
+                    result[ad_type] = slot_map[space_key]
+                    break
+        return result
+
+
 class PaidBanner(models.Model):
     """
     Model for paid banner advertisements that can appear on the homepage or specific category pages.
@@ -5002,6 +5206,14 @@ class PaidBanner(models.Model):
         help_text=_("اختر عدة أقسام لعرض هذا الإعلان فيها")
     )
 
+    # Page Targeting — list of page-key strings; empty = show on all pages
+    target_pages = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name=_("الصفحات المستهدفة - Target Pages"),
+        help_text=_("اختر الصفحات التي سيظهر عليها الإعلان. إذا تُركت فارغة يظهر الإعلان في كل الصفحات"),
+    )
+
     # Schedule & Duration
     start_date = models.DateTimeField(
         verbose_name=_("تاريخ البدء - Start Date"),
@@ -5115,19 +5327,18 @@ class PaidBanner(models.Model):
 
     @staticmethod
     def _get_image_dimensions(image_field):
-        """Return (width, height) of an ImageField, or None if unreadable."""
+        """Return (width, height) of an image file-like object, or None if unreadable.
+        Resets the read pointer before and after so the caller can still save the file.
+        """
         try:
             from PIL import Image as PilImage
-            image_field.open()
+            image_field.seek(0)
             img = PilImage.open(image_field)
-            return img.size  # (width, height)
+            dims = img.size  # (width, height)
+            image_field.seek(0)  # restore pointer so subsequent saves work
+            return dims
         except Exception:
             return None
-        finally:
-            try:
-                image_field.close()
-            except Exception:
-                pass
 
     def clean(self):
         """Validate model data"""
@@ -5150,35 +5361,33 @@ class PaidBanner(models.Model):
                 'end_date': _("تاريخ الانتهاء يجب أن يكون بعد تاريخ البدء")
             })
 
-        # Validate image dimensions based on ad_type
+        # Validate image dimensions — only for newly uploaded (not-yet-committed) files
+        # so we don't re-read from storage on every ordinary edit.
         specs = self.IMAGE_SPECS.get(self.ad_type)
-        if specs and self.image and hasattr(self.image, 'file'):
+        if specs:
             errors = {}
+            is_new_image   = self.image        and not getattr(self.image,        '_committed', True)
+            is_new_mobile  = self.mobile_image and not getattr(self.mobile_image, '_committed', True)
 
-            # Check desktop image dimensions
-            required_w, required_h = specs["desktop"]
-            dims = self._get_image_dimensions(self.image)
-            if dims and dims != (required_w, required_h):
-                errors['image'] = _(
-                    "مقاس الصورة %(w)s×%(h)s غير صحيح. "
-                    "المطلوب %(rw)s×%(rh)s بكسل."
-                ) % {"w": dims[0], "h": dims[1], "rw": required_w, "rh": required_h}
+            if is_new_image:
+                rw, rh = specs["desktop"]
+                dims = self._get_image_dimensions(self.image)
+                if dims and dims != (rw, rh):
+                    errors['image'] = _(
+                        "مقاس الصورة %(w)s×%(h)s غير صحيح — المطلوب %(rw)s×%(rh)s بكسل."
+                    ) % {"w": dims[0], "h": dims[1], "rw": rw, "rh": rh}
 
-            # Check mobile image requirement and dimensions
             if specs["mobile_required"] and not self.mobile_image:
                 errors['mobile_image'] = _(
-                    "صورة الموبايل إجبارية لنوع 'بانر إعلاني'. "
-                    "المقاس المطلوب %(w)s×%(h)s بكسل."
+                    "صورة الموبايل إجبارية لنوع 'بانر إعلاني' — المقاس المطلوب %(w)s×%(h)s بكسل."
                 ) % {"w": specs["mobile"][0], "h": specs["mobile"][1]}
-
-            elif specs["mobile"] and self.mobile_image and hasattr(self.mobile_image, 'file'):
-                mob_w, mob_h = specs["mobile"]
+            elif is_new_mobile and specs.get("mobile"):
+                mw, mh = specs["mobile"]
                 mob_dims = self._get_image_dimensions(self.mobile_image)
-                if mob_dims and mob_dims != (mob_w, mob_h):
+                if mob_dims and mob_dims != (mw, mh):
                     errors['mobile_image'] = _(
-                        "مقاس صورة الموبايل %(w)s×%(h)s غير صحيح. "
-                        "المطلوب %(rw)s×%(rh)s بكسل."
-                    ) % {"w": mob_dims[0], "h": mob_dims[1], "rw": mob_w, "rh": mob_h}
+                        "مقاس صورة الموبايل %(w)s×%(h)s غير صحيح — المطلوب %(rw)s×%(rh)s بكسل."
+                    ) % {"w": mob_dims[0], "h": mob_dims[1], "rw": mw, "rh": mh}
 
             if errors:
                 raise ValidationError(errors)
@@ -5261,8 +5470,66 @@ class PaidBanner(models.Model):
             self.save(update_fields=["status"])
 
     @classmethod
-    def get_active_ads(cls, country_code=None, placement_type=None, category=None):
-        """Get all currently active ads based on filters"""
+    def get_all_site_pages(cls):
+        """
+        Returns all targetable site pages as (key, label) tuples.
+        Dynamic pages (CustomPage, BlogCategory) are queried live so newly
+        created pages appear in the admin choice list automatically.
+        """
+        pages = [
+            # ── Static public pages ──────────────────────────────────────────
+            ("home",          _("الصفحة الرئيسية")),
+            ("categories",    _("قائمة الأقسام الرئيسية")),
+            ("category_page", _("صفحات الأقسام (كل الأقسام)")),
+            ("ad_detail",     _("صفحة تفاصيل الإعلان")),
+            ("search",        _("صفحة البحث")),
+            ("about",         _("من نحن")),
+            ("contact",       _("اتصل بنا")),
+            ("faq",           _("الأسئلة الشائعة")),
+            ("privacy",       _("سياسة الخصوصية")),
+            ("terms",         _("الشروط والأحكام")),
+            # ── Blog ─────────────────────────────────────────────────────────
+            ("blog_list",     _("قائمة المقالات")),
+            ("blog_detail",   _("تفاصيل المقال")),
+            # ── Shop / Cart ───────────────────────────────────────────────────
+            ("cart",          _("سلة التسوق")),
+            ("checkout",      _("إتمام الطلب / الدفع")),
+            ("wishlist",      _("قائمة الأمنيات")),
+            # ── User area ────────────────────────────────────────────────────
+            ("profile",       _("الملف الشخصي")),
+            ("dashboard",     _("لوحة تحكم المستخدم")),
+            ("chat",          _("صفحة المحادثات")),
+        ]
+
+        # Dynamic: blog categories (one key per category)
+        try:
+            from content.models import BlogCategory
+            for bc in BlogCategory.objects.filter(is_active=True).order_by("order", "name"):
+                pages.append((f"blog_category_{bc.pk}", f"مدونة - {bc.name}"))
+        except Exception:
+            pass
+
+        # Dynamic: custom pages  (one key per page)
+        try:
+            for cp in CustomPage.objects.filter(is_active=True).order_by("title"):
+                label = cp.title_ar or cp.title
+                pages.append((f"custom_page_{cp.slug}", f"صفحة مخصصة - {label}"))
+        except Exception:
+            pass
+
+        return pages
+
+    @classmethod
+    def get_active_ads(cls, country_code=None, placement_type=None, category=None, page_key=None):
+        """Get all currently active ads based on filters.
+
+        When *page_key* is supplied the method returns banners that either:
+        - have an empty target_pages list (show on every page), OR
+        - explicitly list *page_key* in their target_pages.
+        Legacy *placement_type* filtering is still honoured when page_key is
+        not provided, so existing callers continue to work unchanged.
+        """
+        from django.db.models import Q
         now = timezone.now()
         queryset = cls.objects.filter(
             is_active=True,
@@ -5272,19 +5539,26 @@ class PaidBanner(models.Model):
         )
 
         if country_code:
-            queryset = queryset.filter(country__code=country_code)
-
-        if placement_type:
-            queryset = queryset.filter(placement_type=placement_type)
-
-        if category:
-            # Include ads for this category or general ads
-            from django.db.models import Q
             queryset = queryset.filter(
-                Q(placement_type=cls.PlacementType.GENERAL) |
-                Q(category=category) |
-                Q(categories=category)
+                Q(country__code=country_code) | Q(extra_countries__code=country_code)
             ).distinct()
+
+        if page_key:
+            # Banners with empty target_pages show everywhere;
+            # banners with a non-empty list must include this page_key.
+            queryset = queryset.filter(
+                Q(target_pages=[]) | Q(target_pages__contains=[page_key])
+            )
+        else:
+            if placement_type:
+                queryset = queryset.filter(placement_type=placement_type)
+
+            if category:
+                queryset = queryset.filter(
+                    Q(placement_type=cls.PlacementType.GENERAL) |
+                    Q(category=category) |
+                    Q(categories=category)
+                ).distinct()
 
         return queryset.order_by("-priority", "order")
 

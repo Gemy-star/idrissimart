@@ -175,16 +175,84 @@ def site_configuration(request):
     }
 
 
+def _resolve_page_key(request):
+    """
+    Map the current URL name to a stable page-key string used by PaidBanner.target_pages.
+    Returns None when the resolver hasn't matched (e.g. 404 pages, admin).
+    """
+    try:
+        match = request.resolver_match
+        if not match:
+            return None
+        url_name = match.url_name
+    except Exception:
+        return None
+
+    # Static URL-name → page-key map
+    _MAP = {
+        # main app
+        "home": "home",
+        "categories": "categories",
+        "categories_by_slug": "category_page",
+        "category_detail": "category_page",
+        "ad_detail": "ad_detail",
+        "ad_detail_by_id": "ad_detail",
+        "search": "search",
+        "about": "about",
+        "contact": "contact",
+        "faq": "faq",
+        "privacy": "privacy",
+        "terms": "terms",
+        "cart_view": "cart",
+        "checkout": "checkout",
+        "wishlist_view": "wishlist",
+        "chat_list": "chat",
+        "chat_room": "chat",
+        "profile": "profile",
+        # content app
+        "blog_list": "blog_list",
+        "blog_list_by_tag": "blog_list",
+        "blog_list_by_category": "blog_list",
+        "blog_detail": "blog_detail",
+        # dashboard urls
+        "publisher_dashboard": "dashboard",
+    }
+
+    if url_name in _MAP:
+        return _MAP[url_name]
+
+    # Dynamic: custom page — use slug directly
+    if url_name == "custom_page":
+        slug = match.kwargs.get("slug", "")
+        return f"custom_page_{slug}" if slug else None
+
+    # Dynamic: blog category filter page — use category slug
+    if url_name == "blog_list_by_category":
+        slug = match.kwargs.get("category_slug", "")
+        if slug:
+            try:
+                from content.models import BlogCategory
+                bc = BlogCategory.objects.get(slug=slug)
+                return f"blog_category_{bc.pk}"
+            except Exception:
+                pass
+        return "blog_list"
+
+    return None
+
+
 def paid_advertisements(request):
     """
     Context processor to make paid banners and AdSense slots available in all templates.
-    AdSense slots take priority over paid banners when active for the visitor's country.
+    Banners are filtered by current page key so target_pages targeting is respected.
     """
     from main.models import AdSenseSlot, PaidBanner
 
     selected_country = request.session.get("selected_country", "EG")
+    page_key = _resolve_page_key(request)
 
     context = {
+        "current_page_key": page_key,
         "homepage_paid_ads": [],
         "sidebar_paid_ads": [],
         "banner_paid_ads": [],
@@ -194,21 +262,17 @@ def paid_advertisements(request):
     # AdSense slots — keyed by slot_key, filtered by country
     context["adsense_slots"] = AdSenseSlot.get_active_slots(country_code=selected_country)
 
-    # Get homepage ads (general placement)
-    context["homepage_paid_ads"] = PaidBanner.get_active_ads(
+    # All active ads for this page (respects target_pages targeting)
+    page_ads = PaidBanner.get_active_ads(
         country_code=selected_country,
-        placement_type=PaidBanner.PlacementType.GENERAL
+        page_key=page_key,
     )
 
-    # Get sidebar ads for current page
-    context["sidebar_paid_ads"] = PaidBanner.get_active_ads(
-        country_code=selected_country
-    ).filter(ad_type=PaidBanner.AdType.SIDEBAR)[:3]
-
-    # Get banner ads for current page
-    context["banner_paid_ads"] = PaidBanner.get_active_ads(
-        country_code=selected_country
-    ).filter(ad_type=PaidBanner.AdType.BANNER)[:2]
+    context["homepage_paid_ads"] = page_ads.filter(
+        ad_type__in=[PaidBanner.AdType.FEATURED_BOX, PaidBanner.AdType.BANNER]
+    )
+    context["sidebar_paid_ads"] = page_ads.filter(ad_type=PaidBanner.AdType.SIDEBAR)[:3]
+    context["banner_paid_ads"] = page_ads.filter(ad_type=PaidBanner.AdType.BANNER)[:2]
 
     # Custom pages for navbar and footer
     active_pages = CustomPage.objects.filter(is_active=True)

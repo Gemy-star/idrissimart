@@ -4,7 +4,6 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
-from django_ckeditor_5.widgets import CKEditor5Widget
 
 from .models import UserVerificationRequest
 
@@ -29,12 +28,13 @@ class UserVerificationRequestForm(forms.ModelForm):
                     "required": True,
                 }
             ),
-            "notes": CKEditor5Widget(
+            "notes": forms.Textarea(
                 attrs={
-                    "class": "form-control django_ckeditor_5",
+                    "class": "form-control",
                     "dir": "rtl",
-                },
-                config_name="extends",
+                    "rows": 4,
+                    "placeholder": _("أضف أي معلومات إضافية تساعد في مراجعة طلبك"),
+                }
             ),
         }
         labels = {
