@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Avg, Count
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 from django.core.paginator import Paginator
@@ -99,7 +100,7 @@ def admin_approve_review(request, review_id):
         notification_type="review_approved",
         title=_("تم قبول تقييمك"),
         message=_('تم قبول تقييمك على الإعلان "{}"').format(review.ad.title),
-        link=f"/classifieds/{review.ad.id}/",
+        link=review.ad.get_absolute_url(),
     )
 
     # Send notification to the ad owner
@@ -111,7 +112,7 @@ def admin_approve_review(request, review_id):
             message=_('{} قام بتقييم إعلانك "{}" بـ {} نجوم').format(
                 review.user.get_display_name(), review.ad.title, review.rating
             ),
-            link=f"/classifieds/{review.ad.id}/#reviews-section",
+            link=review.ad.get_absolute_url() + "#reviews-section",
         )
 
     messages.success(request, _("تم قبول التقييم بنجاح"))
@@ -182,7 +183,7 @@ def admin_bulk_approve_reviews(request):
                 notification_type="review_approved",
                 title=_("تم قبول تقييمك"),
                 message=_('تم قبول تقييمك على الإعلان "{}"').format(review.ad.title),
-                link=f"/classifieds/{review.ad.id}/",
+                link=review.ad.get_absolute_url(),
             )
 
             # Send notification to ad owner
@@ -194,7 +195,7 @@ def admin_bulk_approve_reviews(request):
                     message=_('{} قام بتقييم إعلانك "{}" بـ {} نجوم').format(
                         review.user.get_display_name(), review.ad.title, review.rating
                     ),
-                    link=f"/classifieds/{review.ad.id}/#reviews-section",
+                    link=review.ad.get_absolute_url() + "#reviews-section",
                 )
 
         messages.success(request, _(f"تم قبول {len(review_ids)} تقييم"))

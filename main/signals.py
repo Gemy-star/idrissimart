@@ -3,6 +3,7 @@ from django.contrib.sites.models import Site
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 import logging
@@ -241,7 +242,7 @@ def send_ad_approval_notification(sender, instance, **kwargs):
                     message=_(
                         'للأسف، تم رفض إعلانك "{ad_title}". السبب: {reason}'
                     ).format(ad_title=instance.title, reason=rejection_reason),
-                    link="/my-ads/",
+                    link=reverse("main:my_ads"),
                     notification_type=Notification.NotificationType.GENERAL,
                 )
 
@@ -591,7 +592,7 @@ def send_order_notifications(sender, instance, created, **kwargs):
                     amount=instance.total_amount,
                     currency=currency,
                 ),
-                link=f"/orders/{instance.id}/",
+                link=reverse("main:my_order_detail", kwargs={"order_id": instance.id}),
                 notification_type=Notification.NotificationType.GENERAL,
             )
 
@@ -640,7 +641,7 @@ def send_order_notifications(sender, instance, created, **kwargs):
                         amount=instance.total_amount,
                         currency=currency,
                     ),
-                    link=f"/admin/orders/{instance.id}/",
+                    link=reverse("main:admin_order_detail", kwargs={"order_id": instance.id}),
                     notification_type=Notification.NotificationType.GENERAL,
                 )
 
@@ -664,7 +665,7 @@ def send_order_notifications(sender, instance, created, **kwargs):
                         revenue=publisher_revenue,
                         currency=currency,
                     ),
-                    link=f"/publisher/orders/{instance.id}/",
+                    link=reverse("main:publisher_order_detail", kwargs={"order_id": instance.id}),
                     notification_type=Notification.NotificationType.GENERAL,
                 )
 
@@ -724,7 +725,7 @@ def send_order_status_notifications(sender, instance, created, **kwargs):
                         order_number=instance.order_number
                     ),
                     message=status_msg,
-                    link=f"/orders/{instance.id}/",
+                    link=reverse("main:my_order_detail", kwargs={"order_id": instance.id}),
                     notification_type=Notification.NotificationType.GENERAL,
                 )
 
@@ -792,7 +793,7 @@ def send_order_status_notifications(sender, instance, created, **kwargs):
                         message=_(
                             "تم استلام الدفع الكامل لطلبك بمبلغ {amount} {currency}"
                         ).format(amount=instance.total_amount, currency=currency),
-                        link=f"/orders/{instance.id}/",
+                        link=reverse("main:my_order_detail", kwargs={"order_id": instance.id}),
                         notification_type=Notification.NotificationType.GENERAL,
                     )
 
@@ -841,7 +842,7 @@ def send_order_status_notifications(sender, instance, created, **kwargs):
                             remaining=instance.remaining_amount,
                             currency=currency,
                         ),
-                        link=f"/orders/{instance.id}/",
+                        link=reverse("main:my_order_detail", kwargs={"order_id": instance.id}),
                         notification_type=Notification.NotificationType.GENERAL,
                     )
 

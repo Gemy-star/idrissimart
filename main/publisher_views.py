@@ -919,7 +919,7 @@ def publisher_duplicate_ad(request, ad_id):
                 original_ad.title
             ),
             notification_type="general",
-            link=f"/classifieds/{new_ad.pk}/edit/",
+            link=reverse("main:ad_update", kwargs={"pk": new_ad.pk}),
         )
 
         return JsonResponse(

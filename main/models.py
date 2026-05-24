@@ -2418,6 +2418,7 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
         self.save(update_fields=["deleted_at", "status", "updated_at"])
 
         # Create notification
+        from django.urls import reverse
         from main.models import Notification
         from content.site_config import SiteConfiguration
 
@@ -2431,7 +2432,7 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
                 self.title, retention_days
             ),
             notification_type="general",
-            link=f"/publisher/my-ads/",
+            link=reverse("main:publisher_my_ads"),
         )
 
     def is_soft_deleted(self):
@@ -2526,7 +2527,7 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
                 self.title, duration_days, new_expiry.strftime("%Y-%m-%d")
             ),
             notification_type="ad_renewed",
-            link=f"/classifieds/{self.id}/",
+            link=self.get_absolute_url(),
         )
 
         return True

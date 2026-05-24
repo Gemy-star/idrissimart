@@ -16,32 +16,100 @@ from main.services.sms_service import _validate_e164
 
 logger = logging.getLogger(__name__)
 
-_COUNTRY_STRIP = {
-    "+966": (r"^(\+?966|0)?(5\d{8})$", "+966"),   # SA: must be 5xxxxxxxx
-    "+971": (r"^(\+?971|0)?(5\d{8})$", "+971"),   # UAE
-    "+20":  (r"^(\+?20|0)?(1\d{9})$",  "+20"),    # EG: must be 1xxxxxxxxx
-    "+965": (r"^(\+?965)?(\d{8})$",     "+965"),   # KW
-    "+974": (r"^(\+?974)?(\d{8})$",     "+974"),   # QA
-    "+973": (r"^(\+?973)?(\d{8})$",     "+973"),   # BH
-    "+968": (r"^(\+?968)?(\d{8})$",     "+968"),   # OM
-    "+962": (r"^(\+?962|0)?(7\d{8})$",  "+962"),   # JO
+# Known country dial codes → expected total digit count after +
+_COUNTRY_CODE_DIGIT_LENGTHS = {
+    "+966": 12,  # Saudi Arabia:  966 + 9 digits
+    "+971": 12,  # UAE:           971 + 9 digits
+    "+965": 11,  # Kuwait:        965 + 8 digits
+    "+974": 11,  # Qatar:         974 + 8 digits
+    "+973": 11,  # Bahrain:       973 + 8 digits
+    "+968": 11,  # Oman:          968 + 8 digits
+    "+962": 12,  # Jordan:        962 + 9 digits
+    "+20":  12,  # Egypt:          20 + 10 digits
 }
 
+# Longest prefix first so +966 is matched before a shorter hypothetical prefix
+_SORTED_PREFIXES = sorted(_COUNTRY_CODE_DIGIT_LENGTHS.keys(), key=len, reverse=True)
 
-def _try_recover(phone):
-    """Try to extract the local part and match a known country pattern."""
-    digits = re.sub(r"\D", "", phone)
-    for prefix, (pattern, code) in _COUNTRY_STRIP.items():
-        # Try stripping the country code prefix and matching
-        bare = re.sub(r"^\D*" + re.escape(prefix.lstrip("+")), "", digits)
-        bare = bare.lstrip("0")
-        m = re.match(r"^(" + pattern.split("(")[-1], bare) if "(" in pattern else None
-        # Simpler: try matching the last 8-10 digits with the country pattern
-        for n in (10, 9, 8):
-            tail = digits[-n:] if len(digits) >= n else digits
-            candidate = code + tail
+
+def _normalize_with_prefix(plus_number):
+    """
+    Given a string that already starts with '+', try to fix it to valid E.164.
+    Handles the common case where the subscriber part has a stray leading 0
+    (e.g. +20 01XXXXXXXXX → +20 1XXXXXXXXX).
+    Returns the fixed string or None.
+    """
+    for prefix in _SORTED_PREFIXES:
+        if plus_number.startswith(prefix):
+            subscriber = plus_number[len(prefix):]
+            # Try as-is first
+            if _validate_e164(plus_number):
+                return plus_number
+            # Subscriber has a leading 0 — strip it
+            if subscriber.startswith("0"):
+                candidate = prefix + subscriber[1:]
+                if _validate_e164(candidate):
+                    return candidate
+            return None  # Known country but unfixable — don't guess another country
+    # Unknown country code
+    if _validate_e164(plus_number):
+        return plus_number
+    return None
+
+
+def _try_recover(phone, user=None):
+    """
+    Try to recover a phone number to valid E.164.
+
+    Strategy (in order):
+      1. Strip non-digit/+ characters and whitespace
+      2. Convert 00CCXXXXXXX international prefix to +CCXXXXXXX
+      3. If number already has +, fix via _normalize_with_prefix
+      4. Bare digits: try user's country code (from user.country.phone_code)
+      5. Bare digits: try all known country codes by expected digit count
+    """
+    # Step 1: strip whitespace and junk (keep digits and +)
+    cleaned = re.sub(r"[^\d+]", "", phone.strip())
+
+    # Normalize stray + signs: a + anywhere except position 0 is junk (e.g. "01234 +")
+    if cleaned.startswith("+"):
+        cleaned = "+" + cleaned[1:].replace("+", "")
+    else:
+        cleaned = cleaned.replace("+", "")
+
+    # Step 2: 00-prefix → +
+    if cleaned.startswith("00"):
+        cleaned = "+" + cleaned[2:]
+
+    # Step 3: already has country code
+    if cleaned.startswith("+"):
+        return _normalize_with_prefix(cleaned)
+
+    # Bare digits from here on
+    digits = cleaned.lstrip("0")  # strip local trunk prefix (leading 0s)
+
+    # Step 4: user's own country
+    if user is not None:
+        try:
+            country = user.country
+            if country and country.phone_code:
+                code = country.phone_code.strip()
+                if not code.startswith("+"):
+                    code = "+" + code
+                candidate = code + digits
+                if _validate_e164(candidate):
+                    return candidate
+        except Exception:
+            pass
+
+    # Step 5: try all known country codes — match by expected length
+    for prefix, expected_len in _COUNTRY_CODE_DIGIT_LENGTHS.items():
+        subscriber_len = expected_len - len(prefix) + 1  # +1 for the leading +
+        if len(digits) == subscriber_len:
+            candidate = prefix + digits
             if _validate_e164(candidate):
                 return candidate
+
     return None
 
 
@@ -67,14 +135,18 @@ class Command(BaseCommand):
         fields = ["phone", "mobile", "whatsapp"] if field == "all" else [field]
 
         bad = []
-        for user in User.objects.exclude(phone="").exclude(phone__isnull=True) | \
-                     User.objects.exclude(mobile="").exclude(mobile__isnull=True):
+        qs = (
+            User.objects.exclude(phone="").exclude(phone__isnull=True)
+            | User.objects.exclude(mobile="").exclude(mobile__isnull=True)
+        ).select_related("country").distinct()
+
+        for user in qs:
             for f in fields:
                 val = getattr(user, f, None)
                 if not val:
                     continue
                 if not _validate_e164(val):
-                    recovered = _try_recover(val)
+                    recovered = _try_recover(val, user=user)
                     bad.append((user.pk, user.username, f, val, recovered))
 
         if not bad:
