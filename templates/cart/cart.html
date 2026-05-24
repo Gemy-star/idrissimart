@@ -129,22 +129,8 @@ a.item-title:hover { color: var(--br); }
     display: flex; align-items: center; justify-content: center; font-size: .62rem; font-weight: 800; flex-shrink: 0;
 }
 
-/* ───── Qty ───── */
-.qty-wrap { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
-.qty-ctrl {
-    display: inline-flex; align-items: center; background: var(--bg);
-    border-radius: 50px; border: 2px solid var(--brd); overflow: hidden; gap: 0;
-}
-.qty-btn {
-    width: 32px; height: 32px; background: none; border: none; cursor: pointer;
-    color: var(--txt); font-size: 1rem; font-weight: 700; display: flex;
-    align-items: center; justify-content: center; transition: background .15s, color .15s; flex-shrink: 0;
-}
-.qty-btn:hover:not(:disabled) { background: var(--br-lt); color: var(--br); }
-.qty-btn:disabled { opacity: .3; cursor: not-allowed; }
-.qty-num { min-width: 36px; text-align: center; font-size: .95rem; font-weight: 800; color: var(--txt); user-select: none; }
+/* ───── Price ───── */
 .price-col { }
-.unit-price { font-size: .75rem; color: var(--muted); margin-bottom: .15rem; }
 .line-price { font-size: 1.15rem; font-weight: 800; color: var(--br); transition: color .3s; }
 @keyframes priceFlash {
     0%{transform:scale(1)} 30%{transform:scale(1.18);color:#22c55e} 100%{transform:scale(1);color:var(--br)}
@@ -282,9 +268,9 @@ a.item-title:hover { color: var(--br); }
                 <h1>{% trans "مراجعة طلبك" %}</h1>
                 <p>
                     {% if cart_items %}
-                        {% blocktrans count n=cart_items|length %}منتج واحد في سلتك{% plural %}{{ n }} منتجات في سلتك{% endblocktrans %}
+                        {% blocktrans count n=cart_items|length %}إعلان واحد في سلتك{% plural %}{{ n }} إعلانات في سلتك{% endblocktrans %}
                     {% else %}
-                        {% trans "لا توجد منتجات في سلتك حالياً" %}
+                        {% trans "لا توجد إعلانات في سلتك حالياً" %}
                     {% endif %}
                 </p>
             </div>
@@ -302,7 +288,7 @@ a.item-title:hover { color: var(--br); }
                 <div class="items-toolbar">
                     <span class="items-count">
                         <i class="fas fa-box-open" style="color:var(--br)"></i>
-                        {% trans "المنتجات" %}
+                        {% trans "الإعلانات" %}
                         <span class="items-badge" id="items-count-badge">{{ cart_items|length }}</span>
                     </span>
                     <button class="btn-clear" onclick="clearAllCart()">
@@ -332,10 +318,8 @@ a.item-title:hover { color: var(--br); }
                             <span class="seller-av">{{ item.ad.user.get_full_name|first|upper|default:item.ad.user.username|first|upper }}</span>
                             {{ item.ad.user.get_full_name|default:item.ad.user.username }}
                         </div>
-                        <div class="qty-wrap">
-                            <div class="price-col">
-                                <div class="line-price" id="line-price-{{ item.ad.id }}">{{ item.ad.price|floatformat:"-2" }} {{ selected_currency }}</div>
-                            </div>
+                        <div class="price-col mt-2">
+                            <div class="line-price" id="line-price-{{ item.ad.id }}">{{ item.ad.price|floatformat:"-2" }} {{ selected_currency }}</div>
                         </div>
                     </div>
 
@@ -436,24 +420,17 @@ const DEL_PCT  = _cd.delivery_pct;
 const DEL_MIN  = _cd.delivery_min;
 const TAX      = _cd.tax_rate;
 
-const itemQtys   = {};
-const itemPrices = {};
-
-document.querySelectorAll('.cart-card').forEach(card => {
-    const id    = card.dataset.itemId;
-    const qEl   = document.getElementById(`qty-${id}`);
-    const uEl   = card.querySelector('.unit-price');
-    const price = parseFloat((uEl?.textContent||'').match(/[\d.]+/)?.[0] || 0);
-    if (id && qEl) { itemQtys[id] = parseInt(qEl.textContent, 10) || 1; itemPrices[id] = price; }
-});
-
 function fmt(n) {
     return parseFloat(n).toLocaleString('ar-EG', {minimumFractionDigits:0, maximumFractionDigits:2}) + ' ' + CURRENCY;
 }
 
 function recalcSummary() {
+    // Sum prices directly from the visible line-price elements (qty is always 1)
     let sub = 0;
-    Object.keys(itemQtys).forEach(id => { sub += (itemPrices[id] || 0) * itemQtys[id]; });
+    document.querySelectorAll('[id^="line-price-"]').forEach(el => {
+        const val = parseFloat((el.textContent || '').replace(/[^\d.]/g, ''));
+        if (!isNaN(val)) sub += val;
+    });
     const delivery = sub > 0 ? Math.max(sub * DEL_PCT, DEL_MIN) : 0;
     const tax      = sub * TAX;
     const total    = sub + delivery + tax;
@@ -468,27 +445,6 @@ function recalcSummary() {
     }
     if (elTax) elTax.textContent = fmt(tax);
     if (elTot) { elTot.textContent = fmt(total); elTot.classList.add('price-updated'); setTimeout(()=>elTot.classList.remove('price-updated'), 500); }
-}
-
-async function updateQty(adId, delta) {
-    const id = String(adId);
-    const nq = (itemQtys[id] || 1) + delta;
-    if (nq < 1) return;
-    try {
-        const fd = new FormData();
-        fd.append('item_id', adId);
-        fd.append('quantity', nq);
-        const resp = await fetch('{% url "main:cart_update_quantity" %}', {method:'POST', headers:{'X-CSRFToken':CSRF}, body:fd});
-        const data = await resp.json();
-        if (data.success) {
-            itemQtys[id] = nq;
-            const qEl  = document.getElementById(`qty-${adId}`); if (qEl) qEl.textContent = nq;
-            const lpEl = document.getElementById(`line-price-${adId}`);
-            if (lpEl) { lpEl.textContent = fmt((itemPrices[id] || 0) * nq); lpEl.classList.add('price-updated'); setTimeout(()=>lpEl.classList.remove('price-updated'), 500); }
-            const ctrl = document.getElementById(`qty-ctrl-${adId}`); if (ctrl) ctrl.querySelector('.qty-btn').disabled = (nq <= 1);
-            recalcSummary();
-        } else { showToast(data.message || '{% trans "حدث خطأ" %}', 'danger'); }
-    } catch { showToast('{% trans "خطأ في الاتصال" %}', 'danger'); }
 }
 
 async function removeItem(adId) {

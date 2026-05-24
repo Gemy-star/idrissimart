@@ -661,6 +661,16 @@ urlpatterns = [
         name="publisher_update_profile",
     ),
     path(
+        "dashboard/settings/send-change-mobile-otp/",
+        views.publisher_send_change_mobile_otp,
+        name="publisher_send_change_mobile_otp",
+    ),
+    path(
+        "dashboard/settings/verify-change-mobile-otp/",
+        views.publisher_verify_change_mobile_otp,
+        name="publisher_verify_change_mobile_otp",
+    ),
+    path(
         "dashboard/verification-status/",
         publisher_views.publisher_verification_status,
         name="publisher_verification_status",

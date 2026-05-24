@@ -3,6 +3,7 @@ from urllib.parse import quote
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
+from django.db import models
 from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
@@ -76,6 +77,13 @@ class BlogListView(ListView):
         if category_slug:
             category = get_object_or_404(BlogCategory, slug=category_slug)
             queryset = queryset.filter(category=category)
+
+        # Search by keyword
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            queryset = queryset.filter(
+                models.Q(title__icontains=q) | models.Q(content__icontains=q)
+            )
 
         return queryset
 

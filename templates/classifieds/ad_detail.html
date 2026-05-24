@@ -6,43 +6,46 @@
     {{ ad.title }} - {% trans "إعلانات مبوبة" %}
 {% endblock title %}
 
-{% block extra_meta %}
-{{ block.super }}
-<!-- Open Graph meta tags for better social sharing -->
-<meta property="og:type" content="product">
-<meta property="og:title" content="{{ ad.title }}">
-<meta property="og:description" content="{{ ad.description|striptags|truncatewords:30 }}">
-<meta property="og:url" content="{{ request.build_absolute_uri }}">
-{% if ad.images.first %}
-<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ ad.images.first.image.url }}">
-<meta property="og:image:secure_url" content="{{ request.scheme }}://{{ request.get_host }}{{ ad.images.first.image.url }}">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="{{ ad.title }}">
-{% else %}
-<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'images/placeholder-ad.jpg' %}">
-{% endif %}
+{% block meta_description %}{{ ad.description|striptags|truncatewords:40 }}{% endblock %}
+{% block og_title %}{{ ad.title }} | {{ config.SITE_NAME }}{% endblock %}
+{% block og_description %}{{ ad.description|striptags|truncatewords:30 }}{% endblock %}
+{% block twitter_title %}{{ ad.title }} | {{ config.SITE_NAME }}{% endblock %}
 
-<!-- Product specific meta tags -->
+{% block extra_meta %}
+<!-- Open Graph -->
+<meta property="og:type" content="product"/>
+<meta property="og:site_name" content="{{ config.SITE_NAME }}"/>
+<meta property="og:locale" content="{% if LANGUAGE_CODE == 'ar' %}ar_AR{% else %}en_US{% endif %}"/>
+<meta property="og:title" content="{{ ad.title }} | {{ config.SITE_NAME }}"/>
+<meta property="og:description" content="{{ ad.description|striptags|truncatewords:30 }}"/>
+<meta property="og:url" content="{{ request.build_absolute_uri }}"/>
+{% if ad.images.first %}
+<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ ad.images.first.image.url }}"/>
+<meta property="og:image:secure_url" content="{{ request.scheme }}://{{ request.get_host }}{{ ad.images.first.image.url }}"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta property="og:image:alt" content="{{ ad.title }}"/>
+{% else %}
+<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'images/placeholder-ad.jpg' %}"/>
+{% endif %}
+<!-- Product meta -->
 {% if not ad.contact_for_price and not ad.hide_price and not ad.price_on_request %}
 <meta property="product:price:amount" content="{{ ad.price }}">
 <meta property="product:price:currency" content="{{ selected_currency }}">
 {% endif %}
 <meta property="product:condition" content="{% if ad.custom_fields.condition == 'new' %}new{% else %}used{% endif %}">
 <meta property="product:availability" content="{% if ad.status == 'active' %}in stock{% else %}out of stock{% endif %}">
-
-<!-- Twitter Card meta tags -->
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="{{ ad.title }}">
-<meta name="twitter:description" content="{{ ad.description|striptags|truncatewords:30 }}">
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:site" content="@idrissimart"/>
+<meta name="twitter:title" content="{{ ad.title }} | {{ config.SITE_NAME }}"/>
+<meta name="twitter:description" content="{{ ad.description|striptags|truncatewords:30 }}"/>
 {% if ad.images.first %}
-<meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{{ ad.images.first.image.url }}">
+<meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{{ ad.images.first.image.url }}"/>
 {% endif %}
-
-<!-- Additional SEO meta tags -->
-<meta name="description" content="{{ ad.description|striptags|truncatewords:40 }}"/>
+<!-- Keywords -->
 <meta name="keywords" content="{{ ad.title }}, {{ ad.category.name }}, {{ ad.city }}, {% trans 'إعلانات مبوبة' %}"/>
-<!-- JSON-LD Product structured data -->
+<!-- JSON-LD Product -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -64,7 +67,6 @@
   {% endif %}
 }
 </script>
-<link rel="canonical" href="{{ request.build_absolute_uri }}">
 {% endblock extra_meta %}
 
 {% block extra_css %}

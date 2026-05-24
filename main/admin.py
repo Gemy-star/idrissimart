@@ -4395,6 +4395,7 @@ class PaidBannerAdmin(admin.ModelAdmin):
         js = ("admin/js/category_cascade.js", "admin/js/banner_image_hints.js")
 
     actions = [
+        "confirm_payment_and_activate",
         "approve_ads",
         "pause_ads",
         "resume_ads",
@@ -4441,6 +4442,7 @@ class PaidBannerAdmin(admin.ModelAdmin):
         """Display payment status with colored badge"""
         colors = {
             "unpaid": "#e74c3c",
+            "receipt_submitted": "#f39c12",
             "paid": "#27ae60",
             "refunded": "#95a5a6",
         }
@@ -4526,11 +4528,42 @@ class PaidBannerAdmin(admin.ModelAdmin):
     ctr_display.short_description = _("معدل النقر (CTR)")
 
     # Actions
+    def confirm_payment_and_activate(self, request, queryset):
+        """Confirm payment receipt AND activate the banner in one step."""
+        from .models import Notification
+        activated = 0
+        skipped = 0
+        for ad in queryset.select_related("advertiser"):
+            if ad.payment_status not in ("paid", "receipt_submitted"):
+                skipped += 1
+                continue
+            ad.payment_status = "paid"
+            ad.approve(request.user)  # sets status=ACTIVE, approved_by, approved_at
+            Notification.objects.create(
+                user=ad.advertiser,
+                notification_type=Notification.NotificationType.AD_APPROVED,
+                title=_("تم قبول الدفع وتفعيل إعلانك البانري"),
+                message=_(
+                    "تم قبول دفع إعلانك البانري «{}» وتفعيله. سيبدأ عرضه في الفترة المحددة."
+                ).format(ad.title),
+                link="",
+            )
+            activated += 1
+        msg = _("تم تفعيل {} إعلان").format(activated)
+        if skipped:
+            msg += " — " + _("تم تخطي {} إعلان (لم يُسدَّد بعد)").format(skipped)
+        self.message_user(request, msg)
+    confirm_payment_and_activate.short_description = _("✅ قبول الدفع وتفعيل البانر")
+
     def approve_ads(self, request, queryset):
-        """Approve selected ads and notify the advertiser"""
+        """Activate ads that already have confirmed payment."""
         from .models import Notification
         count = 0
+        skipped = 0
         for ad in queryset.select_related("advertiser"):
+            if ad.payment_status != "paid":
+                skipped += 1
+                continue
             ad.approve(request.user)
             Notification.objects.create(
                 user=ad.advertiser,
@@ -4542,8 +4575,11 @@ class PaidBannerAdmin(admin.ModelAdmin):
                 link="",
             )
             count += 1
-        self.message_user(request, _("تم الموافقة على {} إعلان").format(count))
-    approve_ads.short_description = _("الموافقة على الإعلانات المحددة")
+        msg = _("تم الموافقة على {} إعلان").format(count)
+        if skipped:
+            msg += " — " + _("تم تخطي {} إعلان (يجب تأكيد الدفع أولاً)").format(skipped)
+        self.message_user(request, msg)
+    approve_ads.short_description = _("الموافقة على الإعلانات المدفوعة")
 
     def pause_ads(self, request, queryset):
         """Pause selected ads"""

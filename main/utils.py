@@ -427,6 +427,24 @@ def validate_phone_number(phone, country_code="EG"):
     return any(re.match(pattern, phone) for pattern in patterns)
 
 
+def strip_phone_to_local(phone):
+    """
+    Strip a stored phone number to its local form (no leading zeros, no country code).
+    Mirrors the stripping logic in ClassifiedAdForm.clean_mobile_number().
+    Safe to call even when phone is None or empty.
+    """
+    if not phone:
+        return ""
+    import re as _re
+    num = _re.sub(r"\D", "", phone)        # keep digits only
+    num = num.lstrip("0")                  # strip leading zeros
+    for code in ["20", "966", "971", "965", "974", "973", "968", "962"]:
+        if num.startswith(code):
+            num = num[len(code):]
+            break
+    return num
+
+
 def normalize_phone_number(phone, country_code="EG"):
     """
     Normalize phone number to international format based on country

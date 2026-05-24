@@ -7019,16 +7019,17 @@ def ad_publisher_detail(request, ad_id):
 def dashboard_redirect(request):
     """
     Smart dashboard redirect based on user role:
-    - Superusers -> Admin Dashboard
+    - Superusers -> Publisher Dashboard (My Ads) — admin links available in header
     - Publisher profile -> Publisher Dashboard (My Ads)
     - Users with ads -> Publisher Dashboard (My Ads)
     - Regular users -> Home page
     """
     user = request.user
 
-    # Redirect only superusers to admin dashboard (not staff)
+    # Superusers go to publisher dashboard (their personal dashboard)
+    # Admin-specific pages are accessible directly from the header
     if user.is_superuser:
-        return redirect("main:admin_dashboard")
+        return redirect("main:my_ads")
 
     # Both DEFAULT and PUBLISHER users go to publisher dashboard
     try:
@@ -8546,15 +8547,24 @@ class PublisherSettingsView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         from content.models import Country
+        from main.utils import strip_phone_to_local
 
         context = super().get_context_data(**kwargs)
         context["active_nav"] = "settings"
         context["page_title"] = _("الإعدادات")
-        context["user"] = self.request.user
-        context["is_verified"] = self.request.user.is_verified
+        user = self.request.user
+        context["user"] = user
+        context["is_verified"] = user.is_verified
         context["countries"] = Country.objects.filter(is_active=True).order_by(
             "order", "name"
         )
+        # Dial code from user's country (e.g. "+20")
+        context["user_dial_code"] = (
+            user.country.phone_code if user.country and user.country.phone_code else ""
+        )
+        # Local mobile without leading zeros / country code
+        context["user_mobile_local"] = strip_phone_to_local(user.mobile) if user.mobile else ""
+        context["user_phone_local"] = strip_phone_to_local(user.phone) if user.phone else ""
         return context
 
 
@@ -8566,11 +8576,12 @@ def publisher_update_profile(request):
 
     try:
         # Update basic profile info
+        from main.utils import strip_phone_to_local
         user.first_name = request.POST.get("first_name", "").strip()
         user.last_name = request.POST.get("last_name", "").strip()
-        user.phone = request.POST.get("phone", "").strip()
-        user.mobile = request.POST.get("mobile", "").strip()
-        user.whatsapp = request.POST.get("whatsapp", "").strip()
+        user.phone = strip_phone_to_local(request.POST.get("phone", "").strip())
+        # mobile is NOT updated here — it requires OTP via change_mobile endpoint
+        user.whatsapp = strip_phone_to_local(request.POST.get("whatsapp", "").strip())
         user.bio = request.POST.get("bio", "").strip()
         user.bio_ar = request.POST.get("bio_ar", "").strip()
         user.city = request.POST.get("city", "").strip()
@@ -8614,6 +8625,116 @@ def publisher_update_profile(request):
             {"success": False, "message": _("حدث خطأ أثناء تحديث الملف الشخصي")},
             status=400,
         )
+
+
+@login_required
+@require_POST
+def publisher_send_change_mobile_otp(request):
+    """
+    Step 1 of mobile-change flow: accept a new local phone number, combine with
+    the user's country dial-code, send an OTP to that number, store the pending
+    number in the session.
+    """
+    import random
+    from django.utils import timezone as tz
+    from datetime import timedelta
+    from main.utils import strip_phone_to_local
+
+    try:
+        new_phone_raw = request.POST.get("new_mobile", "").strip()
+        new_phone = strip_phone_to_local(new_phone_raw)
+        if not new_phone or len(new_phone) < 7:
+            return JsonResponse({"success": False, "message": _("رقم الجوال غير صحيح")}, status=400)
+
+        # Build dial-code prefix from the user's country
+        dial_code = ""
+        if request.user.country and request.user.country.phone_code:
+            dial_code = request.user.country.phone_code  # e.g. "+20"
+        full_number = dial_code + new_phone
+
+        # Generate 6-digit OTP
+        otp_code = str(random.randint(100000, 999999))
+        expires = tz.now() + timedelta(minutes=10)
+
+        # Persist in session
+        request.session["change_mobile_pending"] = {
+            "phone": new_phone,
+            "full": full_number,
+            "otp": otp_code,
+            "expires": expires.isoformat(),
+            "attempts": 0,
+        }
+        request.session.modified = True
+
+        # Try SMS first, fall back to printing for dev
+        sent = False
+        try:
+            from main.services.sms_service import SMSService
+            sms = SMSService()
+            sent = sms.send_otp(full_number, otp_code)
+        except Exception:
+            pass
+
+        import logging as _log
+        _log.getLogger(__name__).info("Change-mobile OTP for %s: %s (sent=%s)", full_number, otp_code, sent)
+        print(f"\n📱 CHANGE-MOBILE OTP → {full_number} : {otp_code}\n")
+
+        return JsonResponse({
+            "success": True,
+            "message": _("تم إرسال رمز التحقق إلى الرقم المدخل"),
+            "full_number": full_number,
+        })
+    except Exception as exc:
+        return JsonResponse({"success": False, "message": str(exc)}, status=400)
+
+
+@login_required
+@require_POST
+def publisher_verify_change_mobile_otp(request):
+    """
+    Step 2 of mobile-change flow: verify OTP then update the user's mobile.
+    Resets is_mobile_verified so the new number goes through verification.
+    """
+    from django.utils import timezone as tz
+
+    pending = request.session.get("change_mobile_pending")
+    if not pending:
+        return JsonResponse({"success": False, "message": _("لا يوجد طلب تغيير معلّق. ابدأ من جديد.")}, status=400)
+
+    expires = tz.datetime.fromisoformat(pending["expires"])
+    if tz.is_naive(expires):
+        from django.utils.timezone import make_aware
+        expires = make_aware(expires)
+
+    if tz.now() > expires:
+        request.session.pop("change_mobile_pending", None)
+        return JsonResponse({"success": False, "message": _("انتهت صلاحية الرمز. أعد الإرسال.")}, status=400)
+
+    pending["attempts"] = pending.get("attempts", 0) + 1
+    if pending["attempts"] > 5:
+        request.session.pop("change_mobile_pending", None)
+        return JsonResponse({"success": False, "message": _("تجاوزت عدد المحاولات المسموح بها.")}, status=429)
+
+    entered = request.POST.get("otp_code", "").strip()
+    if entered != pending["otp"]:
+        request.session["change_mobile_pending"] = pending
+        request.session.modified = True
+        return JsonResponse({"success": False, "message": _("الرمز غير صحيح. حاول مرة أخرى.")}, status=400)
+
+    # OTP correct — update the mobile
+    user = request.user
+    user.mobile = pending["phone"]
+    user.is_mobile_verified = False       # needs re-verification with the new number
+    user.mobile_verification_code = ""
+    user.mobile_verification_expires = None
+    user.save(update_fields=["mobile", "is_mobile_verified", "mobile_verification_code", "mobile_verification_expires"])
+
+    request.session.pop("change_mobile_pending", None)
+    return JsonResponse({
+        "success": True,
+        "message": _("تم تحديث رقم الجوال بنجاح. يرجى التحقق منه."),
+        "new_mobile": pending["phone"],
+    })
 
 
 @login_required

@@ -3,51 +3,48 @@
 {% load static i18n idrissimart_tags %}
 
 {% block title %}{{ blog.title }}{% endblock %}
+{% block meta_description %}{{ blog.content|striptags|truncatewords:40 }}{% endblock %}
+{% block og_title %}{{ blog.title }} | {{ config.SITE_NAME }}{% endblock %}
+{% block og_description %}{{ blog.content|striptags|truncatewords:40 }}{% endblock %}
+{% block twitter_title %}{{ blog.title }} | {{ config.SITE_NAME }}{% endblock %}
 
 {% block extra_meta %}
-{{ block.super }}
-<!-- Open Graph meta tags for better social sharing -->
-<meta property="og:type" content="article">
-<meta property="og:title" content="{{ blog.title }}">
-<meta property="og:description" content="{{ blog.content|striptags|truncatewords:40 }}">
-<meta property="og:url" content="{{ request.build_absolute_uri }}">
+<!-- Open Graph -->
+<meta property="og:type" content="article"/>
+<meta property="og:site_name" content="{{ config.SITE_NAME }}"/>
+<meta property="og:locale" content="{% if LANGUAGE_CODE == 'ar' %}ar_AR{% else %}en_US{% endif %}"/>
+<meta property="og:title" content="{{ blog.title }} | {{ config.SITE_NAME }}"/>
+<meta property="og:description" content="{{ blog.content|striptags|truncatewords:40 }}"/>
+<meta property="og:url" content="{{ request.build_absolute_uri }}"/>
 {% if blog.image %}
-<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ blog.image.url }}">
-<meta property="og:image:secure_url" content="{{ request.scheme }}://{{ request.get_host }}{{ blog.image.url }}">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="{{ blog.title }}">
+<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ blog.image.url }}"/>
+<meta property="og:image:secure_url" content="{{ request.scheme }}://{{ request.get_host }}{{ blog.image.url }}"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta property="og:image:alt" content="{{ blog.title }}"/>
 {% else %}
-<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'images/default-blog.jpg' %}">
+<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'images/default-blog.jpg' %}"/>
 {% endif %}
-
-<!-- Article specific meta tags -->
+<!-- Article meta -->
 <meta property="article:published_time" content="{{ blog.published_date|date:'c' }}">
 <meta property="article:modified_time" content="{{ blog.updated_at|date:'c' }}">
 <meta property="article:author" content="{{ blog.author.get_full_name|default:blog.author.username }}">
-{% if blog.category %}
-<meta property="article:section" content="{{ blog.category.name }}">
-{% endif %}
-{% for tag in blog.tags.all %}
-<meta property="article:tag" content="{{ tag.name }}">
-{% endfor %}
-
-<!-- Twitter Card meta tags -->
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="{{ blog.title }}">
-<meta name="twitter:description" content="{{ blog.content|striptags|truncatewords:40 }}">
+{% if blog.category %}<meta property="article:section" content="{{ blog.category.name }}">{% endif %}
+{% for tag in blog.tags.all %}<meta property="article:tag" content="{{ tag.name }}">{% endfor %}
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:site" content="@idrissimart"/>
+<meta name="twitter:title" content="{{ blog.title }} | {{ config.SITE_NAME }}"/>
+<meta name="twitter:description" content="{{ blog.content|striptags|truncatewords:40 }}"/>
 {% if blog.image %}
-<meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{{ blog.image.url }}">
-<meta name="twitter:image:alt" content="{{ blog.title }}">
+<meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{{ blog.image.url }}"/>
+<meta name="twitter:image:alt" content="{{ blog.title }}"/>
 {% else %}
-<meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'images/default-blog.jpg' %}">
+<meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'images/default-blog.jpg' %}"/>
 {% endif %}
-
-<!-- Additional SEO meta tags -->
-<meta name="description" content="{{ blog.content|striptags|truncatewords:40 }}">
+<!-- Keywords & author -->
 <meta name="keywords" content="{% for tag in blog.tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}">
 <meta name="author" content="{{ blog.author.get_full_name|default:blog.author.username }}">
-<link rel="canonical" content="{{ request.build_absolute_uri }}">
 {% endblock extra_meta %}
 
 {% block extra_css %}

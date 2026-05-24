@@ -3,11 +3,13 @@ from django.conf.urls.i18n import i18n_patterns
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.admin import AdminSite
+from django.contrib.sitemaps.views import sitemap
 from django.urls import include, path
 from django.views.generic import TemplateView
 from main import cart_wishlist_views
 from main import views as main_views
 from main import paid_ad_views
+from main.sitemaps import sitemaps
 
 # Sort models alphabetically within each app in the admin sidebar
 _original_get_app_list = AdminSite.get_app_list
@@ -24,6 +26,7 @@ AdminSite.get_app_list = _sorted_get_app_list
 
 urlpatterns = [
     path("robots.txt", TemplateView.as_view(template_name="robots.txt", content_type="text/plain")),
+    path("sitemap.xml", sitemap, {"sitemaps": sitemaps}, name="django.contrib.sitemaps.views.sitemap"),
     path("i18n/", include("django.conf.urls.i18n")),
     # Cart & Wishlist APIs — BEFORE api/ include to avoid DRF router conflict
     # (DRF router matches wishlist/{pk}/ with pk="add" → 405 if placed after)

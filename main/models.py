@@ -5265,6 +5265,7 @@ class PaidBanner(models.Model):
         max_length=20,
         choices=[
             ("unpaid", _("غير مدفوع - Unpaid")),
+            ("receipt_submitted", _("إيصال مقدم - Receipt Submitted")),
             ("paid", _("مدفوع - Paid")),
             ("refunded", _("مسترد - Refunded")),
         ],

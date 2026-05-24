@@ -663,20 +663,86 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">{% trans "الهاتف" %}</label>
-                                <input type="tel" class="form-control" name="phone" value="{{ user.phone }}">
+                                <div class="input-group">
+                                    {% if user_dial_code %}<span class="input-group-text" style="font-size:.85rem;letter-spacing:.5px">{{ user_dial_code }}</span>{% endif %}
+                                    <input type="tel" class="form-control" name="phone"
+                                           value="{{ user_phone_local }}"
+                                           placeholder="1012345678"
+                                           inputmode="numeric" dir="ltr">
+                                </div>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label">
+                                <label class="form-label d-flex align-items-center gap-1">
                                     {% trans "الجوال" %}
                                     {% if user.is_mobile_verified %}
-                                        <i class="fas fa-check-circle text-success ms-1" title="{% trans 'موثق' %}"></i>
+                                        <i class="fas fa-check-circle text-success" title="{% trans 'موثق' %}"></i>
+                                    {% else %}
+                                        <i class="fas fa-exclamation-circle text-warning" title="{% trans 'غير موثق' %}"></i>
                                     {% endif %}
                                 </label>
-                                <input type="tel" class="form-control" name="mobile" value="{{ user.mobile }}">
+                                <div class="input-group" id="mobile-display-group">
+                                    {% if user_dial_code %}<span class="input-group-text" style="font-size:.85rem">{{ user_dial_code }}</span>{% endif %}
+                                    <input type="tel" id="mobile-display"
+                                           class="form-control bg-light"
+                                           value="{{ user_mobile_local }}"
+                                           readonly style="cursor:default">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                                            id="open-change-mobile-btn" title="{% trans 'تغيير رقم الجوال' %}">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted">{% trans "لتغيير الجوال يلزم التحقق برمز OTP" %}</small>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">{% trans "واتساب" %}</label>
-                                <input type="tel" class="form-control" name="whatsapp" value="{{ user.whatsapp }}">
+                                <div class="input-group">
+                                    {% if user_dial_code %}<span class="input-group-text" style="font-size:.85rem">{{ user_dial_code }}</span>{% endif %}
+                                    <input type="tel" class="form-control" name="whatsapp"
+                                           value="{{ user.whatsapp|default:user_mobile_local }}"
+                                           placeholder="1012345678"
+                                           inputmode="numeric" dir="ltr">
+                                </div>
+                            </div>
+
+                            {{/* ── Change-Mobile OTP panel (hidden by default) ── */}}
+                            <div class="col-12" id="change-mobile-panel" style="display:none">
+                                <div class="card border-warning">
+                                    <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center py-2">
+                                        <span class="fw-bold"><i class="fas fa-mobile-alt me-1"></i> {% trans "تغيير رقم الجوال" %}</span>
+                                        <button type="button" class="btn-close btn-sm" id="close-change-mobile-btn"></button>
+                                    </div>
+                                    <div class="card-body">
+                                        {{/* Step 1: enter new number */}}
+                                        <div id="change-mobile-step1">
+                                            <p class="text-muted small mb-2">{% trans "أدخل رقم الجوال الجديد وسنرسل إليك رمز تحقق." %}</p>
+                                            <div class="input-group mb-2">
+                                                {% if user_dial_code %}<span class="input-group-text">{{ user_dial_code }}</span>{% endif %}
+                                                <input type="tel" id="new-mobile-input" class="form-control"
+                                                       placeholder="1012345678" inputmode="numeric" dir="ltr" maxlength="15">
+                                            </div>
+                                            <button type="button" class="btn btn-primary btn-sm" id="send-mobile-otp-btn">
+                                                <i class="fas fa-paper-plane me-1"></i> {% trans "إرسال رمز التحقق" %}
+                                            </button>
+                                        </div>
+                                        {{/* Step 2: enter OTP */}}
+                                        <div id="change-mobile-step2" style="display:none">
+                                            <p class="text-muted small mb-2" id="otp-sent-hint"></p>
+                                            <div class="input-group mb-2" style="max-width:220px">
+                                                <input type="text" id="mobile-otp-input" class="form-control text-center fw-bold"
+                                                       placeholder="● ● ● ● ● ●" maxlength="6" inputmode="numeric"
+                                                       style="letter-spacing:6px;font-size:1.1rem">
+                                            </div>
+                                            <div class="d-flex gap-2">
+                                                <button type="button" class="btn btn-success btn-sm" id="verify-mobile-otp-btn">
+                                                    <i class="fas fa-check me-1"></i> {% trans "تأكيد" %}
+                                                </button>
+                                                <button type="button" class="btn btn-link btn-sm text-muted" id="resend-mobile-otp-btn">
+                                                    {% trans "إعادة الإرسال" %}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1437,14 +1503,50 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // City loading (simplified for this example)
+    // City loading — loads cities from API based on selected country
     const countrySelect = document.getElementById('country');
     const citySelect = document.getElementById('city');
-    if (countrySelect && citySelect) {
-        countrySelect.addEventListener('change', function() {
-            // Cities would be loaded dynamically based on country
-            // This is a placeholder for the full implementation
+    const currentCity = "{{ user.city|escapejs }}";
+
+    function loadCities(countryCode, preselectCity) {
+        if (!countryCode) {
             citySelect.innerHTML = '<option value="">{% trans "اختر المدينة" %}</option>';
+            return;
+        }
+        citySelect.innerHTML = '<option value="">{% trans "جاري التحميل..." %}</option>';
+        citySelect.disabled = true;
+
+        fetch(`/content/api/cities/${countryCode}/`)
+            .then(r => r.json())
+            .then(data => {
+                citySelect.innerHTML = '<option value="">{% trans "اختر المدينة" %}</option>';
+                if (data.success && Array.isArray(data.cities)) {
+                    data.cities.forEach(function(city) {
+                        const name = typeof city === 'object' ? (city.name || city) : city;
+                        const opt = document.createElement('option');
+                        opt.value = name;
+                        opt.textContent = name;
+                        if (preselectCity && name === preselectCity) opt.selected = true;
+                        citySelect.appendChild(opt);
+                    });
+                }
+                citySelect.disabled = false;
+            })
+            .catch(function() {
+                citySelect.innerHTML = '<option value="">{% trans "اختر المدينة" %}</option>';
+                citySelect.disabled = false;
+            });
+    }
+
+    if (countrySelect && citySelect) {
+        // Load cities for the currently selected country on page load
+        const initialCountry = countrySelect.value;
+        if (initialCountry) {
+            loadCities(initialCountry, currentCity);
+        }
+
+        countrySelect.addEventListener('change', function() {
+            loadCities(this.value, null);
         });
     }
 
@@ -1562,6 +1664,106 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     });
+
+    // ── Change-Mobile OTP flow ──────────────────────────────────────────
+    const openBtn   = document.getElementById('open-change-mobile-btn');
+    const closeBtn  = document.getElementById('close-change-mobile-btn');
+    const panel     = document.getElementById('change-mobile-panel');
+    const step1     = document.getElementById('change-mobile-step1');
+    const step2     = document.getElementById('change-mobile-step2');
+    const newInput  = document.getElementById('new-mobile-input');
+    const sendOtpBtn   = document.getElementById('send-mobile-otp-btn');
+    const verifyOtpBtn = document.getElementById('verify-mobile-otp-btn');
+    const resendOtpBtn = document.getElementById('resend-mobile-otp-btn');
+    const otpInput     = document.getElementById('mobile-otp-input');
+    const otpHint      = document.getElementById('otp-sent-hint');
+    const mobileDisplay = document.getElementById('mobile-display');
+
+    if (openBtn && panel) {
+        openBtn.addEventListener('click', function() {
+            panel.style.display = 'block';
+            panel.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+        });
+        closeBtn.addEventListener('click', function() {
+            panel.style.display = 'none';
+            step1.style.display = 'block';
+            step2.style.display = 'none';
+            if (newInput) newInput.value = '';
+            if (otpInput) otpInput.value = '';
+        });
+
+        function doSendOtp() {
+            const val = (newInput.value || '').replace(/\D/g, '');
+            if (val.length < 7) {
+                showToast('{% trans "أدخل رقماً صحيحاً" %}', 'error');
+                return;
+            }
+            sendOtpBtn.disabled = true;
+            sendOtpBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> {% trans "جاري الإرسال..." %}';
+            const fd = new FormData();
+            fd.append('new_mobile', val);
+            fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+            fetch('{% url "main:publisher_send_change_mobile_otp" %}', {method:'POST', body:fd})
+                .then(r => r.json())
+                .then(data => {
+                    sendOtpBtn.disabled = false;
+                    sendOtpBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i> {% trans "إرسال رمز التحقق" %}';
+                    if (data.success) {
+                        otpHint.textContent = '{% trans "تم إرسال الرمز إلى" %} ' + (data.full_number || val);
+                        step1.style.display = 'none';
+                        step2.style.display = 'block';
+                    } else {
+                        showToast(data.message || '{% trans "حدث خطأ" %}', 'error');
+                    }
+                })
+                .catch(function() {
+                    sendOtpBtn.disabled = false;
+                    sendOtpBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i> {% trans "إرسال رمز التحقق" %}';
+                    showToast('{% trans "تعذر الاتصال" %}', 'error');
+                });
+        }
+
+        sendOtpBtn.addEventListener('click', doSendOtp);
+        resendOtpBtn.addEventListener('click', function() {
+            step2.style.display = 'none';
+            step1.style.display = 'block';
+            doSendOtp();
+        });
+
+        verifyOtpBtn.addEventListener('click', function() {
+            const code = (otpInput.value || '').trim();
+            if (code.length !== 6) { showToast('{% trans "الرمز 6 أرقام" %}', 'error'); return; }
+            verifyOtpBtn.disabled = true;
+            verifyOtpBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>';
+            const fd = new FormData();
+            fd.append('otp_code', code);
+            fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+            fetch('{% url "main:publisher_verify_change_mobile_otp" %}', {method:'POST', body:fd})
+                .then(r => r.json())
+                .then(data => {
+                    verifyOtpBtn.disabled = false;
+                    verifyOtpBtn.innerHTML = '<i class="fas fa-check me-1"></i> {% trans "تأكيد" %}';
+                    if (data.success) {
+                        showToast(data.message, 'success');
+                        if (mobileDisplay && data.new_mobile) mobileDisplay.value = data.new_mobile;
+                        panel.style.display = 'none';
+                        step1.style.display = 'block';
+                        step2.style.display = 'none';
+                        otpInput.value = '';
+                        newInput.value = '';
+                    } else {
+                        showToast(data.message || '{% trans "رمز غير صحيح" %}', 'error');
+                    }
+                })
+                .catch(function() {
+                    verifyOtpBtn.disabled = false;
+                    verifyOtpBtn.innerHTML = '<i class="fas fa-check me-1"></i> {% trans "تأكيد" %}';
+                    showToast('{% trans "تعذر الاتصال" %}', 'error');
+                });
+        });
+    }
+    // ────────────────────────────────────────────────────────────────────
+
 });
 </script>
 {% endblock %}

@@ -104,6 +104,7 @@ class PublisherPaidAdListView(PublisherRequiredMixin, ListView):
             "pending": qs.filter(status=PaidBanner.Status.PENDING_APPROVAL).count(),
             "active": qs.filter(status=PaidBanner.Status.ACTIVE).count(),
             "unpaid": qs.filter(payment_status="unpaid").count(),
+            "receipt_submitted": qs.filter(payment_status="receipt_submitted").count(),
         }
         return context
 
@@ -441,9 +442,10 @@ def publisher_paid_ad_payment(request):
                 offline_payment_receipt=receipt,
                 metadata=common_metadata,
             )
-            # Mark as PENDING_APPROVAL – admin confirms payment separately
+            # Mark receipt as submitted and status as PENDING_APPROVAL
             paid_ad.status = PaidBanner.Status.PENDING_APPROVAL
-            paid_ad.save(update_fields=["status"])
+            paid_ad.payment_status = "receipt_submitted"
+            paid_ad.save(update_fields=["status", "payment_status"])
 
             # Clear session key
             request.session.pop(SESSION_KEY_PENDING_AD, None)

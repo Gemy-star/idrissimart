@@ -378,6 +378,45 @@ def send_daily_admin_report_task():
         return {"success": False, "error": str(e)}
 
 
+def expire_paid_banners_task():
+    """
+    Auto-expire active paid banners whose end_date has passed.
+    Notifies the advertiser when their banner expires.
+
+    Schedule: Hourly
+    """
+    from main.models import PaidBanner
+
+    try:
+        now = timezone.now()
+        expired = PaidBanner.objects.filter(
+            status=PaidBanner.Status.ACTIVE,
+            end_date__lte=now,
+        ).select_related("advertiser")
+
+        count = expired.count()
+        if count == 0:
+            logger.info("✅ No expired paid banners found")
+            return {"success": True, "count": 0}
+
+        for banner in expired:
+            PaidBanner.objects.filter(pk=banner.pk).update(status=PaidBanner.Status.EXPIRED)
+            Notification.objects.create(
+                user=banner.advertiser,
+                notification_type=Notification.NotificationType.GENERAL,
+                title="انتهت مدة إعلانك البانري",
+                message=f"انتهت المدة المحددة للإعلان البانري «{banner.title}». يمكنك التواصل معنا لتجديده.",
+                link="",
+            )
+
+        logger.info(f"✅ Expired {count} paid banners automatically")
+        return {"success": True, "count": count}
+
+    except Exception as e:
+        logger.error(f"❌ Error in expire_paid_banners_task: {str(e)}")
+        return {"success": False, "error": str(e)}
+
+
 # =======================
 # Task Registration
 # =======================
@@ -432,6 +471,12 @@ def register_scheduled_tasks():
             "schedule_type": Schedule.HOURLY,
             "repeats": -1,
             "minutes": 360,  # Every 6 hours
+        },
+        {
+            "func": "main.scheduled_tasks.expire_paid_banners_task",
+            "name": "Expire Paid Banners Hourly",
+            "schedule_type": Schedule.HOURLY,
+            "repeats": -1,
         },
         {
             "func": "main.scheduled_tasks.send_daily_admin_report_task",

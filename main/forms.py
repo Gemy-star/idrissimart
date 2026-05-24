@@ -258,10 +258,12 @@ class ClassifiedAdForm(forms.ModelForm):
                 ]
 
         # Initialize mobile number from user's profile (mobile first, then phone)
+        # Strip leading zeros and country codes so the displayed value is always clean
         if self.user:
+            from main.utils import strip_phone_to_local
             phone_value = self.user.mobile or self.user.phone
             if phone_value:
-                self.fields["mobile_number"].initial = phone_value
+                self.fields["mobile_number"].initial = strip_phone_to_local(phone_value) or phone_value
 
         category = None
         if "category" in self.data:
