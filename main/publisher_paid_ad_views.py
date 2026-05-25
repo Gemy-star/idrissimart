@@ -129,6 +129,20 @@ def publisher_paid_ad_create(request):
 
     categories = Category.objects.filter(parent__isnull=True, is_active=True).order_by("name")
     all_countries = Country.objects.filter(is_active=True).order_by("order", "name")
+    all_site_pages = PaidBanner.get_all_site_pages()
+
+    _STATIC_KEYS = {"home","categories","category_page","ad_detail","search","about","contact","faq","privacy","terms"}
+    _BLOG_STATIC_KEYS = {"blog_list","blog_detail"}
+    _SHOP_KEYS = {"cart","checkout","wishlist"}
+    _USER_KEYS = {"profile","dashboard","chat"}
+    site_page_groups = [
+        {"icon": "fas fa-home",          "label": str(_("الصفحات الرئيسية")), "pages": [(k, l) for k, l in all_site_pages if k in _STATIC_KEYS]},
+        {"icon": "fas fa-blog",          "label": str(_("المدونة")),           "pages": [(k, l) for k, l in all_site_pages if k in _BLOG_STATIC_KEYS or k.startswith("blog_category_")]},
+        {"icon": "fas fa-shopping-cart", "label": str(_("المتجر والدفع")),     "pages": [(k, l) for k, l in all_site_pages if k in _SHOP_KEYS]},
+        {"icon": "fas fa-user",          "label": str(_("منطقة المستخدم")),    "pages": [(k, l) for k, l in all_site_pages if k in _USER_KEYS]},
+        {"icon": "fas fa-file-alt",      "label": str(_("صفحات مخصصة")),       "pages": [(k, l) for k, l in all_site_pages if k.startswith("custom_page_")]},
+    ]
+    site_page_groups = [g for g in site_page_groups if g["pages"]]
 
     # Per-day rates per ad_type (GENERAL placement as display base)
     pricing = {}
@@ -168,13 +182,16 @@ def publisher_paid_ad_create(request):
         # Multi-country: first id is primary, rest are extra
         country_ids = request.POST.getlist("country_ids")
         category_id = request.POST.get("category_id") or None
-        start_date_str = request.POST.get("start_date", "")
-        end_date_str = request.POST.get("end_date", "")
+        try:
+            duration_days = max(1, int(request.POST.get("duration_days", 1)))
+        except (ValueError, TypeError):
+            duration_days = 1
         company_name = request.POST.get("company_name", "").strip()
         contact_email = request.POST.get("contact_email", request.user.email).strip()
         contact_phone = request.POST.get("contact_phone", "").strip()
         image        = request.FILES.get("image")
         mobile_image = request.FILES.get("mobile_image")
+        target_pages = request.POST.getlist("target_pages")
 
         errors = []
         if not title:
@@ -183,8 +200,8 @@ def publisher_paid_ad_create(request):
             errors.append(_("رابط الإعلان مطلوب."))
         if not image:
             errors.append(_("صورة الإعلان مطلوبة."))
-        if not start_date_str or not end_date_str:
-            errors.append(_("تاريخ البدء وتاريخ الانتهاء مطلوبان."))
+        if duration_days < 1:
+            errors.append(_("مدة الإعلان يجب أن تكون يوماً واحداً على الأقل."))
         if not country_ids:
             errors.append(_("يجب اختيار دولة واحدة على الأقل."))
 
@@ -220,55 +237,33 @@ def publisher_paid_ad_create(request):
         if placement_type == PaidBanner.PlacementType.CATEGORY and not category:
             errors.append(_("يجب تحديد القسم عند اختيار موضع 'قسم محدد'."))
 
-        start_date = end_date = None
-        if start_date_str and end_date_str:
-            try:
-                from datetime import datetime, time
-                from django.utils.dateparse import parse_date, parse_datetime
-
-                def _parse(s):
-                    dt = parse_datetime(s)
-                    if dt:
-                        return dt
-                    d = parse_date(s)
-                    if d:
-                        return timezone.make_aware(
-                            datetime.combine(d, time.min),
-                            timezone.get_current_timezone(),
-                        )
-                    return None
-
-                start_date = _parse(start_date_str)
-                end_date = _parse(end_date_str)
-                if not start_date or not end_date:
-                    errors.append(_("تنسيق التاريخ غير صحيح."))
-                elif end_date <= start_date:
-                    errors.append(_("يجب أن يكون تاريخ الانتهاء بعد تاريخ البدء."))
-            except Exception:
-                errors.append(_("تنسيق التاريخ غير صحيح."))
-
         if errors:
             for e in errors:
                 messages.error(request, e)
+            from main.utils import strip_phone_to_local as _strip
+            _mob_local = _strip(request.user.mobile) if request.user.mobile else _strip(request.user.phone)
             return render(request, "dashboard/publisher_paid_ad_create.html", {
                 "active_nav": "publisher_paid_ads",
                 "categories": categories,
                 "all_countries": all_countries,
+                "all_site_pages": all_site_pages,
+                "site_page_groups": site_page_groups,
+                "selected_target_pages": request.POST.getlist("target_pages"),
                 "pricing": pricing,
                 "extra_country_fee_per_day": extra_country_fee_per_day,
                 "ad_types": PaidBanner.AdType.choices,
                 "placement_types": PaidBanner.PlacementType.choices,
                 "current_country": current_country_code,
                 "post_data": request.POST,
+                "user_mobile_local": _mob_local,
                 "mobile_verification_enabled": mobile_verification_enabled,
                 "phone_verification_needed": phone_verification_needed,
                 "email_verification_enabled": email_verification_enabled,
                 "email_verification_needed": email_verification_needed,
             })
 
-        # Total price: base per-day rate + extra_country_fee per extra country, × days
+        # Total price: base per-day rate + extra_country_fee per extra country, × chosen days
         per_day_rate = BannerPricing.get_price(ad_type, placement_type)
-        duration_days = max(1, (end_date - start_date).days) if start_date and end_date else 1
         extra_per_day = Decimal(str(extra_country_fee_per_day)) * len(extra_country_objs)
         price = (per_day_rate + extra_per_day) * duration_days
         currency = getattr(primary_country, "currency", None) or "EGP"
@@ -289,12 +284,14 @@ def publisher_paid_ad_create(request):
             placement_type=placement_type,
             country=primary_country,
             category=category,
-            start_date=start_date,
-            end_date=end_date,
+            duration_days=duration_days,
+            start_date=None,
+            end_date=None,
             status=PaidBanner.Status.DRAFT,
             payment_status="unpaid",
             price=price,
             currency=currency,
+            target_pages=target_pages,
         )
         if extra_country_objs:
             paid_ad.extra_countries.set(extra_country_objs)
@@ -304,16 +301,22 @@ def publisher_paid_ad_create(request):
         messages.info(request, _("يرجى إتمام عملية الدفع لإرسال الإعلان للمراجعة."))
         return redirect("main:publisher_paid_ad_payment")
 
+    from main.utils import strip_phone_to_local
+    user_mobile_local = strip_phone_to_local(request.user.mobile) if request.user.mobile else strip_phone_to_local(request.user.phone)
     context = {
         "active_nav": "publisher_paid_ads",
         "categories": categories,
         "all_countries": all_countries,
+        "all_site_pages": all_site_pages,
+        "site_page_groups": site_page_groups,
+        "selected_target_pages": [],
         "pricing": pricing,
         "extra_country_fee_per_day": extra_country_fee_per_day,
         "ad_types": PaidBanner.AdType.choices,
         "placement_types": PaidBanner.PlacementType.choices,
         "current_country": current_country_code,
         "post_data": {},
+        "user_mobile_local": user_mobile_local,
         "mobile_verification_enabled": mobile_verification_enabled,
         "phone_verification_needed": phone_verification_needed,
         "email_verification_enabled": email_verification_enabled,

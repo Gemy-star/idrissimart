@@ -384,9 +384,20 @@
         color: var(--primary-color);
     }
 
+    .summary-tax {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px dashed var(--border-color, #dee2e6);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.95rem;
+        color: var(--text-muted, #6c757d);
+    }
+
     .summary-total {
-        margin-top: 1.5rem;
-        padding-top: 1.5rem;
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
         border-top: 3px solid var(--primary-color);
         display: flex;
         justify-content: space-between;
@@ -1050,8 +1061,14 @@
                         </div>
                     </div>
 
+                    {% if tax_rate_percentage %}
+                    <div class="summary-tax" id="tax-row" style="display: none;">
+                        <span>{% trans "الضريبة" %} ({{ tax_rate_percentage|floatformat:"0" }}%):</span>
+                        <span id="tax-price">0 {{ selected_currency|currency_symbol }}</span>
+                    </div>
+                    {% endif %}
                     <div class="summary-total" id="total-row" style="display: none;">
-                        <span>{% trans "الإجمالي" %}:</span>
+                        <span>{% trans "الإجمالي شامل الضريبة" %}:</span>
                         <span class="summary-total-price" id="total-price">0 {{ selected_currency|currency_symbol }}</span>
                     </div>
 
@@ -1079,7 +1096,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const summaryItems = document.getElementById('summary-items');
     const totalRow = document.getElementById('total-row');
     const totalPrice = document.getElementById('total-price');
+    const taxRow = document.getElementById('tax-row');
+    const taxPrice = document.getElementById('tax-price');
     const checkoutBtn = document.getElementById('checkout-btn');
+    const TAX_RATE = {{ tax_rate|default:"0" }};
 
     let selectedItems = {};
 
@@ -1227,6 +1247,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `;
             totalRow.style.display = 'none';
+            if (taxRow) taxRow.style.display = 'none';
             checkoutBtn.disabled = true;
             return;
         }
@@ -1242,7 +1263,14 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         }
 
-        totalPrice.textContent = `${total.toFixed(2)} {{ selected_currency|currency_symbol }}`;
+        const taxAmount = total * TAX_RATE;
+        const grandTotal = total + taxAmount;
+
+        if (taxRow && TAX_RATE > 0) {
+            taxPrice.textContent = `${taxAmount.toFixed(2)} {{ selected_currency|currency_symbol }}`;
+            taxRow.style.display = 'flex';
+        }
+        totalPrice.textContent = `${grandTotal.toFixed(2)} {{ selected_currency|currency_symbol }}`;
         totalRow.style.display = 'flex';
         checkoutBtn.disabled = false;
     }

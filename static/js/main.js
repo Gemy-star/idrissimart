@@ -35,7 +35,6 @@
     initCategoriesSwiper()
     if (gsapReady) initAnimations()
     initPageLoad()
-    initPreloader()
 
     console.log('%c✅ All systems ready!', 'color:#4B315E;font-weight:bold;')
   }
@@ -584,40 +583,6 @@
     )
 
     console.log('✓ Yojad header initialized')
-  }
-
-  // ===========================
-  // PRELOADER
-  // ===========================
-  function initPreloader() {
-    const preloader = document.getElementById('preloader');
-    if (!preloader) return;
-
-    // Add loading class to body to hide content
-    document.body.classList.add('loading');
-
-    const startTime = Date.now();
-
-    const hidePreloader = () => {
-      const elapsedTime = Date.now() - startTime;
-      // Ensure the loader is visible for at least 800ms
-      const remainingTime = Math.max(0, 800 - elapsedTime);
-
-      setTimeout(() => {
-        preloader.classList.add('loader-hidden');
-        // Remove loading class to show content
-        document.body.classList.remove('loading');
-      }, remainingTime);
-    };
-
-    // Check if page is already loaded
-    if (document.readyState === 'complete') {
-      hidePreloader();
-    } else {
-      window.addEventListener('load', hidePreloader);
-    }
-
-    console.log('✓ Preloader initialized');
   }
 
   // ===========================

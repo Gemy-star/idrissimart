@@ -512,6 +512,11 @@ urlpatterns = [
         name="admin_add_user_ad_balance",
     ),
     path(
+        "admin/users/<int:user_id>/clear-avatar/",
+        views.admin_clear_user_avatar,
+        name="admin_clear_user_avatar",
+    ),
+    path(
         "admin/users/<int:user_id>/toggle-active/",
         views.admin_toggle_user_active,
         name="admin_toggle_user_active",
@@ -659,6 +664,11 @@ urlpatterns = [
         "dashboard/settings/update-profile/",
         views.publisher_update_profile,
         name="publisher_update_profile",
+    ),
+    path(
+        "dashboard/settings/remove-avatar/",
+        views.publisher_remove_avatar,
+        name="publisher_remove_avatar",
     ),
     path(
         "dashboard/settings/send-change-mobile-otp/",

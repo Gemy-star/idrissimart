@@ -1,196 +1,139 @@
 {% load static i18n idrissimart_tags %}
-{# Sidebar Paid Banner Component - Medium Rectangle 300×250 #}
-{# Usage: {% include 'components/paid_ads/sidebar.html' with ad=ad_object or ads=ad_list %} #}
+{# Sidebar Paid Banner – 300x250 fade rotation. No Swiper – no gallery controls. #}
+{# Usage: ads=list rotation_seconds=N  OR  ad=single_object #}
 
-{% if ads %}
-    {% if ads|length > 0 %}
-    <div class="paid-ad-sidebar-swiper mb-3">
-        <div class="swiper sidebar-swiper-{{ ads.0.id }}">
-            <div class="swiper-wrapper">
-                {% for ad in ads %}
-                {% if ad.is_currently_active %}
-                <div class="swiper-slide">
-                    <div class="paid-ad-sidebar" data-ad-id="{{ ad.id }}" data-ad-type="sidebar">
-                        <a href="{{ ad.target_url }}"
-                           {% if ad.open_in_new_tab %}target="_blank" rel="noopener noreferrer"{% endif %}
-                           class="paid-ad-link d-block text-decoration-none"
-                           onclick="trackPaidAdClick('{{ ad.id }}')">
-
-                            <div class="medium-rect-wrap position-relative">
-                                <img src="{{ ad.image.url }}"
-                                     alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
-                                     class="medium-rect-img">
-
-                                {# Sponsored Badge #}
-                                <div class="position-absolute top-0 end-0 m-1">
-                                    <span class="badge bg-dark bg-opacity-75 text-white-50 px-2 py-1" style="font-size:0.65rem;">
-                                        <i class="fas fa-ad me-1"></i>{% trans "إعلان" %}
-                                    </span>
-                                </div>
-
-                                {# CTA overlay at bottom #}
-                                {% if ad.cta_text or ad.cta_text_ar %}
-                                <div class="medium-rect-overlay position-absolute bottom-0 start-0 end-0 p-2">
-                                    {% if ad.company_name %}
-                                    <small class="d-block text-white-50 mb-1" style="font-size:0.7rem;">{{ ad.company_name }}</small>
-                                    {% endif %}
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <span class="text-white fw-bold" style="font-size:0.8rem;">
-                                            {% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}
-                                        </span>
-                                        <span class="btn btn-light btn-sm py-0 px-2" style="font-size:0.75rem;">
-                                            {% if LANGUAGE_CODE == 'ar' and ad.cta_text_ar %}{{ ad.cta_text_ar }}{% else %}{{ ad.cta_text }}{% endif %}
-                                        </span>
-                                    </div>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </a>
+{% if ads and ads|length > 0 %}
+{% with rot_s=rotation_seconds|default:5 %}
+<div class="paid-banner-root mb-3">
+    <div class="br-stack" id="sbrot-{{ ads.0.id }}">
+        {% for ad in ads %}{% if ad.is_currently_active %}
+        <div class="br-slide{% if forloop.first %} br-active{% endif %}" data-ad-id="{{ ad.id }}">
+            <a href="{{ ad.target_url }}"
+               {% if ad.open_in_new_tab %}target="_blank" rel="noopener noreferrer"{% endif %}
+               class="paid-ad-link d-block text-decoration-none"
+               onclick="trackPaidAdClick('{{ ad.id }}')">
+                <div class="medium-rect-wrap position-relative">
+                    <img src="{{ ad.image.url }}"
+                         alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
+                         class="medium-rect-img" loading="lazy">
+                    <div class="position-absolute top-0 end-0 m-1">
+                        <span class="badge bg-dark bg-opacity-75 text-white-50 px-2 py-1" style="font-size:0.65rem;">
+                            <i class="fas fa-bolt fa-xs me-1"></i>{% trans "ممول" %}
+                        </span>
                     </div>
+                    {% if ad.cta_text or ad.cta_text_ar %}
+                    <div class="medium-rect-overlay position-absolute bottom-0 start-0 end-0 p-2">
+                        {% if ad.company_name %}<small class="d-block text-white-50 mb-1" style="font-size:0.7rem;">{{ ad.company_name }}</small>{% endif %}
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-white fw-bold" style="font-size:0.8rem;">{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}</span>
+                            <span class="btn btn-light btn-sm py-0 px-2" style="font-size:0.75rem;">{% if LANGUAGE_CODE == 'ar' and ad.cta_text_ar %}{{ ad.cta_text_ar }}{% else %}{{ ad.cta_text }}{% endif %}</span>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
-                {% endif %}
-                {% endfor %}
-            </div>
-
-            {% if ads|length > 1 %}
-            <div class="swiper-pagination mt-2"></div>
-            {% endif %}
+            </a>
         </div>
+        {% endif %}{% endfor %}
     </div>
-
-    <script>
-        const sidebarSwiper{{ ads.0.id }} = new Swiper('.sidebar-swiper-{{ ads.0.id }}', {
-            slidesPerView: 1,
-            spaceBetween: 0,
-            loop: {% if ads|length > 1 %}true{% else %}false{% endif %},
-            autoplay: {
-                delay: 6000,
-                disableOnInteraction: false,
-            },
-            pagination: {
-                el: '.swiper-pagination',
-                clickable: true,
-            },
-        });
-
-        document.addEventListener('DOMContentLoaded', function() {
-            {% for ad in ads %}
-            {% if ad.is_currently_active %}
-            fetch(`/api/paid-ads/{{ ad.id }}/view/`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'}
-            }).catch(err => console.error('Failed to track ad view:', err));
-            {% endif %}
-            {% endfor %}
-        });
-    </script>
+    {% if ads|length > 1 %}
+    <div class="br-progress-wrap" id="sbprog-{{ ads.0.id }}">
+        <div class="br-progress-bar" style="animation-name:br-fill;animation-duration:{{ rot_s }}s;animation-timing-function:linear;animation-fill-mode:forwards;"></div>
+    </div>
     {% endif %}
+</div>
+<script>
+(function () {
+    function trackPaidAdClick(id) {
+        fetch('/api/paid-ads/' + id + '/click/', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }
+        }).catch(function () {});
+    }
+    window.trackPaidAdClick = window.trackPaidAdClick || trackPaidAdClick;
+    var root = document.getElementById('sbrot-{{ ads.0.id }}');
+    if (!root) return;
+    var slides = root.querySelectorAll('.br-slide');
+    if (!slides.length) return;
+    function trackView(adId) {
+        fetch('/api/paid-ads/' + adId + '/view/', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }
+        }).catch(function () {});
+    }
+    trackView(slides[0].dataset.adId);
+    if (slides.length < 2) return;
+    var ROT_S = {{ rot_s }};
+    var prog = document.querySelector('#sbprog-{{ ads.0.id }} .br-progress-bar');
+    var cur = 0;
+    setInterval(function () {
+        slides[cur].classList.remove('br-active');
+        cur = (cur + 1) % slides.length;
+        slides[cur].classList.add('br-active');
+        trackView(slides[cur].dataset.adId);
+        if (prog) { prog.style.animation = 'none'; void prog.offsetWidth; prog.style.animation = 'br-fill ' + ROT_S + 's linear forwards'; }
+    }, ROT_S * 1000);
+}());
+</script>
+{% endwith %}
+
 {% elif ad and ad.is_currently_active %}
-<div class="paid-ad-sidebar mb-3" data-ad-id="{{ ad.id }}" data-ad-type="sidebar">
+<div class="paid-banner-root mb-3">
     <a href="{{ ad.target_url }}"
        {% if ad.open_in_new_tab %}target="_blank" rel="noopener noreferrer"{% endif %}
        class="paid-ad-link d-block text-decoration-none"
        onclick="trackPaidAdClick('{{ ad.id }}')">
-
         <div class="medium-rect-wrap position-relative">
             <img src="{{ ad.image.url }}"
                  alt="{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}"
                  class="medium-rect-img">
-
-            {# Sponsored Badge #}
             <div class="position-absolute top-0 end-0 m-1">
                 <span class="badge bg-dark bg-opacity-75 text-white-50 px-2 py-1" style="font-size:0.65rem;">
-                    <i class="fas fa-ad me-1"></i>{% trans "إعلان" %}
+                    <i class="fas fa-bolt fa-xs me-1"></i>{% trans "ممول" %}
                 </span>
             </div>
-
-            {# CTA overlay at bottom #}
             {% if ad.cta_text or ad.cta_text_ar %}
             <div class="medium-rect-overlay position-absolute bottom-0 start-0 end-0 p-2">
-                {% if ad.company_name %}
-                <small class="d-block text-white-50 mb-1" style="font-size:0.7rem;">{{ ad.company_name }}</small>
-                {% endif %}
+                {% if ad.company_name %}<small class="d-block text-white-50 mb-1" style="font-size:0.7rem;">{{ ad.company_name }}</small>{% endif %}
                 <div class="d-flex justify-content-between align-items-center">
-                    <span class="text-white fw-bold" style="font-size:0.8rem;">
-                        {% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}
-                    </span>
-                    <span class="btn btn-light btn-sm py-0 px-2" style="font-size:0.75rem;">
-                        {% if LANGUAGE_CODE == 'ar' and ad.cta_text_ar %}{{ ad.cta_text_ar }}{% else %}{{ ad.cta_text }}{% endif %}
-                    </span>
+                    <span class="text-white fw-bold" style="font-size:0.8rem;">{% if LANGUAGE_CODE == 'ar' and ad.title_ar %}{{ ad.title_ar }}{% else %}{{ ad.title }}{% endif %}</span>
+                    <span class="btn btn-light btn-sm py-0 px-2" style="font-size:0.75rem;">{% if LANGUAGE_CODE == 'ar' and ad.cta_text_ar %}{{ ad.cta_text_ar }}{% else %}{{ ad.cta_text }}{% endif %}</span>
                 </div>
             </div>
             {% endif %}
         </div>
     </a>
 </div>
-
 <script>
 function trackPaidAdClick(adId) {
-    fetch(`/api/paid-ads/${adId}/click/`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'}
-    }).catch(err => console.error('Failed to track ad click:', err));
+    fetch('/api/paid-ads/' + adId + '/click/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }
+    }).catch(function () {});
 }
-
-document.addEventListener('DOMContentLoaded', function() {
-    const adElement = document.querySelector('[data-ad-id="{{ ad.id }}"]');
-    if (adElement) {
-        fetch(`/api/paid-ads/{{ ad.id }}/view/`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'}
-        }).catch(err => console.error('Failed to track ad view:', err));
-    }
+document.addEventListener('DOMContentLoaded', function () {
+    fetch('/api/paid-ads/{{ ad.id }}/view/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }
+    }).catch(function () {});
 });
 </script>
+
 {% else %}
-{# AdSense fallback: shown when no paid sidebar banner is available #}
 {% if adsense_slots %}
     {% with adsense_slot=adsense_slots|get_item:"home_sidebar" %}
-        {% if adsense_slot and adsense_slot.is_active %}
-            {% include 'components/paid_ads/adsense.html' with slot=adsense_slot %}
-        {% else %}
-            {% with adsense_slot=adsense_slots|get_item:"category_sidebar" %}
-                {% if adsense_slot and adsense_slot.is_active %}
-                    {% include 'components/paid_ads/adsense.html' with slot=adsense_slot %}
-                {% endif %}
-            {% endwith %}
-        {% endif %}
+        {% if adsense_slot and adsense_slot.is_active %}{% include 'components/paid_ads/adsense.html' with slot=adsense_slot %}
+        {% else %}{% with adsense_slot=adsense_slots|get_item:"category_sidebar" %}{% if adsense_slot and adsense_slot.is_active %}{% include 'components/paid_ads/adsense.html' with slot=adsense_slot %}{% endif %}{% endwith %}{% endif %}
     {% endwith %}
 {% endif %}
 {% endif %}
 
 <style>
-/* Medium Rectangle 300×250 */
-.medium-rect-wrap {
-    width: 300px;
-    height: 250px;
-    margin: 0 auto;
-    overflow: hidden;
-    border-radius: 6px;
-    background: #f0f0f0;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-}
-.medium-rect-img {
-    width: 300px;
-    height: 250px;
-    object-fit: cover;
-    display: block;
-    transition: transform 0.3s ease;
-}
-.medium-rect-overlay {
-    background: linear-gradient(to top, rgba(0,0,0,0.75), transparent);
-    border-radius: 0 0 6px 6px;
-}
-
-.paid-ad-sidebar:hover .medium-rect-img {
-    transform: scale(1.04);
-}
-.paid-ad-sidebar:hover .medium-rect-wrap {
-    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-}
-
-[data-theme='dark'] .medium-rect-wrap {
-    background: #2a2a3e;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-}
+.medium-rect-wrap { width:300px; height:250px; margin:0 auto; overflow:hidden; border-radius:6px; background:#f0f0f0; box-shadow:0 2px 8px rgba(0,0,0,.12); }
+.medium-rect-img { width:300px; height:250px; object-fit:cover; display:block; transition:transform .3s ease; }
+.medium-rect-overlay { background:linear-gradient(to top,rgba(0,0,0,.75),transparent); border-radius:0 0 6px 6px; }
+.paid-banner-root:hover .medium-rect-img { transform:scale(1.04); }
+.paid-banner-root:hover .medium-rect-wrap { box-shadow:0 6px 20px rgba(0,0,0,.2); }
+[data-theme='dark'] .medium-rect-wrap { background:#2a2a3e; box-shadow:0 2px 8px rgba(0,0,0,.4); }
+.br-stack { display:grid; }
+.br-slide { grid-row:1; grid-column:1; opacity:0; transition:opacity .6s ease; pointer-events:none; will-change:opacity; }
+.br-slide.br-active { opacity:1; pointer-events:auto; }
+.br-progress-wrap { height:3px; background:rgba(0,0,0,.08); border-radius:0 0 4px 4px; overflow:hidden; width:300px; margin:0 auto; }
+.br-progress-bar { height:100%; background:var(--bs-primary,#0d6efd); width:0%; }
+@keyframes br-fill { from{width:0%} to{width:100%} }
 </style>

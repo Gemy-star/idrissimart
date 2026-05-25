@@ -2785,6 +2785,47 @@ def _get_category_feature_price(category, feature_type, config_key, config_defau
     return Decimal(str(getattr(cfg, config_key, config_default)))
 
 
+def _get_package_feature_price(user, feature_field):
+    """
+    Single authoritative source for ad upgrade feature prices (used by the
+    upgrade page only).  Priority:
+    1. User’s active paid UserPackage  → that package’s feature price.
+    2. Single-ad package (ad_count=1)  → canonical admin-set price.
+    3. Decimal("0.00") fallback.
+    """
+    from .models import UserPackage, AdPackage
+    from django.utils import timezone
+
+    active_pkg = (
+        UserPackage.objects.filter(
+            user=user,
+            expiry_date__gte=timezone.now(),
+            ads_remaining__gt=0,
+            package__isnull=False,
+            package__price__gt=0,
+        )
+        .select_related("package")
+        .order_by("expiry_date")
+        .first()
+    )
+    if active_pkg:
+        price = getattr(active_pkg.package, feature_field, None)
+        if price is not None:
+            return Decimal(str(price))
+
+    single_ad_pkg = (
+        AdPackage.objects.filter(is_active=True, ad_count=1)
+        .order_by("price")
+        .first()
+    )
+    if single_ad_pkg:
+        price = getattr(single_ad_pkg, feature_field, None)
+        if price is not None:
+            return Decimal(str(price))
+
+    return Decimal("0.00")
+
+
 class AdUnifiedUpgradeView(LoginRequiredMixin, DetailView):
     """
     Unified upgrade page combining all upgrades and features in one place
@@ -2806,7 +2847,20 @@ class AdUnifiedUpgradeView(LoginRequiredMixin, DetailView):
         ad = self.object
         category = ad.category
 
-        # Duration-based constance defaults (used for ratio scaling)
+        # ── Prices from subcategory (AdFeaturePrice) — set per-category in admin ──
+        # Fallback chain: category price → parent category price → constance global
+        def scale(base, ratio_num, ratio_den):
+            """Scale base price proportionally: base * ratio_num / ratio_den."""
+            if ratio_den > 0:
+                return (base * Decimal(str(ratio_num)) / Decimal(str(ratio_den))).quantize(Decimal("0.01"))
+            return base
+
+        # 7-day base prices from category AdFeaturePrice (with constance fallback)
+        h7 = _get_category_feature_price(category, "featured_section", "FEATURED_AD_PRICE_7DAYS", 50.00)
+        p7 = _get_category_feature_price(category, "pinned", "PINNED_AD_PRICE_7DAYS", 75.00)
+        u7 = _get_category_feature_price(category, "urgent", "URGENT_AD_PRICE_7DAYS", 30.00)
+
+        # Duration scaling ratios from constance (14/30-day relative to 7-day base)
         cfg_h7 = Decimal(str(getattr(config, "FEATURED_AD_PRICE_7DAYS", 50.00)))
         cfg_h14 = Decimal(str(getattr(config, "FEATURED_AD_PRICE_14DAYS", 80.00)))
         cfg_h30 = Decimal(str(getattr(config, "FEATURED_AD_PRICE_30DAYS", 100.00)))
@@ -2817,56 +2871,38 @@ class AdUnifiedUpgradeView(LoginRequiredMixin, DetailView):
         cfg_u14 = Decimal(str(getattr(config, "URGENT_AD_PRICE_14DAYS", 48.00)))
         cfg_u30 = Decimal(str(getattr(config, "URGENT_AD_PRICE_30DAYS", 60.00)))
 
-        def scale(base, cfg_base, cfg_target):
-            """Scale a category base price using the constance ratio for a longer duration."""
-            if cfg_base > 0:
-                return (base * cfg_target / cfg_base).quantize(Decimal("0.01"))
-            return cfg_target
-
-        # Highlighted / Featured — uses AdFeaturePrice "featured_section" if set
-        h7 = _get_category_feature_price(
-            category, "featured_section", "FEATURED_AD_PRICE_7DAYS", 50.00
-        )
         context["highlighted_price"] = h7
-        context["highlighted_price_14"] = scale(h7, cfg_h7, cfg_h14)
-        context["highlighted_price_30"] = scale(h7, cfg_h7, cfg_h30)
+        context["highlighted_price_14"] = scale(h7, cfg_h14, cfg_h7)
+        context["highlighted_price_30"] = scale(h7, cfg_h30, cfg_h7)
 
-        # Pinned — uses AdFeaturePrice "pinned" if set
-        p7 = _get_category_feature_price(
-            category, "pinned", "PINNED_AD_PRICE_7DAYS", 75.00
-        )
         context["pinned_price"] = p7
-        context["pinned_price_14"] = scale(p7, cfg_p7, cfg_p14)
-        context["pinned_price_30"] = scale(p7, cfg_p7, cfg_p30)
+        context["pinned_price_14"] = scale(p7, cfg_p14, cfg_p7)
+        context["pinned_price_30"] = scale(p7, cfg_p30, cfg_p7)
 
-        # Urgent — now in AdFeaturePrice; falls back to constance
-        u7 = _get_category_feature_price(
-            category, "urgent", "FEATURE_URGENT_PRICE", 30.00
-        )
         context["urgent_price"] = u7
-        context["urgent_price_14"] = scale(u7, cfg_u7, cfg_u14)
-        context["urgent_price_30"] = scale(u7, cfg_u7, cfg_u30)
+        context["urgent_price_14"] = scale(u7, cfg_u14, cfg_u7)
+        context["urgent_price_30"] = scale(u7, cfg_u30, cfg_u7)
 
-        # Auto-refresh — now in AdFeaturePrice; falls back to constance
-        context["auto_refresh_price"] = _get_category_feature_price(
-            category, "auto_refresh", "FEATURE_AUTO_REFRESH_PRICE", 35.00
-        )
+        ar_price = _get_category_feature_price(category, "auto_refresh", "FEATURE_AUTO_REFRESH_PRICE", 35.00)
+        context["auto_refresh_price"] = ar_price
 
-        # One-time features — use AdFeaturePrice per category where available
         context["feature_prices"] = {
             "contact_for_price": _get_category_feature_price(
                 category, "contact_for_price", "FEATURE_CONTACT_FOR_PRICE", 0.00
             ),
             "facebook_share": _get_category_feature_price(
-                category, "facebook_share", "FACEBOOK_SHARE_AD_PRICE", 100.00
+                category, "facebook_share", "FACEBOOK_SHARE_AD_PRICE", 35.00
             ),
             "video": _get_category_feature_price(
                 category, "video", "FEATURE_ADD_VIDEO_PRICE", 25.00
             ),
-            "auto_refresh": _get_category_feature_price(
-                category, "auto_refresh", "FEATURE_AUTO_REFRESH_PRICE", 35.00
-            ),
+            "auto_refresh": ar_price,
         }
+
+        # Tax rate — shown on page so user knows the total before payment
+        tax_rate_percentage = getattr(config, "TAX_RATE", 15.0)
+        context["tax_rate_percentage"] = tax_rate_percentage
+        context["tax_rate"] = Decimal(str(tax_rate_percentage)) / Decimal("100")
 
         context["site_config"] = SiteConfiguration.get_solo()
         context["selected_currency"] = (
@@ -2907,7 +2943,7 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
 
         category = ad.category
 
-        # ── Duration-scaled pricing helpers ──────────────────────────────────
+        # ── Duration-scaled pricing from subcategory (AdFeaturePrice) ──────────
         cfg_h7 = Decimal(str(getattr(config, "FEATURED_AD_PRICE_7DAYS", 50.00)))
         cfg_h14 = Decimal(str(getattr(config, "FEATURED_AD_PRICE_14DAYS", 80.00)))
         cfg_h30 = Decimal(str(getattr(config, "FEATURED_AD_PRICE_30DAYS", 100.00)))
@@ -2918,26 +2954,22 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
         cfg_u14 = Decimal(str(getattr(config, "URGENT_AD_PRICE_14DAYS", 48.00)))
         cfg_u30 = Decimal(str(getattr(config, "URGENT_AD_PRICE_30DAYS", 60.00)))
 
-        def _scale(base, cfg_base, cfg_target):
-            if cfg_base > 0:
-                return (base * cfg_target / cfg_base).quantize(Decimal("0.01"))
-            return cfg_target
+        def _scale(base, ratio_num, ratio_den):
+            if ratio_den > 0:
+                return (base * Decimal(str(ratio_num)) / Decimal(str(ratio_den))).quantize(Decimal("0.01"))
+            return base
 
-        h7 = _get_category_feature_price(
-            category, "featured_section", "FEATURED_AD_PRICE_7DAYS", 50.00
-        )
-        p7 = _get_category_feature_price(
-            category, "pinned", "PINNED_AD_PRICE_7DAYS", 75.00
-        )
+        h7 = _get_category_feature_price(category, "featured_section", "FEATURED_AD_PRICE_7DAYS", 50.00)
+        p7 = _get_category_feature_price(category, "pinned", "PINNED_AD_PRICE_7DAYS", 75.00)
 
         # Process upgrades
         if upgrade_highlighted and highlighted_duration > 0:
             if highlighted_duration == 7:
                 price = h7
             elif highlighted_duration == 14:
-                price = _scale(h7, cfg_h7, cfg_h14)
+                price = _scale(h7, cfg_h14, cfg_h7)
             else:
-                price = _scale(h7, cfg_h7, cfg_h30)
+                price = _scale(h7, cfg_h30, cfg_h7)
 
             total_amount += price
             upgrades.append(
@@ -2953,9 +2985,9 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
             if pinned_duration == 7:
                 price = p7
             elif pinned_duration == 14:
-                price = _scale(p7, cfg_p7, cfg_p14)
+                price = _scale(p7, cfg_p14, cfg_p7)
             else:
-                price = _scale(p7, cfg_p7, cfg_p30)
+                price = _scale(p7, cfg_p30, cfg_p7)
 
             total_amount += price
             upgrades.append(
@@ -2968,15 +3000,13 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
             )
 
         if upgrade_urgent and urgent_duration > 0:
-            u7 = _get_category_feature_price(
-                category, "urgent", "FEATURE_URGENT_PRICE", 30.00
-            )
+            u7 = _get_category_feature_price(category, "urgent", "URGENT_AD_PRICE_7DAYS", 30.00)
             if urgent_duration == 7:
                 price = u7
             elif urgent_duration == 14:
-                price = _scale(u7, cfg_u7, cfg_u14)
+                price = _scale(u7, cfg_u14, cfg_u7)
             else:
-                price = _scale(u7, cfg_u7, cfg_u30)
+                price = _scale(u7, cfg_u30, cfg_u7)
 
             total_amount += price
             upgrades.append(
@@ -2988,18 +3018,18 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
                 }
             )
 
-        # ── One-time feature prices (category-aware) ─────────────────────────
+        # ── One-time feature prices from subcategory (AdFeaturePrice) ──────────
         contact_price = _get_category_feature_price(
             category, "contact_for_price", "FEATURE_CONTACT_FOR_PRICE", 0.00
         )
         facebook_price = _get_category_feature_price(
-            category, "facebook_share", "FACEBOOK_SHARE_AD_PRICE", 100.00
+            category, "facebook_share", "FACEBOOK_SHARE_AD_PRICE", 35.00
         )
         video_price = _get_category_feature_price(
             category, "video", "FEATURE_ADD_VIDEO_PRICE", 25.00
         )
-        auto_refresh_price = Decimal(
-            str(getattr(config, "FEATURE_AUTO_REFRESH_PRICE", 35.00))
+        auto_refresh_price = _get_category_feature_price(
+            category, "auto_refresh", "FEATURE_AUTO_REFRESH_PRICE", 35.00
         )
 
         # Process features

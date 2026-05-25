@@ -78,12 +78,10 @@ class BlogListView(ListView):
             category = get_object_or_404(BlogCategory, slug=category_slug)
             queryset = queryset.filter(category=category)
 
-        # Search by keyword
+        # Search by title only
         q = self.request.GET.get("q", "").strip()
         if q:
-            queryset = queryset.filter(
-                models.Q(title__icontains=q) | models.Q(content__icontains=q)
-            )
+            queryset = queryset.filter(models.Q(title__icontains=q))
 
         return queryset
 

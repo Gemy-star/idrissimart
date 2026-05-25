@@ -639,34 +639,69 @@
     }
 
     /* Fix Django RadioSelect server-rendered structure (edit mode / form errors).
-       Django renders RadioSelect as: <div id="…"><div><label><input> text</label></div>…</div>
-       The inner <div> wrappers have no Bootstrap classes, so we style them here. */
+       JS runs bootstrapifyRadioSelect() to add .form-check classes.
+       These rules are the CSS fallback / extra polish for the resulting structure. */
+
+    /* Outer wrapper: contain content within the column */
     #custom-fields-container .col-md-6 > div[id] {
         display: block;
+        width: 100%;
+        overflow: hidden;
     }
+
+    /* Each radio/checkbox row */
+    #custom-fields-container .col-md-6 > div[id] > .form-check {
+        padding-inline-start: 1.5rem;
+        margin-bottom: 0.375rem;
+        min-height: 1.5rem;
+        overflow: hidden;
+    }
+
+    /* Fallback for divs that haven't been class-upgraded yet */
     #custom-fields-container .col-md-6 > div[id] > div {
         display: block;
         margin-bottom: 0.375rem;
         min-height: 1.5rem;
+        overflow: hidden;
     }
     #custom-fields-container .col-md-6 > div[id] > div label {
         display: flex;
-        align-items: center;
-        gap: 0.5rem;
+        align-items: flex-start;
+        gap: 0.4rem;
         cursor: pointer;
         font-weight: 400;
         margin-bottom: 0;
         line-height: 1.5;
+        max-width: 100%;
+        overflow-wrap: break-word;
+        word-break: break-word;
     }
     #custom-fields-container .col-md-6 > div[id] > div label input[type="radio"],
     #custom-fields-container .col-md-6 > div[id] > div label input[type="checkbox"] {
         flex-shrink: 0;
+        margin-top: 0.2rem;
         width: 1rem;
         height: 1rem;
         cursor: pointer;
         accent-color: var(--primary-color, #6b4c7a);
     }
-    /* When a radio option is marked invalid by JS, colour its parent label red */
+
+    /* Proper Bootstrap form-check label after JS upgrade */
+    #custom-fields-container .form-check-label {
+        cursor: pointer;
+        font-weight: 400;
+        line-height: 1.5;
+        overflow-wrap: break-word;
+        word-break: break-word;
+        max-width: calc(100% - 1.5rem);
+    }
+    #custom-fields-container .form-check-input {
+        accent-color: var(--primary-color, #6b4c7a);
+        cursor: pointer;
+    }
+
+    /* When a radio option is marked invalid by JS, colour its label red */
+    #custom-fields-container .form-check:has(input.is-invalid) .form-check-label,
     #custom-fields-container .col-md-6 > div[id] > div label:has(input.is-invalid) {
         color: #dc3545;
     }
@@ -1514,7 +1549,7 @@
                                                                         <li>{% trans "زيادة المشاهدات بنسبة 300%" %}</li>
                                                                     </ul>
                                                                 </div>
-                                                                <span class="badge bg-warning text-dark feature-price">{{ feature_prices.highlighted|floatformat:False|default:'50' }} ج.م</span>
+                                                                <span class="badge bg-warning text-dark feature-price">{{ feature_prices.highlighted|floatformat:False|default:'50' }} {{ selected_currency|currency_symbol }}</span>
                                                             </div>
                                                         </label>
                                                     </div>
@@ -1543,7 +1578,7 @@
                                                                         <li>{% trans "زيادة المشاهدات بنسبة 500%" %}</li>
                                                                     </ul>
                                                                 </div>
-                                                                <span class="badge bg-success feature-price">{{ feature_prices.pinned|floatformat:False|default:'100' }} ج.م</span>
+                                                                <span class="badge bg-success feature-price">{{ feature_prices.pinned|floatformat:False|default:'100' }} {{ selected_currency|currency_symbol }}</span>
                                                             </div>
                                                         </label>
                                                     </div>
@@ -1573,7 +1608,36 @@
                                                                         <li>{% trans "مشاهدات متجددة يومياً" %}</li>
                                                                     </ul>
                                                                 </div>
-                                                                <span class="badge bg-info feature-price">{{ feature_prices.auto_refresh|floatformat:False|default:'35' }} ج.م</span>
+                                                                <span class="badge bg-info feature-price">{{ feature_prices.auto_refresh|floatformat:False|default:'35' }} {{ selected_currency|currency_symbol }}</span>
+                                                            </div>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Facebook Share -->
+                                        <div class="col-md-6">
+                                            <div class="card h-100 feature-card" data-feature="facebook_share" data-price="{{ feature_prices.facebook_share|floatformat:False|default:'35' }}">
+                                                <div class="card-body">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input feature-checkbox" type="checkbox"
+                                                               id="feature_facebook_share" name="feature_facebook_share">
+                                                        <label class="form-check-label w-100" for="feature_facebook_share">
+                                                            <div class="d-flex justify-content-between align-items-start">
+                                                                <div>
+                                                                    <h5 class="mb-1">
+                                                                        <i class="fab fa-facebook text-primary me-1"></i>
+                                                                        {% trans "نشر على فيسبوك" %}
+                                                                    </h5>
+                                                                    <p class="small text-muted mb-2">{% trans "انشر إعلانك على صفحتنا الرسمية على فيسبوك" %}</p>
+                                                                    <ul class="small mb-0">
+                                                                        <li>{% trans "وصول لآلاف المتابعين" %}</li>
+                                                                        <li>{% trans "زيادة فرص البيع" %}</li>
+                                                                        <li>{% trans "نشر فوري بعد الدفع" %}</li>
+                                                                    </ul>
+                                                                </div>
+                                                                <span class="badge feature-price" style="background-color:#1877f2;">{{ feature_prices.facebook_share|floatformat:False|default:'35' }} {{ selected_currency|currency_symbol }}</span>
                                                             </div>
                                                         </label>
                                                     </div>
@@ -1602,7 +1666,7 @@
                                                                         <li>{% trans "عرض توضيحي كامل" %}</li>
                                                                     </ul>
                                                                 </div>
-                                                                <span class="badge bg-purple feature-price" style="background-color: #6f42c1 !important;">{{ feature_prices.add_video|floatformat:False|default:'25' }} ج.م</span>
+                                                                <span class="badge bg-purple feature-price" style="background-color: #6f42c1 !important;">{{ feature_prices.add_video|floatformat:False|default:'25' }} {{ selected_currency|currency_symbol }}</span>
                                                             </div>
                                                         </label>
                                                     </div>
@@ -1730,11 +1794,11 @@
                                         <div class="card-body">
                                             <div class="d-flex justify-content-between mb-2">
                                                 <span>{% trans "رسوم النشر الأساسية:" %}</span>
-                                                <span id="final-base-fee">0 ج.م</span>
+                                                <span id="final-base-fee">0 {{ selected_currency|currency_symbol }}</span>
                                             </div>
                                             <div class="justify-content-between mb-2" id="final-features-row" style="display: none;">
                                                 <span>{% trans "الميزات الإضافية:" %}</span>
-                                                <span id="final-features-cost">0 ج.م</span>
+                                                <span id="final-features-cost">0 {{ selected_currency|currency_symbol }}</span>
                                             </div>
                                             <div class="justify-content-between mb-2 align-items-center" id="free-ads-discount-row" style="display: none;">
                                                 <span class="text-success">
@@ -1748,7 +1812,7 @@
                                             <hr>
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <strong class="fs-5">{% trans "المجموع الكلي:" %}</strong>
-                                                <strong id="final-total-cost" class="text-success fs-3">0 ج.م</strong>
+                                                <strong id="final-total-cost" class="text-success fs-3">0 {{ selected_currency|currency_symbol }}</strong>
                                             </div>
                                             {% if has_free_ads %}
                                             <div class="alert alert-info mt-3 mb-0" id="free-ad-message" style="display: none;">
@@ -2291,14 +2355,14 @@
                         const finalBaseFeeEl = document.getElementById('final-base-fee');
                         if (finalBaseFeeEl) {
                             if (freeAdsCount > 0) {
-                                finalBaseFeeEl.innerHTML = `<s class="text-muted me-1">${parentData.ad_creation_price.toFixed(2)} ج.م</s> <span class="badge bg-success">{% trans "مجاني" %}</span>`;
+                                finalBaseFeeEl.innerHTML = `<s class="text-muted me-1">${parentData.ad_creation_price.toFixed(2)} ${CURR}</s> <span class="badge bg-success">{% trans "مجاني" %}</span>`;
                             } else {
-                                finalBaseFeeEl.textContent = `${parentData.ad_creation_price.toFixed(2)} ج.م`;
+                                finalBaseFeeEl.textContent = `${parentData.ad_creation_price.toFixed(2)} ${CURR}`;
                             }
                         }
                         const finalTotalCostEl = document.getElementById('final-total-cost');
                         if (finalTotalCostEl && freeAdsCount === 0) {
-                            finalTotalCostEl.textContent = `${parentData.ad_creation_price.toFixed(2)} ج.م`;
+                            finalTotalCostEl.textContent = `${parentData.ad_creation_price.toFixed(2)} ${CURR}`;
                         }
                     }
 
@@ -2497,7 +2561,7 @@
 
             if (mobileInput) {
                 const verificationEnabled = {% if mobile_verification_enabled %}true{% else %}false{% endif %};
-                const userMobile = {% if request.user.mobile %}'{{ request.user.mobile }}'{% elif request.user.phone %}'{{ request.user.phone }}'{% else %}''{% endif %};
+                const userMobile = '{{ user_mobile_local|default:"" }}';
                 const isMobileVerified = {% if request.user.is_authenticated and request.user.is_mobile_verified %}true{% else %}false{% endif %};
 
                 function normalizePhoneForComparison(phone) {
@@ -2792,6 +2856,9 @@
             // Get user's free ads count (sum of all active packages)
             const freeAdsCount = {{ free_ads_remaining|default:0 }};
 
+            // Currency symbol for display
+            const CURR = '{{ selected_currency|currency_symbol }}';
+
             // ---- Feature price defaults (server-rendered, package/constance) ----
             const defaultFeaturePrices = {
                 highlighted:      parseFloat('{{ feature_prices.highlighted|floatformat:False|default:"50" }}'),
@@ -2799,7 +2866,7 @@
                 auto_refresh:     parseFloat('{{ feature_prices.auto_refresh|floatformat:False|default:"35" }}'),
                 add_video:        parseFloat('{{ feature_prices.add_video|floatformat:False|default:"25" }}'),
                 contact_for_price:parseFloat('{{ feature_prices.contact_for_price|floatformat:False|default:"0" }}'),
-                facebook_share:   parseFloat('{{ feature_prices.urgent|floatformat:False|default:"100" }}'),
+                facebook_share:   parseFloat('{{ feature_prices.facebook_share|floatformat:False|default:"35" }}'),
             };
 
             /**
@@ -2839,7 +2906,7 @@
                     if (key && prices[key] !== undefined) {
                         card.dataset.price = prices[key];
                         const badge = card.querySelector('.feature-price');
-                        if (badge) badge.textContent = prices[key] + ' ج.م';
+                        if (badge) badge.textContent = prices[key] + ' ${CURR}';
                     }
                 });
                 // Recalculate total with updated prices
@@ -3010,14 +3077,14 @@
                     if (freeAdsCount > 0) {
                         finalBaseFeeEl.innerHTML = `<span class="badge bg-success">{% trans "مجاني" %}</span>`;
                     } else {
-                        finalBaseFeeEl.textContent = `${adBaseFee.toFixed(2)} ج.م`;
+                        finalBaseFeeEl.textContent = `${adBaseFee.toFixed(2)} ${CURR}`;
                     }
                 }
                 if (finalFeaturesCostEl) {
-                    finalFeaturesCostEl.textContent = `${featuresCost.toFixed(2)} ج.م`;
+                    finalFeaturesCostEl.textContent = `${featuresCost.toFixed(2)} ${CURR}`;
                 }
                 if (finalTotalCostEl) {
-                    finalTotalCostEl.textContent = `${totalCost.toFixed(2)} ج.م`;
+                    finalTotalCostEl.textContent = `${totalCost.toFixed(2)} ${CURR}`;
                 }
 
                 // Show/hide features cost row in final summary
@@ -3504,7 +3571,7 @@
                 // Get price
                 const priceInput = document.getElementById('{{ form.price.id_for_label }}');
                 const isNegotiable = document.getElementById('{{ form.is_negotiable.id_for_label }}');
-                let priceText = priceInput ? `${priceInput.value} ج.م` : '-';
+                let priceText = priceInput ? `${priceInput.value} ${CURR}` : '-';
                 if (isNegotiable && isNegotiable.checked) {
                     priceText += ' (قابل للتفاوض)';
                 }
@@ -3542,7 +3609,7 @@
                     else if (checkbox.id === 'feature_auto_refresh') badgeColor = 'bg-info';
                     else if (checkbox.id === 'feature_add_video') badgeColor = 'bg-primary';
                     selectedFeaturesBadges.push(
-                        `<span class="badge ${badgeColor} me-2 mb-1">${featureName}${price > 0 ? ` (${price.toFixed(2)} ج.م)` : ''}</span>`
+                        `<span class="badge ${badgeColor} me-2 mb-1">${featureName}${price > 0 ? ` (${price.toFixed(2)} ${CURR})` : ''}</span>`
                     );
                 });
 
@@ -3550,7 +3617,7 @@
                 if (selectedFeaturesBadges.length > 0) {
                     let featuresHtml = selectedFeaturesBadges.join('');
                     if (totalFeaturesCost > 0) {
-                        featuresHtml += `<div class="mt-2 text-primary fw-bold"><i class="fas fa-tag me-1"></i>تكلفة الميزات: ${totalFeaturesCost.toFixed(2)} ج.م</div>`;
+                        featuresHtml += `<div class="mt-2 text-primary fw-bold"><i class="fas fa-tag me-1"></i>تكلفة الميزات: ${totalFeaturesCost.toFixed(2)} ${CURR}</div>`;
                     }
                     featuresDiv.innerHTML = featuresHtml;
                 } else {
@@ -3567,7 +3634,7 @@
                 if (freeAdsCount === 0 && categoryBaseFee > 0) {
                     const reviewPriceEl = document.getElementById('review-price');
                     if (reviewPriceEl && priceText) {
-                        reviewPriceEl.innerHTML = priceText + `<div class="mt-1 text-info small"><i class="fas fa-info-circle me-1"></i>رسوم النشر: ${categoryBaseFee.toFixed(2)} ج.م</div>`;
+                        reviewPriceEl.innerHTML = priceText + `<div class="mt-1 text-info small"><i class="fas fa-info-circle me-1"></i>رسوم النشر: ${categoryBaseFee.toFixed(2)} ${CURR}</div>`;
                     }
                 }
 
@@ -3581,11 +3648,11 @@
                     if (freeAdsCount > 0) {
                         finalBaseFeeEl.innerHTML = `<span class="badge bg-success">{% trans "مجاني" %}</span>`;
                     } else {
-                        finalBaseFeeEl.textContent = `${adBaseFee.toFixed(2)} ج.م`;
+                        finalBaseFeeEl.textContent = `${adBaseFee.toFixed(2)} ${CURR}`;
                     }
                 }
-                if (finalFeaturesCostEl) finalFeaturesCostEl.textContent = `${totalFeaturesCost.toFixed(2)} ج.م`;
-                if (finalTotalCostEl) finalTotalCostEl.textContent = `${totalCost.toFixed(2)} ج.م`;
+                if (finalFeaturesCostEl) finalFeaturesCostEl.textContent = `${totalFeaturesCost.toFixed(2)} ${CURR}`;
+                if (finalTotalCostEl) finalTotalCostEl.textContent = `${totalCost.toFixed(2)} ${CURR}`;
 
                 if (featuresRow) {
                     if (totalFeaturesCost > 0) {
@@ -3651,6 +3718,57 @@
                     }
                 }
             }, 1000);
+
+            // ========== Bootstrap-ify Django RadioSelect output ==========
+            // Django renders RadioSelect as:
+            //   <div id="id_..."><div><label><input type="radio"> text</label></div>…</div>
+            // Add Bootstrap form-check classes so options look correct in RTL and LTR.
+            function bootstrapifyRadioSelect() {
+                const container = document.getElementById('custom-fields-container');
+                if (!container) return;
+
+                // Find all direct-child div[id] wrappers (the RadioSelect outer div)
+                container.querySelectorAll('.col-md-6 > div[id]').forEach(function(wrapper) {
+                    wrapper.querySelectorAll(':scope > div').forEach(function(optionDiv) {
+                        if (optionDiv.classList.contains('form-check')) return; // already done
+                        const label = optionDiv.querySelector('label');
+                        const input = optionDiv.querySelector('input[type="radio"], input[type="checkbox"]');
+                        if (!label || !input) return;
+
+                        // Add Bootstrap form-check classes
+                        optionDiv.classList.add('form-check');
+                        input.classList.add('form-check-input');
+                        label.classList.add('form-check-label');
+
+                        // Move input BEFORE the label text (Bootstrap expects input then label as siblings)
+                        // Django puts input inside label; unwrap it to be a sibling
+                        if (label.contains(input)) {
+                            optionDiv.insertBefore(input, label);
+                            // Clean up leading whitespace in label
+                            label.childNodes.forEach(function(node) {
+                                if (node.nodeType === Node.TEXT_NODE) {
+                                    node.textContent = node.textContent.trimStart();
+                                }
+                            });
+                        }
+                    });
+                });
+            }
+
+            // Run immediately (fields already in DOM), and again if AJAX loads new fields
+            bootstrapifyRadioSelect();
+
+            // Also run after any AJAX custom-field load completes
+            const _origUpdateCustomFields = updateCustomFields;
+            // Observe container mutations to re-run after AJAX insertion
+            const _cfObserver = new MutationObserver(function() {
+                bootstrapifyRadioSelect();
+            });
+            const _cfContainer = document.getElementById('custom-fields-container');
+            if (_cfContainer) {
+                _cfObserver.observe(_cfContainer, { childList: true, subtree: true });
+            }
+
         });
 
     </script>

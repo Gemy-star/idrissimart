@@ -45,6 +45,11 @@
         </div>
         {% endif %}{% endfor %}
     </div>
+    {% if ads|length > 1 %}
+    <div class="br-progress-wrap br-progress-wrap--banner" id="bprog-{{ ads.0.id }}">
+        <div class="br-progress-bar" style="animation-name:br-fill;animation-duration:{{ rot_s }}s;animation-timing-function:linear;animation-fill-mode:forwards;"></div>
+    </div>
+    {% endif %}
 </div>
 <script>
 (function () {
@@ -71,13 +76,16 @@
     trackView(slides[0].dataset.adId);
     if (slides.length < 2) return;
 
+    var ROT_S = {{ rot_s }};
+    var prog = document.querySelector('#bprog-{{ ads.0.id }} .br-progress-bar');
     var cur = 0;
     setInterval(function () {
         slides[cur].classList.remove('br-active');
         cur = (cur + 1) % slides.length;
         slides[cur].classList.add('br-active');
         trackView(slides[cur].dataset.adId);
-    }, {{ rot_s }} * 1000);
+        if (prog) { prog.style.animation = 'none'; void prog.offsetWidth; prog.style.animation = 'br-fill ' + ROT_S + 's linear forwards'; }
+    }, ROT_S * 1000);
 }());
 </script>
 {% endwith %}
@@ -166,6 +174,12 @@ document.addEventListener('DOMContentLoaded', function () {
     opacity: 1;
     pointer-events: auto;
 }
+
+/* Progress bar – shared across all banner types */
+.br-progress-wrap { height: 3px; background: rgba(0,0,0,0.08); overflow: hidden; }
+.br-progress-wrap--banner { border-radius: 0 0 4px 4px; width: 100%; max-width: 970px; margin: 0 auto; }
+.br-progress-bar { height: 100%; background: var(--bs-primary, #0d6efd); width: 0%; }
+@keyframes br-fill { from { width: 0%; } to { width: 100%; } }
 
 .paid-banner-anchor {
     display: block;

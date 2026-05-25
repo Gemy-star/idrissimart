@@ -86,7 +86,7 @@
 .page-header-compact {
     background: var(--surf);
     border-bottom: 1px solid var(--brd);
-    padding: 1.25rem 0;
+    padding: .6rem 0;
 }
 .phc-inner {
     display: flex; align-items: center; justify-content: space-between;
@@ -120,22 +120,9 @@
 /* ===== SUBCATEGORY SWIPER ===== */
 .subcat-section {
     background: var(--bg);
-    padding: 1.5rem 0;
+    padding: .6rem 0 .4rem;
 }
-.subcat-section-hd {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 1.1rem; flex-wrap: wrap; gap: .5rem;
-}
-.subcat-section-hd h2 {
-    font-size: 1.2rem; font-weight: 800; color: var(--purple);
-    display: flex; align-items: center; gap: .5rem; margin: 0;
-}
-.subcat-section-hd h2 i { color: var(--br); }
-.subcat-meta-count {
-    font-size: .78rem; color: var(--muted);
-    background: var(--surf); border: 1px solid var(--brd);
-    border-radius: 50px; padding: .2rem .7rem;
-}
+.subcat-section-hd { display: none; }
 
 /* Swiper wrapper */
 .subcat-swiper-wrap {
@@ -146,7 +133,7 @@
     padding: .4rem .25rem 2.2rem !important;
 }
 .subcat-swiper .swiper-slide {
-    width: 140px;
+    width: 110px;
     height: auto;
 }
 /* Nav arrows */
@@ -175,7 +162,7 @@
     align-items: center; text-align: center;
     background: var(--surf);
     border-radius: 14px;
-    padding: 1.1rem .75rem 1rem;
+    padding: .75rem .5rem .7rem;
     box-shadow: 0 2px 10px rgba(0,0,0,.06);
     border: 2px solid transparent;
     text-decoration: none;
@@ -203,21 +190,28 @@
     box-shadow: 0 6px 20px rgba(255,96,1,.18);
 }
 
-/* Smaller squircle icon */
-.subcat-icon {
-    width: 52px; height: 52px;
-    background: linear-gradient(135deg, var(--br) 0%, #cc4c00 100%);
+/* Subcategory image/icon */
+.subcat-img-wrap {
+    width: 64px; height: 64px;
     border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: .55rem;
+    flex-shrink: 0;
+    transition: var(--trans);
+    box-shadow: 0 3px 10px rgba(0,0,0,.12);
+}
+.subcat-img-wrap img {
+    width: 100%; height: 100%; object-fit: cover;
+}
+.subcat-img-wrap.subcat-icon-fallback {
+    background: linear-gradient(135deg, var(--br) 0%, #cc4c00 100%);
     display: flex; align-items: center; justify-content: center;
     font-size: 1.4rem; color: #fff;
-    margin-bottom: .65rem;
-    transition: var(--trans);
     box-shadow: 0 4px 14px rgba(255,96,1,.28);
-    flex-shrink: 0;
 }
-.subcat-card:hover .subcat-icon {
-    transform: scale(1.1) rotate(5deg);
-    box-shadow: 0 8px 22px rgba(255,96,1,.4);
+.subcat-card:hover .subcat-img-wrap {
+    transform: scale(1.08);
+    box-shadow: 0 8px 22px rgba(255,96,1,.3);
 }
 
 .subcat-name {
@@ -257,7 +251,7 @@
 /* ===== MAIN LAYOUT ===== */
 .page-body {
     background: var(--bg);
-    padding: 2rem 0 4rem;
+    padding: .75rem 0 3rem;
     min-height: 60vh;
 }
 
@@ -519,10 +513,11 @@
 }
 @media (max-width: 767.98px) {
     .chip { font-size: .78rem; padding: .38rem .85rem; }
-    .subcat-swiper .swiper-slide { width: 120px; }
-    .subcat-icon { width: 44px; height: 44px; font-size: 1.2rem; border-radius: 12px; }
-    .subcat-name { font-size: .75rem; }
-    .subcat-card { padding: .9rem .6rem .85rem; border-radius: 12px; }
+    .subcat-swiper .swiper-slide { width: 100px; }
+    .subcat-img-wrap { width: 52px; height: 52px; border-radius: 10px; }
+    .subcat-img-wrap.subcat-icon-fallback { font-size: 1.1rem; }
+    .subcat-name { font-size: .72rem; }
+    .subcat-card { padding: .7rem .5rem .65rem; border-radius: 10px; }
     .phc-title { font-size: 1.2rem; }
     .phc-icon { width: 36px; height: 36px; font-size: 1rem; border-radius: 10px; }
     .phc-stats { gap: .75rem; }
@@ -538,6 +533,16 @@
     .toolbar-sort select { width: 100%; }
     .view-toggles { justify-content: center; }
 }
+
+/* ===== MAIN SEARCH BAR ===== */
+.main-search-bar .form-control:focus { box-shadow: none; border-color: var(--br); }
+.main-search-bar .input-group-text,
+.main-search-bar .form-control,
+.main-search-bar .btn { border-color: var(--brd); }
+.main-search-bar .form-control:focus ~ .btn { border-color: var(--br); }
+
+/* ===== PAGINATION ===== */
+.pagination-wrap { display: flex; justify-content: center; margin-top: 2rem; margin-bottom: 1rem; }
 </style>
 {% endblock %}
 
@@ -606,9 +611,15 @@
                     {% for subcategory in subcategories %}
                     <div class="swiper-slide">
                         <a href="{% url 'main:category_detail' subcategory.slug %}" class="subcat-card">
-                            <div class="subcat-icon">
+                            {% if subcategory.image %}
+                            <div class="subcat-img-wrap">
+                                <img src="{{ subcategory.image.url }}" alt="{{ subcategory.display_name }}" loading="lazy">
+                            </div>
+                            {% else %}
+                            <div class="subcat-img-wrap subcat-icon-fallback">
                                 <i class="{% if subcategory.icon %}{{ subcategory.icon }}{% else %}fas fa-tag{% endif %}"></i>
                             </div>
+                            {% endif %}
                             <div class="subcat-name">{{ subcategory.display_name }}</div>
                             <div class="subcat-badge">
                                 <i class="fas fa-bullhorn"></i>
@@ -666,9 +677,15 @@
                     {% if not cat.parent %}
                     <div class="swiper-slide">
                         <a href="{% url 'main:category_detail' cat.slug %}" class="subcat-card">
-                            <div class="subcat-icon">
+                            {% if cat.image %}
+                            <div class="subcat-img-wrap">
+                                <img src="{{ cat.image.url }}" alt="{{ cat.display_name }}" loading="lazy">
+                            </div>
+                            {% else %}
+                            <div class="subcat-img-wrap subcat-icon-fallback">
                                 <i class="{% if cat.icon %}{{ cat.icon }}{% else %}fas fa-tag{% endif %}"></i>
                             </div>
+                            {% endif %}
                             <div class="subcat-name">{{ cat.display_name }}</div>
                             <div class="subcat-badge">
                                 <i class="fas fa-bullhorn"></i>
@@ -860,6 +877,17 @@
                 <!-- Active filters bar -->
                 <div id="activeFiltersBar" class="active-filters-bar hidden"></div>
 
+                <!-- Search bar (always visible, incl. mobile) -->
+                <div class="main-search-bar mb-2">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" id="searchInput" class="form-control border-start-0 ps-0"
+                               placeholder="{% trans 'ابحث في الإعلانات...' %}">
+                        <button type="button" id="clearSearchBtn" class="btn btn-outline-secondary border-start-0"
+                                style="display:none"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>
+
                 <!-- Toolbar -->
                 <div class="ads-toolbar">
                     <div class="toolbar-count">
@@ -927,6 +955,35 @@
                         </div>
                     {% endif %}
                 </div>
+
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                <div class="pagination-wrap">
+                    <nav aria-label="{% trans 'التنقل بين الصفحات' %}">
+                        <ul class="pagination">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            {% for num in page_obj.paginator.page_range %}
+                                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                                    <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                                </li>
+                            {% endfor %}
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

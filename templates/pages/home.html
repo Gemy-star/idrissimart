@@ -81,6 +81,75 @@
         font-size: 13px;
     }
 
+    /* ─── Banner Row (centered ad strip) ─────────────────────────── */
+    .home-banner-row {
+        padding: 12px 0;
+    }
+    .home-banner-row .container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .home-banner-row .paid-banner-root,
+    .home-banner-row > .container > * {
+        width: 100%;
+        max-width: 970px;
+    }
+
+    /* ─── Demo / Placeholder Banner ──────────────────────────────── */
+    .demo-banner-wrap {
+        width: 100%;
+        max-width: 970px;
+    }
+    .demo-banner {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        border: 2px dashed var(--border-color, #d0d0d0);
+        border-radius: 12px;
+        background: repeating-linear-gradient(
+            135deg,
+            transparent,
+            transparent 10px,
+            rgba(0,0,0,.015) 10px,
+            rgba(0,0,0,.015) 20px
+        );
+        padding: 20px 24px;
+        color: var(--text-muted, #888);
+        font-family: 'Cairo', sans-serif;
+        transition: border-color .2s;
+    }
+    .demo-banner:hover { border-color: var(--primary-color, #764ba2); }
+    .demo-banner-icon {
+        font-size: 2rem;
+        opacity: .35;
+        flex-shrink: 0;
+    }
+    .demo-banner-text { text-align: center; }
+    .demo-banner-text strong { display: block; font-size: 1rem; margin-bottom: 2px; opacity: .7; }
+    .demo-banner-text small { font-size: .78rem; opacity: .55; }
+    .demo-banner-sizes {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-top: 6px;
+    }
+    .demo-banner-sizes span {
+        background: rgba(118,75,162,.12);
+        color: var(--primary-color, #764ba2);
+        border-radius: 4px;
+        padding: 2px 8px;
+        font-size: .72rem;
+        font-weight: 600;
+    }
+    @media (max-width: 576px) {
+        .demo-banner { padding: 14px 12px; gap: 10px; }
+        .demo-banner-icon { font-size: 1.4rem; }
+        .demo-banner-text strong { font-size: .88rem; }
+    }
+
     /* Responsive adjustments */
     @media (max-width: 991px) {
         .swiper-button-next-custom,
@@ -158,12 +227,16 @@
 
     <!-- Banner slot: AdSense أولاً، ثم البانر المدفوع كـ fallback -->
     {% if adsense_slots.home_banner %}
-    <section class="py-3">
-        {% include "components/paid_ads/adsense.html" with slot=adsense_slots.home_banner %}
+    <section class="home-banner-row">
+        <div class="container">
+            {% include "components/paid_ads/adsense.html" with slot=adsense_slots.home_banner %}
+        </div>
     </section>
     {% elif homepage_paid_ads.banner %}
-    <section class="py-3 px-3 px-lg-4">
-        {% include "components/paid_ads/banner.html" with ads=homepage_paid_ads.banner rotation_seconds=homepage_banner_rotation.banner %}
+    <section class="home-banner-row">
+        <div class="container">
+            {% include "components/paid_ads/banner.html" with ads=homepage_paid_ads.banner rotation_seconds=homepage_banner_rotation.banner %}
+        </div>
     </section>
     {% endif %}
 
@@ -206,6 +279,28 @@
             {% endif %}
         </div>
     </section>
+    <!-- Banner Row 2: تحت الإعلانات المميزة -->
+    <section class="home-banner-row">
+        <div class="container">
+            {% if homepage_paid_ads.banner %}
+                {% include "components/paid_ads/banner.html" with ads=homepage_paid_ads.banner rotation_seconds=homepage_banner_rotation.banner %}
+            {% else %}
+                <div class="demo-banner-wrap">
+                    <div class="demo-banner">
+                        <div class="demo-banner-icon"><i class="fas fa-rectangle-ad"></i></div>
+                        <div class="demo-banner-text">
+                            <strong>{% trans "مساحة إعلانية — تحت الإعلانات المميزة" %}</strong>
+                            <small>{% trans "أضف بانر مدفوع ليظهر هنا" %}</small>
+                            <div class="demo-banner-sizes">
+                                <span>970 × 90</span><span>728 × 90</span><span>320 × 50</span>
+                            </div>
+                        </div>
+                        <div class="demo-banner-icon"><i class="fas fa-rectangle-ad"></i></div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </section>
     <!-- Features Section / Why Choose Us -->
     {% if home_page.show_why_choose_us %}
     <section class="features-section py-3" id="about">
@@ -235,15 +330,34 @@
 
     <!-- Featured slot: AdSense أولاً، ثم البانر المميز كـ fallback -->
     {% if adsense_slots.home_featured %}
-    <section class="py-3">
+    <section class="home-banner-row">
         <div class="container">
             {% include "components/paid_ads/adsense.html" with slot=adsense_slots.home_featured %}
         </div>
     </section>
     {% elif homepage_paid_ads.featured_box %}
-    <section class="py-3">
+    <section class="home-banner-row">
         <div class="container">
-            {% include "components/paid_ads/featured_box.html" with ads=homepage_paid_ads.featured_box %}
+            {% include "components/paid_ads/featured_box.html" with ads=homepage_paid_ads.featured_box rotation_seconds=homepage_banner_rotation.featured_box %}
+        </div>
+    </section>
+    {% else %}
+    <!-- Banner Row 3: قبل أحدث الإعلانات -->
+    <section class="home-banner-row">
+        <div class="container">
+            <div class="demo-banner-wrap">
+                <div class="demo-banner">
+                    <div class="demo-banner-icon"><i class="fas fa-rectangle-ad"></i></div>
+                    <div class="demo-banner-text">
+                        <strong>{% trans "مساحة إعلانية — قبل أحدث الإعلانات" %}</strong>
+                        <small>{% trans "أضف بانر مميز ليظهر هنا" %}</small>
+                        <div class="demo-banner-sizes">
+                            <span>970 × 250</span><span>728 × 90</span><span>320 × 100</span>
+                        </div>
+                    </div>
+                    <div class="demo-banner-icon"><i class="fas fa-rectangle-ad"></i></div>
+                </div>
+            </div>
         </div>
     </section>
     {% endif %}
@@ -283,6 +397,28 @@
                     <a href="{% url 'main:ad_create' %}" class="btn btn-primary mt-3">
                         <i class="fas fa-plus-circle me-2"></i>{% trans "نشر إعلان جديد" %}
                     </a>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+    <!-- Banner Row 4: بعد أحدث الإعلانات -->
+    <section class="home-banner-row">
+        <div class="container">
+            {% if homepage_paid_ads.banner %}
+                {% include "components/paid_ads/banner.html" with ads=homepage_paid_ads.banner rotation_seconds=homepage_banner_rotation.banner %}
+            {% else %}
+                <div class="demo-banner-wrap">
+                    <div class="demo-banner">
+                        <div class="demo-banner-icon"><i class="fas fa-rectangle-ad"></i></div>
+                        <div class="demo-banner-text">
+                            <strong>{% trans "مساحة إعلانية — بعد أحدث الإعلانات" %}</strong>
+                            <small>{% trans "أضف بانر مدفوع ليظهر هنا" %}</small>
+                            <div class="demo-banner-sizes">
+                                <span>970 × 90</span><span>728 × 90</span><span>320 × 50</span>
+                            </div>
+                        </div>
+                        <div class="demo-banner-icon"><i class="fas fa-rectangle-ad"></i></div>
+                    </div>
                 </div>
             {% endif %}
         </div>
@@ -339,21 +475,15 @@
 
     <!-- Sidebar slot: AdSense أولاً، ثم البانر الجانبي كـ fallback -->
     {% if adsense_slots.home_sidebar %}
-    <section class="py-3">
+    <section class="home-banner-row">
         <div class="container">
             {% include "components/paid_ads/adsense.html" with slot=adsense_slots.home_sidebar %}
         </div>
     </section>
     {% elif homepage_paid_ads.sidebar %}
-    <section class="py-3">
-        <div class="container">
-            <div class="row justify-content-center">
-                {% for ad in homepage_paid_ads.sidebar %}
-                <div class="col-lg-4 col-md-6 mb-3">
-                    {% include "components/paid_ads/sidebar.html" with ad=ad %}
-                </div>
-                {% endfor %}
-            </div>
+    <section class="home-banner-row">
+        <div class="container d-flex justify-content-center">
+            {% include "components/paid_ads/sidebar.html" with ads=homepage_paid_ads.sidebar rotation_seconds=homepage_banner_rotation.sidebar %}
         </div>
     </section>
     {% endif %}

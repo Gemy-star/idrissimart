@@ -10,6 +10,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
+from django.views.decorators.cache import never_cache
 from django.template.loader import render_to_string
 import json
 
@@ -482,7 +483,22 @@ def checkout_view(request):
                 except Coupon.DoesNotExist:
                     return JsonResponse({"success": False, "message": _("رمز الخصم غير صحيح")}, status=400)
 
-            final_amount = total_amount - discount_amount
+            subtotal_after_discount = total_amount - discount_amount
+
+            # Add delivery fee and tax to final order amount
+            _delivery_pct = Decimal(str(config.DELIVERY_FEE_PERCENTAGE)) / Decimal("100")
+            _delivery = (total_amount * _delivery_pct).quantize(Decimal("0.01"))
+            _delivery_min = Decimal(str(config.DELIVERY_FEE_MIN))
+            _delivery_max = Decimal(str(config.DELIVERY_FEE_MAX))
+            if _delivery < _delivery_min:
+                _delivery = _delivery_min
+            elif _delivery > _delivery_max:
+                _delivery = _delivery_max
+
+            _tax_rate = Decimal(str(getattr(config, "TAX_RATE", 0))) / Decimal("100")
+            _tax = (total_amount * _tax_rate).quantize(Decimal("0.01"))
+
+            final_amount = subtotal_after_discount + _delivery + _tax
 
             # Create order atomically
             with transaction.atomic():
@@ -686,8 +702,13 @@ def checkout_view(request):
     elif delivery_fee > delivery_fee_max:
         delivery_fee = delivery_fee_max
 
-    # Calculate final total
-    final_total = total_amount + delivery_fee
+    # Calculate tax
+    tax_rate_percentage = float(getattr(config, "TAX_RATE", 0))
+    tax_rate_decimal = Decimal(str(tax_rate_percentage)) / Decimal("100")
+    tax_amount = (total_amount * tax_rate_decimal).quantize(Decimal("0.01"))
+
+    # Calculate final total (subtotal + delivery + tax)
+    final_total = total_amount + delivery_fee + tax_amount
 
     # Get countries for city selection
     from content.models import Country
@@ -709,6 +730,8 @@ def checkout_view(request):
         "cart_items": cart_items,
         "total_amount": total_amount,
         "delivery_fee": delivery_fee,
+        "tax_amount": tax_amount,
+        "tax_rate": tax_rate_percentage,
         "final_total": final_total,
         "countries": countries,
         "user_city": user_city,
@@ -1074,6 +1097,7 @@ def clear_wishlist(request):
 
 
 @login_required
+@never_cache
 def order_success_view(request, order_id):
     """Order success page"""
     from main.models import Order

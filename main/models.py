@@ -4914,9 +4914,9 @@ class BannerSlot(models.Model):
     """
 
     class AdType(models.TextChoices):
-        BANNER = "banner", _("بانر إعلاني (728×90)")
+        BANNER = "banner", _("بانر إعلاني (1200×150)")
         SIDEBAR = "sidebar", _("إعلان جانبي (300×250)")
-        FEATURED_BOX = "featured_box", _("صندوق مميز (970×250)")
+        FEATURED_BOX = "featured_box", _("صندوق مميز (1200×250)")
 
     name = models.CharField(max_length=120, verbose_name=_("اسم المساحة"))
     name_ar = models.CharField(max_length=120, blank=True, verbose_name=_("الاسم بالعربية"))
@@ -5040,11 +5040,12 @@ class PaidBanner(models.Model):
         FEATURED_BOX = "featured_box", _("صندوق مميز - Featured Box")
 
     # Required image dimensions per ad type: (width, height)
+    # Sizes match actual CSS rendering dimensions (banner/featured_box are fluid-width × fixed-height).
     IMAGE_SPECS = {
-        "banner":       {"desktop": (728, 90),  "mobile": (320, 50),  "mobile_required": True},
-        "sidebar":      {"desktop": (300, 250), "mobile": None,       "mobile_required": False},
-        "popup":        {"desktop": (300, 250), "mobile": None,       "mobile_required": False},
-        "featured_box": {"desktop": (970, 250), "mobile": None,       "mobile_required": False},
+        "banner":       {"desktop": (1200, 150), "mobile": (320, 50),  "mobile_required": True},
+        "sidebar":      {"desktop": (300, 250),  "mobile": None,       "mobile_required": False},
+        "popup":        {"desktop": (300, 250),  "mobile": None,       "mobile_required": False},
+        "featured_box": {"desktop": (1200, 250), "mobile": None,       "mobile_required": False},
     }
 
     class PlacementType(models.TextChoices):
@@ -5107,7 +5108,7 @@ class PaidBanner(models.Model):
     image = models.ImageField(
         upload_to="paid_ads/%Y/%m/",
         verbose_name=_("صورة الإعلان - Ad Image"),
-        help_text=_("المقاس حسب النوع: بانر 728×90 | جانبي/نافذة 300×250 | مميز 970×250 — سيتم رفض الصورة إذا كانت الأبعاد مختلفة")
+        help_text=_("المقاس حسب النوع: بانر 1200×150 | جانبي/نافذة 300×250 | مميز 1200×250 — سيتم رفض الصورة إذا كانت الأبعاد مختلفة")
     )
     mobile_image = models.ImageField(
         upload_to="paid_ads/%Y/%m/mobile/",
@@ -5216,13 +5217,22 @@ class PaidBanner(models.Model):
     )
 
     # Schedule & Duration
+    duration_days = models.PositiveIntegerField(
+        default=1,
+        verbose_name=_("مدة الإعلان بالأيام - Duration (days)"),
+        help_text=_("عدد الأيام التي سيعرض فيها الإعلان بعد تفعيله من الإدارة"),
+    )
     start_date = models.DateTimeField(
+        null=True,
+        blank=True,
         verbose_name=_("تاريخ البدء - Start Date"),
-        help_text=_("متى يبدأ عرض الإعلان")
+        help_text=_("يُحدَّد تلقائياً عند تفعيل الإعلان من الإدارة"),
     )
     end_date = models.DateTimeField(
+        null=True,
+        blank=True,
         verbose_name=_("تاريخ الانتهاء - End Date"),
-        help_text=_("متى ينتهي عرض الإعلان")
+        help_text=_("يُحسب تلقائياً: تاريخ التفعيل + مدة الإعلان"),
     )
 
     # Status & Display
@@ -5410,7 +5420,8 @@ class PaidBanner(models.Model):
         """Check if ad is currently active and within date range"""
         if not self.is_active or self.status != self.Status.ACTIVE:
             return False
-
+        if not self.start_date or not self.end_date:
+            return False
         now = timezone.now()
         return self.start_date <= now <= self.end_date
 
@@ -5426,13 +5437,6 @@ class PaidBanner(models.Model):
 
         delta = self.end_date - now
         return delta.days
-
-    @property
-    def duration_days(self):
-        """Total number of days between start_date and end_date."""
-        if not self.start_date or not self.end_date:
-            return 0
-        return max(1, (self.end_date - self.start_date).days)
 
     @property
     def ctr(self):
@@ -5454,11 +5458,16 @@ class PaidBanner(models.Model):
         self.refresh_from_db(fields=["clicks_count"])
 
     def approve(self, admin_user):
-        """Approve the advertisement"""
+        """Approve the advertisement and set start/end dates from approval time."""
+        from datetime import timedelta
+        now = timezone.now()
         self.status = self.Status.ACTIVE
         self.approved_by = admin_user
-        self.approved_at = timezone.now()
-        self.save(update_fields=["status", "approved_by", "approved_at"])
+        self.approved_at = now
+        if not self.start_date:
+            self.start_date = now
+            self.end_date = now + timedelta(days=max(1, self.duration_days))
+        self.save(update_fields=["status", "approved_by", "approved_at", "start_date", "end_date"])
 
     def pause(self):
         """Pause the advertisement"""

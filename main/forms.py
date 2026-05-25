@@ -21,33 +21,12 @@ from .models import (
 
 
 class ContactForm(forms.ModelForm):
-    """Contact form for user inquiries"""
+    """Contact form for logged-in users - only subject and message required"""
 
     class Meta:
         model = ContactMessage
-        fields = ["name", "email", "phone", "subject", "message"]
+        fields = ["subject", "message"]
         widgets = {
-            "name": forms.TextInput(
-                attrs={
-                    "class": "form-control",
-                    "placeholder": _("أدخل اسمك الكامل"),
-                    "dir": "rtl",
-                }
-            ),
-            "email": forms.EmailInput(
-                attrs={
-                    "class": "form-control",
-                    "placeholder": _("أدخل بريدك الإلكتروني"),
-                    "dir": "ltr",
-                }
-            ),
-            "phone": forms.TextInput(
-                attrs={
-                    "class": "form-control",
-                    "placeholder": _("أدخل رقم هاتفك"),
-                    "dir": "ltr",
-                }
-            ),
             "subject": forms.TextInput(
                 attrs={
                     "class": "form-control",
@@ -59,7 +38,7 @@ class ContactForm(forms.ModelForm):
                 attrs={
                     "class": "form-control",
                     "placeholder": _("اكتب رسالتك هنا..."),
-                    "rows": 5,
+                    "rows": 6,
                     "dir": "rtl",
                 }
             ),
@@ -70,10 +49,14 @@ class ContactForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
     def save(self, commit=True):
-        """Save the contact message with user if available"""
+        """Save the contact message with user data auto-populated"""
         contact_message = super().save(commit=False)
         if self.user and self.user.is_authenticated:
             contact_message.user = self.user
+            full_name = f"{self.user.first_name} {self.user.last_name}".strip()
+            contact_message.name = full_name if full_name else self.user.username
+            contact_message.email = self.user.email
+            contact_message.phone = getattr(self.user, "phone", "") or ""
         if commit:
             contact_message.save()
         return contact_message
@@ -348,7 +331,7 @@ class ClassifiedAdForm(forms.ModelForm):
                     self.fields[field_name] = forms.ChoiceField(
                         **field_kwargs,
                         choices=choices,
-                        widget=forms.RadioSelect(attrs={"class": "form-check-input"}),
+                        widget=forms.RadioSelect(),
                     )
                 else:
                     choices = [("", "---------")] + [

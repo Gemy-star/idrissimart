@@ -1144,9 +1144,10 @@ class SubcategoryDetailView(FilterView):
                 }
             )
 
-        # Category statistics
+        # Category statistics — include all descendants so sub-sub-categories are counted
+        _descendants = self.category.get_descendants(include_self=True)
         total_ads = ClassifiedAd.objects.filter(
-            category=self.category,
+            category__in=_descendants,
             status=ClassifiedAd.AdStatus.ACTIVE,
             country__code=selected_country,
         ).count()
@@ -1311,8 +1312,8 @@ class AboutView(TemplateView):
         return context
 
 
-class ContactView(TemplateView):
-    """Contact page view with form handling"""
+class ContactView(LoginRequiredMixin, TemplateView):
+    """Contact page view with form handling - requires login"""
 
     template_name = "pages/contact.html"
 
@@ -1777,6 +1778,15 @@ class AdCreateView(LoginRequiredMixin, CreateView):
             "order", "name"
         )
 
+        # Stripped local mobile for JS pre-fill (no leading zeros, no country code)
+        from main.utils import strip_phone_to_local
+        user = self.request.user
+        if user.is_authenticated:
+            context["user_mobile_local"] = (
+                strip_phone_to_local(user.mobile) if user.mobile
+                else strip_phone_to_local(user.phone)
+            )
+
         return context
 
     def get_form_kwargs(self):
@@ -1912,6 +1922,26 @@ class AdCreateView(LoginRequiredMixin, CreateView):
             else:
                 messages.info(self.request, _("تم حفظ إعلانك كمسودة."))
 
+            # Handle Facebook share request if user opted in
+            if self.request.POST.get('feature_facebook_share'):
+                from main.models import FacebookShareRequest
+                from constance import config as _cfg
+                from decimal import Decimal
+                if not FacebookShareRequest.objects.filter(
+                    ad=self.object, status__in=['pending', 'in_progress']
+                ).exists():
+                    fb_price = Decimal(str(getattr(_cfg, 'FACEBOOK_SHARE_AD_PRICE', 35.00)))
+                    fb_req = FacebookShareRequest.objects.create(
+                        ad=self.object,
+                        user=self.request.user,
+                        payment_amount=fb_price,
+                    )
+                    self.object.facebook_share_requested = True
+                    self.object.save(update_fields=['facebook_share_requested'])
+                    messages.info(self.request, _("سيتم توجيهك لصفحة الدفع للنشر على فيسبوك."))
+                    from django.shortcuts import redirect
+                    return redirect('main:publisher_facebook_payment', request_id=fb_req.pk)
+
             return super().form_valid(form)
         else:
             # Add formset errors to messages
@@ -1968,6 +1998,15 @@ class AdUpdateView(LoginRequiredMixin, UpdateView):
             "order", "name"
         )
 
+        # Stripped local mobile for JS pre-fill (no leading zeros, no country code)
+        from main.utils import strip_phone_to_local
+        user = self.request.user
+        if user.is_authenticated:
+            context["user_mobile_local"] = (
+                strip_phone_to_local(user.mobile) if user.mobile
+                else strip_phone_to_local(user.phone)
+            )
+
         return context
 
     def get_form_kwargs(self):
@@ -2000,6 +2039,27 @@ class AdUpdateView(LoginRequiredMixin, UpdateView):
             self.object = form.save()
             image_formset.save()
             messages.success(self.request, _("تم تحديث إعلانك بنجاح!"))
+
+            # Handle Facebook share request if user opted in
+            if self.request.POST.get('feature_facebook_share'):
+                from main.models import FacebookShareRequest
+                from constance import config as _cfg
+                from decimal import Decimal
+                if not FacebookShareRequest.objects.filter(
+                    ad=self.object, status__in=['pending', 'in_progress']
+                ).exists():
+                    fb_price = Decimal(str(getattr(_cfg, 'FACEBOOK_SHARE_AD_PRICE', 35.00)))
+                    fb_req = FacebookShareRequest.objects.create(
+                        ad=self.object,
+                        user=self.request.user,
+                        payment_amount=fb_price,
+                    )
+                    self.object.facebook_share_requested = True
+                    self.object.save(update_fields=['facebook_share_requested'])
+                    messages.info(self.request, _("سيتم توجيهك لصفحة الدفع للنشر على فيسبوك."))
+                    from django.shortcuts import redirect
+                    return redirect('main:publisher_facebook_payment', request_id=fb_req.pk)
+
             return super().form_valid(form)
         else:
             return self.form_invalid(form)
@@ -5949,6 +6009,25 @@ def admin_toggle_user_active(request, user_id):
 
 @superadmin_required
 @require_POST
+def admin_clear_user_avatar(request, user_id):
+    """Admin: Remove a user's profile image and revert to initials display."""
+    try:
+        user = get_object_or_404(User, pk=user_id)
+        if user.profile_image:
+            user.profile_image.delete(save=False)
+            user.profile_image = None
+            user.save(update_fields=["profile_image"])
+        return JsonResponse(
+            {"success": True, "message": _("تم حذف صورة المستخدم '{}' بنجاح").format(user.username)}
+        )
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "message": _("حدث خطأ: {}").format(str(e))}, status=500
+        )
+
+
+@superadmin_required
+@require_POST
 def admin_change_user_role(request, user_id):
     """Change user's role (member, staff, superuser)."""
     try:
@@ -8570,8 +8649,11 @@ class PublisherSettingsView(LoginRequiredMixin, TemplateView):
             user.country.phone_code if user.country and user.country.phone_code else ""
         )
         # Local mobile without leading zeros / country code
-        context["user_mobile_local"] = strip_phone_to_local(user.mobile) if user.mobile else ""
-        context["user_phone_local"] = strip_phone_to_local(user.phone) if user.phone else ""
+        mobile_local = strip_phone_to_local(user.mobile) if user.mobile else ""
+        context["user_mobile_local"] = mobile_local
+        # Phone and WhatsApp fall back to verified mobile when empty
+        context["user_phone_local"] = strip_phone_to_local(user.phone) if user.phone else mobile_local
+        context["user_whatsapp_local"] = strip_phone_to_local(user.whatsapp) if user.whatsapp else mobile_local
         return context
 
 
@@ -8586,9 +8668,13 @@ def publisher_update_profile(request):
         from main.utils import strip_phone_to_local
         user.first_name = request.POST.get("first_name", "").strip()
         user.last_name = request.POST.get("last_name", "").strip()
-        user.phone = strip_phone_to_local(request.POST.get("phone", "").strip())
         # mobile is NOT updated here — it requires OTP via change_mobile endpoint
-        user.whatsapp = strip_phone_to_local(request.POST.get("whatsapp", "").strip())
+        mobile_local = strip_phone_to_local(user.mobile) if user.mobile else ""
+        submitted_phone = strip_phone_to_local(request.POST.get("phone", "").strip())
+        submitted_whatsapp = strip_phone_to_local(request.POST.get("whatsapp", "").strip())
+        # Fall back to verified mobile if submitted value is empty
+        user.phone = submitted_phone or mobile_local
+        user.whatsapp = submitted_whatsapp or mobile_local
         user.bio = request.POST.get("bio", "").strip()
         user.bio_ar = request.POST.get("bio_ar", "").strip()
         user.city = request.POST.get("city", "").strip()
@@ -8632,6 +8718,18 @@ def publisher_update_profile(request):
             {"success": False, "message": _("حدث خطأ أثناء تحديث الملف الشخصي")},
             status=400,
         )
+
+
+@login_required
+@require_POST
+def publisher_remove_avatar(request):
+    """Remove the user's profile image and revert to initials display"""
+    user = request.user
+    if user.profile_image:
+        user.profile_image.delete(save=False)
+        user.profile_image = None
+        user.save(update_fields=["profile_image"])
+    return JsonResponse({"success": True, "message": _("تم حذف الصورة الشخصية بنجاح")})
 
 
 @login_required
@@ -8729,12 +8827,23 @@ def publisher_verify_change_mobile_otp(request):
         return JsonResponse({"success": False, "message": _("الرمز غير صحيح. حاول مرة أخرى.")}, status=400)
 
     # OTP correct — update the mobile
+    from main.utils import strip_phone_to_local
     user = request.user
+    old_mobile_local = strip_phone_to_local(user.mobile) if user.mobile else ""
+    new_mobile_local = strip_phone_to_local(pending["phone"]) or pending["phone"]
     user.mobile = pending["phone"]
     user.is_mobile_verified = False       # needs re-verification with the new number
     user.mobile_verification_code = ""
     user.mobile_verification_expires = None
-    user.save(update_fields=["mobile", "is_mobile_verified", "mobile_verification_code", "mobile_verification_expires"])
+    update_fields = ["mobile", "is_mobile_verified", "mobile_verification_code", "mobile_verification_expires"]
+    # Sync phone and whatsapp if they matched the old mobile
+    if not user.phone or strip_phone_to_local(user.phone) == old_mobile_local:
+        user.phone = new_mobile_local
+        update_fields.append("phone")
+    if not user.whatsapp or strip_phone_to_local(user.whatsapp) == old_mobile_local:
+        user.whatsapp = new_mobile_local
+        update_fields.append("whatsapp")
+    user.save(update_fields=update_fields)
 
     request.session.pop("change_mobile_pending", None)
     return JsonResponse({

@@ -1326,8 +1326,60 @@ class ContactMessageAdmin(admin.ModelAdmin):
 # --- Enhanced Models Admin ---
 
 
+class CustomUserAdminForm(forms.ModelForm):
+    """Admin form for User with dynamic city dropdown based on selected country."""
+
+    class Meta:
+        from .models import User as _User
+        model = _User
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        instance = kwargs.get("instance") or getattr(self, "instance", None)
+
+        # Determine country and current city
+        country = None
+        if "country" in self.data:
+            try:
+                from content.models import Country as _Country
+                country = _Country.objects.get(pk=self.data.get("country"))
+            except Exception:
+                pass
+        elif instance and instance.pk and instance.country:
+            country = instance.country
+
+        instance_city = (
+            instance.city if (instance and instance.pk and instance.city) else None
+        )
+
+        # Build choices for the city ChoiceField
+        if country and country.cities:
+            city_choices = [("", _("--- اختر المدينة ---"))] + [
+                (c, c) for c in country.cities
+            ]
+            if instance_city and instance_city not in country.cities:
+                city_choices.append((instance_city, instance_city))
+        elif instance_city:
+            city_choices = [("", _("--- اختر المدينة ---")), (instance_city, instance_city)]
+        else:
+            city_choices = [("", _("--- اختر المدينة ---"))]
+
+        self.fields["city"] = forms.ChoiceField(
+            required=False,
+            label=_("المدينة"),
+            choices=city_choices,
+            widget=forms.Select(attrs={"id": "id_city"}),
+        )
+
+    class Media:
+        js = ("admin/js/user_city_loader.js",)
+
+
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
+    form = CustomUserAdminForm
+
     list_display = (
         "username",
         "email",
@@ -1358,6 +1410,10 @@ class CustomUserAdmin(UserAdmin):
                     "commercial_register",
                 )
             },
+        ),
+        (
+            "Location",
+            {"fields": ("country", "city", "address", "postal_code")},
         ),
         (
             "Verification",
@@ -4338,9 +4394,14 @@ class PaidBannerAdmin(admin.ModelAdmin):
             _("الجدولة والمدة - Schedule & Duration"),
             {
                 "fields": (
+                    "duration_days",
                     "start_date",
                     "end_date",
-                )
+                ),
+                "description": _(
+                    "المدة تُحدَّد بالأيام من قِبَل المعلن. "
+                    "تاريخ البدء والانتهاء يُحسبان تلقائياً عند تفعيل الإعلان."
+                ),
             },
         ),
         (
@@ -4490,6 +4551,13 @@ class PaidBannerAdmin(admin.ModelAdmin):
         """Display date range in a compact format"""
         from django.utils import timezone
         now = timezone.now()
+
+        if not obj.start_date or not obj.end_date:
+            return format_html(
+                '🟡 <small>ينتظر التفعيل</small><br>'
+                '<small style="color:#999">مدة: {} يوم</small>',
+                obj.duration_days,
+            )
 
         if obj.end_date < now:
             status_icon = '🔴'
@@ -4859,6 +4927,20 @@ class AdvertisingConfigAdmin(admin.ModelAdmin):
 
     def changelist_view(self, request, extra_context=None):
         from django.template.response import TemplateResponse
+        from constance import config as constance_config
+
+        # Handle POST: update extra-country fee
+        if request.method == "POST" and "extra_country_fee" in request.POST:
+            from django.http import HttpResponseRedirect
+            try:
+                new_fee = float(request.POST["extra_country_fee"])
+                if new_fee < 0:
+                    raise ValueError("negative")
+                constance_config.PAID_BANNER_EXTRA_COUNTRY_FEE_PER_DAY = new_fee
+                self.message_user(request, _("تم تحديث رسوم الدولة الإضافية إلى {} ج.م/يوم").format(new_fee))
+            except Exception:
+                self.message_user(request, _("قيمة غير صالحة."), level="error")
+            return HttpResponseRedirect(request.path + "?tab=pricing")
 
         paid_banners  = PaidBanner.objects.select_related("country", "category", "advertiser").order_by("-created_at")[:200]
         pricing_rows  = BannerPricing.objects.all().order_by("ad_type", "placement_type")
@@ -4875,16 +4957,19 @@ class AdvertisingConfigAdmin(admin.ModelAdmin):
             "unpaid":  PaidBanner.objects.filter(payment_status="unpaid").count(),
         }
 
+        extra_country_fee = float(getattr(constance_config, "PAID_BANNER_EXTRA_COUNTRY_FEE_PER_DAY", 20.0))
+
         context = {
             **self.admin_site.each_context(request),
             "title": _("إدارة الإعلانات المدفوعة"),
-            "paid_banners":  paid_banners,
-            "pricing_rows":  pricing_rows,
-            "adsense_slots": adsense_slots,
-            "banner_slots":  banner_slots,
-            "stats":         stats,
-            "active_tab":    request.GET.get("tab", "banners"),
-            "opts":          self.model._meta,
-            "has_permission": True,
+            "paid_banners":       paid_banners,
+            "pricing_rows":       pricing_rows,
+            "adsense_slots":      adsense_slots,
+            "banner_slots":       banner_slots,
+            "stats":              stats,
+            "active_tab":         request.GET.get("tab", "banners"),
+            "extra_country_fee":  extra_country_fee,
+            "opts":               self.model._meta,
+            "has_permission":     True,
         }
         return TemplateResponse(request, "admin/advertising_tabs.html", context)

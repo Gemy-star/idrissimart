@@ -600,6 +600,11 @@
                                 <i class="fas fa-camera me-2"></i>{% trans "تغيير الصورة" %}
                                 <input type="file" id="avatarInput" accept="image/*">
                             </button>
+                            {% if user.profile_image %}
+                            <button type="button" class="btn btn-outline-danger btn-sm mt-2" id="removeAvatarBtn">
+                                <i class="fas fa-trash-alt me-1"></i>{% trans "حذف الصورة" %}
+                            </button>
+                            {% endif %}
                         {% else %}
                             <button type="button" class="btn btn-secondary btn-upload" disabled title="{% trans 'يتطلب توثيق الحساب' %}">
                                 <i class="fas fa-lock me-2"></i>{% trans "تغيير الصورة" %}
@@ -698,7 +703,7 @@
                                 <div class="input-group">
                                     {% if user_dial_code %}<span class="input-group-text" style="font-size:.85rem">{{ user_dial_code }}</span>{% endif %}
                                     <input type="tel" class="form-control" name="whatsapp"
-                                           value="{{ user.whatsapp|default:user_mobile_local }}"
+                                           value="{{ user_whatsapp_local }}"
                                            placeholder="1012345678"
                                            inputmode="numeric" dir="ltr">
                                 </div>
@@ -1269,13 +1274,13 @@ document.addEventListener('DOMContentLoaded', function() {
         header.addEventListener('click', function() {
             const item = this.closest('.accordion-item');
             const allItems = document.querySelectorAll('.accordion-item');
-            
+
             allItems.forEach(el => {
                 if (el !== item) {
                     el.classList.remove('active');
                 }
             });
-            
+
             item.classList.toggle('active');
         });
     });
@@ -1339,6 +1344,34 @@ document.addEventListener('DOMContentLoaded', function() {
                     showToast('{% trans "حدث خطأ أثناء رفع الصورة" %}', 'error');
                 });
             }
+        });
+    }
+
+    // Remove avatar
+    const removeAvatarBtn = document.getElementById('removeAvatarBtn');
+    if (removeAvatarBtn) {
+        removeAvatarBtn.addEventListener('click', function() {
+            if (!confirm('{% trans "هل أنت متأكد من حذف صورتك الشخصية؟ ستظهر بالحروف الأولى بدلاً منها." %}')) return;
+            const formData = new FormData();
+            formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+            fetch('{% url "main:publisher_remove_avatar" %}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                showToast(data.message, data.success ? 'success' : 'error');
+                if (data.success) {
+                    // Replace image with initials placeholder
+                    const preview = document.getElementById('avatarPreview');
+                    const initial = '{{ user.first_name|first|default:user.username|first|upper }}';
+                    if (preview) {
+                        preview.outerHTML = `<div class="profile-avatar-placeholder" id="avatarPlaceholder">${initial}</div>`;
+                    }
+                    removeAvatarBtn.remove();
+                }
+            })
+            .catch(() => showToast('{% trans "حدث خطأ أثناء حذف الصورة" %}', 'error'));
         });
     }
 

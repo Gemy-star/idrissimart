@@ -105,7 +105,7 @@ class PublisherFacebookSharePaymentView(LoginRequiredMixin, TemplateView):
 
         # Get payment amount from constance or settings
         from constance import config
-        payment_amount = getattr(config, 'FACEBOOK_SHARE_PRICE', Decimal('50.00'))
+        payment_amount = getattr(config, 'FACEBOOK_SHARE_AD_PRICE', Decimal('50.00'))
         context['payment_amount'] = payment_amount
 
         from content.site_config import SiteConfiguration
@@ -168,13 +168,22 @@ class PublisherFacebookSharePaymentView(LoginRequiredMixin, TemplateView):
 
         # Get payment amount
         from constance import config
-        payment_amount = getattr(config, 'FACEBOOK_SHARE_PRICE', Decimal('50.00'))
+        payment_amount = getattr(config, 'FACEBOOK_SHARE_AD_PRICE', Decimal('50.00'))
+
+        # Get currency from selected country
+        selected_country_code = request.session.get('selected_country', 'SA')
+        try:
+            from content.models import Country
+            _country = Country.objects.get(code=selected_country_code, is_active=True)
+            payment_currency = _country.currency or 'SAR'
+        except Exception:
+            payment_currency = 'SAR'
 
         # Create payment record
         payment = Payment.objects.create(
             user=request.user,
             amount=payment_amount,
-            currency='EGP',
+            currency=payment_currency,
             payment_method=payment_method,
             status='pending',
             description=f'Facebook Share Request for Ad: {share_request.ad.title}',
@@ -265,7 +274,7 @@ class CreateFacebookShareRequestView(LoginRequiredMixin, View):
             messages.warning(request, _('يوجد طلب نشر نشط لهذا الإعلان بالفعل.'))
             return redirect('main:create_facebook_request')
 
-        payment_amount = getattr(config, 'FACEBOOK_SHARE_PRICE', Decimal('50.00'))
+        payment_amount = getattr(config, 'FACEBOOK_SHARE_AD_PRICE', Decimal('50.00'))
 
         share_request = FacebookShareRequest.objects.create(
             ad=ad,

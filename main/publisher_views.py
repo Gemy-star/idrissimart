@@ -438,14 +438,21 @@ class PublisherUpgradeCreateView(PublisherRequiredMixin, CreateView):
     def form_valid(self, form):
         upgrade = form.instance
 
-        # Set prices based on upgrade type
-        prices = {
-            "HIGHLIGHTED": 50.00,
-            "URGENT": 30.00,
-            "PINNED": 100.00,
-        }
+        # Get price from the ad's category (AdFeaturePrice) — same source as upgrade page
+        from .classifieds_views import _get_category_feature_price
+        from decimal import Decimal
 
-        upgrade.price_paid = prices.get(upgrade.upgrade_type, 0)
+        category = upgrade.ad.category
+        feature_type_map = {
+            "highlighted": ("featured_section", "FEATURED_AD_PRICE_7DAYS", 50.00),
+            "urgent": ("urgent", "URGENT_AD_PRICE_7DAYS", 30.00),
+            "pinned": ("pinned", "PINNED_AD_PRICE_7DAYS", 75.00),
+        }
+        ft_args = feature_type_map.get(upgrade.upgrade_type, (None, None, 0.00))
+        if ft_args[0]:
+            upgrade.price_paid = _get_category_feature_price(category, ft_args[0], ft_args[1], ft_args[2])
+        else:
+            upgrade.price_paid = Decimal("0")
         upgrade.start_date = timezone.now()
         upgrade.end_date = upgrade.start_date + timedelta(days=upgrade.duration_days)
         upgrade.is_active = True

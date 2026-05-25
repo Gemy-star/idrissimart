@@ -318,7 +318,7 @@
                     <input type="radio" name="ad_type" value="banner" class="d-none" checked>
                     <i class="fas fa-desktop fa-2x mb-2 text-primary"></i>
                     <div class="fw-semibold">{% trans "بانر" %}</div>
-                    <div class="dimension-badge mb-1">728×90 px</div>
+                    <div class="dimension-badge mb-1">1200×150 px</div>
                     <div class="price-tag">{{ pricing.banner }} <small class="fw-normal fs-6">{% trans "ج.م/يوم" %}</small></div>
                 </label>
             </div>
@@ -345,7 +345,7 @@
                     <input type="radio" name="ad_type" value="featured_box" class="d-none">
                     <i class="fas fa-star fa-2x mb-2 text-warning"></i>
                     <div class="fw-semibold">{% trans "صندوق مميز" %}</div>
-                    <div class="dimension-badge mb-1">970×250 px</div>
+                    <div class="dimension-badge mb-1">1200×250 px</div>
                     <div class="price-tag">{{ pricing.featured_box }} <small class="fw-normal fs-6">{% trans "ج.م/يوم" %}</small></div>
                 </label>
             </div>
@@ -542,19 +542,82 @@
         </div>
     </div>
 
-    <!-- === Schedule === -->
+    <!-- === Page Targeting === -->
+    <div class="form-section">
+        <h5 class="mb-3"><i class="fas fa-bullseye"></i> {% trans "الصفحات المستهدفة" %}</h5>
+        <p class="text-muted small mb-3">
+            {% trans "اختر الصفحات التي تريد ظهور إعلانك فيها. إذا لم تختر أي صفحة سيظهر الإعلان على كافة الصفحات." %}
+        </p>
+
+        <!-- Show on all pages toggle -->
+        <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" id="showAllPages"
+                   {% if not selected_target_pages %}checked{% endif %}>
+            <label class="form-check-label fw-semibold" for="showAllPages">
+                <i class="fas fa-globe me-1 text-primary"></i>
+                {% trans "عرض على كافة الصفحات (افتراضي)" %}
+            </label>
+        </div>
+
+        <!-- Specific pages (hidden when "all pages" is on) -->
+        <div id="specificPagesWrapper" style="display:none;">
+            <div style="max-height:340px; overflow-y:auto; border:1px solid var(--border-color,#dee2e6); border-radius:10px; padding:16px;">
+                {% for group in site_page_groups %}
+                <div class="fw-semibold text-muted small mb-1{% if not forloop.first %} mt-3{% endif %}">
+                    <i class="{{ group.icon }} me-1"></i>{{ group.label }}
+                </div>
+                {% for page_key, page_label in group.pages %}
+                <div class="form-check">
+                    <input class="form-check-input page-checkbox" type="checkbox"
+                           name="target_pages" value="{{ page_key }}"
+                           id="page_{{ page_key }}"
+                           {% if page_key in selected_target_pages %}checked{% endif %}>
+                    <label class="form-check-label" for="page_{{ page_key }}">{{ page_label }}</label>
+                </div>
+                {% endfor %}
+                {% empty %}
+                <p class="text-muted small">{% trans "لا توجد صفحات متاحة." %}</p>
+                {% endfor %}
+            </div>
+
+            <div class="mt-2 d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="selectAllPages">
+                    <i class="fas fa-check-double me-1"></i>{% trans "تحديد الكل" %}
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="deselectAllPages">
+                    <i class="fas fa-times me-1"></i>{% trans "إلغاء الكل" %}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- === Duration === -->
     <div class="form-section">
         <h5 class="mb-3"><i class="fas fa-calendar-alt"></i> {% trans "مدة العرض" %}</h5>
-        <div class="row g-3">
-            <div class="col-md-6">
-                <label class="form-label fw-semibold">{% trans "تاريخ البدء" %} <span class="text-danger">*</span></label>
-                <input type="date" name="start_date" class="form-control"
-                       value="{{ post_data.start_date }}" required>
+        <div class="alert alert-info py-2 mb-3" style="font-size:.875rem;">
+            <i class="fas fa-info-circle me-1"></i>
+            {% trans "سيبدأ عرض الإعلان من تاريخ قبول الدفع وتفعيله من قِبَل الإدارة، ويستمر لعدد الأيام المحدد." %}
+        </div>
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4 col-sm-6">
+                <label class="form-label fw-semibold">
+                    {% trans "عدد الأيام" %} <span class="text-danger">*</span>
+                </label>
+                <div class="input-group">
+                    <input type="number" name="duration_days" id="durationDays"
+                           class="form-control text-center fw-bold"
+                           value="{{ post_data.duration_days|default:7 }}"
+                           min="1" max="365" required
+                           style="font-size:1.1rem;">
+                    <span class="input-group-text">{% trans "يوم" %}</span>
+                </div>
+                <div class="form-text text-muted">{% trans "الحد الأدنى يوم واحد، الأقصى 365 يوماً" %}</div>
             </div>
-            <div class="col-md-6">
-                <label class="form-label fw-semibold">{% trans "تاريخ الانتهاء" %} <span class="text-danger">*</span></label>
-                <input type="date" name="end_date" class="form-control"
-                       value="{{ post_data.end_date }}" required>
+            <div class="col-md-4 col-sm-6">
+                <div class="card border-0 bg-light p-3 text-center" style="border-radius:10px;">
+                    <div class="text-muted small mb-1">{% trans "إجمالي السعر" %}</div>
+                    <div class="fw-bold text-primary fs-5" id="durationPricePreview">—</div>
+                </div>
             </div>
         </div>
     </div>
@@ -634,7 +697,7 @@
                 </label>
                 <div class="input-group">
                     <input type="text" name="contact_phone" id="contact_phone" class="form-control"
-                           value="{{ post_data.contact_phone|default:request.user.mobile|default:request.user.phone }}"
+                           value="{{ post_data.contact_phone|default:user_mobile_local }}"
                            placeholder="{% trans 'رقم الهاتف بدون كود الدولة' %}">
                     <button type="button" id="banner-change-phone-btn" class="btn btn-outline-secondary"
                             style="{% if not request.user.is_authenticated or not request.user.is_mobile_verified %}display:none;{% endif %}">
@@ -799,17 +862,17 @@
 (function () {
     // ── Specs per ad type (must match IMAGE_SPECS in models.py) ──────────────
     const SPECS = {
-        banner:       { desktop: [728, 90],  mobile: [320, 50],  mobileRequired: true  },
-        sidebar:      { desktop: [300, 250], mobile: null,        mobileRequired: false },
-        popup:        { desktop: [300, 250], mobile: null,        mobileRequired: false },
-        featured_box: { desktop: [970, 250], mobile: null,        mobileRequired: false },
+        banner:       { desktop: [1200, 150], mobile: [320, 50],  mobileRequired: true  },
+        sidebar:      { desktop: [300, 250],  mobile: null,        mobileRequired: false },
+        popup:        { desktop: [300, 250],  mobile: null,        mobileRequired: false },
+        featured_box: { desktop: [1200, 250], mobile: null,        mobileRequired: false },
     };
 
     const LABELS = {
-        banner:       '{% trans "بانر (Leaderboard)" %}',
-        sidebar:      '{% trans "إعلان جانبي (Medium Rectangle)" %}',
-        popup:        '{% trans "نافذة منبثقة (Medium Rectangle)" %}',
-        featured_box: '{% trans "صندوق مميز (Billboard)" %}',
+        banner:       '{% trans "بانر (1200×150)" %}',
+        sidebar:      '{% trans "إعلان جانبي (300×250)" %}',
+        popup:        '{% trans "نافذة منبثقة (300×250)" %}',
+        featured_box: '{% trans "صندوق مميز (1200×250)" %}',
     };
 
     // ── DOM refs ──────────────────────────────────────────────────────────────
@@ -974,14 +1037,6 @@
     });
     updatePosPreview('banner');
 
-    // ── Minimum dates ─────────────────────────────────────────────────────────
-    const today = new Date().toISOString().split('T')[0];
-    document.querySelector('[name=start_date]').min = today;
-    document.querySelector('[name=end_date]').min = today;
-    document.querySelector('[name=start_date]').addEventListener('change', function () {
-        document.querySelector('[name=end_date]').min = this.value;
-    });
-
     // ── Per-day rates (synced with server BannerPricing) ─────────────────────
     const perDayRates = {
         banner:       parseFloat('{{ pricing.banner }}') || 0,
@@ -1061,34 +1116,29 @@
     }
 
     function recalcPrice() {
-        const startVal = document.querySelector('[name=start_date]').value;
-        const endVal   = document.querySelector('[name=end_date]').value;
-        const baseRate = perDayRates[currentType] || 0;
-        const extra    = countExtraCountries();
-        const rate     = baseRate + (extra * extraCountryFeePerDay);
-        const summaryPrice     = document.getElementById('summaryPrice');
-        const summaryBreakdown = document.getElementById('summaryBreakdown');
+        const daysInput = document.getElementById('durationDays');
+        const days      = daysInput ? Math.max(1, parseInt(daysInput.value) || 1) : 1;
+        const baseRate  = perDayRates[currentType] || 0;
+        const extra     = countExtraCountries();
+        const rate      = baseRate + (extra * extraCountryFeePerDay);
+        const summaryPrice      = document.getElementById('summaryPrice');
+        const summaryBreakdown  = document.getElementById('summaryBreakdown');
+        const durationPreview   = document.getElementById('durationPricePreview');
 
-        if (!startVal || !endVal) {
-            summaryPrice.textContent     = '—';
-            summaryBreakdown.textContent = '';
-            return;
-        }
-
-        const days  = Math.max(1, Math.round((new Date(endVal) - new Date(startVal)) / 86400000));
-        const total = (rate * days).toFixed(2);
-        let breakdown = `${baseRate}`;
+        const total    = (rate * days).toFixed(2);
+        let breakdown  = `${baseRate}`;
         if (extra > 0) breakdown += ` + ${(extra * extraCountryFeePerDay).toFixed(0)}`;
         breakdown += ` × ${days} {% trans "يوم" %} =`;
         summaryBreakdown.textContent = breakdown;
         summaryPrice.textContent     = `${total} {% trans "ج.م" %}`;
+        if (durationPreview) durationPreview.textContent = `${total} {% trans "ج.م" %}`;
     }
 
     document.querySelectorAll('#adTypeCards .pricing-card').forEach(card => {
         card.addEventListener('click', recalcPrice);
     });
-    document.querySelector('[name=start_date]').addEventListener('change', recalcPrice);
-    document.querySelector('[name=end_date]').addEventListener('change', recalcPrice);
+    const durationInput = document.getElementById('durationDays');
+    if (durationInput) durationInput.addEventListener('input', recalcPrice);
 
     // ── Init ──────────────────────────────────────────────────────────────────
     updateHint(currentType);
@@ -1113,7 +1163,7 @@
     const inlineAlert     = document.getElementById('banner-phone-alert');
 
     const isMobileVerified = {% if request.user.is_authenticated and request.user.is_mobile_verified %}true{% else %}false{% endif %};
-    const userMobile = {% if request.user.mobile %}'{{ request.user.mobile }}'{% elif request.user.phone %}'{{ request.user.phone }}'{% else %}''{% endif %};
+    const userMobile = '{{ user_mobile_local }}';
 
     let isVerified = isMobileVerified;
     let verifiedPhoneValue = '';
@@ -1320,10 +1370,10 @@
     const typeLabel    = document.getElementById('previewTypeLabel');
 
     const DIM_INFO = {
-        banner:       { dim: '728 × 90 px',  h: '90px',  label: '{% trans "بانر ليدربورد" %}' },
-        sidebar:      { dim: '300 × 250 px', h: '120px', label: '{% trans "إعلان جانبي" %}' },
-        popup:        { dim: '300 × 250 px', h: '120px', label: '{% trans "نافذة منبثقة" %}' },
-        featured_box: { dim: '970 × 250 px', h: '160px', label: '{% trans "صندوق مميز بيلبورد" %}' },
+        banner:       { dim: '1200 × 150 px', h: '150px', label: '{% trans "بانر" %}' },
+        sidebar:      { dim: '300 × 250 px',  h: '120px', label: '{% trans "إعلان جانبي" %}' },
+        popup:        { dim: '300 × 250 px',  h: '120px', label: '{% trans "نافذة منبثقة" %}' },
+        featured_box: { dim: '1200 × 250 px', h: '160px', label: '{% trans "صندوق مميز بيلبورد" %}' },
     };
 
     function applyDimensions(type) {
@@ -1407,6 +1457,37 @@
         paneMobile.style.display  = '';
         paneDesktop.style.display = 'none';
     });
+})();
+
+// ── Page Targeting ────────────────────────────────────────────────────────
+(function () {
+    const toggleAll   = document.getElementById('showAllPages');
+    const wrapper     = document.getElementById('specificPagesWrapper');
+    const selectBtn   = document.getElementById('selectAllPages');
+    const deselectBtn = document.getElementById('deselectAllPages');
+
+    if (!toggleAll || !wrapper) return;
+
+    function syncWrapper() {
+        wrapper.style.display = toggleAll.checked ? 'none' : '';
+        if (toggleAll.checked) {
+            wrapper.querySelectorAll('.page-checkbox').forEach(cb => { cb.checked = false; });
+        }
+    }
+
+    toggleAll.addEventListener('change', syncWrapper);
+    syncWrapper();
+
+    if (selectBtn) {
+        selectBtn.addEventListener('click', function () {
+            wrapper.querySelectorAll('.page-checkbox').forEach(cb => { cb.checked = true; });
+        });
+    }
+    if (deselectBtn) {
+        deselectBtn.addEventListener('click', function () {
+            wrapper.querySelectorAll('.page-checkbox').forEach(cb => { cb.checked = false; });
+        });
+    }
 })();
 
 // ── Email OTP verification ─────────────────────────────────────────────────
