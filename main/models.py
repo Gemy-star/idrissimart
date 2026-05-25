@@ -2051,7 +2051,7 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
             return []
 
         def safe_key(name):
-            """Mirrors the transformation used when saving: re.sub(r'[^\w]', '_', name)"""
+            """Mirrors the transformation used when saving: re.sub(r'[^\\w]', '_', name)"""
             return _re.sub(r'[^\w]', '_', name)
 
         # Get all custom fields for this category and its ancestors
