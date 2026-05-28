@@ -857,7 +857,7 @@ class RegistrationForm(forms.Form):
     profile_type = forms.ChoiceField(
         label=_("نوع الحساب"),
         choices=[],  # Will be populated in __init__
-        initial=User.ProfileType.DEFAULT,
+        initial=User.ProfileType.PUBLISHER,
     )
     terms_accepted = forms.BooleanField(
         label=_("أوافق على الشروط والأحكام"),
@@ -938,12 +938,11 @@ class RegistrationForm(forms.Form):
             except (Country.DoesNotExist, ValueError, TypeError):
                 pass
 
-        # Only allow DEFAULT profile type during registration
-        # Users can upgrade to PUBLISHER via package purchase
+        # Registration creates publisher users directly.
         profile_choices = [
             (
-                User.ProfileType.DEFAULT,
-                _("قياسي - Standard"),
+                User.ProfileType.PUBLISHER,
+                _("ناشر - Publisher"),
             ),
         ]
 

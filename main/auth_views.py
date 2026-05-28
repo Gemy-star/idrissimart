@@ -2,6 +2,7 @@ import logging
 
 from django.contrib import messages
 from django.contrib.auth import login, logout, authenticate, get_user_model
+from django.contrib.auth.models import Group
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.auth.tokens import default_token_generator
@@ -506,8 +507,16 @@ class RegisterView(CreateView):
                     first_name=data.get("first_name"),
                     last_name=data.get("last_name"),
                     phone=data.get("phone"),
-                    profile_type=data.get("profile_type"),
+                    profile_type=User.ProfileType.PUBLISHER,
                 )
+
+            # Ensure registration users are publishers and in publisher group.
+            if user.profile_type != User.ProfileType.PUBLISHER:
+                user.profile_type = User.ProfileType.PUBLISHER
+
+            publisher_group, _ = Group.objects.get_or_create(name="publisher")
+            user.save(update_fields=["profile_type"])
+            user.groups.add(publisher_group)
 
             # Set country - جعل الدولة الافتراضية عند التسجيل مصر
             country_obj = data.get("country")
