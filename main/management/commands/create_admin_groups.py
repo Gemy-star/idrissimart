@@ -13,6 +13,7 @@ Usage:
     python manage.py create_admin_groups
     python manage.py create_admin_groups --list
     python manage.py create_admin_groups --skip-assign
+    python manage.py create_admin_groups --reset-assignments
 """
 
 from django.core.management.base import BaseCommand
@@ -51,6 +52,11 @@ class Command(BaseCommand):
             action="store_true",
             help="Create groups only — skip assigning users to groups",
         )
+        parser.add_argument(
+            "--reset-assignments",
+            action="store_true",
+            help="Clear all current user-group assignments before assigning users again",
+        )
 
     def handle(self, *args, **options):
         if options["list"]:
@@ -87,8 +93,33 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("\nSkipping user assignment (--skip-assign)."))
             return
 
+        if options["reset_assignments"]:
+            self._clear_all_group_assignments()
+
         # --- Assign users: admin/staff -> super_admin, others -> publisher ---
         self._assign_users_to_groups()
+
+    def _clear_all_group_assignments(self):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+
+        self.stdout.write("")
+        self.stdout.write(self.style.MIGRATE_HEADING("Clearing existing user-group assignments..."))
+
+        users_with_groups_before = User.objects.exclude(groups=None).distinct().count()
+        User.groups.through.objects.all().delete()
+        users_with_groups_after = User.objects.exclude(groups=None).distinct().count()
+
+        self.stdout.write(
+            self.style.WARNING(
+                f"  Cleared assignments for {users_with_groups_before} user(s)."
+            )
+        )
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"  Users with groups after clear: {users_with_groups_after}."
+            )
+        )
 
     def _assign_users_to_groups(self):
         from django.contrib.auth import get_user_model
