@@ -6,6 +6,18 @@
 <link rel="stylesheet" href="{% static 'admin/css/dashboard.css' %}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
+/* Full-width layout — strip all Django admin width caps */
+#container { min-width: 0 !important; }
+#main, main.content, #content, #content-main,
+.dashboard #content {
+    max-width: none !important;
+    width: 100% !important;
+    float: none !important;
+    margin: 0 !important;
+}
+#content { padding: 24px 32px !important; box-sizing: border-box !important; }
+#content-main { padding: 0 !important; }
+
 /* ── Headline stats ── */
 .idx-stats-row {
     display: grid;
@@ -50,6 +62,9 @@
     grid-template-columns: 1fr 2fr;
     gap: 16px;
     margin-bottom: 24px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 @media (max-width: 700px) {
     .idx-charts-row { grid-template-columns: 1fr; }
@@ -60,6 +75,11 @@
     border-radius: 10px;
     padding: 16px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    min-width: 0;
+    overflow: visible;
+}
+.idx-chart-box canvas {
+    max-width: 100% !important;
 }
 .idx-chart-box h3 {
     font-size: 0.85rem;
@@ -127,10 +147,11 @@
 </style>
 {% endblock %}
 
-{% block coltype %}colMS{% endblock %}
+{% block coltype %}colM{% endblock %}
 {% block bodyclass %}{{ block.super }} dashboard{% endblock %}
 {% block nav-breadcrumbs %}{% endblock %}
 {% block nav-sidebar %}{% endblock %}
+{% block content_title %}{% endblock %}
 
 {% block content %}
 <div id="content-main">
@@ -168,11 +189,11 @@
     <div class="idx-charts-row">
         <div class="idx-chart-box">
             <h3>توزيع الإعلانات حسب الحالة</h3>
-            <canvas id="adsDoughnutChart" height="200"></canvas>
+            <canvas id="adsDoughnutChart" ></canvas>
         </div>
         <div class="idx-chart-box">
             <h3>الإعلانات الجديدة — آخر 7 أيام</h3>
-            <canvas id="dailyAdsChart" height="200"></canvas>
+            <canvas id="dailyAdsChart" ></canvas>
         </div>
     </div>
 
@@ -207,43 +228,7 @@
 </div>
 {% endblock %}
 
-{% block sidebar %}
-<div id="content-related">
-    <div class="module" id="recent-actions-module">
-        <h2>{% translate 'Recent actions' %}</h2>
-        <h3>{% translate 'My actions' %}</h3>
-        {% load log %}
-        {% get_admin_log 10 as admin_log for_user user %}
-        {% if not admin_log %}
-            <p>{% translate 'None available' %}</p>
-        {% else %}
-            <ul class="actionlist">
-            {% for entry in admin_log %}
-            <li class="{% if entry.is_addition %}addlink{% endif %}{% if entry.is_change %}changelink{% endif %}{% if entry.is_deletion %}deletelink{% endif %}">
-                <span class="visually-hidden">
-                    {% if entry.is_addition %}{% translate 'Added:' %}
-                    {% elif entry.is_change %}{% translate 'Changed:' %}
-                    {% elif entry.is_deletion %}{% translate 'Deleted:' %}
-                    {% endif %}
-                </span>
-                {% if entry.is_deletion or not entry.get_admin_url %}
-                    {{ entry.object_repr }}
-                {% else %}
-                    <a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>
-                {% endif %}
-                <br>
-                {% if entry.content_type %}
-                    <span class="mini quiet">{% filter capfirst %}{{ entry.content_type.name }}{% endfilter %}</span>
-                {% else %}
-                    <span class="mini quiet">{% translate 'Unknown content' %}</span>
-                {% endif %}
-            </li>
-            {% endfor %}
-            </ul>
-        {% endif %}
-    </div>
-</div>
-{% endblock %}
+{% block sidebar %}{% endblock %}
 
 {% block footer %}
 {{ block.super }}
@@ -256,11 +241,11 @@
         'hidden': 'مخفي',
         'draft': 'مسودة',
     };
-    var rawLabels = {{ idx_ads_chart_labels|default:"[]" }};
+    var rawLabels = {{ idx_ads_chart_labels|default:"[]"|safe }};
     var labels = rawLabels.map(function(l){ return statusLabels[l] || l; });
-    var data   = {{ idx_ads_chart_data|default:"[]" }};
-    var daily_labels = {{ idx_daily_labels|default:"[]" }};
-    var daily_data   = {{ idx_daily_ads|default:"[]" }};
+    var data   = {{ idx_ads_chart_data|default:"[]"|safe }};
+    var daily_labels = {{ idx_daily_labels|default:"[]"|safe }};
+    var daily_data   = {{ idx_daily_ads|default:"[]"|safe }};
 
     var colors = ['#3b82f6','#22c55e','#f97316','#a855f7','#f43f5e','#14b8a6'];
 
@@ -278,18 +263,23 @@
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 1.6,
                 plugins: {
-                    legend: { position: 'bottom', labels: { font: { size: 11 } } }
+                    legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } }
                 }
             }
         });
     }
 
+    // Shorten date labels: "2026-05-22" → "05-22"
+    var shortLabels = daily_labels.map(function(d) { return d.slice(5); });
+
     if (document.getElementById('dailyAdsChart') && daily_data.length) {
         new Chart(document.getElementById('dailyAdsChart'), {
             type: 'bar',
             data: {
-                labels: daily_labels,
+                labels: shortLabels,
                 datasets: [{
                     label: 'إعلانات جديدة',
                     data: daily_data,
@@ -301,6 +291,8 @@
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 2.5,
                 plugins: {
                     legend: { display: false }
                 },
@@ -309,7 +301,9 @@
                         beginAtZero: true,
                         ticks: { stepSize: 1, font: { size: 11 } }
                     },
-                    x: { ticks: { font: { size: 10 } } }
+                    x: {
+                        ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true }
+                    }
                 }
             }
         });
