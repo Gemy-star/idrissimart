@@ -14,7 +14,7 @@ from constance import config
 
 from .models import UserVerificationRequest, User
 from .verification_forms import UserVerificationRequestForm
-from .decorators import superadmin_required
+from .decorators import superadmin_required, admin_section_required
 
 
 @login_required
@@ -264,7 +264,7 @@ def verification_payment_process(request, request_id):
 
 # Admin Views
 
-@superadmin_required
+@admin_section_required("reviews")
 def admin_verification_requests(request):
     """Admin view to manage verification requests"""
 
@@ -332,7 +332,7 @@ def admin_verification_requests(request):
     return render(request, "admin_dashboard/verification_requests.html", context)
 
 
-@superadmin_required
+@admin_section_required("reviews")
 def admin_verification_detail(request, request_id):
     """Admin view for verification request details"""
 
@@ -348,7 +348,7 @@ def admin_verification_detail(request, request_id):
     return render(request, "admin_dashboard/verification_detail.html", context)
 
 
-@superadmin_required
+@admin_section_required("reviews")
 @require_POST
 def admin_verification_approve(request, request_id):
     """Admin action to approve verification request"""
@@ -405,7 +405,7 @@ def admin_verification_approve(request, request_id):
         )
 
 
-@superadmin_required
+@admin_section_required("reviews")
 @require_POST
 def admin_verification_reject(request, request_id):
     """Admin action to reject verification request"""

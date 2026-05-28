@@ -258,6 +258,7 @@ class CategoriesView(FilterView):
         if config.get("status_field") and config.get("active_status"):
             if content_type == "classified":
                 base_filters[config["status_field"]] = ClassifiedAd.AdStatus.ACTIVE
+                base_filters["is_hidden"] = False
 
         if config.get("country_field"):
             base_filters[config["country_field"]] = selected_country
@@ -814,6 +815,7 @@ class CategoryDetailView(FilterView):
             ClassifiedAd.objects.filter(
                 category__in=descendants,
                 status=ClassifiedAd.AdStatus.ACTIVE,
+                is_hidden=False,
                 country__code=selected_country,
             )
             .select_related("user", "category", "country")
@@ -824,12 +826,15 @@ class CategoryDetailView(FilterView):
         queryset = self.apply_custom_filters(queryset)
 
         # Apply custom field filters with cf_ prefix
+        import re as _re
         from django.db.models import Q
         for key, value in self.request.GET.items():
             if key.startswith('cf_') and value:
-                field_name = key[3:]  # Remove 'cf_' prefix
-                # Create Q filter for JSONField lookup
-                q_filter = Q(**{f'custom_fields__{field_name}__icontains': value})
+                raw_name = key[3:]  # Remove 'cf_' prefix
+                # Stored keys are "custom_{sanitized_name}" — mirror save() logic
+                safe_name = _re.sub(r'[^\w]', '_', raw_name)
+                json_key = f"custom_{safe_name}"
+                q_filter = Q(**{f'custom_fields__{json_key}__icontains': value})
                 queryset = queryset.filter(q_filter)
 
         # تطبيق الترتيب
@@ -1106,8 +1111,9 @@ class SubcategoryDetailView(FilterView):
 
         queryset = (
             ClassifiedAd.objects.filter(
-                category=self.category,  # Only this specific subcategory
+                category=self.category,
                 status=ClassifiedAd.AdStatus.ACTIVE,
+                is_hidden=False,
                 country__code=selected_country,
             )
             .select_related("user", "category", "country")
@@ -1600,6 +1606,32 @@ class AdDetailView(DetailView):
     template_name = "classifieds/ad_detail.html"
     context_object_name = "ad"
 
+    def dispatch(self, request, *args, **kwargs):
+        ad = self.get_object()
+        user = request.user
+        is_admin = user.is_authenticated and (user.is_staff or user.is_superuser)
+        is_owner = user.is_authenticated and user.pk == ad.user_id
+
+        # Hidden ads: only owner/admin can view
+        if ad.is_hidden and not is_admin and not is_owner:
+            from django.http import Http404
+            raise Http404
+
+        # Visibility type enforcement (skip for owner/admin)
+        if not is_admin and not is_owner:
+            if ad.visibility_type == ClassifiedAd.VisibilityType.MEMBERS_ONLY:
+                if not user.is_authenticated:
+                    from django.conf import settings as _settings
+                    from django.shortcuts import redirect as _redirect
+                    login_url = getattr(_settings, "LOGIN_URL", "/accounts/login/")
+                    return _redirect(f"{login_url}?next={request.path}")
+            elif ad.visibility_type == ClassifiedAd.VisibilityType.VERIFIED_ONLY:
+                if not user.is_authenticated or getattr(user, "verification_status", None) != "verified":
+                    from django.core.exceptions import PermissionDenied
+                    raise PermissionDenied
+
+        return super().dispatch(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         ad = self.get_object()
@@ -1708,6 +1740,7 @@ class AdDetailView(DetailView):
         # Get category-specific safety tips
         from main.models import SafetyTip
         context["safety_tips"] = SafetyTip.get_tips_for_category(ad.category)
+        context["can_view_contact"] = ad.can_view_contact_info(self.request.user)
 
         return context
 
@@ -3208,7 +3241,11 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.decorators import method_decorator
 from django.db.models import Count, Sum, Q, Avg
 from datetime import datetime, timedelta
-from .decorators import SuperadminRequiredMixin, superadmin_required
+from .decorators import SuperadminRequiredMixin, superadmin_required, admin_section_required
+from .admin_groups import (
+    get_admin_permissions_context, can_admin, is_any_admin,
+    ADMIN_GROUP_LABELS, ALL_ADMIN_GROUP_NAMES, ADMIN_GROUPS, ensure_admin_groups_exist,
+)
 
 
 class AdminDashboardView(SuperadminRequiredMixin, TemplateView):
@@ -3478,11 +3515,8 @@ class AdminDashboardView(SuperadminRequiredMixin, TemplateView):
 
 
 class AdminCategoriesView(SuperadminRequiredMixin, TemplateView):
-    """
-    Admin interface for managing main and subcategories
-    Restricted to superusers only
-    """
-
+    """Admin interface for managing categories."""
+    required_admin_group = "content"
     template_name = "admin_dashboard/categories.html"
 
     def get_context_data(self, **kwargs):
@@ -4258,10 +4292,8 @@ class AdminCustomFieldAddToCategoriesView(SuperadminRequiredMixin, View):
 
 
 class AdminUsersManagementView(SuperadminRequiredMixin, ListView):
-    """
-    Admin interface for comprehensive user management.
-    Restricted to superusers only.
-    """
+    """Admin interface for comprehensive user management."""
+    required_admin_group = "users"
 
     template_name = "admin_dashboard/users_management.html"
     model = User
@@ -4305,10 +4337,8 @@ class AdminUsersManagementView(SuperadminRequiredMixin, ListView):
 
 
 class AdminSettingsView(SuperadminRequiredMixin, View):
-    """
-    Admin system settings and configurations with form handling
-    Restricted to superusers only
-    """
+    """Admin system settings and configurations."""
+    required_admin_group = "content"
 
     def get(self, request):
         from constance import config
@@ -4388,12 +4418,8 @@ class AdminSettingsView(SuperadminRequiredMixin, View):
 
 
 class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
-    """
-    Admin interface for comprehensive payment operations
-    Handles all payment types: packages, subscriptions, ad features, orders
-    Restricted to superusers only
-    """
-
+    """Admin interface for payment operations."""
+    required_admin_group = "accounting"
     template_name = "admin_dashboard/payments.html"
 
     def get_context_data(self, **kwargs):
@@ -4849,10 +4875,8 @@ def admin_payment_transaction_detail(request, transaction_id):
 
 
 class AdminNotificationView(SuperadminRequiredMixin, ListView):
-    """
-    Admin notification view - Shows all notifications for admin users
-    Restricted to superusers only
-    """
+    """Admin notification view."""
+    required_admin_group = "notifications"
 
     model = Notification
     template_name = "admin_dashboard/notifications.html"
@@ -5032,10 +5056,8 @@ def admin_get_user_subscriptions(request):
 
 
 class AdminTranslationsView(SuperadminRequiredMixin, TemplateView):
-    """
-    Admin interface for translation management using Django Rosetta
-    Restricted to superusers only
-    """
+    """Admin interface for translation management."""
+    required_admin_group = "content"
 
     template_name = "admin_dashboard/translations.html"
 
@@ -5370,27 +5392,33 @@ def admin_user_detail(request, user_id):
 @require_POST
 def admin_user_update(request, user_id):
     """
-    Update user information from admin panel.
+    Update user information from admin panel (supports multipart/form-data for image upload).
     """
     try:
         user_to_update = get_object_or_404(User, pk=user_id)
 
-        # Get form data
+        # Basic fields
         first_name = request.POST.get("first_name", "").strip()
         last_name = request.POST.get("last_name", "").strip()
         email = request.POST.get("email", "").strip()
         phone = request.POST.get("phone", "").strip()
+        mobile = request.POST.get("mobile", "").strip()
         whatsapp = request.POST.get("whatsapp", "").strip()
         username = request.POST.get("username", "").strip()
+        company_name = request.POST.get("company_name", "").strip()
+        company_name_ar = request.POST.get("company_name_ar", "").strip()
+        bio = request.POST.get("bio", "").strip()
+        bio_ar = request.POST.get("bio_ar", "").strip()
         new_password = request.POST.get("new_password", "").strip()
 
         # Additional fields
-        country = request.POST.get("country", "").strip()
+        country_id = request.POST.get("country", "").strip()
         city = request.POST.get("city", "").strip()
         language = request.POST.get("language", "").strip()
-        is_company = request.POST.get("is_company") == "true"
         is_verified = request.POST.get("is_verified") == "verified"
         is_active = request.POST.get("is_active") == "true"
+        is_banned = request.POST.get("is_banned") == "true"
+        ban_reason = request.POST.get("ban_reason", "").strip()
         user_role = request.POST.get("user_role", "member").strip()
 
         # Validate email uniqueness
@@ -5407,28 +5435,39 @@ def admin_user_update(request, user_id):
                     {"success": False, "message": _("اسم المستخدم مستخدم بالفعل.")}
                 )
 
-        # Update user basic info
+        # Update basic info
         user_to_update.first_name = first_name
         user_to_update.last_name = last_name
         user_to_update.email = email
         user_to_update.phone = phone
+        user_to_update.mobile = mobile
         user_to_update.whatsapp = whatsapp
+        user_to_update.company_name = company_name
+        user_to_update.company_name_ar = company_name_ar
+        user_to_update.bio = bio
+        user_to_update.bio_ar = bio_ar
 
         if username:
             user_to_update.username = username
 
-        # Update additional fields
-        if country:
-            user_to_update.country = country
+        if country_id:
+            user_to_update.country_id = int(country_id)
+        elif country_id == "":
+            user_to_update.country = None
         if city:
             user_to_update.city = city
         if language:
             user_to_update.language = language
 
-        user_to_update.is_company = is_company
         user_to_update.is_active = is_active
 
-        # Update verification status
+        # Ban handling — sets is_active=False when banned
+        user_to_update.is_banned = is_banned
+        user_to_update.ban_reason = ban_reason if is_banned else ""
+        if is_banned:
+            user_to_update.is_active = False
+
+        # Verification status
         if is_verified:
             user_to_update.verification_status = User.VerificationStatus.VERIFIED
             if not user_to_update.verified_at:
@@ -5437,7 +5476,7 @@ def admin_user_update(request, user_id):
             user_to_update.verification_status = User.VerificationStatus.UNVERIFIED
             user_to_update.verified_at = None
 
-        # Update user role (only superadmin can change this)
+        # User role (superadmin only)
         if request.user.is_superuser:
             if user_role == "staff":
                 user_to_update.is_staff = True
@@ -5445,11 +5484,26 @@ def admin_user_update(request, user_id):
             elif user_role == "superuser":
                 user_to_update.is_staff = True
                 user_to_update.is_superuser = True
-            else:  # member
+            elif user_role == "member":
                 user_to_update.is_staff = False
                 user_to_update.is_superuser = False
 
-        # Update password if provided
+        # Profile image
+        if "profile_image" in request.FILES:
+            profile_image = request.FILES["profile_image"]
+            if profile_image.size > 5 * 1024 * 1024:
+                return JsonResponse(
+                    {"success": False, "message": _("حجم الصورة يتجاوز 5 ميغابايت.")}
+                )
+            if user_to_update.profile_image:
+                user_to_update.profile_image.delete(save=False)
+            user_to_update.profile_image = profile_image
+        elif request.POST.get("clear_profile_image") == "1":
+            if user_to_update.profile_image:
+                user_to_update.profile_image.delete(save=False)
+            user_to_update.profile_image = None
+
+        # Password change
         if new_password:
             if len(new_password) < 8:
                 return JsonResponse(
@@ -8063,10 +8117,8 @@ def custom_500(request):
 
 
 class AdminReportsView(SuperadminRequiredMixin, TemplateView):
-    """
-    Admin reports view with comprehensive statistics.
-    Includes visitor stats, user stats, ad stats, revenue, etc.
-    """
+    """Admin reports view with comprehensive statistics."""
+    required_admin_group = "reports"
 
     template_name = "admin_dashboard/reports.html"
 
@@ -9199,3 +9251,122 @@ class AdminReportsManagementView(LoginRequiredMixin, UserPassesTestMixin, ListVi
         context["rejected_count"] = AdReport.objects.filter(status="rejected").count()
 
         return context
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# SUB-ADMIN MANAGEMENT VIEWS  (superuser-only)
+# ═══════════════════════════════════════════════════════════════════════
+
+class AdminStaffListView(SuperadminRequiredMixin, ListView):
+    """List all staff/sub-admin users with their group assignments."""
+    template_name = "admin_dashboard/staff_management.html"
+    context_object_name = "staff_users"
+    paginate_by = 30
+
+    def get_queryset(self):
+        from django.contrib.auth import get_user_model
+        U = get_user_model()
+        return (
+            U.objects.filter(is_staff=True)
+            .prefetch_related("groups")
+            .order_by("-date_joined")
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from django.contrib.auth.models import Group
+        context["admin_groups"] = Group.objects.filter(name__in=ALL_ADMIN_GROUP_NAMES)
+        context["admin_group_labels"] = ADMIN_GROUP_LABELS
+        context["active_nav"] = "staff"
+        context.update(get_admin_permissions_context(self.request.user))
+        return context
+
+
+@superadmin_required
+def admin_staff_create(request):
+    """Create a new staff user and assign admin groups."""
+    from django.contrib.auth import get_user_model
+    from django.contrib.auth.models import Group
+
+    if request.method == "POST":
+        username = request.POST.get("username", "").strip()
+        email = request.POST.get("email", "").strip()
+        password = request.POST.get("password", "").strip()
+        first_name = request.POST.get("first_name", "").strip()
+        last_name = request.POST.get("last_name", "").strip()
+        group_names = request.POST.getlist("groups")
+
+        if not username or not email or not password:
+            messages.error(request, _("يرجى ملء جميع الحقول المطلوبة."))
+            return redirect("main:admin_staff_list")
+
+        U = get_user_model()
+        if U.objects.filter(username=username).exists():
+            messages.error(request, _("اسم المستخدم مستخدم بالفعل."))
+            return redirect("main:admin_staff_list")
+
+        user = U.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            first_name=first_name,
+            last_name=last_name,
+            is_staff=True,
+            is_superuser=False,
+        )
+        valid_groups = Group.objects.filter(name__in=[n for n in group_names if n in ALL_ADMIN_GROUP_NAMES])
+        user.groups.set(valid_groups)
+        messages.success(request, _(f"تم إنشاء المسؤول الفرعي «{username}» بنجاح."))
+
+    return redirect("main:admin_staff_list")
+
+
+@superadmin_required
+def admin_staff_update_groups(request, user_id):
+    """Update group assignments for an existing staff user."""
+    from django.contrib.auth import get_user_model
+    from django.contrib.auth.models import Group
+
+    if request.method == "POST":
+        U = get_user_model()
+        staff_user = get_object_or_404(U, pk=user_id, is_staff=True)
+
+        # Prevent modifying another superuser
+        if staff_user.is_superuser:
+            messages.error(request, _("لا يمكن تعديل صلاحيات المشرف الرئيسي."))
+            return redirect("main:admin_staff_list")
+
+        group_names = request.POST.getlist("groups")
+        valid_groups = Group.objects.filter(name__in=[n for n in group_names if n in ALL_ADMIN_GROUP_NAMES])
+        staff_user.groups.set(valid_groups)
+
+        # If no admin groups remain, remove is_staff
+        if not valid_groups.exists():
+            staff_user.is_staff = False
+            staff_user.save(update_fields=["is_staff"])
+            messages.warning(request, _(f"تم إزالة جميع الصلاحيات من «{staff_user.username}». تم إلغاء وضع المسؤول."))
+        else:
+            messages.success(request, _(f"تم تحديث صلاحيات «{staff_user.username}» بنجاح."))
+
+    return redirect("main:admin_staff_list")
+
+
+@superadmin_required
+def admin_staff_delete(request, user_id):
+    """Remove staff status and all admin groups from a sub-admin user."""
+    from django.contrib.auth import get_user_model
+
+    if request.method == "POST":
+        U = get_user_model()
+        staff_user = get_object_or_404(U, pk=user_id)
+
+        if staff_user.is_superuser:
+            messages.error(request, _("لا يمكن حذف المشرف الرئيسي من هنا."))
+            return redirect("main:admin_staff_list")
+
+        staff_user.is_staff = False
+        staff_user.groups.clear()
+        staff_user.save(update_fields=["is_staff"])
+        messages.success(request, _(f"تم إلغاء صلاحيات المسؤول «{staff_user.username}»."))
+
+    return redirect("main:admin_staff_list")

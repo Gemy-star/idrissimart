@@ -583,7 +583,7 @@
         </div>
 
         <div style="display: flex; gap: 10px;">
-            <button class="btn-preview" onclick="window.open('/admin/safety-tips/preview/', '_blank')">
+            <button class="btn-preview" onclick="window.open('{% url 'main:admin_safety_tip_preview' %}', '_blank')">
                 <i class="fas fa-eye me-2"></i>
                 {% trans "معاينة" %}
             </button>
@@ -755,9 +755,9 @@
                     </div>
 
                     <div class="form-group">
-                        <label>{% trans "الفئة" %}</label>
-                        <select id="category" name="category">
-                            <option value="">{% trans "عام (لجميع الفئات)" %}</option>
+                        <label>{% trans "القسم الرئيسي" %}</label>
+                        <select id="parent_category" onchange="onParentCategoryChange(this.value)">
+                            <option value="">{% trans "عام (لجميع الأقسام)" %}</option>
                             {% for cat in all_categories %}
                                 <option value="{{ cat.id }}">
                                     {% if LANGUAGE_CODE == 'ar' and cat.name_ar %}{{ cat.name_ar }}{% else %}{{ cat.name }}{% endif %}
@@ -765,6 +765,14 @@
                             {% endfor %}
                         </select>
                     </div>
+
+                    <div class="form-group" id="subcategoryGroup" style="display:none;">
+                        <label>{% trans "القسم الفرعي" %}</label>
+                        <select id="subcategory_select" onchange="onSubcategoryChange(this.value)">
+                            <option value="">{% trans "جميع الأقسام الفرعية" %}</option>
+                        </select>
+                    </div>
+                    <input type="hidden" id="category" name="category" value="">
 
                     <div class="form-group">
                         <label>{% trans "الترتيب" %}</label>
@@ -795,13 +803,49 @@
 
 {% block extra_js %}
 <script>
+const SUBCATEGORIES = {{ subcategories_json|safe }};
+const SAFETY_TIP_DETAIL_URL_TEMPLATE = "{% url 'main:admin_safety_tip_detail' 0 %}";
+const SAFETY_TIP_DELETE_URL_TEMPLATE = "{% url 'main:admin_safety_tip_delete' 0 %}";
+const SAFETY_TIP_SAVE_URL = "{% url 'main:admin_safety_tip_save' %}";
 let selectedColor = 'info';
+
+function onParentCategoryChange(parentId) {
+    const subGroup = document.getElementById('subcategoryGroup');
+    const subSelect = document.getElementById('subcategory_select');
+    const categoryHidden = document.getElementById('category');
+
+    subSelect.innerHTML = '<option value="">{% trans "جميع الأقسام الفرعية" %}</option>';
+
+    if (parentId && SUBCATEGORIES[parentId] && SUBCATEGORIES[parentId].length > 0) {
+        SUBCATEGORIES[parentId].forEach(sc => {
+            const opt = document.createElement('option');
+            opt.value = sc.id;
+            opt.textContent = sc.name;
+            subSelect.appendChild(opt);
+        });
+        subGroup.style.display = '';
+    } else {
+        subGroup.style.display = 'none';
+    }
+
+    // Default: use parent as category unless a subcategory is chosen
+    categoryHidden.value = parentId || '';
+}
+
+function onSubcategoryChange(subId) {
+    const parentId = document.getElementById('parent_category').value;
+    const categoryHidden = document.getElementById('category');
+    // If a subcategory is selected use it, otherwise fall back to parent
+    categoryHidden.value = subId || parentId || '';
+}
 
 function openModal(tipId = null) {
     document.getElementById('tipModal').classList.add('active');
     if (!tipId) {
         document.getElementById('modalTitle').textContent = '{% trans "إضافة نصيحة جديدة" %}';
         document.getElementById('tipForm').reset();
+        document.getElementById('subcategoryGroup').style.display = 'none';
+        document.getElementById('category').value = '';
         selectColor('info');
     }
 }
@@ -816,11 +860,12 @@ function selectColor(color) {
     document.querySelectorAll('.color-option').forEach(opt => {
         opt.classList.remove('selected');
     });
-    document.querySelector(`[data-color="${color}"]`).classList.add('selected');
+    const el = document.querySelector(`[data-color="${color}"]`);
+    if (el) el.classList.add('selected');
 }
 
 function editTip(tipId) {
-    fetch(`/admin/safety-tips/${tipId}/`)
+    fetch(SAFETY_TIP_DETAIL_URL_TEMPLATE.replace('/0/', `/${tipId}/`))
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -831,9 +876,21 @@ function editTip(tipId) {
                 document.getElementById('description').value = data.description;
                 document.getElementById('description_en').value = data.description_en || '';
                 document.getElementById('icon_class').value = data.icon_class;
-                document.getElementById('category').value = data.category || '';
                 document.getElementById('order').value = data.order;
                 document.getElementById('is_active').checked = data.is_active;
+
+                // Restore parent + subcategory dropdowns
+                const parentSel = document.getElementById('parent_category');
+                parentSel.value = data.parent_category || '';
+                onParentCategoryChange(data.parent_category ? String(data.parent_category) : '');
+                if (data.sub_category) {
+                    document.getElementById('subcategory_select').value = data.sub_category;
+                    onSubcategoryChange(String(data.sub_category));
+                } else if (data.parent_category) {
+                    document.getElementById('category').value = data.parent_category;
+                } else {
+                    document.getElementById('category').value = '';
+                }
 
                 selectColor(data.color_theme);
                 openModal(tipId);
@@ -847,7 +904,7 @@ function deleteTip(tipId) {
     const formData = new FormData();
     formData.append('tip_id', tipId);
 
-    fetch(`/admin/safety-tips/${tipId}/delete/`, {
+    fetch(SAFETY_TIP_DELETE_URL_TEMPLATE.replace('/0/', `/${tipId}/`), {
         method: 'POST',
         body: formData,
         headers: {
@@ -869,7 +926,7 @@ document.getElementById('tipForm').addEventListener('submit', function(e) {
 
     const formData = new FormData(this);
 
-    fetch('/admin/safety-tips/save/', {
+    fetch(SAFETY_TIP_SAVE_URL, {
         method: 'POST',
         body: formData,
         headers: {

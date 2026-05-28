@@ -2900,11 +2900,12 @@ class AdUnifiedUpgradeView(LoginRequiredMixin, DetailView):
         }
 
         # Tax rate — shown on page so user knows the total before payment
-        tax_rate_percentage = getattr(config, "TAX_RATE", 15.0)
+        _site_config = SiteConfiguration.get_solo()
+        tax_rate_percentage = float(_site_config.tax_rate)
         context["tax_rate_percentage"] = tax_rate_percentage
         context["tax_rate"] = Decimal(str(tax_rate_percentage)) / Decimal("100")
 
-        context["site_config"] = SiteConfiguration.get_solo()
+        context["site_config"] = _site_config
         context["selected_currency"] = (
             ad.country.currency if ad.country else "EGP"
         )

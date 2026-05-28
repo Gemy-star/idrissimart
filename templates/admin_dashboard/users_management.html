@@ -265,6 +265,17 @@
     color: white;
   }
 
+  .btn-edit {
+    background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);
+    color: white;
+  }
+
+  .btn-edit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(8, 145, 178, 0.4);
+    color: white;
+  }
+
   .btn-more {
     background: #f7fafc;
     color: #2d3748;
@@ -901,6 +912,34 @@
           <i class="fas fa-eye me-1"></i>
           {% trans "عرض" %}
         </a>
+        <button
+          class="btn btn-action btn-edit"
+          data-action="edit-user"
+          data-bs-toggle="modal"
+          data-bs-target="#editUserModal"
+          data-user-id="{{ user_obj.id }}"
+          data-user-username="{{ user_obj.username|escapejs }}"
+          data-user-first-name="{{ user_obj.first_name|escapejs }}"
+          data-user-last-name="{{ user_obj.last_name|escapejs }}"
+          data-user-email="{{ user_obj.email|escapejs }}"
+          data-user-phone="{{ user_obj.phone|escapejs }}"
+          data-user-mobile="{{ user_obj.mobile|escapejs }}"
+          data-user-whatsapp="{{ user_obj.whatsapp|escapejs }}"
+          data-user-company="{{ user_obj.company_name|escapejs }}"
+          data-user-company-ar="{{ user_obj.company_name_ar|escapejs }}"
+          data-user-country="{{ user_obj.country_id|default:'' }}"
+          data-user-city="{{ user_obj.city|escapejs }}"
+          data-user-bio="{{ user_obj.bio|escapejs }}"
+          data-user-bio-ar="{{ user_obj.bio_ar|escapejs }}"
+          data-user-image="{% if user_obj.profile_image %}{{ user_obj.profile_image.url }}{% endif %}"
+          data-user-is-active="{{ user_obj.is_active|yesno:'true,false' }}"
+          data-user-verification="{{ user_obj.verification_status }}"
+          data-user-is-banned="{{ user_obj.is_banned|yesno:'true,false' }}"
+          data-user-ban-reason="{{ user_obj.ban_reason|escapejs }}"
+        >
+          <i class="fas fa-user-edit me-1"></i>
+          {% trans "تعديل" %}
+        </button>
         <button class="btn btn-action btn-more w-100" onclick="toggleActionsPanel(this)">
           <i class="fas fa-cog me-1"></i>
           {% trans "إجراءات" %}
@@ -987,17 +1026,6 @@
             {% trans "توثيق المستخدم" %}
           </button>
           {% endif %}
-          <button
-            type="button"
-            class="action-btn info"
-            data-action="change-role"
-            data-user-id="{{ user_obj.id }}"
-            data-bs-toggle="modal"
-            data-bs-target="#changeRoleModal"
-          >
-            <i class="fas fa-user-shield"></i>
-            {% trans "تغيير الدور" %}
-          </button>
           <button
             type="button"
             class="action-btn warning"
@@ -1161,43 +1189,6 @@
   </div>
 </div>
 
-<!-- Change Role Modal -->
-<div class="modal fade" id="changeRoleModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">
-          <i class="fas fa-user-shield me-2"></i>
-          {% trans "تغيير دور المستخدم" %}
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <form id="changeRoleForm">
-          {% csrf_token %}
-          <input type="hidden" id="changeRoleUserId" name="user_id">
-          <div class="mb-3">
-            <label class="form-label">{% trans "الدور الجديد" %}</label>
-            <select name="role" class="form-select" required>
-              {% for value, name in profile_type_choices %}
-              <option value="{{ value }}">{{ name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-          {% trans "إلغاء" %}
-        </button>
-        <button type="button" class="btn btn-primary-custom" onclick="submitChangeRole()">
-          {% trans "حفظ" %}
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- Add Balance Modal -->
 <div class="modal fade" id="addBalanceModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
@@ -1314,6 +1305,188 @@
   </div>
 </div>
 
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-user-edit me-2"></i>
+          {% trans "تعديل بيانات المستخدم" %}: <span id="editUserName"></span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <form id="editUserForm" enctype="multipart/form-data">
+          {% csrf_token %}
+          <input type="hidden" id="editUserId" name="user_id">
+
+          <!-- Nav Tabs -->
+          <ul class="nav nav-tabs px-3 pt-3" id="editUserTabs">
+            <li class="nav-item">
+              <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabBasic" type="button">
+                <i class="fas fa-user me-1"></i> {% trans "المعلومات الأساسية" %}
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabContact" type="button">
+                <i class="fas fa-phone me-1"></i> {% trans "التواصل والموقع" %}
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabStatus" type="button">
+                <i class="fas fa-shield-alt me-1"></i> {% trans "حالة الحساب" %}
+              </button>
+            </li>
+          </ul>
+
+          <div class="tab-content p-3">
+            <!-- Tab 1: Basic Info + Image -->
+            <div class="tab-pane fade show active" id="tabBasic">
+              <div class="row g-3">
+                <!-- Profile Image -->
+                <div class="col-12">
+                  <div class="d-flex align-items-center gap-3 p-3 border rounded-3 bg-light">
+                    <div id="editImagePreviewWrap" style="width:80px;height:80px;border-radius:50%;overflow:hidden;background:#e2e8f0;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                      <img id="editImagePreview" src="" alt="" style="width:100%;height:100%;object-fit:cover;display:none;">
+                      <i id="editImageIcon" class="fas fa-user fa-2x text-muted"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                      <label class="form-label fw-bold mb-1">{% trans "الصورة الشخصية" %}</label>
+                      <input type="file" class="form-control" id="editProfileImage" name="profile_image" accept="image/*">
+                      <div class="form-text">{% trans "JPG أو PNG حتى 5 ميغابايت" %}</div>
+                    </div>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearEditImage()">
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
+                  </div>
+                </div>
+                <!-- Username -->
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">{% trans "اسم المستخدم" %}</label>
+                  <input type="text" class="form-control" id="editUsername" name="username">
+                </div>
+                <!-- Email -->
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">{% trans "البريد الإلكتروني" %}</label>
+                  <input type="email" class="form-control" id="editEmail" name="email">
+                </div>
+                <!-- First Name -->
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">{% trans "الاسم الأول" %}</label>
+                  <input type="text" class="form-control" id="editFirstName" name="first_name">
+                </div>
+                <!-- Last Name -->
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">{% trans "الاسم الأخير" %}</label>
+                  <input type="text" class="form-control" id="editLastName" name="last_name">
+                </div>
+                <!-- Company Name -->
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">{% trans "اسم الشركة (إنجليزي)" %}</label>
+                  <input type="text" class="form-control" id="editCompany" name="company_name">
+                </div>
+                <!-- Company Name AR -->
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">{% trans "اسم الشركة (عربي)" %}</label>
+                  <input type="text" class="form-control" id="editCompanyAr" name="company_name_ar" dir="rtl">
+                </div>
+                <!-- Bio -->
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">{% trans "نبذة تعريفية (إنجليزي)" %}</label>
+                  <textarea class="form-control" id="editBio" name="bio" rows="3"></textarea>
+                </div>
+                <!-- Bio AR -->
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">{% trans "نبذة تعريفية (عربي)" %}</label>
+                  <textarea class="form-control" id="editBioAr" name="bio_ar" rows="3" dir="rtl"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab 2: Contact + Location -->
+            <div class="tab-pane fade" id="tabContact">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">{% trans "رقم الهاتف" %}</label>
+                  <input type="tel" class="form-control" id="editPhone" name="phone">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">{% trans "رقم الجوال" %}</label>
+                  <input type="tel" class="form-control" id="editMobile" name="mobile">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">{% trans "واتساب" %}</label>
+                  <input type="tel" class="form-control" id="editWhatsapp" name="whatsapp">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">{% trans "الدولة" %}</label>
+                  <select class="form-select" id="editCountry" name="country">
+                    <option value="">{% trans "--- اختر الدولة ---" %}</option>
+                    {% for country in countries %}
+                    <option value="{{ country.id }}">{{ country.name }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">{% trans "المدينة" %}</label>
+                  <input type="text" class="form-control" id="editCity" name="city">
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab 3: Account Status -->
+            <div class="tab-pane fade" id="tabStatus">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <div class="form-check form-switch p-3 border rounded-3">
+                    <input class="form-check-input" type="checkbox" id="editIsActive" name="is_active" role="switch">
+                    <label class="form-check-label fw-bold" for="editIsActive">
+                      <i class="fas fa-power-off me-1 text-success"></i>
+                      {% trans "الحساب مفعّل" %}
+                    </label>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="form-check form-switch p-3 border rounded-3">
+                    <input class="form-check-input" type="checkbox" id="editIsVerified" name="is_verified" role="switch">
+                    <label class="form-check-label fw-bold" for="editIsVerified">
+                      <i class="fas fa-shield-check me-1 text-primary"></i>
+                      {% trans "موثّق" %}
+                    </label>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="form-check form-switch p-3 border rounded-3">
+                    <input class="form-check-input" type="checkbox" id="editIsBanned" name="is_banned" role="switch">
+                    <label class="form-check-label fw-bold" for="editIsBanned">
+                      <i class="fas fa-gavel me-1 text-danger"></i>
+                      {% trans "محظور نهائياً" %}
+                    </label>
+                  </div>
+                </div>
+                <div class="col-12" id="banReasonWrap" style="display:none;">
+                  <label class="form-label fw-bold text-danger">{% trans "سبب الحظر" %}</label>
+                  <textarea class="form-control border-danger" id="editBanReason" name="ban_reason" rows="2" dir="rtl"></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          {% trans "إلغاء" %}
+        </button>
+        <button type="button" class="btn btn-primary-custom" onclick="submitEditUser()">
+          <i class="fas fa-save me-1"></i>
+          {% trans "حفظ التعديلات" %}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Toast Container -->
 <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 10500;"></div>
 {% endblock modals %}
@@ -1387,9 +1560,6 @@ document.addEventListener('click', (e) => {
       break;
     case 'user-action':
       handleUserAction(userId, el.dataset.userAction);
-      break;
-    case 'change-role':
-      document.getElementById('changeRoleUserId').value = userId;
       break;
     case 'reset-password':
       handleResetPassword(userId, el.dataset.username);
@@ -1610,32 +1780,6 @@ function handleDeleteUser(userId, username) {
   );
 }
 
-function submitChangeRole() {
-  const form = document.getElementById('changeRoleForm');
-  const formData = new FormData(form);
-  const userId = document.getElementById('changeRoleUserId').value;
-
-  fetch(`/${LANGUAGE_CODE}/admin/users/${userId}/change-role/`, {
-    method: 'POST',
-    headers: {
-      'X-CSRFToken': getCookie('csrftoken')
-    },
-    body: formData
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.success) {
-      const modal = bootstrap.Modal.getInstance(document.getElementById('changeRoleModal'));
-      modal.hide();
-      showNotification(data.message || '{% trans "تم تغيير الدور بنجاح" %}', 'success');
-      setTimeout(() => location.reload(), 1000);
-    } else {
-      showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
-    }
-  })
-  .catch(() => showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error'));
-}
-
 function submitAddBalance() {
   const form = document.getElementById('addBalanceForm');
   const formData = new FormData(form);
@@ -1741,6 +1885,124 @@ function createToastContainer() {
   container.style.zIndex = '10500';
   document.body.appendChild(container);
   return container;
+}
+
+// ── Edit User Modal ──────────────────────────────────────────────
+document.getElementById('editUserModal').addEventListener('show.bs.modal', function (e) {
+  const btn = e.relatedTarget;
+  if (!btn) return;
+  const d = btn.dataset;
+
+  document.getElementById('editUserId').value       = d.userId;
+  document.getElementById('editUserName').textContent = d.userUsername;
+  document.getElementById('editUsername').value     = d.userUsername   || '';
+  document.getElementById('editFirstName').value    = d.userFirstName  || '';
+  document.getElementById('editLastName').value     = d.userLastName   || '';
+  document.getElementById('editEmail').value        = d.userEmail      || '';
+  document.getElementById('editPhone').value        = d.userPhone      || '';
+  document.getElementById('editMobile').value       = d.userMobile     || '';
+  document.getElementById('editWhatsapp').value     = d.userWhatsapp   || '';
+  document.getElementById('editCompany').value      = d.userCompany    || '';
+  document.getElementById('editCompanyAr').value    = d.userCompanyAr  || '';
+  document.getElementById('editCity').value         = d.userCity       || '';
+  document.getElementById('editBio').value          = d.userBio        || '';
+  document.getElementById('editBioAr').value        = d.userBioAr      || '';
+
+  // Country select
+  const sel = document.getElementById('editCountry');
+  sel.value = d.userCountry || '';
+
+  // Image preview
+  const preview = document.getElementById('editImagePreview');
+  const icon    = document.getElementById('editImageIcon');
+  if (d.userImage) {
+    preview.src = d.userImage;
+    preview.style.display = 'block';
+    icon.style.display    = 'none';
+  } else {
+    preview.src = '';
+    preview.style.display = 'none';
+    icon.style.display    = 'block';
+  }
+
+  // Status toggles
+  document.getElementById('editIsActive').checked   = d.userIsActive   === 'true';
+  document.getElementById('editIsVerified').checked = d.userVerification === 'VERIFIED';
+  document.getElementById('editIsBanned').checked   = d.userIsBanned   === 'true';
+  document.getElementById('editBanReason').value    = d.userBanReason  || '';
+  document.getElementById('banReasonWrap').style.display =
+    d.userIsBanned === 'true' ? 'block' : 'none';
+
+  // Reset file input and first tab
+  document.getElementById('editProfileImage').value = '';
+  const firstTab = document.querySelector('#editUserTabs .nav-link');
+  bootstrap.Tab.getOrCreateInstance(firstTab).show();
+});
+
+document.getElementById('editIsBanned').addEventListener('change', function () {
+  document.getElementById('banReasonWrap').style.display = this.checked ? 'block' : 'none';
+});
+
+document.getElementById('editProfileImage').addEventListener('change', function () {
+  const file = this.files[0];
+  const preview = document.getElementById('editImagePreview');
+  const icon    = document.getElementById('editImageIcon');
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      preview.src = e.target.result;
+      preview.style.display = 'block';
+      icon.style.display    = 'none';
+    };
+    reader.readAsDataURL(file);
+  }
+});
+
+function clearEditImage() {
+  document.getElementById('editProfileImage').value = '';
+  const preview = document.getElementById('editImagePreview');
+  const icon    = document.getElementById('editImageIcon');
+  preview.src   = '';
+  preview.style.display = 'none';
+  icon.style.display    = 'block';
+  // signal to backend to clear image
+  let clearInput = document.getElementById('clearProfileImage');
+  if (!clearInput) {
+    clearInput = document.createElement('input');
+    clearInput.type  = 'hidden';
+    clearInput.name  = 'clear_profile_image';
+    clearInput.id    = 'clearProfileImage';
+    clearInput.value = '1';
+    document.getElementById('editUserForm').appendChild(clearInput);
+  }
+}
+
+function submitEditUser() {
+  const userId = document.getElementById('editUserId').value;
+  const form   = document.getElementById('editUserForm');
+  const formData = new FormData(form);
+
+  // Map checkboxes to string values expected by the view
+  formData.set('is_active',   document.getElementById('editIsActive').checked   ? 'true' : 'false');
+  formData.set('is_verified', document.getElementById('editIsVerified').checked ? 'verified' : 'unverified');
+  formData.set('is_banned',   document.getElementById('editIsBanned').checked   ? 'true' : 'false');
+
+  fetch(`/${LANGUAGE_CODE}/admin/users/${userId}/update/`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': getCookie('csrftoken') },
+    body: formData,
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      bootstrap.Modal.getInstance(document.getElementById('editUserModal')).hide();
+      showNotification(data.message || '{% trans "تم حفظ التعديلات بنجاح" %}', 'success');
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      showNotification(data.message || '{% trans "حدث خطأ" %}', 'error');
+    }
+  })
+  .catch(() => showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error'));
 }
 </script>
 {% endblock admin_extra_js %}

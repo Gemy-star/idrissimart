@@ -175,13 +175,6 @@ CONSTANCE_CONFIG = {
         "EGP",
         _("Paymob payment currency"),
     ),
-    # Payment General Settings
-    # Note: ALLOW_ONLINE_PAYMENT moved to SiteConfiguration model
-    "TAX_RATE": (
-        15.0,
-        _("نسبة الضريبة (%) - Tax Rate"),
-        float,
-    ),
     # Google reCAPTCHA v2 Settings
     "RECAPTCHA_SITE_KEY": (
         "6LcUMSYsAAAAAGKWlIEtHtmD7ecT5U1Vi3B098dD",
@@ -649,7 +642,6 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "PAYMOB_VISA_INTEGRATION_ID",
         "PAYMOB_WALLET_INTEGRATION_ID",
     ),
-    "Payment General Settings": ("TAX_RATE",),
     "Security & Verification - reCAPTCHA": (
         "RECAPTCHA_ENABLED",
         "RECAPTCHA_SITE_KEY",
@@ -703,33 +695,6 @@ CONSTANCE_CONFIG_FIELDSETS = {
     "Paid Banner Ads": (
         "PAID_BANNER_EXTRA_COUNTRY_FEE_PER_DAY",
     ),
-    "Ad Upgrade Pricing": (
-        "FEATURED_AD_PRICE_7DAYS",
-        "FEATURED_AD_PRICE_14DAYS",
-        "FEATURED_AD_PRICE_30DAYS",
-        "PINNED_AD_PRICE_7DAYS",
-        "PINNED_AD_PRICE_14DAYS",
-        "PINNED_AD_PRICE_30DAYS",
-        "URGENT_AD_PRICE_7DAYS",
-        "URGENT_AD_PRICE_14DAYS",
-        "URGENT_AD_PRICE_30DAYS",
-        "TOP_SEARCH_AD_PRICE_7DAYS",
-        "TOP_SEARCH_AD_PRICE_14DAYS",
-        "TOP_SEARCH_AD_PRICE_30DAYS",
-        "CONTACT_PRICE_AD_PRICE_7DAYS",
-        "CONTACT_PRICE_AD_PRICE_14DAYS",
-        "CONTACT_PRICE_AD_PRICE_30DAYS",
-        "FACEBOOK_SHARE_AD_PRICE",
-        "VIDEO_AD_PRICE",
-    ),
-    "Ad Feature Prices (Creation — no free ads)": (
-        "FEATURE_HIGHLIGHTED_PRICE",
-        "FEATURE_URGENT_PRICE",
-        "FEATURE_PINNED_PRICE",
-        "FEATURE_AUTO_REFRESH_PRICE",
-        "FEATURE_ADD_VIDEO_PRICE",
-        "FEATURE_CONTACT_FOR_PRICE",
-    ),
     "Admin Notifications": (
         "NOTIFY_ADMIN_NEW_ADS",
         "NOTIFY_ADMIN_PENDING_REVIEW",
@@ -755,5 +720,34 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "VERIFICATION_FEE_CURRENCY",
         "VERIFICATION_AUTO_APPROVE_ON_PAYMENT",
         "VERIFICATION_REVIEW_PERIOD_DAYS",
+    ),
+    # Note: These are system-wide fallback prices used when no per-category AdFeaturePrice is set.
+    # Manage per-category prices from the Category admin page (inline AdFeaturePrice).
+    "Ad Upgrade Fallback Prices": (
+        "FEATURED_AD_PRICE_7DAYS",
+        "FEATURED_AD_PRICE_14DAYS",
+        "FEATURED_AD_PRICE_30DAYS",
+        "PINNED_AD_PRICE_7DAYS",
+        "PINNED_AD_PRICE_14DAYS",
+        "PINNED_AD_PRICE_30DAYS",
+        "URGENT_AD_PRICE_7DAYS",
+        "URGENT_AD_PRICE_14DAYS",
+        "URGENT_AD_PRICE_30DAYS",
+        "TOP_SEARCH_AD_PRICE_7DAYS",
+        "TOP_SEARCH_AD_PRICE_14DAYS",
+        "TOP_SEARCH_AD_PRICE_30DAYS",
+        "CONTACT_PRICE_AD_PRICE_7DAYS",
+        "CONTACT_PRICE_AD_PRICE_14DAYS",
+        "CONTACT_PRICE_AD_PRICE_30DAYS",
+        "FACEBOOK_SHARE_AD_PRICE",
+        "VIDEO_AD_PRICE",
+    ),
+    "Ad Feature Fallback Prices (Creation)": (
+        "FEATURE_HIGHLIGHTED_PRICE",
+        "FEATURE_URGENT_PRICE",
+        "FEATURE_PINNED_PRICE",
+        "FEATURE_AUTO_REFRESH_PRICE",
+        "FEATURE_ADD_VIDEO_PRICE",
+        "FEATURE_CONTACT_FOR_PRICE",
     ),
 }

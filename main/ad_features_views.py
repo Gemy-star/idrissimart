@@ -193,8 +193,8 @@ def ad_features_upgrade(request, ad_id):
             )
             return redirect("main:ad_detail", slug=ad.slug)
 
-    # Get tax rate from Constance config (default 15%)
-    tax_rate_percentage = getattr(config, "TAX_RATE", 15.0)
+    # Get tax rate from site configuration
+    tax_rate_percentage = float(site_config.tax_rate)
 
     context = {
         "ad": ad,

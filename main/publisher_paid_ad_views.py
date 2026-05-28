@@ -17,6 +17,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import ListView
@@ -58,7 +59,7 @@ def _notify_staff_new_paid_ad(paid_ad):
     """Create in-app notifications for all staff about a newly submitted paid ad."""
     from django.contrib.auth import get_user_model
     User = get_user_model()
-    admin_url = f"/admin/main/paidbanner/{paid_ad.pk}/change/"
+    admin_url = reverse("admin:main_paidbanner_change", args=[paid_ad.pk])
     for staff_user in User.objects.filter(is_staff=True, is_active=True):
         Notification.objects.create(
             user=staff_user,

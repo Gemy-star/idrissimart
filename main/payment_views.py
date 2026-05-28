@@ -418,7 +418,11 @@ def payment_page_upgrade(request, payment_id):
                 messages.error(request, _("يرجى رفع إيصال الدفع"))
                 return redirect("main:payment_page_upgrade", payment_id=payment.id)
 
-            payment.provider = Payment.PaymentProvider.BANK_TRANSFER
+            payment.provider = (
+                Payment.PaymentProvider.INSTAPAY
+                if payment_method == "instapay"
+                else Payment.PaymentProvider.WALLET
+            )
             payment.status = Payment.PaymentStatus.PENDING
             payment.offline_payment_receipt = receipt
             payment.save()
@@ -432,6 +436,12 @@ def payment_page_upgrade(request, payment_id):
             return redirect("main:payment_history")
 
         elif payment_method in ("paymob", "paypal", "visa", "wallet"):
+            # For wallet: validate phone number is provided
+            wallet_phone = request.POST.get("wallet_phone", "").strip()
+            if payment_method == "wallet" and paymob_wallet_enabled and not wallet_phone:
+                messages.error(request, _("يرجى إدخال رقم هاتف المحفظة الإلكترونية"))
+                return redirect("main:payment_page_upgrade", payment_id=payment.id)
+
             payment.provider = (
                 Payment.PaymentProvider.PAYMOB
                 if payment_method in ("paymob", "visa", "wallet")
@@ -443,7 +453,7 @@ def payment_page_upgrade(request, payment_id):
                 "email": request.user.email,
                 "first_name": request.user.first_name or request.user.username,
                 "last_name": request.user.last_name or "",
-                "phone": getattr(request.user, "mobile", "") or getattr(request.user, "phone", ""),
+                "phone": wallet_phone or getattr(request.user, "mobile", "") or getattr(request.user, "phone", ""),
             }
 
             extra_kwargs = {}
@@ -454,6 +464,17 @@ def payment_page_upgrade(request, payment_id):
                 extra_kwargs["cancel_url"] = request.build_absolute_uri(
                     reverse("main:paypal_cancel") + f"?payment_id={payment.id}"
                 )
+            else:
+                extra_kwargs["order_ref"] = f"upg_{payment.id}"
+                extra_kwargs["notification_url"] = request.build_absolute_uri(
+                    reverse("main:paymob_callback")
+                )
+                if ad:
+                    extra_kwargs["redirection_url"] = request.build_absolute_uri(
+                        reverse("main:ad_detail", kwargs={"slug": ad.slug})
+                    )
+                if payment_method == "wallet" and wallet_phone:
+                    extra_kwargs["wallet_phone"] = wallet_phone
 
             provider_key = "paypal" if payment_method == "paypal" else ("wallet" if payment_method == "wallet" else "paymob")
             success, result = PaymentService().create_payment(
@@ -466,13 +487,27 @@ def payment_page_upgrade(request, payment_id):
             )
 
             if success:
-                payment_url = result.get("approval_url") or result.get("iframe_url")
                 if result.get("paypal_order_id"):
                     payment.metadata["paypal_order_id"] = result["paypal_order_id"]
                 if result.get("paymob_order_id"):
                     payment.metadata["paymob_order_id"] = result["paymob_order_id"]
+                if wallet_phone:
+                    payment.metadata["wallet_phone"] = wallet_phone
+                payment.save()
+
+                # Wallet pending: request sent to phone
+                if result.get("wallet_pending"):
+                    messages.success(
+                        request,
+                        _("تم إرسال طلب الدفع إلى محفظتك (%(phone)s). يرجى قبول الطلب على هاتفك لإتمام عملية الدفع.") % {"phone": wallet_phone},
+                    )
+                    redirect_url = result.get("redirect_url")
+                    if redirect_url:
+                        return redirect(redirect_url)
+                    return redirect("main:payment_history")
+
+                payment_url = result.get("approval_url") or result.get("iframe_url")
                 if payment_url:
-                    payment.save()
                     return redirect(payment_url)
 
             payment.status = Payment.PaymentStatus.FAILED
@@ -646,7 +681,11 @@ def ad_payment(request, ad_id):
             # Create payment record
             payment = Payment.objects.create(
                 user=request.user,
-                provider=Payment.PaymentProvider.BANK_TRANSFER,
+                provider=(
+                    Payment.PaymentProvider.INSTAPAY
+                    if payment_method == "instapay"
+                    else Payment.PaymentProvider.WALLET
+                ),
                 amount=total_amount,
                 currency=currency,
                 status=Payment.PaymentStatus.PENDING,
@@ -682,6 +721,12 @@ def ad_payment(request, ad_id):
             return redirect("main:my_ads")
 
         elif payment_method in ["paymob", "paypal", "visa", "wallet"]:
+            # For wallet: validate phone number is provided
+            wallet_phone = request.POST.get("wallet_phone", "").strip()
+            if payment_method == "wallet" and paymob_wallet_enabled and not wallet_phone:
+                messages.error(request, _("يرجى إدخال رقم هاتف المحفظة الإلكترونية"))
+                return redirect("main:ad_payment", ad_id=ad.id)
+
             payment = Payment.objects.create(
                 user=request.user,
                 provider=(
@@ -708,7 +753,7 @@ def ad_payment(request, ad_id):
                 "email": request.user.email,
                 "first_name": request.user.first_name or request.user.username,
                 "last_name": request.user.last_name or "",
-                "phone": getattr(request.user, "mobile", "") or getattr(request.user, "phone", ""),
+                "phone": wallet_phone or getattr(request.user, "mobile", "") or getattr(request.user, "phone", ""),
             }
 
             if payment_method == "paypal":
@@ -726,7 +771,6 @@ def ad_payment(request, ad_id):
                     reverse("main:paypal_cancel") + f"?ad_id={ad.id}"
                 )
             else:
-                # Use a deterministic order_ref so the Paymob callback can find this payment
                 extra_kwargs["order_ref"] = f"pay_{payment.id}"
                 extra_kwargs["notification_url"] = request.build_absolute_uri(
                     reverse("main:paymob_callback")
@@ -734,6 +778,9 @@ def ad_payment(request, ad_id):
                 extra_kwargs["redirection_url"] = request.build_absolute_uri(
                     reverse("main:ad_create_success", kwargs={"pk": ad.pk})
                 )
+                if payment_method == "wallet" and wallet_phone:
+                    extra_kwargs["wallet_phone"] = wallet_phone
+
             success, result = PaymentService().create_payment(
                 provider_key,
                 float(total_amount),
@@ -744,12 +791,26 @@ def ad_payment(request, ad_id):
             )
 
             if success:
-                payment_url = result.get("approval_url") or result.get("iframe_url")
-                # Store gateway order IDs in metadata so callbacks can find this payment
-                if result.get("paypal_order_id"):
-                    payment.metadata["paypal_order_id"] = result["paypal_order_id"]
                 if result.get("paymob_order_id"):
                     payment.metadata["paymob_order_id"] = result["paymob_order_id"]
+                if result.get("paypal_order_id"):
+                    payment.metadata["paypal_order_id"] = result["paypal_order_id"]
+                if wallet_phone:
+                    payment.metadata["wallet_phone"] = wallet_phone
+                payment.save()
+
+                # Wallet pending: request was sent to phone — show pending message
+                if result.get("wallet_pending"):
+                    messages.success(
+                        request,
+                        _("تم إرسال طلب الدفع إلى محفظتك (%(phone)s). يرجى قبول الطلب على هاتفك لإتمام عملية الدفع.") % {"phone": wallet_phone},
+                    )
+                    redirect_url = result.get("redirect_url")
+                    if redirect_url:
+                        return redirect(redirect_url)
+                    return redirect("main:payment_history")
+
+                payment_url = result.get("approval_url") or result.get("iframe_url")
                 if payment_url:
                     payment.save()
                     return redirect(payment_url)
@@ -963,7 +1024,7 @@ def process_paid_banner_payment(payment):
 
         advertiser = paid_ad.advertiser
         advertiser_name = advertiser.get_full_name() or advertiser.username
-        admin_url = f"/admin/main/paidbanner/{paid_ad.pk}/change/"
+        admin_url = reverse("admin:main_paidbanner_change", args=[paid_ad.pk])
 
         # ------------------------------------------------------------------
         # Email alert to admin
@@ -1184,7 +1245,11 @@ def package_checkout(request, package_id):
             # Create payment record
             payment = Payment.objects.create(
                 user=request.user,
-                provider=Payment.PaymentProvider.BANK_TRANSFER,
+                provider=(
+                    Payment.PaymentProvider.INSTAPAY
+                    if payment_method == "instapay"
+                    else Payment.PaymentProvider.WALLET
+                ),
                 amount=total_amount,
                 currency=currency,
                 status=Payment.PaymentStatus.PENDING,
@@ -1346,7 +1411,7 @@ def ad_upgrade_payment(request, ad_id):
     upgrade_features = request.session.get("upgrade_features", {})
 
     # Apply tax
-    tax_rate_percentage = getattr(config, "TAX_RATE", 0.0)
+    tax_rate_percentage = float(site_config.tax_rate)
     tax_rate = Decimal(str(tax_rate_percentage)) / Decimal("100")
     tax_amount = (base_amount * tax_rate).quantize(Decimal("0.01"))
     total_amount = base_amount + tax_amount
@@ -1424,7 +1489,11 @@ def ad_upgrade_payment(request, ad_id):
             # Create payment record
             payment = Payment.objects.create(
                 user=request.user,
-                provider=Payment.PaymentProvider.BANK_TRANSFER,
+                provider=(
+                    Payment.PaymentProvider.INSTAPAY
+                    if payment_method == "instapay"
+                    else Payment.PaymentProvider.WALLET
+                ),
                 amount=total_amount,
                 currency=currency,
                 status=Payment.PaymentStatus.PENDING,

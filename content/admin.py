@@ -136,15 +136,15 @@ class CountryAdmin(admin.ModelAdmin):
 class BlogCategoryAdmin(admin.ModelAdmin):
     list_display = [
         "icon_display",
-        "name",
-        "name_en",
+        "name_with_description",
+        "name_en_with_description",
         "color_display",
         "order",
         "is_active",
         "blogs_count",
     ]
     list_filter = ["is_active", "created_at"]
-    search_fields = ["name", "name_en", "slug", "description"]
+    search_fields = ["name", "name_en", "slug", "description", "description_en"]
     list_editable = ["order", "is_active"]
     prepopulated_fields = {"slug": ("name",)}
     ordering = ["order", "name"]
@@ -154,27 +154,57 @@ class BlogCategoryAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (
-            "معلومات أساسية",
+            _("معلومات أساسية"),
             {
                 "fields": (
                     "name",
                     "name_en",
                     "slug",
-                    "description",
                 )
             },
         ),
         (
-            "التخصيص",
+            _("الوصف"),
+            {
+                "fields": ("description", "description_en"),
+                "description": _("الوصف يظهر تحت اسم الفئة في قوائم المدونات"),
+            },
+        ),
+        (
+            _("التخصيص"),
             {"fields": ("icon", "color", "order", "is_active")},
         ),
         (
-            "التواريخ",
+            _("التواريخ"),
             {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
         ),
     )
 
     readonly_fields = ("created_at", "updated_at")
+
+    def name_with_description(self, obj):
+        if obj.description:
+            return format_html(
+                '<strong>{}</strong><br><small style="color:#666;">{}</small>',
+                obj.name,
+                obj.description[:120] + "..." if len(obj.description) > 120 else obj.description,
+            )
+        return obj.name
+
+    name_with_description.short_description = _("الاسم (عربي)")
+    name_with_description.admin_order_field = "name"
+
+    def name_en_with_description(self, obj):
+        if obj.description_en:
+            return format_html(
+                '<strong>{}</strong><br><small style="color:#666;">{}</small>',
+                obj.name_en or "-",
+                obj.description_en[:120] + "..." if len(obj.description_en) > 120 else obj.description_en,
+            )
+        return obj.name_en or "-"
+
+    name_en_with_description.short_description = _("الاسم (إنجليزي)")
+    name_en_with_description.admin_order_field = "name_en"
 
     def icon_display(self, obj):
         return format_html(
@@ -183,7 +213,7 @@ class BlogCategoryAdmin(admin.ModelAdmin):
             obj.color,
         )
 
-    icon_display.short_description = "الأيقونة"
+    icon_display.short_description = _("الأيقونة")
 
     def color_display(self, obj):
         return format_html(
@@ -192,26 +222,26 @@ class BlogCategoryAdmin(admin.ModelAdmin):
             obj.color,
         )
 
-    color_display.short_description = "اللون"
+    color_display.short_description = _("اللون")
 
     def blogs_count(self, obj):
         return obj.get_blogs_count()
 
-    blogs_count.short_description = "عدد المدونات"
+    blogs_count.short_description = _("عدد المدونات")
 
     def activate_categories(self, request, queryset):
         """Activate selected blog categories"""
         updated = queryset.update(is_active=True)
         self.message_user(request, f"تم تفعيل {updated} تصنيف")
 
-    activate_categories.short_description = "تفعيل التصنيفات المحددة"
+    activate_categories.short_description = _("تفعيل التصنيفات المحددة")
 
     def deactivate_categories(self, request, queryset):
         """Deactivate selected blog categories"""
         updated = queryset.update(is_active=False)
         self.message_user(request, f"تم إلغاء تفعيل {updated} تصنيف")
 
-    deactivate_categories.short_description = "إلغاء تفعيل التصنيفات المحددة"
+    deactivate_categories.short_description = _("إلغاء تفعيل التصنيفات المحددة")
 
 
 @admin.register(HomeSlider)
@@ -486,6 +516,21 @@ class SiteConfigurationAdmin(SingletonModelAdmin):
             {
                 "fields": ("wallet_payment_link", "wallet_phone"),
                 "description": "رابط ورقم المحفظة الإلكترونية (Vodafone Cash، Orange Money، إلخ) لتفعيل خيار الدفع عبر المحفظة",
+            },
+        ),
+        (
+            "تعليمات الدفع اليدوي",
+            {
+                "fields": ("offline_payment_instructions", "offline_payment_instructions_ar"),
+                "description": "التعليمات التي تظهر للعميل عند اختيار الدفع اليدوي (InstaPay / محفظة)",
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "إعدادات الضريبة",
+            {
+                "fields": ("tax_rate",),
+                "description": "نسبة الضريبة المضافة على جميع المعاملات المالية في الموقع (0 = بدون ضريبة)",
             },
         ),
         (

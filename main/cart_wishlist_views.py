@@ -245,6 +245,8 @@ def get_cart_count_view(request):
 def cart_view(request):
     """Display cart page - only for authenticated users"""
     from constance import config
+    from content.site_config import SiteConfiguration
+    site_config = SiteConfiguration.get_solo()
 
     # Authenticated user - use database cart
     cart = get_or_create_cart(request.user)
@@ -266,8 +268,8 @@ def cart_view(request):
     elif delivery_fee > delivery_fee_max:
         delivery_fee = delivery_fee_max
 
-    # Calculate tax from constance settings
-    tax_rate = Decimal(str(getattr(config, "TAX_RATE", 0))) / 100
+    # Calculate tax from site configuration
+    tax_rate = Decimal(str(site_config.tax_rate)) / 100
     tax_amount = total_amount * tax_rate
 
     final_total = total_amount + delivery_fee + tax_amount
@@ -275,7 +277,7 @@ def cart_view(request):
     from django.middleware.csrf import get_token
     from content.models import Country as _Country
 
-    tax_rate_pct = float(getattr(config, "TAX_RATE", 0))
+    tax_rate_pct = float(site_config.tax_rate)
     try:
         _country = _Country.objects.get(
             code=request.session.get("selected_country", "EG"), is_active=True
@@ -495,7 +497,7 @@ def checkout_view(request):
             elif _delivery > _delivery_max:
                 _delivery = _delivery_max
 
-            _tax_rate = Decimal(str(getattr(config, "TAX_RATE", 0))) / Decimal("100")
+            _tax_rate = Decimal(str(site_config.tax_rate)) / Decimal("100")
             _tax = (total_amount * _tax_rate).quantize(Decimal("0.01"))
 
             final_amount = subtotal_after_discount + _delivery + _tax
@@ -703,7 +705,7 @@ def checkout_view(request):
         delivery_fee = delivery_fee_max
 
     # Calculate tax
-    tax_rate_percentage = float(getattr(config, "TAX_RATE", 0))
+    tax_rate_percentage = float(site_config.tax_rate)
     tax_rate_decimal = Decimal(str(tax_rate_percentage)) / Decimal("100")
     tax_amount = (total_amount * tax_rate_decimal).quantize(Decimal("0.01"))
 

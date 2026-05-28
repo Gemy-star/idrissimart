@@ -67,8 +67,8 @@ def ad_pricing_view(request):
     # Get all active packages
     packages = AdPackage.objects.filter(is_active=True).order_by("price")
 
-    # Get tax rate from Constance config (default 15%)
-    tax_rate_percentage = getattr(config, "TAX_RATE", 15.0)
+    # Get tax rate from site configuration
+    tax_rate_percentage = float(site_config.tax_rate)
     tax_rate_decimal = Decimal(str(tax_rate_percentage)) / Decimal("100")
 
     # Calculate pricing details

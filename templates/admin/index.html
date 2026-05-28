@@ -1,0 +1,319 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/dashboard.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ── Headline stats ── */
+.idx-stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+}
+.idx-stat-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px 18px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+.idx-stat-card .idx-stat-num {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+.idx-stat-card .idx-stat-lbl {
+    font-size: 0.78rem;
+    color: #64748b;
+    font-weight: 500;
+}
+.idx-stat-card.blue  { border-top: 3px solid #3b82f6; }
+.idx-stat-card.blue .idx-stat-num { color: #1d4ed8; }
+.idx-stat-card.green { border-top: 3px solid #22c55e; }
+.idx-stat-card.green .idx-stat-num { color: #16a34a; }
+.idx-stat-card.orange{ border-top: 3px solid #f97316; }
+.idx-stat-card.orange .idx-stat-num{ color: #c2410c; }
+.idx-stat-card.purple{ border-top: 3px solid #a855f7; }
+.idx-stat-card.purple .idx-stat-num{ color: #7e22ce; }
+.idx-stat-card.teal  { border-top: 3px solid #14b8a6; }
+.idx-stat-card.teal .idx-stat-num  { color: #0f766e; }
+.idx-stat-card.rose  { border-top: 3px solid #f43f5e; }
+.idx-stat-card.rose .idx-stat-num  { color: #be123c; }
+
+/* ── Charts row ── */
+.idx-charts-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+@media (max-width: 700px) {
+    .idx-charts-row { grid-template-columns: 1fr; }
+}
+.idx-chart-box {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+.idx-chart-box h3 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #334155;
+    margin: 0 0 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ── Recent actions ── */
+.idx-actions-box {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 0;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    margin-bottom: 24px;
+    overflow: hidden;
+}
+.idx-actions-box .idx-box-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #1e293b;
+}
+.idx-log-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 18px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.82rem;
+}
+.idx-log-row:last-child { border-bottom: none; }
+.idx-log-row:hover { background: #f8fafc; }
+.idx-log-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.idx-log-badge.success { background: #dcfce7; color: #166534; }
+.idx-log-badge.warning { background: #fef9c3; color: #854d0e; }
+.idx-log-badge.danger  { background: #fee2e2; color: #991b1b; }
+.idx-log-badge.secondary{ background: #f1f5f9; color: #475569; }
+.idx-log-detail { flex: 1; min-width: 0; }
+.idx-log-detail .obj {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 260px;
+    display: block;
+}
+.idx-log-detail .meta { color: #94a3b8; }
+.idx-log-time { color: #94a3b8; white-space: nowrap; font-size: 0.72rem; }
+</style>
+{% endblock %}
+
+{% block coltype %}colMS{% endblock %}
+{% block bodyclass %}{{ block.super }} dashboard{% endblock %}
+{% block nav-breadcrumbs %}{% endblock %}
+{% block nav-sidebar %}{% endblock %}
+
+{% block content %}
+<div id="content-main">
+
+    {% if idx_total_ads is not None %}
+    <!-- ── Stats ── -->
+    <div class="idx-stats-row">
+        <div class="idx-stat-card blue">
+            <div class="idx-stat-num">{{ idx_total_ads }}</div>
+            <div class="idx-stat-lbl">إجمالي الإعلانات</div>
+        </div>
+        <div class="idx-stat-card green">
+            <div class="idx-stat-num">{{ idx_active_ads }}</div>
+            <div class="idx-stat-lbl">إعلانات نشطة</div>
+        </div>
+        <div class="idx-stat-card orange">
+            <div class="idx-stat-num">{{ idx_pending_ads }}</div>
+            <div class="idx-stat-lbl">بانتظار المراجعة</div>
+        </div>
+        <div class="idx-stat-card purple">
+            <div class="idx-stat-num">{{ idx_total_users }}</div>
+            <div class="idx-stat-lbl">إجمالي المستخدمين</div>
+        </div>
+        <div class="idx-stat-card teal">
+            <div class="idx-stat-num">{{ idx_new_users_today }}</div>
+            <div class="idx-stat-lbl">مستخدم جديد اليوم</div>
+        </div>
+        <div class="idx-stat-card rose">
+            <div class="idx-stat-num">{{ idx_new_ads_today }}</div>
+            <div class="idx-stat-lbl">إعلان جديد اليوم</div>
+        </div>
+    </div>
+
+    <!-- ── Charts ── -->
+    <div class="idx-charts-row">
+        <div class="idx-chart-box">
+            <h3>توزيع الإعلانات حسب الحالة</h3>
+            <canvas id="adsDoughnutChart" height="200"></canvas>
+        </div>
+        <div class="idx-chart-box">
+            <h3>الإعلانات الجديدة — آخر 7 أيام</h3>
+            <canvas id="dailyAdsChart" height="200"></canvas>
+        </div>
+    </div>
+
+    <!-- ── Recent Actions ── -->
+    {% if idx_recent_logs %}
+    <div class="idx-actions-box">
+        <div class="idx-box-header">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            آخر الإجراءات في النظام
+        </div>
+        {% for log in idx_recent_logs %}
+        <div class="idx-log-row">
+            <span class="idx-log-badge {{ log.color }}">{{ log.action }}</span>
+            <div class="idx-log-detail">
+                {% if log.url %}
+                    <a href="{{ log.url }}" class="obj" title="{{ log.obj }}">{{ log.obj|truncatechars:50 }}</a>
+                {% else %}
+                    <span class="obj" title="{{ log.obj }}">{{ log.obj|truncatechars:50 }}</span>
+                {% endif %}
+                <span class="meta">{{ log.model }} — {{ log.user }}</span>
+            </div>
+            <span class="idx-log-time">{{ log.time|timesince }} مضت</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <!-- ── Model list (default) ── -->
+    {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
+
+</div>
+{% endblock %}
+
+{% block sidebar %}
+<div id="content-related">
+    <div class="module" id="recent-actions-module">
+        <h2>{% translate 'Recent actions' %}</h2>
+        <h3>{% translate 'My actions' %}</h3>
+        {% load log %}
+        {% get_admin_log 10 as admin_log for_user user %}
+        {% if not admin_log %}
+            <p>{% translate 'None available' %}</p>
+        {% else %}
+            <ul class="actionlist">
+            {% for entry in admin_log %}
+            <li class="{% if entry.is_addition %}addlink{% endif %}{% if entry.is_change %}changelink{% endif %}{% if entry.is_deletion %}deletelink{% endif %}">
+                <span class="visually-hidden">
+                    {% if entry.is_addition %}{% translate 'Added:' %}
+                    {% elif entry.is_change %}{% translate 'Changed:' %}
+                    {% elif entry.is_deletion %}{% translate 'Deleted:' %}
+                    {% endif %}
+                </span>
+                {% if entry.is_deletion or not entry.get_admin_url %}
+                    {{ entry.object_repr }}
+                {% else %}
+                    <a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>
+                {% endif %}
+                <br>
+                {% if entry.content_type %}
+                    <span class="mini quiet">{% filter capfirst %}{{ entry.content_type.name }}{% endfilter %}</span>
+                {% else %}
+                    <span class="mini quiet">{% translate 'Unknown content' %}</span>
+                {% endif %}
+            </li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block footer %}
+{{ block.super }}
+<script>
+(function() {
+    var statusLabels = {
+        'active': 'نشط',
+        'pending': 'قيد المراجعة',
+        'expired': 'منتهي',
+        'hidden': 'مخفي',
+        'draft': 'مسودة',
+    };
+    var rawLabels = {{ idx_ads_chart_labels|default:"[]" }};
+    var labels = rawLabels.map(function(l){ return statusLabels[l] || l; });
+    var data   = {{ idx_ads_chart_data|default:"[]" }};
+    var daily_labels = {{ idx_daily_labels|default:"[]" }};
+    var daily_data   = {{ idx_daily_ads|default:"[]" }};
+
+    var colors = ['#3b82f6','#22c55e','#f97316','#a855f7','#f43f5e','#14b8a6'];
+
+    if (document.getElementById('adsDoughnutChart') && data.length) {
+        new Chart(document.getElementById('adsDoughnutChart'), {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: colors,
+                    borderWidth: 2,
+                    borderColor: '#fff',
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom', labels: { font: { size: 11 } } }
+                }
+            }
+        });
+    }
+
+    if (document.getElementById('dailyAdsChart') && daily_data.length) {
+        new Chart(document.getElementById('dailyAdsChart'), {
+            type: 'bar',
+            data: {
+                labels: daily_labels,
+                datasets: [{
+                    label: 'إعلانات جديدة',
+                    data: daily_data,
+                    backgroundColor: 'rgba(59, 130, 246, 0.25)',
+                    borderColor: '#3b82f6',
+                    borderWidth: 2,
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1, font: { size: 11 } }
+                    },
+                    x: { ticks: { font: { size: 10 } } }
+                }
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

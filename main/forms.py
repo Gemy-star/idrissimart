@@ -3,9 +3,35 @@ from django import forms
 from django.forms import inlineformset_factory
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
+from django.utils.html import format_html
 from django_ckeditor_5.widgets import CKEditor5Widget
 from django_recaptcha.fields import ReCaptchaField
 from django_recaptcha.widgets import ReCaptchaV2Checkbox
+
+
+class FileInputWithPreview(forms.FileInput):
+    """
+    FileInput that shows a download link for the currently saved file.
+    Pass `current_url` as a widget attr or set it on the instance.
+    """
+
+    def render(self, name, value, attrs=None, renderer=None):
+        output = super().render(name, value, attrs=attrs, renderer=renderer)
+        current_url = (attrs or {}).get("current_url") or getattr(self, "_current_url", None)
+        if current_url:
+            import os
+            filename = os.path.basename(current_url.split("?")[0]) or "الملف الحالي"
+            link = format_html(
+                '<div class="mt-1">'
+                '<small class="text-muted">الملف الحالي: </small>'
+                '<a href="{}" target="_blank" class="text-decoration-none small">'
+                '<i class="fas fa-file me-1"></i>{}</a>'
+                '</div>',
+                current_url,
+                filename,
+            )
+            return output + link
+        return output
 
 from .models import (
     AdReport,
@@ -417,9 +443,16 @@ class ClassifiedAdForm(forms.ModelForm):
                 )
 
             elif field_type == "file":
+                # Show a link to the already-saved file when editing
+                current_url = ""
+                if self.instance and self.instance.pk:
+                    current_url = (self.instance.custom_fields or {}).get(field_name, "")
+                file_widget = FileInputWithPreview(attrs=widget_attrs)
+                if current_url:
+                    file_widget._current_url = current_url
                 self.fields[field_name] = forms.FileField(
                     **field_kwargs,
-                    widget=forms.FileInput(attrs=widget_attrs),
+                    widget=file_widget,
                 )
 
             else:  # Default to text
@@ -470,6 +503,10 @@ class ClassifiedAdForm(forms.ModelForm):
                     if field.field_type == "checkbox":
                         value = value == "on" or value == "true" or value == True
                 else:
+                    continue
+
+                # File fields: False = "no new file uploaded" — keep existing value
+                if field.field_type == "file" and value is False:
                     continue
 
                 # Skip empty values for non-required fields
@@ -1459,9 +1496,16 @@ class AdminClassifiedAdForm(forms.ModelForm):
                 )
 
             elif field_type == "file":
+                # Show a link to the already-saved file when editing
+                current_url = ""
+                if self.instance and self.instance.pk:
+                    current_url = (self.instance.custom_fields or {}).get(field_name, "")
+                file_widget = FileInputWithPreview(attrs=widget_attrs)
+                if current_url:
+                    file_widget._current_url = current_url
                 self.fields[field_name] = forms.FileField(
                     **field_kwargs,
-                    widget=forms.FileInput(attrs=widget_attrs),
+                    widget=file_widget,
                 )
 
             else:  # Default to text
@@ -1510,6 +1554,10 @@ class AdminClassifiedAdForm(forms.ModelForm):
                     if field.field_type == "checkbox":
                         value = value == "on" or value == "true" or value == True
                 else:
+                    continue
+
+                # File fields: False = "no new file uploaded" — keep existing value
+                if field.field_type == "file" and value is False:
                     continue
 
                 # Skip empty values for non-required fields

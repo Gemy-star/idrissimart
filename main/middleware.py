@@ -196,9 +196,11 @@ class VisitorTrackingMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        # Track visitor before processing the request
-        self._track_visitor(request)
         response = self.get_response(request)
+        # Only track successful page loads — skip redirects (301/302) so that
+        # language-prefix redirects and APPEND_SLASH redirects don't double-count.
+        if response.status_code == 200:
+            self._track_visitor(request)
         return response
 
     def _should_track(self, request):

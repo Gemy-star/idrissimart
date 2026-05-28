@@ -27,14 +27,13 @@ from main.models import (
     AdPackage,
     Category,
 )
-from main.decorators import SuperadminRequiredMixin
+from main.decorators import SuperadminRequiredMixin, admin_section_required
+from main.admin_groups import can_admin
 
 
 class AdminPendingAdsView(SuperadminRequiredMixin, ListView):
-    """
-    Admin view for pending ads review
-    Shows all ads pending approval
-    """
+    """Admin view for pending ads review."""
+    required_admin_group = "ads"
 
     model = ClassifiedAd
     template_name = "admin_dashboard/pending_ads.html"
@@ -73,7 +72,7 @@ class AdminPendingAdsView(SuperadminRequiredMixin, ListView):
         return context
 
 
-@staff_member_required
+@admin_section_required("ads")
 def approve_ad_view(request, ad_id):
     """Approve a pending ad"""
     ad = get_object_or_404(ClassifiedAd, pk=ad_id)
@@ -95,7 +94,7 @@ def approve_ad_view(request, ad_id):
     return redirect(request.META.get("HTTP_REFERER", "admin:pending_ads"))
 
 
-@staff_member_required
+@admin_section_required("ads")
 def reject_ad_view(request, ad_id):
     """Reject a pending ad"""
     ad = get_object_or_404(ClassifiedAd, pk=ad_id)
@@ -119,7 +118,7 @@ def reject_ad_view(request, ad_id):
     return redirect(request.META.get("HTTP_REFERER", "admin:pending_ads"))
 
 
-@staff_member_required
+@admin_section_required("ads")
 def ad_quick_review_ajax(request, ad_id):
     """AJAX view for quick ad review"""
     if request.method != "POST":
@@ -144,10 +143,8 @@ def ad_quick_review_ajax(request, ad_id):
 
 
 class AdminAllAdsView(SuperadminRequiredMixin, ListView):
-    """
-    Admin view for all ads
-    Shows all ads with filtering
-    """
+    """Admin view for all ads."""
+    required_admin_group = "ads"
 
     model = ClassifiedAd
     template_name = "admin_dashboard/all_ads.html"
@@ -229,7 +226,7 @@ class AdminAllAdsView(SuperadminRequiredMixin, ListView):
         return context
 
 
-@staff_member_required
+@admin_section_required("ads")
 def bulk_approve_ads(request):
     """Bulk approve multiple ads"""
     if request.method != "POST":
@@ -264,9 +261,7 @@ def bulk_approve_ads(request):
 
 
 class AdminAdDetailView(SuperadminRequiredMixin, DetailView):
-    """
-    Admin view for ad detail with full information
-    """
+    required_admin_group = "ads"
 
     model = ClassifiedAd
     template_name = "admin_dashboard/ad_detail.html"
@@ -301,9 +296,7 @@ class AdminAdDetailView(SuperadminRequiredMixin, DetailView):
 
 
 class AdminAdCreateView(SuperadminRequiredMixin, CreateView):
-    """
-    Admin view to create a new ad with custom fields support
-    """
+    required_admin_group = "ads"
 
     model = ClassifiedAd
     template_name = "admin_dashboard/ad_form.html"
@@ -351,9 +344,7 @@ class AdminAdCreateView(SuperadminRequiredMixin, CreateView):
 
 
 class AdminAdUpdateView(SuperadminRequiredMixin, UpdateView):
-    """
-    Admin view to update an existing ad with custom fields support
-    """
+    required_admin_group = "ads"
 
     model = ClassifiedAd
     template_name = "admin_dashboard/ad_form.html"
@@ -409,9 +400,7 @@ class AdminAdUpdateView(SuperadminRequiredMixin, UpdateView):
 
 
 class AdminAdDeleteView(SuperadminRequiredMixin, DeleteView):
-    """
-    Admin view to delete an ad
-    """
+    required_admin_group = "ads"
 
     model = ClassifiedAd
     template_name = "admin_dashboard/ad_confirm_delete.html"
@@ -431,7 +420,7 @@ class AdminAdDeleteView(SuperadminRequiredMixin, DeleteView):
         return super().delete(request, *args, **kwargs)
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def bulk_delete_ads(request):
     """Bulk delete multiple ads"""
@@ -451,7 +440,7 @@ def bulk_delete_ads(request):
     )
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def bulk_change_status(request):
     """Bulk change status of multiple ads"""
@@ -490,9 +479,7 @@ def bulk_change_status(request):
 
 
 class AdminUpgradeHistoryListView(SuperadminRequiredMixin, ListView):
-    """
-    Admin view for all upgrade history
-    """
+    required_admin_group = "ads"
 
     model = AdUpgradeHistory
     template_name = "admin_dashboard/upgrade_history.html"
@@ -553,9 +540,7 @@ class AdminUpgradeHistoryListView(SuperadminRequiredMixin, ListView):
 
 
 class AdminUpgradeCreateView(SuperadminRequiredMixin, CreateView):
-    """
-    Admin view to create a new upgrade
-    """
+    required_admin_group = "ads"
 
     model = AdUpgradeHistory
     template_name = "admin_dashboard/upgrade_form.html"
@@ -593,9 +578,7 @@ class AdminUpgradeCreateView(SuperadminRequiredMixin, CreateView):
 
 
 class AdminUpgradeUpdateView(SuperadminRequiredMixin, UpdateView):
-    """
-    Admin view to update an existing upgrade
-    """
+    required_admin_group = "ads"
 
     model = AdUpgradeHistory
     template_name = "admin_dashboard/upgrade_form.html"
@@ -634,9 +617,7 @@ class AdminUpgradeUpdateView(SuperadminRequiredMixin, UpdateView):
 
 
 class AdminUpgradeDeleteView(SuperadminRequiredMixin, DeleteView):
-    """
-    Admin view to delete an upgrade
-    """
+    required_admin_group = "ads"
 
     model = AdUpgradeHistory
     template_name = "admin_dashboard/upgrade_confirm_delete.html"
@@ -659,7 +640,7 @@ class AdminUpgradeDeleteView(SuperadminRequiredMixin, DeleteView):
         return super().delete(request, *args, **kwargs)
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def toggle_upgrade_status(request, upgrade_id):
     """Toggle upgrade active status via AJAX"""
@@ -688,7 +669,7 @@ def toggle_upgrade_status(request, upgrade_id):
     )
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def bulk_deactivate_upgrades(request):
     """Bulk deactivate multiple upgrades"""
@@ -713,7 +694,7 @@ def bulk_deactivate_upgrades(request):
 # ============================================================================
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def admin_suspend_ad(request, ad_id):
     """Suspend/Hide an ad"""
@@ -736,7 +717,7 @@ def admin_suspend_ad(request, ad_id):
     return redirect(request.META.get("HTTP_REFERER", "main:admin_ads"))
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def admin_activate_ad(request, ad_id):
     """Activate a suspended ad"""
@@ -758,7 +739,7 @@ def admin_activate_ad(request, ad_id):
     return redirect(request.META.get("HTTP_REFERER", "main:admin_ads"))
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def admin_extend_ad(request, ad_id):
     """Extend ad expiration date"""
@@ -785,7 +766,7 @@ def admin_extend_ad(request, ad_id):
     return redirect(request.META.get("HTTP_REFERER", "main:admin_ads"))
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def admin_toggle_featured(request, ad_id):
     """Toggle ad featured status"""
@@ -806,7 +787,7 @@ def admin_toggle_featured(request, ad_id):
     )
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def admin_toggle_urgent(request, ad_id):
     """Toggle ad urgent status"""
@@ -827,7 +808,7 @@ def admin_toggle_urgent(request, ad_id):
     )
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def admin_toggle_pinned(request, ad_id):
     """Toggle ad pinned status"""
@@ -848,7 +829,7 @@ def admin_toggle_pinned(request, ad_id):
     )
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def admin_toggle_auto_refresh(request, ad_id):
     """Toggle ad auto_refresh status"""
@@ -869,7 +850,7 @@ def admin_toggle_auto_refresh(request, ad_id):
     )
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def admin_change_ad_category(request, ad_id):
     """Change ad category"""
@@ -891,7 +872,7 @@ def admin_change_ad_category(request, ad_id):
     return JsonResponse({"success": False, "message": "يرجى اختيار قسم"}, status=400)
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def admin_bulk_actions(request):
     """Bulk actions on multiple ads"""
@@ -989,7 +970,7 @@ def admin_bulk_actions(request):
 # ============================================================================
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def admin_ban_ad(request, ad_id):
     """Ban an ad permanently"""
@@ -1013,7 +994,7 @@ def admin_ban_ad(request, ad_id):
     return redirect(request.META.get("HTTP_REFERER", "main:admin_ads"))
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def admin_unban_ad(request, ad_id):
     """Unban a banned ad"""
@@ -1036,7 +1017,7 @@ def admin_unban_ad(request, ad_id):
     return redirect(request.META.get("HTTP_REFERER", "main:admin_ads"))
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def admin_duplicate_ad(request, ad_id):
     """Duplicate an ad with all its details"""
@@ -1078,7 +1059,7 @@ def admin_duplicate_ad(request, ad_id):
     return redirect("main:admin_ad_detail", ad_id=duplicated_ad.id)
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def admin_permanent_delete_ad(request, ad_id):
     """Permanently delete an ad from database (hard delete)"""
@@ -1102,7 +1083,7 @@ def admin_permanent_delete_ad(request, ad_id):
     return redirect("main:admin_ads")
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def admin_transfer_ownership(request, ad_id):
     """Transfer ad ownership to another user"""
@@ -1149,7 +1130,7 @@ def admin_transfer_ownership(request, ad_id):
     return redirect(request.META.get("HTTP_REFERER", "main:admin_ads"))
 
 
-@staff_member_required
+@admin_section_required("ads")
 def admin_ad_full_edit(request, ad_id):
     """Full edit page for admin to modify all ad content"""
     ad = get_object_or_404(ClassifiedAd, pk=ad_id)
@@ -1191,7 +1172,7 @@ def admin_ad_full_edit(request, ad_id):
     return render(request, "admin_dashboard/ad_full_edit.html", context)
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def admin_republish_ad(request, ad_id):
     """Republish an expired ad"""
@@ -1216,7 +1197,7 @@ def admin_republish_ad(request, ad_id):
     return redirect(request.META.get("HTTP_REFERER", "main:admin_ads"))
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def admin_approve_ad(request, ad_id):
     """Approve a single ad"""
@@ -1239,7 +1220,7 @@ def admin_approve_ad(request, ad_id):
     return redirect(request.META.get("HTTP_REFERER", "main:admin_ads"))
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def admin_reject_ad(request, ad_id):
     """Reject a single ad"""
@@ -1267,7 +1248,7 @@ def admin_reject_ad(request, ad_id):
     return redirect(request.META.get("HTTP_REFERER", "main:admin_ads"))
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def admin_hide_ad(request, ad_id):
     """Hide a single ad (toggle is_hidden)"""
@@ -1301,7 +1282,7 @@ def admin_hide_ad(request, ad_id):
     return redirect(request.META.get("HTTP_REFERER", "main:admin_ads"))
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def admin_enable_cart_for_ad(request, ad_id):
     """Enable cart for a single ad"""
@@ -1323,7 +1304,7 @@ def admin_enable_cart_for_ad(request, ad_id):
     return redirect(request.META.get("HTTP_REFERER", "main:admin_ads"))
 
 
-@staff_member_required
+@admin_section_required("ads")
 @require_POST
 def admin_disable_cart_for_ad(request, ad_id):
     """Disable cart for a single ad"""

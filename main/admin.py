@@ -3,7 +3,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext_lazy as _
 from allauth.account.models import EmailAddress
 admin.site.unregister(EmailAddress)
-from django.utils.html import format_html
+from django.utils.html import format_html, mark_safe
 from django.db import models
 from django import forms
 from mptt.admin import MPTTModelAdmin
@@ -55,17 +55,22 @@ from .models import (
     PaidBanner,
     Payment,
     SafetyTip,
-    SavedSearch,
     SMSTemplate,
     User,
     UserPackage,
-    UserPermissionLog,
-    UserSubscription,
     UserVerificationRequest,
     Visitor,
     Wishlist,
     WishlistItem,
 )
+
+
+class AdFeaturePriceInline(admin.TabularInline):
+    model = AdFeaturePrice
+    extra = 0
+    fields = ("feature_type", "price", "duration_days", "is_active")
+    verbose_name = _("سعر ميزة الإعلان")
+    verbose_name_plural = _("أسعار ميزات الإعلان")
 
 
 @admin.register(Category)
@@ -133,6 +138,7 @@ class CategoryAdmin(MPTTModelAdmin):
         ),
         ("Settings", {"fields": ("order", "is_active")}),
     )
+    inlines = [AdFeaturePriceInline]
     ordering = ("country", "name")
     actions = ["activate_categories", "deactivate_categories", "export_categories_csv"]
 
@@ -236,6 +242,13 @@ class AdUpgradeHistoryInline(admin.TabularInline):
 
 @admin.register(ClassifiedAd)
 class ClassifiedAdAdmin(admin.ModelAdmin):
+    def view_on_site(self, obj):
+        """Return the ad URL directly (bypasses the Sites framework redirect)."""
+        from django.utils import translation
+
+        with translation.override("ar"):
+            return obj.get_absolute_url()
+
     list_display = (
         "title",
         "user",
@@ -274,7 +287,10 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
         "price_on_request",
     )
     search_fields = ("title", "description", "user__username")
-    readonly_fields = ("created_at", "updated_at", "views_count", "reviewed_at")
+    readonly_fields = (
+        "created_at", "updated_at", "views_count", "reviewed_at",
+        "custom_fields_display", "price_display_mode",
+    )
     inlines = [AdImageInline, AdFeatureInline, AdUpgradeHistoryInline]
     list_editable = ("status", "is_hidden")
     actions = [
@@ -290,7 +306,8 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
         "hide_prices",
         "show_prices",
         "set_price_on_request",
-        "unset_price_on_request",
+        "set_contact_for_price",
+        "show_regular_price",
         "enable_cart_for_ads",
         "disable_cart_for_ads",
     ]
@@ -380,37 +397,37 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
 
     activate_upgrades_action.short_description = _("فحص وتحديث الترقيات")
 
-    def hide_prices(self, request, queryset):
-        """Hide prices for selected ads"""
-        updated = queryset.update(hide_price=True, price_on_request=False)
-        self.message_user(request, _("{} إعلان تم إخفاء السعر فيه").format(updated))
+    # ── Price display mode bulk actions ───────────────────────────────────────
 
-    hide_prices.short_description = _("إخفاء السعر (عرض 'اطلب عرض سعر')")
+    def hide_prices(self, request, queryset):
+        updated = queryset.update(hide_price=True, price_on_request=False, contact_for_price=False)
+        self.message_user(request, _("{} إعلان: تم تفعيل «إخفاء السعر / اطلب عرض سعر»").format(updated))
+
+    hide_prices.short_description = _("💰 إخفاء السعر — «اطلب عرض سعر»")
 
     def show_prices(self, request, queryset):
-        """Show prices for selected ads"""
-        updated = queryset.update(hide_price=False, price_on_request=False)
-        self.message_user(request, _("{} إعلان تم إظهار السعر فيه").format(updated))
+        updated = queryset.update(hide_price=False, price_on_request=False, contact_for_price=False)
+        self.message_user(request, _("{} إعلان: تم إظهار السعر الفعلي").format(updated))
 
-    show_prices.short_description = _("إظهار السعر العادي")
+    show_prices.short_description = _("💵 إظهار السعر الفعلي")
 
     def set_price_on_request(self, request, queryset):
-        """Set price on request for selected ads"""
-        updated = queryset.update(price_on_request=True, hide_price=False)
-        self.message_user(
-            request, _("{} إعلان تم تعيين 'السعر عند الطلب' فيه").format(updated)
-        )
+        updated = queryset.update(price_on_request=True, hide_price=False, contact_for_price=False)
+        self.message_user(request, _("{} إعلان: تم تفعيل «السعر عند الطلب»").format(updated))
 
-    set_price_on_request.short_description = _("تعيين 'السعر عند الطلب'")
+    set_price_on_request.short_description = _("📋 السعر عند الطلب")
 
-    def unset_price_on_request(self, request, queryset):
-        """Unset price on request for selected ads"""
-        updated = queryset.update(price_on_request=False)
-        self.message_user(
-            request, _("{} إعلان تم إلغاء 'السعر عند الطلب' فيه").format(updated)
-        )
+    def set_contact_for_price(self, request, queryset):
+        updated = queryset.update(contact_for_price=True, hide_price=False, price_on_request=False)
+        self.message_user(request, _("{} إعلان: تم تفعيل «تواصل ليصلك عرض سعر» (مدفوع)").format(updated))
 
-    unset_price_on_request.short_description = _("إلغاء 'السعر عند الطلب'")
+    set_contact_for_price.short_description = _("⭐ تواصل ليصلك عرض سعر (مدفوع)")
+
+    def show_regular_price(self, request, queryset):
+        updated = queryset.update(hide_price=False, price_on_request=False, contact_for_price=False)
+        self.message_user(request, _("{} إعلان: تم إلغاء جميع أوضاع إخفاء السعر وإظهار السعر الفعلي").format(updated))
+
+    show_regular_price.short_description = _("🔄 إعادة تعيين — إظهار السعر الفعلي")
 
     def renew_ads_30_days(self, request, queryset):
         """Renew selected ads for 30 days"""
@@ -519,13 +536,29 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
     resubmitted_badge.admin_order_field = "is_resubmitted"
 
     fieldsets = (
-        ("Ad Information", {"fields": ("user", "category", "title", "description")}),
+        (_("معلومات الإعلان - Ad Information"), {"fields": ("user", "category", "title", "description")}),
         (
-            "Pricing",
-            {"fields": ("price", "is_negotiable", "hide_price", "price_on_request")},
+            _("السعر - Pricing"),
+            {
+                "fields": (
+                    "price",
+                    "is_negotiable",
+                    "price_display_mode",
+                    "hide_price",
+                    "price_on_request",
+                    "contact_for_price",
+                ),
+                "description": _(
+                    "اختر وضعاً واحداً فقط لعرض السعر — عند الحفظ يُطبَّق الأولوية: "
+                    "«تواصل ليصلك عرض سعر» (مدفوع، أعلى أولوية) ← "
+                    "«السعر عند الطلب» ← "
+                    "«إخفاء السعر / اطلب عرض سعر» ← "
+                    "السعر الفعلي (بدون تفعيل أي خيار)."
+                ),
+            },
         ),
-        ("Rating", {"fields": ("rating", "rating_count")}),
-        ("Location", {"fields": ("country", "city", "address")}),
+        (_("التقييم - Rating"), {"fields": ("rating", "rating_count")}),
+        (_("الموقع - Location"), {"fields": ("country", "city", "address")}),
         (
             _("الظهور والتحكم - Visibility & Access"),
             {
@@ -557,7 +590,6 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
                     "is_urgent",
                     "is_highlighted",
                     "is_pinned",
-                    "contact_for_price",
                     "auto_refresh",
                     "video_url",
                     "video_file",
@@ -583,7 +615,90 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
                 )
             },
         ),
+        (
+            _("الحقول المخصصة - Custom Fields"),
+            {
+                "fields": ("custom_fields_display",),
+                "classes": ("collapse",),
+            },
+        ),
     )
+
+    def save_model(self, request, obj, form, change):
+        # Enforce mutual exclusivity: only the highest-priority price flag stays on.
+        # Priority: contact_for_price > price_on_request > hide_price
+        active = [
+            obj.contact_for_price,
+            obj.price_on_request,
+            obj.hide_price,
+        ]
+        if sum(active) > 1:
+            if obj.contact_for_price:
+                obj.price_on_request = False
+                obj.hide_price = False
+            elif obj.price_on_request:
+                obj.hide_price = False
+        super().save_model(request, obj, form, change)
+
+    def price_display_mode(self, obj):
+        if obj.contact_for_price:
+            return format_html(
+                '<span style="background:#7c3aed;color:#fff;padding:3px 10px;border-radius:20px;font-size:0.8em;font-weight:600;">⭐ تواصل ليصلك عرض سعر (مدفوع)</span>'
+            )
+        if obj.price_on_request:
+            return format_html(
+                '<span style="background:#0891b2;color:#fff;padding:3px 10px;border-radius:20px;font-size:0.8em;font-weight:600;">📋 السعر عند الطلب</span>'
+            )
+        if obj.hide_price:
+            return format_html(
+                '<span style="background:#d97706;color:#fff;padding:3px 10px;border-radius:20px;font-size:0.8em;font-weight:600;">💰 إخفاء السعر — اطلب عرض سعر</span>'
+            )
+        return format_html(
+            '<span style="background:#16a34a;color:#fff;padding:3px 10px;border-radius:20px;font-size:0.8em;font-weight:600;">💵 السعر الفعلي: {}</span>',
+            obj.price or "—",
+        )
+
+    price_display_mode.short_description = _("وضع عرض السعر الحالي")
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "reviewed_by":
+            kwargs["queryset"] = User.objects.filter(
+                models.Q(is_staff=True) | models.Q(is_superuser=True)
+            ).order_by("username")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def custom_fields_display(self, obj):
+        if not obj.pk or not obj.category_id:
+            return "—"
+        cat_custom_fields = CategoryCustomField.objects.filter(
+            category=obj.category, is_active=True
+        ).select_related("custom_field").order_by("order", "id")
+        if not cat_custom_fields.exists():
+            return _("لا توجد حقول مخصصة لهذا القسم")
+        values = obj.custom_fields or {}
+        rows = []
+        for ccf in cat_custom_fields:
+            cf = ccf.custom_field
+            key = cf.name
+            val = values.get(key, "")
+            label = cf.label_ar or cf.label or cf.name
+            display_val = val if val not in (None, "", []) else "—"
+            if isinstance(display_val, list):
+                display_val = ", ".join(str(v) for v in display_val)
+            rows.append(
+                f"<tr>"
+                f"<th style='padding:5px 14px 5px 4px;text-align:right;color:#374151;font-weight:600;white-space:nowrap;'>{label}</th>"
+                f"<td style='padding:5px;color:#1f2937;'>{display_val}</td>"
+                f"</tr>"
+            )
+        table = (
+            "<table style='font-size:0.88em;border-collapse:collapse;'>"
+            + "".join(rows)
+            + "</table>"
+        )
+        return format_html("{}", mark_safe(table))
+
+    custom_fields_display.short_description = _("الحقول المخصصة")
 
 
 @admin.register(AdPackage)
@@ -952,7 +1067,7 @@ class PaymentAdmin(admin.ModelAdmin):
     list_display = (
         "get_payment_id",
         "user",
-        "provider",
+        "get_provider_badge",
         "get_amount_display",
         "status",
         "created_at",
@@ -988,14 +1103,50 @@ class PaymentAdmin(admin.ModelAdmin):
     ]
     list_per_page = 25
 
+    # Colour map for provider badges
+    _PROVIDER_COLORS = {
+        "paypal":        ("#003087", "#009cde"),   # PayPal blue
+        "paymob":        ("#2563eb", "#dbeafe"),   # blue
+        "instapay":      ("#7c3aed", "#ede9fe"),   # purple  (InstaPay brand)
+        "wallet":        ("#0891b2", "#cffafe"),   # cyan
+        "bank_transfer": ("#15803d", "#dcfce7"),   # green
+        "cod":           ("#d97706", "#fef3c7"),   # amber
+        "cash":          ("#166534", "#bbf7d0"),   # dark-green
+    }
+
+    _PROVIDER_LABELS = {
+        "paypal":        "PayPal",
+        "paymob":        "Paymob",
+        "instapay":      "إنستا باي",
+        "wallet":        "محفظة إلكترونية",
+        "bank_transfer": "تحويل بنكي",
+        "cod":           "الدفع عند الاستلام",
+        "cash":          "نقداً",
+    }
+
     def get_payment_id(self, obj):
-        """Display formatted payment ID"""
         return format_html(
-            '<span style="font-weight: bold; color: #0066cc;">#{}</span>', obj.id
+            '<span style="font-weight:bold;color:#0066cc;">#{}</span>', obj.id
         )
 
     get_payment_id.short_description = _("رقم الدفعة")
     get_payment_id.admin_order_field = "id"
+
+    def get_provider_badge(self, obj):
+        if not obj.provider:
+            return format_html(
+                '<span style="color:#9ca3af;font-size:0.82em;">غير محدد</span>'
+            )
+        fg, bg = self._PROVIDER_COLORS.get(obj.provider, ("#374151", "#f3f4f6"))
+        label = self._PROVIDER_LABELS.get(obj.provider, obj.get_provider_display())
+        return format_html(
+            '<span style="background:{};color:{};padding:2px 9px;border-radius:20px;'
+            'font-size:0.78em;font-weight:600;white-space:nowrap;">{}</span>',
+            bg, fg, label,
+        )
+
+    get_provider_badge.short_description = _("مزود الدفع")
+    get_provider_badge.admin_order_field = "provider"
 
     def get_amount_display(self, obj):
         """Display formatted amount with currency"""
@@ -1169,46 +1320,6 @@ class PaymentAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(SavedSearch)
-class SavedSearchAdmin(admin.ModelAdmin):
-    list_display = (
-        "name",
-        "user",
-        "email_notifications",
-        "last_notified_at",
-        "created_at",
-    )
-    list_filter = ("email_notifications", "created_at")
-    search_fields = ("name", "user__username", "user__email")
-    list_editable = ("email_notifications",)
-    readonly_fields = ("last_notified_at", "unsubscribe_token", "created_at")
-    date_hierarchy = "created_at"
-    ordering = ("-created_at",)
-
-    actions = ["enable_email_notifications", "disable_email_notifications"]
-
-    def enable_email_notifications(self, request, queryset):
-        updated = queryset.update(email_notifications=True)
-        self.message_user(request, _("تم تفعيل إشعارات البريد لـ {} بحث").format(updated))
-
-    enable_email_notifications.short_description = _("✓ تفعيل إشعارات البريد")
-
-    def disable_email_notifications(self, request, queryset):
-        updated = queryset.update(email_notifications=False)
-        self.message_user(request, _("تم إلغاء إشعارات البريد لـ {} بحث").format(updated))
-
-    disable_email_notifications.short_description = _("✗ إلغاء إشعارات البريد")
-
-    fieldsets = (
-        (_("معلومات البحث"), {"fields": ("user", "name", "query_params")}),
-        (
-            _("الإشعارات"),
-            {"fields": ("email_notifications", "last_notified_at", "unsubscribe_token")},
-        ),
-        (_("التواريخ"), {"fields": ("created_at",), "classes": ("collapse",)}),
-    )
-
-
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
     list_display = (
@@ -1263,17 +1374,48 @@ class NotificationAdmin(admin.ModelAdmin):
 
 @admin.register(ContactMessage)
 class ContactMessageAdmin(admin.ModelAdmin):
-    list_display = ("name", "email", "subject", "status", "created_at")
+    list_display = ("name", "phone", "email", "subject_preview", "status_badge", "created_at")
     list_filter = ("status", "created_at")
-    search_fields = ("name", "email", "subject")
-    readonly_fields = ("created_at", "updated_at")
-    list_editable = ("status",)
+    search_fields = ("name", "email", "subject", "phone")
+    readonly_fields = ("created_at", "updated_at", "replied_at")
     ordering = ("-created_at",)
+    date_hierarchy = "created_at"
+    list_per_page = 25
     actions = ["mark_as_read", "mark_as_replied", "mark_as_resolved", "export_messages_csv"]
+
+    fieldsets = (
+        (_("معلومات المرسل"), {"fields": ("name", "email", "phone", "user")}),
+        (_("محتوى الرسالة"), {"fields": ("subject", "message")}),
+        (_("الحالة والمتابعة"), {"fields": ("status", "admin_notes", "replied_at")}),
+        (_("التواريخ"), {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
+    )
 
     formfield_overrides = {
         models.TextField: {"widget": CKEditor5Widget(config_name="admin")},
     }
+
+    def subject_preview(self, obj):
+        return obj.subject[:60] + "…" if len(obj.subject) > 60 else obj.subject
+
+    subject_preview.short_description = _("الموضوع")
+    subject_preview.admin_order_field = "subject"
+
+    def status_badge(self, obj):
+        colors = {
+            ContactMessage.Status.PENDING:  ("#fd7e14", "⏳ قيد الانتظار"),
+            ContactMessage.Status.READ:     ("#17a2b8", "👁 مقروءة"),
+            ContactMessage.Status.REPLIED:  ("#28a745", "↩ تم الرد"),
+            ContactMessage.Status.RESOLVED: ("#6c757d", "✔ محلولة"),
+        }
+        color, label = colors.get(obj.status, ("#6c757d", obj.get_status_display()))
+        return format_html(
+            '<span style="background:{};color:#fff;padding:3px 10px;border-radius:12px;'
+            'font-size:11px;font-weight:600;white-space:nowrap">{}</span>',
+            color, label,
+        )
+
+    status_badge.short_description = _("الحالة")
+    status_badge.admin_order_field = "status"
 
     def mark_as_read(self, request, queryset):
         updated = queryset.filter(status=ContactMessage.Status.PENDING).update(status=ContactMessage.Status.READ)
@@ -1382,16 +1524,15 @@ class CustomUserAdmin(UserAdmin):
 
     list_display = (
         "username",
+        "get_display_name_col",
         "email",
-        "first_name",
-        "last_name",
         "profile_type",
         "verification_status",
         "is_active",
         "chat_icon",
     )
     list_filter = ("profile_type", "verification_status", "is_active", "is_staff")
-    search_fields = ("username", "email", "first_name", "last_name", "company_name")
+    search_fields = ("username", "email", "first_name", "last_name", "company_name", "phone", "mobile")
 
     fieldsets = (
         (None, {"fields": ("username", "password")}),
@@ -1447,6 +1588,11 @@ class CustomUserAdmin(UserAdmin):
         "unverify_users",
         "export_users_csv",
     ]
+
+    def get_display_name_col(self, obj):
+        return obj.get_display_name()
+    get_display_name_col.short_description = _("الاسم")
+    get_display_name_col.admin_order_field = "first_name"
 
     def activate_users(self, request, queryset):
         updated = queryset.update(is_active=True)
@@ -2087,36 +2233,15 @@ class CategoryCustomFieldAdmin(admin.ModelAdmin):
     remove_from_filters.short_description = _("❌ إزالة من الفلاتر")
 
 
-@admin.register(UserPermissionLog)
-class UserPermissionLogAdmin(admin.ModelAdmin):
-    list_display = ("user", "action", "created_at")
-    list_filter = ("action", "created_at")
-    search_fields = ("user__username", "user__email")
-    readonly_fields = ("created_at",)
-    date_hierarchy = "created_at"
-    ordering = ("-created_at",)
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    fieldsets = (
-        (_("معلومات السجل"), {"fields": ("user", "action")}),
-        (_("التواريخ"), {"fields": ("created_at",), "classes": ("collapse",)}),
-    )
-
-
 @admin.register(UserVerificationRequest)
 class UserVerificationRequestAdmin(admin.ModelAdmin):
     list_display = ("user", "status", "created_at", "reviewed_at", "reviewed_by")
     list_filter = ("status", "created_at")
     search_fields = ("user__username", "user__email")
-    readonly_fields = ("created_at", "reviewed_at")
+    readonly_fields = ("user", "status", "reviewed_by", "reviewed_at", "created_at")
     date_hierarchy = "created_at"
     ordering = ("-created_at",)
-    actions = ["approve_requests", "reject_requests"]
+    actions = []
 
     fieldsets = (
         (_("معلومات الطلب"), {"fields": ("user", "status")}),
@@ -2124,68 +2249,11 @@ class UserVerificationRequestAdmin(admin.ModelAdmin):
         (_("التواريخ"), {"fields": ("created_at",), "classes": ("collapse",)}),
     )
 
-    def approve_requests(self, request, queryset):
-        updated = queryset.filter(status="pending").update(
-            status="approved", reviewed_by=request.user
-        )
-        self.message_user(request, _("{} طلب تم قبوله").format(updated))
+    def has_add_permission(self, request):
+        return False
 
-    approve_requests.short_description = _("✓ قبول الطلبات المحددة")
-
-    def reject_requests(self, request, queryset):
-        updated = queryset.filter(status="pending").update(
-            status="rejected", reviewed_by=request.user
-        )
-        self.message_user(request, _("{} طلب تم رفضه").format(updated))
-
-    reject_requests.short_description = _("✗ رفض الطلبات المحددة")
-
-
-@admin.register(UserSubscription)
-class UserSubscriptionAdmin(admin.ModelAdmin):
-    list_display = (
-        "user",
-        "start_date",
-        "end_date",
-        "is_active",
-        "auto_renew",
-    )
-    list_filter = ("is_active", "auto_renew", "start_date")
-    search_fields = ("user__username", "user__email")
-    date_hierarchy = "start_date"
-    readonly_fields = ("start_date",)
-
-    actions = ["activate_subscriptions", "deactivate_subscriptions", "extend_subscription_30_days"]
-
-    def activate_subscriptions(self, request, queryset):
-        updated = queryset.update(is_active=True)
-        self.message_user(request, _("{} اشتراك تم تفعيله").format(updated))
-
-    activate_subscriptions.short_description = _("✓ تفعيل الاشتراكات المحددة")
-
-    def deactivate_subscriptions(self, request, queryset):
-        updated = queryset.update(is_active=False)
-        self.message_user(request, _("{} اشتراك تم إلغاء تفعيله").format(updated))
-
-    deactivate_subscriptions.short_description = _("✗ إلغاء تفعيل الاشتراكات المحددة")
-
-    def extend_subscription_30_days(self, request, queryset):
-        from datetime import timedelta
-        from django.utils import timezone
-        count = 0
-        for sub in queryset:
-            base = sub.end_date if sub.end_date and sub.end_date > timezone.now().date() else timezone.now().date()
-            sub.end_date = base + timedelta(days=30)
-            sub.save(update_fields=["end_date"])
-            count += 1
-        self.message_user(request, _("تم تمديد {} اشتراك 30 يوماً").format(count))
-
-    extend_subscription_30_days.short_description = _("📅 تمديد 30 يوم")
-
-    fieldsets = (
-        (_("المستخدم والاشتراك"), {"fields": ("user", "is_active", "auto_renew")}),
-        (_("التواريخ"), {"fields": ("start_date", "end_date")}),
-    )
+    def has_change_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Visitor)
@@ -2464,7 +2532,6 @@ class AdReportAdmin(admin.ModelAdmin):
         "status_badge",
         "reporter_info",
         "reported_target",
-        "description_preview",
         "created_at",
         "reviewed_by",
     )
@@ -2564,24 +2631,45 @@ class AdReportAdmin(admin.ModelAdmin):
         ),
     )
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "reviewed_by":
+            kwargs["queryset"] = User.objects.filter(
+                models.Q(is_staff=True) | models.Q(is_superuser=True)
+            ).order_by("username")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    _REPORT_TYPE_META = {
+        "ad_content":    ("#dc3545", "🚫", "محتوى غير لائق"),
+        "fraud":         ("#fd7e14", "💰", "احتيال أو نصب"),
+        "spam":          ("#e9a800", "📩", "إعلان متكرر / سبام"),
+        "wrong_category":("#0891b2", "📂", "قسم خاطئ"),
+        "user_behavior": ("#d63384", "👤", "سلوك غير لائق"),
+        "fake_info":     ("#6610f2", "⚠️", "معلومات مضللة"),
+        "other":         ("#6c757d", "📋", "أخرى"),
+    }
+
     def report_type_badge(self, obj):
-        colors = {
-            "ad_content": "#dc3545",
-            "fraud": "#fd7e14",
-            "spam": "#ffc107",
-            "wrong_category": "#0dcaf0",
-            "user_behavior": "#d63384",
-            "fake_info": "#6610f2",
-            "other": "#6c757d",
-        }
-        color = colors.get(obj.report_type, "#6c757d")
+        if not obj.report_type:
+            return format_html(
+                '<span style="background:#6c757d;color:white;padding:3px 10px;'
+                'border-radius:12px;font-size:11px;font-weight:600;">❓ غير محدد</span>'
+            )
+        color, icon, label = self._REPORT_TYPE_META.get(
+            obj.report_type,
+            ("#6c757d", "📋", obj.get_report_type_display() or obj.report_type),
+        )
+        # Short description preview below the badge
+        desc = obj.description[:60] + "…" if len(obj.description) > 60 else obj.description
         return format_html(
-            '<span style="background-color: {}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">{}</span>',
-            color,
-            obj.get_report_type_display(),
+            '<div>'
+            '<span style="background:{};color:white;padding:3px 10px;border-radius:12px;'
+            'font-size:11px;font-weight:600;white-space:nowrap;">{} {}</span>'
+            '<br><small style="color:#6c757d;font-size:11px;">{}</small>'
+            '</div>',
+            color, icon, label, desc,
         )
 
-    report_type_badge.short_description = "نوع البلاغ"
+    report_type_badge.short_description = "نوع البلاغ / الوصف"
 
     def status_badge(self, obj):
         colors = {
@@ -2753,12 +2841,15 @@ class OrderAdmin(admin.ModelAdmin):
     get_order_number_display.admin_order_field = "order_number"
 
     def get_total_amount_display(self, obj):
-        """Display formatted total amount"""
+        from main.templatetags.idrissimart_tags import CURRENCY_SYMBOLS
+        sym = CURRENCY_SYMBOLS.get(obj.currency, obj.currency)
         return format_html(
-            '<div style="text-align: right;"><span style="font-weight: bold; color: #28a745;">{}</span><br>'
-            '<small style="color: #6c757d;">مدفوع: {}</small></div>',
-            f"{float(obj.total_amount):.2f}",
-            f"{float(obj.paid_amount):.2f}",
+            '<div style="text-align: right;">'
+            '<span style="font-weight:bold;color:#28a745;">{} {}</span><br>'
+            '<small style="color:#6c757d;">مدفوع: {} {}</small>'
+            '</div>',
+            f"{float(obj.total_amount):.2f}", sym,
+            f"{float(obj.paid_amount):.2f}", sym,
         )
 
     get_total_amount_display.short_description = _("المبلغ")
@@ -2805,31 +2896,41 @@ class OrderAdmin(admin.ModelAdmin):
     get_status_display_badge.admin_order_field = "status"
 
     def get_order_summary(self, obj):
-        """Display order summary"""
         if not obj or not obj.pk:
             return "-"
         from main.templatetags.idrissimart_tags import CURRENCY_SYMBOLS
-        currency_symbol = CURRENCY_SYMBOLS.get(obj.currency, obj.currency)
+        sym = CURRENCY_SYMBOLS.get(obj.currency, obj.currency)
 
-        items_html = '<ul style="margin: 0; padding-left: 20px;">'
-        for item in obj.items.all():
-            items_html += f"<li>{item.ad.title} - {item.price} {currency_symbol}</li>"
-        items_html += "</ul>"
+        rows = "".join(
+            f"<tr>"
+            f"<td style='padding:4px 12px 4px 4px;'>{item.ad.title if item.ad else '—'}</td>"
+            f"<td style='padding:4px;text-align:left;font-weight:600;'>{float(item.price):.2f} {sym}</td>"
+            f"</tr>"
+            for item in obj.items.select_related("ad").all()
+        )
+        items_table = mark_safe(
+            f"<table style='border-collapse:collapse;font-size:0.9em;width:100%;'>"
+            f"<thead><tr>"
+            f"<th style='padding:4px 12px 4px 4px;color:#6c757d;font-weight:600;text-align:right;'>المنتج</th>"
+            f"<th style='padding:4px;color:#6c757d;font-weight:600;text-align:left;'>السعر</th>"
+            f"</tr></thead>"
+            f"<tbody>{rows}</tbody>"
+            f"</table>"
+        )
 
         return format_html(
-            '<div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">'
-            '<h4 style="margin-top: 0;">ملخص الطلب</h4>'
-            "<p><strong>عدد العناصر:</strong> {}</p>"
-            "<p><strong>العناصر:</strong></p>{}"
-            "<p><strong>رسوم التوصيل:</strong> {} {}</p>"
-            '<p><strong>الإجمالي:</strong> <span style="color: #28a745; font-weight: bold;">{} {}</span></p>'
-            "</div>",
+            '<div style="background:#f8f9fa;padding:15px;border-radius:6px;font-size:0.92em;">'
+            '<p style="margin:0 0 8px;font-weight:700;">عدد العناصر: {}</p>'
+            '{}'
+            '<hr style="margin:10px 0;border-color:#dee2e6;">'
+            '<p style="margin:4px 0;">رسوم التوصيل: <strong>{} {}</strong></p>'
+            '<p style="margin:4px 0;font-size:1.05em;">الإجمالي: '
+            '<strong style="color:#28a745;">{} {}</strong></p>'
+            '</div>',
             obj.get_items_count(),
-            items_html,
-            obj.delivery_fee,
-            currency_symbol,
-            obj.total_amount,
-            currency_symbol,
+            items_table,
+            f"{float(obj.delivery_fee):.2f}", sym,
+            f"{float(obj.total_amount):.2f}", sym,
         )
 
     get_order_summary.short_description = _("ملخص الطلب")
@@ -3153,6 +3254,7 @@ class OrderAdmin(admin.ModelAdmin):
             _("معلومات الدفع"),
             {
                 "fields": (
+                    "currency",
                     "payment_method",
                     "payment_status",
                     "total_amount",
@@ -3267,9 +3369,20 @@ class CartItemAdmin(admin.ModelAdmin):
 class WishlistItemInline(admin.TabularInline):
     model = WishlistItem
     extra = 0
-    readonly_fields = ("ad", "ad_status", "added_at")
-    fields = ("ad", "ad_status", "added_at")
+    readonly_fields = ("ad_link", "ad_status", "added_at")
+    fields = ("ad_link", "ad_status", "added_at")
     can_delete = True
+
+    def ad_link(self, obj):
+        if not obj.ad:
+            return "-"
+        url = obj.ad.get_absolute_url()
+        return format_html(
+            '<a href="{}" target="_blank" rel="noopener noreferrer">{}</a>',
+            url,
+            obj.ad.title,
+        )
+    ad_link.short_description = _("الإعلان")
 
     def ad_status(self, obj):
         if not obj.ad:
@@ -3553,9 +3666,12 @@ class FacebookShareRequestAdmin(admin.ModelAdmin):
 
     def ad_title(self, obj):
         """Display ad title with link"""
+        from django.urls import reverse
+
+        ad_change_url = reverse("admin:main_classifiedad_change", args=[obj.ad.id])
         return format_html(
-            '<a href="/admin/main/classifiedad/{}/change/" target="_blank">{}</a>',
-            obj.ad.id,
+            '<a href="{}" target="_blank">{}</a>',
+            ad_change_url,
             obj.ad.title[:50],
         )
 
@@ -3563,9 +3679,12 @@ class FacebookShareRequestAdmin(admin.ModelAdmin):
 
     def user_link(self, obj):
         """Display user with link"""
+        from django.urls import reverse
+
+        user_change_url = reverse("admin:main_user_change", args=[obj.user.id])
         return format_html(
-            '<a href="/admin/main/user/{}/change/" target="_blank">{}</a>',
-            obj.user.id,
+            '<a href="{}" target="_blank">{}</a>',
+            user_change_url,
             obj.user.username,
         )
 
@@ -3747,10 +3866,13 @@ class SafetyTipAdmin(admin.ModelAdmin):
 
     def preview_button(self, obj):
         """Add preview button"""
+        from django.urls import reverse
+
+        preview_url = reverse("admin:safetytip_preview")
         return format_html(
             '<a href="{}?tip_id={}" class="button" target="_blank" style="background: #667eea; color: white; padding: 6px 12px; text-decoration: none; border-radius: 6px; font-size: 12px;">'
             '<i class="fas fa-eye"></i> {}</a>',
-            "/admin/main/safetytip/preview/",
+            preview_url,
             obj.id,
             _("معاينة")
         )
@@ -3834,71 +3956,121 @@ class SafetyTipAdmin(admin.ModelAdmin):
 
 @admin.register(EmailTemplate)
 class EmailTemplateAdmin(admin.ModelAdmin):
-    list_display = ("key", "display_name_ar", "display_subject_ar", "is_active", "updated_at", "send_newsletter_list_link")
+    list_display = (
+        "display_key_label", "display_name_ar", "display_subject_ar",
+        "is_active", "updated_at", "action_buttons",
+    )
     list_filter = ("is_active", "key")
     search_fields = ("key", "name", "name_ar", "subject", "subject_ar")
     list_editable = ("is_active",)
-    readonly_fields = ("created_at", "updated_at", "send_newsletter_button")
+    readonly_fields = ("created_at", "updated_at", "send_newsletter_button", "test_send_button")
     ordering = ("key",)
-
-    formfield_overrides = {
-        __import__("django.db.models", fromlist=["TextField"]).TextField: {
-            "widget": __import__("django_ckeditor_5.widgets", fromlist=["CKEditor5Widget"]).CKEditor5Widget(
-                attrs={"class": "django_ckeditor_5"}, config_name="extends"
-            )
-        },
-    }
 
     fieldsets = (
         (
-            "المعرّف - Identifier",
+            _("المعرّف - Identifier"),
             {
                 "fields": ("key", "is_active"),
+                "description": _(
+                    "اختر حدث البريد الإلكتروني المناسب. لكل حدث قالب واحد فقط. "
+                    "/ Select the matching email event. One template per event."
+                ),
             },
         ),
         (
-            "الاسم - Name",
+            _("الاسم - Name"),
             {
                 "fields": ("name", "name_ar"),
             },
         ),
         (
-            "الموضوع - Subject",
+            _("الموضوع - Subject"),
             {
                 "fields": ("subject", "subject_ar"),
-                "description": "موضوع البريد الإلكتروني. يمكن استخدام متغيرات مثل {site_name} / Email subject. Variables like {site_name} are supported.",
+                "description": _(
+                    "موضوع الرسالة — يدعم المتغيرات مثل {{site_name}} و{{user_name}} / "
+                    "Email subject — supports variables like {{site_name}}, {{user_name}}"
+                ),
             },
         ),
         (
-            "المحتوى - Body",
+            _("المحتوى - Body"),
             {
                 "fields": ("body", "body_ar"),
-                "description": "محتوى الرسالة بتنسيق HTML. يمكن استخدام المتغيرات المذكورة أدناه / HTML body content. Use variables listed below.",
+                "description": _(
+                    "محتوى الرسالة بتنسيق HTML — استخدم {{variable}} لإدراج القيم الديناميكية / "
+                    "HTML body — use {{variable}} to insert dynamic values"
+                ),
             },
         ),
         (
-            "المتغيرات والتواريخ - Variables & Dates",
+            _("المتغيرات المتاحة - Available Variables"),
             {
-                "fields": ("available_variables", "created_at", "updated_at"),
+                "fields": ("available_variables",),
+                "classes": ("collapse",),
+                "description": _(
+                    "سرد المتغيرات المتاحة لهذا القالب، مثال: {{user_name}}, {{site_name}} — "
+                    "انسخها كما هي داخل الموضوع أو المحتوى."
+                ),
+            },
+        ),
+        (
+            _("التواريخ - Dates"),
+            {
+                "fields": ("created_at", "updated_at"),
                 "classes": ("collapse",),
             },
         ),
         (
-            _("إرسال كنشرة بريدية - Send as Newsletter"),
+            _("الإجراءات - Actions"),
             {
-                "fields": ("send_newsletter_button",),
-                "description": _("أرسل هذا القالب كنشرة بريدية إلى جميع المشتركين النشطين."),
+                "fields": ("test_send_button", "send_newsletter_button"),
+                "description": _(
+                    "اختبر القالب بإرسال رسالة تجريبية، أو أرسله كنشرة بريدية للمشتركين."
+                ),
             },
         ),
     )
 
+    def display_key_label(self, obj):
+        return obj.get_key_display() or obj.key
+    display_key_label.short_description = _("الحدث - Event")
+    display_key_label.admin_order_field = "key"
+
     def display_name_ar(self, obj):
         return obj.name_ar or obj.name
-    display_name_ar.short_description = "الاسم"
+    display_name_ar.short_description = _("الاسم")
 
     def display_subject_ar(self, obj):
         return obj.subject_ar or obj.subject
-    display_subject_ar.short_description = "الموضوع"
+    display_subject_ar.short_description = _("الموضوع")
+
+    def action_buttons(self, obj):
+        if not obj.pk:
+            return "-"
+        from django.urls import reverse
+        test_url = reverse("admin:emailtemplate_test_send", args=[obj.pk])
+        nl_url = reverse("admin:emailtemplate_send_newsletter", args=[obj.pk])
+        return format_html(
+            '<a href="{}" style="margin-left:6px; white-space:nowrap;">🧪 اختبار</a>'
+            ' | <a href="{}" style="white-space:nowrap;">✉️ نشرة</a>',
+            test_url, nl_url,
+        )
+    action_buttons.short_description = _("إجراءات")
+
+    def test_send_button(self, obj):
+        if not obj.pk:
+            return _("احفظ القالب أولاً لتتمكن من اختباره.")
+        from django.urls import reverse
+        url = reverse("admin:emailtemplate_test_send", args=[obj.pk])
+        return format_html(
+            '<a href="{}" class="button" style="background:#417690; color:#fff; padding:8px 18px; '
+            'border-radius:4px; font-weight:600; text-decoration:none; display:inline-block; margin-left:8px;">'
+            '🧪 إرسال رسالة اختبارية'
+            '</a>',
+            url,
+        )
+    test_send_button.short_description = _("اختبار القالب")
 
     def send_newsletter_button(self, obj):
         if not obj.pk:
@@ -3914,18 +4086,15 @@ class EmailTemplateAdmin(admin.ModelAdmin):
         )
     send_newsletter_button.short_description = _("إرسال النشرة")
 
-    def send_newsletter_list_link(self, obj):
-        if not obj.pk:
-            return "-"
-        from django.urls import reverse
-        url = reverse("admin:emailtemplate_send_newsletter", args=[obj.pk])
-        return format_html('<a href="{}">✉️ إرسال</a>', url)
-    send_newsletter_list_link.short_description = _("نشرة")
-
     def get_urls(self):
         from django.urls import path
         urls = super().get_urls()
         custom = [
+            path(
+                "<int:pk>/test-send/",
+                self.admin_site.admin_view(self.test_send_view),
+                name="emailtemplate_test_send",
+            ),
             path(
                 "<int:pk>/send-newsletter/",
                 self.admin_site.admin_view(self.send_newsletter_view),
@@ -3933,6 +4102,98 @@ class EmailTemplateAdmin(admin.ModelAdmin):
             ),
         ]
         return custom + urls
+
+    def test_send_view(self, request, pk):
+        """Send a test email using sample variables to the current admin user."""
+        from django.template.response import TemplateResponse
+        from django.contrib import messages as dj_messages
+        from django.http import HttpResponseRedirect
+        from django.shortcuts import get_object_or_404
+        from constance import config
+
+        template_obj = get_object_or_404(EmailTemplate, pk=pk)
+
+        # Default sample context shared across all templates
+        sample_context = {
+            "site_name": config.SITE_NAME,
+            "site_url": getattr(config, "SITE_URL", "https://idrissimart.com"),
+            "user_name": request.user.get_full_name() or request.user.username,
+            "username": request.user.username,
+            "email": request.user.email,
+            "otp_code": "123456",
+            "expiry_minutes": "10",
+            "reset_link": getattr(config, "SITE_URL", "https://idrissimart.com") + "/password-reset/",
+            "verification_link": getattr(config, "SITE_URL", "https://idrissimart.com") + "/verify-email/",
+            "ad_title": "إعلان تجريبي - Sample Ad",
+            "ad_url": getattr(config, "SITE_URL", "https://idrissimart.com") + "/ad/sample-ad/",
+            "ad_status": "active",
+            "reject_reason": "يرجى مراجعة محتوى الإعلان / Please review ad content",
+            "order_number": "ORD-2026-001",
+            "order_total": "250.00",
+            "package_name": "باقة ناشر - Publisher Package",
+            "ad_count": "10",
+            "payment_amount": "99.00",
+            "search_name": "بحث: سيارات القاهرة",
+            "search_url": getattr(config, "SITE_URL", "https://idrissimart.com") + "/search/?q=test",
+            "sender_name": "زائر تجريبي - Test Visitor",
+            "sender_email": "test@example.com",
+            "message": "هذه رسالة اختبارية من لوحة الإدارة.",
+            "subject_text": "استفسار عام",
+            "receiver_name": request.user.get_full_name() or request.user.username,
+            "sender_name": "ناشر تجريبي - Test Publisher",
+            "message_preview": "مرحباً، أريد الاستفسار عن إعلانك...",
+            "chat_url": getattr(config, "SITE_URL", "https://idrissimart.com") + "/chat/",
+            "unsubscribe_url": getattr(config, "SITE_URL", "https://idrissimart.com") + "/newsletter/unsubscribe/",
+            "join_date": "2026-01-01",
+            "new_status": "shipped",
+        }
+
+        if request.method == "POST":
+            to_email = request.POST.get("to_email", request.user.email).strip()
+            if not to_email:
+                to_email = request.user.email
+
+            # Determine subject and body with variable substitution
+            lang = "ar"
+            subject = (template_obj.subject_ar or template_obj.subject) or f"[TEST] {template_obj}"
+            body = (template_obj.body_ar or template_obj.body) or ""
+
+            for key_var, value in sample_context.items():
+                body = body.replace(f"{{{{{key_var}}}}}", str(value))
+                subject = subject.replace(f"{{{{{key_var}}}}}", str(value))
+
+            subject = f"[TEST] {subject}"
+
+            if not body:
+                dj_messages.error(request, _("القالب لا يحتوي على محتوى (body_ar أو body)."))
+            else:
+                from main.services.email_service import EmailService
+                ok = EmailService.send_email(
+                    to_emails=[to_email],
+                    subject=subject,
+                    html_content=body,
+                )
+                if ok:
+                    dj_messages.success(
+                        request,
+                        _("✅ تم إرسال رسالة الاختبار بنجاح إلى {}.").format(to_email),
+                    )
+                else:
+                    dj_messages.error(request, _("❌ فشل إرسال رسالة الاختبار — راجع سجلات الخادم."))
+
+            return HttpResponseRedirect(request.path)
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": _("اختبار قالب: {}").format(str(template_obj)),
+            "email_template": template_obj,
+            "admin_email": request.user.email,
+            "sample_context": sample_context,
+            "opts": self.model._meta,
+        }
+        return TemplateResponse(
+            request, "admin/main/emailtemplate/test_send.html", context
+        )
 
     def send_newsletter_view(self, request, pk):
         from django.template.response import TemplateResponse

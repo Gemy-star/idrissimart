@@ -12,12 +12,12 @@ from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 from django.core.paginator import Paginator
 
-from .decorators import superadmin_required
+from .decorators import superadmin_required, admin_section_required
 from .models import AdReview, ClassifiedAd, Notification
 
 
 @login_required
-@superadmin_required
+@admin_section_required("reviews")
 def admin_reviews_list(request):
     """List all reviews with filtering options"""
     reviews = AdReview.objects.select_related("ad", "user").order_by("-created_at")
@@ -68,7 +68,7 @@ def admin_reviews_list(request):
 
 
 @login_required
-@superadmin_required
+@admin_section_required("reviews")
 def admin_review_detail(request, review_id):
     """View single review details"""
     review = get_object_or_404(
@@ -83,7 +83,7 @@ def admin_review_detail(request, review_id):
 
 
 @login_required
-@superadmin_required
+@admin_section_required("reviews")
 @require_http_methods(["POST"])
 def admin_approve_review(request, review_id):
     """Approve a review"""
@@ -120,7 +120,7 @@ def admin_approve_review(request, review_id):
 
 
 @login_required
-@superadmin_required
+@admin_section_required("reviews")
 @require_http_methods(["POST"])
 def admin_reject_review(request, review_id):
     """Reject/hide a review"""
@@ -136,7 +136,7 @@ def admin_reject_review(request, review_id):
 
 
 @login_required
-@superadmin_required
+@admin_section_required("reviews")
 @require_http_methods(["POST"])
 def admin_delete_review(request, review_id):
     """Delete a review permanently"""
@@ -160,7 +160,7 @@ def admin_delete_review(request, review_id):
 
 
 @login_required
-@superadmin_required
+@admin_section_required("reviews")
 @require_http_methods(["POST"])
 def admin_bulk_approve_reviews(request):
     """Bulk approve selected reviews"""
@@ -203,7 +203,7 @@ def admin_bulk_approve_reviews(request):
 
 
 @login_required
-@superadmin_required
+@admin_section_required("reviews")
 @require_http_methods(["POST"])
 def admin_bulk_reject_reviews(request):
     """Bulk reject selected reviews"""
@@ -218,7 +218,7 @@ def admin_bulk_reject_reviews(request):
 
 
 @login_required
-@superadmin_required
+@admin_section_required("reviews")
 @require_http_methods(["POST"])
 def admin_bulk_delete_reviews(request):
     """Bulk delete selected reviews"""

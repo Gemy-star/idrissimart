@@ -73,19 +73,36 @@ class PaymentService:
             return True, {"iframe_url": payment_url, "paymob_order_id": paymob_order_id}
 
         elif provider == "wallet":
-            wallet_integration_id = getattr(config, "PAYMOB_WALLET_INTEGRATION_ID", "") or config.PAYMOB_INTEGRATION_ID
-            success, payment_url, error, paymob_order_id = PaymobService.process_payment(
-                amount=amount,
-                order_id=order_ref,
-                billing_data=user_data or {},
-                integration_id=wallet_integration_id,
-                currency=currency or None,
-                notification_url=kwargs.get("notification_url"),
-                redirection_url=kwargs.get("redirection_url"),
-            )
-            if not success:
-                return False, error or _("فشل إنشاء طلب المحفظة الإلكترونية")
-            return True, {"iframe_url": payment_url, "paymob_order_id": paymob_order_id}
+            wallet_phone = kwargs.get("wallet_phone", "")
+            if wallet_phone:
+                # Online wallet: send payment request directly to customer's phone
+                success, redirect_url, error, paymob_order_id = PaymobService.create_wallet_payment_request(
+                    amount=Decimal(str(amount)),
+                    order_id=order_ref,
+                    billing_data=user_data or {},
+                    wallet_phone=wallet_phone,
+                    currency=currency or None,
+                    notification_url=kwargs.get("notification_url"),
+                    redirection_url=kwargs.get("redirection_url"),
+                )
+                if not success:
+                    return False, error or _("فشل إرسال طلب الدفع للمحفظة الإلكترونية")
+                return True, {"redirect_url": redirect_url, "paymob_order_id": paymob_order_id, "wallet_pending": True}
+            else:
+                # Fallback: use unified checkout (Paymob v1)
+                wallet_integration_id = getattr(config, "PAYMOB_WALLET_INTEGRATION_ID", "") or config.PAYMOB_INTEGRATION_ID
+                success, payment_url, error, paymob_order_id = PaymobService.process_payment(
+                    amount=Decimal(str(amount)),
+                    order_id=order_ref,
+                    billing_data=user_data or {},
+                    integration_id=wallet_integration_id,
+                    currency=currency or None,
+                    notification_url=kwargs.get("notification_url"),
+                    redirection_url=kwargs.get("redirection_url"),
+                )
+                if not success:
+                    return False, error or _("فشل إنشاء طلب المحفظة الإلكترونية")
+                return True, {"iframe_url": payment_url, "paymob_order_id": paymob_order_id}
 
         else:
             return False, _("مزود الدفع غير مدعوم")

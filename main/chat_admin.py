@@ -3,6 +3,7 @@ Admin configuration for Chat models
 """
 
 from django.contrib import admin
+from django.urls import reverse
 from django.utils.html import format_html
 from .models import ChatRoom, ChatMessage
 
@@ -62,9 +63,10 @@ class ChatRoomAdmin(admin.ModelAdmin):
     def publisher_link(self, obj):
         """Display publisher as clickable link"""
         if obj.publisher:
+            user_url = reverse("admin:main_user_change", args=[obj.publisher.id])
             return format_html(
-                '<a href="/admin/main/user/{}/change/">{}</a>',
-                obj.publisher.id,
+                '<a href="{}">{}</a>',
+                user_url,
                 obj.publisher.username,
             )
         return "-"
@@ -74,9 +76,10 @@ class ChatRoomAdmin(admin.ModelAdmin):
     def client_link(self, obj):
         """Display client as clickable link"""
         if obj.client:
+            user_url = reverse("admin:main_user_change", args=[obj.client.id])
             return format_html(
-                '<a href="/admin/main/user/{}/change/">{}</a>',
-                obj.client.id,
+                '<a href="{}">{}</a>',
+                user_url,
                 obj.client.username,
             )
         return "-"
@@ -86,9 +89,10 @@ class ChatRoomAdmin(admin.ModelAdmin):
     def ad_link(self, obj):
         """Display ad as clickable link"""
         if obj.ad:
+            ad_url = reverse("admin:main_classifiedad_change", args=[obj.ad.id])
             return format_html(
-                '<a href="/admin/main/classifiedad/{}/change/">{}</a>',
-                obj.ad.id,
+                '<a href="{}">{}</a>',
+                ad_url,
                 obj.ad.title[:50],
             )
         return "-"
@@ -143,9 +147,10 @@ class ChatMessageAdmin(admin.ModelAdmin):
 
     def room_link(self, obj):
         """Display room as clickable link"""
+        room_url = reverse("admin:main_chatroom_change", args=[obj.room.id])
         return format_html(
-            '<a href="/admin/main/chatroom/{}/change/">Room #{}</a>',
-            obj.room.id,
+            '<a href="{}">Room #{}</a>',
+            room_url,
             obj.room.id,
         )
 
@@ -153,9 +158,10 @@ class ChatMessageAdmin(admin.ModelAdmin):
 
     def sender_link(self, obj):
         """Display sender as clickable link"""
+        sender_url = reverse("admin:main_user_change", args=[obj.sender.id])
         return format_html(
-            '<a href="/admin/main/user/{}/change/">{}</a>',
-            obj.sender.id,
+            '<a href="{}">{}</a>',
+            sender_url,
             obj.sender.username,
         )
 

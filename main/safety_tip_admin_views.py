@@ -76,7 +76,16 @@ class AdminSafetyTipsView(LoginRequiredMixin, ListView):
         }
 
         # Categories for filters and forms
-        context['all_categories'] = Category.objects.filter(parent__isnull=True).prefetch_related('subcategories')
+        import json
+        parent_cats = list(Category.objects.filter(parent__isnull=True).prefetch_related('subcategories'))
+        context['all_categories'] = parent_cats
+        subcats_map = {}
+        for pc in parent_cats:
+            subcats_map[pc.pk] = [
+                {'id': sc.pk, 'name': sc.name_ar or sc.name}
+                for sc in pc.subcategories.all()
+            ]
+        context['subcategories_json'] = json.dumps(subcats_map)
 
         # Current filters
         context['current_status'] = self.request.GET.get('is_active', '')
@@ -103,6 +112,17 @@ class SafetyTipDetailView(LoginRequiredMixin, View):
         try:
             tip = SafetyTip.objects.prefetch_related('categories').get(id=tip_id)
 
+            cat = tip.category
+            if cat and cat.parent_id:
+                parent_cat_id = cat.parent_id
+                sub_cat_id = cat.pk
+            elif cat:
+                parent_cat_id = cat.pk
+                sub_cat_id = None
+            else:
+                parent_cat_id = None
+                sub_cat_id = None
+
             data = {
                 'success': True,
                 'id': tip.pk,
@@ -112,7 +132,9 @@ class SafetyTipDetailView(LoginRequiredMixin, View):
                 'description_en': tip.description_en,
                 'icon_class': tip.icon_class,
                 'color_theme': tip.color_theme,
-                'category': tip.category.pk if tip.category else None,
+                'category': cat.pk if cat else None,
+                'parent_category': parent_cat_id,
+                'sub_category': sub_cat_id,
                 'categories': list(tip.categories.values_list('id', flat=True)),
                 'is_active': tip.is_active,
                 'order': tip.order,

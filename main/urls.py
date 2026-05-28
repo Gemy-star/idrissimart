@@ -970,7 +970,7 @@ urlpatterns = [
         name="admin_facebook_share_request_detail",
     ),
     path(
-        "admin/facebook-share-requests/<int:request_id>/process/",
+        "admin/facebook-share-requests/process/",
         facebook_share_admin_views.FacebookShareRequestProcessView.as_view(),
         name="admin_facebook_share_request_process",
     ),
@@ -2007,6 +2007,27 @@ urlpatterns = [
         "admin/user-reports/",
         views.AdminReportsManagementView.as_view(),
         name="admin_user_reports",
+    ),
+    # Sub-admin / Staff Management
+    path(
+        "admin/staff/",
+        views.AdminStaffListView.as_view(),
+        name="admin_staff_list",
+    ),
+    path(
+        "admin/staff/create/",
+        views.admin_staff_create,
+        name="admin_staff_create",
+    ),
+    path(
+        "admin/staff/<int:user_id>/update-groups/",
+        views.admin_staff_update_groups,
+        name="admin_staff_update_groups",
+    ),
+    path(
+        "admin/staff/<int:user_id>/delete/",
+        views.admin_staff_delete,
+        name="admin_staff_delete",
     ),
     # Ad Owner Actions API
     path(

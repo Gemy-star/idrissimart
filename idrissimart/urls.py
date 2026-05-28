@@ -24,6 +24,78 @@ def _sorted_get_app_list(self, request, app_label=None):
 
 AdminSite.get_app_list = _sorted_get_app_list
 
+
+# Inject stats into the Django admin index page
+_original_index = AdminSite.index
+
+
+def _stats_index(self, request, extra_context=None):
+    extra_context = extra_context or {}
+    try:
+        from django.contrib.admin.models import LogEntry, ADDITION, CHANGE, DELETION
+        from django.db.models import Count, Q
+        from django.utils import timezone
+        from datetime import timedelta
+        from main.models import ClassifiedAd, User
+
+        today = timezone.now().date()
+        week_ago = today - timedelta(days=7)
+
+        # Headline stats
+        extra_context["idx_total_ads"] = ClassifiedAd.objects.count()
+        extra_context["idx_pending_ads"] = ClassifiedAd.objects.filter(status="pending").count()
+        extra_context["idx_active_ads"] = ClassifiedAd.objects.filter(status="active").count()
+        extra_context["idx_total_users"] = User.objects.count()
+        extra_context["idx_new_users_today"] = User.objects.filter(date_joined__date=today).count()
+        extra_context["idx_new_ads_today"] = ClassifiedAd.objects.filter(created_at__date=today).count()
+
+        # Ads-by-status for doughnut chart (JSON)
+        import json
+        ads_by_status = list(
+            ClassifiedAd.objects.values("status")
+            .annotate(cnt=Count("id"))
+            .order_by("-cnt")
+        )
+        extra_context["idx_ads_chart_labels"] = json.dumps([r["status"] for r in ads_by_status])
+        extra_context["idx_ads_chart_data"] = json.dumps([r["cnt"] for r in ads_by_status])
+
+        # Daily new ads last 7 days for line chart
+        daily_ads = []
+        daily_labels = []
+        for i in range(6, -1, -1):
+            d = today - timedelta(days=i)
+            daily_labels.append(str(d))
+            daily_ads.append(ClassifiedAd.objects.filter(created_at__date=d).count())
+        extra_context["idx_daily_labels"] = json.dumps(daily_labels)
+        extra_context["idx_daily_ads"] = json.dumps(daily_ads)
+
+        # Recent log entries — last 15, with readable action labels
+        action_labels = {ADDITION: "أضاف", CHANGE: "عدّل", DELETION: "حذف"}
+        action_colors = {ADDITION: "success", CHANGE: "warning", DELETION: "danger"}
+        recent_logs = LogEntry.objects.select_related("user", "content_type").order_by("-action_time")[:15]
+        extra_context["idx_recent_logs"] = [
+            {
+                "time": log.action_time,
+                "user": log.user.get_full_name() or log.user.username,
+                "action": action_labels.get(log.action_flag, "عملية"),
+                "color": action_colors.get(log.action_flag, "secondary"),
+                "model": (
+                    log.content_type.model_class()._meta.verbose_name
+                    if log.content_type.model_class()
+                    else log.content_type.model
+                ),
+                "obj": log.object_repr,
+                "url": log.get_admin_url() if not log.is_deletion else None,
+            }
+            for log in recent_logs
+        ]
+    except Exception:
+        pass
+    return _original_index(self, request, extra_context)
+
+
+AdminSite.index = _stats_index
+
 urlpatterns = [
     path("robots.txt", TemplateView.as_view(template_name="robots.txt", content_type="text/plain")),
     path("sitemap.xml", sitemap, {"sitemaps": sitemaps}, name="django.contrib.sitemaps.views.sitemap"),

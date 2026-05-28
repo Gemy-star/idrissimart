@@ -145,6 +145,7 @@ TEMPLATES = [
                 "content.context_processors.paid_advertisements",
                 "main.context_processors.cart_wishlist_counts",
                 "main.context_processors.recaptcha_keys",
+                "main.context_processors.admin_permissions",
             ],
             "builtins": [
                 "django.templatetags.i18n",

@@ -182,6 +182,151 @@ class PaymobService:
         return True, checkout_url, None, str(intention_id) if intention_id else None
 
     # ------------------------------------------------------------------
+    # Mobile Wallet payment request (Paymob v2 legacy API)
+    # Sends a push/OTP to the customer's Vodafone Cash / Orange Money phone
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def create_wallet_payment_request(
+        amount: Decimal,
+        order_id: str,
+        billing_data: Dict,
+        wallet_phone: str,
+        currency: str = None,
+        notification_url: str = None,
+        redirection_url: str = None,
+    ) -> Tuple[bool, Optional[str], Optional[str], Optional[str]]:
+        """
+        Send a mobile-wallet payment request (Paymob v2 API).
+
+        The customer receives a push-notification / OTP on their phone.
+
+        Returns:
+            (True,  redirect_url_or_None, None,  order_id)  on success (request sent)
+            (False, None,                 error, None)       on failure
+        """
+        api_key = getattr(config, "PAYMOB_API_KEY", "")
+        wallet_integration_id = getattr(config, "PAYMOB_WALLET_INTEGRATION_ID", "")
+        if not api_key:
+            return False, None, "PAYMOB_API_KEY not configured", None
+        if not wallet_integration_id:
+            return False, None, "PAYMOB_WALLET_INTEGRATION_ID not configured", None
+        if currency is None:
+            currency = getattr(config, "PAYMOB_CURRENCY", "EGP")
+
+        amount_cents = int(amount * 100)
+        headers = {"Content-Type": "application/json"}
+
+        # Step 1 — auth token
+        try:
+            auth_resp = requests.post(
+                "https://accept.paymob.com/api/auth/tokens",
+                json={"api_key": api_key},
+                headers=headers,
+                timeout=15,
+            )
+            if not auth_resp.ok:
+                return False, None, f"Paymob auth failed {auth_resp.status_code}", None
+            auth_token = auth_resp.json().get("token")
+            if not auth_token:
+                return False, None, "Paymob auth: no token returned", None
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Paymob wallet auth error: {e}")
+            return False, None, str(e), None
+
+        # Step 2 — create order
+        try:
+            order_payload = {
+                "auth_token": auth_token,
+                "delivery_needed": False,
+                "amount_cents": amount_cents,
+                "currency": currency,
+                "merchant_order_id": order_id,
+                "items": [],
+            }
+            if notification_url:
+                order_payload["notify_url"] = notification_url
+
+            order_resp = requests.post(
+                "https://accept.paymob.com/api/ecommerce/orders",
+                json=order_payload,
+                headers=headers,
+                timeout=15,
+            )
+            if not order_resp.ok:
+                return False, None, f"Paymob order creation failed {order_resp.status_code}", None
+            paymob_order_id = str(order_resp.json().get("id", ""))
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Paymob wallet order error: {e}")
+            return False, None, str(e), None
+
+        # Step 3 — payment key
+        required_billing = [
+            "apartment", "email", "floor", "first_name", "street",
+            "building", "phone_number", "postal_code", "city",
+            "country", "last_name", "state",
+        ]
+        safe_billing = {k: billing_data.get(k) or "NA" for k in required_billing}
+        safe_billing["phone_number"] = wallet_phone  # ensure wallet phone is used
+
+        try:
+            key_payload = {
+                "auth_token": auth_token,
+                "amount_cents": amount_cents,
+                "expiration": 3600,
+                "order_id": paymob_order_id,
+                "billing_data": safe_billing,
+                "currency": currency,
+                "integration_id": int(wallet_integration_id),
+            }
+            if notification_url:
+                key_payload["lock_order_when_paid"] = True
+
+            key_resp = requests.post(
+                "https://accept.paymob.com/api/acceptance/payment_keys",
+                json=key_payload,
+                headers=headers,
+                timeout=15,
+            )
+            if not key_resp.ok:
+                return False, None, f"Paymob payment key failed {key_resp.status_code}", None
+            payment_token = key_resp.json().get("token")
+            if not payment_token:
+                return False, None, "Paymob payment key: no token returned", None
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Paymob wallet payment key error: {e}")
+            return False, None, str(e), None
+
+        # Step 4 — send wallet payment request to phone
+        try:
+            pay_resp = requests.post(
+                "https://accept.paymob.com/api/acceptance/payments/pay",
+                json={
+                    "source": {"identifier": wallet_phone, "subtype": "WALLET"},
+                    "payment_token": payment_token,
+                },
+                headers=headers,
+                timeout=20,
+            )
+            pay_data = pay_resp.json()
+            if not pay_resp.ok:
+                detail = pay_data.get("detail") or pay_resp.text
+                return False, None, f"Paymob wallet pay failed: {detail}", None
+
+            redirect_url = pay_data.get("redirect_url") or redirection_url
+            logger.info(
+                "Paymob wallet pay request sent — order=%s phone=%s pending=%s",
+                paymob_order_id,
+                wallet_phone,
+                pay_data.get("pending"),
+            )
+            return True, redirect_url, None, paymob_order_id
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Paymob wallet pay request error: {e}")
+            return False, None, str(e), None
+
+    # ------------------------------------------------------------------
     # HMAC verification for Paymob transaction callbacks
     # ------------------------------------------------------------------
 

@@ -519,52 +519,102 @@
 .cca-btn.d:hover { border-color: var(--err); color: var(--err); background: var(--err-l); }
 
 /* =============================================
-   SUBCATEGORIES
+   CATEGORY CARD — SELECTED STATE
    ============================================= */
-.cat-subs {
-    border-top: 1px solid var(--bdr);
-    padding: 0.85rem 1.25rem;
+.cat-card.selected {
+    border-color: var(--p);
+    box-shadow: 0 0 0 3px var(--p-l), var(--sh-md);
+    transform: translateY(-3px);
 }
-.cat-subs-label {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--txt3);
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    margin-bottom: 0.6rem;
+.cat-card.selected .cat-card-top { background: var(--p-xl); }
+
+/* =============================================
+   SUBCATEGORY DETAIL PANEL
+   ============================================= */
+.sub-detail-panel {
+    margin-top: 1.25rem;
+    border: 1.5px solid var(--p-l);
+    border-radius: var(--r);
+    background: var(--surf2);
+    overflow: hidden;
+    animation: subPanelIn 0.22s cubic-bezier(.4,0,.2,1);
+}
+@keyframes subPanelIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.sub-detail-header {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid var(--bdr);
+    background: var(--p-xl);
+    flex-wrap: wrap;
 }
-.cat-subs-label span {
-    background: var(--surf3);
+.sub-detail-title {
+    font-size: 0.85rem;
+    font-weight: 600;
     color: var(--txt2);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.sub-detail-title strong { color: var(--p); }
+.sub-detail-title .sub-count-badge {
+    background: var(--p-l);
+    color: var(--p);
     border-radius: 20px;
-    padding: 0.1rem 0.5rem;
-    font-size: 0.68rem;
+    padding: 0.15rem 0.55rem;
+    font-size: 0.72rem;
     font-weight: 700;
+}
+.sub-detail-actions { display: flex; gap: 0.5rem; align-items: center; }
+.sub-detail-close {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--bdr);
+    background: var(--surf);
+    color: var(--txt3);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all var(--tr);
+    font-size: 0.85rem;
+}
+.sub-detail-close:hover {
+    background: var(--err-l);
+    border-color: var(--err);
+    color: var(--err);
+}
+.sub-detail-body {
+    padding: 1rem 1.25rem;
 }
 .sub-list { display: flex; flex-direction: column; gap: 0.35rem; }
 .sub-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.5rem 0.75rem;
-    background: var(--surf3);
+    padding: 0.55rem 0.85rem;
+    background: var(--surf);
     border: 1px solid var(--bdr);
-    border-radius: 8px;
+    border-radius: 9px;
     transition: all var(--tr);
     gap: 0.5rem;
 }
 .sub-item:hover {
     background: var(--p-xl);
     border-color: var(--p-l);
+    transform: translateX(-2px);
 }
 .sub-item-name {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    font-size: 0.85rem;
+    font-size: 0.87rem;
     font-weight: 600;
     color: var(--txt);
     flex: 1;
@@ -576,23 +626,33 @@
 .sub-item-name i { color: var(--txt3); font-size: 0.75rem; flex-shrink: 0; }
 .sub-item-actions { display: flex; gap: 0.25rem; flex-shrink: 0; }
 .sub-btn {
-    width: 27px;
-    height: 27px;
+    width: 28px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
     border: 1px solid var(--bdr);
-    background: var(--surf);
+    background: var(--surf3);
     color: var(--txt3);
-    border-radius: 6px;
+    border-radius: 7px;
     font-size: 0.72rem;
     cursor: pointer;
     transition: all var(--tr);
 }
-.sub-btn:hover { transform: scale(1.1); }
+.sub-btn:hover { transform: scale(1.12); }
 .sub-btn.e:hover { border-color: var(--info); color: var(--info); background: var(--info-l); }
 .sub-btn.f:hover { border-color: var(--p); color: var(--p); background: var(--p-l); }
 .sub-btn.d:hover { border-color: var(--err); color: var(--err); background: var(--err-l); }
+.sub-empty-hint {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--txt3);
+    font-size: 0.85rem;
+}
+.sub-empty-hint i { display: block; font-size: 2rem; margin-bottom: 0.75rem; opacity: 0.4; }
+
+/* Hidden data store — not visible, just for JS to read */
+.cat-subs-data { display: none !important; }
 
 /* =============================================
    EMPTY STATE
@@ -1098,12 +1158,20 @@
 
         <div class="cat-panel-body">
             {% if section_data.categories %}
+            {# ── Main categories grid (compact, no inline subs) ── #}
             <div class="cats-grid" id="grid-{{ section_code }}">
                 {% for category in section_data.categories %}
-                <div class="cat-card" data-category-id="{{ category.id }}">
+                {% with cat_name=category.name_ar|default:category.name %}
+                <div class="cat-card"
+                     data-category-id="{{ category.id }}"
+                     data-section="{{ section_code }}"
+                     data-cat-name="{{ cat_name|escapejs }}"
+                     data-sub-count="{{ category.subcategory_count }}"
+                     role="button"
+                     tabindex="0">
 
-                    <!-- Card Top -->
-                    <div class="cat-card-top">
+                    {# Card Top — clickable to reveal subs #}
+                    <div class="cat-card-top" style="cursor:pointer" data-action="select-category">
                         <div class="cat-card-avatar"><i class="fas fa-folder"></i></div>
                         <div class="cat-card-info">
                             <h6 class="cat-card-name">
@@ -1113,7 +1181,7 @@
                                 <span class="cc-badge b-blue" title="{% trans 'عدد الإعلانات' %}">
                                     <i class="fas fa-rectangle-ad"></i> {{ category.ad_count }}
                                 </span>
-                                <span class="cc-badge b-gray" title="{% trans 'الأقسام الفرعية' %}">
+                                <span class="cc-badge b-gray" title="{% trans 'الأقسام الفرعية' %}" style="cursor:pointer">
                                     <i class="fas fa-folder-tree"></i> {{ category.subcategory_count }}
                                 </span>
                                 {% with effective_creation=category.get_effective_ad_creation_price %}
@@ -1134,39 +1202,30 @@
                         </div>
                     </div>
 
-                    <!-- Subcategories -->
-                    {% if category.subcategories.all %}
-                    <div class="cat-subs">
-                        <div class="cat-subs-label">
-                            <i class="fas fa-sitemap"></i>
-                            {% trans "الأقسام الفرعية" %}
-                            <span>{{ category.subcategories.count }}</span>
-                        </div>
-                        <div class="sub-list" data-subcats-for="{{ category.id }}">
-                            {% for subcategory in category.subcategories.all %}
-                            <div class="sub-item" data-category-id="{{ subcategory.id }}">
-                                <div class="sub-item-name">
-                                    <i class="fas fa-angle-left"></i>
-                                    {% if LANGUAGE_CODE == 'ar' and subcategory.name_ar %}{{ subcategory.name_ar }}{% else %}{{ subcategory.name }}{% endif %}
-                                </div>
-                                <div class="sub-item-actions">
-                                    <button type="button" class="sub-btn e" data-action="edit-category" data-category-id="{{ subcategory.id }}" data-bs-toggle="tooltip" title="{% trans 'تعديل' %}">
-                                        <i class="fas fa-pen"></i>
-                                    </button>
-                                    <button type="button" class="sub-btn f" data-action="manage-custom-fields" data-category-id="{{ subcategory.id }}" data-bs-toggle="tooltip" title="{% trans 'حقول' %}">
-                                        <i class="fas fa-list-ul"></i>
-                                    </button>
-                                    <button type="button" class="sub-btn d" data-action="delete-category" data-category-id="{{ subcategory.id }}" data-category-name="{{ subcategory.name|escapejs }}" data-bs-toggle="tooltip" title="{% trans 'حذف' %}">
-                                        <i class="fas fa-trash-alt"></i>
-                                    </button>
-                                </div>
+                    {# Hidden subcategory data — JS reads this to populate the detail panel #}
+                    <div class="cat-subs-data">
+                        {% for subcategory in category.subcategories.all %}
+                        <div class="sub-item" data-category-id="{{ subcategory.id }}">
+                            <div class="sub-item-name">
+                                <i class="fas fa-angle-left"></i>
+                                {% if LANGUAGE_CODE == 'ar' and subcategory.name_ar %}{{ subcategory.name_ar }}{% else %}{{ subcategory.name }}{% endif %}
                             </div>
-                            {% endfor %}
+                            <div class="sub-item-actions">
+                                <button type="button" class="sub-btn e" data-action="edit-category" data-category-id="{{ subcategory.id }}" data-bs-toggle="tooltip" title="{% trans 'تعديل' %}">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <button type="button" class="sub-btn f" data-action="manage-custom-fields" data-category-id="{{ subcategory.id }}" data-bs-toggle="tooltip" title="{% trans 'حقول' %}">
+                                    <i class="fas fa-list-ul"></i>
+                                </button>
+                                <button type="button" class="sub-btn d" data-action="delete-category" data-category-id="{{ subcategory.id }}" data-category-name="{{ subcategory.name|escapejs }}" data-bs-toggle="tooltip" title="{% trans 'حذف' %}">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
                         </div>
+                        {% endfor %}
                     </div>
-                    {% endif %}
 
-                    <!-- Actions -->
+                    {# Card Actions #}
                     <div class="cat-card-actions">
                         <button type="button" class="cca-btn e" data-action="edit-category" data-category-id="{{ category.id }}">
                             <i class="fas fa-pen"></i> {% trans "تعديل" %}
@@ -1182,8 +1241,40 @@
                         </button>
                     </div>
                 </div>
+                {% endwith %}
                 {% endfor %}
             </div>
+
+            {# ── Subcategory detail panel — shown when a card is selected ── #}
+            <div class="sub-detail-panel" id="sub-panel-{{ section_code }}" style="display:none">
+                <div class="sub-detail-header">
+                    <div class="sub-detail-title">
+                        <i class="fas fa-sitemap"></i>
+                        {% trans "الأقسام الفرعية لـ" %}
+                        <strong id="sub-panel-name-{{ section_code }}"></strong>
+                        <span class="sub-count-badge" id="sub-panel-count-{{ section_code }}">0</span>
+                    </div>
+                    <div class="sub-detail-actions">
+                        <button type="button"
+                                class="cat-panel-add-btn"
+                                id="sub-panel-add-{{ section_code }}"
+                                data-action="add-subcategory"
+                                data-section="{{ section_code }}">
+                            <i class="fas fa-plus"></i> {% trans "إضافة فرعي" %}
+                        </button>
+                        <button type="button"
+                                class="sub-detail-close"
+                                data-close-panel="{{ section_code }}"
+                                title="{% trans 'إغلاق' %}">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="sub-detail-body">
+                    <div class="sub-list" id="sub-panel-list-{{ section_code }}"></div>
+                </div>
+            </div>
+
             {% else %}
             <div class="cats-empty">
                 <div class="cats-empty-ico"><i class="fas fa-folder-open"></i></div>
@@ -1412,19 +1503,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /* Event delegation */
     document.addEventListener('click', e => {
+        // ── Close sub-detail panel ──
+        const closeBtn = e.target.closest('[data-close-panel]');
+        if (closeBtn) {
+            closeSubPanel(closeBtn.dataset.closePanel);
+            return;
+        }
+
         const btn = e.target.closest('[data-action]');
         if (!btn) return;
         const action = btn.dataset.action;
 
-        if (action === 'add-category')              { openAddCategoryModal(null, 'classified'); }
+        if (action === 'select-category') {
+            // click on cat-card-top → select parent card
+            const card = btn.closest('.cat-card');
+            if (card) selectCategory(card);
+        }
+        else if (action === 'add-category')              { openAddCategoryModal(null, 'classified'); }
         else if (action === 'add-section-category') { openAddCategoryModal(null, btn.dataset.section); }
         else if (action === 'edit-category')        { editCategory(+btn.dataset.categoryId); }
-        else if (action === 'add-subcategory')      { openAddCategoryModal(+btn.dataset.parentId, btn.dataset.section || null); }
+        else if (action === 'add-subcategory')      { openAddCategoryModal(+btn.dataset.parentId || null, btn.dataset.section || null); }
         else if (action === 'manage-custom-fields') { manageCustomFields(+btn.dataset.categoryId); }
         else if (action === 'delete-category')      { deleteCategory(+btn.dataset.categoryId, btn.dataset.categoryName); }
         else if (action === 'save-category')        { saveCategory(); }
         else if (action === 'add-custom-field')     { addCustomFieldRow(); }
         else if (action === 'save-custom-fields')   { saveCustomFields(); }
+    });
+
+    /* Keyboard accessibility: Enter/Space on cat-card */
+    document.addEventListener('keydown', e => {
+        if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('cat-card')) {
+            e.preventDefault();
+            selectCategory(e.target);
+        }
     });
 
     /* Language tab switching */
@@ -1447,9 +1558,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /* Sortable — category grids */
     document.querySelectorAll('.cats-grid').forEach(grid => initSortable(grid, '.cat-card'));
-
-    /* Sortable — subcategory lists */
-    document.querySelectorAll('.sub-list').forEach(list => initSortable(list, '.sub-item'));
 });
 
 /* ================================================
@@ -1469,6 +1577,76 @@ function filterCategories() {
         const name = card.querySelector('.cat-card-name')?.textContent.toLowerCase() || '';
         card.style.display = (!q || name.includes(q)) ? '' : 'none';
     });
+}
+
+/* ================================================
+   CATEGORY SELECTION — show subcategory panel
+   ================================================ */
+function selectCategory(card) {
+    const sectionCode = card.dataset.section;
+    const catId = card.dataset.categoryId;
+    const catName = card.dataset.catName;
+    const subCount = parseInt(card.dataset.subCount || '0', 10);
+
+    const panel      = document.getElementById(`sub-panel-${sectionCode}`);
+    const nameEl     = document.getElementById(`sub-panel-name-${sectionCode}`);
+    const countEl    = document.getElementById(`sub-panel-count-${sectionCode}`);
+    const listEl     = document.getElementById(`sub-panel-list-${sectionCode}`);
+    const addBtn     = document.getElementById(`sub-panel-add-${sectionCode}`);
+
+    if (!panel || !listEl) return;
+
+    // If already selected → toggle off
+    const wasSelected = card.classList.contains('selected');
+    // Deselect all cards in this section
+    document.querySelectorAll(`#grid-${sectionCode} .cat-card`).forEach(c => c.classList.remove('selected'));
+
+    if (wasSelected) {
+        closeSubPanel(sectionCode);
+        return;
+    }
+
+    // Mark as selected
+    card.classList.add('selected');
+
+    // Set panel title / count
+    if (nameEl) nameEl.textContent = catName;
+    if (countEl) countEl.textContent = subCount;
+
+    // Wire up the "add subcategory" button
+    if (addBtn) {
+        addBtn.dataset.parentId = catId;
+        addBtn.dataset.section  = sectionCode;
+    }
+
+    // Clone subcategory items from the hidden .cat-subs-data inside this card
+    const dataStore = card.querySelector('.cat-subs-data');
+    listEl.innerHTML = '';
+    if (dataStore && dataStore.children.length > 0) {
+        Array.from(dataStore.children).forEach(child => {
+            listEl.appendChild(child.cloneNode(true));
+        });
+        // Re-init sortable on the fresh list
+        initSortable(listEl, '.sub-item');
+        // Re-init tooltips on cloned nodes
+        listEl.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+    } else {
+        listEl.innerHTML = `
+            <div class="sub-empty-hint">
+                <i class="fas fa-folder-open"></i>
+                {% trans "لا توجد أقسام فرعية لهذا القسم بعد" %}
+            </div>`;
+    }
+
+    // Show panel (smooth scroll to it)
+    panel.style.display = '';
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeSubPanel(sectionCode) {
+    const panel = document.getElementById(`sub-panel-${sectionCode}`);
+    if (panel) panel.style.display = 'none';
+    document.querySelectorAll(`#grid-${sectionCode} .cat-card`).forEach(c => c.classList.remove('selected'));
 }
 
 /* ================================================

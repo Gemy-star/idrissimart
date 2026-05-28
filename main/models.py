@@ -714,6 +714,20 @@ class User(AbstractUser):  # This model is correct, no changes needed here.
         return self.username
 
     @property
+    def get_initials(self):
+        """Returns avatar initials — '#' for numeric-only names."""
+        if self.first_name and self.last_name:
+            return f"{self.first_name[0]}{self.last_name[0]}".upper()
+        if self.first_name:
+            return self.first_name[:2].upper()
+        if self.profile_type == self.ProfileType.PUBLISHER and self.company_name:
+            return self.company_name[:2].upper()
+        name = self.username
+        if name.isdigit():
+            return "#"
+        return name[:2].upper()
+
+    @property
     def is_verified(self):
         """
         Check if user is verified
@@ -1393,8 +1407,8 @@ class ContactMessage(models.Model):  # This model is correct, no changes needed 
 
     class Meta:
         db_table = "contact_messages"
-        verbose_name = _("Contact Message")
-        verbose_name_plural = _("Contact Messages")
+        verbose_name = _("رسالة تواصل")
+        verbose_name_plural = _("رسائل التواصل")
         ordering = ["-created_at"]
 
     def __str__(self):
@@ -1434,14 +1448,13 @@ class ClassifiedAdManager(models.Manager):
         return self.get_queryset().filter(country__code=country_code)
 
     def active(self):
-        """Get only active ads that haven't expired"""
+        """Get only active, visible ads that haven't expired"""
         from django.utils import timezone
         from django.db.models import Q
 
-        # Filter active ads that either have no expiry or haven't expired yet
         return (
             self.get_queryset()
-            .filter(status=self.model.AdStatus.ACTIVE)
+            .filter(status=self.model.AdStatus.ACTIVE, is_hidden=False)
             .filter(Q(expires_at__isnull=True) | Q(expires_at__gt=timezone.now()))
         )
 
@@ -2003,10 +2016,17 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
             .order_by("order")
         )
 
+        import re as _re
+
         fields_to_display = []
 
         for cat_cf in category_custom_fields:
-            field_key = cat_cf.custom_field.name
+            # Keys are stored as "custom_{sanitized_name}" — mirror the save() logic
+            safe_name = _re.sub(r'[^\w]', '_', cat_cf.custom_field.name)
+            field_key = f"custom_{safe_name}"
+            # Fallback to bare name for older records
+            if field_key not in self.custom_fields:
+                field_key = cat_cf.custom_field.name
             if field_key not in self.custom_fields:
                 continue
 
@@ -2963,12 +2983,18 @@ class Payment(models.Model):
     class PaymentProvider(models.TextChoices):
         PAYPAL = "paypal", _("PayPal")
         PAYMOB = "paymob", _("Paymob")
+        INSTAPAY = "instapay", _("إنستا باي - InstaPay")
+        WALLET = "wallet", _("محفظة إلكترونية - Wallet")
         BANK_TRANSFER = "bank_transfer", _("تحويل بنكي - Bank Transfer")
+        COD = "cod", _("الدفع عند الاستلام - Cash on Delivery")
+        CASH = "cash", _("نقداً - Cash")
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="payments")
     provider = models.CharField(
         max_length=20,
         choices=PaymentProvider.choices,
+        blank=True,
+        default="",
         verbose_name=_("مزود الدفع - Payment Provider"),
     )
     provider_transaction_id = models.CharField(
@@ -4610,32 +4636,21 @@ class SafetyTip(models.Model):
     @classmethod
     def get_tips_for_category(cls, category):
         """
-        Get all active safety tips for a specific category
-        Returns: QuerySet of SafetyTip objects
+        Get all active safety tips for a specific category.
+        Includes: general tips (no category), tips assigned to this category,
+        and — if this is a subcategory — tips assigned to the parent category.
         """
-        # Get tips that:
-        # 1. Are active
-        # 2. Either have no category (general tips) OR belong to the category
-        # 3. OR are in the multiple categories relationship
-        general_tips = cls.objects.filter(
-            is_active=True,
-            category__isnull=True
-        )
+        lookup_ids = [category.pk]
+        if category.parent_id:
+            lookup_ids.append(category.parent_id)
 
-        category_specific_tips = cls.objects.filter(
-            is_active=True,
-            category=category
-        )
+        qs = cls.objects.filter(is_active=True).filter(
+            models.Q(category__isnull=True)
+            | models.Q(category_id__in=lookup_ids)
+            | models.Q(categories__id__in=lookup_ids)
+        ).distinct()
 
-        multi_category_tips = cls.objects.filter(
-            is_active=True,
-            categories=category
-        )
-
-        # Combine and remove duplicates
-        all_tips = (general_tips | category_specific_tips | multi_category_tips).distinct()
-
-        return all_tips.order_by('order', 'id')
+        return qs.order_by('order', 'id')
 
 
 class EmailTemplate(models.Model):
@@ -4648,11 +4663,14 @@ class EmailTemplate(models.Model):
         OTP_VERIFICATION = "otp_verification", _("رمز التحقق - OTP Verification")
         AD_APPROVED = "ad_approved", _("قبول الإعلان - Ad Approved")
         AD_REJECTED = "ad_rejected", _("رفض الإعلان - Ad Rejected")
+        AD_CREATED = "ad_created", _("إنشاء إعلان جديد - Ad Created")
         ORDER_CREATED = "order_created", _("تأكيد الطلب - Order Created")
         ORDER_STATUS_UPDATE = "order_status_update", _("تحديث حالة الطلب - Order Status Update")
+        PACKAGE_ACTIVATED = "package_activated", _("تفعيل الباقة - Package Activated")
         SAVED_SEARCH_NOTIFICATION = "saved_search_notification", _("إشعار البحث المحفوظ - Saved Search Notification")
         NEWSLETTER_CONFIRMATION = "newsletter_confirmation", _("تأكيد النشرة البريدية - Newsletter Confirmation")
         CONTACT_FORM = "contact_form", _("نموذج التواصل - Contact Form")
+        NEW_MESSAGE = "new_message", _("رسالة جديدة - New Chat Message")
         CUSTOM = "custom", _("مخصص - Custom")
 
     key = models.CharField(

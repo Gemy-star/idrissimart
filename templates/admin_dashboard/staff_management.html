@@ -1,0 +1,302 @@
+{% extends "admin_dashboard/base.html" %}
+{% load static i18n idrissimart_tags %}
+
+{% block admin_title %}{% trans "إدارة المسؤولين" %}{% endblock admin_title %}
+
+{% block admin_extra_css %}
+<style>
+  .page-header {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2d6a9f 100%);
+    padding: 2rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    color: white;
+    box-shadow: 0 4px 12px rgba(30, 58, 95, 0.3);
+  }
+  .page-header h1 { margin: 0; font-size: 1.8rem; font-weight: 700; }
+  .page-header p  { margin: 0.4rem 0 0; opacity: 0.9; }
+
+  .staff-card {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 10px;
+    background: var(--bs-body-bg);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    transition: box-shadow 0.2s;
+    overflow: hidden;
+  }
+  .staff-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
+  .staff-card-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--bs-border-color);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .staff-avatar {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6b4c7a, #ff8534);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 700; font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+  .staff-meta { flex: 1; min-width: 0; }
+  .staff-meta .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .staff-meta .email { font-size: 0.8rem; color: var(--bs-secondary-color); }
+  .staff-card-body { padding: 1rem 1.25rem; }
+  .group-badge {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.75rem;
+    border-radius: 20px;
+    font-weight: 500;
+    background: rgba(107, 76, 122, 0.12);
+    color: #6b4c7a;
+    border: 1px solid rgba(107, 76, 122, 0.25);
+    margin: 2px;
+  }
+  [data-theme="dark"] .group-badge {
+    background: rgba(180, 140, 200, 0.15);
+    color: #c4a0d8;
+    border-color: rgba(180, 140, 200, 0.3);
+  }
+  .superadmin-badge {
+    background: rgba(255, 133, 52, 0.12);
+    color: #e05000;
+    border-color: rgba(255, 133, 52, 0.3);
+  }
+  [data-theme="dark"] .superadmin-badge {
+    background: rgba(255, 160, 90, 0.15);
+    color: #ffb070;
+    border-color: rgba(255, 160, 90, 0.3);
+  }
+  .no-groups { font-size: 0.8rem; color: var(--bs-secondary-color); font-style: italic; }
+
+  /* Modal checkboxes grid */
+  .group-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.5rem; }
+  .group-checks .form-check { margin: 0; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="staff-management-page">
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <h1>
+      <i class="fas fa-user-shield me-2"></i>
+      {% trans "إدارة المسؤولين" %}
+    </h1>
+    <p>{% trans "إضافة وإدارة المسؤولين الفرعيين وصلاحياتهم" %}</p>
+  </div>
+
+  {% if messages %}
+    {% for msg in messages %}
+      <div class="alert alert-{{ msg.tags }} alert-dismissible fade show" role="alert">
+        {{ msg }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <!-- Add New Staff Button -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">
+      {% trans "المسؤولون الحاليون" %}
+      <span class="badge bg-secondary ms-2">{{ staff_users.paginator.count }}</span>
+    </h5>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createStaffModal">
+      <i class="fas fa-plus me-1"></i>
+      {% trans "إضافة مسؤول جديد" %}
+    </button>
+  </div>
+
+  <!-- Staff Grid -->
+  {% if staff_users %}
+  <div class="row g-3 mb-4">
+    {% for staff in staff_users %}
+    <div class="col-md-6 col-xl-4">
+      <div class="staff-card">
+        <div class="staff-card-header">
+          <div class="staff-avatar">{{ staff.username|first|upper }}</div>
+          <div class="staff-meta">
+            <div class="name">{{ staff.get_full_name|default:staff.username }}</div>
+            <div class="email">{{ staff.email }}</div>
+          </div>
+          {% if not staff.is_superuser %}
+          <div class="d-flex gap-1">
+            <button class="btn btn-sm btn-outline-primary"
+                    data-bs-toggle="modal"
+                    data-bs-target="#editGroupsModal{{ staff.pk }}"
+                    title="{% trans 'تعديل الصلاحيات' %}">
+              <i class="fas fa-edit"></i>
+            </button>
+            <form method="post" action="{% url 'main:admin_staff_delete' staff.pk %}"
+                  onsubmit="return confirm('{% trans "هل تريد إزالة صلاحيات هذا المسؤول؟" %}')">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-outline-danger" title="{% trans 'إزالة' %}">
+                <i class="fas fa-trash"></i>
+              </button>
+            </form>
+          </div>
+          {% endif %}
+        </div>
+        <div class="staff-card-body">
+          {% if staff.is_superuser %}
+            <span class="group-badge superadmin-badge">
+              <i class="fas fa-crown me-1"></i>{% trans "مشرف رئيسي" %}
+            </span>
+          {% else %}
+            {% with groups=staff.groups.all %}
+            {% if groups %}
+              {% for g in groups %}
+                {% if g.name in admin_group_labels %}
+                  <span class="group-badge">{{ admin_group_labels|get_item:g.name|default:g.name }}</span>
+                {% endif %}
+              {% endfor %}
+            {% else %}
+              <span class="no-groups">{% trans "لا توجد صلاحيات مخصصة" %}</span>
+            {% endif %}
+            {% endwith %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Groups Modal for this staff user -->
+    {% if not staff.is_superuser %}
+    <div class="modal fade" id="editGroupsModal{{ staff.pk }}" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              {% trans "تعديل صلاحيات" %}: {{ staff.get_full_name|default:staff.username }}
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <form method="post" action="{% url 'main:admin_staff_update_groups' staff.pk %}">
+            {% csrf_token %}
+            <div class="modal-body">
+              <p class="text-muted small mb-3">{% trans "اختر الأقسام التي يمكن لهذا المسؤول الوصول إليها:" %}</p>
+              <div class="group-checks">
+                {% for group in admin_groups %}
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox"
+                         name="groups" value="{{ group.name }}"
+                         id="grp_{{ staff.pk }}_{{ group.pk }}"
+                         {% if group in staff.groups.all %}checked{% endif %}>
+                  <label class="form-check-label" for="grp_{{ staff.pk }}_{{ group.pk }}">
+                    {{ admin_group_labels|get_item:group.name|default:group.name }}
+                  </label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+              <button type="submit" class="btn btn-primary">{% trans "حفظ التغييرات" %}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% endfor %}
+  </div>
+
+  <!-- Pagination -->
+  {% if staff_users.has_other_pages %}
+  <nav>
+    <ul class="pagination justify-content-center">
+      {% if staff_users.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ staff_users.previous_page_number }}">{% trans "السابق" %}</a>
+        </li>
+      {% endif %}
+      {% for num in staff_users.paginator.page_range %}
+        <li class="page-item {% if staff_users.number == num %}active{% endif %}">
+          <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+        </li>
+      {% endfor %}
+      {% if staff_users.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ staff_users.next_page_number }}">{% trans "التالي" %}</a>
+        </li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="fas fa-user-slash fa-3x mb-3 opacity-50"></i>
+    <p>{% trans "لا يوجد مسؤولون فرعيون حتى الآن." %}</p>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- Create Staff Modal -->
+<div class="modal fade" id="createStaffModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-user-plus me-2"></i>
+          {% trans "إضافة مسؤول جديد" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{% url 'main:admin_staff_create' %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <label class="form-label">{% trans "اسم المستخدم" %} <span class="text-danger">*</span></label>
+              <input type="text" name="username" class="form-control" required>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label">{% trans "البريد الإلكتروني" %} <span class="text-danger">*</span></label>
+              <input type="email" name="email" class="form-control" required>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label">{% trans "الاسم الأول" %}</label>
+              <input type="text" name="first_name" class="form-control">
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label">{% trans "اسم العائلة" %}</label>
+              <input type="text" name="last_name" class="form-control">
+            </div>
+            <div class="col-12">
+              <label class="form-label">{% trans "كلمة المرور" %} <span class="text-danger">*</span></label>
+              <input type="password" name="password" class="form-control" required minlength="8">
+            </div>
+            <div class="col-12">
+              <label class="form-label">{% trans "الأقسام المسموح بها" %}</label>
+              <div class="group-checks mt-1">
+                {% for group in admin_groups %}
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox"
+                         name="groups" value="{{ group.name }}"
+                         id="new_grp_{{ group.pk }}">
+                  <label class="form-check-label" for="new_grp_{{ group.pk }}">
+                    {{ admin_group_labels|get_item:group.name|default:group.name }}
+                  </label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i>{% trans "إنشاء المسؤول" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock admin_content %}

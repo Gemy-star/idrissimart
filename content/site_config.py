@@ -176,6 +176,16 @@ class SiteConfiguration(SingletonModel):
         default="1. قم بمسح رمز QR أو استخدم رابط المحفظة\n2. أرسل المبلغ المطلوب\n3. احتفظ بإيصال التحويل\n4. سيتم تفعيل الخدمة خلال 24 ساعة",
     )
 
+    # Tax Rate
+    tax_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        verbose_name=_("نسبة الضريبة (%)"),
+        help_text=_("نسبة الضريبة المضافة على المعاملات (0 = بدون ضريبة)"),
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
+
     # Ad Posting & Feature Pricing
     ad_base_fee = models.DecimalField(
         max_digits=10,

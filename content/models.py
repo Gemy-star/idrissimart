@@ -139,7 +139,8 @@ class BlogCategory(models.Model):
     slug = models.SlugField(
         max_length=100, unique=True, blank=True, verbose_name=_("الرابط")
     )
-    description = models.TextField(blank=True, verbose_name=_("الوصف"))
+    description = models.TextField(blank=True, verbose_name=_("الوصف (عربي)"))
+    description_en = models.TextField(blank=True, verbose_name=_("الوصف (إنجليزي)"))
     icon = models.CharField(
         max_length=50,
         blank=True,

@@ -220,3 +220,16 @@ def recaptcha_keys(request):
     return {
         "RECAPTCHA_SITE_KEY": settings.RECAPTCHA_SITE_KEY,
     }
+
+
+def admin_permissions(request):
+    """
+    Inject admin permission flags into every template context.
+    Zero-cost for non-admin users (returns empty dict immediately).
+    """
+    if not request.user.is_authenticated:
+        return {}
+    if not (request.user.is_superuser or request.user.is_staff):
+        return {}
+    from main.admin_groups import get_admin_permissions_context
+    return get_admin_permissions_context(request.user)

@@ -8,6 +8,7 @@ from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 from content.verification_utils import user_can_use_services
+from main.admin_groups import can_admin, is_any_admin
 
 
 def profile_type_required(*allowed_types):
@@ -233,27 +234,44 @@ class PublisherRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
 
 class SuperadminRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
     """
-    Mixin for superadmin dashboard access
+    Mixin for admin dashboard access.
+
+    Allows:
+      - Superusers (full access, no group needed)
+      - Staff users who belong to at least one admin_* group
+
+    Optionally set `required_admin_group = 'ads'` on the view to require
+    a specific section group in addition to general admin access.
 
     Usage:
-    class SuperadminDashboardView(SuperadminRequiredMixin, ListView):
-        pass
+        class AdminPaymentsView(SuperadminRequiredMixin, TemplateView):
+            required_admin_group = 'accounting'
     """
 
     login_url = reverse_lazy("main:login")
+    required_admin_group = None  # override per-view to restrict further
 
     def test_func(self):
-        """Only superusers can access"""
-        return self.request.user.is_superuser
+        user = self.request.user
+        if user.is_superuser:
+            return True
+        # Must be staff with at least one admin group
+        if not is_any_admin(user):
+            return False
+        # If a specific section is required, check it
+        if self.required_admin_group:
+            return can_admin(user, self.required_admin_group)
+        return True
 
     def handle_no_permission(self):
-        """Redirect with error message"""
         if not self.request.user.is_authenticated:
             from django.contrib.auth.views import redirect_to_login
-
             return redirect_to_login(self.request.get_full_path(), self.login_url)
 
-        messages.error(self.request, _("هذه الصفحة متاحة فقط لمسؤولي النظام."))
+        messages.error(self.request, _("ليس لديك صلاحية الوصول إلى هذا القسم."))
+        # Redirect to dashboard if they have general admin access, else home
+        if is_any_admin(self.request.user):
+            return redirect("main:admin_dashboard")
         return redirect("main:home")
 
 
@@ -333,20 +351,38 @@ def publisher_required(view_func):
 
 def superadmin_required(view_func):
     """
-    Decorator for superadmin-only views
-
-    Usage:
-    @superadmin_required
-    def admin_only_view(request):
-        pass
+    Decorator for views that require superuser OR any admin group membership.
+    Use admin_section_required('section') for section-specific access.
     """
 
     @wraps(view_func)
     @login_required
     def wrapper(request, *args, **kwargs):
-        if not request.user.is_superuser:
-            messages.error(request, _("هذه الصفحة متاحة فقط لمسؤولي النظام."))
+        if not is_any_admin(request.user):
+            messages.error(request, _("ليس لديك صلاحية الوصول إلى هذا القسم."))
             return redirect("main:home")
         return view_func(request, *args, **kwargs)
 
     return wrapper
+
+
+def admin_section_required(section: str):
+    """
+    Decorator factory for section-specific admin access.
+
+    Usage:
+        @admin_section_required('accounting')
+        def admin_payments(request): ...
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        @login_required
+        def wrapper(request, *args, **kwargs):
+            if not can_admin(request.user, section):
+                messages.error(request, _("ليس لديك صلاحية الوصول إلى هذا القسم."))
+                if is_any_admin(request.user):
+                    return redirect("main:admin_dashboard")
+                return redirect("main:home")
+            return view_func(request, *args, **kwargs)
+        return wrapper
+    return decorator
