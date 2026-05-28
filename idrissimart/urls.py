@@ -69,6 +69,18 @@ def _stats_index(self, request, extra_context=None):
         extra_context["idx_daily_labels"] = json.dumps(daily_labels)
         extra_context["idx_daily_ads"] = json.dumps(daily_ads)
 
+        # Per-model action counts (last 7 days) for app-list badges
+        model_activity = (
+            LogEntry.objects.filter(action_time__date__gte=week_ago)
+            .values("content_type__app_label", "content_type__model")
+            .annotate(cnt=Count("id"))
+        )
+        # key: "applabel-model" (matches Django admin row class .model-{model})
+        extra_context["idx_model_activity"] = json.dumps({
+            f"{r['content_type__app_label']}-{r['content_type__model']}": r["cnt"]
+            for r in model_activity
+        })
+
         # Recent log entries — last 15, with readable action labels
         action_labels = {ADDITION: "أضاف", CHANGE: "عدّل", DELETION: "حذف"}
         action_colors = {ADDITION: "success", CHANGE: "warning", DELETION: "danger"}

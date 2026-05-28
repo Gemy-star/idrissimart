@@ -509,9 +509,6 @@ CKEDITOR_5_CONFIGS = {
         "specialCharacters": {
             "includeEmoji": True,
         },
-        "emoji": {
-            "feedbackUrl": None,  # Disable feedback
-        },
         "placeholder": "اكتب وصف الإعلان هنا... يمكنك استخدام الإيموجي 😊",
     },
     "public_ad": {

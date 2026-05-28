@@ -68,9 +68,14 @@
 {{ preview_body|default:""|json_script:"preview-body-data" }}
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    const body = JSON.parse(document.getElementById("preview-body-data").textContent);
+    const previewData = document.getElementById("preview-body-data");
+    const body = previewData ? JSON.parse(previewData.textContent || '""') : "";
     const frame = document.getElementById("previewFrame");
-    if (frame && body) {
+    if (!frame) {
+        return;
+    }
+
+    if (body) {
         const doc = frame.contentDocument || frame.contentWindow.document;
         doc.open();
         doc.write(body);
@@ -79,6 +84,8 @@ document.addEventListener("DOMContentLoaded", function () {
         setTimeout(function () {
             frame.style.height = (doc.body.scrollHeight + 40) + "px";
         }, 300);
+    } else {
+        frame.removeAttribute("srcdoc");
     }
 });
 </script>

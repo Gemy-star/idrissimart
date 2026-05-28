@@ -6,7 +6,7 @@
 <link rel="stylesheet" href="{% static 'admin/css/dashboard.css' %}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-/* Full-width layout — strip all Django admin width caps */
+/* Page shell */
 #container { min-width: 0 !important; }
 #main, main.content, #content, #content-main,
 .dashboard #content {
@@ -15,135 +15,507 @@
     float: none !important;
     margin: 0 !important;
 }
-#content { padding: 24px 32px !important; box-sizing: border-box !important; }
+#content {
+    padding: 24px 32px !important;
+    box-sizing: border-box !important;
+}
 #content-main { padding: 0 !important; }
 
-/* ── Headline stats ── */
+:root {
+    --idx-surface: rgba(255,255,255,0.92);
+    --idx-surface-strong: #ffffff;
+    --idx-surface-muted: #f7f9fc;
+    --idx-border: rgba(148,163,184,0.22);
+    --idx-text: #0f172a;
+    --idx-text-soft: #64748b;
+    --idx-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+html[data-theme='dark'] {
+    --idx-surface: rgba(20, 24, 34, 0.92);
+    --idx-surface-strong: #171b24;
+    --idx-surface-muted: #101521;
+    --idx-border: rgba(148,163,184,0.18);
+    --idx-text: #e5eefb;
+    --idx-text-soft: #9fb0c7;
+    --idx-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+}
+
+.idx-page {
+    position: relative;
+    isolation: isolate;
+}
+.idx-page::before,
+.idx-page::after {
+    content: '';
+    position: fixed;
+    inset: auto auto 0 0;
+    width: 34rem;
+    height: 34rem;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: -1;
+    filter: blur(24px);
+    opacity: .42;
+}
+.idx-page::before {
+    top: -10rem;
+    right: -8rem;
+    left: auto;
+    background: radial-gradient(circle, rgba(75,49,94,.28), transparent 65%);
+}
+.idx-page::after {
+    bottom: -12rem;
+    left: -10rem;
+    background: radial-gradient(circle, rgba(255,96,1,.16), transparent 65%);
+}
+
+.idx-hero {
+    background: linear-gradient(135deg, rgba(75,49,94,.95), rgba(90,56,112,.95) 48%, rgba(255,96,1,.88));
+    color: #fff;
+    border-radius: 28px;
+    padding: 28px;
+    box-shadow: var(--idx-shadow);
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 22px;
+}
+.idx-hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at top right, rgba(255,255,255,.16), transparent 22%),
+        radial-gradient(circle at bottom left, rgba(255,255,255,.10), transparent 26%);
+    pointer-events: none;
+}
+.idx-hero-grid {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 18px;
+    align-items: stretch;
+}
+@media (max-width: 1100px) {
+    .idx-hero-grid { grid-template-columns: 1fr; }
+}
+.idx-hero-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.14);
+    backdrop-filter: blur(12px);
+    font-size: .8rem;
+    font-weight: 700;
+    margin-bottom: 14px;
+}
+.idx-hero h1 {
+    margin: 0 0 10px;
+    font-size: clamp(1.7rem, 3vw, 2.7rem);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+}
+.idx-hero p {
+    margin: 0;
+    max-width: 58rem;
+    color: rgba(255,255,255,.9);
+    font-size: 1rem;
+    line-height: 1.8;
+}
+.idx-hero-panel {
+    background: rgba(255,255,255,.12);
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 22px;
+    padding: 18px;
+    backdrop-filter: blur(16px);
+    display: grid;
+    gap: 12px;
+    align-content: start;
+}
+.idx-hero-panel-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: .92rem;
+    font-weight: 700;
+}
+.idx-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    color: #fff;
+}
+.idx-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.26);
+    background: rgba(20, 24, 34, .18);
+    backdrop-filter: blur(12px);
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff;
+    text-decoration: none !important;
+    font-weight: 700;
+    font-size: .84rem;
+    letter-spacing: .01em;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .28);
+    transition: transform .2s ease, background .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.idx-pill:link,
+.idx-pill:visited,
+.idx-pill:hover,
+.idx-pill:active,
+.idx-pill:focus {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff;
+    text-decoration: none !important;
+}
+.idx-pill:hover {
+    background: rgba(20, 24, 34, .26);
+    border-color: rgba(255,255,255,.38);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .12);
+    transform: translateY(-1px);
+}
+.idx-pill i {
+    color: inherit !important;
+    opacity: .96;
+}
+.idx-hero-mini {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+@media (max-width: 640px) {
+    .idx-hero-mini { grid-template-columns: 1fr; }
+}
+.idx-hero-mini-card {
+    background: rgba(255,255,255,.10);
+    border: 1px solid rgba(255,255,255,.16);
+    border-radius: 16px;
+    padding: 14px;
+}
+.idx-hero-mini-card strong {
+    display: block;
+    font-size: 1.25rem;
+    margin-bottom: 4px;
+}
+.idx-hero-mini-card span {
+    color: rgba(255,255,255,.84);
+    font-size: .78rem;
+}
+
+.idx-section-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 28px 0 14px;
+}
+.idx-section-title h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--idx-text);
+}
+.idx-section-title p {
+    margin: 0;
+    color: var(--idx-text-soft);
+    font-size: .85rem;
+}
+
 .idx-stats-row {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 12px;
-    margin-bottom: 24px;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 14px;
+    margin-bottom: 22px;
 }
 .idx-stat-card {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 16px 18px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    background: var(--idx-surface-strong);
+    border: 1px solid var(--idx-border);
+    border-radius: 22px;
+    padding: 18px 18px 16px;
+    box-shadow: var(--idx-shadow);
+    position: relative;
+    overflow: hidden;
+}
+.idx-stat-card::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 4px;
+    height: 100%;
+    background: currentColor;
+    opacity: .85;
 }
 .idx-stat-card .idx-stat-num {
     font-size: 2rem;
-    font-weight: 700;
+    font-weight: 900;
     line-height: 1;
     margin-bottom: 4px;
+    color: currentColor;
 }
 .idx-stat-card .idx-stat-lbl {
-    font-size: 0.78rem;
-    color: #64748b;
-    font-weight: 500;
+    font-size: .8rem;
+    color: var(--idx-text-soft);
+    font-weight: 600;
 }
-.idx-stat-card.blue  { border-top: 3px solid #3b82f6; }
-.idx-stat-card.blue .idx-stat-num { color: #1d4ed8; }
-.idx-stat-card.green { border-top: 3px solid #22c55e; }
-.idx-stat-card.green .idx-stat-num { color: #16a34a; }
-.idx-stat-card.orange{ border-top: 3px solid #f97316; }
-.idx-stat-card.orange .idx-stat-num{ color: #c2410c; }
-.idx-stat-card.purple{ border-top: 3px solid #a855f7; }
-.idx-stat-card.purple .idx-stat-num{ color: #7e22ce; }
-.idx-stat-card.teal  { border-top: 3px solid #14b8a6; }
-.idx-stat-card.teal .idx-stat-num  { color: #0f766e; }
-.idx-stat-card.rose  { border-top: 3px solid #f43f5e; }
-.idx-stat-card.rose .idx-stat-num  { color: #be123c; }
+.idx-stat-card.blue { color: #2563eb; }
+.idx-stat-card.green { color: #16a34a; }
+.idx-stat-card.orange { color: #ea580c; }
+.idx-stat-card.purple { color: #7c3aed; }
+.idx-stat-card.teal { color: #0f766e; }
+.idx-stat-card.rose { color: #e11d48; }
 
-/* ── Charts row ── */
-.idx-charts-row {
+.idx-grid-2 {
     display: grid;
-    grid-template-columns: 1fr 2fr;
-    gap: 16px;
-    margin-bottom: 24px;
-    width: 100%;
-    box-sizing: border-box;
+    grid-template-columns: 1.1fr .9fr;
+    gap: 18px;
+    align-items: start;
+    margin-bottom: 22px;
+}
+@media (max-width: 1100px) {
+    .idx-grid-2 { grid-template-columns: 1fr; }
+}
+.idx-surface {
+    background: var(--idx-surface);
+    border: 1px solid var(--idx-border);
+    border-radius: 24px;
+    box-shadow: var(--idx-shadow);
     overflow: hidden;
 }
-@media (max-width: 700px) {
-    .idx-charts-row { grid-template-columns: 1fr; }
+.idx-surface-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--idx-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+.idx-surface-header h3 {
+    margin: 0;
+    font-size: .95rem;
+    font-weight: 800;
+    color: var(--idx-text);
+}
+.idx-surface-header small {
+    color: var(--idx-text-soft);
+}
+.idx-surface-body {
+    padding: 18px 20px;
 }
 .idx-chart-box {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 16px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
     min-width: 0;
-    overflow: visible;
 }
-.idx-chart-box canvas {
-    max-width: 100% !important;
+.idx-chart-box canvas { max-width: 100% !important; }
+.idx-chart-wrap {
+    display: grid;
+    gap: 18px;
 }
-.idx-chart-box h3 {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #334155;
+.idx-chart-card {
+    background: var(--idx-surface-strong);
+    border: 1px solid var(--idx-border);
+    border-radius: 20px;
+    padding: 16px;
+}
+.idx-chart-card h3 {
     margin: 0 0 12px;
+    font-size: .88rem;
+    font-weight: 800;
+    color: var(--idx-text);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: .04em;
 }
 
-/* ── Recent actions ── */
 .idx-actions-box {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 0;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-    margin-bottom: 24px;
+    background: var(--idx-surface);
+    border: 1px solid var(--idx-border);
+    border-radius: 24px;
+    box-shadow: var(--idx-shadow);
     overflow: hidden;
 }
 .idx-actions-box .idx-box-header {
-    padding: 14px 18px;
-    border-bottom: 1px solid #e2e8f0;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--idx-border);
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: #1e293b;
+    gap: 10px;
+    font-weight: 800;
+    font-size: .95rem;
+    color: var(--idx-text);
 }
 .idx-log-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 18px;
-    border-bottom: 1px solid #f1f5f9;
-    font-size: 0.82rem;
+    gap: 12px;
+    padding: 12px 20px;
+    border-bottom: 1px solid rgba(148,163,184,0.12);
+    font-size: .84rem;
 }
 .idx-log-row:last-child { border-bottom: none; }
-.idx-log-row:hover { background: #f8fafc; }
+.idx-log-row:hover { background: rgba(148,163,184,0.08); }
 .idx-log-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 20px;
-    font-size: 0.72rem;
-    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: .72rem;
+    font-weight: 800;
     white-space: nowrap;
     flex-shrink: 0;
 }
-.idx-log-badge.success { background: #dcfce7; color: #166534; }
-.idx-log-badge.warning { background: #fef9c3; color: #854d0e; }
-.idx-log-badge.danger  { background: #fee2e2; color: #991b1b; }
-.idx-log-badge.secondary{ background: #f1f5f9; color: #475569; }
+.idx-log-badge.success { background: rgba(22,163,74,.12); color: #16a34a; }
+.idx-log-badge.warning { background: rgba(245,158,11,.14); color: #b45309; }
+.idx-log-badge.danger { background: rgba(239,68,68,.14); color: #dc2626; }
+.idx-log-badge.secondary { background: rgba(100,116,139,.12); color: #64748b; }
 .idx-log-detail { flex: 1; min-width: 0; }
 .idx-log-detail .obj {
-    font-weight: 600;
+    font-weight: 800;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 260px;
+    max-width: 320px;
     display: block;
+    color: var(--idx-text) !important;
 }
-.idx-log-detail .meta { color: #94a3b8; }
-.idx-log-time { color: #94a3b8; white-space: nowrap; font-size: 0.72rem; }
+.idx-log-detail .meta { color: var(--idx-text-soft); }
+.idx-log-time { color: var(--idx-text-soft); white-space: nowrap; font-size: .74rem; }
+
+.idx-catalog {
+    margin-top: 8px;
+}
+.idx-catalog-section {
+    display: grid;
+    gap: 16px;
+    margin-top: 26px;
+    padding: 22px;
+    border: 1px solid var(--idx-border);
+    border-radius: 28px;
+    background: linear-gradient(180deg, rgba(255,255,255,.72), rgba(255,255,255,.92));
+    box-shadow: var(--idx-shadow);
+}
+.idx-catalog-section .idx-section-title {
+    margin-top: 0;
+}
+.idx-catalog .module {
+    border: 1px solid var(--idx-border) !important;
+    border-radius: 22px !important;
+    box-shadow: var(--idx-shadow) !important;
+    overflow: hidden;
+    background: var(--idx-surface-strong) !important;
+}
+.idx-catalog .module table {
+    width: 100%;
+}
+.idx-catalog .module h2,
+.idx-catalog .module caption {
+    background: linear-gradient(135deg, rgba(75,49,94,.98), rgba(90,56,112,.98)) !important;
+    color: #fff !important;
+    font-weight: 800;
+    padding: 14px 18px !important;
+}
+.idx-catalog .module h2 a,
+.idx-catalog .module caption a {
+    color: #fff !important;
+}
+.idx-catalog .module tbody tr {
+    border-top: 1px solid rgba(148,163,184,.14);
+}
+.idx-catalog .module tbody th,
+.idx-catalog .module tbody td {
+    padding-block: 12px;
+}
+.idx-catalog .module tbody th a {
+    color: var(--link-fg) !important;
+    font-weight: 700;
+}
+.idx-catalog .addlink,
+.idx-catalog .changelink,
+.idx-catalog .viewlink {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(75,49,94,.08);
+    border: 1px solid rgba(75,49,94,.16);
+    text-decoration: none !important;
+}
+.idx-catalog .addlink::before,
+.idx-catalog .changelink::before,
+.idx-catalog .viewlink::before {
+    content: none !important;
+}
+.idx-catalog .addlink,
+.idx-catalog .changelink,
+.idx-catalog .viewlink,
+.idx-catalog .addlink:hover,
+.idx-catalog .changelink:hover,
+.idx-catalog .viewlink:hover {
+    background-image: none !important;
+}
+.idx-catalog .module + .module {
+    margin-top: 16px;
+}
+.idx-catalog #rosetta-content-main {
+    margin-top: 8px;
+}
+.idx-catalog #rosetta-content-main .module {
+    margin-top: 0;
+}
+.idx-catalog #rosetta-content-main .module caption {
+    border-radius: 0;
+}
+.idx-catalog #rosetta-content-main .module tbody td[colspan="2"] {
+    text-align: end;
+}
+.idx-catalog #rosetta-content-main .module tbody th a,
+.idx-catalog #rosetta-content-main .module tbody td a {
+    color: var(--link-fg) !important;
+}
+.idx-catalog-section + br.clear {
+    display: none;
+}
+.idx-activity-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #ef4444;
+    color: #fff;
+    font-size: .68rem;
+    font-weight: 800;
+    line-height: 1;
+    padding: 3px 7px;
+    border-radius: 999px;
+    margin-inline-end: 8px;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+html[data-theme='dark'] .idx-stat-card,
+html[data-theme='dark'] .idx-chart-card,
+html[data-theme='dark'] .idx-actions-box,
+html[data-theme='dark'] .idx-catalog .module {
+    background: var(--idx-surface-strong) !important;
+}
+
+html[data-theme='dark'] .idx-catalog-section {
+    background: linear-gradient(180deg, rgba(15,23,42,.72), rgba(15,23,42,.92));
+}
+
+html[data-theme='dark'] .idx-log-row:hover {
+    background: rgba(255,255,255,.04);
+}
+
+html[data-theme='dark'] .idx-pill {
+    background: rgba(255,255,255,.08);
+}
 </style>
 {% endblock %}
 
@@ -154,9 +526,47 @@
 {% block content_title %}{% endblock %}
 
 {% block content %}
-<div id="content-main">
+<div id="content-main" class="idx-page">
 
     {% if idx_total_ads is not None %}
+    <section class="idx-hero">
+        <div class="idx-hero-grid">
+            <div>
+                <div class="idx-hero-kicker">{% trans "لوحة الإدارة" %} · {{ site_header|default:_('إدارة المنصة') }}</div>
+                <h1>{% trans "مرحباً بك في مركز التحكم" %}</h1>
+                <p>{% trans "نظرة سريعة على نشاط المنصة مع اختصارات مباشرة لإدارة الإعلانات والمستخدمين والقوالب والتنبيهات." %}</p>
+            </div>
+            <div class="idx-hero-panel">
+                <div class="idx-hero-panel-title">
+                    <span>{% trans "اختصارات سريعة" %}</span>
+                    <small style="opacity:.8">/super-admin/</small>
+                </div>
+                <div class="idx-hero-actions">
+                    <a class="idx-pill" href="{% url 'admin:main_classifiedad_changelist' %}">📣 {% trans "الإعلانات" %}</a>
+                    <a class="idx-pill" href="{% url 'admin:main_user_changelist' %}">👤 {% trans "المستخدمون" %}</a>
+                    <a class="idx-pill" href="{% url 'admin:main_paidbanner_changelist' %}">💳 {% trans "البنرات" %}</a>
+                    <a class="idx-pill" href="{% url 'admin:main_emailtemplate_changelist' %}">✉️ {% trans "القوالب" %}</a>
+                    <a class="idx-pill" href="{% url 'admin:main_safetytip_changelist' %}">🛡️ {% trans "نصائح الأمان" %}</a>
+                    <a class="idx-pill" href="{% url 'admin:main_order_changelist' %}">🧾 {% trans "الطلبات" %}</a>
+                </div>
+                <div class="idx-hero-mini">
+                    <div class="idx-hero-mini-card">
+                        <strong>{{ idx_total_ads }}</strong>
+                        <span>{% trans "إعلان في المنصة" %}</span>
+                    </div>
+                    <div class="idx-hero-mini-card">
+                        <strong>{{ idx_total_users }}</strong>
+                        <span>{% trans "حساب مستخدم" %}</span>
+                    </div>
+                    <div class="idx-hero-mini-card">
+                        <strong>{{ idx_pending_ads }}</strong>
+                        <span>{% trans "بانتظار المراجعة" %}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- ── Stats ── -->
     <div class="idx-stats-row">
         <div class="idx-stat-card blue">
@@ -185,45 +595,74 @@
         </div>
     </div>
 
-    <!-- ── Charts ── -->
-    <div class="idx-charts-row">
-        <div class="idx-chart-box">
-            <h3>توزيع الإعلانات حسب الحالة</h3>
-            <canvas id="adsDoughnutChart" ></canvas>
-        </div>
-        <div class="idx-chart-box">
-            <h3>الإعلانات الجديدة — آخر 7 أيام</h3>
-            <canvas id="dailyAdsChart" ></canvas>
-        </div>
-    </div>
-
-    <!-- ── Recent Actions ── -->
-    {% if idx_recent_logs %}
-    <div class="idx-actions-box">
-        <div class="idx-box-header">
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            آخر الإجراءات في النظام
-        </div>
-        {% for log in idx_recent_logs %}
-        <div class="idx-log-row">
-            <span class="idx-log-badge {{ log.color }}">{{ log.action }}</span>
-            <div class="idx-log-detail">
-                {% if log.url %}
-                    <a href="{{ log.url }}" class="obj" title="{{ log.obj }}">{{ log.obj|truncatechars:50 }}</a>
-                {% else %}
-                    <span class="obj" title="{{ log.obj }}">{{ log.obj|truncatechars:50 }}</span>
-                {% endif %}
-                <span class="meta">{{ log.model }} — {{ log.user }}</span>
+    <div class="idx-grid-2">
+        <div class="idx-chart-wrap">
+            <div class="idx-surface">
+                <div class="idx-surface-header">
+                    <div>
+                        <h3>{% trans "التحليلات" %}</h3>
+                        <small>{% trans "توزيع الحالة ونشاط آخر 7 أيام" %}</small>
+                    </div>
+                </div>
+                <div class="idx-surface-body">
+                    <div class="idx-chart-wrap">
+                        <div class="idx-chart-card">
+                            <h3>توزيع الإعلانات حسب الحالة</h3>
+                            <canvas id="adsDoughnutChart"></canvas>
+                        </div>
+                        <div class="idx-chart-card">
+                            <h3>الإعلانات الجديدة — آخر 7 أيام</h3>
+                            <canvas id="dailyAdsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <span class="idx-log-time">{{ log.time|timesince }} مضت</span>
         </div>
-        {% endfor %}
-    </div>
-    {% endif %}
+
+        <div class="idx-actions-box">
+            <div class="idx-box-header">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                {% trans "آخر الإجراءات" %}
+            </div>
+            {% if idx_recent_logs %}
+                {% for log in idx_recent_logs %}
+                <div class="idx-log-row">
+                    <span class="idx-log-badge {{ log.color }}">{{ log.action }}</span>
+                    <div class="idx-log-detail">
+                        {% if log.url %}
+                            <a href="{{ log.url }}" class="obj" title="{{ log.obj }}">{{ log.obj|truncatechars:50 }}</a>
+                        {% else %}
+                            <span class="obj" title="{{ log.obj }}">{{ log.obj|truncatechars:50 }}</span>
+                        {% endif %}
+                        <span class="meta">{{ log.model }} — {{ log.user }}</span>
+                    </div>
+                    <span class="idx-log-time">{{ log.time|timesince }} {% trans "مضت" %}</span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="idx-log-row">
+                    <span class="idx-log-badge secondary">—</span>
+                    <div class="idx-log-detail">
+                        <span class="obj">{% trans "لا توجد إجراءات حديثة" %}</span>
+                        <span class="meta">{% trans "سيظهر النشاط هنا بعد تنفيذ عمليات على النظام" %}</span>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
     {% endif %}
 
     <!-- ── Model list (default) ── -->
-    {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
+    <section class="idx-catalog-section">
+        <div class="idx-section-title">
+            <div>
+                <h2>{% trans "التطبيقات والوحدات" %}</h2>
+                <p>{% trans "الوصول السريع إلى جميع أقسام الإدارة" %}</p>
+            </div>
+        </div>
+        <div class="idx-catalog">
+            {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
+        </div>
+    </section>
 
 </div>
 {% endblock %}
@@ -266,7 +705,14 @@
                 maintainAspectRatio: true,
                 aspectRatio: 1.6,
                 plugins: {
-                    legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } }
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: { size: 11 },
+                            boxWidth: 12,
+                            color: getComputedStyle(document.documentElement).getPropertyValue('--idx-text').trim() || '#334155'
+                        }
+                    }
                 }
             }
         });
@@ -299,15 +745,50 @@
                 scales: {
                     y: {
                         beginAtZero: true,
-                        ticks: { stepSize: 1, font: { size: 11 } }
+                        ticks: {
+                            stepSize: 1,
+                            font: { size: 11 },
+                            color: getComputedStyle(document.documentElement).getPropertyValue('--idx-text-soft').trim() || '#64748b'
+                        },
+                        grid: {
+                            color: 'rgba(148,163,184,0.18)'
+                        }
                     },
                     x: {
-                        ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true }
+                        ticks: {
+                            font: { size: 10 },
+                            maxRotation: 0,
+                            autoSkip: true,
+                            color: getComputedStyle(document.documentElement).getPropertyValue('--idx-text-soft').trim() || '#64748b'
+                        },
+                        grid: {
+                            display: false
+                        }
                     }
                 }
             }
         });
     }
+})();
+
+// ── Activity badges on app-list model rows ──
+(function() {
+    var activity = {{ idx_model_activity|default:"{}"|safe }};
+    document.addEventListener('DOMContentLoaded', function() {
+        Object.keys(activity).forEach(function(key) {
+            // Django admin rows: class="model-{model}" inside div.app-{applabel}
+            var parts   = key.split('-');
+            var appLabel = parts[0];
+            var model    = parts.slice(1).join('-');
+            var row = document.querySelector('.app-' + appLabel + ' .model-' + model + ' th');
+            if (!row) return;
+            var badge = document.createElement('span');
+            badge.className = 'idx-activity-badge';
+            badge.title = activity[key] + ' إجراء خلال آخر 7 أيام';
+            badge.textContent = activity[key];
+            row.insertBefore(badge, row.firstChild);
+        });
+    });
 })();
 </script>
 {% endblock %}
