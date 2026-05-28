@@ -2,9 +2,10 @@
 Management command: create_admin_groups
 
 Creates (or updates) all predefined admin permission groups, including the
-"publisher" group for publisher-type users.
-After creating groups, assigns every existing user to the appropriate group
-based on their profile_type.
+"super_admin" and "publisher" groups for user assignment.
+After creating groups, assigns every existing user:
+    - admin/staff users -> super_admin
+    - all other users   -> publisher
 
 Safe to run multiple times — uses get_or_create.
 
@@ -29,20 +30,15 @@ ADMIN_GROUP_LABELS = {
     "admin_notifications": "الإشعارات",
 }
 
-# User-facing groups mapped from profile_type values
-PROFILE_GROUP_MAP = {
-    "publisher": "publisher",
-    "default":   "default_users",
-}
-
 PROFILE_GROUP_LABELS = {
+    "super_admin":   "مشرف عام - Super Admin",
     "publisher":     "ناشر - Publisher",
     "default_users": "مستخدم قياسي - Default User",
 }
 
 
 class Command(BaseCommand):
-    help = "Create predefined admin/user permission groups and assign users by profile type"
+    help = "Create predefined admin/user permission groups and assign users by role"
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -91,7 +87,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("\nSkipping user assignment (--skip-assign)."))
             return
 
-        # --- Assign all users to the appropriate group based on profile_type ---
+        # --- Assign users: admin/staff -> super_admin, others -> publisher ---
         self._assign_users_to_groups()
 
     def _assign_users_to_groups(self):
@@ -99,21 +95,21 @@ class Command(BaseCommand):
         User = get_user_model()
 
         self.stdout.write("")
-        self.stdout.write(self.style.MIGRATE_HEADING("Assigning users to groups by profile_type..."))
+        self.stdout.write(self.style.MIGRATE_HEADING("Assigning users to groups by role..."))
 
         # Pre-fetch groups
         groups = {name: Group.objects.get(name=name) for name in PROFILE_GROUP_LABELS}
 
-        assigned = {name: 0 for name in PROFILE_GROUP_LABELS}
-        skipped = 0
+        assigned = {"super_admin": 0, "publisher": 0}
 
         for user in User.objects.all().iterator():
-            profile_type = getattr(user, "profile_type", "default") or "default"
-            group_name = PROFILE_GROUP_MAP.get(profile_type)
+            profile_type = (getattr(user, "profile_type", "default") or "default").lower()
 
-            if not group_name:
-                skipped += 1
-                continue
+            # Legacy-safe admin detection:
+            # - explicit admin profile_type (if present in old data)
+            # - Django staff/superuser flags
+            is_admin_user = profile_type == "admin" or user.is_staff or user.is_superuser
+            group_name = "super_admin" if is_admin_user else "publisher"
 
             target_group = groups[group_name]
             if not user.groups.filter(pk=target_group.pk).exists():
@@ -121,11 +117,10 @@ class Command(BaseCommand):
                 assigned[group_name] += 1
 
         self.stdout.write("")
-        for name, count in assigned.items():
+        for name in ("super_admin", "publisher"):
+            count = assigned[name]
             label = PROFILE_GROUP_LABELS[name]
             self.stdout.write(f"  {self.style.SUCCESS(str(count))} users assigned to '{name}' ({label})")
-        if skipped:
-            self.stdout.write(f"  {self.style.WARNING(str(skipped))} users skipped (unknown profile_type)")
         self.stdout.write("")
         self.stdout.write(self.style.SUCCESS("User group assignment complete."))
 
