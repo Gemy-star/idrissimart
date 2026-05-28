@@ -308,6 +308,21 @@
             box-shadow: 0 14px 30px rgba(255, 96, 1, 0.3);
         }
 
+        .contact-guest-note {
+            border: 1px dashed #ffd3b6;
+            border-radius: 12px;
+            background: var(--ct-brand-soft);
+            color: #9a3412;
+            font-size: 0.84rem;
+            font-weight: 600;
+            padding: 0.68rem 0.78rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            line-height: 1.5;
+        }
+
         .map-section {
             padding: 0 0 4.3rem;
             background: var(--ct-bg);
@@ -325,6 +340,71 @@
             color: var(--ct-text);
             font-weight: 900;
             margin-bottom: 1rem;
+        }
+
+        .map-card iframe {
+            display: block;
+            width: 100%;
+        }
+
+        .contact-info-card.full {
+            grid-column: 1/-1;
+        }
+
+        [data-theme='dark'] .contact-page {
+            background: #0f1523;
+        }
+
+        [data-theme='dark'] .contact-hero::after {
+            background: #0f1523;
+        }
+
+        [data-theme='dark'] .contact-panel,
+        [data-theme='dark'] .contact-info-card,
+        [data-theme='dark'] .sender-info-card,
+        [data-theme='dark'] .map-card {
+            background: #141c2d;
+            border-color: rgba(255, 255, 255, 0.12);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        [data-theme='dark'] .contact-panel-head h2,
+        [data-theme='dark'] .contact-info-card h3,
+        [data-theme='dark'] .sender-name,
+        [data-theme='dark'] .contact-form .form-label,
+        [data-theme='dark'] .map-title {
+            color: #f5f7ff;
+        }
+
+        [data-theme='dark'] .contact-panel-head .mini,
+        [data-theme='dark'] .contact-info-card p,
+        [data-theme='dark'] .contact-info-card p *,
+        [data-theme='dark'] .sender-meta,
+        [data-theme='dark'] .sender-label {
+            color: #c4ccdc;
+        }
+
+        [data-theme='dark'] .contact-form input,
+        [data-theme='dark'] .contact-form textarea,
+        [data-theme='dark'] .contact-form select,
+        [data-theme='dark'] .contact-form .form-control {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.14);
+            color: #f3f6ff;
+        }
+
+        [data-theme='dark'] .contact-form input:focus,
+        [data-theme='dark'] .contact-form textarea:focus,
+        [data-theme='dark'] .contact-form select:focus,
+        [data-theme='dark'] .contact-form .form-control:focus {
+            border-color: #ff8d47;
+            box-shadow: 0 0 0 0.2rem rgba(255, 141, 71, 0.24);
+        }
+
+        [data-theme='dark'] .contact-guest-note {
+            background: rgba(255, 141, 71, 0.14);
+            border-color: rgba(255, 141, 71, 0.35);
+            color: #ffd9bf;
         }
 
         @media (max-width: 1100px) {
@@ -449,7 +529,7 @@
                         </div>
 
                         {% if contact_page.show_office_hours %}
-                        <div class="contact-info-card" style="grid-column: 1/-1;">
+                        <div class="contact-info-card full">
                             <div class="contact-icon">
                                 <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <circle cx="12" cy="12" r="10"></circle>
@@ -491,25 +571,32 @@
                             {% endfor %}
                         {% endif %}
 
-                        <div class="sender-info-card">
-                            <div class="sender-avatar">
-                                {% if request.user.profile_picture %}
-                                    <img src="{{ request.user.profile_picture.url }}" alt="{{ request.user.get_full_name }}" class="sender-avatar-img">
-                                {% else %}
-                                    <div class="sender-avatar-placeholder">
-                                        <i class="fas fa-user"></i>
+                        {% if request.user.is_authenticated %}
+                            <div class="sender-info-card">
+                                <div class="sender-avatar">
+                                    {% if request.user.profile_picture %}
+                                        <img src="{{ request.user.profile_picture.url }}" alt="{{ request.user.get_full_name }}" class="sender-avatar-img">
+                                    {% else %}
+                                        <div class="sender-avatar-placeholder">
+                                            <i class="fas fa-user"></i>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="sender-details">
+                                    <p class="sender-label">{% trans "سيتم الإرسال باسم" %}</p>
+                                    <p class="sender-name">{% if request.user.get_full_name %}{{ request.user.get_full_name }}{% else %}{{ request.user.username }}{% endif %}</p>
+                                    <div class="sender-meta">
+                                        {% if request.user.email %}<span><i class="fas fa-envelope"></i> {{ request.user.email }}</span>{% endif %}
+                                        {% if request.user.phone %}<span><i class="fas fa-phone"></i> {{ request.user.phone }}</span>{% endif %}
                                     </div>
-                                {% endif %}
-                            </div>
-                            <div class="sender-details">
-                                <p class="sender-label">{% trans "سيتم الإرسال باسم" %}</p>
-                                <p class="sender-name">{% if request.user.get_full_name %}{{ request.user.get_full_name }}{% else %}{{ request.user.username }}{% endif %}</p>
-                                <div class="sender-meta">
-                                    {% if request.user.email %}<span><i class="fas fa-envelope"></i> {{ request.user.email }}</span>{% endif %}
-                                    {% if request.user.phone %}<span><i class="fas fa-phone"></i> {{ request.user.phone }}</span>{% endif %}
                                 </div>
                             </div>
-                        </div>
+                        {% else %}
+                            <div class="contact-guest-note">
+                                <i class="fas fa-user-clock mt-1"></i>
+                                <span>{% trans "يمكنك إرسال رسالتك الآن كزائر. تسجيل الدخول يساعدنا على الرد بشكل أسرع." %}</span>
+                            </div>
+                        {% endif %}
 
                         <form method="post" class="contact-form" novalidate>
                             {% csrf_token %}

@@ -1112,6 +1112,47 @@
         z-index: 3;
     }
 
+    .ad-form-page .ad-form-status {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        background: #ffffff;
+        border: 1px solid var(--af-border);
+        border-radius: 16px;
+        padding: 0.72rem 0.95rem;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        margin-bottom: 0.9rem;
+    }
+
+    .ad-form-page .ad-form-status-main {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        color: var(--af-text);
+        font-size: 0.9rem;
+        font-weight: 700;
+    }
+
+    .ad-form-page .ad-form-status-main .chip {
+        min-width: 52px;
+        height: 30px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--af-brand-soft);
+        color: var(--af-brand-dark);
+        font-size: 0.8rem;
+        font-weight: 900;
+    }
+
+    .ad-form-page .ad-form-status-note {
+        color: var(--af-muted);
+        font-size: 0.82rem;
+        text-align: end;
+    }
+
     .ad-form-page .steps-container {
         background: rgba(255, 255, 255, 0.14);
         border: 1px solid rgba(255, 255, 255, 0.35);
@@ -1218,6 +1259,48 @@
         border-color: #d9e0e8;
     }
 
+    [data-theme='dark'] .ad-form-page {
+        background: #0f1523;
+    }
+
+    [data-theme='dark'] .ad-form-page .ad-form-hero::after {
+        background: #0f1523;
+    }
+
+    [data-theme='dark'] .ad-form-page .ad-form-status,
+    [data-theme='dark'] .ad-form-page .ad-form-card {
+        background: #141c2d;
+        border-color: rgba(255, 255, 255, 0.12);
+        box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme='dark'] .ad-form-page .ad-form-status-main,
+    [data-theme='dark'] .ad-form-page .step-title,
+    [data-theme='dark'] .ad-form-page .form-label,
+    [data-theme='dark'] .ad-form-page .form-check-label {
+        color: #eef2ff;
+    }
+
+    [data-theme='dark'] .ad-form-page .ad-form-status-note,
+    [data-theme='dark'] .ad-form-page .step-description,
+    [data-theme='dark'] .ad-form-page .form-text {
+        color: #c4ccdc;
+    }
+
+    [data-theme='dark'] .ad-form-page .form-control,
+    [data-theme='dark'] .ad-form-page .form-select,
+    [data-theme='dark'] .ad-form-page .input-group-text {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(255, 255, 255, 0.14);
+        color: #f3f6ff;
+    }
+
+    [data-theme='dark'] .ad-form-page .btn-prev {
+        background: rgba(255, 255, 255, 0.04);
+        border-color: rgba(255, 255, 255, 0.2);
+        color: #eef2ff;
+    }
+
     @media (max-width: 991px) {
         .ad-form-page .ad-form-body {
             margin-top: -2.2rem;
@@ -1231,6 +1314,15 @@
 
         .ad-form-page .steps-container {
             padding: 18px 14px;
+        }
+
+        .ad-form-page .ad-form-status {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .ad-form-page .ad-form-status-note {
+            text-align: start;
         }
     }
 </style>
@@ -1255,6 +1347,14 @@
 
     <section class="ad-form-section ad-form-body py-5">
         <div class="container">
+
+            <div class="ad-form-status" role="status" aria-live="polite">
+                <div class="ad-form-status-main">
+                    <span class="chip"><span id="currentStepNum">1</span>/4</span>
+                    <span id="currentStepLabel">{% trans "التصنيف والتفاصيل" %}</span>
+                </div>
+                <div class="ad-form-status-note">{% trans "يمكنك العودة للخطوات السابقة في أي وقت" %}</div>
+            </div>
 
             <!-- Steps Progress -->
             <div class="steps-container">
@@ -2147,6 +2247,8 @@
             const submitBtn = document.getElementById('submitBtn');
             const stepsProgress = document.querySelector('.steps-progress');
             const adForm = document.getElementById('adForm');
+            const currentStepNumEl = document.getElementById('currentStepNum');
+            const currentStepLabelEl = document.getElementById('currentStepLabel');
 
             // Check if there are form errors and navigate to the step with errors
             const hasFormErrors = {% if form.errors %}true{% else %}false{% endif %};
@@ -2202,6 +2304,14 @@
                 prevBtn.style.display = step === 1 ? 'none' : 'block';
                 nextBtn.style.display = step === totalSteps ? 'none' : 'block';
                 submitBtn.style.display = step === totalSteps ? 'block' : 'none';
+
+                if (currentStepNumEl) {
+                    currentStepNumEl.textContent = String(step);
+                }
+                if (currentStepLabelEl && stepItems[step - 1]) {
+                    const label = stepItems[step - 1].querySelector('.step-label');
+                    currentStepLabelEl.textContent = label ? label.textContent.trim() : '';
+                }
             }
 
             function validateStep(step) {
