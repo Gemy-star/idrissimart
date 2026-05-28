@@ -2763,9 +2763,31 @@ class AdReportAdmin(admin.ModelAdmin):
 
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
-    extra = 0
-    readonly_fields = ("ad", "price")
-    can_delete = False
+    extra = 1
+    fields = ("ad_link", "ad", "price")
+    readonly_fields = ("ad_link",)
+    can_delete = True
+    show_change_link = True
+
+    def get_readonly_fields(self, request, obj=None):
+        # For existing items (obj is the parent Order), lock ad_link only.
+        # For new rows (obj is None on add view) allow editing ad & price.
+        return ("ad_link",)
+
+    @admin.display(description=_("رابط الإعلان"))
+    def ad_link(self, obj):
+        if not obj.pk or not obj.ad_id:
+            return "-"
+        from django.urls import reverse
+        url = reverse("admin:main_classifiedad_change", args=[obj.ad_id])
+        return format_html(
+            '<a href="{}" target="_blank" title="{}">'
+            '<i class="fas fa-external-link-alt" style="margin-left:4px;"></i>{}'
+            "</a>",
+            url,
+            obj.ad.title,
+            obj.ad.title,
+        )
 
 
 @admin.register(Coupon)
