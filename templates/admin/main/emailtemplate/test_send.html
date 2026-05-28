@@ -12,19 +12,28 @@
 </div>
 {% endblock %}
 
-{% block content %}
+{% block extrahead %}
+{{ block.super }}
 <style>
-.tpl-info   { background:#fffbea; border:1px solid #ffe082; border-radius:6px; padding:12px 16px; margin-bottom:20px; display:flex; gap:20px; align-items:center; flex-wrap:wrap; }
-.tpl-info code { background:#f5f5f5; padding:2px 6px; border-radius:3px; font-family:monospace; }
-.var-table  { width:100%; border-collapse:collapse; margin-top:12px; font-size:.88rem; }
+.tpl-info { background:var(--selected-bg); border:1px solid var(--border-color); border-radius:8px; padding:12px 16px; margin-bottom:20px; display:flex; gap:20px; align-items:center; flex-wrap:wrap; color:var(--body-fg); }
+.tpl-info code { background:var(--darkened-bg); color:var(--body-fg); padding:2px 6px; border-radius:3px; font-family:monospace; }
+.var-table { width:100%; border-collapse:collapse; margin-top:12px; font-size:.88rem; }
 .var-table th,
-.var-table td { text-align:right; padding:6px 10px; border:1px solid #e0e0e0; }
-.var-table th  { background:#f0f0f0; font-weight:600; }
-.var-table td:first-child { font-family:monospace; color:#2e7d32; white-space:nowrap; }
-.var-table td:last-child  { color:#666; direction:ltr; text-align:left; font-family:monospace; font-size:.82rem; }
-.preview-box { background:#fff; border:1px solid #ccc; border-radius:6px; padding:16px; min-height:200px; margin-top:12px; }
+.var-table td { text-align:right; padding:6px 10px; border:1px solid var(--hairline-color); color:var(--body-fg); }
+.var-table th { background:var(--darkened-bg); font-weight:600; }
+.var-table td:first-child { font-family:monospace; color:#16a34a; white-space:nowrap; }
+.var-table td:last-child  { color:var(--body-quiet-color); direction:ltr; text-align:left; font-family:monospace; font-size:.82rem; }
 #preview-frame { width:100%; min-height:350px; border:none; border-radius:4px; }
+.preview-wrap { border:1px solid var(--border-color); border-radius:6px; overflow:hidden; }
+.preview-header { background:var(--darkened-bg); padding:8px 14px; font-size:.85rem; color:var(--body-fg); }
+.warn-banner { color:#b91c1c; background:#fee2e2; padding:10px 16px; border-radius:6px; margin-bottom:16px; border:1px solid #fca5a5; }
+html[data-theme="dark"] .warn-banner { background:#3b0a0a; color:#fca5a5; border-color:#7f1d1d; }
+details summary { cursor:pointer; font-weight:600; color:var(--link-fg); }
+details summary:hover { color:var(--link-hover-color); }
 </style>
+{% endblock %}
+
+{% block content %}
 
 {% if messages %}
 <ul class="messagelist">
@@ -40,24 +49,19 @@
     <span><strong>المفتاح:</strong> <code>{{ email_template.key }}</code></span>
     <span><strong>الحالة:</strong>
         {% if email_template.is_active %}
-            <span style="color:#2e7d32">✅ نشط</span>
+            <span style="color:#16a34a">✅ نشط</span>
         {% else %}
-            <span style="color:#c62828">❌ معطّل</span>
+            <span style="color:#e53e3e">❌ معطّل</span>
         {% endif %}
     </span>
     <a href="{% url 'admin:main_emailtemplate_change' email_template.pk %}" class="button">← تعديل القالب</a>
 </div>
 
 {% if not email_template.is_active %}
-<p style="color:#b71c1c; background:#ffebee; padding:10px 16px; border-radius:4px; margin-bottom:16px;">
-    ⚠️ هذا القالب <strong>معطّل</strong>. أعِّد تفعيله حتى يُستخدم تلقائياً عند وقوع الحدث.
-</p>
+<p class="warn-banner">⚠️ هذا القالب <strong>معطّل</strong>. أعِّد تفعيله حتى يُستخدم تلقائياً عند وقوع الحدث.</p>
 {% endif %}
-
 {% if not email_template.body_ar and not email_template.body %}
-<p style="color:#b71c1c; background:#ffebee; padding:10px 16px; border-radius:4px; margin-bottom:16px;">
-    ⚠️ القالب لا يحتوي على محتوى (body_ar / body). أضف المحتوى أولاً ثم اختبره.
-</p>
+<p class="warn-banner">⚠️ القالب لا يحتوي على محتوى (body_ar / body). أضف المحتوى أولاً ثم اختبره.</p>
 {% endif %}
 
 <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:8px;">
@@ -86,14 +90,14 @@
         {% if email_template.available_variables %}
         <div style="margin-top:20px;">
             <strong>المتغيرات المُعرَّفة لهذا القالب:</strong>
-            <pre style="background:#f5f5f5; padding:10px; border-radius:4px; font-size:.82rem; margin-top:6px; white-space:pre-wrap;">{{ email_template.available_variables }}</pre>
+            <pre style="background:var(--darkened-bg);color:var(--body-fg);padding:10px;border-radius:4px;font-size:.82rem;margin-top:6px;white-space:pre-wrap;border:1px solid var(--border-color);">{{ email_template.available_variables }}</pre>
         </div>
         {% endif %}
 
         <!-- Sample values used in test -->
         <div style="margin-top:20px;">
             <details>
-                <summary style="cursor:pointer; font-weight:600; color:#447e9b;">📋 القيم التجريبية المستخدمة في الاختبار</summary>
+                <summary>📋 القيم التجريبية المستخدمة في الاختبار</summary>
                 <table class="var-table" style="margin-top:8px;">
                     <thead><tr><th>المتغير</th><th>القيمة التجريبية</th></tr></thead>
                     <tbody>
@@ -116,15 +120,15 @@
             <strong>الموضوع:</strong>
             {{ email_template.subject_ar|default:email_template.subject|default:"(لا يوجد موضوع)" }}
         </div>
-        <div style="border:1px solid #ddd; border-top:none; border-radius:0 0 4px 4px; overflow:hidden; min-height:300px;">
+        <div style="border:1px solid var(--border-color);border-top:none;border-radius:0 0 6px 6px;overflow:hidden;min-height:300px;">
             {% if email_template.body_ar or email_template.body %}
             <iframe id="preview-frame"
                     srcdoc="{{ email_template.body_ar|default:email_template.body }}"
                     title="معاينة القالب"
-                    style="width:100%; min-height:350px; border:none;">
+                    style="width:100%;min-height:350px;border:none;">
             </iframe>
             {% else %}
-            <div style="padding:40px; text-align:center; color:#999;">
+            <div style="padding:40px;text-align:center;color:var(--body-quiet-color);">
                 لا يوجد محتوى لعرضه — أضف <strong>body_ar</strong> أو <strong>body</strong> في صفحة تعديل القالب.
             </div>
             {% endif %}

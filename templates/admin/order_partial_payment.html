@@ -6,38 +6,31 @@
 {{ block.super }}
 <style>
 .order-summary {
-    background: #f8f9fa;
-    padding: 15px;
-    border-radius: 5px;
-    margin-bottom: 15px;
-}
-.order-summary h4 {
-    margin-top: 0;
-    color: #495057;
-}
-.order-item {
-    padding: 10px;
-    border-bottom: 1px solid #dee2e6;
-}
-.order-item:last-child {
-    border-bottom: none;
-}
-.payment-info {
-    background: #fff;
-    padding: 15px;
-    border: 2px solid #007bff;
-    border-radius: 5px;
+    background: var(--darkened-bg);
+    border: 1px solid var(--border-color);
+    padding: 16px;
+    border-radius: 8px;
     margin-bottom: 20px;
 }
-.payment-info .total {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: #28a745;
+.order-item {
+    padding: 10px 4px;
+    border-bottom: 1px solid var(--hairline-color);
+    color: var(--body-fg);
 }
-.payment-info .remaining {
-    font-size: 1.2rem;
-    color: #dc3545;
+.order-item:last-child { border-bottom: none; }
+.order-item strong { color: var(--body-loud-color); }
+.order-meta { font-size: .85rem; color: var(--body-quiet-color); }
+.order-meta .paid   { color: #22c55e; font-weight: 600; }
+.order-meta .unpaid { color: #e53e3e; font-weight: 600; }
+.payment-info {
+    background: var(--body-bg);
+    padding: 16px 20px;
+    border: 2px solid var(--primary);
+    border-radius: 8px;
+    margin-bottom: 24px;
 }
+.payment-info h3 { margin-top: 0; color: var(--body-fg); }
+.payment-info p   { color: var(--body-quiet-color); margin: 4px 0; }
 </style>
 {% endblock %}
 
@@ -55,34 +48,30 @@
 <div class="payment-info">
     <h3>{% trans "ملخص الطلبات المحددة" %}</h3>
     <p><strong>{% trans "عدد الطلبات:" %}</strong> {{ orders|length }}</p>
-    <p class="text-muted">{% trans "سيتم إضافة المبلغ المدخل إلى كل طلب محدد" %}</p>
+    <p class="order-meta">{% trans "سيتم إضافة المبلغ المدخل إلى كل طلب محدد" %}</p>
 </div>
 
 <form method="post">
     {% csrf_token %}
 
     <div class="form-row">
-        <div class="form-group col-12">
-            <h3>{% trans "تفاصيل الدفعة" %}</h3>
-        </div>
-
-        <div class="form-group col-md-6">
-            <label for="{{ form.amount.id_for_label }}">{{ form.amount.label }}</label>
-            {{ form.amount }}
-            {% if form.amount.errors %}
-                <div class="alert alert-danger">{{ form.amount.errors }}</div>
-            {% endif %}
-            <small class="form-text text-muted">{% trans "أدخل المبلغ المدفوع بالريال السعودي" %}</small>
-        </div>
-
-        <div class="form-group col-md-12">
-            <label for="{{ form.payment_note.id_for_label }}">{{ form.payment_note.label }}</label>
-            {{ form.payment_note }}
-            {% if form.payment_note.errors %}
-                <div class="alert alert-danger">{{ form.payment_note.errors }}</div>
-            {% endif %}
-            <small class="form-text text-muted">{% trans "ملاحظة اختيارية عن الدفعة (مثل: رقم الحوالة، طريقة الدفع، إلخ)" %}</small>
-        </div>
+        <h3>{% trans "تفاصيل الدفعة" %}</h3>
+    </div>
+    <div class="form-row">
+        <label for="{{ form.amount.id_for_label }}">{{ form.amount.label }}</label>
+        {{ form.amount }}
+        {% if form.amount.errors %}
+            <p style="color:#e53e3e;margin-top:4px;">{{ form.amount.errors }}</p>
+        {% endif %}
+        <p class="help">{% trans "أدخل المبلغ المدفوع بالريال السعودي" %}</p>
+    </div>
+    <div class="form-row">
+        <label for="{{ form.payment_note.id_for_label }}">{{ form.payment_note.label }}</label>
+        {{ form.payment_note }}
+        {% if form.payment_note.errors %}
+            <p style="color:#e53e3e;margin-top:4px;">{{ form.payment_note.errors }}</p>
+        {% endif %}
+        <p class="help">{% trans "ملاحظة اختيارية عن الدفعة (مثل: رقم الحوالة، طريقة الدفع، إلخ)" %}</p>
     </div>
 
     <h3 class="mt-4">{% trans "الطلبات المحددة" %}</h3>
@@ -91,10 +80,10 @@
         <div class="order-item">
             <strong>{{ order.order_number }}</strong> - {{ order.full_name }}
             <br>
-            <span class="text-muted">
+            <span class="order-meta">
                 {% trans "الإجمالي:" %} {{ order.total_amount }} {{ order.currency|currency_symbol }} |
-                {% trans "المدفوع:" %} <span class="text-success">{{ order.paid_amount }} {{ order.currency|currency_symbol }}</span> |
-                {% trans "المتبقي:" %} <span class="text-danger">{{ order.remaining_amount }} {{ order.currency|currency_symbol }}</span>
+                {% trans "المدفوع:" %} <span class="paid">{{ order.paid_amount }} {{ order.currency|currency_symbol }}</span> |
+                {% trans "المتبقي:" %} <span class="unpaid">{{ order.remaining_amount }} {{ order.currency|currency_symbol }}</span>
             </span>
         </div>
         {% endfor %}
