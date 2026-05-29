@@ -1,15 +1,13 @@
 {% extends "base.html" %}
-
 {% load static i18n idrissimart_tags %}
 
-{% block title %}{{ blog.title }}{% endblock %}
+{% block title %}{{ blog.title }} | {% trans "إدريسي مارت" %}{% endblock %}
 {% block meta_description %}{{ blog.content|striptags|truncatewords:40 }}{% endblock %}
 {% block og_title %}{{ blog.title }} | {{ config.SITE_NAME }}{% endblock %}
 {% block og_description %}{{ blog.content|striptags|truncatewords:40 }}{% endblock %}
 {% block twitter_title %}{{ blog.title }} | {{ config.SITE_NAME }}{% endblock %}
 
 {% block extra_meta %}
-<!-- Open Graph -->
 <meta property="og:type" content="article"/>
 <meta property="og:site_name" content="{{ config.SITE_NAME }}"/>
 <meta property="og:locale" content="{% if LANGUAGE_CODE == 'ar' %}ar_AR{% else %}en_US{% endif %}"/>
@@ -18,585 +16,783 @@
 <meta property="og:url" content="{{ request.build_absolute_uri }}"/>
 {% if blog.image %}
 <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ blog.image.url }}"/>
-<meta property="og:image:secure_url" content="{{ request.scheme }}://{{ request.get_host }}{{ blog.image.url }}"/>
-<meta property="og:image:width" content="1200"/>
-<meta property="og:image:height" content="630"/>
+<meta property="og:image:width" content="1200"/><meta property="og:image:height" content="630"/>
 <meta property="og:image:alt" content="{{ blog.title }}"/>
 {% else %}
 <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'images/default-blog.jpg' %}"/>
 {% endif %}
-<!-- Article meta -->
 <meta property="article:published_time" content="{{ blog.published_date|date:'c' }}">
 <meta property="article:modified_time" content="{{ blog.updated_at|date:'c' }}">
 <meta property="article:author" content="{{ blog.author.get_full_name|default:blog.author.username }}">
 {% if blog.category %}<meta property="article:section" content="{{ blog.category.name }}">{% endif %}
 {% for tag in blog.tags.all %}<meta property="article:tag" content="{{ tag.name }}">{% endfor %}
-<!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image"/>
-<meta name="twitter:site" content="@idrissimart"/>
 <meta name="twitter:title" content="{{ blog.title }} | {{ config.SITE_NAME }}"/>
 <meta name="twitter:description" content="{{ blog.content|striptags|truncatewords:40 }}"/>
-{% if blog.image %}
-<meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{{ blog.image.url }}"/>
-<meta name="twitter:image:alt" content="{{ blog.title }}"/>
-{% else %}
-<meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'images/default-blog.jpg' %}"/>
-{% endif %}
-<!-- Keywords & author -->
+{% if blog.image %}<meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{{ blog.image.url }}"/>{% endif %}
 <meta name="keywords" content="{% for tag in blog.tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}">
 <meta name="author" content="{{ blog.author.get_full_name|default:blog.author.username }}">
 {% endblock extra_meta %}
 
 {% block extra_css %}
-    {{ form.media.css }}
-    <link rel="stylesheet" href="{% static 'css/blog.css' %}">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+{{ form.media.css }}
+<style>
+:root {
+    --br: #ff6001; --br-dk: #d94e00; --br-lt: #fff4ee; --br-glow: rgba(255,96,1,.22);
+    --bg: #f5f6fa; --surf: #fff; --brd: #e8ecf0; --txt: #1a1f2e; --muted: #6b7280;
+    --r: 18px; --r-sm: 10px; --r-lg: 24px;
+    --sh: 0 4px 24px rgba(0,0,0,.07); --sh-hover: 0 8px 32px rgba(0,0,0,.12);
+}
+:is([data-bs-theme='dark'], [data-theme='dark'], html[data-theme='dark'], html.dark, .dark-theme) {
+    --bg: #0f1523; --surf: #141c2d; --brd: rgba(255,255,255,.1);
+    --txt: #eef2ff; --muted: #94a3b8; --br-lt: rgba(255,96,1,.12);
+    --sh: 0 4px 24px rgba(0,0,0,.35); --sh-hover: 0 8px 32px rgba(0,0,0,.5);
+}
+
+/* ── Page ── */
+.bd-page { background: var(--bg); min-height: 100vh; }
+
+/* ── Hero ── */
+.bd-hero {
+    background: #0f1d3a;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    padding: 1rem 0;
+}
+.bd-hero-inner {
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.bd-hero-main {
+    min-width: 0;
+}
+
+/* breadcrumb */
+.bd-breadcrumb {
+    display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
+    font-size: .8rem; margin-bottom: .45rem; opacity: .85;
+}
+.bd-breadcrumb a { color: rgba(255,255,255,.8); text-decoration: none; }
+.bd-breadcrumb a:hover { color: #fff; }
+.bd-breadcrumb .sep { opacity: .55; font-size: .65rem; }
+.bd-breadcrumb .current { color: #fff; font-weight: 600; }
+
+.bd-hero-title {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(1.35rem, 2.6vw, 2.1rem);
+    font-weight: 900;
+    line-height: 1.2;
+    max-width: 900px;
+}
+.bd-hero-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #ff7a1f, #ff6001);
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(255,96,1,.34);
+    flex: 0 0 auto;
+}
+
+/* ── Body ── */
+.bd-body-wrap { margin-top: 1.1rem; padding: 0 0 5rem; position: relative; z-index: 2; }
+.bd-layout { display: grid; grid-template-columns: 1fr 300px; gap: 1.5rem; align-items: start; }
+@media(max-width: 991px) { .bd-layout { grid-template-columns: 1fr; } }
+/* Large desktop */
+@media(min-width: 1400px) {
+    .bd-hero { padding: 1.6rem 0; }
+    .bd-hero-title { font-size: 2.3rem; }
+    .bd-hero-icon { width: 56px; height: 56px; border-radius: 16px; font-size: 1.3rem; }
+}
+
+/* Small desktop / tablet landscape */
+@media(max-width: 1199px) {
+    .bd-hero { padding: 1.1rem 0; }
+    .bd-hero-title { font-size: clamp(1.3rem, 2.2vw, 1.9rem); }
+}
+
+/* Tablet portrait */
+@media(max-width: 991px) {
+    .bd-hero { padding: 1rem 0; }
+    .bd-hero-inner { gap: .75rem; }
+    .bd-hero-title { font-size: 1.65rem; }
+    .bd-hero-icon { width: 44px; height: 44px; border-radius: 12px; }
+    .bd-body-wrap { margin-top: .9rem; }
+}
+
+/* Large mobile */
+@media(max-width: 767px) {
+    .bd-hero { padding: .9rem 0; }
+    .bd-hero-inner { align-items: flex-start; }
+    .bd-hero-title { font-size: 1.4rem; }
+    .bd-hero-icon { width: 40px; height: 40px; border-radius: 11px; font-size: .95rem; }
+    .bd-breadcrumb { font-size: .76rem; }
+    .bd-body-wrap { margin-top: .8rem; }
+}
+
+/* Small mobile */
+@media(max-width: 480px) {
+    .bd-hero { padding: .75rem 0; }
+    .bd-hero-title { font-size: 1.2rem; }
+    .bd-hero-icon { width: 36px; height: 36px; border-radius: 10px; font-size: .85rem; }
+    .bd-breadcrumb { font-size: .72rem; gap: .3rem; margin-bottom: .3rem; }
+}
+
+/* ── Panel cards (shared) ── */
+.bd-card {
+    background: var(--surf); border-radius: var(--r-lg);
+    box-shadow: var(--sh); overflow: hidden; margin-bottom: 1.25rem;
+}
+.bd-card-head {
+    padding: 1rem 1.4rem; border-bottom: 1px solid var(--brd);
+    display: flex; align-items: center; gap: .6rem;
+    font-size: .92rem; font-weight: 800; color: var(--txt);
+}
+.bd-card-head i { color: var(--br); }
+.bd-card-body { padding: 1.4rem; }
+
+/* ── Cover image ── */
+.bd-cover {
+    width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+}
+.bd-cover-placeholder {
+    width: 100%; aspect-ratio: 16/9;
+    background: linear-gradient(135deg, var(--br-lt), #fde8d8);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 4rem; color: rgba(255,96,1,.3);
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+}
+
+/* ── Article content ── */
+.bd-article {
+    padding: 1.75rem 1.75rem 1.25rem;
+    font-size: .97rem; color: var(--txt); line-height: 1.9;
+    text-align: start;
+}
+.bd-article h1,.bd-article h2,.bd-article h3,
+.bd-article h4,.bd-article h5,.bd-article h6 {
+    color: var(--txt); font-weight: 800; margin: 1.5rem 0 .75rem; line-height: 1.3;
+}
+.bd-article h2 { font-size: 1.5rem; }
+.bd-article h3 { font-size: 1.25rem; }
+.bd-article p  { margin-bottom: 1rem; }
+.bd-article ul,.bd-article ol { padding-inline-start: 1.6rem; margin: .85rem 0; }
+.bd-article li { margin-bottom: .45rem; }
+.bd-article a  { color: var(--br); }
+.bd-article a:hover { color: var(--br-dk); }
+.bd-article strong,.bd-article b { color: var(--txt); font-weight: 700; }
+.bd-article blockquote {
+    border-inline-start: 4px solid var(--br); padding: .9rem 1.4rem;
+    margin: 1.25rem 0; background: var(--br-lt);
+    border-radius: 0 var(--r-sm) var(--r-sm) 0; font-style: italic;
+}
+.bd-article code {
+    background: var(--brd); padding: .18rem .45rem; border-radius: 5px;
+    font-size: .87em; color: var(--br-dk);
+}
+.bd-article pre { background: var(--bg); padding: 1rem; border-radius: var(--r-sm); overflow-x: auto; margin: 1rem 0; }
+.bd-article pre code { background: transparent; padding: 0; color: inherit; }
+.bd-article table { width: 100%; border-collapse: collapse; margin: 1.25rem 0; border-radius: var(--r-sm); overflow: hidden; }
+.bd-article table thead { background: var(--br); color: #fff; }
+.bd-article table th,.bd-article table td { padding: .65rem .95rem; border-bottom: 1px solid var(--brd); }
+.bd-article table tbody tr:hover { background: var(--br-lt); }
+.bd-article img { max-width: 100%; border-radius: var(--r-sm); margin: 1rem 0; box-shadow: var(--sh); }
+.bd-article hr { border: none; border-top: 2px dashed var(--brd); margin: 1.5rem 0; }
+
+/* ── Tags strip ── */
+.bd-tags { display: flex; flex-wrap: wrap; gap: .45rem; padding: 0 1.75rem 1.25rem; }
+.bd-tag {
+    display: inline-flex; align-items: center; gap: .3rem;
+    background: var(--bg); border: 1.5px solid var(--brd);
+    color: var(--muted); border-radius: 50px;
+    padding: .28rem .8rem; font-size: .77rem; font-weight: 600;
+    text-decoration: none; transition: all .2s;
+}
+.bd-tag:hover { background: var(--br-lt); border-color: rgba(255,96,1,.3); color: var(--br); }
+.bd-tag i { font-size: .68rem; }
+
+/* ── Actions bar (like + share) ── */
+.bd-actions {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+    padding: 1rem 1.75rem; border-top: 1px solid var(--brd);
+}
+.btn-like {
+    display: inline-flex; align-items: center; gap: .45rem;
+    padding: .55rem 1.1rem; border-radius: 50px; font-size: .88rem; font-weight: 700;
+    cursor: pointer; transition: all .2s; border: 2px solid #ef4444; background: transparent; color: #ef4444;
+}
+.btn-like:hover,.btn-like.active { background: #ef4444; color: #fff; }
+.btn-like.active i { animation: heartPop .3s ease; }
+@keyframes heartPop { 0%{transform:scale(1)} 50%{transform:scale(1.4)} 100%{transform:scale(1)} }
+.like-count { font-size: .83rem; color: var(--muted); font-weight: 600; }
+
+.share-wrap { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.share-lbl { font-size: .8rem; color: var(--muted); font-weight: 600; }
+.share-btn {
+    width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-size: .85rem; text-decoration: none; border: none;
+    cursor: pointer; transition: transform .2s, opacity .2s; color: #fff;
+}
+.share-btn:hover { transform: translateY(-2px); opacity: .88; }
+.share-btn.fb  { background: #1877f2; }
+.share-btn.tw  { background: #1da1f2; }
+.share-btn.li  { background: #0077b5; }
+.share-btn.wa  { background: #25d366; }
+.share-btn.cp  { background: var(--muted); }
+.share-btn.cp.copied { background: #10b981; }
+.copy-msg { font-size: .75rem; color: #10b981; font-weight: 700; display: none; }
+.copy-msg.show { display: inline; }
+
+/* ── Comments ── */
+.comment-form-wrap { margin-bottom: 1.5rem; }
+.comment-textarea {
+    width: 100%; border: 1.5px solid var(--brd); border-radius: var(--r);
+    padding: .85rem 1rem; font-size: .9rem; outline: none; resize: vertical;
+    background: var(--bg); color: var(--txt); transition: border-color .2s;
+    min-height: 100px; font-family: inherit;
+}
+.comment-textarea:focus { border-color: var(--br); }
+.btn-comment {
+    display: inline-flex; align-items: center; gap: .45rem; margin-top: .6rem;
+    background: linear-gradient(135deg, var(--br), var(--br-dk)); color: #fff;
+    border: none; border-radius: 50px; padding: .65rem 1.5rem;
+    font-size: .9rem; font-weight: 700; cursor: pointer; transition: opacity .2s, transform .2s;
+}
+.btn-comment:hover { opacity: .9; transform: translateY(-1px); }
+
+.reply-info {
+    display: flex; align-items: center; gap: .5rem; background: var(--br-lt);
+    border: 1px solid rgba(255,96,1,.2); border-radius: var(--r-sm);
+    padding: .55rem .9rem; font-size: .85rem; margin-bottom: .65rem;
+    display: none;
+}
+.reply-info a { color: var(--br); font-size: .8rem; margin-inline-start: auto; }
+
+.login-cta {
+    display: flex; align-items: center; gap: .75rem;
+    background: var(--br-lt); border: 1.5px solid rgba(255,96,1,.2);
+    border-radius: var(--r); padding: 1rem 1.25rem; font-size: .9rem; color: var(--txt);
+}
+.login-cta i { font-size: 1.3rem; color: var(--br); }
+.login-cta a { color: var(--br); font-weight: 700; }
+
+.comment-item {
+    padding: 1rem 0; border-bottom: 1px solid var(--brd);
+}
+.comment-item:last-child { border-bottom: none; }
+.comment-header { display: flex; align-items: center; gap: .75rem; margin-bottom: .6rem; }
+.comment-avatar {
+    width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+    object-fit: cover;
+}
+.comment-author { font-size: .88rem; font-weight: 700; color: var(--txt); }
+.comment-date { font-size: .75rem; color: var(--muted); display: block; margin-top: .1rem; }
+.comment-body { font-size: .88rem; color: var(--muted); line-height: 1.65; margin-bottom: .5rem; }
+.btn-reply {
+    display: inline-flex; align-items: center; gap: .3rem;
+    background: var(--bg); border: 1.5px solid var(--brd); border-radius: 50px;
+    padding: .28rem .75rem; font-size: .76rem; font-weight: 600; color: var(--muted);
+    cursor: pointer; transition: all .2s;
+}
+.btn-reply:hover { border-color: var(--br); color: var(--br); background: var(--br-lt); }
+
+.replies { padding-inline-start: 1.5rem; border-inline-start: 2px solid var(--brd); margin-top: .75rem; }
+
+.no-comments { text-align: center; padding: 2.5rem 1rem; color: var(--muted); }
+.no-comments i { font-size: 2.5rem; color: var(--br); opacity: .3; display: block; margin-bottom: .75rem; }
+
+/* ── Sidebar ── */
+.bd-sidebar-col { position: sticky; top: 90px; }
+@media(max-width:991px) { .bd-sidebar-col { position: static; } }
+
+.sidebar-grad-head {
+    background: linear-gradient(135deg, var(--br) 0%, var(--br-dk) 100%);
+    padding: 1.1rem 1.3rem; color: #fff; position: relative; overflow: hidden;
+}
+.sidebar-grad-head::before {
+    content: ''; position: absolute; top: -20px; left: -20px;
+    width: 90px; height: 90px; border-radius: 50%; background: rgba(255,255,255,.1);
+}
+.sidebar-grad-head h3 { font-size: .92rem; font-weight: 800; margin: 0; position: relative; z-index: 1; }
+.sidebar-body { padding: .85rem; }
+
+/* Author card */
+.author-card-body { padding: 1.4rem; text-align: center; }
+.author-avatar-wrap { position: relative; display: inline-block; margin-bottom: .85rem; }
+.author-avatar-wrap img,.author-avatar-wrap .av-fallback {
+    width: 72px; height: 72px; border-radius: 50%; object-fit: cover;
+    border: 3px solid var(--br-lt); display: block;
+}
+.author-avatar-wrap .av-fallback {
+    background: var(--br-lt); color: var(--br);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem; font-weight: 800;
+}
+.verified-ring {
+    position: absolute; bottom: 2px; right: 2px;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: #10b981; border: 2px solid var(--surf);
+    display: flex; align-items: center; justify-content: center;
+    font-size: .6rem; color: #fff;
+}
+.author-name { font-size: .97rem; font-weight: 800; color: var(--txt); margin-bottom: .2rem; }
+.author-rank { font-size: .78rem; color: var(--muted); }
+
+/* Cat nav */
+.cat-link {
+    display: flex; align-items: center; gap: .65rem; padding: .65rem .85rem;
+    border-radius: var(--r-sm); text-decoration: none; font-size: .85rem; font-weight: 600;
+    color: var(--txt); transition: all .2s; border: 2px solid transparent; margin-bottom: .2rem;
+}
+.cat-link:hover { background: var(--br-lt); color: var(--br); border-color: rgba(255,96,1,.15); }
+.cat-link.active { background: var(--br-lt); color: var(--br); border-color: rgba(255,96,1,.3); }
+.cat-link-icon {
+    width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0;
+    background: rgba(255,96,1,.1); color: var(--br);
+    display: flex; align-items: center; justify-content: center; font-size: .78rem;
+}
+.cat-link.active .cat-link-icon { background: var(--br); color: #fff; }
+.cat-count {
+    margin-inline-start: auto; background: var(--brd); color: var(--muted);
+    border-radius: 50px; padding: .08rem .48rem; font-size: .69rem; font-weight: 800;
+}
+.cat-link.active .cat-count { background: rgba(255,96,1,.2); color: var(--br); }
+
+/* Search in sidebar */
+.sb-search { display: flex; gap: .4rem; }
+.sb-search input {
+    flex: 1; border: 1.5px solid var(--brd); border-radius: var(--r-sm);
+    padding: .52rem .85rem; font-size: .85rem; outline: none;
+    background: var(--bg); color: var(--txt); transition: border-color .2s;
+}
+.sb-search input:focus { border-color: var(--br); }
+.sb-search button {
+    padding: .52rem .85rem; background: var(--br); color: #fff;
+    border: none; border-radius: var(--r-sm); cursor: pointer; font-size: .85rem;
+    transition: background .2s;
+}
+.sb-search button:hover { background: var(--br-dk); }
+
+/* ── Related posts ── */
+.related-section { margin-top: 2rem; }
+.related-head {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem;
+}
+.related-title { font-size: 1.1rem; font-weight: 800; color: var(--txt); display: flex; align-items: center; gap: .5rem; }
+.related-title i { color: var(--br); }
+.related-nav { display: flex; gap: .35rem; }
+.related-nav button {
+    width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--brd);
+    background: var(--surf); color: var(--muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: .78rem;
+    transition: all .2s;
+}
+.related-nav button:hover { border-color: var(--br); color: var(--br); }
+
+/* related card reuses blog-card from list */
+.rel-card {
+    background: var(--surf); border-radius: var(--r); overflow: hidden;
+    box-shadow: var(--sh); border: 2px solid transparent;
+    transition: box-shadow .25s, border-color .25s, transform .25s; cursor: pointer;
+}
+.rel-card:hover { box-shadow: var(--sh-hover); border-color: rgba(255,96,1,.25); transform: translateY(-3px); }
+.rel-card-img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; transition: transform .4s; }
+.rel-card:hover .rel-card-img { transform: scale(1.04); }
+.rel-card-img-wrap { overflow: hidden; position: relative; }
+.rel-card-img-placeholder {
+    width: 100%; aspect-ratio: 16/9; background: linear-gradient(135deg, var(--br-lt), #fde8d8);
+    display: flex; align-items: center; justify-content: center; font-size: 2rem; color: rgba(255,96,1,.3);
+}
+.rel-card-body { padding: .9rem 1rem; }
+.rel-card-title {
+    font-size: .88rem; font-weight: 700; color: var(--txt);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    text-decoration: none; transition: color .2s; line-height: 1.4;
+}
+.rel-card-title:hover { color: var(--br); }
+.rel-card-meta { font-size: .74rem; color: var(--muted); margin-top: .5rem; display: flex; gap: .6rem; }
+</style>
 {% endblock %}
 
 {% block content %}
-    <section class="blog-detail-section py-5">
-        <div class="container">
-            <!-- Back to Blogs Link -->
-            <div class="mb-4">
-                <a href="{% url 'content:blog_list' %}" class="btn btn-outline-primary">
-                    <i class="fas fa-arrow-right me-2"></i>
-                    {% trans "الرجوع إلى كل المدونات" %}
-                </a>
-            </div>
+<div class="bd-page">
 
-            <div class="row g-lg-5">
-                <!-- Left Column: Main Blog Content -->
-                <div class="col-lg-8">
-                    <!-- Blog Title Header -->
-                    <div class="blog-title-header">
-                        <h1 class="blog-title-main">{{ blog.title }}</h1>
-                        <div class="blog-meta-info">
-                            <span><i class="fas fa-clock"></i> {% trans "نشر في" %}: {{ blog.published_date|date:"d M, Y" }}</span>
-                            <span><i class="fas fa-user-edit"></i> {{ blog.author.get_full_name|default:blog.author.username }}</span>
-                        </div>
+    <!-- ═══ HERO ═══ -->
+    <div class="bd-hero">
+        <div class="container">
+            <div class="bd-hero-inner">
+                <div class="bd-hero-main">
+                    <div class="bd-breadcrumb">
+                        <a href="{% url 'main:home' %}"><i class="fas fa-home"></i></a>
+                        <span class="sep"><i class="fas fa-chevron-left"></i></span>
+                        <a href="{% url 'content:blog_list' %}">{% trans "المدونة" %}</a>
+                        {% if blog.category %}
+                        <span class="sep"><i class="fas fa-chevron-left"></i></span>
+                        <a href="{% url 'content:blog_list_by_category' blog.category.slug %}">{{ blog.category.name }}</a>
+                        {% endif %}
+                        <span class="sep"><i class="fas fa-chevron-left"></i></span>
+                        <span class="current">{{ blog.title|truncatewords:6 }}</span>
                     </div>
-                    <!-- Blog Image Gallery with Swiper -->
-                    {% if blog.image %}
-                        <div class="blog-image-gallery-container mb-4">
-                            <!-- Main Swiper -->
-                            <div class="swiper blog-gallery-swiper">
-                                <div class="swiper-wrapper">
-                                    <div class="swiper-slide">
-                                        <img src="{{ blog.image.url }}" alt="{{ blog.title }}" />
-                                    </div>
-                                    {# Add more slides here if you have multiple images in the future #}
-                                </div>
-                                <div class="swiper-button-next"></div>
-                                <div class="swiper-button-prev"></div>
+                    <h1 class="bd-hero-title">{{ blog.title }}</h1>
+                </div>
+                <span class="bd-hero-icon" aria-hidden="true"><i class="fas fa-th-large"></i></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ BODY ═══ -->
+    <div class="bd-body-wrap">
+        <div class="container">
+            <div class="bd-layout">
+
+                <!-- ── Main column ── -->
+                <div>
+
+                    <!-- Article card -->
+                    <div class="bd-card" style="margin-bottom:1.25rem">
+                        {% if blog.image %}
+                        <img src="{{ blog.image.url }}" alt="{{ blog.title }}" class="bd-cover" loading="eager">
+                        {% else %}
+                        <div class="bd-cover-placeholder"><i class="fas fa-pen-nib"></i></div>
+                        {% endif %}
+
+                        <div class="bd-article">
+                            {% autoescape off %}{{ blog.get_safe_content }}{% endautoescape %}
+                        </div>
+
+                        {% if blog.tags.all %}
+                        <div class="bd-tags">
+                            {% for tag in blog.tags.all %}
+                            <a href="{% url 'content:blog_list_by_tag' tag.slug %}" class="bd-tag">
+                                <i class="fas fa-hashtag"></i>{{ tag.name }}
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <!-- Actions -->
+                        <div class="bd-actions">
+                            <div style="display:flex;align-items:center;gap:.75rem">
+                                {% if user.is_authenticated %}
+                                <button id="like-btn" class="btn-like {% if user in blog.likes.all %}active{% endif %}"
+                                        data-slug="{{ blog.slug }}">
+                                    <i class="{% if user in blog.likes.all %}fas{% else %}far{% endif %} fa-heart"></i>
+                                    {% trans "إعجاب" %}
+                                </button>
+                                {% else %}
+                                <a href="{% url 'main:login' %}?next={{ request.path }}" class="btn-like">
+                                    <i class="far fa-heart"></i>{% trans "إعجاب" %}
+                                </a>
+                                {% endif %}
+                                <span id="like-count" class="like-count">{{ blog.likes.count }} {% trans "إعجاب" %}</span>
                             </div>
-                            <!-- Thumbnail Swiper (hidden if only one image) -->
-                            <div class="swiper blog-thumbnails-swiper mt-2" style="display: none;">
-                                <div class="swiper-wrapper">
-                                    <div class="swiper-slide">
-                                        <img src="{{ blog.image.url }}" alt="{{ blog.title }} - thumbnail" />
-                                    </div>
-                                    {# Add more thumbnail slides here if you have multiple images #}
-                                </div>
-                            </div>
-                        </div>
-                    {% endif %}
-                    <!-- Blog Content Card -->
-                    <div class="blog-content-card">
-                        <div class="card-header">
-                            <h4 class="card-title-main">
-                                <i class="fas fa-file-alt me-2"></i>{% trans "محتوى المقال" %}
-                            </h4>
-                        </div>
-                        <div class="card-body">
-                            {% autoescape off %}
-                            <div class="blog-content-text">{{ blog.get_safe_content }}</div>
-                            {% endautoescape %}
-                        </div>
-                        <div class="card-footer">
-                            <!-- Like and Share Actions -->
-                            <div class="blog-actions-wrapper">
-                                <div class="blog-like-action">
-                                    {% if user.is_authenticated %}
-                                        <button id="like-btn"
-                                                class="btn btn-sm btn-outline-danger blog-like-btn
-                                                       {% if user in blog.likes.all %}active{% endif %}"
-                                                data-slug="{{ blog.slug }}">
-                                            <i class="fa fa-heart"></i> {% trans "إعجاب" %}
-                                        </button>
-                                    {% else %}
-                                        <a href="{% url 'main:login' %}?next={{ request.path }}"
-                                           class="btn btn-sm btn-outline-danger blog-like-btn">
-                                            <i class="fa fa-heart"></i> {% trans "إعجاب" %}
-                                        </a>
-                                    {% endif %}
-                                    <span id="like-count" class="blog-like-count">{{ blog.likes.count }} {% trans "إعجابات" %}</span>
-                                </div>
-                                <div class="blog-share-action">
-                                    <span class="blog-share-label">
-                                        <i class="fas fa-share-alt me-1"></i>{% trans "مشاركة:" %}
-                                    </span>
-                                    <a href="https://www.facebook.com/sharer/sharer.php?u={{ encoded_url }}"
-                                       target="_blank"
-                                       class="blog-share-btn facebook"
-                                       aria-label="Share on Facebook"><i class="fab fa-facebook-f"></i></a>
-                                    <a href="https://twitter.com/intent/tweet?url={{ encoded_url }}&text={{ encoded_title }}"
-                                       target="_blank"
-                                       class="blog-share-btn twitter"
-                                       aria-label="Share on Twitter"><i class="fab fa-twitter"></i></a>
-                                    <a href="https://www.linkedin.com/shareArticle?mini=true&url={{ encoded_url }}&title={{ encoded_title }}"
-                                       target="_blank"
-                                       class="blog-share-btn linkedin"
-                                       aria-label="Share on LinkedIn"><i class="fab fa-linkedin-in"></i></a>
-                                    <a href="https://api.whatsapp.com/send?text={{ encoded_title }}%20{{ encoded_url }}"
-                                       target="_blank"
-                                       class="blog-share-btn whatsapp"
-                                       aria-label="Share on WhatsApp"><i class="fab fa-whatsapp"></i></a>
-                                    <button id="copy-link-btn"
-                                            class="blog-share-btn copy-link"
-                                            data-url="{{ full_url }}"
-                                            aria-label="{% trans 'نسخ الرابط' %}">
-                                        <i class="fa fa-link"></i>
-                                    </button>
-                                    <span id="copy-link-success" class="blog-copy-success-message">{% trans "تم النسخ!" %}</span>
-                                </div>
+
+                            <div class="share-wrap">
+                                <span class="share-lbl"><i class="fas fa-share-alt"></i> {% trans "مشاركة:" %}</span>
+                                <a href="https://www.facebook.com/sharer/sharer.php?u={{ encoded_url }}"
+                                   target="_blank" class="share-btn fb" onclick="openShare(event,this.href)"><i class="fab fa-facebook-f"></i></a>
+                                <a href="https://twitter.com/intent/tweet?url={{ encoded_url }}&text={{ encoded_title }}"
+                                   target="_blank" class="share-btn tw" onclick="openShare(event,this.href)"><i class="fab fa-twitter"></i></a>
+                                <a href="https://www.linkedin.com/shareArticle?mini=true&url={{ encoded_url }}&title={{ encoded_title }}"
+                                   target="_blank" class="share-btn li" onclick="openShare(event,this.href)"><i class="fab fa-linkedin-in"></i></a>
+                                <a href="https://api.whatsapp.com/send?text={{ encoded_title }}%20{{ encoded_url }}"
+                                   target="_blank" class="share-btn wa" onclick="openShare(event,this.href)"><i class="fab fa-whatsapp"></i></a>
+                                <button id="copy-btn" class="share-btn cp" data-url="{{ full_url }}">
+                                    <i class="fas fa-link"></i>
+                                </button>
+                                <span id="copy-msg" class="copy-msg">{% trans "تم النسخ!" %}</span>
                             </div>
                         </div>
                     </div>
-                    <!-- Comments Card -->
-                    <div class="blog-comments-card">
-                        <div class="card-header">
-                            <h4 class="card-title-main">
-                                <i class="fas fa-comments me-2"></i>{% trans "التعليقات" %} ({{ blog.comments.count }})
-                            </h4>
+
+                    <!-- Comments -->
+                    <div class="bd-card">
+                        <div class="bd-card-head">
+                            <i class="fas fa-comments"></i>
+                            {% trans "التعليقات" %} <span style="background:var(--br-lt);color:var(--br);border-radius:50px;padding:.1rem .55rem;font-size:.75rem;font-weight:800;margin-inline-start:.3rem">{{ blog.comments.count }}</span>
                         </div>
-                        <div class="card-body">
+                        <div class="bd-card-body">
+
                             {% if user.is_authenticated %}
-                                <form method="post" class="blog-comment-form" id="comment-form">
+                            <div class="comment-form-wrap">
+                                <form method="post" id="comment-form">
                                     {% csrf_token %}
-                                    <p id="reply-to-info"
-                                       class="blog-comment-reply-info"
-                                       style="display:none">
+                                    <div id="reply-to-info" class="reply-info">
+                                        <i class="fas fa-reply" style="color:var(--br)"></i>
                                         {% trans "الرد على" %} <strong id="reply-to-user"></strong>
-                                        <a href="#" id="cancel-reply" class="blog-comment-cancel-reply">({% trans "إلغاء" %})</a>
-                                    </p>
+                                        <a href="#" id="cancel-reply">{% trans "إلغاء" %}</a>
+                                    </div>
                                     {{ form.body }}
                                     {{ form.parent_id }}
-                                    <button type="submit" class="btn btn-custom btn-primary-custom mt-2">
-                                        <i class="fas fa-paper-plane me-2"></i>{% trans "نشر التعليق" %}
+                                    <button type="submit" class="btn-comment">
+                                        <i class="fas fa-paper-plane"></i>{% trans "نشر التعليق" %}
                                     </button>
                                 </form>
+                            </div>
                             {% else %}
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    {% trans "الرجاء" %}
-                                    <a href="{% url 'main:login' %}?next={{ request.path }}"
-                                       class="alert-link">
-                                        <i class="fas fa-sign-in-alt me-1"></i>{% trans "تسجيل الدخول" %}
-                                    </a>
-                                    {% trans "لنشر تعليق." %}
-                                </div>
+                            <div class="login-cta">
+                                <i class="fas fa-user-circle"></i>
+                                <span>
+                                    {% trans "يرجى" %}
+                                    <a href="{% url 'main:login' %}?next={{ request.path }}">{% trans "تسجيل الدخول" %}</a>
+                                    {% trans "لنشر تعليق" %}
+                                </span>
+                            </div>
                             {% endif %}
-                            <div class="blog-comment-list mt-4">
+
+                            <div id="comment-list">
                                 {% for comment in blog.comments.all %}
-                                    {% if comment.parent is None and comment.active %}
-                                        <div class="blog-comment-item" id="comment-{{ comment.id }}">
-                                            <div class="blog-comment-header">
-                                                <div class="blog-comment-author">
-                                                    {% user_avatar user=comment.author size=40 css_class="rounded-circle" %}
-                                                    <div>
-                                                        <strong>{{ comment.author.get_display_name }}</strong>
-                                                        <span class="blog-comment-date">
-                                                            <i class="fas fa-clock me-1"></i>{{ comment.created_on|date:"d M, Y - H:i" }}
-                                                        </span>
-                                                    </div>
+                                {% if comment.parent is None and comment.active %}
+                                <div class="comment-item" id="comment-{{ comment.id }}">
+                                    <div class="comment-header">
+                                        {% user_avatar user=comment.author size=38 css_class="comment-avatar" %}
+                                        <div>
+                                            <div class="comment-author">{{ comment.author.get_display_name }}</div>
+                                            <span class="comment-date"><i class="fas fa-clock"></i> {{ comment.created_on|date:"d M Y · H:i" }}</span>
+                                        </div>
+                                    </div>
+                                    {% autoescape off %}<div class="comment-body">{{ comment.body }}</div>{% endautoescape %}
+                                    {% if user.is_authenticated %}
+                                    <button class="btn-reply btn-reply-trigger" data-comment-id="{{ comment.id }}">
+                                        <i class="fas fa-reply"></i>{% trans "رد" %}
+                                    </button>
+                                    {% endif %}
+                                    {% if comment.replies.all %}
+                                    <div class="replies">
+                                        {% for reply in comment.replies.all %}{% if reply.active %}
+                                        <div class="comment-item" id="comment-{{ reply.id }}">
+                                            <div class="comment-header">
+                                                {% user_avatar user=reply.author size=34 css_class="comment-avatar" %}
+                                                <div>
+                                                    <div class="comment-author">{{ reply.author.get_display_name }}</div>
+                                                    <span class="comment-date"><i class="fas fa-clock"></i> {{ reply.created_on|date:"d M Y · H:i" }}</span>
                                                 </div>
                                             </div>
-                                            {% autoescape off %}
-                                            <div class="blog-comment-body">{{ comment.body }}</div>
-                                            {% endautoescape %}
-                                            {% if user.is_authenticated %}
-                                                <button class="btn btn-sm btn-outline-secondary blog-comment-reply-btn btn-reply"
-                                                        data-comment-id="{{ comment.id }}">
-                                                    <i class="fas fa-reply me-1"></i> {% trans "رد" %}
-                                                </button>
-                                            {% endif %}
-                                            <!-- Nested Replies -->
-                                            <div class="blog-comment-replies replies">
-                                                {% for reply in comment.replies.all %}
-                                                    {% if reply.active %}
-                                                        <div class="blog-comment-item" id="comment-{{ reply.id }}">
-                                                            <div class="blog-comment-header">
-                                                                <div class="blog-comment-author">
-                                                                    {% user_avatar user=reply.author size=35 css_class="rounded-circle" %}
-                                                                    <div>
-                                                                        <strong>{{ reply.author.get_display_name }}</strong>
-                                                                        <span class="blog-comment-date">
-                                                                            <i class="fas fa-clock me-1"></i>{{ reply.created_on|date:"d M, Y - H:i" }}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            {% autoescape off %}
-                                                            <div class="blog-comment-body">{{ reply.body }}</div>
-                                                            {% endautoescape %}
-                                                        </div>
-                                                    {% endif %}
-                                                {% endfor %}
-                                            </div>
+                                            {% autoescape off %}<div class="comment-body">{{ reply.body }}</div>{% endautoescape %}
                                         </div>
-                                    {% endif %}
-                                {% empty %}
-                                    <div class="blog-empty-state">
-                                        <i class="fas fa-comments"></i>
-                                        <p>{% trans "لا توجد تعليقات بعد. كن أول من يعلق!" %}</p>
+                                        {% endif %}{% endfor %}
                                     </div>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                                {% empty %}
+                                <div class="no-comments">
+                                    <i class="fas fa-comments"></i>
+                                    <p>{% trans "لا توجد تعليقات بعد. كن أول من يعلق!" %}</p>
+                                </div>
                                 {% endfor %}
                             </div>
+
                         </div>
                     </div>
+
                 </div>
-                <!-- Right Column: Sidebar -->
-                <div class="col-lg-4">
-                    <div class="blog-sidebar-wrapper">
-                        <!-- Author Card -->
-                        <div class="blog-author-card">
-                            <div class="card-header">
-                                <h5 class="card-title-main">
-                                    <i class="fas fa-user-circle me-2"></i>{% trans "عن الكاتب" %}
-                                </h5>
-                            </div>
-                            <div class="card-body text-center">
-                                {% user_avatar user=blog.author size=80 css_class="rounded-circle mb-3" %}
-                                <h6 class="blog-author-name">{{ blog.author.get_display_name }}</h6>
-                                <small class="text-muted d-block mb-2">{{ blog.author.get_rank_display }}</small>
+
+                <!-- ── Sidebar ── -->
+                <div class="bd-sidebar-col">
+
+                    <!-- Author -->
+                    <div class="bd-card">
+                        <div class="sidebar-grad-head">
+                            <h3><i class="fas fa-user-circle me-2" style="opacity:.85"></i>{% trans "عن الكاتب" %}</h3>
+                        </div>
+                        <div class="author-card-body">
+                            <div class="author-avatar-wrap">
+                                {% user_avatar user=blog.author size=72 css_class="comment-avatar" %}
                                 {% if blog.author.verification_status == 'verified' %}
-                                    <span class="badge badge-verified">
-                                        <i class="fas fa-check-circle me-1"></i>
-                                        {% trans "كاتب موثق" %}
-                                    </span>
+                                <span class="verified-ring"><i class="fas fa-check"></i></span>
                                 {% endif %}
                             </div>
-                        </div>
-                        <!-- Search Section -->
-                        <div class="blog-sidebar-card">
-                            <h3 class="blog-sidebar-title">
-                                <i class="fas fa-search me-2"></i>{% trans "بحث" %}
-                            </h3>
-                            <form method="get" action="{% url 'content:blog_list' %}">
-                                <div class="input-group">
-                                    <input type="text" name="q" class="form-control"
-                                           placeholder="{% trans 'ابحث في المقالات...' %}"
-                                           value="{{ request.GET.q|default:'' }}">
-                                    <button class="btn btn-primary" type="submit">
-                                        <i class="fas fa-search"></i>
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                        <!-- Categories Section -->
-                        <div class="blog-sidebar-card">
-                            <h3 class="blog-sidebar-title">
-                                <i class="fas fa-folder me-2"></i>{% trans "الفئات" %}
-                            </h3>
-                            <div class="blog-categories-list">
-                                {% for category in blog_categories %}
-                                    <a href="{% url 'content:blog_list_by_category' category.slug %}" class="blog-category-item">
-                                        <i class="fas fa-folder-open me-2"></i>
-                                        <span>{{ category.name }}</span>
-                                        <span class="category-count">({{ category.blog_count }})</span>
-                                    </a>
-                                {% empty %}
-                                    <p class="text-muted">{% trans "لا توجد فئات بعد." %}</p>
-                                {% endfor %}
-                            </div>
+                            <div class="author-name">{{ blog.author.get_display_name }}</div>
+                            <div class="author-rank">{{ blog.author.get_rank_display }}</div>
                         </div>
                     </div>
-                </div>
-            </div>
-            <!-- Related Posts Section -->
-            {% if related_posts %}
-                <div class="blog-related-posts-section">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h3 class="blog-related-posts-title mb-0">
-                            <i class="fas fa-newspaper me-2"></i>{% trans "منشورات ذات صلة" %}
-                        </h3>
-                        <div class="related-swiper-navigation">
-                            <button class="related-swiper-button-prev">
-                                <i class="fas fa-chevron-right"></i>
-                            </button>
-                            <button class="related-swiper-button-next">
-                                <i class="fas fa-chevron-left"></i>
-                            </button>
+
+                    <!-- Categories -->
+                    <div class="bd-card">
+                        <div class="sidebar-grad-head">
+                            <h3><i class="fas fa-folder me-2" style="opacity:.85"></i>{% trans "الفئات" %}</h3>
                         </div>
-                    </div>
-                    <div class="swiper related-blogs-swiper">
-                        <div class="swiper-wrapper">
-                            {% for post in related_posts %}
-                                <div class="swiper-slide">
-                                    <article class="blog-post-card h-100 clickable-card" onclick="window.location.href='{{ post.get_absolute_url }}'" style="cursor: pointer;">
-                                        <div class="card-img-container">
-                                            {% if post.image %}
-                                                <img src="{{ post.image.url }}"
-                                                     class="card-img-top"
-                                                     alt="{{ post.title }}"
-                                                     loading="lazy">
-                                            {% else %}
-                                                <img src="https://via.placeholder.com/400x250/6366f1/ffffff?text=Blog+Post"
-                                                     class="card-img-top"
-                                                     alt="Blog placeholder"
-                                                     loading="lazy">
-                                            {% endif %}
-                                        </div>
-                                        <div class="card-body">
-                                            <!-- Blog Category -->
-                                            {% if post.category %}
-                                                <div class="blog-category-badge mb-2">
-                                                    <span class="badge" style="background-color: {{ post.category.color }};">
-                                                        <i class="{{ post.category.icon }} me-1"></i>
-                                                        {{ post.category.name }}
-                                                    </span>
-                                                </div>
-                                            {% endif %}
-                                            <!-- Tags -->
-                                            <div class="mb-2">
-                                                {% for tag in post.tags.all|slice:":2" %}
-                                                    <a href="{% url 'content:blog_list_by_tag' tag.slug %}" class="blog-tag">
-                                                        <i class="fas fa-tag me-1"></i>{{ tag.name }}
-                                                    </a>
-                                                {% endfor %}
-                                            </div>
-                                            <!-- Blog Title -->
-                                            <h5 class="card-title">
-                                                <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
-                                            </h5>
-                                            <!-- Blog Excerpt -->
-                                            <p class="card-text">{{ post.content|striptags|truncatewords:15 }}</p>
-                                        </div>
-                                        <!-- Blog Footer -->
-                                        <div class="card-footer">
-                                            <div class="blog-footer-info">
-                                                <div class="blog-author-details">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-user-edit"></i>
-                                                        {{ post.author.get_full_name|default:post.author.username }}
-                                                    </small>
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-calendar-alt"></i>
-                                                        {{ post.published_date|date:"Y-m-d" }}
-                                                    </small>
-                                                </div>
-                                                <div class="blog-stats">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-eye"></i>
-                                                        {{ post.views_count }}
-                                                    </small>
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-heart"></i>
-                                                        {{ post.get_likes_count }}
-                                                    </small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </article>
-                                </div>
+                        <div class="sidebar-body">
+                            {% for category in blog_categories %}
+                            <a href="{% url 'content:blog_list_by_category' category.slug %}"
+                               class="cat-link {% if blog.category and blog.category.pk == category.pk %}active{% endif %}">
+                                <span class="cat-link-icon">
+                                    <i class="{{ category.icon|default:'fas fa-folder' }}"></i>
+                                </span>
+                                <span>{{ category.name }}</span>
+                                <span class="cat-count">{{ category.blog_count }}</span>
+                            </a>
+                            {% empty %}
+                            <p style="color:var(--muted);font-size:.84rem;padding:.5rem .25rem">{% trans "لا توجد فئات" %}</p>
                             {% endfor %}
                         </div>
                     </div>
-                </div>
-            {% endif %}
-        </div>
-    </section>
 
+                    <!-- Search -->
+                    <div class="bd-card">
+                        <div class="sidebar-grad-head">
+                            <h3><i class="fas fa-search me-2" style="opacity:.85"></i>{% trans "بحث" %}</h3>
+                        </div>
+                        <div class="sidebar-body">
+                            <form method="get" action="{% url 'content:blog_list' %}">
+                                <div class="sb-search">
+                                    <input type="text" name="q" placeholder="{% trans 'ابحث في المقالات …' %}"
+                                           value="{{ request.GET.q|default:'' }}">
+                                    <button type="submit"><i class="fas fa-search"></i></button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- ═══ Related posts ═══ -->
+            {% if related_posts %}
+            <div class="related-section">
+                <div class="related-head">
+                    <div class="related-title">
+                        <i class="fas fa-newspaper"></i>{% trans "مقالات ذات صلة" %}
+                    </div>
+                    <div class="related-nav">
+                        <button class="rel-prev"><i class="fas fa-chevron-right"></i></button>
+                        <button class="rel-next"><i class="fas fa-chevron-left"></i></button>
+                    </div>
+                </div>
+                <div class="swiper related-swiper">
+                    <div class="swiper-wrapper">
+                        {% for post in related_posts %}
+                        <div class="swiper-slide">
+                            <div class="rel-card" onclick="window.location.href='{{ post.get_absolute_url }}'">
+                                <div class="rel-card-img-wrap">
+                                    {% if post.image %}
+                                    <img src="{{ post.image.url }}" alt="{{ post.title }}" class="rel-card-img" loading="lazy">
+                                    {% else %}
+                                    <div class="rel-card-img-placeholder"><i class="fas fa-pen-nib"></i></div>
+                                    {% endif %}
+                                </div>
+                                <div class="rel-card-body">
+                                    <a href="{{ post.get_absolute_url }}" class="rel-card-title"
+                                       onclick="event.stopPropagation()">{{ post.title }}</a>
+                                    <div class="rel-card-meta">
+                                        <span><i class="fas fa-eye" style="color:var(--br)"></i> {{ post.views_count }}</span>
+                                        <span><i class="fas fa-heart" style="color:var(--br)"></i> {{ post.get_likes_count }}</span>
+                                        <span><i class="fas fa-calendar" style="color:var(--br)"></i> {{ post.published_date|date:"d/m/Y" }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+</div>
 {% endblock %}
 
 {% block extra_js %}
-    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialize Swiper for blog gallery
-            {% if blog.image %}
-            // Check if there are multiple images (for future support)
-            const mainSlides = document.querySelectorAll('.blog-gallery-swiper .swiper-slide');
-            const hasMulitpleImages = mainSlides.length > 1;
+<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
 
-            if (hasMulitpleImages) {
-                // Show thumbnails if multiple images
-                document.querySelector('.blog-thumbnails-swiper').style.display = 'block';
+    /* ── Related swiper ── */
+    {% if related_posts %}
+    new Swiper('.related-swiper', {
+        slidesPerView: 1, spaceBetween: 16, loop: true,
+        autoplay: { delay: 4500, disableOnInteraction: false },
+        navigation: { nextEl: '.rel-next', prevEl: '.rel-prev' },
+        breakpoints: { 576: { slidesPerView: 2 }, 992: { slidesPerView: 3 } }
+    });
+    {% endif %}
 
-                // Initialize thumbnail swiper
-                const thumbsSwiper = new Swiper('.blog-thumbnails-swiper', {
-                    spaceBetween: 10,
-                    slidesPerView: 4,
-                    freeMode: true,
-                    watchSlidesProgress: true,
-                });
-
-                // Initialize main gallery swiper with thumbnails
-                const gallerySwiper = new Swiper('.blog-gallery-swiper', {
-                    spaceBetween: 10,
-                    navigation: {
-                        nextEl: '.swiper-button-next',
-                        prevEl: '.swiper-button-prev',
-                    },
-                    thumbs: {
-                        swiper: thumbsSwiper,
-                    },
-                });
-            } else {
-                // Single image - hide navigation buttons
-                const navButtons = document.querySelectorAll('.blog-gallery-swiper .swiper-button-next, .blog-gallery-swiper .swiper-button-prev');
-                navButtons.forEach(btn => btn.style.display = 'none');
-
-                // Initialize simple swiper without navigation
-                const gallerySwiper = new Swiper('.blog-gallery-swiper', {
-                    spaceBetween: 10,
-                });
-            }
-            {% endif %}
-
-            // Like button functionality
-            const likeBtn = document.getElementById('like-btn');
-            if (likeBtn) {
-                likeBtn.addEventListener('click', function() {
-                    const slug = this.dataset.slug;
-                    const url = "{% url 'content:blog_like' blog.slug %}";
-
-                    // Get CSRF token from cookie or meta tag
-                    function getCookie(name) {
-                        let cookieValue = null;
-                        if (document.cookie && document.cookie !== '') {
-                            const cookies = document.cookie.split(';');
-                            for (let i = 0; i < cookies.length; i++) {
-                                const cookie = cookies[i].trim();
-                                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                                    break;
-                                }
-                            }
-                        }
-                        return cookieValue;
-                    }
-
-                    const csrfToken = getCookie('csrftoken');
-
-                    // Disable button during request
-                    likeBtn.disabled = true;
-
-                    fetch(url, {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRFToken': csrfToken,
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'Content-Type': 'application/json'
-                            },
-                            credentials: 'same-origin'
-                        })
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error('Network response was not ok');
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            if (data.success) {
-                                document.getElementById('like-count').textContent = data.like_count + ' {% trans "إعجابات" %}';
-                                likeBtn.classList.toggle('active', data.liked);
-                            } else {
-                                console.error('Error:', data.error);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            alert('{% trans "حدث خطأ أثناء تسجيل الإعجاب" %}');
-                        })
-                        .finally(() => {
-                            // Re-enable button
-                            likeBtn.disabled = false;
-                        });
-                });
-            }
-
-            // Initialize Related Blogs Swiper
-            {% if related_posts %}
-            const relatedBlogsSwiper = new Swiper('.related-blogs-swiper', {
-                slidesPerView: 1,
-                spaceBetween: 20,
-                loop: true,
-                autoplay: {
-                    delay: 4000,
-                    disableOnInteraction: false,
-                },
-                speed: 800,
-                navigation: {
-                    nextEl: '.related-swiper-button-next',
-                    prevEl: '.related-swiper-button-prev',
-                },
-                breakpoints: {
-                    576: {
-                        slidesPerView: 2,
-                        spaceBetween: 20,
-                    },
-                    992: {
-                        slidesPerView: 3,
-                        spaceBetween: 30,
-                    },
-                },
-            });
-            {% endif %}
-
-            // Share button pop-up
-            const shareButtons = document.querySelectorAll('.blog-share-btn:not(.copy-link)');
-            for (const button of shareButtons) {
-                button.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    window.open(this.href, 'share-window', 'height=450,width=550,toolbar=0,location=0,menubar=0,directories=0,scrollbars=0');
-                });
-            }
-
-            // Copy link functionality
-            const copyBtn = document.getElementById('copy-link-btn');
-            const copySuccessMsg = document.getElementById('copy-link-success');
-            if (copyBtn) {
-                copyBtn.addEventListener('click', function() {
-                    navigator.clipboard.writeText(this.dataset.url).then(() => {
-                        copySuccessMsg.classList.add('show');
-                        setTimeout(() => copySuccessMsg.classList.remove('show'), 2000);
-                    }).catch(err => console.error('Failed to copy: ', err));
-                });
-            }
-
-            // Nested comments functionality
-            const commentForm = document.getElementById('comment-form');
-            const parentIdInput = document.querySelector('input[name="parent_id"]');
-            const replyToInfo = document.getElementById('reply-to-info');
-            const replyToUser = document.getElementById('reply-to-user');
-            const cancelReplyBtn = document.getElementById('cancel-reply');
-
-            const replyButtons = document.querySelectorAll('.btn-reply');
-            for (const button of replyButtons) {
-                button.addEventListener('click', function() {
-                    const commentId = this.getAttribute('data-comment-id');
-                    const commentElement = document.getElementById('comment-' + commentId);
-                    const author = commentElement.querySelector('.blog-comment-author strong').innerText;
-                    parentIdInput.value = commentId;
-                    replyToUser.innerText = author;
-                    replyToInfo.style.display = 'block';
-                    commentElement.querySelector('.replies').prepend(commentForm);
-                    commentForm.querySelector('textarea').focus();
-                });
-            }
-
-            if (cancelReplyBtn) {
-                cancelReplyBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    parentIdInput.value = '';
-                    replyToInfo.style.display = 'none';
-                    const cardBody = document.querySelector('.blog-comments-card .card-body');
-                    const commentList = cardBody.querySelector('.blog-comment-list');
-                    cardBody.insertBefore(commentForm, commentList);
-                });
-            }
+    /* ── Like ── */
+    const likeBtn = document.getElementById('like-btn');
+    if (likeBtn) {
+        likeBtn.addEventListener('click', function() {
+            this.disabled = true;
+            const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+            fetch("{% url 'content:blog_like' blog.slug %}", {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json' },
+                credentials: 'same-origin'
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) {
+                    document.getElementById('like-count').textContent = d.like_count + ' {% trans "إعجاب" %}';
+                    likeBtn.classList.toggle('active', d.liked);
+                    likeBtn.querySelector('i').className = d.liked ? 'fas fa-heart' : 'far fa-heart';
+                }
+            })
+            .finally(() => { this.disabled = false; });
         });
-    </script>
-    {{ form.media.js }}
+    }
+
+    /* ── Share popup ── */
+    window.openShare = function(e, url) {
+        e.preventDefault();
+        window.open(url, 'share', 'height=450,width=550,toolbar=0,menubar=0,scrollbars=0');
+    };
+
+    /* ── Copy link ── */
+    const copyBtn = document.getElementById('copy-btn');
+    const copyMsg = document.getElementById('copy-msg');
+    if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(copyBtn.dataset.url).then(() => {
+                copyBtn.classList.add('copied');
+                copyMsg.classList.add('show');
+                setTimeout(() => { copyBtn.classList.remove('copied'); copyMsg.classList.remove('show'); }, 2200);
+            });
+        });
+    }
+
+    /* ── Nested comments ── */
+    const commentForm = document.getElementById('comment-form');
+    const parentInput = commentForm?.querySelector('input[name="parent_id"]');
+    const replyInfo   = document.getElementById('reply-to-info');
+    const replyUser   = document.getElementById('reply-to-user');
+    const cancelReply = document.getElementById('cancel-reply');
+    const commentList = document.getElementById('comment-list');
+
+    document.querySelectorAll('.btn-reply-trigger').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id   = this.dataset.commentId;
+            const item = document.getElementById('comment-' + id);
+            const name = item.querySelector('.comment-author').textContent.trim();
+            if (parentInput) parentInput.value = id;
+            if (replyUser)  replyUser.textContent = name;
+            if (replyInfo)  replyInfo.style.display = 'flex';
+            const repliesEl = item.querySelector('.replies') || item;
+            repliesEl.prepend(commentForm);
+            commentForm.querySelector('textarea,input[type="text"]')?.focus();
+        });
+    });
+
+    if (cancelReply) {
+        cancelReply.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (parentInput) parentInput.value = '';
+            if (replyInfo)   replyInfo.style.display = 'none';
+            commentList?.prepend(commentForm);
+        });
+    }
+
+});
+</script>
+{{ form.media.js }}
 {% endblock %}

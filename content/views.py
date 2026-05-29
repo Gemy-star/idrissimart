@@ -4,7 +4,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
 from django.db import models
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse_lazy
@@ -34,10 +34,13 @@ class BlogListView(ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["recent_blogs"] = Blog.objects.filter(is_published=True)[:5]
-        # Get all categories
-        context["categories"] = BlogCategory.objects.filter(is_active=True).order_by(
-            "order", "name"
-        )
+        # Use a dedicated context key to avoid collision with global category context processors.
+        blog_categories = BlogCategory.objects.filter(is_active=True).annotate(
+            blog_count=Count("blogs", filter=Q(blogs__is_published=True))
+        ).order_by("order", "name")
+        context["blog_categories"] = blog_categories
+        # Keep legacy key for any older template usage.
+        context["categories"] = blog_categories
         # Get all tags for the "All Tags" section
         context["all_tags"] = Tag.objects.all()
         # Get top 10 most popular tags
@@ -131,11 +134,9 @@ class BlogDetailView(SingleObjectMixin, FormView):
         # Get blog categories with blog counts
         from .models import BlogCategory
 
-        blog_categories = (
-            BlogCategory.objects.filter(blogs__is_published=True)
-            .annotate(blog_count=Count("blogs"))
-            .order_by("-blog_count")
-        )
+        blog_categories = BlogCategory.objects.filter(is_active=True).annotate(
+            blog_count=Count("blogs", filter=Q(blogs__is_published=True))
+        ).order_by("order", "name")
         context["blog_categories"] = blog_categories
 
         # Add social share URLs

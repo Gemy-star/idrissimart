@@ -1,247 +1,492 @@
 {% extends "base.html" %}
-
 {% load static i18n %}
 
-{% block title %}
-    {% trans "المدونة" %}
-
-{% endblock %}
-
-{% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/blog.css' %}">
-
-{% endblock %}
-
+{% block title %}{% trans "المدونة" %} | {% trans "إدريسي مارت" %}{% endblock %}
 {% block robots %}noindex, follow{% endblock %}
 
-{% block content %}
-    <!-- Page Hero Section -->
-    <section class="blog-hero-section">
-        <div class="container">
-            <div class="blog-hero-content">
-                <h1 class="blog-hero-title">{% trans "المدونة" %}</h1>
-                <p class="blog-hero-subtitle">{% trans "اكتشف أحدث المقالات والمنشورات" %}</p>
-            </div>
-        </div>
-    </section>
-    <section class="blog-listing-section py-5">
-        <div class="container">
-            <div class="row">
-                <!-- Sidebar -->
-                <div class="col-lg-3">
-                    <div class="blog-sidebar-wrapper">
-                        <!-- Search Section -->
-                        <div class="blog-sidebar-card">
-                            <h3 class="blog-sidebar-title">
-                                <i class="fas fa-search me-2"></i>{% trans "بحث" %}
-                            </h3>
-                            <form method="get" action="{% url 'content:blog_list' %}">
-                                <div class="input-group">
-                                    <input type="text" name="q" class="form-control"
-                                           placeholder="{% trans 'ابحث في عناوين المقالات...' %}"
-                                           value="{{ request.GET.q|default:'' }}">
-                                    <button class="btn btn-primary" type="submit">
-                                        <i class="fas fa-search"></i>
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                        <!-- Categories Section -->
-                        <div class="blog-sidebar-card">
-                            <h3 class="blog-sidebar-title">
-                                <i class="fas fa-folder me-2"></i>{% trans "الفئات" %}
-                            </h3>
-                            <div class="blog-categories-list">
-                                {% if categories %}
-                                    {% for category in categories %}
-                                        <a href="{% url 'content:blog_list_by_category' category.slug %}"
-                                           class="blog-category-item {% if current_category and current_category.pk == category.pk %}active{% endif %}">
-                                            <i class="{{ category.icon }}" style="color: {{ category.color }};"></i>
-                                            <span>{{ category.name }}</span>
-                                            <span class="badge bg-secondary">{{ category.get_blogs_count }}</span>
-                                        </a>
-                                    {% endfor %}
-                                {% else %}
-                                    <p class="text-muted">{% trans "لا توجد فئات بعد." %}</p>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- Main Content Area -->
-                <div class="col-lg-9">
-                    <!-- All Posts Section -->
-                    <section class="all-blogs">
-                        {% if current_tag %}
-                            <div class="alert alert-info d-flex justify-content-between align-items-center">
-                                <span>
-                                    <i class="fas fa-tag me-2"></i>
-                                    {% trans "عرض المنشورات بوسم:" %} <strong>{{ current_tag.name }}</strong>
-                                </span>
-                                <a href="{% url 'content:blog_list' %}" class="btn btn-sm btn-outline-secondary">
-                                    <i class="fas fa-times me-1"></i>
-                                    {% trans "إلغاء الفلتر" %}
-                                </a>
-                            </div>
-                        {% endif %}
-                        <h2 class="blog-section-title">
-                            {% if current_tag %}
-                                {% trans "منشورات" %} {{ current_tag.name }}
-                            {% else %}
-                                {% trans "جميع المنشورات" %}
-                            {% endif %}
-                        </h2>
-                        <div class="row g-4">
-                            {% for blog in blogs %}
-                                <div class="col-12 col-sm-6 col-lg-4">
-                                    <article class="blog-post-card h-100 gsap-fade-up clickable-card" onclick="window.location.href='{{ blog.get_absolute_url }}'" style="cursor: pointer;">
-                                        <div class="card-img-container">
-                                            {% if blog.image %}
-                                                <img src="{{ blog.image.url }}"
-                                                     class="card-img-top"
-                                                     alt="{{ blog.title }}"
-                                                     loading="lazy">
-                                            {% else %}
-                                                <img src="https://via.placeholder.com/400x250/6366f1/ffffff?text=Blog+Post"
-                                                     class="card-img-top"
-                                                     alt="Blog placeholder"
-                                                     loading="lazy">
-                                            {% endif %}
-                                        </div>
+{% block extra_css %}
+<style>
+:root {
+    --br: #ff6001; --br-dk: #d94e00; --br-lt: #fff4ee; --br-glow: rgba(255,96,1,.22);
+    --bg: #f5f6fa; --surf: #fff; --brd: #e8ecf0; --txt: #1a1f2e; --muted: #6b7280;
+    --r: 18px; --r-sm: 10px; --r-lg: 24px;
+    --sh: 0 4px 24px rgba(0,0,0,.07); --sh-hover: 0 8px 32px rgba(0,0,0,.12);
+}
+:is([data-bs-theme='dark'], [data-theme='dark'], html[data-theme='dark'], html.dark, .dark-theme) {
+    --bg: #0f1523; --surf: #141c2d; --brd: rgba(255,255,255,.1);
+    --txt: #eef2ff; --muted: #94a3b8; --br-lt: rgba(255,96,1,.12);
+    --sh: 0 4px 24px rgba(0,0,0,.35); --sh-hover: 0 8px 32px rgba(0,0,0,.5);
+}
 
-                                        <div class="card-body">
-                                            <!-- Blog Category -->
-                                            {% if blog.category %}
-                                                <div class="blog-category-badge mb-2">
-                                                    <span class="badge" style="background-color: {{ blog.category.color }};">
-                                                        <i class="{{ blog.category.icon }} me-1"></i>
-                                                        {{ blog.category.name }}
-                                                    </span>
-                                                </div>
-                                            {% endif %}
+/* ── Page ── */
+.blog-page { background: var(--bg); min-height: 100vh; }
 
-                                            <!-- Blog Title -->
-                                            <h3 class="card-title">
-                                                <a href="{{ blog.get_absolute_url }}">{{ blog.title }}</a>
-                                            </h3>
+/* ── Hero ── */
+.blog-hero {
+    background: #0f1d3a;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    padding: 1rem 0;
+}
+.blog-hero-inner {
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+.blog-hero-main {
+    min-width: 0;
+}
+.blog-hero-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    color: rgba(255,255,255,.72);
+    font-size: .82rem;
+    margin-bottom: .45rem;
+    flex-wrap: wrap;
+}
+.blog-hero-breadcrumb a {
+    color: rgba(255,255,255,.82);
+    text-decoration: none;
+}
+.blog-hero-breadcrumb a:hover {
+    color: #fff;
+}
+.blog-hero-breadcrumb .sep {
+    opacity: .55;
+    font-size: .7rem;
+}
+.blog-hero-title {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(1.35rem, 2.6vw, 2.1rem);
+    font-weight: 900;
+    line-height: 1.2;
+}
+.blog-hero-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #ff7a1f, #ff6001);
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(255,96,1,.34);
+    flex: 0 0 auto;
+}
 
-                                            <!-- Blog Excerpt -->
-                                            <p class="card-text">{{ blog.content|striptags|truncatewords:15 }}</p>
+/* ── Body offset ── */
+.blog-body-wrap { margin-top: 1.1rem; padding: 0 0 5rem; position: relative; z-index: 2; }
 
-                                            <!-- Read More Button -->
-                                            <div class="mt-auto">
-                                                <a href="{{ blog.get_absolute_url }}" class="btn btn-outline-primary btn-sm read-more-btn">
-                                                    {% trans "اقرأ المزيد" %}
-                                                    <i class="fas fa-arrow-left ms-2"></i>
-                                                </a>
-                                            </div>
-                                        </div>
+/* Large desktop */
+@media(min-width: 1400px) {
+    .blog-hero { padding: 1.6rem 0; }
+    .blog-hero-title { font-size: 2.3rem; }
+    .blog-hero-icon { width: 56px; height: 56px; border-radius: 16px; font-size: 1.3rem; }
+}
 
-                                        <!-- Blog Footer -->
-                                        <div class="card-footer">
-                                            <div class="blog-footer-info">
-                                                <div class="blog-author-details">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-user-edit"></i>
-                                                        {{ blog.author.get_full_name|default:blog.author.username }}
-                                                    </small>
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-calendar-alt"></i>
-                                                        {{ blog.published_date|date:"Y-m-d" }}
-                                                    </small>
-                                                </div>
-                                                <div class="blog-stats">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-eye"></i>
-                                                        {{ blog.views_count }}
-                                                    </small>
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-heart"></i>
-                                                        {{ blog.get_likes_count }}
-                                                    </small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </article>
-                                </div>
-                            {% empty %}
-                                <div class="col-12">
-                                    <div class="alert alert-info text-center">{% trans "لا توجد منشورات بعد." %}</div>
-                                </div>
-                            {% endfor %}
-                        </div>
-                        <!-- Pagination -->
-                        {% if is_paginated %}
-                            <nav aria-label="Page navigation" class="blog-pagination mt-5">
-                                <ul class="pagination">
-                                    {% if page_obj.has_previous %}
-                                        <li class="page-item">
-                                            <a class="page-link"
-                                               href="{% if current_tag %}{% url 'content:blog_list_by_tag' current_tag.slug %}?page={{ page_obj.previous_page_number }}{% else %}?page={{ page_obj.previous_page_number }}{% endif %}"
-                                               aria-label="{% trans 'السابق' %}">
-                                                <span aria-hidden="true">&laquo;</span>
-                                            </a>
-                                        </li>
-                                    {% else %}
-                                        <li class="page-item disabled">
-                                            <span class="page-link" aria-hidden="true">&laquo;</span>
-                                        </li>
-                                    {% endif %}
-                                    {% for num in page_obj.paginator.page_range %}
-                                        {% if page_obj.number == num %}
-                                            <li class="page-item active">
-                                                <span class="page-link">{{ num }}</span>
-                                            </li>
-                                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                                            <li class="page-item">
-                                                <a class="page-link" href="{% if current_tag %}{% url 'content:blog_list_by_tag' current_tag.slug %}?page={{ num }}{% else %}?page={{ num }}{% endif %}">{{ num }}</a>
-                                            </li>
-                                        {% endif %}
-                                    {% endfor %}
-                                    {% if page_obj.has_next %}
-                                        <li class="page-item">
-                                            <a class="page-link"
-                                               href="{% if current_tag %}{% url 'content:blog_list_by_tag' current_tag.slug %}?page={{ page_obj.next_page_number }}{% else %}?page={{ page_obj.next_page_number }}{% endif %}"
-                                               aria-label="{% trans 'التالي' %}">
-                                                <span aria-hidden="true">&raquo;</span>
-                                            </a>
-                                        </li>
-                                    {% else %}
-                                        <li class="page-item disabled">
-                                            <span class="page-link" aria-hidden="true">&raquo;</span>
-                                        </li>
-                                    {% endif %}
-                                </ul>
-                            </nav>
-                        {% endif %}
-                    </section>
-                </div>
-            </div>
-        </div>
-    </section>
+/* Small desktop / tablet landscape */
+@media(max-width: 1199px) {
+    .blog-hero { padding: 1.1rem 0; }
+    .blog-hero-title { font-size: clamp(1.3rem, 2.2vw, 1.9rem); }
+}
 
+/* Tablet portrait */
+@media(max-width: 991px) {
+    .blog-hero { padding: 1rem 0; }
+    .blog-hero-inner { gap: .75rem; }
+    .blog-hero-title { font-size: 1.65rem; }
+    .blog-hero-icon { width: 44px; height: 44px; border-radius: 12px; }
+    .blog-body-wrap { margin-top: .9rem; }
+}
+
+/* Large mobile */
+@media(max-width: 767px) {
+    .blog-hero { padding: .9rem 0; }
+    .blog-hero-inner { align-items: flex-start; }
+    .blog-hero-title { font-size: 1.45rem; }
+    .blog-hero-icon { width: 40px; height: 40px; border-radius: 11px; font-size: .95rem; }
+    .blog-hero-breadcrumb { font-size: .78rem; }
+    .blog-body-wrap { margin-top: .8rem; }
+}
+
+/* Small mobile */
+@media(max-width: 480px) {
+    .blog-hero { padding: .75rem 0; }
+    .blog-hero-title { font-size: 1.25rem; }
+    .blog-hero-icon { width: 36px; height: 36px; border-radius: 10px; font-size: .85rem; }
+    .blog-hero-breadcrumb { font-size: .74rem; gap: .3rem; margin-bottom: .3rem; }
+}
+
+/* ── Layout grid ── */
+.blog-grid { display: grid; grid-template-columns: 280px 1fr; gap: 1.5rem; align-items: start; }
+@media(max-width:991px) { .blog-grid { grid-template-columns: 1fr; } }
+
+/* ── Sidebar ── */
+.blog-sidebar-col { position: sticky; top: 90px; }
+@media(max-width:991px) { .blog-sidebar-col { position: static; } }
+
+.sidebar-card {
+    background: var(--surf); border-radius: var(--r-lg);
+    box-shadow: 0 8px 40px rgba(0,0,0,.1); overflow: hidden; margin-bottom: 1.25rem;
+}
+.sidebar-head {
+    background: linear-gradient(135deg, var(--br) 0%, var(--br-dk) 100%);
+    padding: 1.15rem 1.4rem; color: #fff; position: relative; overflow: hidden;
+}
+.sidebar-head::before {
+    content: ''; position: absolute; top: -24px; left: -24px;
+    width: 100px; height: 100px; border-radius: 50%; background: rgba(255,255,255,.1);
+}
+.sidebar-head h3 { font-size: .95rem; font-weight: 800; margin: 0; position: relative; z-index: 1; }
+.sidebar-body { padding: .85rem; }
+
+/* Search inside sidebar */
+.sb-search-wrap { display: flex; gap: .45rem; }
+.sb-search-input {
+    flex: 1; border: 1.5px solid var(--brd); border-radius: var(--r-sm);
+    padding: .55rem .9rem; font-size: .87rem; outline: none;
+    background: var(--bg); color: var(--txt); transition: border-color .2s;
+}
+.sb-search-input:focus { border-color: var(--br); }
+.sb-search-btn {
+    padding: .55rem .9rem; background: var(--br); color: #fff;
+    border: none; border-radius: var(--r-sm); cursor: pointer; font-size: .87rem;
+    transition: background .2s;
+}
+.sb-search-btn:hover { background: var(--br-dk); }
+
+/* Category nav items */
+.cat-link {
+    display: flex; align-items: center; gap: .7rem;
+    padding: .7rem .9rem; border-radius: var(--r-sm);
+    text-decoration: none; font-size: .87rem; font-weight: 600;
+    color: var(--txt); transition: all .2s; border: 2px solid transparent;
+    margin-bottom: .25rem;
+}
+.cat-link:hover { background: var(--br-lt); color: var(--br); border-color: rgba(255,96,1,.15); }
+.cat-link.active { background: var(--br-lt); color: var(--br); border-color: rgba(255,96,1,.3); }
+.cat-link-icon {
+    width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+    background: rgba(255,96,1,.1); color: var(--br);
+    display: flex; align-items: center; justify-content: center; font-size: .82rem;
+    transition: all .2s;
+}
+.cat-link.active .cat-link-icon { background: var(--br); color: #fff; }
+.cat-count {
+    margin-inline-start: auto; background: var(--brd); color: var(--muted);
+    border-radius: 50px; padding: .1rem .5rem; font-size: .71rem; font-weight: 800;
+}
+.cat-link.active .cat-count { background: rgba(255,96,1,.2); color: var(--br); }
+.cat-all-link { border-top: 1px solid var(--brd); margin-top: .5rem; padding-top: .75rem; }
+
+/* ── Toolbar (results bar) ── */
+.blog-toolbar {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .6rem;
+    background: var(--surf); border-radius: var(--r); padding: .9rem 1.3rem;
+    box-shadow: var(--sh); margin-bottom: 1rem;
+}
+.toolbar-count { display: flex; align-items: center; gap: .5rem; font-size: .92rem; font-weight: 700; color: var(--txt); }
+.toolbar-badge { background: var(--br-lt); color: var(--br); border-radius: 50px; padding: .15rem .65rem; font-size: .78rem; font-weight: 800; }
+.active-filter-chip {
+    display: inline-flex; align-items: center; gap: .35rem;
+    background: var(--br-lt); border: 1px solid rgba(255,96,1,.25);
+    color: var(--br); border-radius: 50px; padding: .25rem .75rem; font-size: .8rem; font-weight: 600;
+}
+.active-filter-chip a { color: var(--br); opacity: .65; text-decoration: none; margin-inline-start: .2rem; }
+.active-filter-chip a:hover { opacity: 1; }
+
+/* ── Blog Cards ── */
+.blog-cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1rem; }
+@media(max-width:1200px) { .blog-cards-grid { grid-template-columns: repeat(2, 1fr); } }
+@media(max-width:640px)  { .blog-cards-grid { grid-template-columns: 1fr; } }
+
+.blog-card {
+    background: var(--surf); border-radius: var(--r); overflow: hidden;
+    box-shadow: var(--sh); border: 2px solid transparent;
+    transition: box-shadow .25s, border-color .25s, transform .25s;
+    animation: cardIn .35s ease both; display: flex; flex-direction: column;
+    cursor: pointer;
+}
+.blog-card:hover { box-shadow: var(--sh-hover); border-color: rgba(255,96,1,.25); transform: translateY(-3px); }
+.blog-card:nth-child(1){animation-delay:.04s} .blog-card:nth-child(2){animation-delay:.09s}
+.blog-card:nth-child(3){animation-delay:.14s} .blog-card:nth-child(n+4){animation-delay:.18s}
+@keyframes cardIn { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+
+/* Card image */
+.blog-card-img {
+    width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block;
+    transition: transform .4s ease;
+}
+.blog-card:hover .blog-card-img { transform: scale(1.04); }
+.blog-card-img-wrap { overflow: hidden; position: relative; }
+.blog-card-img-placeholder {
+    width: 100%; aspect-ratio: 16/9; background: linear-gradient(135deg, var(--br-lt), #fde8d8);
+    display: flex; align-items: center; justify-content: center; font-size: 2.5rem;
+    color: rgba(255,96,1,.35);
+}
+
+/* Category badge over image */
+.blog-card-cat {
+    position: absolute; top: .75rem; right: .75rem;
+    display: inline-flex; align-items: center; gap: .3rem;
+    background: rgba(255,255,255,.92); backdrop-filter: blur(8px);
+    border-radius: 50px; padding: .25rem .75rem; font-size: .74rem; font-weight: 700;
+    color: var(--txt); box-shadow: 0 2px 8px rgba(0,0,0,.12);
+}
+[dir="ltr"] .blog-card-cat { right: auto; left: .75rem; }
+
+/* Card body */
+.blog-card-body { padding: 1.1rem 1.2rem; flex: 1; display: flex; flex-direction: column; gap: .5rem; }
+.blog-card-title {
+    font-size: .97rem; font-weight: 800; color: var(--txt);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; text-decoration: none; line-height: 1.45; transition: color .2s;
+}
+.blog-card-title:hover { color: var(--br); }
+.blog-card-excerpt {
+    font-size: .83rem; color: var(--muted); line-height: 1.6; flex: 1;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* Card footer */
+.blog-card-footer {
+    padding: .75rem 1.2rem; border-top: 1px solid var(--brd);
+    display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+}
+.blog-meta { display: flex; align-items: center; gap: .6rem; font-size: .76rem; color: var(--muted); flex-wrap: wrap; }
+.blog-meta-sep { color: var(--brd); }
+.blog-stats { display: flex; align-items: center; gap: .7rem; font-size: .76rem; color: var(--muted); }
+.blog-stats i { color: var(--br); }
+.btn-read {
+    display: inline-flex; align-items: center; gap: .3rem;
+    background: var(--br-lt); color: var(--br); border: 1.5px solid rgba(255,96,1,.2);
+    border-radius: 50px; padding: .3rem .85rem; font-size: .78rem; font-weight: 700;
+    text-decoration: none; transition: all .2s; white-space: nowrap;
+}
+.btn-read:hover { background: var(--br); color: #fff; border-color: var(--br); }
+
+/* ── Empty state ── */
+.blog-empty {
+    background: var(--surf); border-radius: var(--r-lg); padding: 5rem 2rem;
+    text-align: center; box-shadow: var(--sh);
+}
+.blog-empty-icon {
+    width: 100px; height: 100px; margin: 0 auto 1.5rem; border-radius: 50%;
+    background: var(--br-lt); color: var(--br);
+    display: flex; align-items: center; justify-content: center; font-size: 2.6rem;
+    position: relative;
+}
+.blog-empty-icon::before {
+    content: ''; position: absolute; inset: -8px; border-radius: 50%;
+    border: 2px dashed rgba(255,96,1,.3); animation: spin 14s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.blog-empty h3 { font-size: 1.4rem; font-weight: 800; color: var(--txt); margin-bottom: .45rem; }
+.blog-empty p  { color: var(--muted); font-size: .92rem; max-width: 340px; margin: 0 auto; }
+
+/* ── Pagination ── */
+.blog-pag { display: flex; justify-content: center; gap: .4rem; flex-wrap: wrap; margin-top: 2rem; }
+.blog-pag a, .blog-pag span {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 38px; height: 38px; border-radius: var(--r-sm);
+    font-size: .87rem; font-weight: 600; text-decoration: none;
+    border: 1.5px solid var(--brd); background: var(--surf); color: var(--muted);
+    transition: all .2s; padding: 0 .6rem;
+}
+.blog-pag a:hover { border-color: var(--br); color: var(--br); background: var(--br-lt); }
+.blog-pag .current {
+    background: linear-gradient(135deg, var(--br), var(--br-dk));
+    border-color: transparent; color: #fff;
+}
+.blog-pag .disabled { opacity: .4; pointer-events: none; }
+</style>
 {% endblock %}
 
-{% block extra_js %}
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // GSAP Animations
-            if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
-                gsap.registerPlugin(ScrollTrigger);
-                gsap.utils.toArray('.gsap-fade-up').forEach(card => {
-                    gsap.from(card, {
-                        opacity: 0,
-                        y: 50,
-                        duration: 0.8,
-                        scrollTrigger: {
-                            trigger: card,
-                            start: 'top 85%',
-                            toggleActions: 'play none none none',
-                        }
-                    });
-                });
-            }
-        });
-    </script>
+{% block content %}
+<div class="blog-page">
 
+    <!-- ═══ HERO ═══ -->
+    <div class="blog-hero">
+        <div class="container">
+            <div class="blog-hero-inner">
+                <div class="blog-hero-main">
+                    <div class="blog-hero-breadcrumb">
+                        <a href="{% url 'main:home' %}"><i class="fas fa-home"></i></a>
+                        <span class="sep"><i class="fas fa-chevron-left"></i></span>
+                        <span>{% trans "المدونة" %}</span>
+                    </div>
+                    <h1 class="blog-hero-title">{% trans "أحدث المقالات والمنشورات" %}</h1>
+                </div>
+                <span class="blog-hero-icon" aria-hidden="true"><i class="fas fa-th-large"></i></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ BODY ═══ -->
+    <div class="blog-body-wrap">
+        <div class="container">
+            <div class="blog-grid">
+
+                <!-- ── Sidebar ── -->
+                <div class="blog-sidebar-col">
+
+                    <!-- Categories -->
+                    <div class="sidebar-card">
+                        <div class="sidebar-head">
+                            <h3><i class="fas fa-folder me-2" style="opacity:.85"></i>{% trans "الفئات" %}</h3>
+                        </div>
+                        <div class="sidebar-body">
+                            <a href="{% url 'content:blog_list' %}"
+                               class="cat-link cat-all-link {% if not current_category %}active{% endif %}">
+                                <span class="cat-link-icon"><i class="fas fa-th-large"></i></span>
+                                <span>{% trans "جميع المقالات" %}</span>
+                                <span class="cat-count">{{ blogs.paginator.count|default:0 }}</span>
+                            </a>
+                            {% for category in blog_categories %}
+                            <a href="{% url 'content:blog_list_by_category' category.slug %}"
+                               class="cat-link {% if current_category and current_category.pk == category.pk %}active{% endif %}">
+                                <span class="cat-link-icon">
+                                    <i class="{{ category.icon|default:'fas fa-folder' }}"
+                                       {% if category.color %}style="color:{{ category.color }}"{% endif %}></i>
+                                </span>
+                                <span>{{ category.name }}</span>
+                                <span class="cat-count">{{ category.blog_count|default:0 }}</span>
+                            </a>
+                            {% empty %}
+                            <p style="color:var(--muted);font-size:.85rem;padding:.5rem .25rem">{% trans "لا توجد فئات" %}</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- ── Main content ── -->
+                <div>
+
+                    <!-- Toolbar -->
+                    <div class="blog-toolbar">
+                        <span class="toolbar-count">
+                            <i class="fas fa-newspaper" style="color:var(--br)"></i>
+                            {% if current_tag %}
+                                {% trans "وسم" %}: <strong>{{ current_tag.name }}</strong>
+                            {% elif current_category %}
+                                {{ current_category.name }}
+                            {% elif request.GET.q %}
+                                {% trans "نتائج" %}: <strong>{{ request.GET.q }}</strong>
+                            {% else %}
+                                {% trans "جميع المقالات" %}
+                            {% endif %}
+                            <span class="toolbar-badge">{{ page_obj.paginator.count|default:0 }}</span>
+                        </span>
+
+                        {% if current_tag or current_category or request.GET.q %}
+                        <span class="active-filter-chip">
+                            {% if current_tag %}<i class="fas fa-tag"></i>{{ current_tag.name }}{% endif %}
+                            {% if current_category %}<i class="fas fa-folder"></i>{{ current_category.name }}{% endif %}
+                            {% if request.GET.q %}<i class="fas fa-search"></i>{{ request.GET.q }}{% endif %}
+                            <a href="{% url 'content:blog_list' %}" title="{% trans 'إزالة الفلتر' %}"><i class="fas fa-times"></i></a>
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Cards grid -->
+                    {% if blogs %}
+                    <div class="blog-cards-grid">
+                        {% for blog in blogs %}
+                        <div class="blog-card" onclick="window.location.href='{{ blog.get_absolute_url }}'">
+
+                            <div class="blog-card-img-wrap">
+                                {% if blog.image %}
+                                <img src="{{ blog.image.url }}" alt="{{ blog.title }}" class="blog-card-img" loading="lazy">
+                                {% else %}
+                                <div class="blog-card-img-placeholder"><i class="fas fa-pen-nib"></i></div>
+                                {% endif %}
+
+                                {% if blog.category %}
+                                <span class="blog-card-cat">
+                                    <i class="{{ blog.category.icon|default:'fas fa-folder' }}"
+                                       {% if blog.category.color %}style="color:{{ blog.category.color }}"{% endif %}></i>
+                                    {{ blog.category.name }}
+                                </span>
+                                {% endif %}
+                            </div>
+
+                            <div class="blog-card-body">
+                                <a href="{{ blog.get_absolute_url }}" class="blog-card-title"
+                                   onclick="event.stopPropagation()">{{ blog.title }}</a>
+                                <p class="blog-card-excerpt">{{ blog.content|striptags|truncatewords:18 }}</p>
+                            </div>
+
+                            <div class="blog-card-footer">
+                                <div class="blog-meta">
+                                    <i class="fas fa-user-edit" style="color:var(--br)"></i>
+                                    {{ blog.author.get_full_name|default:blog.author.username }}
+                                    <span class="blog-meta-sep">·</span>
+                                    <i class="fas fa-calendar-alt" style="color:var(--br)"></i>
+                                    {{ blog.published_date|date:"Y/m/d" }}
+                                </div>
+                                <div class="blog-stats">
+                                    <span><i class="fas fa-eye"></i> {{ blog.views_count }}</span>
+                                    <span><i class="fas fa-heart"></i> {{ blog.get_likes_count }}</span>
+                                </div>
+                            </div>
+
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    {% else %}
+                    <div class="blog-empty">
+                        <div class="blog-empty-icon"><i class="fas fa-newspaper"></i></div>
+                        <h3>{% trans "لا توجد مقالات" %}</h3>
+                        <p>
+                            {% if request.GET.q %}
+                            {% blocktrans with q=request.GET.q %}لم يُعثر على مقالات تطابق "{{ q }}"{% endblocktrans %}
+                            {% else %}
+                            {% trans "لم يتم نشر أي مقالات حتى الآن. تابعنا قريباً!" %}
+                            {% endif %}
+                        </p>
+                    </div>
+                    {% endif %}
+
+                    <!-- Pagination -->
+                    {% if is_paginated %}
+                    <div class="blog-pag">
+                        {% if page_obj.has_previous %}
+                        <a href="?{% if current_tag %}{% else %}{% endif %}page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                        {% else %}
+                        <span class="disabled"><i class="fas fa-chevron-right"></i></span>
+                        {% endif %}
+
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <span class="current">{{ num }}</span>
+                            {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" or num == 1 or num == page_obj.paginator.num_pages %}
+                                <a href="?page={{ num }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">{{ num }}</a>
+                            {% elif num == page_obj.number|add:"-3" or num == page_obj.number|add:"3" %}
+                                <span>…</span>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                        {% else %}
+                        <span class="disabled"><i class="fas fa-chevron-left"></i></span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
 {% endblock %}
