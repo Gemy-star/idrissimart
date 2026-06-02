@@ -514,7 +514,7 @@ class RegisterView(CreateView):
             if user.profile_type != User.ProfileType.PUBLISHER:
                 user.profile_type = User.ProfileType.PUBLISHER
 
-            publisher_group, _ = Group.objects.get_or_create(name="publisher")
+            publisher_group, _created = Group.objects.get_or_create(name="publisher")
             user.save(update_fields=["profile_type"])
             user.groups.add(publisher_group)
 
