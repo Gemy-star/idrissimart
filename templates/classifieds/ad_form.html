@@ -1788,7 +1788,7 @@
                                                 <option value="">{% trans "اختر الدولة..." %}</option>
                                                 {% for country in countries %}
                                                     <option value="{{ country.id }}"
-                                                        {% if form.country.value == country.id %}selected
+                                                        {% if form.country.value|stringformat:"s" == country.id|stringformat:"s" %}selected
                                                         {% elif not form.country.value and country.code == selected_country|default:'SA' %}selected{% endif %}>
                                                         {{ country.flag_emoji }} {{ country.name }}
                                                     </option>
@@ -3720,6 +3720,7 @@
             // ========== Dynamic City Loading Based on Country ==========
             const countrySelect = document.getElementById('{{ form.country.id_for_label }}');
             const citySelect = document.getElementById('{{ form.city.id_for_label }}');
+            const preferredCityValue = '{{ form.city.value|default_if_none:""|escapejs }}' || '{{ form.initial.city|default_if_none:""|escapejs }}';
 
             if (countrySelect && citySelect) {
                 countrySelect.addEventListener('change', function() {
@@ -3827,10 +3828,16 @@
                                 citySelect.disabled = false;
                             }
 
-                            // Restore previous value if editing
-                            const previousCityValue = '{{ form.city.value|default:"" }}';
-                            if (previousCityValue) {
-                                citySelect.value = previousCityValue;
+                            // Restore preferred city value (user city on create, posted value on validation errors, current value on edit)
+                            if (preferredCityValue) {
+                                const hasPreferredCity = Array.from(citySelect.options).some(option => option.value === preferredCityValue);
+                                if (!hasPreferredCity) {
+                                    const option = document.createElement('option');
+                                    option.value = preferredCityValue;
+                                    option.textContent = preferredCityValue;
+                                    citySelect.appendChild(option);
+                                }
+                                citySelect.value = preferredCityValue;
                             }
                         })
                         .catch(error => {

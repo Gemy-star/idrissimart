@@ -760,3 +760,101 @@ class Newsletter(models.Model):
         """Update last_notification_sent timestamp"""
         self.last_notification_sent = timezone.now()
         self.save(update_fields=["last_notification_sent", "updated_at"])
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# إدريسي تيوب
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TubeCategory(models.Model):
+    name    = models.CharField(max_length=100, verbose_name=_("الاسم"))
+    name_en = models.CharField(max_length=100, blank=True, verbose_name=_("الاسم بالإنجليزية"))
+    slug    = models.SlugField(max_length=120, unique=True, blank=True)
+    icon    = models.CharField(max_length=60, blank=True, default="fas fa-play-circle",
+                               verbose_name=_("أيقونة FontAwesome"))
+    color   = models.CharField(max_length=7, default="#e63946", verbose_name=_("لون HEX"))
+    order   = models.IntegerField(default=0, verbose_name=_("الترتيب"))
+    is_active = models.BooleanField(default=True, verbose_name=_("نشطة"))
+
+    class Meta:
+        verbose_name = _("فئة إدريسي تيوب")
+        verbose_name_plural = _("فئات إدريسي تيوب")
+        ordering = ["order", "name"]
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            from django.utils.text import slugify
+            base = slugify(self.name_en or self.name, allow_unicode=True) or f"cat-{self.pk or 'new'}"
+            self.slug = base
+        super().save(*args, **kwargs)
+
+    @property
+    def display_name(self):
+        from django.utils.translation import get_language
+        if get_language() == "ar" or not self.name_en:
+            return self.name
+        return self.name_en or self.name
+
+
+class TubeVideo(models.Model):
+    title      = models.CharField(max_length=200, verbose_name=_("العنوان"))
+    title_en   = models.CharField(max_length=200, blank=True, verbose_name=_("العنوان بالإنجليزية"))
+    description    = models.TextField(blank=True, verbose_name=_("الوصف"))
+    description_en = models.TextField(blank=True, verbose_name=_("الوصف بالإنجليزية"))
+    category   = models.ForeignKey(TubeCategory, on_delete=models.SET_NULL,
+                                   null=True, blank=True, related_name="videos",
+                                   verbose_name=_("الفئة"))
+    # يمكن تضمين يوتيوب / فيميو / رابط مباشر
+    video_url  = models.URLField(verbose_name=_("رابط الفيديو"),
+                                  help_text=_("رابط YouTube أو Vimeo أو رابط مباشر mp4"))
+    thumbnail  = models.ImageField(upload_to="tube/thumbnails/", blank=True, null=True,
+                                    verbose_name=_("صورة مصغرة (اختياري)"))
+    duration   = models.CharField(max_length=20, blank=True, verbose_name=_("المدة مثل 12:30"))
+    views_count = models.PositiveIntegerField(default=0, verbose_name=_("المشاهدات"))
+    is_published = models.BooleanField(default=True, verbose_name=_("منشور"))
+    order      = models.IntegerField(default=0, verbose_name=_("الترتيب"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("فيديو إدريسي تيوب")
+        verbose_name_plural = _("فيديوهات إدريسي تيوب")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def display_title(self):
+        from django.utils.translation import get_language
+        if get_language() == "ar" or not self.title_en:
+            return self.title
+        return self.title_en or self.title
+
+    @property
+    def display_description(self):
+        from django.utils.translation import get_language
+        if get_language() == "ar" or not self.description_en:
+            return self.description
+        return self.description_en or self.description
+
+    def get_embed_url(self):
+        """Convert watch URL to embed URL for YouTube/Vimeo."""
+        import re
+        url = self.video_url or ""
+        # YouTube
+        yt = re.search(r"(?:youtube\.com/watch\?v=|youtu\.be/)([A-Za-z0-9_-]{11})", url)
+        if yt:
+            return f"https://www.youtube.com/embed/{yt.group(1)}?rel=0&autoplay=1"
+        # Vimeo
+        vm = re.search(r"vimeo\.com/(\d+)", url)
+        if vm:
+            return f"https://player.vimeo.com/video/{vm.group(1)}?autoplay=1"
+        return url  # direct mp4 or other
+
+    def increment_views(self):
+        self.views_count += 1
+        self.save(update_fields=["views_count"])

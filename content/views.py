@@ -474,3 +474,50 @@ def get_client_ip(request):
     else:
         ip = request.META.get("REMOTE_ADDR")
     return ip
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# إدريسي تيوب
+# ──────────────────────────────────────────────────────────────────────────────
+
+from django.views.generic import ListView
+from django.http import JsonResponse
+from .models import TubeCategory, TubeVideo
+
+
+class TubeView(ListView):
+    """صفحة إدريسي تيوب — كل الفيديوهات في صفحة واحدة مع بحث وتصفية."""
+
+    model = TubeVideo
+    template_name = "pages/tube.html"
+    context_object_name = "videos"
+    paginate_by = 12
+
+    def get_queryset(self):
+        qs = TubeVideo.objects.filter(is_published=True).select_related("category")
+        cat_slug = self.kwargs.get("category_slug") or self.request.GET.get("category", "")
+        if cat_slug:
+            qs = qs.filter(category__slug=cat_slug)
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(title__icontains=q) | qs.filter(title_en__icontains=q) | qs.filter(description__icontains=q)
+        return qs.order_by("order", "-created_at")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["categories"] = TubeCategory.objects.filter(is_active=True)
+        ctx["search_query"] = self.request.GET.get("q", "")
+        ctx["active_category"] = self.kwargs.get("category_slug") or self.request.GET.get("category", "")
+        return ctx
+
+
+def tube_increment_views(request, pk):
+    """AJAX endpoint to increment video view count."""
+    if request.method == "POST":
+        try:
+            video = TubeVideo.objects.get(pk=pk, is_published=True)
+            video.increment_views()
+            return JsonResponse({"success": True, "views": video.views_count})
+        except TubeVideo.DoesNotExist:
+            pass
+    return JsonResponse({"success": False}, status=400)

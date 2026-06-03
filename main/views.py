@@ -123,6 +123,14 @@ class HomeView(TemplateView):
             .select_related("author")
         )
 
+        # إدريسي تيوب — أحدث 6 فيديوهات للصفحة الرئيسية
+        from content.models import TubeVideo
+        context["latest_tube_videos"] = (
+            TubeVideo.objects.filter(is_published=True)
+            .select_related("category")
+            .order_by("order", "-created_at")[:6]
+        )
+
         # Get paid banners for homepage
         from main.models import PaidBanner, AdSenseSlot, BannerSlot
 
@@ -388,7 +396,7 @@ class CategoriesView(FilterView):
                 parent_category = None
 
         # If no parent_id, check if we have a category slug (from URL or query param)
-        if not parent_category:
+        if not parent_category and not current_category:
             category_slug = self.kwargs.get("category_slug") or self.request.GET.get(
                 "category"
             )
@@ -401,8 +409,13 @@ class CategoriesView(FilterView):
                         slug=category_slug, is_active=True
                     )
 
-                    # If this category has children, treat it as a parent category
                     if current_category.get_children().filter(is_active=True).exists():
+                        # Main category page.
+                        parent_category = current_category
+                    elif current_category.parent and current_category.parent.is_active:
+                        # Subcategory page: keep parent as strip source, current as active item.
+                        parent_category = current_category.parent
+                    else:
                         parent_category = current_category
                 except Category.DoesNotExist:
                     pass
@@ -542,6 +555,7 @@ class CategoriesView(FilterView):
                 "meta_description": content_labels["meta_description"],
                 "has_filters": any(current_filters.values()),
                 "parent_category": parent_category,  # Add parent category to context
+                "current_category": current_category,
                 "subcategories": subcategories,  # Add subcategories list to context
                 "custom_fields_for_filters": custom_fields_for_filters,  # Add custom fields for filters
             }
@@ -1158,9 +1172,11 @@ class SubcategoryDetailView(FilterView):
             country__code=selected_country,
         ).count()
 
-        # Get subcategories
+        # For subcategory pages, keep the parent category as the strip source
+        # so users can switch between sibling subcategories quickly.
+        parent_category = self.category.parent if self.category.parent else self.category
         subcategories = (
-            self.category.get_children()
+            parent_category.get_children()
             .filter(is_active=True)
             .order_by("order", "name")
         )
@@ -1205,6 +1221,8 @@ class SubcategoryDetailView(FilterView):
         context.update(
             {
                 "category": self.category,
+                "parent_category": parent_category,
+                "current_category": self.category,
                 "breadcrumbs": breadcrumbs,
                 "subcategories": subcategories,
                 "total_subcategories": total_subcategories,
@@ -2855,6 +2873,14 @@ class ComparisonView(TemplateView):
         ad_ids_str = self.request.GET.get("ids", "")
         ad_ids = [int(id) for id in ad_ids_str.split(",") if id.isdigit()]
 
+        def _is_contact_like_field(field_key_or_label):
+            value = str(field_key_or_label or "").strip().lower()
+            contact_tokens = (
+                "phone", "mobile", "whatsapp", "email", "mail", "contact", "tel",
+                "هاتف", "جوال", "موبايل", "واتساب", "ايميل", "إيميل", "بريد", "تواصل",
+            )
+            return any(token in value for token in contact_tokens)
+
         if ad_ids:
             # Fetch ads, preserving the order of IDs for display consistency
             ads = list(ClassifiedAd.objects.filter(pk__in=ad_ids))
@@ -2909,6 +2935,8 @@ class ComparisonView(TemplateView):
                 )
                 for ccf in ccfs:
                     cf = ccf.custom_field
+                    if _is_contact_like_field(cf.name) or _is_contact_like_field(cf.label_ar) or _is_contact_like_field(cf.label_en):
+                        continue
                     label_ar = cf.label_ar or cf.name
                     label_en = cf.label_en or cf.label_ar or cf.name
                     option_value_map = {}
@@ -2930,8 +2958,25 @@ class ComparisonView(TemplateView):
                         cf_label_map[key_variant] = {"label_ar": label_ar, "label_en": label_en}
                         if option_value_map:
                             cf_value_map[key_variant] = option_value_map
+
+            # Build filtered per-ad custom fields and deduplicated dynamic field order
+            dynamic_compare_fields = []
+            seen_dynamic_fields = set()
+            for ad in ads:
+                source_custom_fields = ad.custom_fields or {}
+                filtered_custom_fields = {}
+                for key, value in source_custom_fields.items():
+                    if _is_contact_like_field(key):
+                        continue
+                    filtered_custom_fields[key] = value
+                    if key not in {"condition", "brand", "model", "year"} and key not in seen_dynamic_fields:
+                        seen_dynamic_fields.add(key)
+                        dynamic_compare_fields.append(key)
+                ad.compare_custom_fields = filtered_custom_fields
+
             context["custom_field_labels"] = cf_label_map
             context["custom_field_value_labels"] = cf_value_map
+            context["dynamic_compare_fields"] = dynamic_compare_fields
 
             # Increment view count for each ad being compared
             # Use F() expression to avoid race conditions
@@ -2945,6 +2990,7 @@ class ComparisonView(TemplateView):
             context["wishlist_ad_ids"] = []
             context["custom_field_labels"] = {}
             context["custom_field_value_labels"] = {}
+            context["dynamic_compare_fields"] = []
 
         context["page_title"] = _("مقارنة الإعلانات")
         return context
@@ -8722,9 +8768,25 @@ class PublisherSettingsView(LoginRequiredMixin, TemplateView):
         # Local mobile without leading zeros / country code
         mobile_local = strip_phone_to_local(user.mobile) if user.mobile else ""
         context["user_mobile_local"] = mobile_local
-        # Phone and WhatsApp fall back to verified mobile when empty
-        context["user_phone_local"] = strip_phone_to_local(user.phone) if user.phone else mobile_local
-        context["user_whatsapp_local"] = strip_phone_to_local(user.whatsapp) if user.whatsapp else mobile_local
+
+        phone_local = strip_phone_to_local(user.phone) if user.phone else ""
+        whatsapp_local = strip_phone_to_local(user.whatsapp) if user.whatsapp else ""
+
+        # Auto-sync phone/whatsapp from verified mobile if they're empty or still unset
+        sync_fields = []
+        if mobile_local and not phone_local:
+            user.phone = mobile_local
+            phone_local = mobile_local
+            sync_fields.append("phone")
+        if mobile_local and not whatsapp_local:
+            user.whatsapp = mobile_local
+            whatsapp_local = mobile_local
+            sync_fields.append("whatsapp")
+        if sync_fields:
+            user.save(update_fields=sync_fields)
+
+        context["user_phone_local"] = phone_local or mobile_local
+        context["user_whatsapp_local"] = whatsapp_local or mobile_local
         return context
 
 
@@ -8743,7 +8805,7 @@ def publisher_update_profile(request):
         mobile_local = strip_phone_to_local(user.mobile) if user.mobile else ""
         submitted_phone = strip_phone_to_local(request.POST.get("phone", "").strip())
         submitted_whatsapp = strip_phone_to_local(request.POST.get("whatsapp", "").strip())
-        # Fall back to verified mobile if submitted value is empty
+        # Always store in normalized local format; fall back to verified mobile if empty
         user.phone = submitted_phone or mobile_local
         user.whatsapp = submitted_whatsapp or mobile_local
         user.bio = request.POST.get("bio", "").strip()
@@ -8807,42 +8869,68 @@ def publisher_remove_avatar(request):
 @require_POST
 def publisher_send_change_mobile_otp(request):
     """
-    Step 1 of mobile-change flow: accept a new local phone number, combine with
-    the user's country dial-code, send an OTP to that number, store the pending
-    number in the session.
+    Step 1 of mobile-change flow: accept a mobile number, normalize it for SMS,
+    send an OTP to that destination, and store the pending local number/session
+    state.
+
+    If the number belongs to another user, we allow transfer: OTP is sent and
+    if verified, the number is removed from the previous owner (who gets notified).
     """
     import random
     from django.utils import timezone as tz
     from datetime import timedelta
+    import re
     from main.utils import strip_phone_to_local
 
     try:
         new_phone_raw = request.POST.get("new_mobile", "").strip()
+        raw_digits = re.sub(r"\D", "", new_phone_raw)
         new_phone = strip_phone_to_local(new_phone_raw)
         if not new_phone or len(new_phone) < 7:
             return JsonResponse({"success": False, "message": _("رقم الجوال غير صحيح")}, status=400)
 
-        # Build dial-code prefix from the user's country
-        dial_code = ""
-        if request.user.country and request.user.country.phone_code:
-            dial_code = request.user.country.phone_code  # e.g. "+20"
-        full_number = dial_code + new_phone
+        # Respect explicit international input (+XXXXXXXX or 00XXXXXXXX).
+        # Otherwise, treat input as local and prepend the user's dial code.
+        if new_phone_raw.startswith("+") and raw_digits:
+            full_number = f"+{raw_digits}"
+        elif raw_digits.startswith("00") and len(raw_digits) > 2:
+            full_number = f"+{raw_digits[2:]}"
+        else:
+            dial_code = ""
+            if request.user.country and request.user.country.phone_code:
+                dial_code = request.user.country.phone_code  # e.g. "+20"
+            full_number = dial_code + new_phone
+
+        # Check if number is already registered to another active user
+        existing_owner = (
+            User.objects.filter(mobile=new_phone, is_active=True)
+            .exclude(pk=request.user.pk)
+            .first()
+        )
+        if not existing_owner:
+            # Also check the phone field
+            existing_owner = (
+                User.objects.filter(phone=new_phone, is_active=True)
+                .exclude(pk=request.user.pk)
+                .first()
+            )
 
         # Generate 6-digit OTP
         otp_code = str(random.randint(100000, 999999))
         expires = tz.now() + timedelta(minutes=10)
 
-        # Persist in session
+        # Persist in session — include existing_owner_id for transfer handling
         request.session["change_mobile_pending"] = {
             "phone": new_phone,
             "full": full_number,
             "otp": otp_code,
             "expires": expires.isoformat(),
             "attempts": 0,
+            "existing_owner_id": existing_owner.pk if existing_owner else None,
         }
         request.session.modified = True
 
-        # Try SMS first, fall back to printing for dev
+        # Send OTP via SMS
         sent = False
         try:
             from main.services.sms_service import SMSService
@@ -8902,6 +8990,42 @@ def publisher_verify_change_mobile_otp(request):
     user = request.user
     old_mobile_local = strip_phone_to_local(user.mobile) if user.mobile else ""
     new_mobile_local = strip_phone_to_local(pending["phone"]) or pending["phone"]
+
+    # ── If number belonged to another user, remove it from them first ──
+    existing_owner_id = pending.get("existing_owner_id")
+    if existing_owner_id:
+        try:
+            prev_owner = User.objects.get(pk=existing_owner_id)
+            prev_fields = []
+            if strip_phone_to_local(prev_owner.mobile) == new_mobile_local:
+                prev_owner.mobile = ""
+                prev_owner.is_mobile_verified = False
+                prev_owner.mobile_verification_code = ""
+                prev_owner.mobile_verification_expires = None
+                prev_fields += ["mobile", "is_mobile_verified", "mobile_verification_code", "mobile_verification_expires"]
+            if strip_phone_to_local(prev_owner.phone) == new_mobile_local:
+                prev_owner.phone = ""
+                prev_fields.append("phone")
+            if strip_phone_to_local(getattr(prev_owner, "whatsapp", "") or "") == new_mobile_local:
+                prev_owner.whatsapp = ""
+                prev_fields.append("whatsapp")
+            if prev_fields:
+                prev_owner.save(update_fields=prev_fields)
+
+            # Notify previous owner
+            from main.models import Notification
+            Notification.objects.create(
+                user=prev_owner,
+                title=_("تنبيه: تم نقل رقم جوالك"),
+                message=_(
+                    "تم استخدام رقم جوالك ({}) من قِبَل عضو آخر وتأكيد ملكيته. "
+                    "إذا لم تكن تتوقع ذلك يرجى تحديث رقمك وإعادة التحقق."
+                ).format(pending.get("full", pending["phone"])),
+                notification_type="general",
+            )
+        except User.DoesNotExist:
+            pass
+
     user.mobile = pending["phone"]
     user.is_mobile_verified = True        # OTP already proved ownership of this number
     user.mobile_verification_code = ""
@@ -8919,7 +9043,7 @@ def publisher_verify_change_mobile_otp(request):
     request.session.pop("change_mobile_pending", None)
     return JsonResponse({
         "success": True,
-        "message": _("تم تحديث رقم الجوال بنجاح. يرجى التحقق منه."),
+        "message": _("تم تحديث رقم الجوال بنجاح."),
         "new_mobile": pending["phone"],
     })
 

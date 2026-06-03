@@ -733,6 +733,7 @@
                                     <input type="tel" id="mobile-display"
                                            class="form-control bg-light"
                                            value="{{ user_mobile_local }}"
+                                           data-prev="{{ user_mobile_local }}"
                                            readonly style="cursor:default">
                                     <button type="button" class="btn btn-outline-secondary btn-sm"
                                             id="open-change-mobile-btn" title="{% trans 'تغيير رقم الجوال' %}">
@@ -1741,6 +1742,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // ── Auto-fill phone/whatsapp from verified mobile on page load ───────
+    (function() {
+        const mob = document.getElementById('mobile-display');
+        const phoneInput = document.querySelector('input[name="phone"]');
+        const waInput    = document.querySelector('input[name="whatsapp"]');
+        if (mob && mob.value) {
+            if (phoneInput && !phoneInput.value) phoneInput.value = mob.value;
+            if (waInput    && !waInput.value)    waInput.value    = mob.value;
+        }
+    })();
+
     // ── Change-Mobile OTP flow ──────────────────────────────────────────
     const openBtn   = document.getElementById('open-change-mobile-btn');
     const closeBtn  = document.getElementById('close-change-mobile-btn');
@@ -1785,7 +1797,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     sendOtpBtn.disabled = false;
                     sendOtpBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i> {% trans "إرسال رمز التحقق" %}';
                     if (data.success) {
-                        otpHint.textContent = '{% trans "تم إرسال الرمز إلى" %} ' + (data.full_number || val);
+                        const normalizedNumber = String(data.full_number || val || '').replace(/[^\d+]/g, '');
+                        const shownNumber = normalizedNumber.startsWith('+')
+                            ? ('00' + normalizedNumber.slice(1))
+                            : normalizedNumber;
+                        otpHint.innerHTML = '{% trans "تم إرسال الرمز إلى" %} <bdi dir="ltr" style="unicode-bidi:isolate;display:inline-block">' + shownNumber + '</bdi>';
                         step1.style.display = 'none';
                         step2.style.display = 'block';
                     } else {
@@ -1822,6 +1838,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (data.success) {
                         showToast(data.message, 'success');
                         if (mobileDisplay && data.new_mobile) mobileDisplay.value = data.new_mobile;
+                        // Sync phone and WhatsApp fields from the new verified mobile
+                        const newLocal = data.new_mobile || '';
+                        const phoneInput = document.querySelector('input[name="phone"]');
+                        const waInput   = document.querySelector('input[name="whatsapp"]');
+                        if (phoneInput && (!phoneInput.value || phoneInput.value === mobileDisplay?.dataset?.prev)) phoneInput.value = newLocal;
+                        if (waInput   && (!waInput.value   || waInput.value   === mobileDisplay?.dataset?.prev)) waInput.value   = newLocal;
                         panel.style.display = 'none';
                         step1.style.display = 'block';
                         step2.style.display = 'none';

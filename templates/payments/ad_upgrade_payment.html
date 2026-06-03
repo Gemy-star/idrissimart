@@ -442,14 +442,26 @@ document.getElementById('paymentForm').addEventListener('submit', function(e) {
     }
 
     // Check if receipt is required and uploaded
-    if (['wallet', 'instapay'].includes(selectedMethod.value)) {
-        const receiptInput = document.getElementById('payment_receipt_' + selectedMethod.value);
+    if (selectedMethod.value === 'instapay') {
+        const receiptInput = document.getElementById('payment_receipt_instapay');
+        if (!receiptInput || !receiptInput.files || receiptInput.files.length === 0) {
+            e.preventDefault();
+            showPaymentAlert('{% trans "يرجى رفع إيصال الدفع" %}');
+            return false;
+        }
+    } else if (selectedMethod.value === 'wallet' && !{% if paymob_wallet_enabled %}true{% else %}false{% endif %}) {
+        const receiptInput = document.getElementById('payment_receipt_wallet');
         if (!receiptInput || !receiptInput.files || receiptInput.files.length === 0) {
             e.preventDefault();
             showPaymentAlert('{% trans "يرجى رفع إيصال الدفع" %}');
             return false;
         }
     }
+
+    // Keep user on platform: open online gateways in a new tab.
+    const isOnlineWallet = selectedMethod.value === 'wallet' && {% if paymob_wallet_enabled %}true{% else %}false{% endif %};
+    const onlineMethods = ['paypal', 'paymob', 'visa', 'card'];
+    this.target = (onlineMethods.includes(selectedMethod.value) || isOnlineWallet) ? '_blank' : '_self';
 });
 </script>
 {% endblock %}

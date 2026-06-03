@@ -274,6 +274,30 @@ class ClassifiedAdForm(forms.ModelForm):
             if phone_value:
                 self.fields["mobile_number"].initial = strip_phone_to_local(phone_value) or phone_value
 
+            # Pre-fill country and city from the user's profile when creating a new ad
+            if not self.is_editing and not (self.instance and self.instance.pk):
+                # Set country initial
+                if self.user.country and "country" in self.fields:
+                    self.fields["country"].initial = self.user.country.pk
+
+                # Set city initial and ensure it appears in choices
+                user_city = self.user.city
+                if user_city and "city" in self.fields:
+                    city_country = self.user.country
+                    if city_country and city_country.cities:
+                        city_choices = [("", _("اختر المدينة"))] + [
+                            (c, c) for c in city_country.cities
+                        ]
+                        if user_city not in city_country.cities:
+                            city_choices.append((user_city, user_city))
+                        self.fields["city"].choices = city_choices
+                    else:
+                        self.fields["city"].choices = [
+                            ("", _("اختر المدينة")),
+                            (user_city, user_city),
+                        ]
+                    self.fields["city"].initial = user_city
+
         category = None
         if "category" in self.data:
             try:

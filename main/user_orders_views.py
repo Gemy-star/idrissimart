@@ -9,13 +9,14 @@ from django.shortcuts import render, get_object_or_404
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.utils.translation import gettext as _
-from django.views.decorators.cache import never_cache
+from django.views.decorators.cache import never_cache, cache_control
 
 from .models import Order, OrderItem
 
 
 @login_required
 @never_cache
+@cache_control(no_cache=True, must_revalidate=True, no_store=True)
 def my_orders_list(request):
     """
     عرض طلبات العضو (مشتريات السلة)
@@ -80,6 +81,7 @@ def my_orders_list(request):
 
 @login_required
 @never_cache
+@cache_control(no_cache=True, must_revalidate=True, no_store=True)
 def my_order_detail(request, order_id):
     """
     عرض تفاصيل الطلب

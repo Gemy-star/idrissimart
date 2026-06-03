@@ -314,15 +314,24 @@
         const offlineMethods = ['instapay', 'wallet'];
         if (offlineMethods.includes(method.value)) {
             const paymobWalletEnabled = '{{ paymob_wallet_enabled }}' === 'True';
-            if (method.value === 'wallet' && paymobWalletEnabled) return; // online path
-            const fileInputs = form.querySelectorAll('input[name=payment_receipt]');
-            let hasFile = false;
-            fileInputs.forEach(f => { if (f.files && f.files.length > 0) hasFile = true; });
-            if (!hasFile) {
-                e.preventDefault();
-                alert('{% trans "يرجى رفع إيصال الدفع قبل المتابعة." %}');
+            if (method.value === 'wallet' && paymobWalletEnabled) {
+                // Online wallet path does not require receipt.
+            } else {
+                const fileInputs = form.querySelectorAll('input[name=payment_receipt]');
+                let hasFile = false;
+                fileInputs.forEach(f => { if (f.files && f.files.length > 0) hasFile = true; });
+                if (!hasFile) {
+                    e.preventDefault();
+                    alert('{% trans "يرجى رفع إيصال الدفع قبل المتابعة." %}');
+                    return;
+                }
             }
         }
+
+        const paymobWalletEnabled = '{{ paymob_wallet_enabled }}' === 'True';
+        const isOnlineWallet = method.value === 'wallet' && paymobWalletEnabled;
+        const onlineMethods = ['paypal', 'paymob', 'visa', 'card'];
+        form.target = (onlineMethods.includes(method.value) || isOnlineWallet) ? '_blank' : '_self';
     });
 })();
 </script>

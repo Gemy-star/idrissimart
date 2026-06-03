@@ -3,7 +3,9 @@
 {% load static i18n idrissimart_tags %}
 
 {% block title %}
-    {% if parent_category %}
+    {% if current_category %}
+        {{ current_category.display_name }}
+    {% elif parent_category %}
         {{ parent_category.display_name }}
     {% else %}
         {% trans "جميع الفئات" %}
@@ -687,7 +689,11 @@ html.dark .sk-line,
                     <a href="{% url 'main:categories' %}">{% trans "الأقسام" %}</a>
                     {% if parent_category %}
                         <span class="phc-sep"><i class="fas fa-chevron-left"></i></span>
-                        <span>{{ parent_category.display_name }}</span>
+                        <a href="{% url 'main:categories_by_slug' parent_category.slug %}">{{ parent_category.display_name }}</a>
+                        {% if current_category and current_category.id != parent_category.id %}
+                            <span class="phc-sep"><i class="fas fa-chevron-left"></i></span>
+                            <a href="{% url 'main:categories_by_slug' current_category.slug %}">{{ current_category.display_name }}</a>
+                        {% endif %}
                     {% else %}
                         <span class="phc-sep"><i class="fas fa-chevron-left"></i></span>
                         <span>{% trans "جميع الفئات" %}</span>
@@ -695,25 +701,26 @@ html.dark .sk-line,
                 </nav>
                 <div class="phc-title-row">
                     <div class="phc-icon">
-                        {% if parent_category and parent_category.icon %}
+                        {% if current_category and current_category.icon %}
+                            <i class="{{ current_category.icon }}"></i>
+                        {% elif parent_category and parent_category.icon %}
                             <i class="{{ parent_category.icon }}"></i>
                         {% else %}
                             <i class="fas fa-th-large"></i>
                         {% endif %}
                     </div>
                     <h1 class="phc-title">
-                        {% if parent_category %}{{ parent_category.display_name }}{% else %}{% trans "جميع الفئات" %}{% endif %}
+                        {% if current_category %}
+                            {{ current_category.display_name }}
+                        {% elif parent_category %}
+                            {{ parent_category.display_name }}
+                        {% else %}
+                            {% trans "جميع الفئات" %}
+                        {% endif %}
                     </h1>
                 </div>
             </div>
             <div class="phc-stats">
-                {% if total_subcategories %}
-                <div class="phc-stat">
-                    <div class="phc-stat-num">{{ total_subcategories }}</div>
-                    <div class="phc-stat-label">{% trans "قسم فرعي" %}</div>
-                </div>
-                <div class="phc-divider"></div>
-                {% endif %}
                 <div class="phc-stat">
                     <div class="phc-stat-num" id="totalAds">{{ total_ads|default:0 }}</div>
                     <div class="phc-stat-label">{% trans "إعلان" %}</div>
@@ -727,36 +734,12 @@ html.dark .sk-line,
 <!-- ===== SUBCATEGORY SWIPER ===== -->
 <section class="subcat-section">
     <div class="container">
-        <div class="subcat-section-hd">
-            <h2><i class="fas fa-layer-group"></i>{% trans "الأقسام الفرعية" %}</h2>
-            <div class="subcat-hd-actions">
-                <a class="subcat-view-all" href="{% url 'main:categories_by_slug' parent_category.slug %}">
-                    <i class="fas fa-eye"></i>
-                    {% trans "عرض كل الأقسام الفرعية" %}
-                </a>
-                <span class="subcat-meta-count">{{ subcategories|length }} {% trans "قسم" %}</span>
-            </div>
-        </div>
-
         <div class="subcat-swiper-wrap">
             <div class="subcat-swiper swiper" dir="rtl">
                 <div class="swiper-wrapper">
-                    <div class="swiper-slide">
-                        <a href="{% url 'main:categories' %}" class="subcat-card all-categories-card">
-                            <div class="subcat-img-wrap subcat-icon-fallback">
-                                <i class="fas fa-th-large"></i>
-                            </div>
-                            <div class="subcat-name">{% trans "جميع الأقسام" %}</div>
-                            <div class="subcat-badge">
-                                <i class="fas fa-bullhorn"></i>
-                                <span>{{ total_ads|default:0 }}</span>
-                            </div>
-                        </a>
-                    </div>
-
                     {% for subcategory in subcategories %}
                     <div class="swiper-slide">
-                        <a href="{% url 'main:category_detail' subcategory.slug %}" class="subcat-card">
+                        <a href="{% url 'main:categories_by_slug' subcategory.slug %}" class="subcat-card{% if current_category and current_category.slug == subcategory.slug %} active{% endif %}">
                             {% if subcategory.image %}
                             <div class="subcat-img-wrap">
                                 <img src="{{ subcategory.image.url }}" alt="{{ subcategory.display_name }}" loading="lazy">

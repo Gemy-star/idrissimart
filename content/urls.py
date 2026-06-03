@@ -4,6 +4,8 @@ from .views import (
     BlogDetailView,
     BlogLikeView,
     BlogListView,
+    TubeView,
+    tube_increment_views,
     get_cities,
     get_cities_by_id,
     newsletter_subscribe,
@@ -17,6 +19,10 @@ app_name = "content"
 
 urlpatterns = [
     path("", BlogListView.as_view(), name="blog_list"),
+    # إدريسي تيوب
+    path("tube/", TubeView.as_view(), name="tube"),
+    re_path(r"^tube/category/(?P<category_slug>[\w\-؀-ۿ]+)/$", TubeView.as_view(), name="tube_by_category"),
+    path("tube/views/<int:pk>/", tube_increment_views, name="tube_increment_views"),
     # Cities API endpoints
     path("api/cities/<str:country_code>/", get_cities, name="get_cities"),
     path(

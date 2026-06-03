@@ -23,6 +23,8 @@ from .models import (
     TermsPage,
     PaymentMethodConfig,
     PrivacyPage,
+    TubeCategory,
+    TubeVideo,
 )
 
 
@@ -1145,3 +1147,31 @@ class NewsletterAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         """Allow deleting subscribers"""
         return request.user.is_superuser
+
+
+# ── إدريسي تيوب ─────────────────────────────────────────────────────────────
+
+@admin.register(TubeCategory)
+class TubeCategoryAdmin(admin.ModelAdmin):
+    list_display  = ["name", "name_en", "icon", "color", "order", "is_active", "videos_count"]
+    list_editable = ["order", "is_active"]
+    prepopulated_fields = {"slug": ("name_en",)}
+    search_fields = ["name", "name_en"]
+
+    def videos_count(self, obj):
+        return obj.videos.filter(is_published=True).count()
+    videos_count.short_description = _("عدد الفيديوهات")
+
+
+@admin.register(TubeVideo)
+class TubeVideoAdmin(admin.ModelAdmin):
+    list_display  = ["title", "category", "duration", "views_count", "is_published", "order", "created_at"]
+    list_editable = ["is_published", "order"]
+    list_filter   = ["category", "is_published"]
+    search_fields = ["title", "title_en", "description"]
+    readonly_fields = ["views_count", "created_at", "updated_at"]
+    fieldsets = (
+        (_("المحتوى"), {"fields": ("title", "title_en", "description", "description_en", "category")}),
+        (_("الفيديو"), {"fields": ("video_url", "thumbnail", "duration")}),
+        (_("الإعدادات"), {"fields": ("is_published", "order", "views_count", "created_at", "updated_at")}),
+    )

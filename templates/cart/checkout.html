@@ -1012,8 +1012,16 @@ async function placeOrder() {
         const data = await resp.json();
         if (data.success) {
             showToast('{% trans "تم تأكيد الطلب بنجاح!" %}', 'success');
-            if ((paymentMethod === 'online' || paymentMethod === 'paypal') && data.payment_url) { window.location.href = data.payment_url; }
-            else { window.location.href = data.redirect_url || "{% url 'main:home' %}"; }
+            if ((paymentMethod === 'online' || paymentMethod === 'paypal') && data.payment_url) {
+                const paymentWindow = window.open(data.payment_url, '_blank');
+                if (!paymentWindow) {
+                    window.location.href = data.payment_url;
+                    return;
+                }
+                window.location.href = data.redirect_url || "{% url 'main:home' %}";
+            } else {
+                window.location.href = data.redirect_url || "{% url 'main:home' %}";
+            }
         } else {
             showToast(data.error || '{% trans "حدث خطأ" %}', 'error');
             btn.disabled = false;

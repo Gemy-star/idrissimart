@@ -17,8 +17,22 @@
 .cmp-stat-label{font-weight:600;color:var(--text-primary);font-size:.85rem}
 .cmp-stat-val{font-weight:700;color:var(--accent-purple)}
 
+.cmp-mobile{display:none}
+.cmp-mobile-card{background:var(--bg-primary);border:1px solid var(--border-color);border-radius:14px;padding:.8rem;margin-bottom:.75rem}
+.cmp-mobile-head{display:flex;gap:.7rem;align-items:flex-start;margin-bottom:.6rem}
+.cmp-mobile-img{width:72px;height:72px;object-fit:cover;border-radius:10px;flex-shrink:0}
+.cmp-mobile-title{font-weight:700;font-size:.92rem;line-height:1.35;color:var(--text-primary);text-decoration:none;display:block}
+.cmp-mobile-price{font-size:1.05rem;font-weight:800;color:var(--accent-purple);margin-top:.2rem}
+.cmp-mobile-list{margin:0;padding:0;list-style:none}
+.cmp-mobile-list li{display:flex;justify-content:space-between;gap:.6rem;padding:.38rem 0;border-top:1px dashed var(--border-color);font-size:.82rem}
+.cmp-mobile-list li:first-child{border-top:none}
+.cmp-mobile-key{color:var(--text-muted);font-weight:600}
+.cmp-mobile-val{color:var(--text-primary);font-weight:700;text-align:left}
+
 /* ── Mobile ── */
 @media(max-width:576px){
+    .cmp-wrapper{display:none}
+    .cmp-mobile{display:block}
   .cmp-table{min-width:0;width:100%}
   .cmp-table th,.cmp-table td{padding:.55rem .6rem;font-size:.78rem}
   .cmp-img{width:80px;height:80px;border-radius:8px}
@@ -37,14 +51,12 @@
                 <th class="cmp-feat">{% trans "الميزة" %}</th>
                 {% for ad in ads_to_compare %}
                 <th>
-                    <a href="{{ ad.get_absolute_url }}" target="_blank">
-                        {% if ad.images.first %}
-                            <img src="{{ ad.images.first.image.url }}" alt="{{ ad.title }}" class="cmp-img">
-                        {% else %}
-                            <img src="{% static 'images/placeholder-ad.jpg' %}" alt="{{ ad.title }}" class="cmp-img">
-                        {% endif %}
-                        <span class="cmp-title">{{ ad.title|truncatechars:40 }}</span>
-                    </a>
+                    {% if ad.images.first %}
+                        <img src="{{ ad.images.first.image.url }}" alt="{{ ad.title }}" class="cmp-img">
+                    {% else %}
+                        <img src="{% static 'images/placeholder-ad.jpg' %}" alt="{{ ad.title }}" class="cmp-img">
+                    {% endif %}
+                    <span class="cmp-title">{{ ad.title|truncatechars:40 }}</span>
                     <div class="mt-2">
                         <button class="btn btn-outline-danger btn-sm wishlist-btn {% if ad.id in wishlist_ad_ids %}active{% endif %}"
                                 data-ad-id="{{ ad.id }}"
@@ -139,17 +151,42 @@
                 {% for ia in ads_to_compare %}<td>{% if ia.custom_fields.year %}<span class="badge bg-warning text-dark"><i class="fas fa-calendar me-1"></i>{{ ia.custom_fields.year }}</span>{% else %}<span class="text-muted">{% trans "غير محدد" %}</span>{% endif %}</td>{% endfor %}
             </tr>
             {% endwith %}{% endif %}{% endfor %}{% endwith %}
-            {# Dynamic custom fields #}
-            {% for ad in ads_to_compare %}{% for field in ad.custom_fields.items %}{% if field.0 not in "condition,brand,model,year" %}
+            {# Dynamic custom fields (deduplicated + filtered in view) #}
+            {% for field_key in dynamic_compare_fields %}
             <tr>
                 <td class="cmp-feat">
-                    {% with cf_label=custom_field_labels|get_item:field.0 %}{% if cf_label %}{% if LANGUAGE_CODE == 'ar' %}{{ cf_label.label_ar }}{% else %}{{ cf_label.label_en }}{% endif %}{% else %}{{ field.0|capfirst }}{% endif %}{% endwith %}
+                    {% with cf_label=custom_field_labels|get_item:field_key %}{% if cf_label %}{% if LANGUAGE_CODE == 'ar' %}{{ cf_label.label_ar }}{% else %}{{ cf_label.label_en }}{% endif %}{% else %}{{ field_key|capfirst }}{% endif %}{% endwith %}
                 </td>
-                {% for ia in ads_to_compare %}<td>{% with fv=ia.custom_fields|get_item:field.0 %}{% if fv %}{% with field_map=custom_field_value_labels|get_item:field.0 %}{% with raw_value=fv|stringformat:"s" %}{% with field_option=field_map|get_item:raw_value %}{% if field_option %}{% if LANGUAGE_CODE == 'ar' %}{{ field_option.label_ar }}{% else %}{{ field_option.label_en }}{% endif %}{% else %}{{ fv }}{% endif %}{% endwith %}{% endwith %}{% endwith %}{% else %}<span class="text-muted">{% trans "غير محدد" %}</span>{% endif %}{% endwith %}</td>{% endfor %}
+                {% for ia in ads_to_compare %}<td>{% with fv=ia.compare_custom_fields|get_item:field_key %}{% if fv %}{% with field_map=custom_field_value_labels|get_item:field_key %}{% with raw_value=fv|stringformat:"s" %}{% with field_option=field_map|get_item:raw_value %}{% if field_option %}{% if LANGUAGE_CODE == 'ar' %}{{ field_option.label_ar }}{% else %}{{ field_option.label_en }}{% endif %}{% else %}{{ fv }}{% endif %}{% endwith %}{% endwith %}{% endwith %}{% else %}<span class="text-muted">{% trans "غير محدد" %}</span>{% endif %}{% endwith %}</td>{% endfor %}
             </tr>
-            {% endif %}{% endfor %}{% endfor %}
+            {% endfor %}
         </tbody>
     </table>
+</div>
+
+<div class="cmp-mobile">
+    {% for ad in ads_to_compare %}
+    <article class="cmp-mobile-card">
+        <div class="cmp-mobile-head">
+            {% if ad.images.first %}
+                <img src="{{ ad.images.first.image.url }}" alt="{{ ad.title }}" class="cmp-mobile-img">
+            {% else %}
+                <img src="{% static 'images/placeholder-ad.jpg' %}" alt="{{ ad.title }}" class="cmp-mobile-img">
+            {% endif %}
+            <div>
+                <span class="cmp-mobile-title">{{ ad.title|truncatechars:55 }}</span>
+                <div class="cmp-mobile-price">{% ad_price_formatted ad %}</div>
+            </div>
+        </div>
+        <ul class="cmp-mobile-list">
+            <li><span class="cmp-mobile-key">{% trans "القسم" %}</span><span class="cmp-mobile-val">{{ ad.category.display_name }}</span></li>
+            <li><span class="cmp-mobile-key">{% trans "الموقع" %}</span><span class="cmp-mobile-val">{% if LANGUAGE_CODE == 'ar' %}{{ ad.city }}{% else %}{{ ad.city_en|default:ad.city }}{% endif %}</span></li>
+            <li><span class="cmp-mobile-key">{% trans "التوصيل" %}</span><span class="cmp-mobile-val">{% if ad.is_delivery_available %}{% trans "متاح" %}{% else %}{% trans "غير متاح" %}{% endif %}</span></li>
+            <li><span class="cmp-mobile-key">{% trans "المشاهدات" %}</span><span class="cmp-mobile-val">{{ ad.views_count|default:0 }}</span></li>
+            <li><span class="cmp-mobile-key">{% trans "تاريخ النشر" %}</span><span class="cmp-mobile-val">{{ ad.created_at|date:"d/m/Y" }}</span></li>
+        </ul>
+    </article>
+    {% endfor %}
 </div>
 
 <div class="cmp-stats mt-3">
